@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">你的公开消息身份。存入少量资金用于支付消息费用和 .kachat 名称——切勿把打算花掉的钱发到这里。</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">测试网</string>
-    <string name="testnet_hub_footer">测试网仅用于测试——测试网 KAS 没有价值。在测试网上，你的账户使用 kaspatest: 地址，有独立的余额和聊天；连接设置使用测试网的值：测试网浏览器、自动发现节点，并且在测试网索引器出现前没有 KaChat 索引器。关闭后会恢复主网设置。</string>
     <string name="testnet_restart_to_testnet">请完全关闭 KaChat 后重新打开，以完成切换到测试网。</string>
     <string name="testnet_restart_to_mainnet">请完全关闭 KaChat 后重新打开，以完成切换回主网。</string>
     <string name="kaposts_not_on_testnet">KaPosts 暂不支持测试网</string>

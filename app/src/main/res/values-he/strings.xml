@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">הזהות הציבורית שלכם להודעות. טענו סכום קטן כדי לשלם עמלות הודעה ואת שם ה-‎.kachat שלכם - לעולם אל תשלחו לכאן כסף שאתם מתכוונים להוציא.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">טסטנט</string>
-    <string name="testnet_hub_footer">טסטנט מיועד לבדיקות בלבד - ל-KAS של טסטנט אין ערך. בטסטנט החשבון משתמש בכתובת kaspatest: עם יתרה וצ\'אטים משלו, והגדרות החיבור מכילות ערכי טסטנט: סייר טסטנט, איתור צמתים אוטומטי וללא אינדקסרים של KaChat עד שיהיו לטסטנט. כיבוי מחזיר את הגדרות הרשת הראשית.</string>
     <string name="testnet_restart_to_testnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את המעבר לטסטנט.</string>
     <string name="testnet_restart_to_mainnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את החזרה לרשת הראשית.</string>
     <string name="kaposts_not_on_testnet">KaPosts עדיין לא זמין ברשת הבדיקה</string>

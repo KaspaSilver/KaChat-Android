@@ -519,7 +519,6 @@
     <string name="welcome_chatting_address_caption">Identitas pesan publikmu. Isi dengan sedikit dana untuk membayar biaya pesan dan nama .kachat-mu - jangan pernah mengirim uang ke sini yang ingin kamu belanjakan.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
-    <string name="testnet_hub_footer">Testnet hanya untuk pengujian - KAS testnet tidak bernilai. Di testnet akunmu memakai alamat kaspatest: dengan saldo dan obrolannya sendiri, dan Pengaturan Koneksi berisi nilai testnet: penjelajah testnet, penemuan node otomatis, dan tanpa pengindeks KaChat sampai ada untuk testnet. Mematikannya mengembalikan pengaturan mainnet-mu.</string>
     <string name="testnet_restart_to_testnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.</string>
     <string name="testnet_restart_to_mainnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan kembali ke Mainnet.</string>
     <string name="kaposts_not_on_testnet">KaPosts belum tersedia di Testnet</string>

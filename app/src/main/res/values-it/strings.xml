@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">La tua identità pubblica per i messaggi. Ricaricala con una piccola somma per pagare le commissioni dei messaggi e il tuo nome .kachat: non inviare mai qui denaro che intendi spendere.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
-    <string name="testnet_hub_footer">Il testnet serve solo per i test: i KAS di testnet non hanno valore. Sul testnet il tuo account usa il suo indirizzo kaspatest:, con saldo e chat propri, e le impostazioni di connessione contengono valori testnet: l\'explorer testnet, la ricerca automatica dei nodi e nessun indicizzatore KaChat finché non ne esistono per il testnet. Disattivandolo tornano le impostazioni mainnet.</string>
     <string name="testnet_restart_to_testnet">Chiudi completamente KaChat e riaprilo per completare il passaggio al Testnet.</string>
     <string name="testnet_restart_to_mainnet">Chiudi completamente KaChat e riaprilo per completare il ritorno al Mainnet.</string>
     <string name="kaposts_not_on_testnet">KaPosts non è ancora disponibile sulla Testnet</string>

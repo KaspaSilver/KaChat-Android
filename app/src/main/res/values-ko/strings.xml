@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">공개 메시지 신원입니다. 메시지 수수료와 .kachat 이름 비용으로 소액을 넣어 두세요. 쓸 돈은 절대 여기로 보내지 마세요.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">테스트넷</string>
-    <string name="testnet_hub_footer">테스트넷은 테스트 전용이며 테스트넷 KAS는 가치가 없습니다. 테스트넷에서는 계정이 kaspatest: 주소를 쓰고 잔액과 채팅도 따로입니다. 연결 설정에는 테스트넷 값(테스트넷 탐색기, 자동 노드 검색, 테스트넷용이 생길 때까지 KaChat 인덱서 없음)이 들어갑니다. 끄면 메인넷 설정이 돌아옵니다.</string>
     <string name="testnet_restart_to_testnet">테스트넷 전환을 마치려면 KaChat을 완전히 종료한 뒤 다시 여세요.</string>
     <string name="testnet_restart_to_mainnet">메인넷으로 돌아가려면 KaChat을 완전히 종료한 뒤 다시 여세요.</string>
     <string name="kaposts_not_on_testnet">KaPosts는 아직 테스트넷에서 사용할 수 없습니다</string>

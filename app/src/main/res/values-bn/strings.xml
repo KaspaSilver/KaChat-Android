@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">আপনার পাবলিক মেসেজিং পরিচয়। মেসেজ ফি ও আপনার .kachat নামের জন্য অল্প কিছু টাকা রাখুন - যে টাকা খরচ করতে চান তা কখনো এখানে পাঠাবেন না।</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">টেস্টনেট</string>
-    <string name="testnet_hub_footer">টেস্টনেট শুধু পরীক্ষার জন্য - টেস্টনেট KAS-এর কোনো মূল্য নেই। টেস্টনেটে আপনার অ্যাকাউন্ট নিজস্ব ব্যালান্স ও চ্যাটসহ kaspatest: ঠিকানা ব্যবহার করে, আর সংযোগ সেটিংসে টেস্টনেটের মান থাকে: টেস্টনেট এক্সপ্লোরার, স্বয়ংক্রিয় নোড খোঁজা, এবং টেস্টনেটের জন্য না আসা পর্যন্ত কোনো KaChat ইনডেক্সার নেই। বন্ধ করলে আপনার মেইননেট সেটিংস ফিরে আসে।</string>
     <string name="testnet_restart_to_testnet">টেস্টনেটে বদল শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।</string>
     <string name="testnet_restart_to_mainnet">মেইননেটে ফেরা শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।</string>
     <string name="kaposts_not_on_testnet">KaPosts এখনও টেস্টনেটে উপলব্ধ নয়</string>

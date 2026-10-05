@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">هويتك العامة للمراسلة. موّلها بمبلغ صغير لدفع رسوم الرسائل واسم ‎.kachat الخاص بك - لا ترسل إلى هنا أبدًا أموالًا تنوي إنفاقها.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">الشبكة التجريبية</string>
-    <string name="testnet_hub_footer">الشبكة التجريبية للاختبار فقط - عملات KAS التجريبية بلا قيمة. على الشبكة التجريبية يستخدم حسابك عنوان kaspatest: برصيد ومحادثات خاصة به، وتحمل إعدادات الاتصال قيم الشبكة التجريبية: مستكشف الشبكة التجريبية، واكتشاف العقد تلقائيًا، ودون مفهرسات KaChat حتى تتوفر للشبكة التجريبية. إيقافها يعيد إعدادات الشبكة الرئيسية.</string>
     <string name="testnet_restart_to_testnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام التبديل إلى الشبكة التجريبية.</string>
     <string name="testnet_restart_to_mainnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام العودة إلى الشبكة الرئيسية.</string>
     <string name="kaposts_not_on_testnet">منشورات KaPosts غير متاحة على الشبكة التجريبية بعد</string>

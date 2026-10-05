@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">Danh tính nhắn tin công khai của bạn. Nạp một ít để trả phí tin nhắn và tên .kachat - đừng bao giờ gửi vào đây số tiền bạn định chi tiêu.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
-    <string name="testnet_hub_footer">Testnet chỉ để thử nghiệm - KAS testnet không có giá trị. Trên testnet, tài khoản của bạn dùng địa chỉ kaspatest: với số dư và cuộc trò chuyện riêng, và Cài đặt kết nối chứa giá trị testnet: trình khám phá testnet, tự động tìm node và không có trình lập chỉ mục KaChat cho đến khi có bản testnet. Tắt đi sẽ khôi phục cài đặt mainnet.</string>
     <string name="testnet_restart_to_testnet">Đóng hẳn KaChat rồi mở lại để hoàn tất chuyển sang Testnet.</string>
     <string name="testnet_restart_to_mainnet">Đóng hẳn KaChat rồi mở lại để hoàn tất quay về Mainnet.</string>
     <string name="kaposts_not_on_testnet">KaPosts chưa khả dụng trên Testnet</string>

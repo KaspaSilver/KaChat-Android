@@ -679,7 +679,6 @@
     <string name="welcome_chatting_address_caption">هویت عمومی پیام‌رسانی شما. مبلغ کمی واریز کنید تا کارمزد پیام‌ها و نام ‎.kachat شما پرداخت شود - هرگز پولی را که قصد خرج کردنش را دارید به اینجا نفرستید.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">تست‌نت</string>
-    <string name="testnet_hub_footer">تست‌نت فقط برای آزمایش است - KAS تست‌نت ارزشی ندارد. در تست‌نت حساب شما از آدرس kaspatest: با موجودی و گفتگوهای جداگانه استفاده می‌کند و تنظیمات اتصال مقادیر تست‌نت را دارد: کاوشگر تست‌نت، کشف خودکار گره و بدون نمایه‌ساز KaChat تا زمانی که برای تست‌نت ساخته شود. خاموش کردن آن تنظیمات شبکه اصلی را برمی‌گرداند.</string>
     <string name="testnet_restart_to_testnet">برای تکمیل تغییر به تست‌نت، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
     <string name="testnet_restart_to_mainnet">برای تکمیل بازگشت به شبکه اصلی، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
     <string name="kaposts_not_on_testnet">KaPosts هنوز در شبکه آزمایشی در دسترس نیست</string>

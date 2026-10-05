@@ -642,7 +642,6 @@
     <string name="welcome_chatting_address_caption">メッセージ用の公開 ID です。メッセージ手数料と .kachat 名の支払い用に少額を入れてください。使う予定のお金はここに送らないでください。</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">テストネット</string>
-    <string name="testnet_hub_footer">テストネットはテスト専用で、テストネットの KAS に価値はありません。テストネットではアカウントは kaspatest: アドレスを使い、残高とチャットも別になります。接続設定はテストネットの値（テストネットのエクスプローラ、ノードの自動検出、テストネット用ができるまで KaChat インデクサなし）になります。オフにするとメインネットの設定に戻ります。</string>
     <string name="testnet_restart_to_testnet">テストネットへの切り替えを完了するには、KaChat を完全に終了して開き直してください。</string>
     <string name="testnet_restart_to_mainnet">メインネットへの切り替えを完了するには、KaChat を完全に終了して開き直してください。</string>
     <string name="kaposts_not_on_testnet">KaPosts はまだテストネットでは利用できません</string>

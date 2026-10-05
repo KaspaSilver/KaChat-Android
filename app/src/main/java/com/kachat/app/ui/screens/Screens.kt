@@ -9769,9 +9769,9 @@ fun SettingsDivider(inset: androidx.compose.ui.unit.Dp = 16.dp) {
 }
 
 /**
- * Settings > Connection (iOS `ConnectionHubPage`, 0c1af03): Connection Settings, the Testnet
- * switch right under it - with the restart note while the running network differs, and a footer
- * on what testnet changes - then Kaspa Explorer in its own section. Shared by the in-account
+ * Settings > Connection (iOS `ConnectionHubPage`, 0c1af03; 010167f): the Testnet switch first -
+ * with the restart note while the running network differs, and no footer - then Connection
+ * Settings, then Kaspa Explorer in its own section. Shared by the in-account
  * Settings page and the accounts screen's App Settings.
  */
 @Composable
@@ -9786,11 +9786,9 @@ fun ConnectionHubSections(
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val colors = LocalAppColors.current
     SettingsSection(title = stringResource(R.string.connection)) {
-        SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, onClick = onOpenConnectionSettings)
-        SettingsDivider(inset = IosRowTextInset)
-        // Mainnet <-> testnet. Each network keeps its own connection settings, so Connection
-        // Settings above shows the testnet values while this is on, and the mainnet ones come
-        // back when it's off.
+        // Mainnet <-> testnet, first in the section (no footer). Each network keeps its own
+        // connection settings, so Connection Settings below shows the testnet values while this
+        // is on, and the mainnet ones come back when it's off.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -9830,8 +9828,9 @@ fun ConnectionHubSections(
                 )
             }
         }
+        SettingsDivider(inset = IosRowTextInset)
+        SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, onClick = onOpenConnectionSettings)
     }
-    SettingsFooter(stringResource(R.string.testnet_hub_footer))
     Spacer(Modifier.height(8.dp))
     SettingsSection(title = null) {
         SettingsNavigationItem(stringResource(R.string.kaspa_explorer), Icons.Default.Explore, explorerName, onClick = onOpenExplorer)
