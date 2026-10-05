@@ -56,7 +56,10 @@ object KaspaUtxoSelector {
         feeRateSompiPerGram: Long,
         payloadBytes: ByteArray?,
         recipientScriptLen: Int,
-        changeScriptLen: Int
+        changeScriptLen: Int,
+        /** A flat extra on top of the mass-priced fee - the Send KAS sheet's Fast / Priority /
+         *  custom fee (iOS extraFeeSompi, 62c2773). Paid exactly: it is part of [SelectionResult.estimatedFee]. */
+        extraFeeSompi: Long = 0L
     ): SelectionResult {
         var totalSelected = 0L
         val selectedUtxos = mutableListOf<UtxoEntry>()
@@ -89,7 +92,7 @@ object KaspaUtxoSelector {
                 outputScriptLens = outputScriptLens,
                 payloadSize = payloadSize
             )
-            estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
+            estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + extraFeeSompi
 
             if (totalSelected >= (amountSompi + estimatedFee)) {
                 val change = totalSelected - amountSompi - estimatedFee
@@ -138,12 +141,17 @@ object KaspaUtxoSelector {
         amountSompi: Long,
         feeRateSompiPerGram: Long,
         recipientScriptLen: Int,
-        changeScriptLen: Int
+        changeScriptLen: Int,
+        /** The transaction's payload (a chat payment's memo) - priced into the mass, so coin
+         *  control never underpays a payload-carrying send. */
+        payloadBytes: ByteArray? = null,
+        /** Flat extra fee on top - see [selectUtxosAndCalculateFee]. */
+        extraFeeSompi: Long = 0L
     ): SelectionResult {
         val totalSelected = utxos.sumOf { it.utxoEntry.amount }
         val outputScriptLens = if (amountSompi > 0) listOf(recipientScriptLen, changeScriptLen) else listOf(changeScriptLen)
-        val mass = KaspaMass.calculateMass(numInputs = utxos.size, outputScriptLens = outputScriptLens, payloadSize = 0)
-        val estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
+        val mass = KaspaMass.calculateMass(numInputs = utxos.size, outputScriptLens = outputScriptLens, payloadSize = payloadBytes?.size ?: 0)
+        val estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + extraFeeSompi
 
         var finalAmount = amountSompi
         var requiredAmount = amountSompi + estimatedFee
@@ -181,7 +189,9 @@ object KaspaUtxoSelector {
         feeRateSompiPerGram: Long,
         payloadBytes: ByteArray?,
         recipientScriptLen: Int,
-        changeScriptLen: Int
+        changeScriptLen: Int,
+        /** Flat extra fee on top - see [selectUtxosAndCalculateFee]. */
+        extraFeeSompi: Long = 0L
     ): SelectionResult {
         val selectedUtxos = utxos.toList()
         val totalSelected = selectedUtxos.sumOf { it.utxoEntry.amount }
@@ -193,7 +203,7 @@ object KaspaUtxoSelector {
             outputScriptLens = outputScriptLens,
             payloadSize = payloadSize
         )
-        val estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
+        val estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + extraFeeSompi
 
         var finalAmount = amountSompi
         var requiredAmount = amountSompi + estimatedFee

@@ -108,6 +108,8 @@ class KaspaWalletEngine @Inject constructor(
      * enough large UTXOs — resolved by outpoint against the freshly-reconciled `utxos` fetched
      * below, since the caller's selection may be stale (spent by another device, aged out) by
      * the time this actually runs. Ignored when [sweepAll] is set.
+     * @param extraFeeSompi A flat extra on top of the mass-priced fee (the Send KAS sheet's Fast /
+     * Priority / custom fee, iOS 62c2773) - paid exactly, whichever selector runs.
      * @return Result containing the transaction ID or an error.
      */
     suspend fun sendKaspa(
@@ -127,7 +129,8 @@ class KaspaWalletEngine @Inject constructor(
          * and it is the only way an account whose only coin IS a received handshake can ever
          * answer it (iOS buildHandshakeTx's third shape).
          */
-        allowReducedAmount: Boolean = false
+        allowReducedAmount: Boolean = false,
+        extraFeeSompi: Long = 0L
     ): Result<String> = sendMutex.withLock {
         try {
             // 1. Validate address
@@ -178,7 +181,8 @@ class KaspaWalletEngine @Inject constructor(
                     feeRateSompiPerGram = feeRateSompiPerGram,
                     payloadBytes = payloadBytes,
                     recipientScriptLen = recipientScriptHex.length / 2,
-                    changeScriptLen = changeScriptHex.length / 2
+                    changeScriptLen = changeScriptHex.length / 2,
+                    extraFeeSompi = extraFeeSompi
                 )
             } else if (!manualUtxos.isNullOrEmpty()) {
                 val freshByOutpoint = utxos.associateBy { outpointKey(it.outpoint) }
@@ -191,16 +195,19 @@ class KaspaWalletEngine @Inject constructor(
                     amountSompi = amountSompi,
                     feeRateSompiPerGram = feeRateSompiPerGram,
                     recipientScriptLen = recipientScriptHex.length / 2,
-                    changeScriptLen = changeScriptHex.length / 2
+                    changeScriptLen = changeScriptHex.length / 2,
+                    payloadBytes = payloadBytes,
+                    extraFeeSompi = extraFeeSompi
                 )
             } else {
-                selectUtxosAndCalculateFee(
+                KaspaUtxoSelector.selectUtxosAndCalculateFee(
                     utxos = utxos,
                     amountSompi = amountSompi,
                     feeRateSompiPerGram = feeRateSompiPerGram,
                     payloadBytes = payloadBytes,
                     recipientScriptLen = recipientScriptHex.length / 2,
-                    changeScriptLen = changeScriptHex.length / 2
+                    changeScriptLen = changeScriptHex.length / 2,
+                    extraFeeSompi = extraFeeSompi
                 )
             }
             var finalAmount = selectionResult.finalAmount
@@ -433,6 +440,11 @@ class KaspaWalletEngine @Inject constructor(
          *  [com.kachat.app.util.MessageProtocol.buildPaymentPayload]); null for a plain payment. */
         payloadBytes: ByteArray? = null,
         sourceSpendingIndex: Int? = null,
+        /** Coin control: spend exactly these coins of the source address instead of sweeping it
+         *  (resolved against the fresh fetch in [sendKaspa]). null = sweep, as always. */
+        manualUtxos: List<UtxoEntry>? = null,
+        /** Fast / Priority / custom extra on top of the base fee, paid exactly. */
+        extraFeeSompi: Long = 0L,
     ): Result<String> {
         val identityAddress = walletManager.getAddress()
         val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
@@ -457,8 +469,12 @@ class KaspaWalletEngine @Inject constructor(
             fromAddress = sourceSpendingAddress,
             signingPrivateKey = spendingPrivateKey,
             changeAddress = nextSpendingAddress,
-            sweepAll = true,
-            feeRateOverride = feeRateOverride
+            // Coin control replaces the sweep: only the chosen coins are spent, the rest stay
+            // on the source address (iOS 62c2773: the builder picks only from those).
+            sweepAll = manualUtxos.isNullOrEmpty(),
+            feeRateOverride = feeRateOverride,
+            manualUtxos = manualUtxos,
+            extraFeeSompi = extraFeeSompi
         )
         if (result.isSuccess) {
             if (keepsPrimary) {

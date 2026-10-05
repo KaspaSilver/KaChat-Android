@@ -178,4 +178,47 @@ class KaspaUtxoSelectorTest {
         assertTrue(!result.storageMassBlocked)
         assertEquals(1, result.selectedUtxos.size)
     }
+
+    // --- extraFeeSompi and coin control (the Send KAS sheet's fee card, iOS 62c2773) -------
+
+    @Test
+    fun `an extra fee is paid exactly on top of the mass-priced fee, by every selector`() {
+        val utxos = listOf(utxo(100_000_000L, "a"), utxo(50_000_000L, "b"))
+        val extra = 12_345L
+        fun greedy(x: Long) = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
+            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34, extraFeeSompi = x
+        )
+        fun sweep(x: Long) = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
+            utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
+            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34, extraFeeSompi = x
+        )
+        fun manual(x: Long) = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
+            utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
+            recipientScriptLen = 34, changeScriptLen = 34, extraFeeSompi = x
+        )
+        for ((base, withExtra) in listOf(greedy(0) to greedy(extra), sweep(0) to sweep(extra), manual(0) to manual(extra))) {
+            assertEquals(base.selectedUtxos, withExtra.selectedUtxos)
+            assertEquals(base.estimatedFee + extra, withExtra.estimatedFee)
+            assertEquals(base.finalAmount, withExtra.finalAmount)
+            assertEquals(base.changeAmount - extra, withExtra.changeAmount)
+        }
+    }
+
+    @Test
+    fun `coin control spends exactly the picked coins and prices a memo payload`() {
+        val picked = listOf(utxo(50_000_000L, "b"), utxo(10_000_000L, "c"))
+        val plain = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
+            picked, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
+            recipientScriptLen = 34, changeScriptLen = 34
+        )
+        val withMemo = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
+            picked, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
+            recipientScriptLen = 34, changeScriptLen = 34, payloadBytes = ByteArray(200)
+        )
+        assertEquals(picked, withMemo.selectedUtxos)
+        assertEquals(60_000_000L, withMemo.totalSelected)
+        assertTrue(withMemo.estimatedFee > plain.estimatedFee)
+        assertEquals(withMemo.totalSelected - withMemo.finalAmount - withMemo.estimatedFee, withMemo.changeAmount)
+    }
 }

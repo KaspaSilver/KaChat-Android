@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.sp
 import com.kachat.app.R
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.models.MessageEntity
-import com.kachat.app.repository.ChatRepository
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaUnit
@@ -70,10 +69,12 @@ const val MAX_PAYMENT_MEMO_LENGTH = 140
 private const val DUST_LIMIT_SOMPI = 10_000_001L
 
 /**
- * "Send KAS": who it goes to, the exact amount (KAS or fiat), an encrypted memo, the fee and
- * available balance, and a slide-to-send button (iOS afaad34) - sliding rather than tapping, so a
- * payment can't go out on a stray touch. It replaced the composer's payment mode; every way into a payment (the
- * "+" sheet's Pay in Kaspa, "Pay in Kaspa" from a group or public chat's sender sheet) opens it.
+ * "Send KAS": who it goes to, the exact amount (KAS or fiat), an encrypted memo, the available
+ * balance, the fee card (speed, custom fee, coin control - iOS 62c2773), and a slide-to-send
+ * button (iOS afaad34) - sliding rather than tapping, so a payment can't go out on a stray touch.
+ * It replaced the composer's payment mode; every way into a payment (the "+" sheet's Pay in
+ * Kaspa, "Pay in Kaspa" from a group or public chat's sender sheet) opens it. It scrolls and
+ * opens at full height.
  * Mirrors iOS's `ChatDetailView.paymentSheet` (8d208b2).
  *
  * The amount itself lives in the view model ([onAmountKasChange] feeds `setPaymentAmount`), so
@@ -89,7 +90,6 @@ fun SendKasSheet(
     currencyCode: String,
     note: String,
     onNoteChange: (String) -> Unit,
-    feeSompi: Long?,
     availableText: String,
     /** Chats Payment Privacy on: the Available pill is the paying spending address's balance,
      *  underlined, and opens Send From to pay from another spending address (iOS dae8a01). Off,
@@ -103,6 +103,10 @@ fun SendKasSheet(
     paysToFreshAddress: Boolean,
     /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
     maxKas: () -> Double,
+    /** The shared fee card (SendFeeControls): Network Fee (tap for a custom fee), Normal / Fast /
+     *  Priority, and Coin Control on the address this payment comes from - in place of the old
+     *  fee pill (iOS 62c2773). The screen owns its state, as it owns the send. */
+    feeControls: @Composable () -> Unit,
     error: String?,
     isSending: Boolean,
     onSend: () -> Unit,
@@ -208,19 +212,9 @@ fun SendKasSheet(
                 )
             }
 
-            // Fee and available pills.
+            // The available pill, then the fee card (iOS 62c2773).
             val sourcePickerHint = stringResource(R.string.send_from_hint)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    if (feeSompi != null) "fee: ${ChatRepository.formatKas(feeSompi)} ${KaspaUnit.symbol}" else "fee: -- ${KaspaUnit.symbol}",
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.surface)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                )
+            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -266,6 +260,8 @@ fun SendKasSheet(
                     }
                 }
             }
+
+            feeControls()
 
             if (error != null) {
                 Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)

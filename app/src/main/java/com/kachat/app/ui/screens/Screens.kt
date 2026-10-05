@@ -322,6 +322,23 @@ fun ChatThreadScreen(
      *  sheet opens; the primary itself never changes (iOS dae8a01). */
     var paymentSource by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
     var showPaymentSourcePicker by remember { mutableStateOf(false) }
+    /** Fee speed and a custom fee, and coin control - the same controls as every Send Kaspa
+     *  screen (SendFeeControls). The extra over the base fee and the picked coins go to
+     *  sendPayment (iOS 62c2773). */
+    var paymentFeeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var paymentCustomExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
+    var isEditingPaymentFee by remember { mutableStateOf(false) }
+    var paymentCustomFeeText by remember { mutableStateOf("") }
+    var paymentManualUtxos by remember { mutableStateOf<List<com.kachat.app.services.UtxoEntry>?>(null) }
+    var showPaymentCoinControl by remember { mutableStateOf(false) }
+    val resetPaymentFeeAndCoins: () -> Unit = {
+        paymentFeeTier = ColdFeeTier.NORMAL
+        paymentCustomExtraFeeSompi = null
+        isEditingPaymentFee = false
+        paymentManualUtxos = null
+        showPaymentCoinControl = false
+        chatViewModel.setPaymentManualUtxos(null)
+    }
     val openPaymentSheet: () -> Unit = {
         chatViewModel.setPaymentAmount("")
         chatViewModel.setPaymentNote("")
@@ -329,6 +346,7 @@ fun ChatThreadScreen(
         paymentError = null
         paymentSource = null
         chatViewModel.setPaymentSource(null)
+        resetPaymentFeeAndCoins()
         showPaymentSheet = true
     }
     val closePaymentSheet: () -> Unit = {
@@ -340,6 +358,7 @@ fun ChatThreadScreen(
         paymentError = null
         paymentSource = null
         chatViewModel.setPaymentSource(null)
+        resetPaymentFeeAndCoins()
     }
     LaunchedEffect(Unit) {
         if (startInPaymentMode && !startPaymentConsumed) {
@@ -1800,11 +1819,16 @@ fun ChatThreadScreen(
     }
 
     if (showPaymentSheet) {
-        // Spending-chain UTXOs (what a payment actually spends from), not the identity address's.
-        val spendingUtxos by chatViewModel.spendingUtxos.collectAsState()
         // The memo rides in the payload, so the fee preview prices it (iOS 8d208b2).
         LaunchedEffect(paymentNote) { chatViewModel.setPaymentNote(paymentNote) }
         val amountSompi = ((paymentAmount.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
+        // The extra over the base fee: a custom fee, else what the speed adds (Fast 2x, Priority
+        // 5x). Nothing while the base is unknown, as on iOS.
+        val paymentBaseFeeSompi = estimatedFee
+        val paymentExtraFeeSompi = paymentBaseFeeSompi?.let { base ->
+            paymentCustomExtraFeeSompi ?: (base * (paymentFeeTier.multiplier - 1))
+        } ?: 0L
+        val paymentTotalFeeSompi = paymentBaseFeeSompi?.let { it + paymentExtraFeeSompi }
         SendKasSheet(
             recipientName = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
             amountSompi = amountSompi,
@@ -1813,7 +1837,6 @@ fun ChatThreadScreen(
             currencyCode = fiatCurrencyCode,
             note = paymentNote,
             onNoteChange = { paymentNote = it },
-            feeSompi = estimatedFee,
             // The paying spending address's balance when Chats Payment Privacy is ON (underlined
             // + tappable, opens Send From to pay from another spending address), chatting balance
             // when OFF (plain, not tappable: it always pays from the chatting address) - iOS
@@ -1829,18 +1852,45 @@ fun ChatThreadScreen(
                 ?: primarySpendingIndex?.let { "Address #$it" },
             paysToFreshAddress = paysToFreshPoolAddress,
             maxKas = {
-                // Mirror KaspaWalletEngine's own fee calculation exactly (real Kaspa mass model,
-                // a recipient + change output) so the amount filled in is always sendable.
-                val mass = com.kachat.app.util.KaspaMass.calculateMass(
-                    numInputs = spendingUtxos.size.coerceAtLeast(1),
-                    outputScriptLens = listOf(34, 34),
-                    payloadSize = 0
-                )
-                val fee = com.kachat.app.util.KaspaMass.calculateFee(mass, networkFeeRate.toLong())
                 // Same source the send will use: the paying spending address (the picked one,
-                // else the primary) with privacy ON, chatting balance with privacy OFF.
+                // else the primary) with privacy ON, chatting balance with privacy OFF - or just
+                // the coins picked in coin control. Leaves room for the base fee (KaspaWalletEngine's
+                // mass model and rate) and the speed / custom extra (iOS 62c2773).
                 val sourceBalanceSompi = if (paymentPrivacyOn) (paymentSource?.balanceSompi ?: spendingBalanceSompi) else identityBalanceSompi
-                (sourceBalanceSompi - fee).coerceAtLeast(0L).toDouble() / 100_000_000.0
+                chatViewModel.paymentMaxSompi(sourceBalanceSompi, paymentExtraFeeSompi).toDouble() / 100_000_000.0
+            },
+            feeControls = {
+                SendFeeControls(
+                    feeTier = paymentFeeTier,
+                    onFeeTierChange = {
+                        paymentFeeTier = it
+                        paymentCustomExtraFeeSompi = null
+                        isEditingPaymentFee = false
+                    },
+                    isEditingFee = isEditingPaymentFee,
+                    customFeeText = paymentCustomFeeText,
+                    onCustomFeeTextChange = { paymentCustomFeeText = it },
+                    isEstimatingFee = false,
+                    feeText = paymentTotalFeeSompi?.let { "${ChatRepository.formatKas(it)} ${KaspaUnit.symbol}" },
+                    onStartEditing = {
+                        paymentTotalFeeSompi?.let { total ->
+                            paymentCustomFeeText = ChatRepository.formatKas(total)
+                            isEditingPaymentFee = true
+                        }
+                    },
+                    onCommit = {
+                        // A typed total fee below the base is raised to it (a transaction can't
+                        // go out under it).
+                        val base = paymentBaseFeeSompi
+                        val kas = paymentCustomFeeText.replace(',', '.').trim().toDoubleOrNull()
+                        if (base != null && kas != null && kas >= 0) {
+                            paymentCustomExtraFeeSompi = (Math.round(kas * 100_000_000.0) - base).coerceAtLeast(0L)
+                        }
+                        isEditingPaymentFee = false
+                    },
+                    coinControlSummary = coinControlSummary(paymentManualUtxos),
+                    onCoinControl = { if (!paymentSending) showPaymentCoinControl = true },
+                )
             },
             error = paymentError,
             isSending = paymentSending,
@@ -1848,7 +1898,14 @@ fun ChatThreadScreen(
                 if (paymentAmount.isNotEmpty() && !paymentSending) {
                     paymentSending = true
                     paymentError = null
-                    chatViewModel.sendPayment(contactId, paymentAmount, paymentNote, sourceSpendingIndex = paymentSource?.index) { ok, message, _ ->
+                    chatViewModel.sendPayment(
+                        contactId,
+                        paymentAmount,
+                        paymentNote,
+                        sourceSpendingIndex = paymentSource?.index,
+                        extraFeeSompi = paymentExtraFeeSompi,
+                        manualUtxos = paymentManualUtxos,
+                    ) { ok, message, _ ->
                         paymentSending = false
                         if (ok) {
                             // No confirmation sheet: the payment bubble in the chat is the
@@ -1876,9 +1933,47 @@ fun ChatThreadScreen(
                 // This payment only: picking the primary is the same as no pick.
                 paymentSource = if (picked.index == primaryIndex) null else picked
                 chatViewModel.setPaymentSource(paymentSource?.index)
+                // Coin control and a custom fee belong to the address they were set for.
+                paymentManualUtxos = null
+                chatViewModel.setPaymentManualUtxos(null)
+                paymentCustomExtraFeeSompi = null
+                isEditingPaymentFee = false
             },
             onDismiss = { showPaymentSourcePicker = false },
         )
+    }
+
+    // Coin control on the address this payment comes from: the paying spending address with
+    // Chats Payment Privacy on (the picked one, else the primary), the chatting address off -
+    // over the Send KAS sheet, as iOS presents CoinControlView (62c2773).
+    if (showPaymentSheet && showPaymentCoinControl) {
+        val coinControlAddress = if (paymentPrivacyOn) {
+            paymentSource?.address ?: walletViewModel.spendingAddress.value
+        } else {
+            myAddress
+        }
+        if (coinControlAddress != null) {
+            ModalBottomSheet(
+                onDismissRequest = { showPaymentCoinControl = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = LocalAppColors.current.background,
+                dragHandle = null,
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    CoinControlScreen(
+                        fromAddress = coinControlAddress,
+                        fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
+                        initialSelection = paymentManualUtxos,
+                        onDone = { selection ->
+                            paymentManualUtxos = selection?.takeIf { it.isNotEmpty() }
+                            chatViewModel.setPaymentManualUtxos(paymentManualUtxos)
+                            showPaymentCoinControl = false
+                        },
+                        onCancel = { showPaymentCoinControl = false },
+                    )
+                }
+            }
+        }
     }
 
     paymentDetailMessage?.let { message ->

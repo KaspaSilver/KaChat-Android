@@ -156,12 +156,18 @@ class WalletService @Inject constructor(
         amountSompi: Long,
         payloadBytes: ByteArray? = null,
         feeRateOverride: Long? = null,
-        allowReducedAmount: Boolean = false
+        allowReducedAmount: Boolean = false,
+        /** Coin control and the extra fee - the Send KAS sheet with Chats Payment Privacy off
+         *  (iOS 62c2773). Defaults keep every other caller unchanged. */
+        manualUtxos: List<UtxoEntry>? = null,
+        extraFeeSompi: Long = 0L
     ): String {
         val result = walletEngine.sendKaspa(
             toAddress, amountSompi, payloadBytes,
             feeRateOverride = feeRateOverride,
-            allowReducedAmount = allowReducedAmount
+            manualUtxos = manualUtxos,
+            allowReducedAmount = allowReducedAmount,
+            extraFeeSompi = extraFeeSompi
         )
 
         if (result.isSuccess) {
@@ -201,8 +207,16 @@ class WalletService @Inject constructor(
         feeRateOverride: Long? = null,
         payloadBytes: ByteArray? = null,
         sourceSpendingIndex: Int? = null,
+        /** Coin control on the source address (null = sweep it, as always) and the Fast /
+         *  Priority / custom extra fee (iOS 62c2773). */
+        manualUtxos: List<UtxoEntry>? = null,
+        extraFeeSompi: Long = 0L,
     ): String {
-        val result = walletEngine.sendSpendingPayment(toAddress, amountSompi, feeRateOverride, payloadBytes, sourceSpendingIndex)
+        val result = walletEngine.sendSpendingPayment(
+            toAddress, amountSompi, feeRateOverride, payloadBytes, sourceSpendingIndex,
+            manualUtxos = manualUtxos,
+            extraFeeSompi = extraFeeSompi,
+        )
 
         if (result.isSuccess) {
             refreshSpendingBalance()
