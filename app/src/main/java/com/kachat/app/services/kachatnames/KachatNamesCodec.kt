@@ -8,7 +8,8 @@ import java.io.ByteArrayOutputStream
  * `.kachat` names on Kaspa covenants: the transaction core (design: iOS KACHAT_NAMES.md, byte-level
  * reference: kachat-domains/README.md, source of truth: the kachat-domains Rust harness and CLI).
  * A one-to-one port of iOS `KaChat/Services/KachatNames/KachatNamesCodec.swift` (KaChat 4c2c45d;
- * registry v2, the 126-byte name state with periodStart, from 3ef2ec2).
+ * registry v2, the 126-byte name state with periodStart, from 3ef2ec2; registry v3, the price record
+ * and seller-bound offers, from e1e3455).
  *
  * Everything in this package is pure value code (Kotlin, [Blake3], BouncyCastle's BLAKE2b): codecs,
  * the manifest, the version-1 transaction with its hashes and masses, and the builders. No Android
@@ -32,17 +33,22 @@ object KachatNames {
 
         companion object {
             /**
-             * The manifest describes registry v1 (the first testnet-10 genesis): this app builds for
-             * registry v2 (the 2-year cap) and waits for its genesis manifest. Not an error to show
-             * as one: the screens say the registry is being set up (iOS 3ef2ec2).
+             * The manifest describes an earlier registry (v1 or v2): this app builds for registry v3
+             * (the price record, seller-bound offers, periodMs) and waits for its genesis manifest.
+             * Not an error to show as one: the screens say the registry is being set up (iOS 3ef2ec2,
+             * e1e3455).
              */
-            val OUTDATED_REGISTRY = Failure("manifest: registry v1; this app needs the registry v2 manifest (new genesis pending)")
+            val OUTDATED_REGISTRY = Failure("manifest: an earlier registry; this app needs the registry v3 manifest (new genesis pending)")
         }
     }
 
     // Constants (rusty-kaspa a41a333, kachat-domains params)
 
     const val SOMPI_PER_KAS: Long = 100_000_000L
+    /**
+     * A mainnet period. Registry v3 reads the period from the manifest ([Params.periodMs]):
+     * testnet-10 runs a 10-minute clock (iOS e1e3455).
+     */
     const val YEAR_MS: Long = 31_536_000_000L
     /** rusty-kaspa `LOCK_TIME_THRESHOLD`: lock times below it are DAA scores, above unix ms. */
     const val LOCK_TIME_THRESHOLD: Long = 500_000_000_000L
@@ -278,13 +284,34 @@ object KachatNames {
                 .u8(0x08).bytes(num8(f.expiresAt))
                 .toByteArray()
 
-        /** Offer state, 75 bytes: `0x20 key 0x20 buyer 0x08 refundAfter`. */
+        /** Offer state (registry v3, iOS e1e3455), 108 bytes: `0x20 key 0x20 buyer 0x20 seller 0x08 refundAfter`. */
         fun offerState(f: OfferFields): ByteArray =
             Writer()
                 .u8(0x20).bytes(f.key)
                 .u8(0x20).bytes(f.buyer)
+                .u8(0x20).bytes(f.seller)
                 .u8(0x08).bytes(num8(f.refundAfter))
                 .toByteArray()
+
+        /** Price shard state (registry v3, iOS e1e3455), 87 bytes: `0x08 shard 0x20 authority (0x08 price) x5`. */
+        fun priceState(f: PriceFields): ByteArray {
+            val w = Writer().u8(0x08).bytes(num8(f.shard)).u8(0x20).bytes(f.authority)
+            for (p in f.prices) w.u8(0x08).bytes(num8(p))
+            return w.toByteArray()
+        }
+
+        fun decodePriceState(s: ByteArray): PriceFields {
+            if (s.size != 87 || s[0].toInt() != 0x08 || s[9].toInt() != 0x20) throw Failure("not a price state")
+            val prices = ArrayList<Long>(5)
+            for (t in 0 until 5) {
+                val at = 42 + t * 9
+                if (s[at].toInt() != 0x08) throw Failure("not a price state")
+                val v = decodeNum8(s.copyOfRange(at + 1, at + 9))
+                if (v < 0) throw Failure("negative price")
+                prices.add(v)
+            }
+            return PriceFields(shard = decodeNum8(s.copyOfRange(1, 9)), authority = s.copyOfRange(10, 42), prices = prices)
+        }
 
         /** `(lo, hi)` of a gap state. */
         fun decodeGapState(s: ByteArray): Pair<ByteArray, ByteArray> {
@@ -306,10 +333,13 @@ object KachatNames {
         }
 
         fun decodeOfferState(s: ByteArray): OfferFields {
-            if (s.size != 75 || s[0].toInt() != 0x20 || s[33].toInt() != 0x20 || s[66].toInt() != 0x08) {
+            if (s.size != 108 || s[0].toInt() != 0x20 || s[33].toInt() != 0x20 || s[66].toInt() != 0x20 || s[99].toInt() != 0x08) {
                 throw Failure("not an offer state")
             }
-            return OfferFields(key = s.copyOfRange(1, 33), buyer = s.copyOfRange(34, 66), refundAfter = decodeNum8(s.copyOfRange(67, 75)))
+            return OfferFields(
+                key = s.copyOfRange(1, 33), buyer = s.copyOfRange(34, 66), seller = s.copyOfRange(67, 99),
+                refundAfter = decodeNum8(s.copyOfRange(100, 108))
+            )
         }
 
         // Scripts
@@ -420,9 +450,12 @@ object KachatNames {
         /** `kchat:1:name:<op>:<name>`: informational, on every name transaction except commits. */
         fun namePayload(op: String, name: String): ByteArray = "kchat:1:name:$op:$name".toByteArray(Charsets.UTF_8)
 
-        /** `kchat:1:offer:<keyHex>:<buyerXonlyHex>:<refundAfterDaa>`: how an indexer finds offers. */
+        /**
+         * `kchat:1:offer:<keyHex>:<buyerXonlyHex>:<sellerXonlyHex>:<refundAfterDaa>` (registry v3,
+         * iOS e1e3455): how an indexer finds offers.
+         */
         fun offerPayload(f: OfferFields): ByteArray =
-            "kchat:1:offer:${hex(f.key)}:${hex(f.buyer)}:${f.refundAfter}".toByteArray(Charsets.UTF_8)
+            "kchat:1:offer:${hex(f.key)}:${hex(f.buyer)}:${hex(f.seller)}:${f.refundAfter}".toByteArray(Charsets.UTF_8)
 
         /** `kchat:1:profile:<json>`: an address profile record (KACHAT_NAMES.md section 7). */
         fun profilePayload(json: ByteArray): ByteArray = "kchat:1:profile:".toByteArray(Charsets.UTF_8) + json
@@ -457,13 +490,13 @@ class NameFields(
     /** list: the price, period and expiry kept. */
     fun withPrice(price: Long): NameFields = NameFields(key, paddedName, owner, price, periodStart, expiresAt)
 
-    /** What `extend(years)` leaves: the same period start, the expiry [years] later. */
-    fun extended(years: Long): NameFields =
-        NameFields(key, paddedName, owner, price, periodStart, expiresAt + years * KachatNames.YEAR_MS)
+    /** What `extend(years)` leaves: the same period start, the expiry [years] periods later (iOS e1e3455). */
+    fun extended(years: Long, periodMs: Long): NameFields =
+        NameFields(key, paddedName, owner, price, periodStart, expiresAt + years * periodMs)
 
     /** What `renew(years)` leaves: a new period from the old expiry, so no time is lost or gained. */
-    fun renewed(years: Long): NameFields =
-        NameFields(key, paddedName, owner, price, expiresAt, expiresAt + years * KachatNames.YEAR_MS)
+    fun renewed(years: Long, periodMs: Long): NameFields =
+        NameFields(key, paddedName, owner, price, expiresAt, expiresAt + years * periodMs)
 
     override fun equals(other: Any?): Boolean =
         other is NameFields && key.contentEquals(other.key) && paddedName.contentEquals(other.paddedName) &&
@@ -480,14 +513,42 @@ class NameFields(
         "NameFields(name=$name, owner=${KachatNames.hex(owner)}, price=$price, periodStart=$periodStart, expiresAt=$expiresAt)"
 }
 
-class OfferFields(val key: ByteArray, val buyer: ByteArray, val refundAfter: Long) {
+class OfferFields(
+    val key: ByteArray,
+    val buyer: ByteArray,
+    /** The name's owner the offer was made to (registry v3, iOS e1e3455): only they can accept or decline it. */
+    val seller: ByteArray,
+    val refundAfter: Long
+) {
     val encoded: ByteArray get() = KachatNames.Codec.offerState(this)
 
     override fun equals(other: Any?): Boolean =
-        other is OfferFields && key.contentEquals(other.key) && buyer.contentEquals(other.buyer) && refundAfter == other.refundAfter
+        other is OfferFields && key.contentEquals(other.key) && buyer.contentEquals(other.buyer) &&
+            seller.contentEquals(other.seller) && refundAfter == other.refundAfter
 
-    override fun hashCode(): Int = listOf(key.contentHashCode(), buyer.contentHashCode(), refundAfter.hashCode()).hashCode()
+    override fun hashCode(): Int =
+        listOf(key.contentHashCode(), buyer.contentHashCode(), seller.contentHashCode(), refundAfter.hashCode()).hashCode()
 
     override fun toString(): String =
-        "OfferFields(key=${KachatNames.hex(key)}, buyer=${KachatNames.hex(buyer)}, refundAfter=$refundAfter)"
+        "OfferFields(key=${KachatNames.hex(key)}, buyer=${KachatNames.hex(buyer)}, seller=${KachatNames.hex(seller)}, refundAfter=$refundAfter)"
+}
+
+/** A price shard's state (registry v3, iOS e1e3455). */
+class PriceFields(
+    val shard: Long,
+    val authority: ByteArray,
+    /** sompi per period for names of 1, 2, 3, 4, 5+ bytes (registering and renewing) */
+    val prices: List<Long>
+) {
+    val encoded: ByteArray get() = KachatNames.Codec.priceState(this)
+
+    fun price(forLength: Int): Long = prices[KachatNames.Codec.tier(forLength)]
+
+    override fun equals(other: Any?): Boolean =
+        other is PriceFields && shard == other.shard && authority.contentEquals(other.authority) && prices == other.prices
+
+    override fun hashCode(): Int = listOf(shard.hashCode(), authority.contentHashCode(), prices.hashCode()).hashCode()
+
+    override fun toString(): String =
+        "PriceFields(shard=$shard, authority=${KachatNames.hex(authority)}, prices=$prices)"
 }

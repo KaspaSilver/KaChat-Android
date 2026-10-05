@@ -449,7 +449,8 @@ class KachatLiveViewModel @Inject constructor(
         }
     }
 
-    fun pricePerYear(name: String): Long? = service.manifest.value?.params?.price(name.toByteArray(Charsets.UTF_8).size)
+    fun pricePerYear(name: String): Long? =
+        service.manifest.value?.params?.genesisPrices?.getOrNull(KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size))
 
     /** The profile hero's `.kachat` part: your label, your profile's avatar, banner and bio
      *  sources (a social link each, iOS c124cb3) and its Linktree link. */
@@ -2186,7 +2187,7 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
     val maxYears = params?.maxYears ?: 2L
     /** The years that still fit in the period (in practice 1). */
     val available = maxOf(1L, params?.let { info.extendableYears(it) } ?: 1L)
-    val perYear = params?.renewPrice(info.name.toByteArray(Charsets.UTF_8).size) ?: 0L
+    val perYear = params?.genesisPrices?.getOrNull(KachatNames.Codec.tier(info.name.toByteArray(Charsets.UTF_8).size)) ?: 0L
     val title = if (params != null && KachatLive.fillsPeriod(info, years, params)) {
         stringResource(R.string.kn_extend_to_years, maxYears.toInt())
     } else {
@@ -2222,7 +2223,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     val manifest by vm.service.manifest.collectAsState()
     var years by remember { mutableLongStateOf(1L) }
     val maxYears = manifest?.params?.maxYears ?: 2L
-    val perYear = manifest?.params?.renewPrice(info.name.toByteArray(Charsets.UTF_8).size) ?: 0L
+    val perYear = manifest?.params?.genesisPrices?.getOrNull(KachatNames.Codec.tier(info.name.toByteArray(Charsets.UTF_8).size)) ?: 0L
     KachatTxSheet(
         title = stringResource(R.string.kn_renew), confirmTitle = stringResource(R.string.kn_renew),
         doneTitle = R.string.kn_ev_renewed,

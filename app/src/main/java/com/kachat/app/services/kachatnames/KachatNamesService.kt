@@ -136,15 +136,17 @@ class KachatNamesService @Inject constructor(
         bundleFailure?.let { throw it }
         val (data, source) = manifestData()
         val m = try {
-            Manifest.decode(data).also { it.verify() }
+            // an indexer-served manifest is trusted only when every template is pinned in the app
+            // (iOS e1e3455 / 49c0baa)
+            Manifest.decode(data).also { it.verify(if (source == "bundle") Manifest.Source.BUNDLE else Manifest.Source.INDEXER) }
         } catch (e: Exception) {
-            // A registry v1 manifest (the bundled one until the v2 genesis) is expected, not an
-            // error: say "being upgraded", once, and stop re-reading the bundle.
+            // An earlier registry's manifest (the bundled one until the v3 genesis) is expected,
+            // not an error: say "being upgraded", once, and stop re-reading the bundle.
             val upgrading = isRegistryUpgrading(e)
             val refused: Exception = if (upgrading) ServiceError.RegistryUpgrading() else e
             if (upgrading) {
                 if (!_registryUpgrading.value) {
-                    Log.i(TAG, "the $source manifest is registry v1; .kachat waits for the v2 genesis manifest")
+                    Log.i(TAG, "the $source manifest is an earlier registry; .kachat waits for the v3 genesis manifest")
                 }
                 _registryUpgrading.value = true
             }

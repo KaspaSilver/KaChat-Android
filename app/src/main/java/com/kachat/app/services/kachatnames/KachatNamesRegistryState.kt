@@ -130,24 +130,27 @@ class OfferInfo(
     val key: ByteArray,
     val name: String?,
     val buyer: ByteArray,
+    /** the name's owner the offer was made to (registry v3, iOS c150042): only they can accept or decline it */
+    val seller: ByteArray,
     val amount: Long,
     /** DAA score from which anyone may refund it */
     val refundAfter: Long,
     val createdAt: Long? = null
 ) {
     val id: String get() = "${hex(outpoint.txid)}:${outpoint.index}"
-    val fields: OfferFields get() = OfferFields(key, buyer, refundAfter)
+    val fields: OfferFields get() = OfferFields(key, buyer, seller, refundAfter)
 
     fun refundable(atDaa: Long): Boolean = atDaa > maxOf(refundAfter, 0L)
 
     override fun equals(other: Any?): Boolean =
         other is OfferInfo && outpoint == other.outpoint && key.contentEquals(other.key) && name == other.name &&
-            buyer.contentEquals(other.buyer) && amount == other.amount && refundAfter == other.refundAfter &&
-            createdAt == other.createdAt
+            buyer.contentEquals(other.buyer) && seller.contentEquals(other.seller) && amount == other.amount &&
+            refundAfter == other.refundAfter && createdAt == other.createdAt
 
     override fun hashCode(): Int = listOf(outpoint, key.contentHashCode(), buyer.contentHashCode(), amount, refundAfter).hashCode()
 
-    override fun toString(): String = "OfferInfo($id, name=$name, buyer=${hex(buyer)}, amount=$amount, refundAfter=$refundAfter)"
+    override fun toString(): String =
+        "OfferInfo($id, name=$name, buyer=${hex(buyer)}, seller=${hex(seller)}, amount=$amount, refundAfter=$refundAfter)"
 }
 
 /**
@@ -809,6 +812,8 @@ data class RegistryState(
         val index: Int,
         val key: String,
         val buyer: String,
+        /** registry v3: the owner the offer was made to */
+        val seller: String,
         val refundAfter: Long,
         val value: Long,
         val name: String? = null,
@@ -887,7 +892,7 @@ data class RegistryState(
     fun trackOffer(o: OfferInfo, at: Long?) {
         val txid = hex(o.outpoint.txid)
         offers = offers.filterNot { it.txid == txid && it.index == o.outpoint.index } +
-            Offer(txid, o.outpoint.index, hex(o.key), hex(o.buyer), o.refundAfter, o.amount, o.name, at)
+            Offer(txid, o.outpoint.index, hex(o.key), hex(o.buyer), hex(o.seller), o.refundAfter, o.amount, o.name, at)
     }
 
     // Applying a transaction (registry.rs `Registry::apply`)
@@ -952,7 +957,7 @@ data class RegistryState(
                     val name = String(nameBytes, Charsets.UTF_8)
                     val k = KachatNames.blake3(nameBytes)
                     val padded = nameBytes.copyOf(minOf(nameBytes.size, 32)).copyOf(32)
-                    val f = NameFields(k, padded, owner, 0, now, now + years * KachatNames.YEAR_MS)
+                    val f = NameFields(k, padded, owner, 0, now, now + years * m.params.periodMs)
                     predicted.add(i to Predicted.GapP(g.lo, hex(k)))
                     predicted.add(i to Predicted.GapP(hex(k), g.hi))
                     predicted.add(i to Predicted.NameP(f, name))
@@ -1004,13 +1009,13 @@ data class RegistryState(
                 "extend" -> {
                     // periodStart kept, expiresAt + years (the contract checked the 2-year cap)
                     val years = argInt(sp.args, 0)
-                    predicted.add(i to Predicted.NameP(f.extended(years), n.name))
+                    predicted.add(i to Predicted.NameP(f.extended(years, m.params.periodMs), n.name))
                     events.add(Event(txId = id, op = "extend", name = n.name, at = tx.at, years = years))
                 }
                 "renew" -> {
                     // a new period from the old expiry
                     val years = argInt(sp.args, 0)
-                    predicted.add(i to Predicted.NameP(f.renewed(years), n.name))
+                    predicted.add(i to Predicted.NameP(f.renewed(years, m.params.periodMs), n.name))
                     events.add(Event(txId = id, op = "renew", name = n.name, at = tx.at, years = years))
                 }
                 "release" -> events.add(Event(txId = id, op = "release", name = n.name, at = tx.at, from = n.owner))
@@ -1077,7 +1082,7 @@ data class RegistryState(
             val (idx, fields) = newOffer
             val known = newNames.firstOrNull { it.key == hex(fields.key) }?.name
             newOffers = newOffers.filterNot { it.txid == id && it.index == idx } +
-                Offer(id, idx, hex(fields.key), hex(fields.buyer), fields.refundAfter, tx.outputs[idx].value, known, tx.at)
+                Offer(id, idx, hex(fields.key), hex(fields.buyer), hex(fields.seller), fields.refundAfter, tx.outputs[idx].value, known, tx.at)
             events.add(Event(txId = id, op = "offer", name = known, at = tx.at, to = hex(fields.buyer), price = tx.outputs[idx].value))
         }
         // an accepted offer's payout: the output right after the name continuation
@@ -1222,6 +1227,7 @@ data class RegistryState(
             key = runCatching { unhex32(o.key) }.getOrNull() ?: KachatNames.ZERO32,
             name = o.name,
             buyer = runCatching { unhex32(o.buyer) }.getOrNull() ?: KachatNames.ZERO32,
+            seller = runCatching { unhex32(o.seller) }.getOrNull() ?: KachatNames.ZERO32,
             amount = o.value,
             refundAfter = o.refundAfter,
             createdAt = o.createdAt
@@ -1247,8 +1253,9 @@ data class RegistryState(
         }
 
         /**
-         * The offer a transaction announces with `kchat:1:offer:<key>:<buyer>:<refundAfter>`, if
-         * one of its outputs really is that offer (KACHAT_NAMES_INDEXER.md B4).
+         * The offer a transaction announces with the registry v3 marker
+         * `kchat:1:offer:<key>:<buyer>:<seller>:<refundAfter>`, if one of its outputs really is that
+         * offer (KACHAT_NAMES_INDEXER.md B4; iOS c150042).
          */
         fun offerFromMarker(tx: TxView, m: Manifest): Pair<Int, OfferFields>? {
             val text = runCatching {
@@ -1257,11 +1264,12 @@ data class RegistryState(
             val prefix = "kchat:1:offer:"
             if (!text.startsWith(prefix)) return null
             val parts = text.substring(prefix.length).split(":")
-            if (parts.size != 3) return null
+            if (parts.size != 4) return null
             val key = runCatching { unhex32(parts[0]) }.getOrNull() ?: return null
             val buyer = runCatching { unhex32(parts[1]) }.getOrNull() ?: return null
-            val refundAfter = parts[2].toLongOrNull()?.takeIf { it >= 0 } ?: return null
-            val fields = OfferFields(key, buyer, refundAfter)
+            val seller = runCatching { unhex32(parts[2]) }.getOrNull() ?: return null
+            val refundAfter = parts[3].toLongOrNull()?.takeIf { it >= 0 } ?: return null
+            val fields = OfferFields(key, buyer, seller, refundAfter)
             val script = m.offer.script(fields.encoded)
             val idx = tx.outputs.indexOfFirst { it.script.contentEquals(script) && it.covenant == null }
             if (idx < 0) return null
@@ -1428,24 +1436,32 @@ object IndexerApi {
     class OfferJson(
         val outpoint: OutpointJson,
         val buyer: String,
+        /** registry v3: the owner the offer was made to (an address) */
+        val seller: String?,
         val amount: String,
         val refundAfter: Long,
         val createdAt: Long?,
         val refundable: Boolean?,
         val name: String?
     ) {
+        /**
+         * The offer, when complete. An indexer without the seller (registry v2) gives nothing: a
+         * v3 offer can't be accepted or declined without it (iOS c150042).
+         */
         fun info(name: String?, keyOf: (String) -> ByteArray?): OfferInfo? {
             val op = outpoint.outpoint ?: return null
             val buyerKey = keyOf(buyer) ?: return null
-            val amt = amount.toLongOrNull() ?: return null
+            val sellerKey = seller?.let(keyOf) ?: return null
+            val amt = amount.toLongOrNull()?.takeIf { it >= 0 } ?: return null
             val n = (this.name ?: name)?.let { Codec.normalize(it) }?.takeIf { Codec.isValid(it) } ?: return null
-            return OfferInfo(op, Codec.key(n), n, buyerKey, amt, refundAfter, createdAt)
+            return OfferInfo(op, Codec.key(n), n, buyerKey, sellerKey, amt, refundAfter, createdAt)
         }
 
         companion object {
             fun from(o: JsonObject): OfferJson = OfferJson(
                 outpoint = OutpointJson.from(o.obj("outpoint") ?: throw Failure("the names indexer answered without \"outpoint\"")),
                 buyer = required(o.str("buyer"), "buyer"),
+                seller = o.str("seller"),
                 amount = required(o.str("amount"), "amount"),
                 refundAfter = o.long("refundAfter") ?: throw Failure("the names indexer answered without \"refundAfter\""),
                 createdAt = o.long("createdAt"),

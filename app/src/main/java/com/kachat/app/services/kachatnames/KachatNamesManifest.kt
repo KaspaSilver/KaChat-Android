@@ -11,7 +11,7 @@ import com.kachat.app.services.kachatnames.KachatNames.unhex
 import com.kachat.app.services.kachatnames.KachatNames.unhex32
 
 // The deployment manifest, ported from iOS KaChat/Services/KachatNames/KachatNamesManifest.swift
-// (KaChat 4c2c45d; registry v2 from 3ef2ec2). JSON is read with Gson (pure Java) instead of
+// (KaChat 4c2c45d; registry v2 from 3ef2ec2; registry v3 from e1e3455). JSON is read with Gson (pure Java) instead of
 // JSONSerialization.
 
 /** A compiled contract: `redeem = prefix || state || suffix`. */
@@ -52,32 +52,38 @@ class Template(
     override fun hashCode(): Int = 31 * contract.hashCode() + templateHash.contentHashCode()
 }
 
-/** The registry parameters (params/testnet10.json), identical on testnet-10 and mainnet. */
+/**
+ * The registry parameters (kachat-domains params/<network>.json, registry v3, iOS e1e3455). Prices
+ * are not here: registering and renewing pay what a price shard says ([PriceFields]), which the
+ * authority can change; [genesisPrices] are only what the shards started with.
+ */
 data class Params(
     val bond: Long,
     val gapValue: Long,
     val tCommit: Long,
+    /** most periods a name may be paid ahead */
     val maxYears: Long,
+    /** one paid period, ms: a year on mainnet, 10 minutes on the testnet-10 clock */
+    val periodMs: Long,
     val graceMs: Long,
-    /** `renew` is valid from `expiresAt - renewWindowMs` on (registry v2; 10 days) */
+    /** `renew` is valid from `expiresAt - renewWindowMs` on */
     val renewWindowMs: Long,
-    /** sompi per year for names of 1, 2, 3, 4, 5+ bytes */
-    val prices: List<Long>,
-    val renewPrices: List<Long>,
+    /** the price shards' genesis prices, sompi per period for names of 1, 2, 3, 4, 5+ bytes */
+    val genesisPrices: List<Long>,
+    val priceShards: Long,
+    /** exact value of every price shard */
+    val priceValue: Long,
     val offerMaxFee: Long
 ) {
-    fun price(forLength: Int): Long = prices[Codec.tier(forLength)]
-    fun renewPrice(forLength: Int): Long = renewPrices[Codec.tier(forLength)]
-
-    // The paid period (registry v2, KACHAT_NAMES.md 4.1; ops.rs; iOS 3ef2ec2)
+    // The paid period (KACHAT_NAMES.md 4.1; ops.rs; iOS 3ef2ec2, e1e3455)
 
     /**
-     * The most years `extend` can add now: a period (from [periodStart]) holds at most [maxYears]
-     * (ops.rs `extendable_years`).
+     * The most periods `extend` can add now: a name (from [periodStart]) holds at most [maxYears]
+     * periods (ops.rs `extendable_years`).
      */
     fun extendableYears(periodStart: Long, expiresAt: Long): Long {
-        val room = periodStart + maxYears * KachatNames.YEAR_MS - expiresAt
-        return if (room < 0) 0 else minOf(room / KachatNames.YEAR_MS, maxYears)
+        val room = periodStart + maxYears * periodMs - expiresAt
+        return if (room < 0) 0 else minOf(room / periodMs, maxYears)
     }
 
     fun extendableYears(f: NameFields): Long = extendableYears(f.periodStart, f.expiresAt)
@@ -92,16 +98,22 @@ data class Params(
 /**
  * The deployment manifest `kachat-names-<network>.json` (written by the kachat-domains CLI's
  * `genesis`, served by the indexer at `GET /names/manifest`): params, every contract's prefix,
- * suffix, template hash and dispatch tags, the registry covenant id and the genesis binding.
- * [verify] must pass before anything trusts it.
+ * suffix, template hash and dispatch tags, the price covenant and its genesis (K shards), the
+ * registry covenant id and the genesis binding. [verify] must pass before anything trusts it.
  */
 class Manifest(
     val network: String,
     val status: String,
     val params: Params,
+    val price: Template,
     val gap: Template,
     val name: Template,
     val offer: Template,
+    val priceCovenantId: ByteArray,
+    val priceGenesisTxid: ByteArray,
+    val priceGenesisOutpoint: Outpoint,
+    /** the shards the price genesis created, at outputs 0..K-1 */
+    val genesisShards: List<Pair<TxOutput, PriceFields>>,
     val registryCovenantId: ByteArray,
     val genesisTxid: ByteArray,
     val genesisOutpoint: Outpoint,
@@ -112,40 +124,70 @@ class Manifest(
     /** A manifest from a dry run describes a registry that does not exist. */
     val isDryRun: Boolean get() = status.startsWith("dry run")
 
+    /** Where a manifest came from: the app bundle (shipped with the build) or an indexer (iOS e1e3455). */
+    enum class Source { BUNDLE, INDEXER }
+
     // Verification
 
     /**
      * Checks everything the app relies on (KACHAT_NAMES_INDEXER.md B2, kachat-domains
      * `manifest::load`): testnet-10 only; every template's hash recomputed from its prefix and
-     * suffix, the gap and name ones equal to the pinned build; every dispatch tag present;
-     * the offer baked for this registry id and name template; the genesis output is the
-     * genesis gap `(00..00, ff..ff)` worth `gapValue`; and
+     * suffix and equal to the pinned build where pinned (an indexer-served manifest needs every
+     * hash pinned); every dispatch tag present; the gap and name baked for this price covenant
+     * and price template, the gap for this name template, the offer for this registry id and
+     * name template; the price genesis outputs are shards 0..K-1 of the price template worth
+     * `priceValue`, and `priceCovenantId == covenant_id(price genesis outpoint, [(i, shard_i)])`;
+     * the genesis output is the genesis gap `(00..00, ff..ff)` worth `gapValue`; and
      * `registryCovenantId == covenant_id(genesis outpoint, [(0, genesis gap)])`.
      */
-    fun verify() {
+    fun verify(source: Source = Source.BUNDLE) {
         if (network != SUPPORTED_NETWORK) {
             throw Failure("manifest is for $network; only $SUPPORTED_NETWORK is enabled (mainnet waits for an audit)")
         }
-        for (t in listOf(gap, name, offer)) {
+        for (t in listOf(price, gap, name, offer)) {
             if (!Codec.templateHash(t.prefix, t.suffix).contentEquals(t.templateHash)) {
                 throw Failure("manifest: ${t.contract} template hash does not match its prefix and suffix")
             }
             val pinned = PINNED_TEMPLATE_HASHES[t.contract]
-            if (pinned != null && hex(t.templateHash) != pinned) {
-                if (V1_TEMPLATE_HASHES[t.contract] == hex(t.templateHash)) throw Failure.OUTDATED_REGISTRY
-                throw Failure("manifest: ${t.contract} is not the pinned build")
+            if (pinned != null) {
+                if (hex(t.templateHash) != pinned) throw Failure("manifest: ${t.contract} is not the pinned build")
+            } else if (source == Source.INDEXER && t.contract != "KachatOffer") {
+                throw Failure("manifest: ${t.contract} is not pinned in this app; only a bundled manifest is trusted")
             }
             for (e in ENTRIES[t.contract].orEmpty()) {
                 if (t.dispatchTags[e] == null) throw Failure("manifest: ${t.contract} dispatch tag for $e missing")
             }
         }
+        for (t in listOf(gap, name)) {
+            if (!KachatNames.contains(t.suffix, priceCovenantId) || !KachatNames.contains(t.suffix, price.templateHash)) {
+                throw Failure("manifest: the ${t.contract} is not built for this price covenant and price template")
+            }
+        }
+        if (!KachatNames.contains(gap.suffix, name.templateHash)) throw Failure("manifest: the gap is not built for this name template")
         if (!KachatNames.contains(offer.suffix, registryCovenantId) || !KachatNames.contains(offer.suffix, name.templateHash)) {
             throw Failure("manifest: the offer is not built for this registry id and name template")
         }
-        if (params.prices.size != 5 || params.renewPrices.size != 5 || params.maxYears < 1 || params.maxYears > 31 ||
-            params.renewWindowMs <= 0 || params.renewWindowMs >= KachatNames.YEAR_MS
+        if (params.genesisPrices.size != 5 || params.maxYears < 1 || params.maxYears > 31 ||
+            params.periodMs < 60_000 || params.periodMs > KachatNames.YEAR_MS || params.maxYears * params.periodMs >= 1_000_000_000_000L ||
+            params.renewWindowMs <= 0 || params.renewWindowMs > params.periodMs ||
+            params.priceShards < 1 || params.priceShards > 8
         ) {
             throw Failure("manifest: params out of range")
+        }
+        if (genesisShards.size.toLong() != params.priceShards) {
+            throw Failure("manifest: ${genesisShards.size} price shards, params say ${params.priceShards}")
+        }
+        for ((i, s) in genesisShards.withIndex()) {
+            val (output, fields) = s
+            if (output.value != params.priceValue || output.scriptVersion != 0 ||
+                !output.script.contentEquals(price.script(fields.encoded)) || fields.shard != i.toLong()
+            ) {
+                throw Failure("manifest: price genesis output $i is not shard $i of the price template")
+            }
+        }
+        val pid = Codec.covenantId(priceGenesisOutpoint, genesisShards.mapIndexed { i, s -> i to s.first })
+        if (!pid.contentEquals(priceCovenantId)) {
+            throw Failure("manifest: price covenant id ${hex(priceCovenantId)} != covenant_id(price genesis) ${hex(pid)}")
         }
         if (!genesisState.first.contentEquals(KachatNames.ZERO32) || !genesisState.second.contentEquals(KachatNames.FF32)) {
             throw Failure("manifest: genesis gap is not (00..00, ff..ff)")
@@ -168,29 +210,22 @@ class Manifest(
         const val ASSET_NAME = "$BUNDLE_RESOURCE.json"
 
         /**
-         * Template hashes of the pinned build - registry v2 (silverc v1.0.0 @ 3ed9733), the same
-         * on every network (kachat-domains README "Sizes and template hashes"). The offer bakes
-         * the registry id, so it is checked against the id instead.
+         * Template hashes of the pinned build - registry v3 (silverc v1.0.0 @ 3ed9733, iOS
+         * e1e3455). The price template bakes no covenant id, so it is the same everywhere. The gap
+         * and the name bake the price covenant id, so their hashes exist only once the price
+         * genesis does: the deployment adds them here with the bundled manifest. Until they are
+         * pinned only a bundled manifest is trusted (`verify(Source.BUNDLE)`), never one an
+         * indexer serves.
          */
         val PINNED_TEMPLATE_HASHES: Map<String, String> = mapOf(
-            "KachatGap" to "182c463cf59f6d175f75339e4efc75d2065e8e7bb8dcc515e4769d3ff805dd46",
-            "KachatName" to "e8ded947687947b565e10cbf6e6fec60e5c90cf992c7bce2298e6dce8db29d16"
+            "KachatPrice" to "d225c3a302b91866a8a7cb09d513b3375715794adf4f1e05eec872b32cb781d3"
         )
-
-        /**
-         * The registry v1 build (117-byte name state, no `extend`, no renewal window), which the
-         * first testnet-10 genesis runs. Recognised only to say "outdated", never trusted
-         * (iOS 3ef2ec2).
-         */
-        val V1_TEMPLATE_HASHES: Map<String, String> = mapOf(
-            "KachatGap" to "a182d59bbf460baff5ec99ca850b990d45fbafee4dfbe9a3a7a1afe21e7ba8ca",
-            "KachatName" to "42eddf19e7ea2bc78b9aa97937f21be0505ebcf964653508f74e179dd6c7e39d"
-        )
-        val STATE_LENGTHS: Map<String, Int> = mapOf("KachatGap" to 66, "KachatName" to 126, "KachatOffer" to 75)
+        val STATE_LENGTHS: Map<String, Int> = mapOf("KachatPrice" to 87, "KachatGap" to 66, "KachatName" to 126, "KachatOffer" to 108)
         val ENTRIES: Map<String, List<String>> = mapOf(
+            "KachatPrice" to listOf("use", "update", "follow"),
             "KachatGap" to listOf("register", "merge", "absorbed"),
             "KachatName" to listOf("transfer", "list", "buy", "extend", "renew", "release", "reclaim"),
-            "KachatOffer" to listOf("accept", "withdraw", "refund")
+            "KachatOffer" to listOf("accept", "decline", "withdraw", "refund")
         )
 
         // Decoding
@@ -256,40 +291,73 @@ class Manifest(
             return Template(contract, prefix, suffix, stateLength, hash, tags)
         }
 
+        private fun outpoint(v: JsonElement?, what: String): Outpoint {
+            val op = str(v, what).split(":")
+            val idx = op.getOrNull(1)?.toLongOrNull()?.takeIf { it in 0..0xffff_ffffL }
+            if (op.size != 2 || idx == null) throw Failure("manifest: $what")
+            return Outpoint(unhex32(op[0]), idx.toInt())
+        }
+
         fun fromJson(root: JsonObject): Manifest {
             val network = str(root.get("network"), "network")
             val statusEl = root.get("status")
             val status = if (statusEl != null && statusEl.isJsonPrimitive && statusEl.asJsonPrimitive.isString) statusEl.asString else ""
+            // registry v1 / v2 manifests describe contracts this app no longer builds for: it waits
+            // for the v3 geneses (iOS e1e3455)
+            if (num(root.get("registryVersion"))?.asInt != 3) throw Failure.OUTDATED_REGISTRY
             val p = obj(root.get("params")) ?: throw Failure("manifest: params missing")
-            // a registry v1 manifest (no renewal window, 117-byte name state) describes contracts
-            // this app no longer builds for: it waits for the v2 genesis
-            val nameHash = obj(obj(root.get("artifacts"))?.get("KachatName"))?.get("templateHash")
-                ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
-            if (p.get("renewWindowMs") == null || nameHash == V1_TEMPLATE_HASHES["KachatName"]) {
-                throw Failure.OUTDATED_REGISTRY
-            }
             val params = Params(
                 bond = u64(p.get("bond"), "bond"),
                 gapValue = u64(p.get("gapValue"), "gapValue"),
                 tCommit = u64(p.get("tCommit"), "tCommit"),
                 maxYears = u64(p.get("maxYears"), "maxYears"),
+                periodMs = u64(p.get("periodMs"), "periodMs"),
                 graceMs = u64(p.get("graceMs"), "graceMs"),
                 renewWindowMs = u64(p.get("renewWindowMs"), "renewWindowMs"),
-                prices = tiers(p.get("prices"), "prices"),
-                renewPrices = tiers(p.get("renewPrices"), "renewPrices"),
+                genesisPrices = tiers(p.get("prices"), "prices"),
+                priceShards = u64(p.get("priceShards"), "priceShards"),
+                priceValue = u64(p.get("priceValue"), "priceValue"),
                 offerMaxFee = u64(p.get("offerMaxFee"), "offerMaxFee")
             )
             val artifacts = obj(root.get("artifacts")) ?: throw Failure("manifest: artifacts missing")
+            val price = template(artifacts, "KachatPrice")
             val gap = template(artifacts, "KachatGap")
             val name = template(artifacts, "KachatName")
             val offer = template(artifacts, "KachatOffer")
+            val priceCovenantId = unhex32(str(root.get("priceCovenantId"), "priceCovenantId"))
+            val pg = obj(root.get("priceGenesis")) ?: throw Failure("manifest: priceGenesis missing")
+            if (!unhex32(str(pg.get("priceCovenantId"), "priceGenesis.priceCovenantId")).contentEquals(priceCovenantId)) {
+                throw Failure("manifest: priceGenesis is for another price covenant")
+            }
+            val priceGenesisTxid = unhex32(str(pg.get("txid"), "priceGenesis.txid"))
+            val priceGenesisOutpoint = outpoint(pg.get("outpoint"), "priceGenesis.outpoint")
+            val authority = unhex32(str(pg.get("authority"), "priceGenesis.authority"))
+            val poutsEl = pg.get("authorizedOutputs")
+            if (poutsEl == null || !poutsEl.isJsonArray) throw Failure("manifest: priceGenesis outputs missing")
+            val shards = ArrayList<Pair<TxOutput, PriceFields>>()
+            for ((i, el) in poutsEl.asJsonArray.withIndex()) {
+                val o = obj(el) ?: throw Failure("manifest: priceGenesis outputs missing")
+                if (num(o.get("index"))?.asInt != i) throw Failure("manifest: price shard $i is not output $i")
+                val prEl = obj(o.get("state"))?.get("prices")
+                val pr = if (prEl != null && prEl.isJsonArray && prEl.asJsonArray.all { num(it) != null }) {
+                    prEl.asJsonArray.map { it.asLong }
+                } else {
+                    null
+                }
+                if (pr == null || pr.size != 5) throw Failure("manifest: price shard $i state")
+                val fields = PriceFields(shard = i.toLong(), authority = authority, prices = pr)
+                val out = TxOutput(
+                    value = u64(o.get("value"), "price shard $i value"),
+                    scriptVersion = u64(o.get("scriptPublicKeyVersion"), "price shard $i spk version").toInt(),
+                    script = unhex(str(o.get("scriptPublicKey"), "price shard $i spk")),
+                    covenant = null
+                )
+                shards.add(out to fields)
+            }
             val registryCovenantId = unhex32(str(root.get("registryCovenantId"), "registryCovenantId"))
             val g = obj(root.get("genesis")) ?: throw Failure("manifest: genesis missing")
             val genesisTxid = unhex32(str(g.get("txid"), "genesis.txid"))
-            val op = str(g.get("outpoint"), "genesis.outpoint").split(":")
-            val idx = op.getOrNull(1)?.toLongOrNull()?.takeIf { it in 0..0xffff_ffffL }
-            if (op.size != 2 || idx == null) throw Failure("manifest: genesis.outpoint")
-            val genesisOutpoint = Outpoint(unhex32(op[0]), idx.toInt())
+            val genesisOutpoint = outpoint(g.get("outpoint"), "genesis.outpoint")
             val outsEl = g.get("authorizedOutputs")
             if (outsEl == null || !outsEl.isJsonArray || outsEl.asJsonArray.size() != 1) {
                 throw Failure("manifest: the genesis must authorize exactly one output")
@@ -305,8 +373,8 @@ class Manifest(
             val st = obj(o.get("state")) ?: throw Failure("manifest: genesis state missing")
             val genesisState = unhex32(str(st.get("lo"), "genesis lo")) to unhex32(str(st.get("hi"), "genesis hi"))
             return Manifest(
-                network, status, params, gap, name, offer, registryCovenantId, genesisTxid, genesisOutpoint,
-                genesisOutput, genesisState
+                network, status, params, price, gap, name, offer, priceCovenantId, priceGenesisTxid, priceGenesisOutpoint,
+                shards, registryCovenantId, genesisTxid, genesisOutpoint, genesisOutput, genesisState
             )
         }
     }

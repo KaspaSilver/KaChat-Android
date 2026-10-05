@@ -17,8 +17,9 @@ import java.io.File
  * `KachatNamesVectors.json`, copied from iOS KaChatTests/, written by `kachat-names-vectors` from
  * the CLI's own builders and validated by rusty-kaspa a41a333's consensus validator). A port of
  * iOS scripts/test_kachat_names_core.swift (KaChat a6cf1f6, 2989ea1; registry v2 - extend, the
- * renewal window, the period rules - from 3ef2ec2): every vector transaction is
- * rebuilt with the recorded signatures fed in and must be byte-identical (inputs, sequences,
+ * renewal window, the period rules - from 3ef2ec2; registry v3 - the price shards, periodMs,
+ * seller-bound offers, decline - from e1e3455): every vector transaction the app builds (all but
+ * the CLI's `setPrices`) is rebuilt with the recorded signatures fed in and must be byte-identical (inputs, sequences,
  * budgets, outputs, covenant bindings, lock time, payload, masses, fee, rest and full preimages,
  * every sighash, every signature script, txid and tx hash). Also codecs, BLAKE3 against Rust
  * `blake3::hash`, and the manifest checks. The official BLAKE3 vectors are in `Blake3Test`.
@@ -79,8 +80,12 @@ class KachatNamesCoreTest {
     }
 
     private fun offerRec(o: JsonObject) = OfferRecord(
-        OfferFields(o.hx("key"), o.hx("buyer"), o.l("refundAfter")), o.l("value"), utxo(o.o("utxo")), o.optS("name")
+        OfferFields(o.hx("key"), o.hx("buyer"), o.hx("seller"), o.l("refundAfter")), o.l("value"), utxo(o.o("utxo")), o.optS("name")
     )
+
+    private fun priceFields(p: JsonObject) = PriceFields(p.l("shard"), p.hx("authority"), p.arr("prices").map { it.asLong })
+
+    private fun shardRec(p: JsonObject) = PriceRecord(priceFields(p), p.l("value"), utxo(p.o("utxo")))
 
     private fun commitRec(c: JsonObject) = CommitRecord(c.s("name"), c.hx("owner"), c.hx("salt"), c.l("value"), utxo(c.o("utxo")))
 
@@ -135,15 +140,22 @@ class KachatNamesCoreTest {
         val n = st.o("name")
         val nf = NameFields(n.s("name"), n.hx("owner"), n.l("price"), n.l("periodStart"), n.l("expiresAt"))
         r.eqHex(nf.encoded, n.s("state"), "name state")
-        r.eq(nf.encoded.size, 126, "name state is 126 bytes (registry v2)")
+        r.eq(nf.encoded.size, 126, "name state is 126 bytes")
         r.eqHex(m.name.script(nf.encoded), n.s("spk"), "name spk")
         r.eq(Codec.decodeNameState(nf.encoded), nf, "decode name state")
         r.eq(nf.name, n.s("name"), "unpadded name")
         val o = st.o("offer")
-        val of = OfferFields(o.hx("key"), o.hx("buyer"), o.l("refundAfter"))
+        val of = OfferFields(o.hx("key"), o.hx("buyer"), o.hx("seller"), o.l("refundAfter"))
         r.eqHex(of.encoded, o.s("state"), "offer state")
+        r.eq(of.encoded.size, 108, "offer state is 108 bytes (registry v3: with the seller)")
         r.eqHex(m.offer.script(of.encoded), o.s("spk"), "offer spk")
         r.eq(Codec.decodeOfferState(of.encoded), of, "decode offer state")
+        val pj = st.o("price")
+        val pf = priceFields(pj)
+        r.eqHex(pf.encoded, pj.s("state"), "price state")
+        r.eq(pf.encoded.size, 87, "price state is 87 bytes")
+        r.eqHex(m.price.script(pf.encoded), pj.s("spk"), "price spk")
+        r.eq(Codec.decodePriceState(pf.encoded), pf, "decode price state")
         r.eq(hex(Codec.decodeGapState(gs).second), g.s("hi"), "decode gap state")
         for (cv in c.arr("covenantIds").map { it.asJsonObject }) {
             val op = cv.o("outpoint")
@@ -179,6 +191,19 @@ class KachatNamesCoreTest {
         val m = manifest()
         m.verify()
         assertTrue("the vectors' manifest is a dry run", m.isDryRun)
+        // the gap and name are not pinned until the testnet genesis: an indexer-served copy is refused (iOS e1e3455)
+        assertFalse(
+            "an indexer-served manifest with unpinned gap/name verified",
+            runCatching { m.verify(Manifest.Source.INDEXER) }.isSuccess
+        )
+        assertEquals("price covenant id", vectors.s("priceCovenantId"), hex(m.priceCovenantId))
+        assertEquals("price genesis shards", vectors.l("priceShards"), m.genesisShards.size.toLong())
+        assertEquals("periodMs", vectors.l("periodMs"), m.params.periodMs)
+        // a wrong price covenant id is caught
+        val jp = vectors.o("manifest").deepCopy()
+        jp.addProperty("priceCovenantId", "cd".repeat(32))
+        jp.o("priceGenesis").addProperty("priceCovenantId", "cd".repeat(32))
+        assertFalse("manifest with a wrong price covenant id verified", runCatching { manifest(jp).verify() }.isSuccess)
         // tampering is caught
         val j = vectors.o("manifest").deepCopy()
         j.addProperty("registryCovenantId", "ab".repeat(32))
@@ -193,60 +218,72 @@ class KachatNamesCoreTest {
     }
 
     /**
-     * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json) is the live registry:
-     * registry v2 since iOS 6b6cace (genesis e20325f7...a426 at DAA 586,328,979), so it verifies
-     * against the v2 pinned templates instead of being refused as the outdated v1 one.
+     * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json): either a verified
+     * registry v3 one, or an earlier one (today the v2 genesis e20325f7...a426, registry id
+     * 82f4315c...0f89) that the app shows as "setting up" until the v3 genesis manifest is bundled
+     * (the Swift script's bundled-manifest check, iOS e1e3455).
      */
     @Test
-    fun bundledManifestVerifies() {
-        val m = Manifest.decode(File("src/main/assets/${Manifest.ASSET_NAME}").readBytes())
-        m.verify()
-        assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
-        assertEquals("82f4315c8f7b3e0e76fc2f77466fe7651d2c1fac4e0b5810d4da878a9cfa0f89", hex(m.registryCovenantId))
-        Builder(m)
+    fun bundledManifestVerifiesOrIsOutdated() {
+        val bytes = File("src/main/assets/${Manifest.ASSET_NAME}").readBytes()
+        try {
+            val m = Manifest.decode(bytes)
+            m.verify()
+            assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
+            Builder(m)
+            println("bundled manifest: registry v3, verified")
+        } catch (e: KachatNames.Failure) {
+            assertTrue("the bundled manifest neither verifies nor is an outdated one: $e", e.isOutdatedRegistry)
+            println("bundled manifest: an earlier registry (outdated) - the app shows .kachat as setting up until the v3 genesis manifest is bundled")
+        }
     }
 
     /** The set of { lock time } and every input sequence of a plan (extend: all zero). */
     private fun tx0LockAndSequences(p: Plan): Set<Long> = (listOf(p.unsignedTx.lockTime) + p.unsignedTx.inputs.map { it.sequence }).toSet()
 
     /**
-     * The registry v2 period rules on their own (KACHAT_NAMES.md 4.1, ops.rs; the Swift script's
-     * `runPeriodRules`, iOS 3ef2ec2): what extend may add, when renew opens, its lock time, the
-     * refusals, the fixed budget table, and a v1 manifest recognised as outdated.
+     * The period rules on their own (KACHAT_NAMES.md 4.1, ops.rs; the Swift script's
+     * `runPeriodRules`, iOS 3ef2ec2, e1e3455) on the testnet-10 short clock (registry v3:
+     * periodMs = renewWindowMs = graceMs = 10 minutes): what extend may add, when renew opens, its
+     * lock time, the refusals, the fixed budget table, and an earlier manifest recognised as
+     * outdated.
      */
     @Test
     fun periodRules() {
         val r = Report()
         val m = manifest()
         val p = m.params
-        val y = KachatNames.YEAR_MS
-        r.eq(p.renewWindowMs, 864_000_000L, "renewWindowMs from the manifest")
+        val y = p.periodMs
+        r.eq(y, 600_000L, "periodMs from the manifest (10 minutes)")
+        r.eq(p.renewWindowMs, 600_000L, "renewWindowMs from the manifest")
         r.eq(vectors.l("renewWindowMs"), p.renewWindowMs, "renewWindowMs matches the vectors")
         val start = 2_000_000_000_000L
-        r.eq(p.extendableYears(start, start + y), 1L, "1-year registration: extend by 1")
-        r.eq(p.extendableYears(start, start + 2 * y), 0L, "2-year registration: no extend")
-        r.eq(p.extendableYears(start, start + y + 1), 0L, "a period holding just over a year: no extend")
-        r.eq(p.extendableYears(start, start + 3 * y), 0L, "over-full period: no extend")
-        r.eq(p.extendableYears(start, start), 2L, "empty period: 2 years")
+        r.eq(p.extendableYears(start, start + y), 1L, "1-period registration: extend by 1")
+        r.eq(p.extendableYears(start, start + 2 * y), 0L, "2-period registration: no extend")
+        r.eq(p.extendableYears(start, start + y + 1), 0L, "just over a period paid: no extend")
+        r.eq(p.extendableYears(start, start + 3 * y), 0L, "over-full: no extend")
+        r.eq(p.extendableYears(start, start), 2L, "nothing paid: 2 periods")
         val f = NameFields("alice", ByteArray(32) { 7 }, 0, start, start + y)
-        r.eq(f.extended(1).periodStart, start, "extend keeps periodStart")
-        r.eq(f.extended(1).expiresAt, start + 2 * y, "extend adds a year")
-        r.eq(f.renewed(2).periodStart, start + y, "renew starts at the old expiry")
-        r.eq(f.renewed(2).expiresAt, start + 3 * y, "renew adds from the old expiry")
+        r.eq(f.extended(1, y).periodStart, start, "extend keeps periodStart")
+        r.eq(f.extended(1, y).expiresAt, start + 2 * y, "extend adds a period")
+        r.eq(f.renewed(2, y).periodStart, start + y, "renew starts at the old expiry")
+        r.eq(f.renewed(2, y).expiresAt, start + 3 * y, "renew adds from the old expiry")
         r.eq(f.withOwner(ByteArray(32) { 9 }).periodStart, start, "transfer keeps periodStart")
         r.eq(f.withPrice(5).periodStart, start, "list keeps periodStart")
         r.eq(runCatching { Codec.decodeNameState(f.encoded) }.getOrNull(), f, "126-byte state round trip")
         r.check(runCatching { Codec.decodeNameState(f.encoded.copyOfRange(0, 117)) }.isFailure) { "a 117-byte (v1) state is refused" }
-        val opens = p.renewOpens(f.expiresAt)
-        r.eq(opens, f.expiresAt - 864_000_000L, "renew opens 10 days before expiry")
+        // a 2-period name, so the window (one period before expiry) opens a period in
+        val f2 = NameFields("alice", ByteArray(32) { 7 }, 0, start, start + 2 * y)
+        val opens = p.renewOpens(f2.expiresAt)
+        r.eq(opens, f2.expiresAt - 600_000L, "renew opens one period before expiry")
         val before = Env(me = f.owner, blockDaa = 1, blockTimeMs = opens - 60_000, wallMs = opens + 60_000)
-        r.check(!Builder.renewWindowOpen(before, p, f.expiresAt)) { "window closed while the median time is before the opening" }
-        r.eq(Builder.renewLockTime(before, p, f.expiresAt), opens, "lock time never before the opening")
+        r.check(!Builder.renewWindowOpen(before, p, f2.expiresAt)) { "window closed while the median time is before the opening" }
+        r.eq(Builder.renewLockTime(before, p, f2.expiresAt), opens, "lock time never before the opening")
         val at = Env(me = f.owner, blockDaa = 1, blockTimeMs = opens, wallMs = opens + 180_000)
-        r.check(!Builder.renewWindowOpen(at, p, f.expiresAt)) { "window closed at exactly the opening (the median time must pass it)" }
-        val after = Env(me = f.owner, blockDaa = 1, blockTimeMs = opens + 3_600_000, wallMs = opens + 3_700_000)
-        r.check(Builder.renewWindowOpen(after, p, f.expiresAt)) { "window open an hour later" }
-        r.eq(Builder.renewLockTime(after, p, f.expiresAt), opens + 3_520_000, "lock time = wall - 3 min once open")
+        r.check(!Builder.renewWindowOpen(at, p, f2.expiresAt)) { "window closed at exactly the opening (the median time must pass it)" }
+        val after = Env(me = f.owner, blockDaa = 1, blockTimeMs = opens + 300_000, wallMs = opens + 400_000)
+        r.check(Builder.renewWindowOpen(after, p, f2.expiresAt)) { "window open five minutes later" }
+        r.eq(Builder.renewLockTime(after, p, f2.expiresAt), opens + 220_000, "lock time = wall - 3 min once open")
         // the builders refuse what the contract refuses, and say so
         val b = Builder(m)
         val ext = vectors.arr("steps").map { it.asJsonObject }.firstOrNull { it.s("op") == "extend" }
@@ -255,12 +292,17 @@ class KachatNamesCoreTest {
             val env = Env(me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"))
             var n = nameRec(ext.o("records").o("name"))
             val wallet = ext.arr("wallet").map { utxo(it.asJsonObject) }
-            r.check(runCatching { b.extend(env, wallet, n, 2) }.isFailure) { "extend past 2 years from periodStart refused" }
-            n = n.copy(fields = n.fields.extended(1))
-            r.check(runCatching { b.extend(env, wallet, n, 1) }.isFailure) { "a second extend of a full period refused" }
-            r.check(runCatching { b.extend(env, wallet, n, 0) }.isFailure) { "extend by 0 refused" }
+            val sh = shardRec(ext.o("records").o("shard"))
+            r.check(runCatching { b.extend(env, wallet, n, sh, 2) }.isFailure) { "extend past 2 periods from periodStart refused" }
+            n = n.copy(fields = n.fields.extended(1, p.periodMs))
+            r.check(runCatching { b.extend(env, wallet, n, sh, 1) }.isFailure) { "a second extend of a full name refused" }
+            r.check(runCatching { b.extend(env, wallet, n, sh, 0) }.isFailure) { "extend by 0 refused" }
+            // a shard with the wrong covenant id (a look-alike) is refused before anything is built
+            val e0 = sh.utxo.entry
+            val fake = sh.copy(utxo = sh.utxo.copy(entry = UtxoEntry(e0.amount, e0.scriptVersion, e0.script, e0.blockDaaScore, e0.isCoinbase, null)))
+            r.check(runCatching { b.extend(env, wallet, nameRec(ext.o("records").o("name")), fake, 1) }.isFailure) { "a look-alike price shard refused" }
             // renew before the window: built (a note says it is not open) with the opening as lock time
-            val plan = runCatching { b.renew(env, wallet, n, 1) }.getOrNull()
+            val plan = runCatching { b.renew(env, wallet, n, sh, 1) }.getOrNull()
             if (plan != null) {
                 r.eq(plan.unsignedTx.lockTime, p.renewOpens(n.fields.expiresAt), "early renew: lock time = the window opening")
                 r.check(plan.notes.any { it.startsWith("renewal window not open") }) { "early renew: noted as not open" }
@@ -268,30 +310,34 @@ class KachatNamesCoreTest {
             } else {
                 r.check(false) { "early renew plan not built" }
             }
-            r.check(runCatching { b.renew(env, wallet, n, 3) }.isFailure) { "renew by 3 refused" }
+            r.check(runCatching { b.renew(env, wallet, n, sh, 3) }.isFailure) { "renew by 3 refused" }
         } else {
             r.check(false) { "no extend step in the vectors" }
         }
         // the fixed budgets are the vectors' table, entry for entry
         val recommended = vectors.o("recommendedBudgets")
-        r.eq(recommended.keySet().toSet(), BudgetRole.entries.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
+        // price.update / price.follow are the CLI's (price changes); every other role is the app's
+        r.eq(recommended.keySet().toSet() - setOf("price.update", "price.follow"), BudgetRole.entries.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
         for (role in BudgetRole.entries) {
             r.eq(Budgets.RECOMMENDED[role].toLong(), recommended.l(role.raw), "recommended budget ${role.raw}")
         }
-        // a registry v1 manifest is recognised as outdated, never trusted
-        val v1 = vectors.o("manifest").deepCopy()
-        v1.o("params").remove("renewWindowMs")
-        val err = runCatching { manifest(v1) }.exceptionOrNull()
-        r.check(err != null) { "a manifest without renewWindowMs decoded" }
-        r.check((err as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a manifest without renewWindowMs is the outdated registry: $err" }
-        // and so is one carrying the v1 name template hash
-        val v1b = vectors.o("manifest").deepCopy()
-        v1b.o("artifacts").o("KachatName").addProperty("templateHash", Manifest.V1_TEMPLATE_HASHES.getValue("KachatName"))
-        val errB = runCatching { manifest(v1b) }.exceptionOrNull()
-        r.check((errB as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a manifest with the v1 name template is the outdated registry: $errB" }
+        // an earlier registry's manifest (no registryVersion 3) is recognised as outdated, never trusted
+        val old = vectors.o("manifest").deepCopy()
+        old.remove("registryVersion")
+        val err = runCatching { manifest(old) }.exceptionOrNull()
+        r.check(err != null) { "a manifest without registryVersion 3 decoded" }
+        r.check((err as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a manifest without registryVersion 3 is the outdated registry: $err" }
+        // and so is a registry v2 one (registryVersion 2)
+        val v2 = vectors.o("manifest").deepCopy()
+        v2.addProperty("registryVersion", 2)
+        val errB = runCatching { manifest(v2) }.exceptionOrNull()
+        r.check((errB as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a registryVersion 2 manifest is the outdated registry: $errB" }
         println("period rules: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
+
+    /** Price changes are built by the CLI only (the authority signs on KasSigner); the app reads the result. */
+    private fun appBuilds(st: JsonObject): Boolean = st.s("op") != "setPrices"
 
     /** One vector step through the builder its `op` names (the Swift script's switch). */
     private fun build(b: Builder, st: JsonObject, env: Env): Plan {
@@ -300,17 +346,17 @@ class KachatNamesCoreTest {
         val rec = st.o("records")
         return when (st.s("op")) {
             "commit" -> b.commit(env, wallet, args.s("name"), args.hx("salt"))
-            "register" -> b.register(env, wallet, gapRec(rec.o("gap")), commitRec(rec.o("commit")), args.l("years"), args.l("now"))
-            "extend" -> b.extend(env, wallet, nameRec(rec.o("name")), args.l("years"))
-            "renew" -> b.renew(env, wallet, nameRec(rec.o("name")), args.l("years"))
+            "register" -> b.register(
+                env, wallet, gapRec(rec.o("gap")), commitRec(rec.o("commit")), shardRec(rec.o("shard")), args.l("years"), args.l("now")
+            )
+            "extend" -> b.extend(env, wallet, nameRec(rec.o("name")), shardRec(rec.o("shard")), args.l("years"))
+            "renew" -> b.renew(env, wallet, nameRec(rec.o("name")), shardRec(rec.o("shard")), args.l("years"))
             "transfer" -> b.transfer(env, wallet, nameRec(rec.o("name")), args.hx("newOwner"))
             "list" -> b.list(env, wallet, nameRec(rec.o("name")), args.l("price"))
             "buy" -> b.buy(env, wallet, nameRec(rec.o("name")))
-            "offer" -> b.offer(
-                env, wallet, args.s("name"), args.l("amount"), args.l("refundAfter"),
-                rec.get("target").takeUnless { it.isNull() }?.let { nameRec(it.asJsonObject) }
-            )
+            "offer" -> b.offer(env, wallet, nameRec(rec.o("target")), args.l("amount"), args.l("refundAfter"))
             "acceptOffer" -> b.acceptOffer(env, nameRec(rec.o("name")), offerRec(rec.o("offer")))
+            "declineOffer" -> b.declineOffer(env, offerRec(rec.o("offer")))
             "withdrawOffer" -> b.withdrawOffer(env, offerRec(rec.o("offer")))
             "refundOffer" -> b.refundOffer(env, offerRec(rec.o("offer")))
             "release" -> b.release(env, ExitParts(gapRec(rec.o("below")), nameRec(rec.o("name")), gapRec(rec.o("above"))))
@@ -328,7 +374,7 @@ class KachatNamesCoreTest {
     @Test
     fun vectorStepsBuildWithRecommendedBudgets() {
         val b = Builder(manifest())
-        for (st in vectors.arr("steps").map { it.asJsonObject }) {
+        for (st in vectors.arr("steps").map { it.asJsonObject }.filter(::appBuilds)) {
             val env0 = st.o("env")
             val env = Env(me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"))
             val plan = build(b, st, env)
@@ -348,7 +394,9 @@ class KachatNamesCoreTest {
         val b = Builder(m)
         val recommended = vectors.o("recommendedBudgets")
         val results = ArrayList<Triple<String, Boolean, String?>>()
-        val steps = vectors.arr("steps").map { it.asJsonObject }
+        val allSteps = vectors.arr("steps").map { it.asJsonObject }
+        // price changes are built by the CLI only (the authority signs on KasSigner)
+        val steps = allSteps.filter(::appBuilds)
         for (st in steps) {
             val failBefore = r.fail
             val failuresBefore = r.failures.size
@@ -371,10 +419,11 @@ class KachatNamesCoreTest {
             val args = st.o("args")
             val plan: Plan = try {
                 if (st.s("op") == "register") {
-                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 741L * 86_400_000L else 0L), "$label: registerNow")
+                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 45L * 60_000L else 0L), "$label: registerNow")
                 }
                 val built = build(b, st, env)
                 when (st.s("op")) {
+                    "offer" -> r.eq(built.newOffer?.let { hex(it.fields.seller) }, args.s("seller"), "$label: made to the seller")
                     "extend" -> {
                         val n = nameRec(st.o("records").o("name"))
                         r.check(args.l("years") <= m.params.extendableYears(n.fields)) { "$label: extendableYears covers the step" }
@@ -472,7 +521,8 @@ class KachatNamesCoreTest {
         }
         val identical = results.count { it.second }
         println("vectors: ${r.pass} checks pass, ${r.fail} fail; $identical/${results.size} transactions byte-identical")
-        assertEquals("vector steps", 32, steps.size)
+        assertEquals("vector steps (registry v3)", 38, allSteps.size)
+        assertEquals("steps the app builds", 35, steps.size)
         r.assertClean()
         assertEquals("transactions byte-identical", steps.size, identical)
     }

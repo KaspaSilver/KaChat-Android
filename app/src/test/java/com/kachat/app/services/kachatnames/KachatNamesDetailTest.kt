@@ -35,7 +35,7 @@ class KachatNamesDetailTest {
     }
 
     private fun offer(createdAt: Long?, refundAfter: Long = 1_000L) =
-        OfferInfo(Outpoint(ByteArray(32), 0), ByteArray(32), "alice", ByteArray(32), 100_000_000L, refundAfter, createdAt)
+        OfferInfo(Outpoint(ByteArray(32), 0), ByteArray(32), "alice", ByteArray(32), ByteArray(32) { 3 }, 100_000_000L, refundAfter, createdAt)
 
     @Test
     fun ownerSinceIsTheLatestChangeOfOwner() {

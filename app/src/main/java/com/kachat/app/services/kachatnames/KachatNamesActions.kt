@@ -307,6 +307,15 @@ class KachatNamesActions @Inject constructor(
         return OfferRecord(o.fields, u.entry.amount, u, o.name)
     }
 
+    /**
+     * A live price shard for a register, extend or renew (registry v3, iOS e1e3455). The price
+     * record is read from the registry in the next step of the port (iOS 49c0baa); until then
+     * nothing that pays a price is built.
+     */
+    @Suppress("UNUSED_PARAMETER", "RedundantSuspendModifier")
+    private suspend fun liveShard(m: Manifest): PriceRecord =
+        throw KachatNames.Failure("the .kachat price record is not read yet (registry v3)")
+
     /** A unit of [offerTimeLeft]. */
     enum class TimeLeftUnit { DAY, HOUR, MINUTE }
 
@@ -348,7 +357,7 @@ class KachatNamesActions @Inject constructor(
                 if (op.years < 1 || op.years > op.name.extendableYears(m.params)) {
                     throw ActionError.PeriodFull(op.name.renewOpens(m.params))
                 }
-                b.extend(env, wallet, liveName(op.name, m), op.years)
+                b.extend(env, wallet, liveName(op.name, m), liveShard(m), op.years)
             }
             is Operation.Renew -> {
                 // Valid only once the network's median time passes the window opening (the mempool
@@ -356,7 +365,7 @@ class KachatNamesActions @Inject constructor(
                 if (!Builder.renewWindowOpen(env, m.params, op.name.expiresAt)) {
                     throw ActionError.RenewalNotOpen(op.name.renewOpens(m.params))
                 }
-                b.renew(env, wallet, liveName(op.name, m), op.years)
+                b.renew(env, wallet, liveName(op.name, m), liveShard(m), op.years)
             }
             is Operation.Transfer -> {
                 validateKey(op.to, "The new owner")
@@ -374,7 +383,9 @@ class KachatNamesActions @Inject constructor(
             }
             is Operation.Offer -> {
                 validateKey(env.me, "Your key")
-                b.offer(env, wallet, op.name, op.amount, op.refundAfterDaa)
+                // registry v3: an offer is made to the registered name's current owner (iOS e1e3455)
+                val target = op.target ?: throw KachatNames.Failure("an offer is made on a registered name")
+                b.offer(env, wallet, liveName(target, m), op.amount, op.refundAfterDaa)
             }
             is Operation.Withdraw -> b.withdrawOffer(env, liveOffer(op.offer, m))
             is Operation.Refund -> b.refundOffer(env, liveOffer(op.offer, m))
@@ -414,7 +425,7 @@ class KachatNamesActions @Inject constructor(
         val o = plan.newOffer
         if (op is Operation.Offer && o != null) {
             registry.trackOffer(
-                OfferInfo(o.utxo.outpoint, o.fields.key, o.name, o.fields.buyer, o.value, o.fields.refundAfter, System.currentTimeMillis())
+                OfferInfo(o.utxo.outpoint, o.fields.key, o.name, o.fields.buyer, o.fields.seller, o.value, o.fields.refundAfter, System.currentTimeMillis())
             )
         }
         registry.refreshAfter(txId)
@@ -570,7 +581,8 @@ class KachatNamesActions @Inject constructor(
         val wallet = c.wallet
         val salt = KachatNamesService.newSalt()
         val spendable = wallet.sumOf { it.entry.amount }
-        val price = m.params.price(name.toByteArray(Charsets.UTF_8).size) * years
+        val shard = liveShard(m)
+        val price = shard.price(name.toByteArray(Charsets.UTF_8).size) * years
         var commitFee = 0L
         var registerFee = 0L
         val commitPlan = runCatching { b.commit(env, wallet, name, salt) }.getOrNull()
@@ -594,7 +606,7 @@ class KachatNamesActions @Inject constructor(
                 )
                 val rest = wallet.filter { u -> commitPlan.inputs.none { it.utxo.outpoint == u.outpoint } }
                 runCatching {
-                    b.register(env, rest, GapRecord(gap.lo, gap.hi, m.params.gapValue, gapUtxo), matureCommit, years, Builder.registerNow(env))
+                    b.register(env, rest, GapRecord(gap.lo, gap.hi, m.params.gapValue, gapUtxo), matureCommit, shard, years, Builder.registerNow(env))
                 }.getOrNull()?.let { registerFee = it.networkFee }
             }
         }
@@ -834,7 +846,7 @@ class KachatNamesActions @Inject constructor(
             val plan = c.builder.register(
                 c.env, c.wallet, liveGap(gap, m),
                 CommitRecord(p.name, s.me, salt, commit.entry.amount, commit),
-                p.years, Builder.registerNow(c.env)
+                liveShard(m), p.years, Builder.registerNow(c.env)
             )
             val txId = service.signAndSubmit(plan, s.privateKey, c.env)
             set(p) { it.copy(stage = PendingRegistration.Stage.REGISTERING, registerTxId = txId, lastError = null) }
