@@ -756,7 +756,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">Kirim KAS</string>
     <string name="payment_to_name">ke %1$s</string>
-    <string name="hold_to_send">Tahan untuk Mengirim</string>
     <string name="payment_memo_placeholder">Tambahkan catatan (terenkripsi)</string>
     <string name="payment_switch_currency">Beralih antara Kaspa dan mata uang Anda</string>
     <string name="payment_dust_warning">Mengirim kurang dari 0,1 KAS dapat gagal karena batas perlindungan dust jaringan.</string>
@@ -808,4 +807,7 @@
     <string name="scan_qr">Pindai QR</string>
     <string name="available">Tersedia</string>
     <string name="to">Kepada</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">Geser untuk mengirim</string>
+    <string name="slide_to_consolidate">Geser untuk menggabungkan</string>
 </resources>

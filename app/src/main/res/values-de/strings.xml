@@ -897,7 +897,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">KAS senden</string>
     <string name="payment_to_name">an %1$s</string>
-    <string name="hold_to_send">Zum Senden halten</string>
     <string name="payment_memo_placeholder">Notiz hinzufügen (verschlüsselt)</string>
     <string name="payment_switch_currency">Zwischen Kaspa und deiner Währung wechseln</string>
     <string name="payment_dust_warning">Das Senden von weniger als 0,1 KAS kann aufgrund des Netzwerk-Dust-Schutzlimits fehlschlagen.</string>
@@ -947,4 +946,7 @@
     <string name="scan_qr">QR scannen</string>
     <string name="available">Verfügbar</string>
     <string name="network_fee">Netzwerkgebühr</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">Zum Senden schieben</string>
+    <string name="slide_to_consolidate">Zum Zusammenführen schieben</string>
 </resources>

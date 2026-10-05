@@ -299,9 +299,10 @@ fun ChatThreadScreen(
     // broadcast rooms and KaPosts — see ZeroBalanceFundingUi.kt.
     val fundingGate = rememberZeroBalanceFundingGate()
 
-    // The "Send KAS" sheet (amount, encrypted memo, hold to send - iOS 8d208b2). It replaced the
-    // composer's payment mode; every way into a payment opens it: the "+" sheet's Pay in Kaspa,
-    // and the paymentMode chat route ("Pay in Kaspa" from a group or public chat's sender sheet).
+    // The "Send KAS" sheet (amount, encrypted memo, slide to send - iOS 8d208b2, afaad34). It
+    // replaced the composer's payment mode; every way into a payment opens it: the "+" sheet's Pay
+    // in Kaspa, and the paymentMode chat route ("Pay in Kaspa" from a group or public chat's
+    // sender sheet).
     // rememberSaveable (not remember) so the sheet survives a push to Manage Spending Addresses
     // from its Available pill and back - iOS presents that screen over the sheet.
     var showPaymentSheet by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -6257,8 +6258,8 @@ fun SpendingAddressSendFlow(
                 onCoinControl = { if (!isSending) showCoinControl = true },
             )
 
-            HoldToSendButton(
-                title = stringResource(if (isCompoundMode) R.string.hold_to_consolidate else R.string.hold_to_send),
+            SendActionButton(
+                title = stringResource(if (isCompoundMode) R.string.slide_to_consolidate else R.string.slide_to_send),
                 isBusy = isSending,
                 isEnabled = canSend,
                 onSend = send,

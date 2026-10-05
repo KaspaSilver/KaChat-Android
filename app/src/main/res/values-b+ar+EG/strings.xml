@@ -897,7 +897,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">إرسال KAS</string>
     <string name="payment_to_name">لـ %1$s</string>
-    <string name="hold_to_send">اضغط مطوّل عشان تبعت</string>
     <string name="payment_memo_placeholder">ضيف ملاحظة (متشفرة)</string>
     <string name="payment_switch_currency">بدّل بين Kaspa وعملتك</string>
     <string name="payment_dust_warning">قد يفشل إرسال أقل من 0.1 KAS بسبب حد حماية الغبار في الشبكة.</string>
@@ -947,4 +946,7 @@
     <string name="scan_qr">مسح QR</string>
     <string name="available">متاح</string>
     <string name="network_fee">رسوم الشبكة</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">اسحب عشان تبعت</string>
+    <string name="slide_to_consolidate">اسحب عشان تدمج</string>
 </resources>

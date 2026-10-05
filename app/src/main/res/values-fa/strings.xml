@@ -934,7 +934,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">ارسال KAS</string>
     <string name="payment_to_name">به %1$s</string>
-    <string name="hold_to_send">برای ارسال نگه دارید</string>
     <string name="payment_memo_placeholder">افزودن یادداشت (رمزگذاری‌شده)</string>
     <string name="payment_switch_currency">جابه‌جایی بین Kaspa و ارز شما</string>
     <string name="payment_dust_warning">ارسال کمتر از 0.1 KAS ممکن است به دلیل محدودیت حفاظت از غبار شبکه ناموفق باشد.</string>
@@ -979,4 +978,7 @@
     <string name="paste">جای‌گذاری</string>
     <string name="scan_qr">اسکن QR</string>
     <string name="available">موجود</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">برای ارسال بکشید</string>
+    <string name="slide_to_consolidate">برای ادغام بکشید</string>
 </resources>

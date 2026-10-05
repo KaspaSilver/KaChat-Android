@@ -1519,12 +1519,12 @@ private fun ColdSendFlow(
                             )
                         }
 
-                        // A tap, not a hold: this only builds the transaction for KasSigner to sign.
-                        HoldToSendButton(
+                        // A tap, not a slide: this only builds the transaction for KasSigner to sign.
+                        SendActionButton(
                             title = stringResource(R.string.build_unsigned_transaction),
                             isBusy = isBuilding,
                             isEnabled = hasValidRecipient && (amountSompi ?: 0) > 0,
-                            requiresHold = false,
+                            requiresSlide = false,
                             onSend = {
                                 amountSompi?.let {
                                     // Real coin control (explicit user selection) wins if set;

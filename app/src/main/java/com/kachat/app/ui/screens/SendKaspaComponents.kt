@@ -1,11 +1,11 @@
 package com.kachat.app.ui.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,13 +48,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -60,6 +66,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -77,6 +84,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
@@ -86,13 +94,15 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaFiatAmountState
 import com.kachat.app.util.KaspaUnit
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 // The pieces every Send Kaspa screen is built from, so they look and behave the same: the 1:1
 // chat's Send KAS sheet, Profile's Send Kaspa, a spending address's Send, and KasSigner's send.
 // Recipient on top (paste, scan a QR, names resolve), then the big amount (KAS or your currency,
-// Max), the fee and balance, the fee speed and coin control, and a hold-to-send button.
+// Max), the fee and balance, the fee speed and coin control, and a slide-to-send button.
 // Mirrors iOS's Views/Shared/SendKaspaComponents.swift (4d0324f). Change these pieces rather than
 // one screen, so the screens stay matched.
 
@@ -577,50 +587,60 @@ fun SendInfoPill(
 // MARK: - Send button
 
 /**
- * The send button. It fires only after a press is held (0.8 s): the fill sweeps across while
- * holding and resets if released early, so a payment can't go out on a stray touch. Accessibility
- * services get a plain click action instead. With [requiresHold] false it's an ordinary tap in the
- * same look (KasSigner's "Build Unsigned Transaction", which moves nothing by itself). Mirrors
- * iOS's `HoldToSendButton` (8d208b2, shared in 4d0324f).
+ * The send button: slide the white knob to the right end to send, so a payment can't go out on a
+ * stray touch. Haptics on the first move and on reaching the end; letting go before the end
+ * springs it back; after a send that didn't go through (an error, the small-amount question) it
+ * resets by itself, and again when the send finishes. Accessibility services get a plain click
+ * action. With [requiresSlide] false it's an ordinary tap in the same look (KasSigner's "Build
+ * Unsigned Transaction", which moves nothing by itself). Mirrors iOS's `SendActionButton`
+ * (afaad34, was HoldToSendButton).
  */
 @Composable
-fun HoldToSendButton(
+fun SendActionButton(
     title: String,
     isBusy: Boolean,
     isEnabled: Boolean,
     onSend: () -> Unit,
-    requiresHold: Boolean = true,
+    requiresSlide: Boolean = true,
 ) {
-    val progress = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     val currentOnSend by rememberUpdatedState(onSend)
-    val shape = RoundedCornerShape(28.dp)
+    val currentBusy by rememberUpdatedState(isBusy)
     val active = isEnabled && !isBusy
+    val currentActive by rememberUpdatedState(active)
+    val height = 56.dp
+    val inset = 4.dp
+    val knob = height - inset * 2
+    // How far the knob has travelled, in px.
+    var offset by remember { mutableFloatStateOf(0f) }
+    var reachedEnd by remember { mutableStateOf(false) }
+    var resetJob by remember { mutableStateOf<Job?>(null) }
+
+    fun reset() {
+        reachedEnd = false
+        resetJob?.cancel()
+        resetJob = scope.launch {
+            // iOS .spring(response: 0.35, dampingFraction: 0.8).
+            animate(offset, 0f, animationSpec = spring(dampingRatio = 0.8f, stiffness = 322f)) { value, _ -> offset = value }
+        }
+    }
+
+    // The send finished (or failed after starting): put the knob back.
+    LaunchedEffect(isBusy) { if (!isBusy && offset != 0f) reset() }
+
     BoxWithConstraints(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .clip(shape)
+            .height(height)
+            .clip(CircleShape)
             .background(KaspaTeal.copy(alpha = if (isEnabled || isBusy) 1f else 0.4f))
-            .pointerInput(isEnabled, isBusy, requiresHold) {
-                if (requiresHold) {
-                    detectTapGestures(onPress = {
-                        if (!active) return@detectTapGestures
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        val hold = scope.launch {
-                            progress.animateTo(1f, tween(durationMillis = 800, easing = LinearEasing))
-                            currentOnSend()
-                        }
-                        tryAwaitRelease()
-                        if (hold.isActive) hold.cancel()
-                        scope.launch { progress.animateTo(0f, tween(durationMillis = 200)) }
-                    })
-                } else {
-                    detectTapGestures(onTap = { if (active) currentOnSend() })
-                }
-            }
+            .then(
+                if (requiresSlide) Modifier
+                else Modifier.pointerInput(Unit) { detectTapGestures(onTap = { if (currentActive) currentOnSend() }) }
+            )
             .clearAndSetSemantics {
                 contentDescription = title
                 role = Role.Button
@@ -630,17 +650,82 @@ fun HoldToSendButton(
                 }
             },
     ) {
+        val knobPx = with(density) { knob.toPx() }
+        val insetPx = with(density) { inset.toPx() }
+        val maxOffset = (constraints.maxWidth - knobPx - insetPx * 2).coerceAtLeast(1f)
+        val progress = if (requiresSlide) (offset / maxOffset).coerceIn(0f, 1f) else 0f
+
+        if (requiresSlide) {
+            // The trail behind the knob.
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(inset * 2 + knob + with(density) { offset.toDp() })
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.25f)),
+            )
+        }
         Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
-                .fillMaxHeight()
-                .width(maxWidth * progress.value)
-                .background(Color.White.copy(alpha = 0.28f)),
-        )
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                .fillMaxWidth()
+                .alpha(if (isBusy) 1f else 1f - progress),
+        ) {
             if (isBusy) {
                 CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
             } else {
-                Text(title, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(title, color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+            }
+        }
+        if (requiresSlide && !isBusy) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .offset { IntOffset((insetPx + offset).roundToInt(), 0) }
+                    .size(knob)
+                    .shadow(4.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .pointerInput(maxOffset) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { if (currentActive) resetJob?.cancel() },
+                            onDragEnd = {
+                                if (!currentActive) return@detectHorizontalDragGestures
+                                if (offset >= maxOffset * 0.95f) {
+                                    offset = maxOffset
+                                    currentOnSend()
+                                    // A send that didn't start (dust question, a validation
+                                    // error) leaves it not busy: put the knob back.
+                                    scope.launch {
+                                        delay(600)
+                                        if (!currentBusy) reset()
+                                    }
+                                } else {
+                                    reset()
+                                }
+                            },
+                            onDragCancel = { reset() },
+                        ) { change, dragAmount ->
+                            if (!currentActive) return@detectHorizontalDragGestures
+                            change.consume()
+                            val next = (offset + dragAmount).coerceIn(0f, maxOffset)
+                            if (offset == 0f && next > 0f) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            offset = next
+                            if (offset >= maxOffset && !reachedEnd) {
+                                reachedEnd = true
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            } else if (offset < maxOffset) {
+                                reachedEnd = false
+                            }
+                        }
+                    },
+            ) {
+                Icon(
+                    Icons.Default.KeyboardDoubleArrowRight,
+                    contentDescription = null,
+                    tint = KaspaTeal,
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
     }

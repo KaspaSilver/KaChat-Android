@@ -37,11 +37,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -72,8 +70,8 @@ private const val DUST_LIMIT_SOMPI = 10_000_001L
 
 /**
  * "Send KAS": who it goes to, the exact amount (KAS or fiat), an encrypted memo, the fee and
- * available balance, and a hold-to-send button - holding rather than tapping, so a payment can't
- * go out on a stray touch. It replaced the composer's payment mode; every way into a payment (the
+ * available balance, and a slide-to-send button (iOS afaad34) - sliding rather than tapping, so a
+ * payment can't go out on a stray touch. It replaced the composer's payment mode; every way into a payment (the
  * "+" sheet's Pay in Kaspa, "Pay in Kaspa" from a group or public chat's sender sheet) opens it.
  * Mirrors iOS's `ChatDetailView.paymentSheet` (8d208b2).
  *
@@ -114,7 +112,6 @@ fun SendKasSheet(
     )
     val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = onAmountKasChange)
     var showDustConfirm by remember { mutableStateOf(false) }
-    val haptics = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
 
     val submit = {
@@ -258,14 +255,12 @@ fun SendKasSheet(
                 )
             }
 
-            HoldToSendButton(
-                title = stringResource(R.string.hold_to_send),
+            // The button gives its own haptics as the knob moves and reaches the end.
+            SendActionButton(
+                title = stringResource(R.string.slide_to_send),
                 isBusy = isSending,
                 isEnabled = amountSompi > 0 && !isSending,
-                onSend = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    submit()
-                },
+                onSend = { submit() },
             )
         }
     }

@@ -1071,7 +1071,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">Send KAS</string>
     <string name="payment_to_name">to %1$s</string>
-    <string name="hold_to_send">Hold to Send</string>
     <string name="payment_memo_placeholder">Add a memo (encrypted)</string>
     <string name="payment_switch_currency">Switch between Kaspa and your currency</string>
     <string name="payment_dust_warning">Sending less than 0.1 KAS may fail due to the network dust protection limit.</string>
@@ -1112,9 +1111,11 @@
     <string name="fee_tier_fast">Fast</string>
     <string name="fee_tier_priority">Priority</string>
     <string name="resolved_name">Resolved: %1$s</string>
-    <string name="hold_to_consolidate">Hold to Consolidate</string>
     <string name="send_fee_tier_footer">If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee.</string>
     <string name="paste">Paste</string>
     <string name="scan_qr">Scan QR</string>
     <string name="available">Available</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">Slide to Send</string>
+    <string name="slide_to_consolidate">Slide to Consolidate</string>
 </resources>

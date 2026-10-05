@@ -897,7 +897,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">KAS 보내기</string>
     <string name="payment_to_name">%1$s에게</string>
-    <string name="hold_to_send">길게 눌러 보내기</string>
     <string name="payment_memo_placeholder">메모 추가(암호화됨)</string>
     <string name="payment_switch_currency">Kaspa와 통화 간 전환</string>
     <string name="payment_dust_warning">0.1 KAS 미만 전송은 네트워크 dust 보호 제한으로 인해 실패할 수 있습니다.</string>
@@ -947,4 +946,7 @@
     <string name="scan_qr">QR 스캔</string>
     <string name="available">사용 가능</string>
     <string name="network_fee">네트워크 수수료</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">밀어서 보내기</string>
+    <string name="slide_to_consolidate">밀어서 통합</string>
 </resources>

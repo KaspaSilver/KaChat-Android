@@ -897,7 +897,6 @@
     <!-- Send KAS sheet (iOS 8d208b2) -->
     <string name="send_kas_title">Gửi KAS</string>
     <string name="payment_to_name">tới %1$s</string>
-    <string name="hold_to_send">Giữ để gửi</string>
     <string name="payment_memo_placeholder">Thêm ghi chú (đã mã hóa)</string>
     <string name="payment_switch_currency">Chuyển giữa Kaspa và tiền tệ của bạn</string>
     <string name="payment_dust_warning">Gửi dưới 0,1 KAS có thể thất bại do giới hạn bảo vệ dust của mạng.</string>
@@ -947,4 +946,7 @@
     <string name="scan_qr">Quét QR</string>
     <string name="available">Có sẵn</string>
     <string name="network_fee">Phí mạng</string>
+    <!-- Send Kaspa: slide to send (iOS afaad34) -->
+    <string name="slide_to_send">Trượt để gửi</string>
+    <string name="slide_to_consolidate">Trượt để gộp</string>
 </resources>
