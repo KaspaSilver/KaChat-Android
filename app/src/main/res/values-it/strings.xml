@@ -699,7 +699,6 @@
     <string name="kn_reclaim">Recupera</string>
     <string name="kn_search_above">Cerca un nome qui sopra e registralo.</string>
     <string name="kn_my_offers">Le mie offerte</string>
-    <string name="kn_my_offers_detail">Le offerte che hai fatto. Ritirale quando vuoi; superato il tempo di rimborso, chiunque può restituirtele.</string>
     <string name="kn_no_open_offers">Nessuna offerta aperta.</string>
     <string name="kn_offers_need_indexer">Le offerte degli altri compaiono quando è collegato un indicizzatore dei nomi.</string>
     <string name="kn_activity_detail">Registrazioni, rinnovi, messe in vendita, vendite e trasferimenti in tutto il registro.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">Accetta e trasferisci</string>
     <string name="kn_accept_warning">Il nome va all’acquirente e l’importo dell’offerta arriva a te, in un’unica transazione. Non si può annullare.</string>
     <string name="kn_buyer">Acquirente</string>
-    <string name="kn_refundable_now">Rimborsabile ora</string>
     <string name="kn_price_to_miners">Prezzo (ai miner)</string>
     <string name="kn_sent_note">Appare qui quando la rete la accetta, di solito in pochi secondi.</string>
     <string name="kn_years">Anni</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">Rilascia nome</string>
     <string name="kn_owner">Proprietario</string>
     <string name="kn_you">Tu</string>
-    <string name="kn_accept_one">Accettane una per vendere il nome a quel prezzo.</string>
     <string name="kn_no_history">Ancora nessuna cronologia.</string>
     <string name="kn_release">Rilascia</string>
     <string name="kn_release_warning">Rilasciare significa rinunciare al nome per sempre: chiunque potrà registrarlo e il tempo pagato va perso. Riavrai la cauzione e il deposito del registro.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">Invia il nome a un altro indirizzo.</string>
     <string name="kn_manage_primary_hint">Ti mostra con questo nome in tutto KaChat.</string>
     <string name="kn_manage_release_hint">Rinuncia al nome e restituisce il suo deposito.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Scade tra %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Scaduta - torna a te</string>
+    <string name="kn_offer_expired_returning_to_buyer">Scaduta - torna all’acquirente</string>
+    <string name="kn_offer_expired_refundable">Scaduta - rimborsabile ora</string>
+    <string name="kn_offers_tap_to_accept">Tocca un’offerta per accettarla. Le offerte scadute tornano ai loro acquirenti.</string>
+    <string name="kn_err_offer_expired">Questa offerta è scaduta. Torna all’acquirente.</string>
+    <string name="kn_my_offers_detail">Le tue offerte. Ritirane una quando vuoi; alla scadenza torna a te da sola.</string>
+    <string name="kn_offer_declined_returning_to_you">Rifiutata - il nome ha cambiato proprietario, torna a te</string>
+    <string name="kn_offer_declined_earlier_owner">Rifiutata - fatta a un proprietario precedente</string>
+    <string name="kn_err_offer_declined">Questa offerta è stata fatta prima che il nome cambiasse proprietario, quindi è rifiutata e torna all’acquirente.</string>
 </resources>

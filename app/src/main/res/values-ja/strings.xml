@@ -699,7 +699,6 @@
     <string name="kn_reclaim">回収</string>
     <string name="kn_search_above">上で名前を検索して取得しましょう。</string>
     <string name="kn_my_offers">自分のオファー</string>
-    <string name="kn_my_offers_detail">あなたが出したオファーです。いつでも取り下げられ、返金時刻を過ぎれば誰でもあなたに返せます。</string>
     <string name="kn_no_open_offers">進行中のオファーはありません。</string>
     <string name="kn_offers_need_indexer">他の人からのオファーは、名前インデクサーに接続すると表示されます。</string>
     <string name="kn_activity_detail">レジストリ全体の取得・更新・出品・売却・譲渡。</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">承諾して譲渡</string>
     <string name="kn_accept_warning">1 回の取引で名前は購入者に、オファー額はあなたに移ります。元に戻せません。</string>
     <string name="kn_buyer">購入者</string>
-    <string name="kn_refundable_now">今すぐ返金可能</string>
     <string name="kn_price_to_miners">価格（マイナーへ）</string>
     <string name="kn_sent_note">ネットワークが受け入れるとここに表示されます。通常は数秒です。</string>
     <string name="kn_years">年数</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">名前を解放</string>
     <string name="kn_owner">所有者</string>
     <string name="kn_you">あなた</string>
-    <string name="kn_accept_one">承諾すると、その額で名前を売却します。</string>
     <string name="kn_no_history">まだ履歴はありません。</string>
     <string name="kn_release">解放</string>
     <string name="kn_release_warning">解放すると名前を完全に手放します。誰でも登録できるようになり、支払った期間は失われます。保証金とレジストリ預託金は戻ります。</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">名前を別のアドレスに送ります。</string>
     <string name="kn_manage_primary_hint">KaChat全体でこの名前であなたを表示します。</string>
     <string name="kn_manage_release_hint">名前を手放し、預け金を返します。</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">あと%1$sで期限切れ</string>
+    <string name="kn_offer_expired_returning_to_you">期限切れ - あなたに返却中</string>
+    <string name="kn_offer_expired_returning_to_buyer">期限切れ - 購入者に返却中</string>
+    <string name="kn_offer_expired_refundable">期限切れ - 今すぐ返金可能</string>
+    <string name="kn_offers_tap_to_accept">オファーをタップして受け入れます。期限切れのオファーは購入者に返されます。</string>
+    <string name="kn_err_offer_expired">このオファーは期限切れです。購入者に返却されます。</string>
+    <string name="kn_my_offers_detail">あなたが出したオファーです。いつでも取り下げできます。期限が切れると自動で戻ってきます。</string>
+    <string name="kn_offer_declined_returning_to_you">辞退 - 名前の所有者が変わったため、あなたに返却中</string>
+    <string name="kn_offer_declined_earlier_owner">辞退 - 以前の所有者へのオファー</string>
+    <string name="kn_err_offer_declined">このオファーは名前の所有者が変わる前に出されたため、辞退扱いとなり購入者に返却されます。</string>
 </resources>

@@ -699,7 +699,6 @@
     <string name="kn_reclaim">Thu hồi</string>
     <string name="kn_search_above">Tìm một tên ở trên và nhận nó.</string>
     <string name="kn_my_offers">Đề nghị của tôi</string>
-    <string name="kn_my_offers_detail">Các đề nghị bạn đã đưa. Rút bất cứ lúc nào; sau thời điểm hoàn, ai cũng có thể trả lại cho bạn.</string>
     <string name="kn_no_open_offers">Không có đề nghị đang mở.</string>
     <string name="kn_offers_need_indexer">Đề nghị từ người khác sẽ hiện khi có kết nối trình lập chỉ mục tên.</string>
     <string name="kn_activity_detail">Đăng ký, gia hạn, rao bán, bán và chuyển nhượng trên toàn sổ đăng ký.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">Chấp nhận và chuyển</string>
     <string name="kn_accept_warning">Tên chuyển cho người mua và số tiền đề nghị về bạn, trong một giao dịch. Không thể hoàn tác.</string>
     <string name="kn_buyer">Người mua</string>
-    <string name="kn_refundable_now">Có thể hoàn ngay</string>
     <string name="kn_price_to_miners">Giá (trả cho thợ đào)</string>
     <string name="kn_sent_note">Sẽ hiện ở đây khi mạng chấp nhận, thường trong vài giây.</string>
     <string name="kn_years">Số năm</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">Nhả tên</string>
     <string name="kn_owner">Chủ sở hữu</string>
     <string name="kn_you">Bạn</string>
-    <string name="kn_accept_one">Chấp nhận một đề nghị để bán tên với giá đó.</string>
     <string name="kn_no_history">Chưa có lịch sử.</string>
     <string name="kn_release">Nhả</string>
     <string name="kn_release_warning">Nhả tên là từ bỏ vĩnh viễn: ai cũng có thể đăng ký, và thời gian bạn đã trả sẽ mất. Bạn nhận lại tiền bảo đảm và ký quỹ sổ đăng ký.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">Gửi tên đến địa chỉ khác.</string>
     <string name="kn_manage_primary_hint">Hiển thị bạn bằng tên này trên toàn KaChat.</string>
     <string name="kn_manage_release_hint">Từ bỏ tên và hoàn lại tiền đặt cọc.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Hết hạn sau %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Đã hết hạn - đang hoàn lại cho bạn</string>
+    <string name="kn_offer_expired_returning_to_buyer">Đã hết hạn - đang hoàn lại cho người mua</string>
+    <string name="kn_offer_expired_refundable">Đã hết hạn - có thể hoàn lại ngay</string>
+    <string name="kn_offers_tap_to_accept">Chạm vào một đề nghị để chấp nhận. Đề nghị hết hạn sẽ hoàn lại cho người mua.</string>
+    <string name="kn_err_offer_expired">Đề nghị này đã hết hạn. Đang hoàn lại cho người mua.</string>
+    <string name="kn_my_offers_detail">Các đề nghị bạn đã gửi. Rút bất cứ lúc nào; khi hết hạn sẽ tự hoàn lại cho bạn.</string>
+    <string name="kn_offer_declined_returning_to_you">Bị từ chối - tên đã đổi chủ, đang hoàn lại cho bạn</string>
+    <string name="kn_offer_declined_earlier_owner">Bị từ chối - gửi cho chủ cũ</string>
+    <string name="kn_err_offer_declined">Đề nghị này được gửi trước khi tên đổi chủ, nên đã bị từ chối và đang hoàn lại cho người mua.</string>
 </resources>

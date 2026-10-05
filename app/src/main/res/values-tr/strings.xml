@@ -699,7 +699,6 @@
     <string name="kn_reclaim">Geri al</string>
     <string name="kn_search_above">Yukarıda bir ad arayıp alın.</string>
     <string name="kn_my_offers">Tekliflerim</string>
-    <string name="kn_my_offers_detail">Verdiğiniz teklifler. İstediğiniz zaman geri çekin; iade zamanı geçince herkes size geri gönderebilir.</string>
     <string name="kn_no_open_offers">Açık teklif yok.</string>
     <string name="kn_offers_need_indexer">Başkalarının teklifleri bir ad dizinleyicisi bağlandığında görünür.</string>
     <string name="kn_activity_detail">Kayıt genelinde alımlar, yenilemeler, satışa koymalar, satışlar ve devirler.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">Kabul Et ve Devret</string>
     <string name="kn_accept_warning">Ad alıcıya, teklif tutarı size tek işlemde geçer. Bu geri alınamaz.</string>
     <string name="kn_buyer">Alıcı</string>
-    <string name="kn_refundable_now">Şimdi iade edilebilir</string>
     <string name="kn_price_to_miners">Fiyat (madencilere)</string>
     <string name="kn_sent_note">Ağ kabul edince burada görünür, genellikle saniyeler içinde.</string>
     <string name="kn_years">Yıl</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">Adı Bırak</string>
     <string name="kn_owner">Sahip</string>
     <string name="kn_you">Siz</string>
-    <string name="kn_accept_one">Adı o tutara satmak için birini kabul edin.</string>
     <string name="kn_no_history">Henüz geçmiş yok.</string>
     <string name="kn_release">Bırak</string>
     <string name="kn_release_warning">Bırakmak adı kalıcı olarak vermek demektir: herkes kaydedebilir ve ödediğiniz süre boşa gider. Teminat ve kayıt depozitosu size geri döner.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">Adı başka bir adrese gönderir.</string>
     <string name="kn_manage_primary_hint">Seni KaChat\'in her yerinde bu adla gösterir.</string>
     <string name="kn_manage_release_hint">Adı bırakır ve depozitosunu iade eder.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">%1$s içinde sona eriyor</string>
+    <string name="kn_offer_expired_returning_to_you">Süresi doldu - sana dönüyor</string>
+    <string name="kn_offer_expired_returning_to_buyer">Süresi doldu - alıcıya dönüyor</string>
+    <string name="kn_offer_expired_refundable">Süresi doldu - şimdi iade edilebilir</string>
+    <string name="kn_offers_tap_to_accept">Kabul etmek için bir teklife dokun. Süresi dolan teklifler alıcılarına döner.</string>
+    <string name="kn_err_offer_expired">Bu teklifin süresi doldu. Alıcıya geri dönüyor.</string>
+    <string name="kn_my_offers_detail">Yaptığın teklifler. İstediğin zaman geri çek; süresi dolunca kendiliğinden sana döner.</string>
+    <string name="kn_offer_declined_returning_to_you">Reddedildi - adın sahibi değişti, sana dönüyor</string>
+    <string name="kn_offer_declined_earlier_owner">Reddedildi - önceki sahibine yapılmış</string>
+    <string name="kn_err_offer_declined">Bu teklif ad el değiştirmeden önce yapıldığı için reddedildi ve alıcıya geri dönüyor.</string>
 </resources>

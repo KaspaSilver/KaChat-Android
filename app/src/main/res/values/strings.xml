@@ -872,7 +872,6 @@
     <string name="kn_reclaim">Reclaim</string>
     <string name="kn_search_above">Search for a name above and claim it.</string>
     <string name="kn_my_offers">My Offers</string>
-    <string name="kn_my_offers_detail">Offers you made. Withdraw one any time; once it passes its refund time anyone can return it to you.</string>
     <string name="kn_no_open_offers">No open offers.</string>
     <string name="kn_offers_need_indexer">Offers from others appear once a names indexer is connected.</string>
     <string name="kn_activity_detail">Claims, renewals, listings, sales and transfers across the registry.</string>
@@ -885,7 +884,6 @@
     <string name="kn_accept_and_transfer">Accept and Transfer</string>
     <string name="kn_accept_warning">The name goes to the buyer and the offer\'s amount comes to you, in one transaction. This can\'t be undone.</string>
     <string name="kn_buyer">Buyer</string>
-    <string name="kn_refundable_now">Refundable now</string>
     <string name="kn_price_to_miners">Price (to miners)</string>
     <string name="kn_sent_note">It shows here once the network accepts it, usually within seconds.</string>
     <string name="kn_years">Years</string>
@@ -914,7 +912,6 @@
     <string name="kn_release_name">Release Name</string>
     <string name="kn_owner">Owner</string>
     <string name="kn_you">You</string>
-    <string name="kn_accept_one">Accept one to sell the name for it.</string>
     <string name="kn_no_history">No history yet.</string>
     <string name="kn_release">Release</string>
     <string name="kn_release_warning">Releasing gives the name up for good: it becomes free for anyone to register, and the time you paid for is lost. You get the bond and the registry deposit back.</string>
@@ -1150,4 +1147,15 @@
     <string name="kn_manage_transfer_hint">Sends the name to another address.</string>
     <string name="kn_manage_primary_hint">Shows you by this name across KaChat.</string>
     <string name="kn_manage_release_hint">Gives the name up and returns its deposit.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Expires in %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Expired - returning to you</string>
+    <string name="kn_offer_expired_returning_to_buyer">Expired - returning to the buyer</string>
+    <string name="kn_offer_expired_refundable">Expired - refundable now</string>
+    <string name="kn_offers_tap_to_accept">Tap an offer to accept it. Expired offers go back to their buyers.</string>
+    <string name="kn_err_offer_expired">This offer has expired. It\'s going back to the buyer.</string>
+    <string name="kn_my_offers_detail">Offers you made. Withdraw one any time; once it expires it comes back to you on its own.</string>
+    <string name="kn_offer_declined_returning_to_you">Declined - the name changed hands, returning to you</string>
+    <string name="kn_offer_declined_earlier_owner">Declined - made to an earlier owner</string>
+    <string name="kn_err_offer_declined">This offer was made before the name changed hands, so it\'s declined and going back to the buyer.</string>
 </resources>

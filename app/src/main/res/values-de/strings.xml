@@ -699,7 +699,6 @@
     <string name="kn_reclaim">Zurückholen</string>
     <string name="kn_search_above">Such oben nach einem Namen und sichere ihn dir.</string>
     <string name="kn_my_offers">Meine Angebote</string>
-    <string name="kn_my_offers_detail">Deine Angebote. Zieh eines jederzeit zurück; nach seiner Erstattungszeit kann es dir jeder zurückgeben.</string>
     <string name="kn_no_open_offers">Keine offenen Angebote.</string>
     <string name="kn_offers_need_indexer">Angebote anderer erscheinen, sobald ein Namens-Indexer verbunden ist.</string>
     <string name="kn_activity_detail">Registrierungen, Verlängerungen, Angebote, Verkäufe und Übertragungen in der gesamten Registry.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">Annehmen und übertragen</string>
     <string name="kn_accept_warning">Der Name geht an den Käufer und der Angebotsbetrag an dich, in einer Transaktion. Das lässt sich nicht rückgängig machen.</string>
     <string name="kn_buyer">Käufer</string>
-    <string name="kn_refundable_now">Jetzt erstattbar</string>
     <string name="kn_price_to_miners">Preis (an die Miner)</string>
     <string name="kn_sent_note">Es erscheint hier, sobald das Netzwerk es annimmt, meist innerhalb von Sekunden.</string>
     <string name="kn_years">Jahre</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">Namen freigeben</string>
     <string name="kn_owner">Inhaber</string>
     <string name="kn_you">Du</string>
-    <string name="kn_accept_one">Nimm eines an, um den Namen dafür zu verkaufen.</string>
     <string name="kn_no_history">Noch kein Verlauf.</string>
     <string name="kn_release">Freigeben</string>
     <string name="kn_release_warning">Mit der Freigabe gibst du den Namen endgültig auf: Jeder kann ihn registrieren, und die bezahlte Zeit ist verloren. Kaution und Registry-Einlage bekommst du zurück.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">Sendet den Namen an eine andere Adresse.</string>
     <string name="kn_manage_primary_hint">Zeigt dich überall in KaChat unter diesem Namen.</string>
     <string name="kn_manage_release_hint">Gibt den Namen auf und erstattet seine Kaution.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Läuft ab in %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Abgelaufen – geht an dich zurück</string>
+    <string name="kn_offer_expired_returning_to_buyer">Abgelaufen – geht an den Käufer zurück</string>
+    <string name="kn_offer_expired_refundable">Abgelaufen – jetzt erstattbar</string>
+    <string name="kn_offers_tap_to_accept">Tippe auf ein Angebot, um es anzunehmen. Abgelaufene Angebote gehen an ihre Käufer zurück.</string>
+    <string name="kn_err_offer_expired">Dieses Angebot ist abgelaufen. Es geht an den Käufer zurück.</string>
+    <string name="kn_my_offers_detail">Deine Angebote. Zieh eines jederzeit zurück; nach Ablauf kommt es von selbst zu dir zurück.</string>
+    <string name="kn_offer_declined_returning_to_you">Abgelehnt – der Name hat den Besitzer gewechselt, geht an dich zurück</string>
+    <string name="kn_offer_declined_earlier_owner">Abgelehnt – an einen früheren Besitzer gerichtet</string>
+    <string name="kn_err_offer_declined">Dieses Angebot wurde gemacht, bevor der Name den Besitzer wechselte. Es ist abgelehnt und geht an den Käufer zurück.</string>
 </resources>

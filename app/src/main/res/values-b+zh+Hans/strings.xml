@@ -699,7 +699,6 @@
     <string name="kn_reclaim">回收</string>
     <string name="kn_search_above">在上方搜索名称并注册。</string>
     <string name="kn_my_offers">我的报价</string>
-    <string name="kn_my_offers_detail">你提出的报价。随时可以撤回；过了退款时间后，任何人都可以退还给你。</string>
     <string name="kn_no_open_offers">没有进行中的报价。</string>
     <string name="kn_offers_need_indexer">连接名称索引器后，才会显示他人的报价。</string>
     <string name="kn_activity_detail">整个注册表中的注册、续期、挂牌、出售和转让。</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">接受并转让</string>
     <string name="kn_accept_warning">名称转给买家，报价金额转给你，在同一笔交易中完成。此操作无法撤销。</string>
     <string name="kn_buyer">买家</string>
-    <string name="kn_refundable_now">现在可退还</string>
     <string name="kn_price_to_miners">价格（归矿工）</string>
     <string name="kn_sent_note">网络接受后会显示在这里，通常只需几秒。</string>
     <string name="kn_years">年数</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">释放名称</string>
     <string name="kn_owner">所有者</string>
     <string name="kn_you">你</string>
-    <string name="kn_accept_one">接受一个报价即可按该价格出售名称。</string>
     <string name="kn_no_history">暂无历史记录。</string>
     <string name="kn_release">释放</string>
     <string name="kn_release_warning">释放即永久放弃该名称：任何人都可以注册它，已付费的时间也将作废。保证金和注册表押金会退还给你。</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">将名称发送到另一个地址。</string>
     <string name="kn_manage_primary_hint">在整个 KaChat 中以此名称显示你。</string>
     <string name="kn_manage_release_hint">放弃该名称并退还押金。</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">%1$s后到期</string>
+    <string name="kn_offer_expired_returning_to_you">已过期 - 正在退还给你</string>
+    <string name="kn_offer_expired_returning_to_buyer">已过期 - 正在退还给买家</string>
+    <string name="kn_offer_expired_refundable">已过期 - 现在可退款</string>
+    <string name="kn_offers_tap_to_accept">点按报价即可接受。过期的报价会退还给买家。</string>
+    <string name="kn_err_offer_expired">此报价已过期，正在退还给买家。</string>
+    <string name="kn_my_offers_detail">你发出的报价。可随时撤回；过期后会自动退还给你。</string>
+    <string name="kn_offer_declined_returning_to_you">已拒绝 - 名称已易主，正在退还给你</string>
+    <string name="kn_offer_declined_earlier_owner">已拒绝 - 向前任所有者发出</string>
+    <string name="kn_err_offer_declined">此报价是在名称易主之前发出的，因此已被拒绝并正在退还给买家。</string>
 </resources>

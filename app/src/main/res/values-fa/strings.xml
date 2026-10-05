@@ -736,7 +736,6 @@
     <string name="kn_reclaim">بازپس‌گیری</string>
     <string name="kn_search_above">بالا نامی را جستجو کنید و آن را بگیرید.</string>
     <string name="kn_my_offers">پیشنهادهای من</string>
-    <string name="kn_my_offers_detail">پیشنهادهایی که داده‌اید. هر وقت خواستید پس بگیرید؛ پس از زمان بازپرداخت هر کسی می‌تواند آن را به شما برگرداند.</string>
     <string name="kn_no_open_offers">پیشنهاد بازی نیست.</string>
     <string name="kn_offers_need_indexer">پیشنهادهای دیگران پس از اتصال یک ایندکسر نام نمایش داده می‌شوند.</string>
     <string name="kn_activity_detail">ثبت‌ها، تمدیدها، فهرست‌ها، فروش‌ها و انتقال‌ها در کل رجیستری.</string>
@@ -749,7 +748,6 @@
     <string name="kn_accept_and_transfer">پذیرفتن و انتقال</string>
     <string name="kn_accept_warning">نام به خریدار می‌رسد و مبلغ پیشنهاد به شما، در یک تراکنش. این کار برگشت‌پذیر نیست.</string>
     <string name="kn_buyer">خریدار</string>
-    <string name="kn_refundable_now">اکنون قابل بازپرداخت</string>
     <string name="kn_price_to_miners">قیمت (به ماینرها)</string>
     <string name="kn_sent_note">وقتی شبکه آن را پذیرفت اینجا نمایش داده می‌شود، معمولاً ظرف چند ثانیه.</string>
     <string name="kn_years">سال‌ها</string>
@@ -778,7 +776,6 @@
     <string name="kn_release_name">رها کردن نام</string>
     <string name="kn_owner">مالک</string>
     <string name="kn_you">شما</string>
-    <string name="kn_accept_one">یکی را بپذیرید تا نام را به آن مبلغ بفروشید.</string>
     <string name="kn_no_history">هنوز تاریخچه‌ای نیست.</string>
     <string name="kn_release">رها کردن</string>
     <string name="kn_release_warning">رها کردن یعنی کنار گذاشتن همیشگی نام: هر کسی می‌تواند ثبتش کند و زمانی که برایش پرداخته‌اید از دست می‌رود. وثیقه و سپردهٔ رجیستری به شما برمی‌گردد.</string>
@@ -1014,4 +1011,15 @@
     <string name="kn_manage_transfer_hint">نام را به نشانی دیگری می‌فرستد.</string>
     <string name="kn_manage_primary_hint">شما را در سراسر KaChat با این نام نشان می‌دهد.</string>
     <string name="kn_manage_release_hint">نام را رها می‌کند و سپردهٔ آن را برمی‌گرداند.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">%1$s دیگر منقضی می‌شود</string>
+    <string name="kn_offer_expired_returning_to_you">منقضی شده - به شما برمی‌گردد</string>
+    <string name="kn_offer_expired_returning_to_buyer">منقضی شده - به خریدار برمی‌گردد</string>
+    <string name="kn_offer_expired_refundable">منقضی شده - اکنون قابل بازپرداخت</string>
+    <string name="kn_offers_tap_to_accept">برای پذیرش یک پیشنهاد روی آن بزنید. پیشنهادهای منقضی به خریدارانشان برمی‌گردند.</string>
+    <string name="kn_err_offer_expired">این پیشنهاد منقضی شده است. به خریدار برمی‌گردد.</string>
+    <string name="kn_my_offers_detail">پیشنهادهای شما. هر زمان خواستید پس بگیرید؛ پس از انقضا خودبه‌خود به شما برمی‌گردد.</string>
+    <string name="kn_offer_declined_returning_to_you">رد شد - مالک نام عوض شد، به شما برمی‌گردد</string>
+    <string name="kn_offer_declined_earlier_owner">رد شد - به مالک قبلی داده شده بود</string>
+    <string name="kn_err_offer_declined">این پیشنهاد پیش از تغییر مالک نام داده شده بود، پس رد شده و به خریدار برمی‌گردد.</string>
 </resources>

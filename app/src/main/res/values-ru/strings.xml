@@ -699,7 +699,6 @@
     <string name="kn_reclaim">Вернуть</string>
     <string name="kn_search_above">Найдите имя выше и зарегистрируйте его.</string>
     <string name="kn_my_offers">Мои предложения</string>
-    <string name="kn_my_offers_detail">Ваши предложения. Отзовите любое в любой момент; после срока возврата кто угодно может вернуть его вам.</string>
     <string name="kn_no_open_offers">Нет открытых предложений.</string>
     <string name="kn_offers_need_indexer">Предложения других появятся после подключения индексатора имён.</string>
     <string name="kn_activity_detail">Регистрации, продления, выставления, продажи и передачи во всём реестре.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">Принять и передать</string>
     <string name="kn_accept_warning">Имя переходит покупателю, а сумма предложения — вам, одной транзакцией. Это нельзя отменить.</string>
     <string name="kn_buyer">Покупатель</string>
-    <string name="kn_refundable_now">Можно вернуть сейчас</string>
     <string name="kn_price_to_miners">Цена (майнерам)</string>
     <string name="kn_sent_note">Появится здесь, когда сеть её примет, обычно за секунды.</string>
     <string name="kn_years">Годы</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">Освободить имя</string>
     <string name="kn_owner">Владелец</string>
     <string name="kn_you">Вы</string>
-    <string name="kn_accept_one">Примите одно, чтобы продать имя за эту сумму.</string>
     <string name="kn_no_history">Истории пока нет.</string>
     <string name="kn_release">Освободить</string>
     <string name="kn_release_warning">Освобождение — это отказ от имени навсегда: его сможет зарегистрировать любой, а оплаченное время пропадёт. Залог и депозит реестра вернутся вам.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">Отправляет имя на другой адрес.</string>
     <string name="kn_manage_primary_hint">Показывает вас под этим именем во всём KaChat.</string>
     <string name="kn_manage_release_hint">Отказывается от имени и возвращает залог.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Истекает через %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Истекло - возвращается вам</string>
+    <string name="kn_offer_expired_returning_to_buyer">Истекло - возвращается покупателю</string>
+    <string name="kn_offer_expired_refundable">Истекло - можно вернуть сейчас</string>
+    <string name="kn_offers_tap_to_accept">Нажмите на предложение, чтобы принять его. Истёкшие предложения возвращаются покупателям.</string>
+    <string name="kn_err_offer_expired">Срок предложения истёк. Средства возвращаются покупателю.</string>
+    <string name="kn_my_offers_detail">Ваши предложения. Отзовите любое в любой момент; после истечения срока оно вернётся к вам само.</string>
+    <string name="kn_offer_declined_returning_to_you">Отклонено - у имени сменился владелец, возвращается вам</string>
+    <string name="kn_offer_declined_earlier_owner">Отклонено - сделано прежнему владельцу</string>
+    <string name="kn_err_offer_declined">Это предложение сделано до смены владельца имени, поэтому оно отклонено и возвращается покупателю.</string>
 </resources>

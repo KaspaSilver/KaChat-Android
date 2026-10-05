@@ -699,7 +699,6 @@
     <string name="kn_reclaim">वापस लें</string>
     <string name="kn_search_above">ऊपर कोई नाम खोजें और उसे लें।</string>
     <string name="kn_my_offers">मेरे ऑफ़र</string>
-    <string name="kn_my_offers_detail">आपके दिए ऑफ़र। कभी भी वापस लें; रिफ़ंड का समय बीतने पर कोई भी उसे आपको लौटा सकता है।</string>
     <string name="kn_no_open_offers">कोई खुला ऑफ़र नहीं।</string>
     <string name="kn_offers_need_indexer">दूसरों के ऑफ़र नाम इंडेक्सर जुड़ने के बाद दिखेंगे।</string>
     <string name="kn_activity_detail">पूरी रजिस्ट्री में नाम लेना, नवीनीकरण, बिक्री पर रखना, बिक्री और ट्रांसफ़र।</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">स्वीकारें और ट्रांसफ़र करें</string>
     <string name="kn_accept_warning">नाम खरीदार को जाता है और ऑफ़र की राशि आपको आती है, एक ही लेन-देन में। इसे पलटा नहीं जा सकता।</string>
     <string name="kn_buyer">खरीदार</string>
-    <string name="kn_refundable_now">अब लौटाया जा सकता है</string>
     <string name="kn_price_to_miners">कीमत (माइनरों को)</string>
     <string name="kn_sent_note">नेटवर्क के स्वीकार करते ही यह यहाँ दिखेगा, आम तौर पर कुछ सेकंड में।</string>
     <string name="kn_years">वर्ष</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">नाम छोड़ें</string>
     <string name="kn_owner">मालिक</string>
     <string name="kn_you">आप</string>
-    <string name="kn_accept_one">किसी एक को स्वीकार कर नाम उसी पर बेचें।</string>
     <string name="kn_no_history">अभी कोई इतिहास नहीं।</string>
     <string name="kn_release">छोड़ें</string>
     <string name="kn_release_warning">छोड़ने का मतलब नाम हमेशा के लिए छोड़ देना है: कोई भी इसे रजिस्टर कर सकता है, और जिस समय का भुगतान किया था वह चला जाता है। बॉन्ड और रजिस्ट्री जमा आपको वापस मिलते हैं।</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">नाम को दूसरे पते पर भेजता है।</string>
     <string name="kn_manage_primary_hint">पूरे KaChat में आपको इस नाम से दिखाता है।</string>
     <string name="kn_manage_release_hint">नाम छोड़ देता है और उसकी जमा राशि लौटाता है।</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">%1$s में समाप्त</string>
+    <string name="kn_offer_expired_returning_to_you">समाप्त - आपको लौट रहा है</string>
+    <string name="kn_offer_expired_returning_to_buyer">समाप्त - खरीदार को लौट रहा है</string>
+    <string name="kn_offer_expired_refundable">समाप्त - अभी वापसी योग्य</string>
+    <string name="kn_offers_tap_to_accept">स्वीकार करने के लिए किसी ऑफ़र पर टैप करें। समाप्त ऑफ़र खरीदारों को लौट जाते हैं।</string>
+    <string name="kn_err_offer_expired">यह ऑफ़र समाप्त हो गया है। यह खरीदार को लौट रहा है।</string>
+    <string name="kn_my_offers_detail">आपके ऑफ़र। कभी भी वापस लें; समाप्त होने पर यह अपने आप आपको लौट आता है।</string>
+    <string name="kn_offer_declined_returning_to_you">अस्वीकृत - नाम का मालिक बदल गया, आपको लौट रहा है</string>
+    <string name="kn_offer_declined_earlier_owner">अस्वीकृत - पिछले मालिक को दिया गया</string>
+    <string name="kn_err_offer_declined">यह ऑफ़र नाम का मालिक बदलने से पहले दिया गया था, इसलिए अस्वीकृत है और खरीदार को लौट रहा है।</string>
 </resources>

@@ -85,7 +85,8 @@ data class PendingRegistration(
  * through [KachatNamesService.requireTestnet]. Every action returns its txid and refreshes the
  * registry once the transaction is accepted. A port of iOS
  * KaChat/Services/KachatNames/KachatNamesActions.swift (KaChat 1ed6e57, 5df42b4; registry v2 extend and
- * the renewal window from 5766c00).
+ * the renewal window from 5766c00; expired offers going back and offers on a changed owner declined
+ * from ba07975).
  */
 @Singleton
 class KachatNamesActions @Inject constructor(
@@ -110,6 +111,14 @@ class KachatNamesActions @Inject constructor(
     /** The virtual DAA score the driver last saw (registration progress, "refundable now"). */
     val virtualDaa: StateFlow<Long?> = _virtualDaa.asStateFlow()
 
+    private val _returningOffers = MutableStateFlow<Set<String>>(emptySet())
+    /** Expired offers this app is sending back to their buyers (see [returnExpiredOffers], iOS ba07975). */
+    val returningOffers: StateFlow<Set<String>> = _returningOffers.asStateFlow()
+
+    private val _withdrawingOffers = MutableStateFlow<Set<String>>(emptySet())
+    /** Offers this app is withdrawing because the name changed hands (see [withdrawDeclinedOffers], iOS ba07975). */
+    val withdrawingOffers: StateFlow<Set<String>> = _withdrawingOffers.asStateFlow()
+
     @Volatile private var pendingWallet: String? = null
     @Volatile private var driver: Job? = null
 
@@ -130,6 +139,12 @@ class KachatNamesActions @Inject constructor(
 
         /** the record has no periodStart (an indexer without the field), so its state is unknown (iOS 5766c00) */
         class PeriodUnknown : ActionError("The names indexer didn't send this name's paid period. Pull to refresh and try again.")
+
+        /** accept past the offer's refund time: the contract would still take it, the app doesn't (iOS ba07975) */
+        class OfferExpired : ActionError("This offer has expired. It's going back to the buyer.")
+
+        /** accept an offer made to an earlier owner of the name (iOS ba07975) */
+        class OfferDeclined : ActionError("This offer was made before the name changed hands, so it's declined and going back to the buyer.")
     }
 
     // Wallet
@@ -292,6 +307,9 @@ class KachatNamesActions @Inject constructor(
         return OfferRecord(o.fields, u.entry.amount, u, o.name)
     }
 
+    /** A unit of [offerTimeLeft]. */
+    enum class TimeLeftUnit { DAY, HOUR, MINUTE }
+
     // Operations
 
     sealed class Operation {
@@ -361,6 +379,17 @@ class KachatNamesActions @Inject constructor(
             is Operation.Withdraw -> b.withdrawOffer(env, liveOffer(op.offer, m))
             is Operation.Refund -> b.refundOffer(env, liveOffer(op.offer, m))
             is Operation.Accept -> {
+                // The contract would still take an expired offer; the app doesn't - it goes back (iOS ba07975).
+                if (op.offer.refundable(env.blockDaa)) throw ActionError.OfferExpired()
+                // Made to an earlier owner: declined, never accepted by the app.
+                val history = try {
+                    registry.history(op.name.name)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (isDeclined(op.offer, ownerSince(history))) throw ActionError.OfferDeclined()
                 validateKey(op.offer.buyer, "The buyer")
                 b.acceptOffer(env, liveName(op.name, m), liveOffer(op.offer, m))
             }
@@ -390,6 +419,99 @@ class KachatNamesActions @Inject constructor(
         }
         registry.refreshAfter(txId)
         txId
+    }
+
+    // Expired offers (iOS ba07975)
+
+    /**
+     * Sends expired offers back to their buyers. Past its refund time an offer can still be
+     * accepted on chain until someone refunds it, so it would otherwise hang on the name. The
+     * refund needs nobody's key and its network fee comes out of the offer itself
+     * ([Builder.refundOffer] spends no wallet UTXO), so whichever app sees one first - its
+     * buyer's, or the owner's of the name it's on - returns it, at no cost to either. Each offer
+     * is tried once per session: the id goes into [returningOffers] (checked and added under
+     * [lock], so two screens loading at once can't submit it twice) and never leaves it; a refund
+     * someone else got in first just fails quietly. iOS `returnExpiredOffers`.
+     */
+    suspend fun returnExpiredOffers(offers: List<OfferInfo>) {
+        if (!KachatNamesService.isLaunched || offers.isEmpty()) return
+        refreshVirtualDaa()
+        val daa = _virtualDaa.value ?: return
+        for (o in offers) {
+            if (!o.refundable(daa)) continue
+            if (!claim(_returningOffers, o.id)) continue
+            scope.launch {
+                try {
+                    val txId = perform(Operation.Refund(o))
+                    Log.i(TAG, "returned expired offer ${o.id} to its buyer: $txId")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.i(TAG, "expired offer ${o.id} not returned: ${e.message ?: e}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Pulls this wallet's declined offers back (a withdraw, signed by the buyer - you - and paid
+     * back to you). Before its refund time only the buyer can return an offer, so the buyer's app
+     * does it as soon as it sees the name changed hands; after that, [returnExpiredOffers] covers
+     * it from any app. Each offer is tried once per session ([withdrawingOffers]; one already
+     * being returned is left to that). iOS `withdrawDeclinedOffers`.
+     */
+    suspend fun withdrawDeclinedOffers(offers: List<OfferInfo>) {
+        if (!KachatNamesService.isLaunched) return
+        val me = myKey ?: return
+        val mine = offers.filter {
+            it.buyer.contentEquals(me) && it.id !in _withdrawingOffers.value && it.id !in _returningOffers.value
+        }
+        if (mine.isEmpty()) return
+        val historyByName = HashMap<String, List<Event>>()
+        val freeNames = HashSet<String>()
+        for (o in mine) {
+            val name = o.name ?: continue
+            if (name !in historyByName) {
+                historyByName[name] = try {
+                    registry.history(name)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                val free = try {
+                    registry.lookup(name) is Lookup.Free
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    false
+                }
+                if (free) freeNames.add(name)
+            }
+            val since = ownerSince(historyByName[name].orEmpty())
+            if (!isDeclined(o, since, nameFree = name in freeNames)) continue
+            // an expired one may have started going back meanwhile: leave it to that
+            if (o.id in _returningOffers.value || !claim(_withdrawingOffers, o.id)) continue
+            scope.launch {
+                try {
+                    val txId = perform(Operation.Withdraw(o))
+                    Log.i(TAG, "withdrew declined offer ${o.id} (the name changed hands): $txId")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.i(TAG, "declined offer ${o.id} not withdrawn: ${e.message ?: e}")
+                }
+            }
+        }
+    }
+
+    /** Adds [id] to [set] unless it is already there; true when this call added it. */
+    private fun claim(set: MutableStateFlow<Set<String>>, id: String): Boolean {
+        synchronized(lock) {
+            if (id in set.value) return false
+            set.value = set.value + id
+            return true
+        }
     }
 
     // Profile record
@@ -821,6 +943,45 @@ class KachatNamesActions @Inject constructor(
         private const val TAG = "KachatNames"
         private const val SALT_PREFS_NAME = "kachat_names_secure_prefs"
         private val PENDING_LIST_TYPE = object : TypeToken<List<PendingRegistration>>() {}.type
+
+        /** When the name last got a new owner: its latest register, transfer, sale or accepted
+         *  offer (iOS ba07975 `ownerSince`). */
+        fun ownerSince(history: List<Event>): Long? =
+            history.filter { it.op in OWNER_CHANGES }.mapNotNull { it.at }.maxOrNull()
+
+        private val OWNER_CHANGES = setOf("register", "transfer", "sale", "offer_accepted", "offer_accept")
+
+        /**
+         * An offer made before the name's current owner got it (or on a name since released):
+         * declined. The contract would still let the new owner accept it until it expires, so the
+         * app treats it as declined - the owner can't accept it, and the buyer's app pulls it back.
+         * An offer or a history without times is not declined (iOS ba07975 `isDeclined`).
+         */
+        fun isDeclined(offer: OfferInfo, ownerSince: Long?, nameFree: Boolean = false): Boolean {
+            if (nameFree) return true
+            val made = offer.createdAt ?: return false
+            val since = ownerSince ?: return false
+            return made < since
+        }
+
+        /**
+         * What's left of an offer's time, for "Expires in 2d 4h" (iOS ba07975 `KachatOfferRow.expiresIn`):
+         * from the DAA score it becomes refundable at, [daaPerSecond] per second. Days and hours from a
+         * day up, hours and minutes from an hour up, else minutes (at least one); at most two units,
+         * zero ones dropped. Null once it is refundable.
+         */
+        fun offerTimeLeft(refundAfter: Long, virtualDaa: Long, daaPerSecond: Long = 10): List<Pair<TimeLeftUnit, Long>>? {
+            val end = maxOf(refundAfter, 0L)
+            if (virtualDaa > end) return null
+            val seconds = (end - virtualDaa) / daaPerSecond
+            val s = maxOf(60L, seconds)
+            val parts = when {
+                seconds >= 86_400 -> listOf(TimeLeftUnit.DAY to s / 86_400, TimeLeftUnit.HOUR to (s % 86_400) / 3600)
+                seconds >= 3600 -> listOf(TimeLeftUnit.HOUR to s / 3600, TimeLeftUnit.MINUTE to (s % 3600) / 60)
+                else -> listOf(TimeLeftUnit.MINUTE to s / 60)
+            }
+            return parts.filter { it.second > 0 }
+        }
 
         /**
          * A key a name or an offer will be locked to must be a point on the curve: the contracts

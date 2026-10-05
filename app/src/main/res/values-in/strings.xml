@@ -576,7 +576,6 @@
     <string name="kn_reclaim">Klaim ulang</string>
     <string name="kn_search_above">Cari nama di atas dan klaim.</string>
     <string name="kn_my_offers">Penawaran Saya</string>
-    <string name="kn_my_offers_detail">Penawaran yang Anda buat. Tarik kapan saja; setelah melewati waktu pengembalian, siapa pun bisa mengembalikannya kepada Anda.</string>
     <string name="kn_no_open_offers">Tidak ada penawaran terbuka.</string>
     <string name="kn_offers_need_indexer">Penawaran dari orang lain muncul setelah indexer nama terhubung.</string>
     <string name="kn_activity_detail">Klaim, perpanjangan, penjualan, dan pemindahan di seluruh registri.</string>
@@ -589,7 +588,6 @@
     <string name="kn_accept_and_transfer">Terima dan Pindahkan</string>
     <string name="kn_accept_warning">Nama berpindah ke pembeli dan jumlah penawaran masuk ke Anda, dalam satu transaksi. Ini tidak bisa dibatalkan.</string>
     <string name="kn_buyer">Pembeli</string>
-    <string name="kn_refundable_now">Bisa dikembalikan sekarang</string>
     <string name="kn_price_to_miners">Harga (untuk penambang)</string>
     <string name="kn_sent_note">Ini muncul di sini setelah jaringan menerimanya, biasanya dalam hitungan detik.</string>
     <string name="kn_years">Tahun</string>
@@ -618,7 +616,6 @@
     <string name="kn_release_name">Lepas Nama</string>
     <string name="kn_owner">Pemilik</string>
     <string name="kn_you">Anda</string>
-    <string name="kn_accept_one">Terima salah satu untuk menjual nama dengan harga itu.</string>
     <string name="kn_no_history">Belum ada riwayat.</string>
     <string name="kn_release">Lepas</string>
     <string name="kn_release_warning">Melepas berarti menyerahkan nama untuk selamanya: siapa pun bisa mendaftarkannya, dan waktu yang sudah Anda bayar hilang. Jaminan dan deposit registri dikembalikan kepada Anda.</string>
@@ -847,4 +844,15 @@
     <string name="kn_manage_transfer_hint">Mengirim nama ke alamat lain.</string>
     <string name="kn_manage_primary_hint">Menampilkan Anda dengan nama ini di seluruh KaChat.</string>
     <string name="kn_manage_release_hint">Melepas nama dan mengembalikan depositnya.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Berakhir dalam %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Kedaluwarsa - kembali ke Anda</string>
+    <string name="kn_offer_expired_returning_to_buyer">Kedaluwarsa - kembali ke pembeli</string>
+    <string name="kn_offer_expired_refundable">Kedaluwarsa - bisa dikembalikan sekarang</string>
+    <string name="kn_offers_tap_to_accept">Ketuk penawaran untuk menerimanya. Penawaran kedaluwarsa kembali ke pembelinya.</string>
+    <string name="kn_err_offer_expired">Penawaran ini sudah kedaluwarsa. Dananya kembali ke pembeli.</string>
+    <string name="kn_my_offers_detail">Penawaran Anda. Tarik kapan saja; setelah kedaluwarsa, dana kembali ke Anda dengan sendirinya.</string>
+    <string name="kn_offer_declined_returning_to_you">Ditolak - pemilik nama berganti, dana kembali ke Anda</string>
+    <string name="kn_offer_declined_earlier_owner">Ditolak - diajukan ke pemilik sebelumnya</string>
+    <string name="kn_err_offer_declined">Penawaran ini diajukan sebelum nama berganti pemilik, jadi ditolak dan dananya kembali ke pembeli.</string>
 </resources>

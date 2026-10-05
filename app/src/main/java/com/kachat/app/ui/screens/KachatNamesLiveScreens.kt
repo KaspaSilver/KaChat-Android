@@ -29,6 +29,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -216,6 +217,26 @@ object KachatLive {
         return info.expiresAt + years * KachatNames.YEAR_MS == start + p.maxYears * KachatNames.YEAR_MS
     }
 
+    /**
+     * "2d 4h" / "3h 12m" / "5m" in the app's language: iOS's abbreviated `DateComponentsFormatter`
+     * (ba07975 `KachatOfferRow.expiresIn`) is ICU's narrow measure format.
+     */
+    fun timeLeft(parts: List<Pair<KachatNamesActions.TimeLeftUnit, Long>>, context: Context): String {
+        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+        val measures = parts.map { (unit, value) ->
+            android.icu.util.Measure(
+                value,
+                when (unit) {
+                    KachatNamesActions.TimeLeftUnit.DAY -> android.icu.util.MeasureUnit.DAY
+                    KachatNamesActions.TimeLeftUnit.HOUR -> android.icu.util.MeasureUnit.HOUR
+                    KachatNamesActions.TimeLeftUnit.MINUTE -> android.icu.util.MeasureUnit.MINUTE
+                }
+            )
+        }
+        return android.icu.text.MeasureFormat.getInstance(locale, android.icu.text.MeasureFormat.FormatWidth.NARROW)
+            .formatMeasures(*measures.toTypedArray())
+    }
+
     /** iOS `.relative(presentation: .named)`: "2 hours ago", "yesterday". */
     fun relative(ms: Long): String =
         DateUtils.getRelativeTimeSpanString(ms, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
@@ -253,6 +274,9 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.RenewalNotOpen -> getString(R.string.kn_renewal_opens_on, KachatLive.date(e.opensMs))
         is KachatNamesActions.ActionError.PeriodFull -> getString(R.string.kn_err_period_full, KachatLive.date(e.renewalOpensMs))
         is KachatNamesActions.ActionError.PeriodUnknown -> getString(R.string.kn_err_period_unknown)
+        // localized on iOS too (ba07975)
+        is KachatNamesActions.ActionError.OfferExpired -> getString(R.string.kn_err_offer_expired)
+        is KachatNamesActions.ActionError.OfferDeclined -> getString(R.string.kn_err_offer_declined)
         is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
         // localized on iOS too (d36fc42 `wrongAddressNetwork`)
         is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
@@ -387,7 +411,13 @@ class KachatLiveViewModel @Inject constructor(
             if (me != null) {
                 mine = registry.names(me, includeInactive = true)
                 myOffers = registry.myOffers(me)
-                if (myOffers.isNotEmpty()) actions.refreshVirtualDaa()
+                if (myOffers.isNotEmpty()) {
+                    actions.refreshVirtualDaa()
+                    // Your own expired offers come back to you on their own, and so do the ones
+                    // whose name changed hands since you made them (iOS ba07975).
+                    actions.returnExpiredOffers(myOffers)
+                    actions.withdrawDeclinedOffers(myOffers)
+                }
             } else {
                 mine = emptyList()
                 myOffers = emptyList()
@@ -1234,6 +1264,12 @@ class KachatOfferAction(val kind: Kind, val offer: OfferInfo, val name: NameInfo
     enum class Kind { WITHDRAW, REFUND, ACCEPT }
 }
 
+/**
+ * One offer (iOS `KachatOfferRow`, ba07975): the name, who made it, its amount, and either how
+ * long it has left ("Expires in 2d 4h") or why it is on its way back. For the owner a tap anywhere
+ * on the row opens the accept flow - unless it has expired (it goes back to the buyer) or was
+ * [declined] (made to an earlier owner of the name).
+ */
 @Composable
 private fun KachatOfferRow(
     offer: OfferInfo,
@@ -1242,12 +1278,31 @@ private fun KachatOfferRow(
     isOwner: Boolean,
     onAction: (KachatOfferAction) -> Unit,
     name: NameInfo? = null,
+    /** Made before the name changed hands: never acceptable, and on its way back to the buyer. */
+    declined: Boolean = false,
 ) {
     val colors = LocalAppColors.current
     val virtualDaa by vm.actions.virtualDaa.collectAsState()
+    val returningOffers by vm.actions.returningOffers.collectAsState()
+    val withdrawingOffers by vm.actions.withdrawingOffers.collectAsState()
     val refundable = virtualDaa?.let { offer.refundable(it) } ?: false
+    val returning = offer.id in returningOffers
+    // The owner can take it: still inside its time (an expired one is on its way back).
+    val acceptable = isOwner && !refundable && !declined
+    // Declined and being pulled back by this app (the buyer's).
+    val withdrawing = offer.id in withdrawingOffers
+    val expiresIn = virtualDaa?.let { daa ->
+        KachatNamesActions.offerTimeLeft(offer.refundAfter, daa, KachatLive.DAA_PER_SECOND)
+    }?.let { left -> stringResource(R.string.kn_offer_expires_in, KachatLive.timeLeft(left, LocalContext.current)) }
     var menu by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth()
+            // A tap anywhere on the row opens the accept flow for the owner; the buttons inside keep their own taps.
+            .clickable(enabled = acceptable) { onAction(KachatOfferAction(KachatOfferAction.Kind.ACCEPT, offer, name)) }
+            .alpha(if (refundable || declined || withdrawing) 0.6f else 1f)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.PanTool, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
         }
@@ -1257,7 +1312,23 @@ private fun KachatOfferRow(
             val who = if (isBuyer) stringResource(R.string.kl_your_offer)
             else KachatNamesRegistry.address(offer.buyer)?.let { KachatNamesRegistry.shortAddress(it) }
             if (who != null) Text(who, color = colors.textSecondary, fontSize = 12.sp)
-            if (refundable) Text(stringResource(R.string.kn_refundable_now), color = colors.warning, fontSize = 11.sp)
+            when {
+                declined || withdrawing -> Text(
+                    stringResource(if (isBuyer) R.string.kn_offer_declined_returning_to_you else R.string.kn_offer_declined_earlier_owner),
+                    color = colors.warning, fontSize = 11.sp
+                )
+                refundable -> Text(
+                    stringResource(
+                        when {
+                            !(returning || isOwner) -> R.string.kn_offer_expired_refundable
+                            isBuyer -> R.string.kn_offer_expired_returning_to_you
+                            else -> R.string.kn_offer_expired_returning_to_buyer
+                        }
+                    ),
+                    color = colors.warning, fontSize = 11.sp
+                )
+                expiresIn != null -> Text(expiresIn, color = colors.textSecondary, fontSize = 11.sp)
+            }
         }
         Spacer(Modifier.width(8.dp))
         Text(KaspaUnit.amount(offer.amount), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
@@ -1279,13 +1350,13 @@ private fun KachatOfferRow(
                     }
                 }
             }
-            isOwner -> {
+            acceptable -> {
                 Spacer(Modifier.width(8.dp))
                 KachatButton(stringResource(R.string.accept), prominent = true) {
                     onAction(KachatOfferAction(KachatOfferAction.Kind.ACCEPT, offer, name))
                 }
             }
-            refundable -> {
+            refundable && !returning -> {
                 Spacer(Modifier.width(8.dp))
                 KachatButton(stringResource(R.string.kn_refund)) { onAction(KachatOfferAction(KachatOfferAction.Kind.REFUND, offer)) }
             }
@@ -1677,7 +1748,20 @@ fun KachatLiveNameDetailScreen(
         }
         offers = runCatching { vm.registry.offers(info.name) }.getOrNull() ?: emptyList()
         history = runCatching { vm.registry.history(info.name) }.getOrNull() ?: emptyList()
-        if (offers.isNotEmpty()) vm.actions.refreshVirtualDaa()
+        if (offers.isNotEmpty()) {
+            vm.actions.refreshVirtualDaa()
+            // Expired offers don't stay on your name: the owner's app (and the buyer's) send them
+            // back (iOS ba07975). Owner here = an address this app signs for, as canActAsOwner.
+            val ownerHere = held == KachatNamesActions.OwnAddress.Chatting || held is KachatNamesActions.OwnAddress.Spending ||
+                (held == null && vm.isMine(info.owner))
+            if (ownerHere) {
+                vm.actions.returnExpiredOffers(offers)
+            } else {
+                vm.actions.returnExpiredOffers(offers.filter { vm.isMine(it.buyer) })
+            }
+            // Your offers made to an earlier owner of this name: pulled back.
+            vm.actions.withdrawDeclinedOffers(offers)
+        }
     }
 
     // Sheets over the detail (full-screen swaps, Cancel top left).
@@ -1897,7 +1981,7 @@ fun KachatLiveNameDetailScreen(
 
                     // Offers
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        KachatLiveSectionHeader(stringResource(R.string.kl_offers), if (canActAsOwner) stringResource(R.string.kn_accept_one) else null)
+                        KachatLiveSectionHeader(stringResource(R.string.kl_offers), if (canActAsOwner) stringResource(R.string.kn_offers_tap_to_accept) else null)
                         if (offers.isEmpty()) {
                             Box(
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp).kachatGlass(colors).padding(vertical = 14.dp),
@@ -1908,7 +1992,8 @@ fun KachatLiveNameDetailScreen(
                                 offers.forEachIndexed { index, o ->
                                     KachatOfferRow(
                                         o, vm, isBuyer = vm.isMine(o.buyer), isOwner = canActAsOwner && source?.isIndexer == true,
-                                        onAction = { offerAction = it }, name = info
+                                        onAction = { offerAction = it }, name = info,
+                                        declined = KachatNamesActions.isDeclined(o, KachatNamesActions.ownerSince(history))
                                     )
                                     if (index < offers.lastIndex) KachatRowDivider(50)
                                 }

@@ -699,7 +699,6 @@
     <string name="kn_reclaim">Récupérer</string>
     <string name="kn_search_above">Cherchez un nom ci-dessus et obtenez-le.</string>
     <string name="kn_my_offers">Mes offres</string>
-    <string name="kn_my_offers_detail">Les offres que vous avez faites. Retirez-en une quand vous voulez ; passé son délai de remboursement, n’importe qui peut vous la rendre.</string>
     <string name="kn_no_open_offers">Aucune offre en cours.</string>
     <string name="kn_offers_need_indexer">Les offres des autres apparaissent une fois un indexeur de noms connecté.</string>
     <string name="kn_activity_detail">Enregistrements, renouvellements, mises en vente, ventes et transferts dans tout le registre.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">Accepter et transférer</string>
     <string name="kn_accept_warning">Le nom va à l’acheteur et le montant de l’offre vous revient, en une seule transaction. C’est irréversible.</string>
     <string name="kn_buyer">Acheteur</string>
-    <string name="kn_refundable_now">Remboursable maintenant</string>
     <string name="kn_price_to_miners">Prix (aux mineurs)</string>
     <string name="kn_sent_note">Elle apparaît ici dès que le réseau l’accepte, en général en quelques secondes.</string>
     <string name="kn_years">Années</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">Libérer le nom</string>
     <string name="kn_owner">Propriétaire</string>
     <string name="kn_you">Vous</string>
-    <string name="kn_accept_one">Acceptez-en une pour vendre le nom à ce prix.</string>
     <string name="kn_no_history">Pas encore d’historique.</string>
     <string name="kn_release">Libérer</string>
     <string name="kn_release_warning">Libérer le nom, c’est y renoncer pour de bon : n’importe qui pourra l’enregistrer, et le temps payé est perdu. Vous récupérez la caution et le dépôt du registre.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">Envoie le nom à une autre adresse.</string>
     <string name="kn_manage_primary_hint">Vous affiche sous ce nom dans tout KaChat.</string>
     <string name="kn_manage_release_hint">Abandonne le nom et rend son dépôt.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">Expire dans %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">Expirée – vous revient</string>
+    <string name="kn_offer_expired_returning_to_buyer">Expirée – retourne à l’acheteur</string>
+    <string name="kn_offer_expired_refundable">Expirée – remboursable maintenant</string>
+    <string name="kn_offers_tap_to_accept">Touchez une offre pour l’accepter. Les offres expirées retournent à leurs acheteurs.</string>
+    <string name="kn_err_offer_expired">Cette offre a expiré. Elle retourne à l’acheteur.</string>
+    <string name="kn_my_offers_detail">Vos offres. Retirez-en une à tout moment ; une fois expirée, elle vous revient d’elle-même.</string>
+    <string name="kn_offer_declined_returning_to_you">Refusée – le nom a changé de propriétaire, elle vous revient</string>
+    <string name="kn_offer_declined_earlier_owner">Refusée – faite à un ancien propriétaire</string>
+    <string name="kn_err_offer_declined">Cette offre a été faite avant que le nom change de propriétaire : elle est refusée et retourne à l’acheteur.</string>
 </resources>

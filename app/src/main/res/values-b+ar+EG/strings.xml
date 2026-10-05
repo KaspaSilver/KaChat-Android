@@ -699,7 +699,6 @@
     <string name="kn_reclaim">استرداد</string>
     <string name="kn_search_above">ابحث عن اسم في الأعلى واحصل عليه.</string>
     <string name="kn_my_offers">عروضي</string>
-    <string name="kn_my_offers_detail">العروض التي قدمتها. اسحب أيًا منها متى شئت؛ وبعد انقضاء وقت الاسترداد يمكن لأي شخص إعادته إليك.</string>
     <string name="kn_no_open_offers">لا توجد عروض مفتوحة.</string>
     <string name="kn_offers_need_indexer">تظهر عروض الآخرين بعد ربط مفهرس للأسماء.</string>
     <string name="kn_activity_detail">عمليات التسجيل والتجديد والعرض والبيع والنقل في السجل كله.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">قبول ونقل</string>
     <string name="kn_accept_warning">ينتقل الاسم إلى المشتري ويصل إليك مبلغ العرض في معاملة واحدة. لا يمكن التراجع عن ذلك.</string>
     <string name="kn_buyer">المشتري</string>
-    <string name="kn_refundable_now">قابل للاسترداد الآن</string>
     <string name="kn_price_to_miners">السعر (للمعدِّنين)</string>
     <string name="kn_sent_note">يظهر هنا بعد قبول الشبكة له، عادةً خلال ثوانٍ.</string>
     <string name="kn_years">السنوات</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">التخلي عن الاسم</string>
     <string name="kn_owner">المالك</string>
     <string name="kn_you">أنت</string>
-    <string name="kn_accept_one">اقبل أحدها لتبيع الاسم به.</string>
     <string name="kn_no_history">لا يوجد سجل بعد.</string>
     <string name="kn_release">تخلٍّ</string>
     <string name="kn_release_warning">التخلي يعني التنازل عن الاسم نهائيًا: يصبح متاحًا لأي شخص لتسجيله، وتضيع المدة التي دفعت عنها. يعود إليك الضمان ووديعة السجل.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">بيبعت الاسم لعنوان تاني.</string>
     <string name="kn_manage_primary_hint">بيظهرك بالاسم ده في كل KaChat.</string>
     <string name="kn_manage_release_hint">بيتنازل عن الاسم ويرجّع العربون بتاعه.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">بينتهي خلال %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">انتهى - راجع ليك</string>
+    <string name="kn_offer_expired_returning_to_buyer">انتهى - راجع للمشتري</string>
+    <string name="kn_offer_expired_refundable">انتهى - ممكن يترجع دلوقتي</string>
+    <string name="kn_offers_tap_to_accept">دوس على عرض علشان تقبله. العروض المنتهية بترجع لأصحابها.</string>
+    <string name="kn_err_offer_expired">العرض ده انتهى. راجع للمشتري.</string>
+    <string name="kn_my_offers_detail">العروض اللي قدمتها. اسحب أي واحد في أي وقت؛ ولما ينتهي بيرجعلك لوحده.</string>
+    <string name="kn_offer_declined_returning_to_you">مرفوض - الاسم اتغير صاحبه، راجع ليك</string>
+    <string name="kn_offer_declined_earlier_owner">مرفوض - اتقدم لصاحب قديم</string>
+    <string name="kn_err_offer_declined">العرض ده اتقدم قبل ما صاحب الاسم يتغير، فاترفض وراجع للمشتري.</string>
 </resources>

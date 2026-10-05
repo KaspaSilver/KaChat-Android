@@ -699,7 +699,6 @@
     <string name="kn_reclaim">דרישה מחדש</string>
     <string name="kn_search_above">חפשו שם למעלה ורשמו אותו.</string>
     <string name="kn_my_offers">ההצעות שלי</string>
-    <string name="kn_my_offers_detail">הצעות שהגשתם. אפשר למשוך כל אחת בכל עת; אחרי מועד ההחזר כל אחד יכול להחזיר אותה אליכם.</string>
     <string name="kn_no_open_offers">אין הצעות פתוחות.</string>
     <string name="kn_offers_need_indexer">הצעות של אחרים יופיעו אחרי חיבור אינדקסר שמות.</string>
     <string name="kn_activity_detail">רישומים, חידושים, הצעות למכירה, מכירות והעברות בכל הרישום.</string>
@@ -712,7 +711,6 @@
     <string name="kn_accept_and_transfer">קבלה והעברה</string>
     <string name="kn_accept_warning">השם עובר לקונה וסכום ההצעה מגיע אליך, בעסקה אחת. אי אפשר לבטל את זה.</string>
     <string name="kn_buyer">קונה</string>
-    <string name="kn_refundable_now">ניתן להחזר עכשיו</string>
     <string name="kn_price_to_miners">מחיר (לכורים)</string>
     <string name="kn_sent_note">זה יופיע כאן כשהרשת תקבל אותה, בדרך כלל תוך שניות.</string>
     <string name="kn_years">שנים</string>
@@ -741,7 +739,6 @@
     <string name="kn_release_name">שחרור השם</string>
     <string name="kn_owner">בעלים</string>
     <string name="kn_you">את/ה</string>
-    <string name="kn_accept_one">קבלו אחת כדי למכור את השם תמורתה.</string>
     <string name="kn_no_history">אין היסטוריה עדיין.</string>
     <string name="kn_release">שחרור</string>
     <string name="kn_release_warning">שחרור מוותר על השם לתמיד: כל אחד יוכל לרשום אותו, והזמן ששילמת עליו יאבד. הערבון ופיקדון הרישום יחזרו אליך.</string>
@@ -983,4 +980,15 @@
     <string name="kn_manage_transfer_hint">שולח את השם לכתובת אחרת.</string>
     <string name="kn_manage_primary_hint">מציג אתכם בשם הזה בכל KaChat.</string>
     <string name="kn_manage_release_hint">מוותר על השם ומחזיר את הפיקדון שלו.</string>
+    <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
+    <string name="kn_offer_expires_in">פג בעוד %1$s</string>
+    <string name="kn_offer_expired_returning_to_you">פג תוקף - חוזר אליכם</string>
+    <string name="kn_offer_expired_returning_to_buyer">פג תוקף - חוזר לקונה</string>
+    <string name="kn_offer_expired_refundable">פג תוקף - ניתן להחזר עכשיו</string>
+    <string name="kn_offers_tap_to_accept">הקישו על הצעה כדי לקבל אותה. הצעות שפג תוקפן חוזרות לקונים.</string>
+    <string name="kn_err_offer_expired">פג תוקפה של ההצעה. היא חוזרת לקונה.</string>
+    <string name="kn_my_offers_detail">ההצעות שלכם. אפשר למשוך אחת בכל עת; כשתוקפה פג היא חוזרת אליכם מעצמה.</string>
+    <string name="kn_offer_declined_returning_to_you">נדחתה - השם עבר בעלות, חוזרת אליכם</string>
+    <string name="kn_offer_declined_earlier_owner">נדחתה - הוגשה לבעלים קודמים</string>
+    <string name="kn_err_offer_declined">ההצעה הוגשה לפני שהשם עבר בעלות, ולכן נדחתה והיא חוזרת לקונה.</string>
 </resources>
