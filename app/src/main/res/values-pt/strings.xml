@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Resgatado. Você pode resgatar de novo em %1$s.</string>
     <string name="faucet_claim_subtitle">Copia seu endereço de conversa e abre o faucet TN10: cole, passe pela verificação e resgate o máximo oferecido.</string>
     <string name="faucet_address_copied_notice">Seu endereço de conversa TN10 foi copiado. Cole no campo de endereço do faucet.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Copia o endereço</string>
 </resources>

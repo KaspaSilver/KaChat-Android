@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">받았습니다. %1$s 후에 다시 받을 수 있습니다.</string>
     <string name="faucet_claim_subtitle">채팅 주소를 복사하고 TN10 포싯을 엽니다. 붙여넣고 확인을 통과한 뒤 최대 금액을 받으세요.</string>
     <string name="faucet_address_copied_notice">TN10 채팅 주소가 복사되었습니다. 포싯의 주소 칸에 붙여넣으세요.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">주소를 복사합니다</string>
 </resources>

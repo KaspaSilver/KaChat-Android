@@ -36,6 +36,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -1626,9 +1628,11 @@ fun KachatLiveNameDetailScreen(
     val colors = LocalAppColors.current
     val context = LocalContext.current
     val view = LocalView.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val revision by vm.registry.revision.collectAsState()
     val source by vm.registry.source.collectAsState()
     var info by remember(initial.name) { mutableStateOf(initial) }
+    var ownerCopied by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<KachatDetailSheet?>(null) }
     var offerAction by remember { mutableStateOf<KachatOfferAction?>(null) }
     var ownerLabel by remember { mutableStateOf<String?>(null) }
@@ -1856,9 +1860,36 @@ fun KachatLiveNameDetailScreen(
                                     )
                                     else -> ownerLabel?.let { Text("$it.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                                 }
-                                ownerAddress?.let {
-                                    SelectionContainer {
-                                        Text(it, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 2)
+                                ownerAddress?.let { address ->
+                                    // The whole address doesn't fit on two lines: show its network
+                                    // prefix and both ends on one line, and copy the full address
+                                    // on tap, a checkmark for 1.5 s (iOS 71448d8).
+                                    val copyHint = stringResource(R.string.kn_copies_the_address)
+                                    Row(
+                                        Modifier
+                                            .clickable {
+                                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(address))
+                                                view.successHaptic()
+                                                ownerCopied = true
+                                            }
+                                            .semantics(mergeDescendants = true) { contentDescription = "$address. $copyHint" },
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            KachatNamesRegistry.compactAddress(address),
+                                            color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+                                            maxLines = 1, softWrap = false
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            if (ownerCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                                            contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                    LaunchedEffect(ownerCopied) {
+                                        if (!ownerCopied) return@LaunchedEffect
+                                        delay(1_500)
+                                        ownerCopied = false
                                     }
                                 }
                             }

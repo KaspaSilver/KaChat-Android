@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Alındı. %1$s sonra yeniden alabilirsin.</string>
     <string name="faucet_claim_subtitle">Sohbet adresini kopyalar ve TN10 musluğunu açar: yapıştır, doğrulamayı geç ve sunulan en yüksek miktarı al.</string>
     <string name="faucet_address_copied_notice">TN10 sohbet adresin kopyalandı. Musluğun adres alanına yapıştır.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Adresi kopyalar</string>
 </resources>

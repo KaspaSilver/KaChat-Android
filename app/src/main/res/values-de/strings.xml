@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Abgeholt. Du kannst in %1$s wieder abholen.</string>
     <string name="faucet_claim_subtitle">Kopiert deine Chat-Adresse und öffnet das TN10-Faucet: einfügen, die Prüfung bestehen und den Höchstbetrag abholen.</string>
     <string name="faucet_address_copied_notice">Deine TN10-Chat-Adresse ist kopiert. Füge sie in das Adressfeld des Faucets ein.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Kopiert die Adresse</string>
 </resources>

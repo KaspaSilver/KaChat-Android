@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Получено. Снова можно будет получить через %1$s.</string>
     <string name="faucet_claim_subtitle">Копирует адрес для чатов и открывает кран TN10: вставьте его, пройдите проверку и получите максимум.</string>
     <string name="faucet_address_copied_notice">Ваш адрес для чатов в TN10 скопирован. Вставьте его в поле адреса на кране.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Копирует адрес</string>
 </resources>

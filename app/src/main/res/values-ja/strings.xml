@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">受け取りました。%1$s後にもう一度受け取れます。</string>
     <string name="faucet_claim_subtitle">チャット用アドレスをコピーしてTN10フォーセットを開きます。貼り付けて確認を通過し、最大額を受け取ってください。</string>
     <string name="faucet_address_copied_notice">TN10のチャット用アドレスをコピーしました。フォーセットのアドレス欄に貼り付けてください。</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">アドレスをコピーします</string>
 </resources>

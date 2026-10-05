@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">已领取。%1$s后可再次领取。</string>
     <string name="faucet_claim_subtitle">复制你的聊天地址并打开 TN10 水龙头：粘贴地址、通过验证，然后领取最高额度。</string>
     <string name="faucet_address_copied_notice">已复制你的 TN10 聊天地址。请粘贴到水龙头的地址栏中。</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">复制地址</string>
 </resources>

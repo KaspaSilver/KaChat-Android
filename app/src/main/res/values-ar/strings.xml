@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">تمت المطالبة. يمكنك المطالبة مجددًا خلال %1$s.</string>
     <string name="faucet_claim_subtitle">ينسخ عنوان الدردشة ويفتح صنبور TN10: الصقه، واجتز التحقق، واطلب أقصى ما يقدمه.</string>
     <string name="faucet_address_copied_notice">تم نسخ عنوان دردشة TN10. الصقه في خانة العنوان في الصنبور.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">ينسخ العنوان</string>
 </resources>

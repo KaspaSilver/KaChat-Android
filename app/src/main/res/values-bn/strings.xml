@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">দাবি করা হয়েছে। আবার দাবি করতে পারবেন %1$s পরে।</string>
     <string name="faucet_claim_subtitle">আপনার চ্যাটিং ঠিকানা কপি করে TN10 ফসেট খোলে: পেস্ট করুন, যাচাই পার হন এবং সর্বোচ্চ পরিমাণ দাবি করুন।</string>
     <string name="faucet_address_copied_notice">আপনার TN10 চ্যাটিং ঠিকানা কপি হয়েছে। ফসেটের ঠিকানার ঘরে পেস্ট করুন।</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">ঠিকানাটি কপি করে</string>
 </resources>

@@ -703,6 +703,19 @@ class KachatNamesRegistry @Inject constructor(
             return payload
         }
 
+        /**
+         * The network prefix plus both ends of the address on one line: `kaspatest:qr4x7k...a9z2pq`.
+         * Used where the full address doesn't fit (the name detail's Owner card, iOS 71448d8).
+         */
+        fun compactAddress(address: String): String {
+            val colon = address.indexOf(':')
+            if (colon < 0) return address
+            val prefix = address.substring(0, colon + 1)
+            val body = address.substring(colon + 1)
+            if (body.length <= 14) return address
+            return "$prefix${body.take(6)}...${body.takeLast(6)}"
+        }
+
         /** `kaspatest:qr...xyz4`. */
         fun shortAddress(address: String): String {
             if (address.length <= 20) return address

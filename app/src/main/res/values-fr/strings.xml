@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Réclamé. Vous pourrez réclamer à nouveau dans %1$s.</string>
     <string name="faucet_claim_subtitle">Copie votre adresse de discussion et ouvre le faucet TN10 : collez-la, passez la vérification et réclamez le maximum proposé.</string>
     <string name="faucet_address_copied_notice">Votre adresse de discussion TN10 est copiée. Collez-la dans le champ d’adresse du faucet.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Copie l’adresse</string>
 </resources>

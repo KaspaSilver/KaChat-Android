@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Richiesto. Potrai richiedere di nuovo tra %1$s.</string>
     <string name="faucet_claim_subtitle">Copia il tuo indirizzo chat e apre il faucet TN10: incollalo, supera la verifica e richiedi il massimo disponibile.</string>
     <string name="faucet_address_copied_notice">Il tuo indirizzo chat TN10 è copiato. Incollalo nel campo indirizzo del faucet.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Copia l’indirizzo</string>
 </resources>

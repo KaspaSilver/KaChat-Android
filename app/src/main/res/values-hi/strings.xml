@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">क्लेम हो गया। आप %1$s में फिर से क्लेम कर सकते हैं।</string>
     <string name="faucet_claim_subtitle">आपका चैटिंग पता कॉपी करके TN10 फ़ॉसेट खोलता है: पेस्ट करें, जाँच पास करें और अधिकतम राशि क्लेम करें।</string>
     <string name="faucet_address_copied_notice">आपका TN10 चैटिंग पता कॉपी हो गया है। इसे फ़ॉसेट के पता फ़ील्ड में पेस्ट करें।</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">पता कॉपी करता है</string>
 </resources>

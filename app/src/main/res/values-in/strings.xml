@@ -835,4 +835,6 @@
     <string name="faucet_claimed_again_in">Sudah diklaim. Anda bisa klaim lagi dalam %1$s.</string>
     <string name="faucet_claim_subtitle">Menyalin alamat obrolan Anda dan membuka faucet TN10: tempelkan, lewati pemeriksaan, lalu klaim jumlah maksimum.</string>
     <string name="faucet_address_copied_notice">Alamat obrolan TN10 Anda sudah disalin. Tempelkan ke kolom alamat faucet.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Menyalin alamat</string>
 </resources>

@@ -1002,4 +1002,6 @@
     <string name="faucet_claimed_again_in">دریافت شد. %1$s دیگر می‌توانید دوباره دریافت کنید.</string>
     <string name="faucet_claim_subtitle">نشانی گفتگوی شما را کپی می‌کند و فاست TN10 را باز می‌کند: آن را بچسبانید، از بررسی عبور کنید و بیشترین مقدار را دریافت کنید.</string>
     <string name="faucet_address_copied_notice">نشانی گفتگوی TN10 شما کپی شد. آن را در کادر نشانی فاست بچسبانید.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">نشانی را کپی می‌کند</string>
 </resources>

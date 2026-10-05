@@ -971,4 +971,6 @@
     <string name="faucet_claimed_again_in">Đã nhận. Bạn có thể nhận lại sau %1$s.</string>
     <string name="faucet_claim_subtitle">Sao chép địa chỉ trò chuyện và mở vòi TN10: dán vào, vượt qua bước kiểm tra và nhận mức tối đa.</string>
     <string name="faucet_address_copied_notice">Đã sao chép địa chỉ trò chuyện TN10. Hãy dán vào ô địa chỉ của vòi.</string>
+    <!-- .kachat name detail Owner card (iOS 71448d8) -->
+    <string name="kn_copies_the_address">Sao chép địa chỉ</string>
 </resources>
