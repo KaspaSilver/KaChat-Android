@@ -201,6 +201,19 @@ interface MessageDao {
     @Query("SELECT DISTINCT contactId FROM messages WHERE walletAddress = :walletAddress AND direction = 'sent' AND deliveryStatus = 'sent'")
     suspend fun contactsWithDeliveredSends(walletAddress: String): List<String>
 
+    /** Received payment bubbles an older build filed from contract (P2SH) transactions - the
+     *  .kachat commit, bond and offer refunds: in a conversation with a script address, or in
+     *  the self-chat noted "From: kaspa(test):p..." (iOS 32fdaa4, purgeContractAddressPaymentChats). */
+    @Query(
+        """
+        DELETE FROM messages WHERE walletAddress = :walletAddress AND type = 'pay' AND (
+            contactId LIKE 'kaspa:p%' OR contactId LIKE 'kaspatest:p%'
+            OR (contactId = :walletAddress AND (plaintextBody LIKE '%From: kaspa:p%' OR plaintextBody LIKE '%From: kaspatest:p%'))
+        )
+        """
+    )
+    suspend fun deleteContractAddressPayments(walletAddress: String): Int
+
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND direction = :direction)")
     suspend fun hasMessageWithDirection(contactId: String, walletAddress: String, direction: String): Boolean
 

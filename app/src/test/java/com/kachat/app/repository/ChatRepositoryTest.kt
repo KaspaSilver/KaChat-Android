@@ -97,4 +97,16 @@ class ChatRepositoryTest {
     fun `hex-encodes a real 12-char alias`() {
         assertEquals(24, ChatRepository.hexEncodeAscii("f0313b15fd24").length)
     }
+
+    @Test
+    fun `script (P2SH) addresses are contracts, key addresses are not`() {
+        val payload = ByteArray(32) { it.toByte() }
+        val p2sh = com.kachat.app.util.KaspaAddress.encode("kaspatest", 0x08, payload)
+        val key = com.kachat.app.util.KaspaAddress.encode("kaspatest", 0x00, payload)
+        org.junit.Assert.assertTrue(ChatRepository.isScriptAddress(p2sh))
+        org.junit.Assert.assertTrue(ChatRepository.isScriptAddress(com.kachat.app.util.KaspaAddress.encode("kaspa", 0x08, payload)))
+        org.junit.Assert.assertFalse(ChatRepository.isScriptAddress(key))
+        org.junit.Assert.assertFalse(ChatRepository.isScriptAddress(null))
+        org.junit.Assert.assertFalse(ChatRepository.isScriptAddress("not an address"))
+    }
 }

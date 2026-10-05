@@ -1246,6 +1246,7 @@ class ChatRepository @Inject constructor(
      * every cycle before this set existed).
      */
     private val seenPaymentTxIds = java.util.Collections.synchronizedSet(HashSet<String>())
+    private val contractPaymentsPurged = java.util.Collections.synchronizedSet(HashSet<String>())
 
     /**
      * Restore-parity pass (matches iOS): handshakes YOU sent — requests you initiated AND your
@@ -1900,6 +1901,13 @@ class ChatRepository @Inject constructor(
             return
         }
 
+        // Once per process per wallet: drop the payment bubbles older builds made from .kachat
+        // contract transactions (iOS 32fdaa4). processPayment no longer files them.
+        if (contractPaymentsPurged.add(myAddress.lowercase())) {
+            runCatching { database.messageDao().deleteContractAddressPayments(myAddress) }
+                .onSuccess { if (it > 0) Log.i("ChatRepository", "Removed $it contract-address payment bubble(s)") }
+        }
+
         if (seenPaymentTxIds.size > 5_000) seenPaymentTxIds.clear()
         for (tx in transactions) {
             try {
@@ -1934,6 +1942,12 @@ class ChatRepository @Inject constructor(
         // payment - only messages and handshakes are someone else's job.
         val isPaymentPayload = MessageProtocol.isPaymentPayload(payloadBytes)
         if (!isPaymentPayload && MessageProtocol.isKaChatPayload(payloadBytes)) return true // real message/handshake, not a plain payment
+        // A .kachat registry or offer transaction (its kchat:1:name: / offer: payload is caught
+        // above) pays to or from a script (P2SH) address - the commit, the name's 1 KAS bond, an
+        // offer's locked KAS and their refunds. A chat partner is always a key address, so such a
+        // transaction is never a payment chat; it shows in the wallet history (iOS 32fdaa4).
+        if (tx.outputs.any { isScriptAddress(it.scriptPublicKeyAddress) } ||
+            tx.inputs.any { isScriptAddress(it.previousOutpointAddress) }) return true
 
         // Checks every input for a resolved address, not just the first — the REST API's
         // resolve_previous_outpoints=light can leave an individual input's address unresolved
@@ -2018,6 +2032,13 @@ class ChatRepository @Inject constructor(
     }
 
     companion object {
+        /** A pay-to-script-hash address (`kaspa:p...` / `kaspatest:p...`, version byte 0x08):
+         *  a contract, never a chat partner (iOS 32fdaa4, isScriptAddress). */
+        internal fun isScriptAddress(address: String?): Boolean {
+            if (address.isNullOrBlank()) return false
+            return runCatching { KaspaAddress.decode(address.trim().lowercase()).first == 0x08.toByte() }.getOrDefault(false)
+        }
+
         /** "1", "3.98962" — trimmed decimal KAS amount, matching the reference apps' payment bubble style. */
         internal fun formatKas(sompi: Long): String {
             val kas = sompi.toDouble() / 100_000_000.0
