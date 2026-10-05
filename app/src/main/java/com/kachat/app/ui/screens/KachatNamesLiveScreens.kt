@@ -252,6 +252,8 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.PeriodFull -> getString(R.string.kn_err_period_full, KachatLive.date(e.renewalOpensMs))
         is KachatNamesActions.ActionError.PeriodUnknown -> getString(R.string.kn_err_period_unknown)
         is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
+        // localized on iOS too (d36fc42 `wrongAddressNetwork`)
+        is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
         is KachatNamesActions.ActionError.NotRegisterable -> when {
             m == "An expired name can't be listed. Renew it first." -> getString(R.string.kn_err_expired_list)
             m.endsWith(" is already registered.") -> getString(R.string.kn_err_already_registered, m.removeSuffix(" is already registered."))
@@ -422,13 +424,14 @@ class KachatLiveViewModel @Inject constructor(
     data class Hero(val label: String?, val avatar: String?, val banner: String?, val bio: String?, val linktree: String?)
 
     /**
-     * Testnet only: the `.kachat` label of [address] (primary name, else oldest active name) and
-     * its address profile's sources and Linktree link, for the profile hero (iOS ContactsView
+     * The `.kachat` label of [address] (primary name, else oldest active name) and its address
+     * profile's sources and Linktree link, for the profile hero (iOS ContactsView
      * `loadKachatLabel`, 5df42b4 / ad32798 / 1322216 / c124cb3) - the record this wallet last wrote first,
-     * else the one the source knows. Null on mainnet.
+     * else the one the source knows. On mainnet (no registry yet) only the profile: no label
+     * (iOS d36fc42, where `identity` is profile-only there).
      */
     suspend fun hero(address: String): Hero? {
-        if (!KachatNamesService.isLaunched) return null
+        if (!KachatNamesService.profilesEnabled) return null
         registry.refreshIfStale(300_000)
         val identity = try {
             registry.identity(address)
@@ -2307,7 +2310,7 @@ fun KachatLiveDomainsTab(
     }
 }
 
-// MARK: - Edit .kachat Profile
+// MARK: - Edit KaChat Profile
 
 /**
  * Where a source's lookup stands - the editor saves only a field whose lookup found what that
@@ -2497,9 +2500,9 @@ private fun KachatSourceField(
 @Composable
 fun KachatLiveProfileEditorScreen(
     onBack: () -> Unit,
-    /** Null where the registry isn't launched (mainnet): the same editor, nothing read or saved
-     *  (iOS 7227d69). */
-    vm: KachatLiveViewModel? = if (KachatNamesService.isLaunched) hiltViewModel() else null,
+    /** On every network since iOS d36fc42: a profile is a self-send, with no registry behind it,
+     *  so mainnet reads and saves it too. Only the primary name waits for mainnet's registry. */
+    vm: KachatLiveViewModel? = if (KachatNamesService.profilesEnabled) hiltViewModel() else null,
     social: KachatSocialImageResolver = vm?.social ?: hiltViewModel<KachatSocialViewModel>().social,
 ) {
     val colors = LocalAppColors.current
@@ -2607,7 +2610,23 @@ fun KachatLiveProfileEditorScreen(
                 FormTextField(linktree, { linktree = it }, stringResource(R.string.kn_username), Modifier.weight(1f), keyboardType = KeyboardType.Uri)
             }
         }
-        FormSection(header = stringResource(R.string.kachat_name_section), footer = { FormFooter(stringResource(R.string.kn_primary_footer)) }) {
+        FormSection(
+            header = stringResource(R.string.kachat_name_section),
+            footer = {
+                FormFooter(stringResource(if (KachatNamesService.isLaunched) R.string.kn_primary_footer else R.string.kn_primary_not_on_mainnet))
+            }
+        ) {
+            // The primary name needs the registry: until it launches on this network (mainnet)
+            // there's no name to pick, so the profile saves without one (iOS d36fc42).
+            if (!KachatNamesService.isLaunched) {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.kn_primary_name), color = colors.textPrimary, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.coming_soon), color = colors.textSecondary)
+                }
+            } else
             // iOS's menu Picker: the label, the choice on the right, the choices in a menu.
             Box {
                 Row(
@@ -2626,11 +2645,9 @@ fun KachatLiveProfileEditorScreen(
                 }
             }
         }
-        // Mainnet shows the editor, but nothing is written until .kachat launches there (iOS 7227d69).
-        FormSection(footer = {
-            FormFooter(stringResource(if (KachatNamesService.isLaunched) R.string.kn_save_footer else R.string.kn_profiles_saved_once_launched))
-        }) {
-            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked && KachatNamesService.isLaunched) { showSave = true }
+        // Saves on every network: a profile is a self-send, with no registry behind it (iOS d36fc42).
+        FormSection(footer = { FormFooter(stringResource(R.string.kn_save_footer)) }) {
+            FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked && KachatNamesService.profilesEnabled) { showSave = true }
         }
     }
 }
@@ -2638,7 +2655,7 @@ fun KachatLiveProfileEditorScreen(
 /**
  * Review before a profile record goes out - what will be saved, the network fee, the chatting
  * address's balance before and after - the same confirmation every other name action shows; then
- * the device lock, the save, and the finished-transaction half sheet. Used by Edit .kachat
+ * the device lock, the save, and the finished-transaction half sheet. Used by Edit KaChat
  * Profile and by Set as Primary (iOS `KachatProfileSaveSheet`, 7e238e5). A full-screen swap with
  * Cancel top left, as every sheet in this port.
  */

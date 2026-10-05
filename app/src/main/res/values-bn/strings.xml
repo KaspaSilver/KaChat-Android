@@ -420,7 +420,6 @@
     <string name="none_yet">এখনো নেই</string>
     <string name="customize_profile">প্রোফাইল কাস্টমাইজ করুন</string>
     <string name="settling">নিশ্চিত হচ্ছে</string>
-    <string name="edit_kachat_profile">.kachat প্রোফাইল সম্পাদনা</string>
     <string name="kachat_profile_coming_body">.kachat নাম শীঘ্রই আসছে। একটি নেওয়ার পর এখানে আপনার অবতার, ব্যানার, পরিচিতি ও লিংক সেট করবেন - আর KaChat সব জায়গায় আপনাকে এভাবেই দেখাবে।</string>
     <string name="kachat_name_section">.kachat নাম</string>
     <string name="get_domain_at">%2$s-এ একটি %1$s ডোমেইন নিন</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">পেমেন্ট পেতে একটি নতুন ঠিকানা দেখায়।</string>
     <string name="qr_receive_address_subtitle">একটি নতুন ঠিকানা, আগে কখনও ব্যবহার হয়নি। এখানে পাঠানো Kaspa এই অ্যাকাউন্টে আসে এবং আপনার খরচযোগ্য ব্যালান্সে দেখায়। চ্যাট বা ডোমেইনের সাথে সম্পর্কহীন সবকিছুর জন্য এই ঠিকানা ব্যবহার করুন।</string>
     <string name="qr_chatting_address_subtitle">এই ঠিকানাটি শুধু চ্যাট ও ডোমেইনের জন্য। 1 Kaspa দিয়ে অ্যাপে প্রায় 500টি কাজ করা যায়। নাম অনুযায়ী ডোমেইনের দাম 35 থেকে 4,000 Kaspa।</string>
-    <string name="kn_profiles_saved_once_launched">.kachat মেইননেটে চালু হলে প্রোফাইল সেভ করা যাবে।</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">কয়েন কন্ট্রোল</string>
     <string name="automatic">স্বয়ংক্রিয়</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">রুম মুছবেন?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">এই ঠিকানাটি আর এই ওয়ালেটে নেই।</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">KaChat প্রোফাইল সম্পাদনা</string>
+    <string name="kn_err_wrong_address_network">এই ঠিকানাটি অ্যাপের থেকে ভিন্ন নেটওয়ার্কে রয়েছে।</string>
+    <string name="kn_primary_not_on_mainnet">.kachat নাম এখনও মেইননেটে আসেনি। আপনার অবতার, ব্যানার, বায়ো ও লিঙ্ক এখনই সংরক্ষিত হয়; নাম চালু হলে প্রধান নাম বেছে নিতে পারবেন।</string>
 </resources>

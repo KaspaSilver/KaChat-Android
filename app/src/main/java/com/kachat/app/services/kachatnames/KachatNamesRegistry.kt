@@ -12,6 +12,7 @@ import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.services.kachatnames.KachatNames.Codec
 import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaNetwork
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -124,6 +125,12 @@ class KachatNamesRegistry @Inject constructor(
      *  re-asked answer that is unchanged re-renders nothing. */
     private val identityAsked = ConcurrentHashMap<String, Pair<Int, Long>>()
     private val identityLookups = ConcurrentHashMap.newKeySet<String>()
+    /** When an address's lookup last failed (unix ms): it isn't asked again for five minutes, so a
+     *  composable that reads [cachedIdentity] can't turn an unreachable indexer into a request
+     *  loop (iOS d36fc42). */
+    private val identityMisses = ConcurrentHashMap<String, Long>()
+    /** Set when the indexer said it doesn't serve profiles (503) - see [profileOnlyIdentity]. */
+    @Volatile private var profilesUnavailableUntil: Long = 0L
     private val identityLock = Any()
     private val prepareMutex = Mutex()
     /** Serializes walker state changes (walk, offer tracking) - iOS's @MainActor. */
@@ -164,6 +171,8 @@ class KachatNamesRegistry @Inject constructor(
         ownProfileMisses.clear()
         synchronized(identityLock) { identities = emptyMap() }
         identityAsked.clear()
+        identityMisses.clear()
+        profilesUnavailableUntil = 0L
         _lastError.value = null
         _refreshedAt.value = null
         bump()
@@ -476,8 +485,10 @@ class KachatNamesRegistry @Inject constructor(
      * address (the record it last wrote).
      */
     suspend fun identity(address: String): Identity {
-        prepare()
         val a = address.lowercase()
+        // No registry on this network yet (mainnet): no names or label, only the profile (iOS d36fc42).
+        if (!KachatNamesService.isLaunched) return profileOnlyIdentity(a)
+        prepare()
         return when (val src = _source.value) {
             is Source.Indexer -> IndexerApi.IdentityJson.parse(get(src.base, "/identity/$a")).identity
             else -> {
@@ -491,35 +502,66 @@ class KachatNamesRegistry @Inject constructor(
     }
 
     /**
+     * An address's profile where the network has no registry yet (mainnet): the indexer's
+     * `GET /profiles/{address}` (the KaChat indexer at Connection Settings' indexer URL, the same
+     * base the names reads use), falling back to the record this device last wrote for its own
+     * address (iOS d36fc42). The indexer answers 503 until it follows profiles on this network
+     * (kachat-indexer docs/KACHAT_PROFILES.md); then only this wallet's own profile shows.
+     */
+    private suspend fun profileOnlyIdentity(address: String): Identity {
+        ownProfile(address)?.profile?.let { return Identity(address, null, emptyList(), it) }
+        // An indexer without profiles on this network answers 503 for every address: one such
+        // answer pauses all profile lookups for ten minutes instead of one request per contact.
+        val base = indexerBase()
+        if (base == null || System.currentTimeMillis() < profilesUnavailableUntil) {
+            throw KachatNames.Failure("profiles are not indexed on this network yet")
+        }
+        try {
+            val j = IndexerApi.ProfileJson.parse(get(base, "/profiles/$address"))
+            return Identity(address, null, emptyList(), j.profile?.sanitized())
+        } catch (e: KachatNames.Failure) {
+            if (e.message?.endsWith("answered 503") == true) {
+                profilesUnavailableUntil = System.currentTimeMillis() + 600_000L
+            }
+            throw e
+        }
+    }
+
+    /**
      * The address's `.kachat` identity as the app shows it, from a cache that fills in the
-     * background: callable from any composable or thread (testnet only - null otherwise). An
-     * answer is re-asked once the registry moved on or after five minutes (a failed one after a
-     * minute), and this wallet's own saved profile always wins for its own address. When an answer
-     * lands, composables that read it re-render (iOS e52357d `cachedIdentity(for:)`).
+     * background: callable from any composable or thread (on mainnet, profile only - iOS
+     * d36fc42). An answer is re-asked once the registry moved on or after five minutes, a failed
+     * address not for five minutes, and this wallet's own saved profile always wins for its own
+     * address. When an answer lands, composables that read it re-render (iOS e52357d
+     * `cachedIdentity(for:)`).
      */
     fun cachedIdentity(address: String): Identity? {
-        // Launched networks only (iOS 7227d69): the UI shows .kachat identity everywhere, but
-        // mainnet has no registry to ask yet, so every address falls back to its short form.
-        if (!KachatNamesService.isLaunched) return null
+        // Every network since iOS d36fc42: profiles need no registry. Mainnet has no names yet,
+        // so there an address keeps its short form and only its profile (avatar...) shows.
+        if (!KachatNamesService.profilesEnabled) return null
         val key = address.trim().lowercase()
-        if (!key.startsWith("kaspatest:")) return null
+        if (KaspaNetwork.ofAddress(key) == null || !KaspaNetwork.isOnActiveNetwork(key)) return null
         val known = identities[key]
         val rev = _revision.value
         val now = System.currentTimeMillis()
         val asked = identityAsked[key]
         val stale = asked == null || asked.first != rev || now - asked.second > (if (known == null) 60_000L else 300_000L)
-        if (stale && identityLookups.add(key)) {
+        val missedRecently = identityMisses[key]?.let { now - it < 300_000L } == true
+        if (stale && !missedRecently && identityLookups.add(key)) {
             identityAsked[key] = rev to now
             scope.launch {
                 try {
                     val found = identity(key)
+                    identityMisses.remove(key)
                     synchronized(identityLock) {
                         if (identities[key] != found) identities = identities + (key to found)
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    // the registry is not there (being upgraded, offline): asked again in a minute
+                    // the registry or profiles are not there (being upgraded, offline, a 503):
+                    // this address is asked again in five minutes
+                    identityMisses[key] = System.currentTimeMillis()
                 } finally {
                     identityLookups.remove(key)
                 }
@@ -534,7 +576,7 @@ class KachatNamesRegistry @Inject constructor(
         val a = address.lowercase()
         ownProfiles[a]?.let { return it }
         if (a in ownProfileMisses) return null
-        val data = readFile(profileFile(a)) ?: run { ownProfileMisses.add(a); return null }
+        val data = readFile(profileFile(a), profileNetwork(a)) ?: run { ownProfileMisses.add(a); return null }
         val p = runCatching { gson.fromJson(String(data, Charsets.UTF_8), OwnProfile::class.java) }.getOrNull() ?: return null
         // Gson leaves absent fields null whatever their Kotlin type: a damaged file is no record
         @Suppress("SENSELESS_COMPARISON")
@@ -547,7 +589,7 @@ class KachatNamesRegistry @Inject constructor(
         val record = OwnProfile(address.lowercase(), profile.sanitized(), txId, System.currentTimeMillis())
         ownProfiles[record.address] = record
         ownProfileMisses.remove(record.address)
-        writeFile(profileFile(record.address), gson.toJson(record).toByteArray(Charsets.UTF_8))
+        writeFile(profileFile(record.address), gson.toJson(record).toByteArray(Charsets.UTF_8), profileNetwork(record.address))
         bump()
     }
 
@@ -584,12 +626,13 @@ class KachatNamesRegistry @Inject constructor(
         File(File(context.filesDir, "KachatNames"), network).apply { mkdirs() }
     }.getOrNull()
 
-    fun readFile(name: String): ByteArray? = runCatching { directory()?.let { File(it, name).readBytes() } }.getOrNull()
+    fun readFile(name: String, network: String = Manifest.SUPPORTED_NETWORK): ByteArray? =
+        runCatching { directory(network)?.let { File(it, name).readBytes() } }.getOrNull()
 
     /** Atomic: a temporary file renamed over the old one. */
-    fun writeFile(name: String, data: ByteArray) {
+    fun writeFile(name: String, data: ByteArray, network: String = Manifest.SUPPORTED_NETWORK) {
         runCatching {
-            val dir = directory() ?: return
+            val dir = directory(network) ?: return
             val tmp = File(dir, "$name.tmp")
             tmp.writeBytes(data)
             if (!tmp.renameTo(File(dir, name))) {
@@ -600,6 +643,12 @@ class KachatNamesRegistry @Inject constructor(
     }
 
     private fun profileFile(address: String): String = "profile-${walletSuffix(address)}.json"
+
+    /** The cache folder an address's own profile lives in: its network's (testnet keeps the
+     *  registry's folder, so profiles saved before mainnet profiles existed are still found;
+     *  iOS d36fc42). */
+    private fun profileNetwork(address: String): String =
+        if (KaspaNetwork.ofAddress(address) == KaspaNetwork.Type.MAINNET) "mainnet" else Manifest.SUPPORTED_NETWORK
 
     private fun loadCache(m: Manifest): RegistryState? {
         val data = readFile(CACHE_FILE) ?: return null
@@ -623,13 +672,14 @@ class KachatNamesRegistry @Inject constructor(
 
         @Volatile private var instance: KachatNamesRegistry? = null
 
-        /** The app's registry once built (at startup on testnet, see KaChatApplication), for
+        /** The app's registry once built (at startup on every network since iOS d36fc42 - for
+         *  profiles; see KaChatApplication), for
          *  screens outside the .kachat hub that show an address's identity (User Info). */
         val shared: KachatNamesRegistry? get() = instance
 
         // The display rules (iOS e52357d): testnet identity is .kachat everywhere
 
-        /** The address's cached `.kachat` identity ([cachedIdentity]); null on mainnet. */
+        /** The address's cached `.kachat` identity ([cachedIdentity]); profile only on mainnet. */
         fun cachedIdentityOf(address: String): Identity? = instance?.cachedIdentity(address)
 
         /** Testnet: `<label>.kachat` for an address with an active name (its primary one), null

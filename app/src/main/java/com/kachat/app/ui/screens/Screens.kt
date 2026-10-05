@@ -3730,15 +3730,15 @@ fun ProfileScreen(
 
     val profileAssetId by viewModel.profileDomainAssetId.collectAsState()
     val knsProfile by viewModel.knsProfile.collectAsState()
-    // Testnet: your `.kachat` label (KACHAT_NAMES.md section 7 - your primary name while you own it
-    // and it is active, else your oldest active name), shown as your name on the hero (iOS
-    // 5df42b4). Mainnet never builds the names model: identity lookups need a launched registry
-    // (iOS 7227d69), so there you show by your short address, with no KNS picture or bio.
+    // Your `.kachat` label (KACHAT_NAMES.md section 7 - your primary name while you own it and it
+    // is active, else your oldest active name), shown as your name on the hero (iOS 5df42b4), and
+    // your address profile. On every network since iOS d36fc42: mainnet has no registry yet, so
+    // there you show by your short address, with your profile's picture, banner and bio.
     val kachatLive: KachatLiveViewModel? =
-        if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) hiltViewModel() else null
+        if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) hiltViewModel() else null
     var kachatLabel by remember { mutableStateOf<String?>(null) }
     // The address profile's sources (a social link each for avatar, banner and bio, looked up on
-    // this device) and Linktree link - testnet (iOS ad32798 / 1322216 / c124cb3).
+    // this device) and Linktree link (iOS ad32798 / 1322216 / c124cb3; mainnet too since d36fc42).
     var kachatAvatarSource by remember { mutableStateOf<String?>(null) }
     var kachatBannerSource by remember { mutableStateOf<String?>(null) }
     var kachatBioSource by remember { mutableStateOf<String?>(null) }
@@ -8233,10 +8233,10 @@ private fun PopupMenuRowContent(label: String, labelColor: Color, onClick: () ->
 }
 
 /**
- * "Edit .kachat Profile": the same layout as the .kas profile editor - avatar, banner, bio and
- * links - but nothing in it yet on mainnet, because KaChat's own names are not live there (iOS
- * 09e0403). On testnet it is the live address profile editor ([KachatLiveProfileEditorScreen],
- * iOS 5df42b4): it writes the `kchat:1:profile:` record.
+ * "Edit KaChat Profile": the live address profile editor ([KachatLiveProfileEditorScreen], iOS
+ * 5df42b4) on both networks - it writes the `kchat:1:profile:` record, a self-send that needs no
+ * registry, so it saves on mainnet too; only the primary name waits for mainnet's registry (iOS
+ * d36fc42). The placeholder below (iOS 09e0403) is the switch-back.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -8245,8 +8245,8 @@ fun KachatProfileEditorScreen(
     showSetupGuides: Boolean = true,
     onSetupGuide: () -> Unit = {},
 ) {
-    // The live editor on every network since iOS 7227d69 - on mainnet Save stays off until .kachat
-    // launches there. The placeholder below is kept, unreachable, as the switch-back.
+    // The live editor on every network since iOS 7227d69, and it saves there too since d36fc42.
+    // The placeholder below is kept, unreachable, as the switch-back.
     if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
         KachatLiveProfileEditorScreen(onBack = onBack)
         return

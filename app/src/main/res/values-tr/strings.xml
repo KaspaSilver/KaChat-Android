@@ -420,7 +420,6 @@
     <string name="none_yet">Henüz yok</string>
     <string name="customize_profile">Profili özelleştir</string>
     <string name="settling">Onaylanıyor</string>
-    <string name="edit_kachat_profile">.kachat profilini düzenle</string>
     <string name="kachat_profile_coming_body">.kachat adları geliyor. Bir tane aldığında avatarını, kapak görselini, biyografini ve bağlantılarını burada ayarlarsın; KaChat seni her yerde bununla gösterir.</string>
     <string name="kachat_name_section">.kachat adı</string>
     <string name="get_domain_at">%2$s üzerinden bir %1$s alan adı al</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">Ödeme almak için yeni bir adres gösterir.</string>
     <string name="qr_receive_address_subtitle">Daha önce hiç kullanılmamış yeni bir adres. Buraya gönderilen Kaspa bu hesaba gelir ve harcama bakiyende görünür. Bu adresi sohbet veya alan adlarıyla ilgili olmayan her şey için kullan.</string>
     <string name="qr_chatting_address_subtitle">Bu adres yalnızca sohbet ve alan adları için kullanılmalı. 1 Kaspa uygulamada yaklaşık 500 işlem için yeterli. Alan adları, ada göre 35 ile 4.000 Kaspa arasında.</string>
-    <string name="kn_profiles_saved_once_launched">Profiller, .kachat ana ağda başlatıldığında kaydedilebilecek.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Coin kontrolü</string>
     <string name="automatic">Otomatik</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">Oda silinsin mi?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Bu adres artık bu cüzdanda değil.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">KaChat profilini düzenle</string>
+    <string name="kn_err_wrong_address_network">Bu adres uygulamadan farklı bir ağda.</string>
+    <string name="kn_primary_not_on_mainnet">.kachat adları henüz mainnet\'te yok. Avatarın, bannerın, biyografin ve bağlantıların şimdi kaydedilir; adlar başladığında birincil ad seçebilirsin.</string>
 </resources>

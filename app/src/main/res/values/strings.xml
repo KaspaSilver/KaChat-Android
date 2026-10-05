@@ -589,7 +589,6 @@
     <string name="none_yet">None yet</string>
     <string name="customize_profile">Customize Profile</string>
     <string name="settling">Settling</string>
-    <string name="edit_kachat_profile">Edit .kachat Profile</string>
     <string name="kachat_profile_coming_body">.kachat names are coming. Once you claim one, your avatar, banner, bio and links are set here - and they\'re what KaChat shows for you everywhere.</string>
     <string name="kachat_name_section">.kachat Name</string>
     <string name="get_domain_at">Get a %1$s domain at %2$s</string>
@@ -1099,7 +1098,6 @@
     <string name="chats_receive_subtitle">Show a fresh address to get paid.</string>
     <string name="qr_receive_address_subtitle">A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting or domains.</string>
     <string name="qr_chatting_address_subtitle">This address should be for chatting and domains only. 1 Kaspa is enough for about 500 interactions in the app. Domains cost from 35 to 4,000 Kaspa, depending on the name.</string>
-    <string name="kn_profiles_saved_once_launched">Profiles can be saved once .kachat launches on mainnet.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="fee_tier_normal">Normal</string>
     <string name="fee_tier_fast">Fast</string>
@@ -1131,4 +1129,8 @@
     <string name="delete_room_title">Delete Room?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">This address isn\'t in this wallet any more.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">Edit KaChat Profile</string>
+    <string name="kn_err_wrong_address_network">This address is on a different network than the app.</string>
+    <string name="kn_primary_not_on_mainnet">.kachat names aren\'t on mainnet yet. Your avatar, banner, bio and links save now; you can pick a primary name once names launch.</string>
 </resources>

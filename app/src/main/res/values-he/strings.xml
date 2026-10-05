@@ -420,7 +420,6 @@
     <string name="none_yet">עדיין אין</string>
     <string name="customize_profile">התאמת פרופיל</string>
     <string name="settling">בתהליך אישור</string>
-    <string name="edit_kachat_profile">עריכת פרופיל .kachat</string>
     <string name="kachat_profile_coming_body">שמות .kachat בדרך. כשתקבלו שם, תגדירו כאן תמונה, באנר, ביוגרפיה וקישורים - וזה מה ש-KaChat יציג עליכם בכל מקום.</string>
     <string name="kachat_name_section">שם .kachat</string>
     <string name="get_domain_at">קבלו דומיין %1$s ב-%2$s</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">מציג כתובת חדשה לקבלת תשלום.</string>
     <string name="qr_receive_address_subtitle">כתובת חדשה שמעולם לא נעשה בה שימוש. Kaspa שנשלחים לכאן מגיעים לחשבון הזה ומופיעים ביתרת ההוצאה שלך. השתמשו בכתובת הזו לכל מה שלא קשור לצ\'אט או לדומיינים.</string>
     <string name="qr_chatting_address_subtitle">הכתובת הזו מיועדת לצ\'אט ולדומיינים בלבד. ‏1 Kaspa מספיק לכ-500 פעולות באפליקציה. דומיינים עולים בין 35 ל-4,000 Kaspa, לפי השם.</string>
-    <string name="kn_profiles_saved_once_launched">אפשר יהיה לשמור פרופילים לאחר ש-‎.kachat יושק ברשת הראשית.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">בקרת מטבעות</string>
     <string name="automatic">אוטומטי</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">למחוק את החדר?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">הכתובת הזו כבר לא נמצאת בארנק הזה.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">עריכת פרופיל KaChat</string>
+    <string name="kn_err_wrong_address_network">הכתובת הזו שייכת לרשת אחרת מזו של האפליקציה.</string>
+    <string name="kn_primary_not_on_mainnet">שמות .kachat עדיין לא זמינים ברשת הראשית. האווטאר, הבאנר, הביו והקישורים נשמרים כבר עכשיו; תוכלו לבחור שם ראשי כשהשמות יושקו.</string>
 </resources>

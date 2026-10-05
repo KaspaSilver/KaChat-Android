@@ -420,7 +420,6 @@
     <string name="none_yet">아직 없음</string>
     <string name="customize_profile">프로필 맞춤 설정</string>
     <string name="settling">확정 중</string>
-    <string name="edit_kachat_profile">.kachat 프로필 편집</string>
     <string name="kachat_profile_coming_body">.kachat 이름이 곧 나옵니다. 이름을 받으면 여기서 아바타, 배너, 소개, 링크를 설정하며, KaChat은 어디서나 이것으로 당신을 보여줍니다.</string>
     <string name="kachat_name_section">.kachat 이름</string>
     <string name="get_domain_at">%2$s에서 %1$s 도메인 받기</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">결제를 받을 새 주소를 보여줍니다.</string>
     <string name="qr_receive_address_subtitle">한 번도 사용하지 않은 새 주소입니다. 여기로 보낸 Kaspa는 이 계정에 들어오며 지출 잔액에 표시됩니다. 채팅이나 도메인과 관련 없는 모든 용도에 이 주소를 사용하세요.</string>
     <string name="qr_chatting_address_subtitle">이 주소는 채팅과 도메인 전용입니다. 1 Kaspa로 앱에서 약 500번의 활동을 할 수 있습니다. 도메인은 이름에 따라 35~4,000 Kaspa입니다.</string>
-    <string name="kn_profiles_saved_once_launched">.kachat이 메인넷에 출시되면 프로필을 저장할 수 있습니다.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">코인 컨트롤</string>
     <string name="automatic">자동</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">방을 삭제할까요?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">이 주소는 더 이상 이 지갑에 없습니다.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">KaChat 프로필 편집</string>
+    <string name="kn_err_wrong_address_network">이 주소는 앱과 다른 네트워크에 있습니다.</string>
+    <string name="kn_primary_not_on_mainnet">.kachat 이름은 아직 메인넷에 없습니다. 아바타, 배너, 소개, 링크는 지금 저장되며, 이름이 출시되면 대표 이름을 고를 수 있습니다.</string>
 </resources>

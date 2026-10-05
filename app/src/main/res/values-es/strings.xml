@@ -420,7 +420,6 @@
     <string name="none_yet">Ninguno aún</string>
     <string name="customize_profile">Personalizar perfil</string>
     <string name="settling">Confirmándose</string>
-    <string name="edit_kachat_profile">Editar perfil .kachat</string>
     <string name="kachat_profile_coming_body">Los nombres .kachat llegarán pronto. Cuando reclames uno, aquí configuras tu avatar, banner, biografía y enlaces, y eso es lo que KaChat mostrará de ti en todas partes.</string>
     <string name="kachat_name_section">Nombre .kachat</string>
     <string name="get_domain_at">Consigue un dominio %1$s en %2$s</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">Muestra una dirección nueva para recibir pagos.</string>
     <string name="qr_receive_address_subtitle">Una dirección nueva, nunca usada. Los Kaspa enviados aquí llegan a esta cuenta y aparecen en tu saldo para gastar. Usa esta dirección para todo lo que no tenga que ver con chats o dominios.</string>
     <string name="qr_chatting_address_subtitle">Esta dirección debe usarse solo para chats y dominios. 1 Kaspa alcanza para unas 500 interacciones en la app. Los dominios cuestan de 35 a 4.000 Kaspa, según el nombre.</string>
-    <string name="kn_profiles_saved_once_launched">Los perfiles se podrán guardar cuando .kachat se lance en mainnet.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Control de monedas</string>
     <string name="automatic">Automático</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">¿Eliminar sala?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Esta dirección ya no está en esta cartera.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">Editar perfil de KaChat</string>
+    <string name="kn_err_wrong_address_network">Esta dirección es de una red distinta a la de la app.</string>
+    <string name="kn_primary_not_on_mainnet">Los nombres .kachat aún no están en mainnet. Tu avatar, banner, biografía y enlaces se guardan ya; podrás elegir un nombre principal cuando se lancen los nombres.</string>
 </resources>

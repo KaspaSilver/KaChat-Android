@@ -420,7 +420,6 @@
     <string name="none_yet">Chưa có</string>
     <string name="customize_profile">Tùy chỉnh hồ sơ</string>
     <string name="settling">Đang xác nhận</string>
-    <string name="edit_kachat_profile">Sửa hồ sơ .kachat</string>
     <string name="kachat_profile_coming_body">Tên .kachat sắp ra mắt. Khi bạn nhận một tên, bạn đặt ảnh đại diện, ảnh bìa, giới thiệu và liên kết tại đây - đó là những gì KaChat hiển thị về bạn ở mọi nơi.</string>
     <string name="kachat_name_section">Tên .kachat</string>
     <string name="get_domain_at">Nhận tên miền %1$s tại %2$s</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">Hiện một địa chỉ mới để nhận thanh toán.</string>
     <string name="qr_receive_address_subtitle">Một địa chỉ mới, chưa từng dùng. Kaspa gửi đến đây sẽ vào tài khoản này và hiện trong số dư chi tiêu của bạn. Hãy dùng địa chỉ này cho mọi việc không liên quan đến trò chuyện hoặc tên miền.</string>
     <string name="qr_chatting_address_subtitle">Địa chỉ này chỉ dành cho trò chuyện và tên miền. 1 Kaspa đủ cho khoảng 500 lượt tương tác trong ứng dụng. Tên miền có giá từ 35 đến 4.000 Kaspa tùy theo tên.</string>
-    <string name="kn_profiles_saved_once_launched">Có thể lưu hồ sơ khi .kachat ra mắt trên mainnet.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Kiểm soát coin</string>
     <string name="automatic">Tự động</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">Xóa phòng?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Địa chỉ này không còn trong ví này.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">Sửa hồ sơ KaChat</string>
+    <string name="kn_err_wrong_address_network">Địa chỉ này thuộc mạng khác với ứng dụng.</string>
+    <string name="kn_primary_not_on_mainnet">Tên .kachat chưa có trên mainnet. Ảnh đại diện, ảnh bìa, tiểu sử và liên kết của bạn được lưu ngay; bạn có thể chọn tên chính khi tên ra mắt.</string>
 </resources>

@@ -123,9 +123,9 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var kachatNamesActions: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesActions>
 
-    // Testnet identity is .kachat everywhere (iOS e52357d): every contact name and avatar reads
-    // the registry's identity cache and the social image cache through their companions, so both
-    // are built at startup on testnet - lazily injected, so mainnet never builds them.
+    // Identity is .kachat everywhere (iOS e52357d): every contact name and avatar reads the
+    // registry's identity cache and the social image cache through their companions, so both are
+    // built at startup - on mainnet too since iOS d36fc42, for address profiles (profilesEnabled).
     @Inject
     lateinit var kachatNamesRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>
 
@@ -165,10 +165,10 @@ class KaChatApplication : Application(), Configuration.Provider {
         // send can pick them (see the field above).
         runCatching { kaPostsScheduledStore.reloadIfNeeded() }
 
-        // Testnet: the .kachat identity caches the display rules read (see the fields above).
-        // isLaunched, not isEnabled (iOS 7227d69): the UI is on everywhere, but only a launched
-        // registry has identities to cache - mainnet never builds the names stack.
-        if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
+        // The .kachat identity caches the display rules read (see the fields above). Every
+        // network since iOS d36fc42 (`profilesEnabled`): mainnet has no registry yet, but address
+        // profiles need none, so its identities are profile-only (avatars, banners, bios).
+        if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) {
             runCatching {
                 kachatNamesRegistry.get()
                 kachatSocialImages.get()

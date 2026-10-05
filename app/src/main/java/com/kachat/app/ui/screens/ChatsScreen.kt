@@ -1525,9 +1525,10 @@ fun ContactAvatar(
 }
 
 /**
- * Testnet: [address]'s `.kachat` avatar - its profile's avatar link (the registry's cached
- * identity) as the platform shows it (the social image cache, looked up when missing or stale).
- * Re-renders when either answer lands. Null when it has none, or on mainnet (iOS e52357d).
+ * [address]'s `.kachat` avatar - its profile's avatar link (the registry's cached identity) as the
+ * platform shows it (the social image cache, looked up when missing or stale). Re-renders when
+ * either answer lands. Null when it has none (iOS e52357d; mainnet too since d36fc42, where the
+ * identity is profile-only).
  */
 @Composable
 fun kachatAvatarUrl(address: String): String? {

@@ -1476,6 +1476,22 @@ object IndexerApi {
         }
     }
 
+    /** `GET /profiles/{address}`: an address's profile record, where the network has no registry
+     *  yet (iOS d36fc42 `ProfileJSON`). */
+    class ProfileJson(val address: String, val profile: Profile?, val updatedAt: Long?, val txId: String?) {
+        companion object {
+            fun parse(e: JsonElement): ProfileJson {
+                val o = objectOf(e)
+                return ProfileJson(
+                    address = required(o.str("address"), "address"),
+                    profile = Profile.decode(o.get("profile")),
+                    updatedAt = o.long("updatedAt"),
+                    txId = o.str("txId")
+                )
+            }
+        }
+    }
+
     class StatusJson(
         val network: String?,
         val registryCovenantId: String?,

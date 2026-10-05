@@ -923,7 +923,7 @@ private fun UnavailableCard(failure: KaChatStatsStore.Failure, onRetry: () -> Un
 
 /**
  * The .kachat profile setup guide: claim your name, then avatar, banner and details, step by
- * step. Opened from Edit .kachat Profile and Profile > Help - the guide .kas used to have, rebuilt
+ * step. Opened from Edit KaChat Profile and Profile > Help - the guide .kas used to have, rebuilt
  * for KaChat's own names (a .kas profile is edited field by field in Your Domains).
  *
  * UI only until .kachat names launch: every step can be walked through, but nothing can be

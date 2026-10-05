@@ -457,7 +457,6 @@
     <string name="none_yet">هنوز ندارد</string>
     <string name="customize_profile">سفارشی‌سازی نمایه</string>
     <string name="settling">در حال تأیید</string>
-    <string name="edit_kachat_profile">ویرایش نمایه .kachat</string>
     <string name="kachat_profile_coming_body">نام‌های .kachat به‌زودی می‌آیند. وقتی یکی بگیرید، آواتار، بنر، معرفی و پیوندهایتان را اینجا تنظیم می‌کنید - و KaChat همه‌جا همین را از شما نشان می‌دهد.</string>
     <string name="kachat_name_section">نام .kachat</string>
     <string name="get_domain_at">یک دامنه %1$s از %2$s بگیرید</string>
@@ -963,7 +962,6 @@
     <string name="chats_receive_subtitle">یک آدرس تازه برای دریافت پول نشان می‌دهد.</string>
     <string name="qr_receive_address_subtitle">یک آدرس تازه که هرگز استفاده نشده است. Kaspa ارسال‌شده به اینجا وارد این حساب می‌شود و در موجودی قابل خرج شما نمایش داده می‌شود. از این آدرس برای هر چیزی که به گفتگو یا دامنه مربوط نیست استفاده کنید.</string>
     <string name="qr_chatting_address_subtitle">این آدرس فقط برای گفتگو و دامنه‌هاست. ۱ Kaspa برای حدود ۵۰۰ تعامل در برنامه کافی است. قیمت دامنه‌ها بسته به نام از ۳۵ تا ۴٬۰۰۰ Kaspa است.</string>
-    <string name="kn_profiles_saved_once_launched">پس از راه‌اندازی ‎.kachat روی شبکه اصلی می‌توانید پروفایل را ذخیره کنید.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="fee_tier_normal">عادی</string>
     <string name="fee_tier_fast">سریع</string>
@@ -995,4 +993,8 @@
     <string name="delete_room_title">اتاق حذف شود؟</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">این آدرس دیگر در این کیف پول نیست.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">ویرایش نمایه KaChat</string>
+    <string name="kn_err_wrong_address_network">این نشانی روی شبکه‌ای غیر از شبکهٔ برنامه است.</string>
+    <string name="kn_primary_not_on_mainnet">نام‌های .kachat هنوز روی شبکهٔ اصلی نیستند. آواتار، بنر، بیوگرافی و پیوندهای شما همین حالا ذخیره می‌شوند؛ پس از راه‌اندازی نام‌ها می‌توانید نام اصلی را انتخاب کنید.</string>
 </resources>

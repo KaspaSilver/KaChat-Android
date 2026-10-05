@@ -297,7 +297,6 @@
     <string name="none_yet">Belum ada</string>
     <string name="customize_profile">Sesuaikan Profil</string>
     <string name="settling">Sedang dikonfirmasi</string>
-    <string name="edit_kachat_profile">Edit Profil .kachat</string>
     <string name="kachat_profile_coming_body">Nama .kachat segera hadir. Setelah kamu mengklaimnya, atur avatar, banner, bio, dan tautanmu di sini - itulah yang ditampilkan KaChat tentangmu di mana saja.</string>
     <string name="kachat_name_section">Nama .kachat</string>
     <string name="get_domain_at">Dapatkan domain %1$s di %2$s</string>
@@ -789,7 +788,6 @@
     <string name="chats_receive_subtitle">Menampilkan alamat baru untuk menerima pembayaran.</string>
     <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di saldo belanja Anda. Gunakan alamat ini untuk semua hal yang tidak terkait obrolan atau domain.</string>
     <string name="qr_chatting_address_subtitle">Alamat ini hanya untuk obrolan dan domain. 1 Kaspa cukup untuk sekitar 500 interaksi di aplikasi. Harga domain berkisar 35 hingga 4.000 Kaspa, tergantung namanya.</string>
-    <string name="kn_profiles_saved_once_launched">Profil bisa disimpan setelah .kachat diluncurkan di mainnet.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Kontrol koin</string>
     <string name="automatic">Otomatis</string>
@@ -828,4 +826,8 @@
     <string name="delete_room_title">Hapus ruang?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Alamat ini sudah tidak ada di dompet ini.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">Edit Profil KaChat</string>
+    <string name="kn_err_wrong_address_network">Alamat ini ada di jaringan yang berbeda dari aplikasi.</string>
+    <string name="kn_primary_not_on_mainnet">Nama .kachat belum ada di mainnet. Avatar, banner, bio, dan tautan Anda tersimpan sekarang; Anda bisa memilih nama utama setelah nama diluncurkan.</string>
 </resources>

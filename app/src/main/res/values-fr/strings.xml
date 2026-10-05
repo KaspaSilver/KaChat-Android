@@ -420,7 +420,6 @@
     <string name="none_yet">Aucun pour l\'instant</string>
     <string name="customize_profile">Personnaliser le profil</string>
     <string name="settling">En confirmation</string>
-    <string name="edit_kachat_profile">Modifier le profil .kachat</string>
     <string name="kachat_profile_coming_body">Les noms .kachat arrivent bientôt. Une fois le vôtre réclamé, vous définissez ici votre avatar, bannière, bio et liens, et c\'est ce que KaChat affiche pour vous partout.</string>
     <string name="kachat_name_section">Nom .kachat</string>
     <string name="get_domain_at">Obtenez un domaine %1$s sur %2$s</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">Affiche une nouvelle adresse pour être payé.</string>
     <string name="qr_receive_address_subtitle">Une adresse neuve, jamais utilisée. Les Kaspa envoyés ici arrivent sur ce compte et s\'ajoutent à votre solde disponible. Utilisez cette adresse pour tout ce qui ne concerne ni les discussions ni les domaines.</string>
     <string name="qr_chatting_address_subtitle">Cette adresse doit servir uniquement aux discussions et aux domaines. 1 Kaspa suffit pour environ 500 interactions dans l\'app. Les domaines coûtent de 35 à 4 000 Kaspa selon le nom.</string>
-    <string name="kn_profiles_saved_once_launched">Les profils pourront être enregistrés dès le lancement de .kachat sur le mainnet.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Contrôle des pièces</string>
     <string name="automatic">Automatique</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">Supprimer le salon ?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Cette adresse ne fait plus partie de ce portefeuille.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">Modifier le profil KaChat</string>
+    <string name="kn_err_wrong_address_network">Cette adresse est sur un autre réseau que l’app.</string>
+    <string name="kn_primary_not_on_mainnet">Les noms .kachat ne sont pas encore sur le mainnet. Votre avatar, bannière, bio et liens s’enregistrent dès maintenant ; vous pourrez choisir un nom principal au lancement des noms.</string>
 </resources>

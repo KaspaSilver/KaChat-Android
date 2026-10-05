@@ -1536,7 +1536,7 @@ fun MainShell(
                     onSetupGuide = { navController.navigate("kachat_setup_guide") },
                 )
             }
-            // The .kachat profile setup guide (iOS b000310) - from Edit .kachat Profile and Help.
+            // The .kachat profile setup guide (iOS b000310) - from Edit KaChat Profile and Help.
             composable("kachat_setup_guide") {
                 com.kachat.app.ui.screens.KachatSetupGuideScreen(onClose = { navController.popBackStack() })
             }

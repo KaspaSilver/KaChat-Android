@@ -420,7 +420,6 @@
     <string name="none_yet">Пока нет</string>
     <string name="customize_profile">Настроить профиль</string>
     <string name="settling">Подтверждается</string>
-    <string name="edit_kachat_profile">Изменить профиль .kachat</string>
     <string name="kachat_profile_coming_body">Имена .kachat скоро появятся. Когда вы получите своё, здесь можно будет задать аватар, баннер, описание и ссылки — именно это KaChat будет показывать о вас везде.</string>
     <string name="kachat_name_section">Имя .kachat</string>
     <string name="get_domain_at">Получите домен %1$s на %2$s</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">Показывает новый адрес для получения оплаты.</string>
     <string name="qr_receive_address_subtitle">Новый, ещё не использованный адрес. Kaspa, отправленные сюда, поступают на этот аккаунт и отображаются в балансе для трат. Используйте этот адрес для всего, что не связано с чатами или доменами.</string>
     <string name="qr_chatting_address_subtitle">Этот адрес только для чатов и доменов. 1 Kaspa хватает примерно на 500 действий в приложении. Домены стоят от 35 до 4000 Kaspa в зависимости от имени.</string>
-    <string name="kn_profiles_saved_once_launched">Профили можно будет сохранять после запуска .kachat в основной сети.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Выбор монет</string>
     <string name="automatic">Автоматически</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">Удалить комнату?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Этого адреса больше нет в этом кошельке.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">Изменить профиль KaChat</string>
+    <string name="kn_err_wrong_address_network">Этот адрес из другой сети, чем приложение.</string>
+    <string name="kn_primary_not_on_mainnet">Имён .kachat в основной сети пока нет. Аватар, баннер, описание и ссылки сохраняются уже сейчас; основное имя можно будет выбрать, когда имена запустятся.</string>
 </resources>

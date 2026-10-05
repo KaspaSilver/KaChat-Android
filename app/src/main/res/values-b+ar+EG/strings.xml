@@ -420,7 +420,6 @@
     <string name="none_yet">لا يوجد بعد</string>
     <string name="customize_profile">تخصيص الملف الشخصي</string>
     <string name="settling">قيد التأكيد</string>
-    <string name="edit_kachat_profile">تعديل ملف .kachat</string>
     <string name="kachat_profile_coming_body">أسماء .kachat قادمة قريبًا. عند حصولك على اسم، تضبط هنا صورتك الرمزية واللافتة والنبذة والروابط - وهذا ما يعرضه KaChat عنك في كل مكان.</string>
     <string name="kachat_name_section">اسم .kachat</string>
     <string name="get_domain_at">احصل على نطاق %1$s من %2$s</string>
@@ -926,7 +925,6 @@
     <string name="chats_receive_subtitle">بيوريك عنوان جديد عشان تستلم فلوس.</string>
     <string name="qr_receive_address_subtitle">عنوان جديد عمره ما اتستخدم. الـKaspa اللي تتبعت هنا بتوصل للحساب ده وبتظهر في رصيد الصرف بتاعك. استخدم العنوان ده لأي حاجة مش ليها علاقة بالشات أو الدومينات.</string>
     <string name="qr_chatting_address_subtitle">العنوان ده للشات والدومينات بس. 1 Kaspa يكفي لحوالي 500 استخدام في التطبيق. الدومينات بتتكلف من 35 لـ4000 Kaspa حسب الاسم.</string>
-    <string name="kn_profiles_saved_once_launched">هتقدر تحفظ البروفايلات أول ما ‎.kachat ينزل على الشبكة الرئيسية.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">التحكم في العملات</string>
     <string name="automatic">تلقائي</string>
@@ -964,4 +962,8 @@
     <string name="delete_room_title">تمسح الأوضة؟</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">العنوان ده مبقاش في المحفظة دي.</string>
+    <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
+    <string name="edit_kachat_profile">تعديل ملف KaChat</string>
+    <string name="kn_err_wrong_address_network">العنوان ده على شبكة غير شبكة التطبيق.</string>
+    <string name="kn_primary_not_on_mainnet">أسماء .kachat لسه مش موجودة على الشبكة الرئيسية. صورتك والغلاف والنبذة واللينكات بتتحفظ دلوقتي، وتقدر تختار اسم أساسي لما الأسماء تنزل.</string>
 </resources>

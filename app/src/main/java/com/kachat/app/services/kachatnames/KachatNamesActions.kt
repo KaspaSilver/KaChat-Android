@@ -14,6 +14,8 @@ import com.kachat.app.services.kachatnames.KachatNames.Codec
 import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.services.kachatnames.KachatNames.unhex
 import com.kachat.app.services.kachatnames.KachatNames.unhex32
+import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaNetwork
 import com.kachat.app.util.Secp256k1
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -142,6 +144,23 @@ class KachatNamesActions @Inject constructor(
         val key = try { walletManager.getPrivateKeyBytes() } catch (_: Exception) { throw ActionError.NoWallet() }
         val me = KachatNamesService.xonlyKey(key)
         if (!me.contentEquals(KachatNamesRegistry.keyOf(address))) throw ActionError.KeyMismatch()
+        return Signer(address, key, me)
+    }
+
+    /**
+     * The current wallet's chatting address and key on the network the app runs on - the profile
+     * record's signer (iOS d36fc42 `profileSigner()`). Unlike [signer] it isn't testnet-only:
+     * profiles work on mainnet before its registry launches ([KachatNamesService.profilesEnabled]).
+     */
+    fun profileSigner(): Signer {
+        if (!KachatNamesService.profilesEnabled) throw KachatNamesService.ServiceError.TestnetOnly()
+        val address = walletManager.getActiveAccount()?.address?.lowercase() ?: throw ActionError.NoWallet()
+        val key = try { walletManager.getPrivateKeyBytes() } catch (_: Exception) { throw ActionError.NoWallet() }
+        if (!KaspaNetwork.isOnActiveNetwork(address)) throw KachatNamesService.ServiceError.WrongAddressNetwork()
+        val me = KachatNamesService.xonlyKey(key)
+        // the address must be this key's Schnorr (version 0) address, on either network
+        val (version, payload) = runCatching { KaspaAddress.decode(address) }.getOrNull() ?: throw ActionError.KeyMismatch()
+        if (version.toInt() != 0 || !payload.contentEquals(me)) throw ActionError.KeyMismatch()
         return Signer(address, key, me)
     }
 
@@ -382,13 +401,13 @@ class KachatNamesActions @Inject constructor(
      * builds it, never sent: spent inputs minus outputs (iOS `profileFee`, 7e238e5).
      */
     suspend fun profileFee(profile: Profile): Long = withContext(Dispatchers.IO) {
-        val s = signer()
+        val s = profileSigner()
         val json = profile.sanitized().recordJSON()
         service.profileRecordFee(s.address, s.privateKey, json)
     }
 
     suspend fun saveProfile(profile: Profile): String = withContext(Dispatchers.IO) {
-        val s = signer()
+        val s = profileSigner()
         val clean = profile.sanitized()
         val json = clean.recordJSON()
         val txId = service.submitProfileRecord(s.address, s.privateKey, json)

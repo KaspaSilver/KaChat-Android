@@ -97,6 +97,9 @@ class KachatNamesService @Inject constructor(
     /** The service's errors; messages are English like iOS's (the screens show them as they are). */
     sealed class ServiceError(message: String) : Exception(message) {
         class TestnetOnly : ServiceError(".kachat names run on Testnet only for now")
+        /** the profile record's address is not on the network the app runs on (iOS d36fc42;
+         *  shown localized, `kn_err_wrong_address_network`) */
+        class WrongAddressNetwork : ServiceError("This address is on a different network than the app.")
         class NoManifest(why: String) : ServiceError("No .kachat registry manifest: $why")
         class DryRunManifest : ServiceError("The .kachat manifest is from a dry run; that registry does not exist")
         class WrongNodeNetwork(network: String) : ServiceError("The node is on $network, not testnet-10")
@@ -333,8 +336,7 @@ class KachatNamesService @Inject constructor(
      * profile (records replace, never patch), a JSON object of at most 2 KB. Returns the txid.
      */
     suspend fun submitProfileRecord(address: String, privateKey: ByteArray, json: ByteArray): String {
-        requireTestnet()
-        if (!address.lowercase().startsWith("kaspatest:")) throw ServiceError.TestnetOnly()
+        requireProfileAddress(address)
         if (json.size > Codec.MAX_PROFILE_JSON_BYTES) throw ServiceError.BadProfile("over 2 KB")
         val obj = runCatching { JsonParser.parseString(String(json, Charsets.UTF_8)) }.getOrNull()
             ?.takeIf { it.isJsonObject }?.asJsonObject ?: throw ServiceError.BadProfile("not a JSON object")
@@ -351,12 +353,21 @@ class KachatNamesService @Inject constructor(
     }
 
     /**
+     * The profile record's gate (iOS d36fc42 `buildProfileRecord`): profiles are not registry
+     * data, so it is [profilesEnabled] - every network - rather than [requireTestnet]; the record
+     * is written from the wallet's address on the network the app runs on.
+     */
+    private fun requireProfileAddress(address: String) {
+        if (!profilesEnabled) throw ServiceError.TestnetOnly()
+        if (KaspaNetwork.ofAddress(address) != KaspaNetwork.launch) throw ServiceError.WrongAddressNetwork()
+    }
+
+    /**
      * What [submitProfileRecord] would pay in network fee for [json] from [address]: the same
      * checks and the same self-send, built and signed but never sent (iOS 7e238e5).
      */
     suspend fun profileRecordFee(address: String, privateKey: ByteArray, json: ByteArray): Long {
-        requireTestnet()
-        if (!address.lowercase().startsWith("kaspatest:")) throw ServiceError.TestnetOnly()
+        requireProfileAddress(address)
         if (json.size > Codec.MAX_PROFILE_JSON_BYTES) throw ServiceError.BadProfile("over 2 KB")
         return walletEngine.quotePayloadSelfSendFee(
             payloadBytes = Codec.profilePayload(json),
@@ -378,12 +389,21 @@ class KachatNamesService @Inject constructor(
 
         /**
          * Whether this network has a live registry the app reads and transacts with (lookups,
-         * listings, registrations, profile saves, resolving typed names): testnet-10 only for now
+         * listings, registrations, resolving typed names): testnet-10 only for now
          * - the network this launch runs on (iOS 7227d69). Off it, nothing builds the registry
          * stack at all: the names service, registry and actions are injected lazily or only
          * behind this gate.
          */
         val isLaunched: Boolean get() = KaspaNetwork.isTestnet
+
+        /**
+         * Address profiles (`kchat:1:profile:`) work on every network (iOS d36fc42): a profile is
+         * a plain self-send from the chatting address, with no registry behind it, so mainnet can
+         * save and read them before its registry launches. Only the primary name needs the
+         * registry. This is what builds the registry, actions and social image caches on mainnet
+         * too - for profiles only; every registry read and action still gates on [isLaunched].
+         */
+        val profilesEnabled: Boolean get() = isEnabled
 
         /** Whether [error] means the registry is being upgraded (a v1 manifest), not a failure (iOS d2e0673). */
         fun isRegistryUpgrading(error: Throwable): Boolean =
