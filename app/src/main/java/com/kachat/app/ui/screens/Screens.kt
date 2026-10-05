@@ -275,7 +275,12 @@ fun ChatThreadScreen(
     val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
     val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
-    val messageText by chatViewModel.messageText.collectAsState()
+    // The composer's text, kept as the State itself and read in only three kinds of place, so a
+    // keystroke doesn't recompose this screen (message list and header included - iOS 0977a5b):
+    // the text field, inside ComposerTextScope; lambdas that run on a tap (send, Nextcloud link);
+    // and messageTextIsEmpty, which changes on the first and last character, not on every one.
+    val messageTextState = chatViewModel.messageText.collectAsState()
+    val messageTextIsEmpty by remember(messageTextState) { derivedStateOf { messageTextState.value.isEmpty() } }
     // What was typed here last time comes back, and is kept as it changes (iOS drafts).
     // The whole stored history loads into memory in the background while the chat is open, so
     // scrolling up never waits on the store (iOS d30cc0a).
@@ -446,6 +451,9 @@ fun ChatThreadScreen(
     val openFeeEditor: (Long) -> Unit = { currentFeeSompi ->
         feeEditorInput = "%.8f".format(java.util.Locale.US, currentFeeSompi / 100_000_000.0)
         showFeeEditor = true
+        // The shown fee may lag the text by a pause (see TypingFeeGate): price the exact text
+        // now, so the rate Save derives from the fee matches what is being sent.
+        chatViewModel.refreshFeePreview()
     }
     val micContext = LocalContext.current
     // Where the media chosen in the "+" sheet goes - on chain or via Nextcloud - kept across the
@@ -1073,7 +1081,7 @@ fun ChatThreadScreen(
                                 }
                             }
                         }
-                        if (showFeeEstimate && estimatedFee != null && messageText.isNotEmpty()) {
+                        if (showFeeEstimate && estimatedFee != null && !messageTextIsEmpty) {
                             Surface(
                                 color = LocalAppColors.current.surface,
                                 shape = RoundedCornerShape(12.dp),
@@ -1098,9 +1106,12 @@ fun ChatThreadScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            // The one place the text itself is read while composing - see
+                            // messageTextState.
+                            ComposerTextScope {
                             TextField(
-                                value = messageText,
-                                onValueChange = { chatViewModel.setMessageText(it) },
+                                value = messageTextState.value,
+                                onValueChange = { chatViewModel.setMessageText(it, fromTyping = true) },
                                 placeholder = { Text(stringResource(R.string.message), color = LocalAppColors.current.textSecondary) },
                                 modifier = Modifier
                                     .weight(1f)
@@ -1119,8 +1130,9 @@ fun ChatThreadScreen(
                                 // Kaspa logo moved into the "+" sheet (iOS 8b13460).
                                 maxLines = 4
                             )
+                            }
 
-                            if (messageText.isEmpty()) {
+                            if (messageTextIsEmpty) {
                                 Box(
                                     modifier = Modifier.onGloballyPositioned { coords ->
                                         // Top edge, not bottom — this button sits near the bottom of the
@@ -1288,7 +1300,7 @@ fun ChatThreadScreen(
                                             showNextcloudPicker = false
                                             // Stage the link in the composer for review instead of
                                             // auto-sending — the user presses send themselves.
-                                            val current = messageText.trim()
+                                            val current = messageTextState.value.trim()
                                             chatViewModel.setMessageText(if (current.isEmpty()) link else "$current $link")
                                         }
                                     )
@@ -1299,6 +1311,7 @@ fun ChatThreadScreen(
                                         // Editing: the composer's text replaces the message being
                                         // edited - one edit transaction, no new bubble.
                                         val editing = editingMessage
+                                        val messageText = messageTextState.value
                                         if (editing != null) {
                                             chatViewModel.sendEdit(contactId, editing, messageText) { reason ->
                                                 Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
@@ -1455,7 +1468,9 @@ fun ChatThreadScreen(
         // and held for the whole animation: mid-animation the last row is already behind the
         // keyboard, so re-asking the question would answer "no" and abandon the pin.
         var pinToBottomForIme by remember { mutableStateOf(false) }
-        LaunchedEffect(imeVisible, messageText.isEmpty()) {
+        // Keyed on messageTextIsEmpty, not the text: this is the message list's scope, and reading
+        // the text here recomposed the whole list on every keystroke.
+        LaunchedEffect(imeVisible, messageTextIsEmpty) {
             if (!imeVisible || messages.isEmpty()) {
                 pinToBottomForIme = false
                 return@LaunchedEffect

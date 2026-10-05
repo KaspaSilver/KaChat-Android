@@ -740,7 +740,11 @@ fun BroadcastChannelScreen(
     val fundingGate = rememberZeroBalanceFundingGate()
     val sendState by broadcastViewModel.sendBroadcastState.collectAsState()
     val voiceRecordingState by broadcastViewModel.voiceRecordingState.collectAsState()
-    val messageText by broadcastViewModel.messageText.collectAsState()
+    // The composer's text, kept as the State itself and read only in the text field (inside
+    // ComposerTextScope), in lambdas that run on a tap, and through messageTextIsEmpty - so a
+    // keystroke recomposes just the field, not the composer around it (iOS 0977a5b).
+    val messageTextState = broadcastViewModel.messageText.collectAsState()
+    val messageTextIsEmpty by remember(messageTextState) { derivedStateOf { messageTextState.value.isEmpty() } }
     // What was typed in this room last time comes back, as in 1:1 chats (iOS 360e5d2).
     DisposableEffect(channelName) {
         broadcastViewModel.openDraft(channelName)
@@ -770,6 +774,9 @@ fun BroadcastChannelScreen(
     val openFeeEditor: (Long) -> Unit = { currentFeeSompi ->
         feeEditorInput = "%.8f".format(java.util.Locale.US, currentFeeSompi / 100_000_000.0)
         showFeeEditor = true
+        // The shown fee may lag the text by a pause (see TypingFeeGate): price the exact text
+        // now, so the rate Save derives from the fee matches what is being sent.
+        broadcastViewModel.refreshFeePreview()
     }
     val uriHandler = LocalUriHandler.current
     val listState = rememberLazyListState()
@@ -1105,7 +1112,7 @@ fun BroadcastChannelScreen(
                         }
                     }
                 } else {
-                    if (showFeeEstimate && estimatedFee != null && messageText.isNotEmpty()) {
+                    if (showFeeEstimate && estimatedFee != null && !messageTextIsEmpty) {
                         Surface(
                             color = LocalAppColors.current.surface,
                             shape = RoundedCornerShape(12.dp),
@@ -1129,9 +1136,12 @@ fun BroadcastChannelScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // The one place the text itself is read while composing - see
+                        // messageTextState.
+                        ComposerTextScope {
                         com.kachat.app.ui.theme.IosTextField(
-                            value = messageText,
-                            onValueChange = { broadcastViewModel.setMessageText(it) },
+                            value = messageTextState.value,
+                            onValueChange = { broadcastViewModel.setMessageText(it, fromTyping = true) },
                             placeholder = { Text("Message #$channelName", color = LocalAppColors.current.textTertiary) },
                             modifier = Modifier
                                 .weight(1f)
@@ -1150,8 +1160,9 @@ fun BroadcastChannelScreen(
                             // Capped, the field scrolls internally and the caret stays put.
                             maxLines = 4
                         )
+                        }
                         val sending = sendState.status == BroadcastViewModel.SendBroadcastStatus.SENDING
-                        if (messageText.isEmpty()) {
+                        if (messageTextIsEmpty) {
                             IconButton(onClick = { startVoiceMessage() }) {
                                 Icon(Icons.Default.Mic, "Record voice message", tint = KaspaTeal)
                             }
@@ -1169,6 +1180,7 @@ fun BroadcastChannelScreen(
                         } else {
                             IconButton(
                                 onClick = {
+                                    val messageText = messageTextState.value
                                     if (!sending && messageText.isNotBlank()) {
                                         // Editing: the composer's text replaces the message being
                                         // edited - one edit broadcast, no new bubble.

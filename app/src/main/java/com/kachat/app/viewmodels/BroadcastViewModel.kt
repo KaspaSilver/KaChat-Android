@@ -2,6 +2,7 @@ package com.kachat.app.viewmodels
 
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import com.kachat.app.util.redactedForLog
 import android.content.Context
 import android.util.Log
@@ -159,14 +160,22 @@ class BroadcastViewModel @Inject constructor(
     fun openDraft(channelName: String) {
         activeDraftRoom = channelName
         _messageText.value = draftStore.draft(com.kachat.app.services.DraftStore.roomKey(channelName))
+        _feePreviewForce.value++
     }
 
     fun closeDraft(channelName: String) {
         if (activeDraftRoom == channelName) activeDraftRoom = null
     }
 
-    fun setMessageText(text: String) {
+    /** Bumped when code (not a keystroke) sets the composer's text, or the fee editor opens: the
+     *  fee preview then prices the text at once instead of waiting for a pause. */
+    private val _feePreviewForce = MutableStateFlow(0L)
+
+    /** [fromTyping]: a keystroke in the composer, whose fee preview waits for a pause (see
+     *  [typedTextPreviewBytes]); any other set is priced at once. */
+    fun setMessageText(text: String, fromTyping: Boolean = false) {
         _messageText.value = text
+        if (!fromTyping) _feePreviewForce.value++
         activeDraftRoom?.let { draftStore.setDraft(com.kachat.app.services.DraftStore.roomKey(it), text) }
         // The red failure line above the composer would otherwise sit there for the entire next
         // message being typed (it only cleared on the next send attempt). The failed bubble keeps
@@ -217,11 +226,35 @@ class BroadcastViewModel @Inject constructor(
     val nextcloudAccount get() = nextcloudService.account
     private val voiceViaNextcloud: Boolean get() = _nextcloudVoiceRequested.value && nextcloudService.isConnected
 
-    private val previewPayloadSize = combine(_messageText, voiceRecordingState, _nextcloudVoiceRequested) { text, recording, voiceNextcloud ->
+    /** Re-prices the fee preview off the composer's exact text now - the fee editor opening, so
+     *  the rate it derives from the shown fee isn't off by a pending keystroke or two. */
+    fun refreshFeePreview() {
+        _feePreviewForce.value++
+    }
+
+    /**
+     * The composer's text bytes as the fee preview prices them: while typing, only after a 0.6 s
+     * pause and not while within 24 bytes of the size already priced (iOS 0977a5b, see
+     * [com.kachat.app.util.TypingFeeGate]). A reply, fee override, recording or Nextcloud route
+     * change re-prices at once. `replyingTo` is declared further down, so it's read lazily.
+     */
+    private val typedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(
+        combine(
+            _messageText,
+            _feePreviewForce,
+            kotlinx.coroutines.flow.flow { emitAll(replyingTo) },
+            _feeRateOverride,
+            combine(voiceRecordingState.map { it.status }.distinctUntilChanged(), _nextcloudVoiceRequested) { recording, voiceNextcloud -> recording to voiceNextcloud },
+        ) { text, force, reply, override, voice ->
+            com.kachat.app.util.TypingFeeGate.Input(text, listOf(force, reply?.id, override, voice))
+        }
+    )
+
+    private val previewPayloadSize = combine(typedTextPreviewBytes, voiceRecordingState, _nextcloudVoiceRequested) { textBytes, recording, voiceNextcloud ->
         if (recording.status == VoiceRecordingStatus.RECORDING) {
             if (voiceNextcloud && nextcloudService.isConnected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
         } else {
-            text.toByteArray().size
+            textBytes
         }
     }
 

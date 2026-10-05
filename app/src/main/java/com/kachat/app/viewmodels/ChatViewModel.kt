@@ -1002,6 +1002,28 @@ class ChatViewModel @Inject constructor(
         _groupPendingPhotoUri.value = null
     }
 
+    /** Bumped when code (not a keystroke) sets the 1:1 composer's text, or the fee editor opens:
+     *  the fee preview then prices the text at once instead of waiting for a pause. */
+    private val _feePreviewForce = MutableStateFlow(0L)
+
+    /**
+     * The 1:1 composer's text bytes as the fee preview prices them: while typing, only after a
+     * 0.6 s pause and not while within 24 bytes of the size already priced (iOS 0977a5b, see
+     * [com.kachat.app.util.TypingFeeGate]) - so a keystroke doesn't re-price, and redraw, the
+     * fee pill. A reply, fee override, staged photo, recording, Nextcloud route or payment
+     * change re-prices at once. `replyingTo` is declared further down, so it's read lazily.
+     */
+    private val typedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(
+        combine(
+            combine(_messageText, _feePreviewForce, flow { emitAll(replyingTo) }) { text, force, reply -> Triple(text, force, reply?.id) },
+            combine(_feeRateOverride, voiceRecordingState.map { it.status }.distinctUntilChanged(), pendingPhotoUri) { override, recording, photoUri -> Triple(override, recording, photoUri) },
+            combine(_nextcloudPhotoRequested, _nextcloudVoiceRequested) { photoNextcloud, voiceNextcloud -> photoNextcloud to voiceNextcloud },
+            combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
+        ) { (text, force, replyId), media, nextcloud, payment ->
+            com.kachat.app.util.TypingFeeGate.Input(text, listOf(force, replyId, media, nextcloud, payment))
+        }
+    )
+
     /**
      * The payload byte count to price the live fee preview off of: the real typed-text length
      * while composing, a rough elapsed-time-based estimate of the final encoded/encrypted size
@@ -1010,10 +1032,10 @@ class ChatViewModel @Inject constructor(
      * the actual encoded bytes exactly, this is only ever used for the live preview.
      */
     private val previewPayloadSize: Flow<Int> = combine(
-        combine(_messageText, voiceRecordingState, pendingPhotoUri) { text, recording, photoUri -> Triple(text, recording, photoUri) },
+        combine(typedTextPreviewBytes, voiceRecordingState, pendingPhotoUri) { textBytes, recording, photoUri -> Triple(textBytes, recording, photoUri) },
         _nextcloudPhotoRequested,
         _nextcloudVoiceRequested,
-    ) { (text, recording, photoUri), photoNextcloud, voiceNextcloud ->
+    ) { (textBytes, recording, photoUri), photoNextcloud, voiceNextcloud ->
         // Via Nextcloud (chosen in the "+" sheet), the chain only carries the ~100-byte share
         // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
         val connected = nextcloudService.isConnected
@@ -1025,7 +1047,7 @@ class ChatViewModel @Inject constructor(
             // estimate is: never used for the real fee, only this live preview.
             if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else (ImagePrep.DEFAULT_CHAT_TARGET_BYTES * 1.33 * 1.33).toInt() + 150
         } else {
-            text.toByteArray().size
+            textBytes
         }
     }
 
@@ -1144,8 +1166,20 @@ class ChatViewModel @Inject constructor(
 
     private val _groupMessageText = MutableStateFlow("")
 
-    fun setGroupMessageText(text: String) {
+    /** Bumped when code (not a keystroke) sets the group composer's text, or the fee editor
+     *  opens - priced at once, like 1:1's [_feePreviewForce]. */
+    private val _groupFeePreviewForce = MutableStateFlow(0L)
+
+    /** [fromTyping]: a keystroke in the composer, whose fee preview waits for a pause (see
+     *  [groupTypedTextPreviewBytes]); any other set is priced at once. */
+    fun setGroupMessageText(text: String, fromTyping: Boolean = false) {
         _groupMessageText.value = text
+        if (!fromTyping) _groupFeePreviewForce.value++
+    }
+
+    /** Re-prices the group fee preview off the composer's exact text now (the fee editor opening). */
+    fun refreshGroupFeePreview() {
+        _groupFeePreviewForce.value++
     }
 
     /**
@@ -1168,12 +1202,25 @@ class ChatViewModel @Inject constructor(
         return (elapsedSeconds * 1_150.0).toInt()
     }
 
+    /** The group composer's text bytes as the fee preview prices them - the same typing gate as
+     *  1:1's [typedTextPreviewBytes] (iOS 0977a5b). `groupReplyingTo` is declared further down,
+     *  so it's read lazily. */
+    private val groupTypedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(
+        combine(
+            combine(_groupMessageText, _groupFeePreviewForce, flow { emitAll(groupReplyingTo) }) { text, force, reply -> Triple(text, force, reply?.txId) },
+            combine(_feeRateOverride, groupVoiceRecordingState.map { it.status }.distinctUntilChanged(), groupPendingPhotoUri) { override, recording, photoUri -> Triple(override, recording, photoUri) },
+            combine(_groupNextcloudPhotoRequested, _groupNextcloudVoiceRequested, nextcloudService.account) { photoNextcloud, voiceNextcloud, account -> Triple(photoNextcloud, voiceNextcloud, account != null) },
+        ) { (text, force, replyId), media, nextcloud ->
+            com.kachat.app.util.TypingFeeGate.Input(text, listOf(force, replyId, media, nextcloud))
+        }
+    )
+
     private val groupPreviewPayloadSize: Flow<Int> = combine(
-        combine(_groupMessageText, groupVoiceRecordingState, groupPendingPhotoUri) { text, recording, photoUri -> Triple(text, recording, photoUri) },
+        combine(groupTypedTextPreviewBytes, groupVoiceRecordingState, groupPendingPhotoUri) { textBytes, recording, photoUri -> Triple(textBytes, recording, photoUri) },
         _groupNextcloudPhotoRequested,
         _groupNextcloudVoiceRequested,
         nextcloudService.account,
-    ) { (text, recording, photoUri), photoNextcloud, voiceNextcloud, account ->
+    ) { (textBytes, recording, photoUri), photoNextcloud, voiceNextcloud, account ->
         // Media sent "via Nextcloud" from the "+" sheet goes out as just a short share-link text
         // message (see sendPendingGroupPhoto/stopAndSendGroupVoiceRecording), so the fee pill
         // prices a link-sized payload instead of the embedded media envelope.
@@ -1183,7 +1230,7 @@ class ChatViewModel @Inject constructor(
             recording.status == VoiceRecordingStatus.RECORDING -> estimatedGroupWirePayloadSize(estimatedGroupAudioRawBytes(recording.elapsedMs), isMediaEnvelope = true)
             photoUri != null && photoNextcloud && connected -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
             photoUri != null -> estimatedGroupWirePayloadSize(GROUP_PHOTO_TARGET_BYTES, isMediaEnvelope = true)
-            else -> estimatedGroupWirePayloadSize(text.toByteArray().size, isMediaEnvelope = false)
+            else -> estimatedGroupWirePayloadSize(textBytes, isMediaEnvelope = false)
         }
     }
 
@@ -1220,9 +1267,18 @@ class ChatViewModel @Inject constructor(
         return com.kachat.app.util.KaspaMass.calculateFee(mass, rate.toLong())
     }
 
-    fun setMessageText(text: String) {
+    /** [fromTyping]: a keystroke in the composer, whose fee preview waits for a pause (see
+     *  [typedTextPreviewBytes]); any other set is priced at once. */
+    fun setMessageText(text: String, fromTyping: Boolean = false) {
         _messageText.value = text
+        if (!fromTyping) _feePreviewForce.value++
         activeDraftKey?.let { draftStore.setDraft(it, text) }
+    }
+
+    /** Re-prices the 1:1 fee preview off the composer's exact text now - the fee editor opening,
+     *  so the rate it derives from the shown fee isn't off by a pending keystroke or two. */
+    fun refreshFeePreview() {
+        _feePreviewForce.value++
     }
 
     /** The conversation whose draft the 1:1 composer is editing - see [openDraft]. */
@@ -1238,6 +1294,7 @@ class ChatViewModel @Inject constructor(
     fun openDraft(contactId: String) {
         activeDraftKey = contactId
         _messageText.value = draftStore.draft(contactId)
+        _feePreviewForce.value++
     }
 
     /** The chat was left. Its draft stays saved; a different chat already opened is untouched. */
@@ -1248,7 +1305,10 @@ class ChatViewModel @Inject constructor(
     /** Puts [text] in [contactId]'s composer for when the chat opens - the share sheet's fallback. */
     fun stageDraft(contactId: String, text: String) {
         draftStore.setDraft(contactId, text)
-        if (activeDraftKey == contactId) _messageText.value = text
+        if (activeDraftKey == contactId) {
+            _messageText.value = text
+            _feePreviewForce.value++
+        }
     }
 
     /** A group's saved draft, and saving it - see [com.kachat.app.services.DraftStore]. */

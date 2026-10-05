@@ -275,10 +275,19 @@ fun GroupChatThreadScreen(
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by chatViewModel.feeRateOverride.collectAsState()
     // What was typed here last time, exactly as 1:1 chats do (iOS 360e5d2).
-    var draft by remember(groupId) {
+    val draftState = remember(groupId) {
         val saved = chatViewModel.groupDraft(groupId)
         mutableStateOf(TextFieldValue(saved, TextRange(saved.length)))
     }
+    // Written freely, but read in only three kinds of place, so a keystroke doesn't recompose
+    // this screen (message list and header included - iOS 0977a5b): the text field, inside
+    // ComposerTextScope; lambdas that run on a tap; and draftIsEmpty, which changes on the first
+    // and last character, not on every one. The draft/fee sync below reads it in a snapshotFlow.
+    var draft by draftState
+    val draftIsEmpty by remember(draftState) { derivedStateOf { draftState.value.text.isEmpty() } }
+    // The text the field itself last reported, so the sync below can tell a keystroke (the fee
+    // preview waits for a pause) from text set by code (priced at once).
+    val lastTypedDraft = remember(groupId) { arrayOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showComposerMenu by remember { mutableStateOf(false) }
     // The "+" sheet's second step (on chain or via Nextcloud), or null for the options - iOS
@@ -356,6 +365,9 @@ fun GroupChatThreadScreen(
     val openFeeEditor: (Long) -> Unit = { currentFeeSompi ->
         feeEditorInput = "%.8f".format(java.util.Locale.US, currentFeeSompi / 100_000_000.0)
         showFeeEditor = true
+        // The shown fee may lag the text by a pause (see TypingFeeGate): price the exact text
+        // now, so the rate Save derives from the fee matches what is being sent.
+        chatViewModel.refreshGroupFeePreview()
     }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -386,9 +398,13 @@ fun GroupChatThreadScreen(
         chatViewModel.setActiveGroup(groupId)
         onDispose { chatViewModel.setActiveGroup(null) }
     }
-    LaunchedEffect(groupId, draft.text) {
-        chatViewModel.setGroupMessageText(draft.text)
-        chatViewModel.saveGroupDraft(groupId, draft.text)
+    // A snapshotFlow, not LaunchedEffect(draft.text): reading the text here made every keystroke
+    // recompose the whole screen.
+    LaunchedEffect(draftState) {
+        snapshotFlow { draftState.value.text }.collect { text ->
+            chatViewModel.setGroupMessageText(text, fromTyping = text == lastTypedDraft[0])
+            chatViewModel.saveGroupDraft(groupId, text)
+        }
     }
 
     val micContext = LocalContext.current
@@ -706,7 +722,7 @@ fun GroupChatThreadScreen(
                                 }
                             }
                         }
-                        if (estimatedFee != null && draft.text.isNotEmpty()) {
+                        if (estimatedFee != null && !draftIsEmpty) {
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 groupFeePill(
                                     estimatedFee,
@@ -762,9 +778,12 @@ fun GroupChatThreadScreen(
                             }
                         }
                         Row(verticalAlignment = Alignment.Bottom) {
+                            // The one place the text itself is read while composing - see draft.
+                            ComposerTextScope {
                             TextField(
                                 value = draft,
                                 onValueChange = { newValue ->
+                                    lastTypedDraft[0] = newValue.text
                                     draft = newValue
                                     mentionQuery = detectMentionQuery(newValue)
                                 },
@@ -785,8 +804,9 @@ fun GroupChatThreadScreen(
                                 // into the "+" sheet, as in 1:1 chats (iOS 8b13460).
                                 maxLines = 5
                             )
+                            }
                             Spacer(modifier = Modifier.width(8.dp))
-                            if (draft.text.isEmpty()) {
+                            if (draftIsEmpty) {
                                 Box(
                                     modifier = Modifier.onGloballyPositioned { coords ->
                                         composerMenuAnchor = coords.positionInWindow()
