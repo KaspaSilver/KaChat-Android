@@ -26,7 +26,6 @@
     <string name="broadcasting">সম্প্রচার হচ্ছে...</string>
     <string name="broadcasts">সম্প্রচার</string>
     <string name="build_unsigned_transaction">স্বাক্ষরবিহীন লেনদেন তৈরি করুন</string>
-    <string name="building_transaction">লেনদেন তৈরি হচ্ছে...</string>
     <string name="camera_permission_is_needed_to_scan">QR কোড স্ক্যান করতে ক্যামেরা অ্যাক্সেস প্রয়োজন</string>
     <string name="cancel">বাতিল করুন</string>
     <string name="cancel_photo">ছবি বাতিল করুন</string>
@@ -354,7 +353,6 @@
     <string name="security">নিরাপত্তা</string>
     <string name="send_handshake">যোগাযোগের অনুরোধ পাঠান</string>
     <string name="send_photo_2">ছবি পাঠান</string>
-    <string name="sending_2">পাঠানো হচ্ছে...</string>
     <string name="set_as_primary_address">প্রধান ঠিকানা হিসেবে সেট করুন</string>
     <string name="setup_guide">সেটআপ গাইড</string>
     <string name="show_fee_estimate">ফি অনুমান দেখান</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">একটি নতুন ঠিকানা, আগে কখনও ব্যবহার হয়নি। এখানে পাঠানো Kaspa এই অ্যাকাউন্টে আসে এবং আপনার খরচযোগ্য ব্যালান্সে দেখায়। চ্যাট বা ডোমেইনের সাথে সম্পর্কহীন সবকিছুর জন্য এই ঠিকানা ব্যবহার করুন।</string>
     <string name="qr_chatting_address_subtitle">এই ঠিকানাটি শুধু চ্যাট ও ডোমেইনের জন্য। 1 Kaspa দিয়ে অ্যাপে প্রায় 500টি কাজ করা যায়। নাম অনুযায়ী ডোমেইনের দাম 35 থেকে 4,000 Kaspa।</string>
     <string name="kn_profiles_saved_once_launched">.kachat মেইননেটে চালু হলে প্রোফাইল সেভ করা যাবে।</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">কয়েন কন্ট্রোল</string>
+    <string name="automatic">স্বয়ংক্রিয়</string>
+    <string name="consolidating_this_address">এই ঠিকানাটি একত্র করা হচ্ছে</string>
+    <string name="invalid_address_format">অবৈধ ঠিকানার ফরম্যাট</string>
+    <string name="fee_tier_normal">সাধারণ</string>
+    <string name="fee_tier_fast">দ্রুত</string>
+    <string name="fee_tier_priority">অগ্রাধিকার</string>
+    <string name="resolved_name">পাওয়া গেছে: %1$s</string>
+    <string name="send_fee_tier_footer">নেটওয়ার্ক ব্যস্ত থাকলে, দ্রুত বা অগ্রাধিকার এটি দ্রুত নিশ্চিত হতে সাহায্য করতে বেশি ফি দেয়। কাস্টম ফি সেট করতে ফি পরিমাণে ট্যাপ করুন।</string>
+    <string name="paste">পেস্ট করুন</string>
+    <string name="scan_qr">QR স্ক্যান করুন</string>
+    <string name="available">উপলব্ধ</string>
+    <string name="network_fee">নেটওয়ার্ক ফি</string>
 </resources>

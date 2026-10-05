@@ -26,7 +26,6 @@
     <string name="broadcasting">Đang phát sóng...</string>
     <string name="broadcasts">Phát sóng</string>
     <string name="build_unsigned_transaction">Tạo giao dịch chưa ký</string>
-    <string name="building_transaction">Đang tạo giao dịch...</string>
     <string name="camera_permission_is_needed_to_scan">Cần quyền truy cập máy ảnh để quét mã QR</string>
     <string name="cancel">Hủy</string>
     <string name="cancel_photo">Hủy ảnh</string>
@@ -354,7 +353,6 @@
     <string name="security">Bảo mật</string>
     <string name="send_handshake">Gửi yêu cầu liên lạc</string>
     <string name="send_photo_2">Gửi ảnh</string>
-    <string name="sending_2">Đang gửi...</string>
     <string name="set_as_primary_address">Đặt làm địa chỉ chính</string>
     <string name="setup_guide">Hướng dẫn thiết lập</string>
     <string name="show_fee_estimate">Hiển thị ước tính phí</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">Một địa chỉ mới, chưa từng dùng. Kaspa gửi đến đây sẽ vào tài khoản này và hiện trong số dư chi tiêu của bạn. Hãy dùng địa chỉ này cho mọi việc không liên quan đến trò chuyện hoặc tên miền.</string>
     <string name="qr_chatting_address_subtitle">Địa chỉ này chỉ dành cho trò chuyện và tên miền. 1 Kaspa đủ cho khoảng 500 lượt tương tác trong ứng dụng. Tên miền có giá từ 35 đến 4.000 Kaspa tùy theo tên.</string>
     <string name="kn_profiles_saved_once_launched">Có thể lưu hồ sơ khi .kachat ra mắt trên mainnet.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Kiểm soát coin</string>
+    <string name="automatic">Tự động</string>
+    <string name="consolidating_this_address">Đang gộp địa chỉ này</string>
+    <string name="invalid_address_format">Định dạng địa chỉ không hợp lệ</string>
+    <string name="fee_tier_normal">Bình thường</string>
+    <string name="fee_tier_fast">Nhanh</string>
+    <string name="fee_tier_priority">Ưu tiên</string>
+    <string name="resolved_name">Đã tìm thấy: %1$s</string>
+    <string name="send_fee_tier_footer">Nếu mạng bận, tùy chọn Nhanh hoặc Ưu tiên sẽ trả phí cao hơn để giúp xác nhận nhanh hơn. Chạm vào số tiền phí để đặt phí tùy chỉnh.</string>
+    <string name="paste">Dán</string>
+    <string name="scan_qr">Quét QR</string>
+    <string name="available">Có sẵn</string>
+    <string name="network_fee">Phí mạng</string>
 </resources>

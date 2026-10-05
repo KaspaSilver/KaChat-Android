@@ -26,7 +26,6 @@
     <string name="broadcasting">ブロードキャスト中...</string>
     <string name="broadcasts">ブロードキャスト</string>
     <string name="build_unsigned_transaction">未署名トランザクションを作成</string>
-    <string name="building_transaction">トランザクションを作成中...</string>
     <string name="camera_permission_is_needed_to_scan">QRコードをスキャンするにはカメラアクセスが必要です</string>
     <string name="cancel">キャンセル</string>
     <string name="cancel_photo">写真をキャンセル</string>
@@ -354,7 +353,6 @@
     <string name="security">セキュリティ</string>
     <string name="send_handshake">通信リクエストを送信</string>
     <string name="send_photo_2">写真を送信</string>
-    <string name="sending_2">送信中...</string>
     <string name="set_as_primary_address">メインアドレスとして設定</string>
     <string name="setup_guide">セットアップガイド</string>
     <string name="show_fee_estimate">手数料見積もりを表示</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">一度も使われていない新しいアドレスです。ここに送られたKaspaはこのアカウントに入り、支払い用残高に表示されます。チャットやドメイン以外のすべての用途にこのアドレスを使ってください。</string>
     <string name="qr_chatting_address_subtitle">このアドレスはチャットとドメイン専用です。1 Kaspaでアプリ内の操作が約500回できます。ドメインは名前によって35〜4,000 Kaspaです。</string>
     <string name="kn_profiles_saved_once_launched">.kachatがメインネットで開始されると、プロフィールを保存できるようになります。</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">コインコントロール</string>
+    <string name="automatic">自動</string>
+    <string name="consolidating_this_address">このアドレスを統合中</string>
+    <string name="invalid_address_format">アドレスの形式が無効です</string>
+    <string name="fee_tier_normal">通常</string>
+    <string name="fee_tier_fast">高速</string>
+    <string name="fee_tier_priority">優先</string>
+    <string name="resolved_name">解決済み: %1$s</string>
+    <string name="send_fee_tier_footer">ネットワークが混雑している場合、速いまたは優先はより高い手数料を支払い、より早く承認されるのを助けます。カスタム手数料を設定するには手数料額をタップしてください。</string>
+    <string name="paste">貼り付け</string>
+    <string name="scan_qr">QRスキャン</string>
+    <string name="available">利用可能</string>
+    <string name="network_fee">ネットワーク手数料</string>
 </resources>

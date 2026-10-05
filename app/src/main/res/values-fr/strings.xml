@@ -26,7 +26,6 @@
     <string name="broadcasting">Diffusion en cours...</string>
     <string name="broadcasts">Diffusions</string>
     <string name="build_unsigned_transaction">Construire une transaction non signee</string>
-    <string name="building_transaction">Construction de la transaction...</string>
     <string name="camera_permission_is_needed_to_scan">L\'acces a la camera est necessaire pour scanner un code QR</string>
     <string name="cancel">Annuler</string>
     <string name="cancel_photo">Annuler la photo</string>
@@ -354,7 +353,6 @@
     <string name="security">Securite</string>
     <string name="send_handshake">Envoyer une demande de communication</string>
     <string name="send_photo_2">Envoyer une photo</string>
-    <string name="sending_2">Envoi en cours...</string>
     <string name="set_as_primary_address">Definir comme adresse principale</string>
     <string name="setup_guide">Guide de configuration</string>
     <string name="show_fee_estimate">Afficher l\'estimation des frais</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">Une adresse neuve, jamais utilisée. Les Kaspa envoyés ici arrivent sur ce compte et s\'ajoutent à votre solde disponible. Utilisez cette adresse pour tout ce qui ne concerne ni les discussions ni les domaines.</string>
     <string name="qr_chatting_address_subtitle">Cette adresse doit servir uniquement aux discussions et aux domaines. 1 Kaspa suffit pour environ 500 interactions dans l\'app. Les domaines coûtent de 35 à 4 000 Kaspa selon le nom.</string>
     <string name="kn_profiles_saved_once_launched">Les profils pourront être enregistrés dès le lancement de .kachat sur le mainnet.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Contrôle des pièces</string>
+    <string name="automatic">Automatique</string>
+    <string name="consolidating_this_address">Regroupement de cette adresse</string>
+    <string name="invalid_address_format">Format d\'adresse invalide</string>
+    <string name="fee_tier_normal">Normal</string>
+    <string name="fee_tier_fast">Rapide</string>
+    <string name="fee_tier_priority">Prioritaire</string>
+    <string name="resolved_name">Résolu : %1$s</string>
+    <string name="send_fee_tier_footer">Si le reseau est charge, Rapide ou Prioritaire paie des frais plus eleves pour aider ceci a se confirmer plus vite. Touchez le montant des frais pour definir des frais personnalises.</string>
+    <string name="paste">Coller</string>
+    <string name="scan_qr">Scanner le code QR</string>
+    <string name="available">Disponible</string>
+    <string name="network_fee">Frais de reseau</string>
 </resources>

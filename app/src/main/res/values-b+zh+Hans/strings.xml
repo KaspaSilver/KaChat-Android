@@ -26,7 +26,6 @@
     <string name="broadcasting">正在广播...</string>
     <string name="broadcasts">广播</string>
     <string name="build_unsigned_transaction">构建未签名交易</string>
-    <string name="building_transaction">正在构建交易...</string>
     <string name="camera_permission_is_needed_to_scan">扫描二维码需要相机权限</string>
     <string name="cancel">取消</string>
     <string name="cancel_photo">取消照片</string>
@@ -354,7 +353,6 @@
     <string name="security">安全</string>
     <string name="send_handshake">发送通信请求</string>
     <string name="send_photo_2">发送照片</string>
-    <string name="sending_2">正在发送...</string>
     <string name="set_as_primary_address">设为主地址</string>
     <string name="setup_guide">设置指南</string>
     <string name="show_fee_estimate">显示手续费估算</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">一个从未使用过的新地址。发送到这里的 Kaspa 会进入此账户，并计入你的可用余额。与聊天或域名无关的一切都应使用此地址。</string>
     <string name="qr_chatting_address_subtitle">此地址仅用于聊天和域名。1 Kaspa 足够在应用内进行约 500 次操作。域名价格为 35 至 4,000 Kaspa，取决于名称。</string>
     <string name="kn_profiles_saved_once_launched">.kachat 在主网上线后即可保存个人资料。</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">币控</string>
+    <string name="automatic">自动</string>
+    <string name="consolidating_this_address">正在合并此地址</string>
+    <string name="invalid_address_format">地址格式无效</string>
+    <string name="fee_tier_normal">普通</string>
+    <string name="fee_tier_fast">快速</string>
+    <string name="fee_tier_priority">优先</string>
+    <string name="resolved_name">已解析：%1$s</string>
+    <string name="send_fee_tier_footer">如果网络繁忙,快速或优先选项会支付更高的费用以帮助更快确认。点击费用金额可设置自定义费用。</string>
+    <string name="paste">粘贴</string>
+    <string name="scan_qr">扫描 QR</string>
+    <string name="available">可用</string>
+    <string name="network_fee">网络手续费</string>
 </resources>

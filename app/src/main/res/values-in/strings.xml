@@ -792,4 +792,20 @@
     <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di saldo belanja Anda. Gunakan alamat ini untuk semua hal yang tidak terkait obrolan atau domain.</string>
     <string name="qr_chatting_address_subtitle">Alamat ini hanya untuk obrolan dan domain. 1 Kaspa cukup untuk sekitar 500 interaksi di aplikasi. Harga domain berkisar 35 hingga 4.000 Kaspa, tergantung namanya.</string>
     <string name="kn_profiles_saved_once_launched">Profil bisa disimpan setelah .kachat diluncurkan di mainnet.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Kontrol koin</string>
+    <string name="automatic">Otomatis</string>
+    <string name="consolidating_this_address">Menggabungkan alamat ini</string>
+    <string name="valid_address">Alamat valid</string>
+    <string name="invalid_address_format">Format alamat tidak valid</string>
+    <string name="build_unsigned_transaction">Buat transaksi tanpa tanda tangan</string>
+    <string name="fee_tier_normal">Normal</string>
+    <string name="fee_tier_fast">Cepat</string>
+    <string name="fee_tier_priority">Prioritas</string>
+    <string name="resolved_name">Ditemukan: %1$s</string>
+    <string name="send_fee_tier_footer">Jika jaringan sedang sibuk, Cepat atau Prioritas membayar biaya lebih tinggi agar konfirmasi lebih cepat. Ketuk jumlah biaya untuk mengatur biaya kustom.</string>
+    <string name="paste">Tempel</string>
+    <string name="scan_qr">Pindai QR</string>
+    <string name="available">Tersedia</string>
+    <string name="to">Kepada</string>
 </resources>

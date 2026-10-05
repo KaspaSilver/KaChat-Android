@@ -26,7 +26,6 @@
     <string name="broadcasting">משדר...</string>
     <string name="broadcasts">שידורים</string>
     <string name="build_unsigned_transaction">בנה עסקה לא חתומה</string>
-    <string name="building_transaction">בונה עסקה...</string>
     <string name="camera_permission_is_needed_to_scan">נדרשת גישה למצלמה כדי לסרוק קוד QR</string>
     <string name="cancel">ביטול</string>
     <string name="cancel_photo">בטל תמונה</string>
@@ -354,7 +353,6 @@
     <string name="security">אבטחה</string>
     <string name="send_handshake">שלח בקשת תקשורת</string>
     <string name="send_photo_2">שלח תמונה</string>
-    <string name="sending_2">שולח...</string>
     <string name="set_as_primary_address">הגדר ככתובת ראשית</string>
     <string name="setup_guide">מדריך הגדרה</string>
     <string name="show_fee_estimate">הצג הערכת עמלה</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">כתובת חדשה שמעולם לא נעשה בה שימוש. Kaspa שנשלחים לכאן מגיעים לחשבון הזה ומופיעים ביתרת ההוצאה שלך. השתמשו בכתובת הזו לכל מה שלא קשור לצ\'אט או לדומיינים.</string>
     <string name="qr_chatting_address_subtitle">הכתובת הזו מיועדת לצ\'אט ולדומיינים בלבד. ‏1 Kaspa מספיק לכ-500 פעולות באפליקציה. דומיינים עולים בין 35 ל-4,000 Kaspa, לפי השם.</string>
     <string name="kn_profiles_saved_once_launched">אפשר יהיה לשמור פרופילים לאחר ש-‎.kachat יושק ברשת הראשית.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">בקרת מטבעות</string>
+    <string name="automatic">אוטומטי</string>
+    <string name="consolidating_this_address">מאחדים את הכתובת הזו</string>
+    <string name="invalid_address_format">פורמט כתובת לא תקין</string>
+    <string name="fee_tier_normal">רגיל</string>
+    <string name="fee_tier_fast">מהיר</string>
+    <string name="fee_tier_priority">עדיפות</string>
+    <string name="resolved_name">נמצא: %1$s</string>
+    <string name="send_fee_tier_footer">אם הרשת עמוסה, מהיר או עדיפות משלמים עמלה גבוהה יותר כדי לעזור לאישור מהיר יותר. הקש על סכום העמלה כדי להגדיר עמלה מותאמת אישית.</string>
+    <string name="paste">הדבק</string>
+    <string name="scan_qr">סרוק QR</string>
+    <string name="available">זמין</string>
+    <string name="network_fee">עמלת רשת</string>
 </resources>

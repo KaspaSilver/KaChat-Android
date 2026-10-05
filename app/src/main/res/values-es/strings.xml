@@ -26,7 +26,6 @@
     <string name="broadcasting">Transmitiendo...</string>
     <string name="broadcasts">Difusiones</string>
     <string name="build_unsigned_transaction">Construir transaccion sin firmar</string>
-    <string name="building_transaction">Construyendo transaccion...</string>
     <string name="camera_permission_is_needed_to_scan">Se necesita permiso de camara para escanear un codigo QR</string>
     <string name="cancel">Cancelar</string>
     <string name="cancel_photo">Cancelar foto</string>
@@ -354,7 +353,6 @@
     <string name="security">Seguridad</string>
     <string name="send_handshake">Enviar solicitud de comunicacion</string>
     <string name="send_photo_2">Enviar foto</string>
-    <string name="sending_2">Enviando...</string>
     <string name="set_as_primary_address">Establecer como direccion principal</string>
     <string name="setup_guide">Guia de configuracion</string>
     <string name="show_fee_estimate">Mostrar estimacion de comision</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">Una dirección nueva, nunca usada. Los Kaspa enviados aquí llegan a esta cuenta y aparecen en tu saldo para gastar. Usa esta dirección para todo lo que no tenga que ver con chats o dominios.</string>
     <string name="qr_chatting_address_subtitle">Esta dirección debe usarse solo para chats y dominios. 1 Kaspa alcanza para unas 500 interacciones en la app. Los dominios cuestan de 35 a 4.000 Kaspa, según el nombre.</string>
     <string name="kn_profiles_saved_once_launched">Los perfiles se podrán guardar cuando .kachat se lance en mainnet.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Control de monedas</string>
+    <string name="automatic">Automático</string>
+    <string name="consolidating_this_address">Consolidando esta dirección</string>
+    <string name="invalid_address_format">Formato de dirección no válido</string>
+    <string name="fee_tier_normal">Normal</string>
+    <string name="fee_tier_fast">Rápida</string>
+    <string name="fee_tier_priority">Prioritaria</string>
+    <string name="resolved_name">Resuelto: %1$s</string>
+    <string name="send_fee_tier_footer">Si la red esta ocupada, Rapida o Prioritaria paga una comision mayor para ayudar a que esto confirme antes. Toca el monto de la comision para establecer una comision personalizada.</string>
+    <string name="paste">Pegar</string>
+    <string name="scan_qr">Escanear QR</string>
+    <string name="available">Disponible</string>
+    <string name="network_fee">Comision de red</string>
 </resources>

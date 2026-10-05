@@ -26,7 +26,6 @@
     <string name="broadcasting">Wird gesendet...</string>
     <string name="broadcasts">Broadcasts</string>
     <string name="build_unsigned_transaction">Unsignierte Transaktion erstellen</string>
-    <string name="building_transaction">Transaktion wird erstellt...</string>
     <string name="camera_permission_is_needed_to_scan">Kamerazugriff wird benötigt, um einen QR-Code zu scannen</string>
     <string name="cancel">Abbrechen</string>
     <string name="cancel_photo">Foto abbrechen</string>
@@ -354,7 +353,6 @@
     <string name="security">Sicherheit</string>
     <string name="send_handshake">Kommunikationsanfrage senden</string>
     <string name="send_photo_2">Foto senden</string>
-    <string name="sending_2">Wird gesendet...</string>
     <string name="set_as_primary_address">Als Hauptadresse festlegen</string>
     <string name="setup_guide">Einrichtungsanleitung</string>
     <string name="show_fee_estimate">Gebührenschätzung anzeigen</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">Eine neue, noch nie benutzte Adresse. Kaspa, die hierher gesendet werden, landen in diesem Konto und erscheinen in deinem Ausgabenguthaben. Diese Adresse sollte für alles verwendet werden, was nichts mit Chats oder Domains zu tun hat.</string>
     <string name="qr_chatting_address_subtitle">Diese Adresse sollte nur für Chats und Domains genutzt werden. 1 Kaspa reicht für etwa 500 Aktionen in der App. Domains kosten je nach Name 35 bis 4.000 Kaspa.</string>
     <string name="kn_profiles_saved_once_launched">Profile lassen sich speichern, sobald .kachat im Mainnet startet.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Coin Control</string>
+    <string name="automatic">Automatisch</string>
+    <string name="consolidating_this_address">Diese Adresse wird zusammengeführt</string>
+    <string name="invalid_address_format">Ungültiges Adressformat</string>
+    <string name="fee_tier_normal">Normal</string>
+    <string name="fee_tier_fast">Schnell</string>
+    <string name="fee_tier_priority">Priorität</string>
+    <string name="resolved_name">Aufgelöst: %1$s</string>
+    <string name="send_fee_tier_footer">Wenn das Netzwerk ausgelastet ist, zahlt Schnell oder Priorität eine höhere Gebühr, um dies schneller zu bestätigen. Tippe auf den Gebührenbetrag, um eine benutzerdefinierte Gebühr festzulegen.</string>
+    <string name="paste">Einfügen</string>
+    <string name="scan_qr">QR scannen</string>
+    <string name="available">Verfügbar</string>
+    <string name="network_fee">Netzwerkgebühr</string>
 </resources>

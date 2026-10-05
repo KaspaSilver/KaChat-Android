@@ -26,7 +26,6 @@
     <string name="broadcasting">Yayinlaniyor...</string>
     <string name="broadcasts">Yayinlar</string>
     <string name="build_unsigned_transaction">Imzasiz Islem Olustur</string>
-    <string name="building_transaction">Islem olusturuluyor...</string>
     <string name="camera_permission_is_needed_to_scan">Bir QR kodu taramak icin kamera erisimi gerekli</string>
     <string name="cancel">İptal</string>
     <string name="cancel_photo">Fotografi iptal et</string>
@@ -354,7 +353,6 @@
     <string name="security">Guvenlik</string>
     <string name="send_handshake">Iletisim Istegi Gonder</string>
     <string name="send_photo_2">Fotograf Gonder</string>
-    <string name="sending_2">Gonderiliyor...</string>
     <string name="set_as_primary_address">Birincil Adres Olarak Ayarla</string>
     <string name="setup_guide">Kurulum Rehberi</string>
     <string name="show_fee_estimate">Ucret Tahminini Goster</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">Daha önce hiç kullanılmamış yeni bir adres. Buraya gönderilen Kaspa bu hesaba gelir ve harcama bakiyende görünür. Bu adresi sohbet veya alan adlarıyla ilgili olmayan her şey için kullan.</string>
     <string name="qr_chatting_address_subtitle">Bu adres yalnızca sohbet ve alan adları için kullanılmalı. 1 Kaspa uygulamada yaklaşık 500 işlem için yeterli. Alan adları, ada göre 35 ile 4.000 Kaspa arasında.</string>
     <string name="kn_profiles_saved_once_launched">Profiller, .kachat ana ağda başlatıldığında kaydedilebilecek.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Coin kontrolü</string>
+    <string name="automatic">Otomatik</string>
+    <string name="consolidating_this_address">Bu adres birleştiriliyor</string>
+    <string name="invalid_address_format">Geçersiz adres biçimi</string>
+    <string name="fee_tier_normal">Normal</string>
+    <string name="fee_tier_fast">Hızlı</string>
+    <string name="fee_tier_priority">Öncelikli</string>
+    <string name="resolved_name">Çözümlendi: %1$s</string>
+    <string name="send_fee_tier_footer">Ag yogunsa, Hizli veya Oncelikli daha yuksek bir ucret oder ve daha hizli onaylanmasina yardimci olur. Ozel bir ucret belirlemek icin ucret tutarina dokunun.</string>
+    <string name="paste">Yapıştır</string>
+    <string name="scan_qr">QR Tara</string>
+    <string name="available">Musait</string>
+    <string name="network_fee">Ag Ucreti</string>
 </resources>

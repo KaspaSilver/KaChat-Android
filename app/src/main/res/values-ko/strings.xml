@@ -26,7 +26,6 @@
     <string name="broadcasting">방송 중...</string>
     <string name="broadcasts">방송</string>
     <string name="build_unsigned_transaction">서명되지 않은 거래 생성</string>
-    <string name="building_transaction">거래 생성 중...</string>
     <string name="camera_permission_is_needed_to_scan">QR 코드를 스캔하려면 카메라 접근이 필요합니다</string>
     <string name="cancel">취소</string>
     <string name="cancel_photo">사진 취소</string>
@@ -354,7 +353,6 @@
     <string name="security">보안</string>
     <string name="send_handshake">통신 요청 보내기</string>
     <string name="send_photo_2">사진 보내기</string>
-    <string name="sending_2">보내는 중...</string>
     <string name="set_as_primary_address">기본 주소로 설정</string>
     <string name="setup_guide">설정 가이드</string>
     <string name="show_fee_estimate">수수료 예상 표시</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">한 번도 사용하지 않은 새 주소입니다. 여기로 보낸 Kaspa는 이 계정에 들어오며 지출 잔액에 표시됩니다. 채팅이나 도메인과 관련 없는 모든 용도에 이 주소를 사용하세요.</string>
     <string name="qr_chatting_address_subtitle">이 주소는 채팅과 도메인 전용입니다. 1 Kaspa로 앱에서 약 500번의 활동을 할 수 있습니다. 도메인은 이름에 따라 35~4,000 Kaspa입니다.</string>
     <string name="kn_profiles_saved_once_launched">.kachat이 메인넷에 출시되면 프로필을 저장할 수 있습니다.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">코인 컨트롤</string>
+    <string name="automatic">자동</string>
+    <string name="consolidating_this_address">이 주소 통합 중</string>
+    <string name="invalid_address_format">잘못된 주소 형식</string>
+    <string name="fee_tier_normal">보통</string>
+    <string name="fee_tier_fast">빠름</string>
+    <string name="fee_tier_priority">우선</string>
+    <string name="resolved_name">확인됨: %1$s</string>
+    <string name="send_fee_tier_footer">네트워크가 혼잡한 경우 빠름 또는 우선순위는 더 빨리 확인되도록 더 높은 수수료를 지불합니다. 사용자 지정 수수료를 설정하려면 수수료 금액을 탭하세요.</string>
+    <string name="paste">붙여넣기</string>
+    <string name="scan_qr">QR 스캔</string>
+    <string name="available">사용 가능</string>
+    <string name="network_fee">네트워크 수수료</string>
 </resources>

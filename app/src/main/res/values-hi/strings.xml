@@ -26,7 +26,6 @@
     <string name="broadcasting">प्रसारित हो रहा है...</string>
     <string name="broadcasts">ब्रॉडकास्ट</string>
     <string name="build_unsigned_transaction">अहस्ताक्षरित लेन-देन बनाएं</string>
-    <string name="building_transaction">लेन-देन बनाया जा रहा है...</string>
     <string name="camera_permission_is_needed_to_scan">QR कोड स्कैन करने के लिए कैमरा एक्सेस आवश्यक है</string>
     <string name="cancel">रद्द करें</string>
     <string name="cancel_photo">फ़ोटो रद्द करें</string>
@@ -354,7 +353,6 @@
     <string name="security">सुरक्षा</string>
     <string name="send_handshake">संचार अनुरोध भेजें</string>
     <string name="send_photo_2">फ़ोटो भेजें</string>
-    <string name="sending_2">भेजा जा रहा है...</string>
     <string name="set_as_primary_address">मुख्य पते के रूप में सेट करें</string>
     <string name="setup_guide">सेटअप गाइड</string>
     <string name="show_fee_estimate">शुल्क अनुमान दिखाएं</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">एक नया पता, जो पहले कभी इस्तेमाल नहीं हुआ। यहाँ भेजे गए Kaspa इस खाते में आते हैं और आपके खर्च बैलेंस में दिखते हैं। चैट या डोमेन से असंबंधित हर चीज़ के लिए यही पता इस्तेमाल करें।</string>
     <string name="qr_chatting_address_subtitle">यह पता केवल चैट और डोमेन के लिए है। 1 Kaspa ऐप में लगभग 500 इंटरैक्शन के लिए काफ़ी है। नाम के हिसाब से डोमेन की कीमत 35 से 4,000 Kaspa तक है।</string>
     <string name="kn_profiles_saved_once_launched">.kachat के मेननेट पर लॉन्च होते ही प्रोफ़ाइल सेव की जा सकेंगी।</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">कॉइन कंट्रोल</string>
+    <string name="automatic">स्वचालित</string>
+    <string name="consolidating_this_address">यह पता समेकित हो रहा है</string>
+    <string name="invalid_address_format">अमान्य पता प्रारूप</string>
+    <string name="fee_tier_normal">सामान्य</string>
+    <string name="fee_tier_fast">तेज़</string>
+    <string name="fee_tier_priority">प्राथमिकता</string>
+    <string name="resolved_name">मिला: %1$s</string>
+    <string name="send_fee_tier_footer">अगर नेटवर्क व्यस्त है, तो तेज़ या प्राथमिकता इसे जल्दी कन्फर्म करने में मदद के लिए अधिक शुल्क देती है। कस्टम शुल्क सेट करने के लिए शुल्क राशि पर टैप करें।</string>
+    <string name="paste">पेस्ट करें</string>
+    <string name="scan_qr">QR स्कैन करें</string>
+    <string name="available">उपलब्ध</string>
+    <string name="network_fee">नेटवर्क शुल्क</string>
 </resources>

@@ -40,7 +40,6 @@
     <string name="broadcasting">در حال پخش...</string>
     <string name="broadcasts">پخش‌ها</string>
     <string name="build_unsigned_transaction">ایجاد تراکنش امضانشده</string>
-    <string name="building_transaction">در حال ایجاد تراکنش...</string>
     <string name="camera_permission_is_needed_to_scan">برای اسکن کد QR به دسترسی دوربین نیاز است</string>
     <string name="cancel">لغو</string>
     <string name="coin_control">کنترل سکه (Coin Control)</string>
@@ -304,7 +303,6 @@
     <string name="unread">خوانده‌نشده</string>
     <string name="use_automatic_selection">استفاده از انتخاب خودکار</string>
     <string name="use_default">استفاده از پیش‌فرض</string>
-    <string name="utxo">UTXO</string>
     <string name="utxos">UTXOها</string>
     <string name="valid_address">آدرس معتبر</string>
     <string name="view_on_changenow">مشاهده در ChangeNOW</string>
@@ -392,7 +390,6 @@
     <string name="security">امنیت</string>
     <string name="send_handshake">ارسال درخواست ارتباط</string>
     <string name="send_photo_2">ارسال عکس</string>
-    <string name="sending_2">در حال ارسال...</string>
     <string name="set_as_primary_address">تنظیم به‌عنوان آدرس اصلی</string>
     <string name="setup_guide">راهنمای راه‌اندازی</string>
     <string name="show_fee_estimate">نمایش برآورد کارمزد</string>
@@ -403,7 +400,6 @@
     <string name="submitting_reveal_transaction">در حال ارسال تراکنش رونمایی...</string>
     <string name="submitting_reveal_transaction_this_could_take">در حال ارسال تراکنش رونمایی... این ممکن است چند دقیقه طول بکشد تا در زنجیره تأیید شود.</string>
     <string name="support_email">ایمیل پشتیبانی</string>
-    <string name="switch_between_kas_and_fiat">تغییر بین KAS و ارز فیات</string>
     <string name="sync_system_contacts">همگام‌سازی مخاطبین سیستم</string>
     <string name="system_contact">مخاطب سیستم</string>
     <string name="telegram">Telegram</string>
@@ -974,4 +970,13 @@
     <string name="qr_receive_address_subtitle">یک آدرس تازه که هرگز استفاده نشده است. Kaspa ارسال‌شده به اینجا وارد این حساب می‌شود و در موجودی قابل خرج شما نمایش داده می‌شود. از این آدرس برای هر چیزی که به گفتگو یا دامنه مربوط نیست استفاده کنید.</string>
     <string name="qr_chatting_address_subtitle">این آدرس فقط برای گفتگو و دامنه‌هاست. ۱ Kaspa برای حدود ۵۰۰ تعامل در برنامه کافی است. قیمت دامنه‌ها بسته به نام از ۳۵ تا ۴٬۰۰۰ Kaspa است.</string>
     <string name="kn_profiles_saved_once_launched">پس از راه‌اندازی ‎.kachat روی شبکه اصلی می‌توانید پروفایل را ذخیره کنید.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="fee_tier_normal">عادی</string>
+    <string name="fee_tier_fast">سریع</string>
+    <string name="fee_tier_priority">اولویت‌دار</string>
+    <string name="resolved_name">پیدا شد: %1$s</string>
+    <string name="send_fee_tier_footer">اگر شبکه شلوغ باشد، گزینه سریع یا اولویت‌دار کارمزد بالاتری می‌پردازد تا کمک کند این سریع‌تر تأیید شود. برای تنظیم کارمزد سفارشی روی مبلغ کارمزد ضربه بزنید.</string>
+    <string name="paste">جای‌گذاری</string>
+    <string name="scan_qr">اسکن QR</string>
+    <string name="available">موجود</string>
 </resources>

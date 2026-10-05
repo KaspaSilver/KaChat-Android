@@ -44,7 +44,6 @@
     <string name="broadcasting">Broadcasting...</string>
     <string name="broadcasts">Public Chats</string>
     <string name="build_unsigned_transaction">Build Unsigned Transaction</string>
-    <string name="building_transaction">Building transaction...</string>
     <string name="camera_permission_is_needed_to_scan">Camera permission is needed to scan a QR code</string>
     <string name="cancel">Cancel</string>
 
@@ -385,7 +384,6 @@
     <string name="unread">Unread</string>
     <string name="use_automatic_selection">Use Automatic Selection</string>
     <string name="use_default">Use Default</string>
-    <string name="utxo">UTXO</string>
     <string name="utxos">UTXOs</string>
     <string name="valid_address">Valid address</string>
     <string name="view_on_changenow">View on ChangeNOW</string>
@@ -477,7 +475,6 @@
     <string name="send_handshake">Send Handshake</string>
     <string name="handshake_sent">Handshake sent</string>
     <string name="send_photo_2">Send Photo</string>
-    <string name="sending_2">Sending...</string>
     <string name="set_as_primary_address">Set as Primary Address</string>
     <string name="setup_guide">Setup Guide</string>
     <string name="show_fee_estimate">Show Fee Estimate</string>
@@ -490,7 +487,6 @@
     <string name="submitting_reveal_transaction">Submitting reveal transaction...</string>
     <string name="submitting_reveal_transaction_this_could_take">Submitting reveal transaction... this could take a few minutes while it confirms on-chain.</string>
     <string name="support_email">Support Email</string>
-    <string name="switch_between_kas_and_fiat">Switch between KAS and fiat</string>
     <string name="sync_system_contacts">Sync system contacts</string>
     <string name="system_contact">System Contact</string>
     <string name="telegram">Telegram</string>
@@ -1111,4 +1107,14 @@
     <string name="qr_receive_address_subtitle">A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting or domains.</string>
     <string name="qr_chatting_address_subtitle">This address should be for chatting and domains only. 1 Kaspa is enough for about 500 interactions in the app. Domains cost from 35 to 4,000 Kaspa, depending on the name.</string>
     <string name="kn_profiles_saved_once_launched">Profiles can be saved once .kachat launches on mainnet.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="fee_tier_normal">Normal</string>
+    <string name="fee_tier_fast">Fast</string>
+    <string name="fee_tier_priority">Priority</string>
+    <string name="resolved_name">Resolved: %1$s</string>
+    <string name="hold_to_consolidate">Hold to Consolidate</string>
+    <string name="send_fee_tier_footer">If the network is busy, Fast or Priority pays a higher fee to help this confirm sooner. Tap the fee amount to set a custom fee.</string>
+    <string name="paste">Paste</string>
+    <string name="scan_qr">Scan QR</string>
+    <string name="available">Available</string>
 </resources>

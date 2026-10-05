@@ -57,11 +57,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -1212,11 +1209,9 @@ private fun ColdSendFlow(
     var compoundHasMoreRounds by remember { mutableStateOf(false) }
     var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
     var customExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
-    var showFeeEditor by remember { mutableStateOf(false) }
+    // Custom fee, edited in place on the fee row (SendFeeControls), as on iOS.
+    var isEditingFee by remember { mutableStateOf(false) }
     var feeEditorInput by remember { mutableStateOf("") }
-    val feeEditorFocusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val clipboardManager = LocalClipboardManager.current
     val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
     // Fetched once and reused for both the preview below and the actual build/estimate calls
@@ -1249,15 +1244,6 @@ private fun ColdSendFlow(
         }
     }
 
-    // Keyboard pops up the moment the fee editor opens, instead of requiring a second tap into
-    // the field after the dialog appears.
-    LaunchedEffect(showFeeEditor) {
-        if (showFeeEditor) {
-            feeEditorFocusRequester.requestFocus()
-            keyboardController?.show()
-        }
-    }
-
     DisposableEffect(Unit) {
         onDispose { viewModel.resetColdSendState() }
     }
@@ -1266,7 +1252,6 @@ private fun ColdSendFlow(
         ColdStorageViewModel.ColdSendStep.BUILDING,
         ColdStorageViewModel.ColdSendStep.BROADCASTING
     )
-    val availableKas = availableBalanceSompi / 100_000_000.0
     val amountSompi = amountText.toDoubleOrNull()?.let { Math.round(it * 100_000_000.0) }
     val isValidRecipient = remember(toAddress) { KaspaAddress.isValid(toAddress) }
 
@@ -1417,327 +1402,144 @@ private fun ColdSendFlow(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(16.dp)
-            ) {
-                Text(stringResource(R.string.from), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(fromAddress, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(4.dp))
-                Text("Available: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, availableKas), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-            }
-
             when (sendState.step) {
-                ColdStorageViewModel.ColdSendStep.IDLE, ColdStorageViewModel.ColdSendStep.FAILED -> {
-                    // Section order/grouping below mirrors iOS's ColdSendFlowView Form exactly:
-                    // Recipient Address (field, validity indicator, Paste/Scan) -> Amount (field,
-                    // fiat toggle, Max) -> Network Fee (tappable row + footer note).
-                    Text(
-                        (if (isCompoundMode) stringResource(R.string.consolidating_this_address) else stringResource(R.string.recipient_address)).uppercase(),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (isCompoundMode) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CallMerge, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
+                ColdStorageViewModel.ColdSendStep.IDLE,
+                ColdStorageViewModel.ColdSendStep.FAILED,
+                ColdStorageViewModel.ColdSendStep.BUILDING -> {
+                    // The layout of the 1:1 chat's Send KAS sheet, from the shared Send Kaspa
+                    // pieces (iOS 4d0324f): From / Available pills, recipient, the big amount, fee
+                    // and coin control, and Build. Building keeps this form up with the button
+                    // busy, as iOS's ColdSendFlowView does.
+                    val isBuilding = sendState.step == ColdStorageViewModel.ColdSendStep.BUILDING
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        // 20 dp from the edges in all, as the other Send Kaspa screens.
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), modifier = Modifier.fillMaxWidth()) {
+                            SendInfoPill(modifier = Modifier.weight(1f, fill = false)) {
+                                Text(stringResource(R.string.from))
+                                Text(
+                                    "${fromAddress.take(14)}...${fromAddress.takeLast(6)}",
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    maxLines = 1,
+                                )
+                            }
+                            SendInfoPill(modifier = Modifier.weight(1f, fill = false)) {
+                                Text(stringResource(R.string.available))
+                                Text("${com.kachat.app.repository.ChatRepository.formatKas(availableBalanceSompi)} ${KaspaUnit.symbol}", maxLines = 1)
+                            }
+                        }
+
+                        SendRecipientCard(
+                            input = toAddress,
+                            onInputChange = { toAddress = it },
+                            lockedAddress = if (isCompoundMode) fromAddress else null,
+                            isResolving = isResolvingKns,
+                            resolvedAddress = knsResolvedAddress,
+                            resolvedName = knsResolvedDomain ?: KnsService.normalizeDomain(toAddress.trim()),
+                            lookupError = knsError,
+                            isValidAddress = isValidRecipient,
+                            onScan = { showRecipientScanner = true },
+                            enabled = !isBuilding,
+                        )
+                        if (isCompoundMode) {
                             Text(
-                                fromAddress,
-                                color = LocalAppColors.current.textPrimary,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                if (compoundHasMoreRounds)
+                                    stringResource(R.string.compound_more_rounds_note, KsptCodec.MAX_INPUTS)
+                                else
+                                    stringResource(R.string.compound_single_round_note),
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
                             )
                         }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            if (compoundHasMoreRounds)
-                                stringResource(R.string.compound_more_rounds_note, KsptCodec.MAX_INPUTS)
-                            else
-                                stringResource(R.string.compound_single_round_note),
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    } else {
-                        com.kachat.app.ui.theme.IosTextField(
-                            value = toAddress,
-                            onValueChange = { toAddress = it },
-                            placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = LocalAppColors.current.textPrimary,
-                                unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                focusedBorderColor = KaspaTeal,
-                                unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                                focusedLabelColor = KaspaTeal,
-                                unfocusedLabelColor = LocalAppColors.current.textSecondary
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (toAddress.isNotEmpty()) {
-                            if (isResolvingKns) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                                }
-                            } else if (knsError != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Warning, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(knsError ?: "", color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
-                                }
-                            } else if (knsResolvedAddress != null) {
-                                // The domain it resolved, then the address it resolved TO (iOS ColdStorageView).
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            "Resolved: ${knsResolvedDomain ?: KnsService.normalizeDomain(toAddress.trim())}",
-                                            color = LocalAppColors.current.success,
-                                            style = MaterialTheme.typography.bodySmall,
-                                        )
-                                    }
-                                    Text(
-                                        knsResolvedAddress ?: "",
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                        fontSize = 11.sp,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    )
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        if (isValidRecipient) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                                        null,
-                                        tint = if (isValidRecipient) LocalAppColors.current.success else LocalAppColors.current.danger,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        stringResource(if (isValidRecipient) R.string.valid_address else R.string.invalid_address_format),
-                                        color = if (isValidRecipient) LocalAppColors.current.success else LocalAppColors.current.danger,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                            // Who the coins are going to - the card Create chat shows, here too
-                            // (iOS ac0ef19).
-                            Spacer(Modifier.height(8.dp))
-                            AddressResolutionCard(input = toAddress)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(onClick = { clipboardManager.getText()?.text?.let { toAddress = com.kachat.app.util.KaspaAddress.fromScanned(it) } }) {
-                                Icon(Icons.Default.ContentPaste, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.paste_from_clipboard), color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
-                            }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { showRecipientScanner = true }) {
-                                Icon(Icons.Default.QrCodeScanner, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.scan_qr_code), color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
 
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        KaspaUnit.label(stringResource(R.string.amount_kas)).uppercase(),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = fiatAmountState.displayText,
-                        onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
-                        placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else KaspaUnit.label(stringResource(R.string.amount_kas))) },
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                        ),
-                        leadingIcon = {
-                            IconButton(onClick = { fiatAmountState.toggleMode(fiatPriceInCurrency) }) {
-                                if (fiatAmountState.isFiatMode) {
-                                    Text(
-                                        com.kachat.app.util.currencySymbolFor(fiatCurrencyCode),
-                                        color = KaspaTeal,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                } else {
-                                    Icon(
-                                        painterResource(R.drawable.ic_kaspa_logo),
-                                        stringResource(R.string.switch_between_kas_and_fiat),
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                        },
-                        trailingIcon = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                fiatAmountState.conversionLabelText(fiatPriceInCurrency, fiatCurrencyCode)?.let { label ->
-                                    Text(
-                                        label,
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    )
-                                }
-                                if (isEstimatingMax) {
-                                    com.kachat.app.ui.theme.IosActivityIndicator(
-                                        color = KaspaTeal,
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    TextButton(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                isEstimatingMax = true
-                                                try {
-                                                    val maxSompi = viewModel.estimateMaxAmount(fromAddress, feeRateOverrideSompi, manualUtxos)
-                                                    fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
-                                                } catch (e: Exception) {
-                                                    // Leave the field untouched on failure — same as iOS.
-                                                } finally {
-                                                    isEstimatingMax = false
-                                                }
-                                            }
-                                        }
-                                    ) {
-                                        Text(stringResource(R.string.max), color = KaspaTeal)
+                        KaspaAmountEntry(
+                            fiatAmountState = fiatAmountState,
+                            priceInCurrency = fiatPriceInCurrency,
+                            currencyCode = fiatCurrencyCode,
+                            isEstimatingMax = isEstimatingMax,
+                            maxEnabled = hasValidRecipient,
+                            onMax = {
+                                coroutineScope.launch {
+                                    isEstimatingMax = true
+                                    try {
+                                        val maxSompi = viewModel.estimateMaxAmount(fromAddress, feeRateOverrideSompi, manualUtxos)
+                                        fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                                    } catch (e: Exception) {
+                                        // Leave the field untouched on failure — same as iOS.
+                                    } finally {
+                                        isEstimatingMax = false
                                     }
                                 }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                            focusedLabelColor = KaspaTeal,
-                            unfocusedLabelColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Compound auto-manages its own input set (largest <=8, KasSigner's per-tx
-                    // limit), so manual coin control is hidden there — it only applies to a normal
-                    // send.
-                    if (!isCompoundMode) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { showCoinControl = true },
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.coin_control), color = LocalAppColors.current.textPrimary)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    manualUtxos?.let { "${it.size} ${if (it.size == 1) stringResource(R.string.utxo) else stringResource(R.string.utxos)}" }
-                                        ?: stringResource(R.string.automatic),
-                                    color = LocalAppColors.current.textSecondary
-                                )
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    null,
-                                    tint = LocalAppColors.current.textSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-                    // Inline Normal/Fast/Priority picker, right here on the send form — matching
-                    // SpendingAddressWithdrawView's WithdrawFeeTier segmented control, not a
-                    // separate screen/dialog.
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        ColdFeeTier.entries.forEachIndexed { index, tier ->
-                            SegmentedButton(
-                                selected = feeTier == tier,
-                                onClick = {
-                                    feeTier = tier
-                                    customExtraFeeSompi = null
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = ColdFeeTier.entries.size),
-                                colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = LocalAppColors.current.surfaceVariant,
-                                    activeContentColor = LocalAppColors.current.textPrimary,
-                                    inactiveContainerColor = LocalAppColors.current.surface,
-                                    inactiveContentColor = LocalAppColors.current.textSecondary
-                                )
-                            ) {
-                                Text(tier.label, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            feeEditorInput = "%.8f".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0)
-                            showFeeEditor = true
-                        },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.network_fee), color = LocalAppColors.current.textPrimary)
-                        Text(
-                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0),
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                            },
+                            modifier = Modifier.padding(top = 8.dp),
                         )
-                    }
-                    Text(
-                        stringResource(R.string.if_the_network_is_busy_a),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (sendState.step == ColdStorageViewModel.ColdSendStep.FAILED) {
-                        Text(sendState.errorMessage ?: "Something went wrong", color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            amountSompi?.let {
-                                // Real coin control (explicit user selection) wins if set;
-                                // otherwise, if a fresh automatic-selection preview is available,
-                                // pass its exact UTXO set through too — guaranteeing the fee just
-                                // shown on this screen and the fee the real build produces are
-                                // the same number, not just close. Re-resolved against a fresh
-                                // fetch inside buildUnsignedTransaction either way, so this is
-                                // never stale-unsafe.
-                                val utxosForBuild = manualUtxos ?: previewSelection?.utxos
-                                viewModel.startColdSend(fromAddress, effectiveAddress.trim(), it, feeRateOverrideSompi, utxosForBuild)
-                            }
-                        },
-                        enabled = hasValidRecipient && (amountSompi ?: 0) > 0,
-                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.build_unsigned_transaction),
-                            color = if (hasValidRecipient && (amountSompi ?: 0) > 0) Color.Black else LocalAppColors.current.textSecondary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
 
-                ColdStorageViewModel.ColdSendStep.BUILDING -> {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 32.dp)) {
-                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        Spacer(Modifier.height(12.dp))
-                        Text(stringResource(R.string.building_transaction), color = LocalAppColors.current.textSecondary)
+                        // Compound auto-manages its own input set (largest <=8, KasSigner's per-tx
+                        // limit), so manual coin control is hidden there - it only applies to a
+                        // normal send.
+                        SendFeeControls(
+                            feeTier = feeTier,
+                            onFeeTierChange = {
+                                feeTier = it
+                                customExtraFeeSompi = null
+                                isEditingFee = false
+                            },
+                            isEditingFee = isEditingFee,
+                            customFeeText = feeEditorInput,
+                            onCustomFeeTextChange = { feeEditorInput = it },
+                            isEstimatingFee = false,
+                            feeText = "~${com.kachat.app.repository.ChatRepository.formatKas(effectiveFeeSompi)} ${KaspaUnit.symbol}",
+                            onStartEditing = {
+                                feeEditorInput = com.kachat.app.repository.ChatRepository.formatKas(effectiveFeeSompi)
+                                isEditingFee = true
+                            },
+                            onCommit = {
+                                val kas = feeEditorInput.replace(',', '.').trim().toDoubleOrNull()
+                                if (kas != null && kas >= 0) {
+                                    val totalSompi = Math.round(kas * 100_000_000.0)
+                                    customExtraFeeSompi = (totalSompi - defaultFeeSompi).coerceAtLeast(0L)
+                                }
+                                isEditingFee = false
+                            },
+                            showsCoinControl = !isCompoundMode,
+                            coinControlSummary = coinControlSummary(manualUtxos),
+                            onCoinControl = { showCoinControl = true },
+                        )
+
+                        if (sendState.step == ColdStorageViewModel.ColdSendStep.FAILED) {
+                            Text(
+                                sendState.errorMessage ?: "Something went wrong",
+                                color = LocalAppColors.current.danger,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+
+                        // A tap, not a hold: this only builds the transaction for KasSigner to sign.
+                        HoldToSendButton(
+                            title = stringResource(R.string.build_unsigned_transaction),
+                            isBusy = isBuilding,
+                            isEnabled = hasValidRecipient && (amountSompi ?: 0) > 0,
+                            requiresHold = false,
+                            onSend = {
+                                amountSompi?.let {
+                                    // Real coin control (explicit user selection) wins if set;
+                                    // otherwise, if a fresh automatic-selection preview is
+                                    // available, pass its exact UTXO set through too -
+                                    // guaranteeing the fee just shown on this screen and the fee
+                                    // the real build produces are the same number, not just close.
+                                    // Re-resolved against a fresh fetch inside
+                                    // buildUnsignedTransaction either way, so this is never
+                                    // stale-unsafe.
+                                    val utxosForBuild = manualUtxos ?: previewSelection?.utxos
+                                    viewModel.startColdSend(fromAddress, effectiveAddress.trim(), it, feeRateOverrideSompi, utxosForBuild)
+                                }
+                            },
+                        )
                     }
                 }
 
@@ -1837,76 +1639,6 @@ private fun ColdSendFlow(
                 }
             }
         }
-    }
-
-    if (showFeeEditor) {
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { showFeeEditor = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.if_the_network_is_busy_a),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = feeEditorInput,
-                        onValueChange = { feeEditorInput = it },
-                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                            focusedLabelColor = KaspaTeal,
-                            unfocusedLabelColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth().focusRequester(feeEditorFocusRequester)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Default: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, defaultFeeSompi / 100_000_000.0),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val kas = feeEditorInput.toDoubleOrNull()
-                    customExtraFeeSompi = if (kas != null && kas >= 0) {
-                        val totalSompi = Math.round(kas * 100_000_000.0)
-                        (totalSompi - defaultFeeSompi).coerceAtLeast(0L)
-                    } else {
-                        null
-                    }
-                    showFeeEditor = false
-                }) {
-                    Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = {
-                        feeTier = ColdFeeTier.NORMAL
-                        customExtraFeeSompi = null
-                        showFeeEditor = false
-                    }) {
-                        Text(stringResource(R.string.use_default), color = LocalAppColors.current.textSecondary)
-                    }
-                    TextButton(onClick = { showFeeEditor = false }) {
-                        Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                    }
-                }
-            }
-        )
     }
 }
 

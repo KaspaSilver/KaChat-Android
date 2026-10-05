@@ -26,7 +26,6 @@
     <string name="broadcasting">Трансляция...</string>
     <string name="broadcasts">Трансляции</string>
     <string name="build_unsigned_transaction">Создать неподписанную транзакцию</string>
-    <string name="building_transaction">Создание транзакции...</string>
     <string name="camera_permission_is_needed_to_scan">Для сканирования QR-кода необходим доступ к камере</string>
     <string name="cancel">Отмена</string>
     <string name="cancel_photo">Отменить фото</string>
@@ -354,7 +353,6 @@
     <string name="security">Безопасность</string>
     <string name="send_handshake">Отправить запрос на общение</string>
     <string name="send_photo_2">Отправить фото</string>
-    <string name="sending_2">Отправка...</string>
     <string name="set_as_primary_address">Сделать основным адресом</string>
     <string name="setup_guide">Руководство по настройке</string>
     <string name="show_fee_estimate">Показать оценку комиссии</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">Новый, ещё не использованный адрес. Kaspa, отправленные сюда, поступают на этот аккаунт и отображаются в балансе для трат. Используйте этот адрес для всего, что не связано с чатами или доменами.</string>
     <string name="qr_chatting_address_subtitle">Этот адрес только для чатов и доменов. 1 Kaspa хватает примерно на 500 действий в приложении. Домены стоят от 35 до 4000 Kaspa в зависимости от имени.</string>
     <string name="kn_profiles_saved_once_launched">Профили можно будет сохранять после запуска .kachat в основной сети.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">Выбор монет</string>
+    <string name="automatic">Автоматически</string>
+    <string name="consolidating_this_address">Объединение этого адреса</string>
+    <string name="invalid_address_format">Неверный формат адреса</string>
+    <string name="fee_tier_normal">Обычная</string>
+    <string name="fee_tier_fast">Быстрая</string>
+    <string name="fee_tier_priority">Приоритетная</string>
+    <string name="resolved_name">Найдено: %1$s</string>
+    <string name="send_fee_tier_footer">Если сеть загружена, тариф Быстрый или Приоритетный платит более высокую комиссию, чтобы это подтвердилось быстрее. Нажмите на сумму комиссии, чтобы задать свою.</string>
+    <string name="paste">Вставить</string>
+    <string name="scan_qr">Сканировать QR</string>
+    <string name="available">Доступно</string>
+    <string name="network_fee">Комиссия сети</string>
 </resources>

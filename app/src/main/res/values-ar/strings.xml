@@ -26,7 +26,6 @@
     <string name="broadcasting">جارٍ البث...</string>
     <string name="broadcasts">البث</string>
     <string name="build_unsigned_transaction">إنشاء معاملة غير موقعة</string>
-    <string name="building_transaction">جارٍ إنشاء المعاملة...</string>
     <string name="camera_permission_is_needed_to_scan">يلزم الوصول إلى الكاميرا لمسح رمز QR</string>
     <string name="cancel">إلغاء</string>
     <string name="cancel_photo">إلغاء الصورة</string>
@@ -354,7 +353,6 @@
     <string name="security">الأمان</string>
     <string name="send_handshake">إرسال طلب تواصل</string>
     <string name="send_photo_2">إرسال صورة</string>
-    <string name="sending_2">جارٍ الإرسال...</string>
     <string name="set_as_primary_address">تعيين كعنوان رئيسي</string>
     <string name="setup_guide">دليل الإعداد</string>
     <string name="show_fee_estimate">إظهار تقدير الرسوم</string>
@@ -935,4 +933,18 @@
     <string name="qr_receive_address_subtitle">عنوان جديد لم يُستخدم من قبل. تصل عملات Kaspa المرسلة إليه إلى هذا الحساب وتظهر في رصيد الإنفاق. استخدم هذا العنوان لكل ما لا يتعلق بالدردشة أو النطاقات.</string>
     <string name="qr_chatting_address_subtitle">يجب أن يكون هذا العنوان للدردشة والنطاقات فقط. يكفي 1 Kaspa لنحو 500 تفاعل في التطبيق. تتراوح تكلفة النطاقات بين 35 و4000 Kaspa حسب الاسم.</string>
     <string name="kn_profiles_saved_once_launched">يمكن حفظ الملفات الشخصية بعد إطلاق ‎.kachat على الشبكة الرئيسية.</string>
+    <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
+    <string name="coin_control">التحكم في العملات</string>
+    <string name="automatic">تلقائي</string>
+    <string name="consolidating_this_address">جارٍ دمج هذا العنوان</string>
+    <string name="invalid_address_format">تنسيق عنوان غير صالح</string>
+    <string name="fee_tier_normal">عادي</string>
+    <string name="fee_tier_fast">سريع</string>
+    <string name="fee_tier_priority">أولوية</string>
+    <string name="resolved_name">تم الحل: %1$s</string>
+    <string name="send_fee_tier_footer">إذا كانت الشبكة مزدحمة، يدفع الخيار السريع أو ذو الأولوية رسومًا أعلى للمساعدة في تأكيد ذلك بشكل أسرع. اضغط على مبلغ الرسوم لتعيين رسوم مخصصة.</string>
+    <string name="paste">لصق</string>
+    <string name="scan_qr">مسح QR</string>
+    <string name="available">متاح</string>
+    <string name="network_fee">رسوم الشبكة</string>
 </resources>

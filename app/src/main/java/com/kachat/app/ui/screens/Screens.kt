@@ -5963,7 +5963,6 @@ fun SpendingAddressSendFlow(
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     val uriHandler = LocalUriHandler.current
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
@@ -5977,8 +5976,9 @@ fun SpendingAddressSendFlow(
     var isEstimatingMax by remember { mutableStateOf(false) }
     var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
     var customExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
-    var showFeeEditor by remember { mutableStateOf(false) }
-    var feeEditorInput by remember { mutableStateOf("") }
+    // Custom fee, edited in place on the fee row (SendFeeControls), as on iOS.
+    var isEditingFee by remember { mutableStateOf(false) }
+    var customFeeText by remember { mutableStateOf("") }
     /// The completed send, driving the sent-confirmation half sheet.
     var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
     val isSending by viewModel.isSending.collectAsState()
@@ -6117,6 +6117,55 @@ fun SpendingAddressSendFlow(
     val effectiveAddress = knsResolvedAddress ?: recipientInput
     val hasValidRecipient = if (knsResolvedAddress != null) true else (isValidAddress && !isResolvingKns)
 
+    // Max: fee-aware, from the funds this send actually spends. Compound pins one mass-safe
+    // transaction's worth of UTXOs (largest-first, <=cap) as the input set - see the compound
+    // LaunchedEffect above.
+    val setMaxAmount: () -> Unit = {
+        coroutineScope.launch {
+            isEstimatingMax = true
+            try {
+                if (isCompoundMode) {
+                    val chunk = viewModel.maxConsolidatableChunk(fromAddress, feeRateOverrideSompi)
+                    if (chunk != null) {
+                        manualUtxos = chunk.second
+                        fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
+                    } else {
+                        // Same silence as the plain Max had: nothing to consolidate, or nothing
+                        // known yet.
+                        Toast.makeText(context, "Nothing to consolidate here yet.", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    // null = the wallet cannot answer yet (the REST client is created a moment
+                    // after launch); 0 = it answered, and the fee eats the balance. Neither may
+                    // write "0" into the field, which is what made this read as a dead button.
+                    when (val maxSompi = viewModel.estimateMaxSendableAmount(fromAddress, feeRateOverrideSompi, manualUtxos)) {
+                        null -> Toast.makeText(context, "Still connecting. Try Max again in a moment.", Toast.LENGTH_SHORT).show()
+                        0L -> Toast.makeText(context, "Not enough here to cover the network fee.", Toast.LENGTH_SHORT).show()
+                        else -> fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                    }
+                }
+            } catch (e: Exception) {
+                // Said out loud, not swallowed. A silent catch here is indistinguishable from a
+                // button that does nothing, which is exactly how this was reported - and it left
+                // no trace in the log to diagnose it from either.
+                Log.w("SendFlow", "Max estimate failed for ${fromAddress.redactedForLog()}", e)
+                Toast.makeText(context, UserFacingError.message(e, "Could not work out the maximum."), Toast.LENGTH_SHORT).show()
+            } finally {
+                isEstimatingMax = false
+            }
+        }
+    }
+    val canSend = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0
+    val send: () -> Unit = {
+        amountSompi?.takeIf { canSend }?.let {
+            if (spendingIndex != null) {
+                viewModel.withdrawFromSpendingAddress(spendingIndex, effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
+            } else {
+                viewModel.onSendClicked(effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
+            }
+        }
+    }
+
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
@@ -6137,396 +6186,84 @@ fun SpendingAddressSendFlow(
             )
         }
     ) { padding ->
+        // The layout of the 1:1 chat's Send KAS sheet, from the shared Send Kaspa pieces (iOS
+        // 4d0324f): recipient, the big amount, Available, fee and coin control, and the send
+        // button in the column. The confirmation is a half sheet (SentConfirmationSheet), not a
+        // page that replaced this form - so every send in the app finishes the same way.
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // The confirmation is a half sheet now (see SentConfirmationSheet), not a page that
-            // replaced this form - so every send in the app finishes the same way.
-
-            Text(
-                (if (isCompoundMode) stringResource(R.string.consolidating_this_address) else stringResource(R.string.recipient_address)).uppercase(),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold
-            )
-            if (isCompoundMode) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CallMerge, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        fromAddress,
-                        color = LocalAppColors.current.textPrimary,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            } else {
-                com.kachat.app.ui.theme.IosTextField(
-                    value = recipientInput,
-                    onValueChange = { recipientInput = it },
-                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
-                    singleLine = true,
-                    enabled = !isSending,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                        focusedLabelColor = KaspaTeal,
-                        unfocusedLabelColor = LocalAppColors.current.textSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (recipientInput.isNotEmpty()) {
-                    if (isResolvingKns) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                        }
-                    } else if (knsError != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(knsError ?: "", color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
-                        }
-                    } else if (knsResolvedAddress != null) {
-                        // The domain it resolved, then the address it resolved TO (iOS ColdStorageView).
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Resolved: ${knsResolvedDomain ?: KnsService.normalizeDomain(recipientInput.trim())}",
-                                    color = LocalAppColors.current.success,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            Text(
-                                knsResolvedAddress ?: "",
-                                color = LocalAppColors.current.textSecondary,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (isValidAddress) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                                null,
-                                tint = if (isValidAddress) LocalAppColors.current.success else LocalAppColors.current.danger,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                stringResource(if (isValidAddress) R.string.valid_address else R.string.invalid_address_format),
-                                color = if (isValidAddress) LocalAppColors.current.success else LocalAppColors.current.danger,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                    // Who the coins are going to - the card Create chat shows, here too
-                    // (iOS ac0ef19).
-                    Spacer(Modifier.height(8.dp))
-                    AddressResolutionCard(input = recipientInput)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { clipboardManager.getText()?.text?.let { recipientInput = KaspaAddress.fromScanned(it) } }, enabled = !isSending) {
-                        Icon(Icons.Default.ContentPaste, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.paste_from_clipboard), color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { showScanner = true }, enabled = !isSending) {
-                        Icon(Icons.Default.QrCodeScanner, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.scan_qr_code), color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-
-            Text(
-                KaspaUnit.label(stringResource(R.string.amount_kas)).uppercase(),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold
-            )
-            com.kachat.app.ui.theme.IosTextField(
-                value = fiatAmountState.displayText,
-                onValueChange = { fiatAmountState.onDisplayTextChange(it, fiatPriceInCurrency) },
-                placeholder = { Text(if (fiatAmountState.isFiatMode) fiatCurrencyCode.uppercase() else KaspaUnit.label(stringResource(R.string.amount_kas))) },
-                singleLine = true,
+            SendRecipientCard(
+                input = recipientInput,
+                onInputChange = { recipientInput = it },
+                lockedAddress = if (isCompoundMode) fromAddress else null,
+                isResolving = isResolvingKns,
+                resolvedAddress = knsResolvedAddress,
+                resolvedName = knsResolvedDomain ?: KnsService.normalizeDomain(recipientInput.trim()),
+                lookupError = knsError,
+                isValidAddress = isValidAddress,
+                onScan = { showScanner = true },
                 enabled = !isSending,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                ),
-                leadingIcon = {
-                    IconButton(onClick = { fiatAmountState.toggleMode(fiatPriceInCurrency) }, enabled = !isSending) {
-                        if (fiatAmountState.isFiatMode) {
-                            Text(
-                                com.kachat.app.util.currencySymbolFor(fiatCurrencyCode),
-                                color = KaspaTeal,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        } else {
-                            Icon(
-                                painterResource(R.drawable.ic_kaspa_logo),
-                                stringResource(R.string.switch_between_kas_and_fiat),
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                },
-                trailingIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        fiatAmountState.conversionLabelText(fiatPriceInCurrency, fiatCurrencyCode)?.let { label ->
-                            Text(
-                                label,
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-                        if (isEstimatingMax) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        } else {
-                            TextButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        isEstimatingMax = true
-                                        try {
-                                            if (isCompoundMode) {
-                                                // One mass-safe transaction's worth (largest-first, ≤cap), pinned as
-                                                // the input set - see the compound LaunchedEffect above.
-                                                val chunk = viewModel.maxConsolidatableChunk(fromAddress, feeRateOverrideSompi)
-                                                if (chunk != null) {
-                                                    manualUtxos = chunk.second
-                                                    fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
-                                                } else {
-                                                    // Same silence as the plain Max had: nothing
-                                                    // to consolidate, or nothing known yet.
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Nothing to consolidate here yet.",
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                }
-                                            } else {
-                                                // null = the wallet cannot answer yet (the REST
-                                                // client is created a moment after launch); 0 =
-                                                // it answered, and the fee eats the balance.
-                                                // Neither may write "0" into the field, which is
-                                                // what made this read as a dead button.
-                                                when (val maxSompi = viewModel.estimateMaxSendableAmount(fromAddress, feeRateOverrideSompi, manualUtxos)) {
-                                                    null -> Toast.makeText(
-                                                        context,
-                                                        "Still connecting. Try Max again in a moment.",
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                    0L -> Toast.makeText(
-                                                        context,
-                                                        "Not enough here to cover the network fee.",
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                    else -> fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
-                                                }
-                                            }
-                                        } catch (e: Exception) {
-                                            // Said out loud, not swallowed. A silent catch here is
-                                            // indistinguishable from a button that does nothing,
-                                            // which is exactly how this was reported - and it left
-                                            // no trace in the log to diagnose it from either.
-                                            Log.w("SendFlow", "Max estimate failed for ${fromAddress.redactedForLog()}", e)
-                                            Toast.makeText(
-                                                context,
-                                                UserFacingError.message(e, "Could not work out the maximum."),
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                        } finally {
-                                            isEstimatingMax = false
-                                        }
-                                    }
-                                },
-                                enabled = !isSending
-                            ) {
-                                Text(stringResource(R.string.max), color = KaspaTeal)
-                            }
-                        }
-                    }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LocalAppColors.current.textPrimary,
-                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                    focusedBorderColor = KaspaTeal,
-                    unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                    focusedLabelColor = KaspaTeal,
-                    unfocusedLabelColor = LocalAppColors.current.textSecondary
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                "Available: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSending) { showCoinControl = true },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(stringResource(R.string.coin_control), color = LocalAppColors.current.textPrimary)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        manualUtxos?.let { "${it.size} ${if (it.size == 1) stringResource(R.string.utxo) else stringResource(R.string.utxos)}" }
-                            ?: stringResource(R.string.automatic),
-                        color = LocalAppColors.current.textSecondary
-                    )
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
-                }
-            }
-
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                ColdFeeTier.entries.forEachIndexed { index, tier ->
-                    SegmentedButton(
-                        selected = feeTier == tier,
-                        onClick = { feeTier = tier; customExtraFeeSompi = null },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = ColdFeeTier.entries.size),
-                        colors = SegmentedButtonDefaults.colors(
-                            activeContainerColor = LocalAppColors.current.surfaceVariant,
-                            activeContentColor = LocalAppColors.current.textPrimary,
-                            inactiveContainerColor = LocalAppColors.current.surface,
-                            inactiveContentColor = LocalAppColors.current.textSecondary
-                        ),
-                        enabled = !isSending
-                    ) {
-                        Text(tier.label, fontSize = 12.sp)
-                    }
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().clickable(enabled = !isSending) {
-                    feeEditorInput = "%.8f".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0)
-                    showFeeEditor = true
-                },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(stringResource(R.string.network_fee), color = LocalAppColors.current.textPrimary)
-                Text(
-                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, effectiveFeeSompi / 100_000_000.0),
-                    color = KaspaTeal,
-                    fontWeight = FontWeight.Bold,
-                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
-                )
-            }
-            Text(
-                stringResource(R.string.if_the_network_is_busy_a),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
+            KaspaAmountEntry(
+                fiatAmountState = fiatAmountState,
+                priceInCurrency = fiatPriceInCurrency,
+                currencyCode = fiatCurrencyCode,
+                isEstimatingMax = isEstimatingMax,
+                maxEnabled = hasValidRecipient && !isSending,
+                onMax = setMaxAmount,
+                modifier = Modifier.padding(top = 8.dp),
             )
 
-            if (isSending) {
-                InscribeProgressRow(stringResource(R.string.sending_2))
+            SendInfoPill {
+                Text(KaspaUnit.label("Available: ${ChatRepository.formatKas(balanceSompi)} KAS"))
             }
 
-            Button(
-                onClick = {
-                    amountSompi?.let {
-                        if (spendingIndex != null) {
-                            viewModel.withdrawFromSpendingAddress(spendingIndex, effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
-                        } else {
-                            viewModel.onSendClicked(effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
-                        }
-                    }
+            SendFeeControls(
+                feeTier = feeTier,
+                onFeeTierChange = {
+                    feeTier = it
+                    customExtraFeeSompi = null
+                    isEditingFee = false
                 },
-                enabled = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                modifier = Modifier.fillMaxWidth().height(48.dp)
-            ) {
-                Text(
-                    stringResource(R.string.send),
-                    color = if (!isSending && hasValidRecipient && (amountSompi ?: 0) > 0) Color.Black else LocalAppColors.current.textSecondary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                isEditingFee = isEditingFee,
+                customFeeText = customFeeText,
+                onCustomFeeTextChange = { customFeeText = it },
+                isEstimatingFee = false,
+                feeText = "${ChatRepository.formatKas(effectiveFeeSompi)} ${KaspaUnit.symbol}",
+                onStartEditing = {
+                    customFeeText = ChatRepository.formatKas(effectiveFeeSompi)
+                    isEditingFee = true
+                },
+                onCommit = {
+                    // The typed total fee; below the computed one it clamps up to it rather than
+                    // being refused (iOS commitCustomFee).
+                    val kas = customFeeText.replace(',', '.').trim().toDoubleOrNull()
+                    if (kas != null && kas >= 0) {
+                        val totalSompi = Math.round(kas * 100_000_000.0)
+                        customExtraFeeSompi = (totalSompi - defaultFeeSompi).coerceAtLeast(0L)
+                    }
+                    isEditingFee = false
+                },
+                coinControlSummary = coinControlSummary(manualUtxos),
+                onCoinControl = { if (!isSending) showCoinControl = true },
+            )
+
+            HoldToSendButton(
+                title = stringResource(if (isCompoundMode) R.string.hold_to_consolidate else R.string.hold_to_send),
+                isBusy = isSending,
+                isEnabled = canSend,
+                onSend = send,
+            )
         }
-    }
-
-    if (showFeeEditor) {
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { showFeeEditor = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.adjust_network_fee), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.if_the_network_is_busy_a),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = feeEditorInput,
-                        onValueChange = { feeEditorInput = it },
-                        label = { Text(KaspaUnit.label(stringResource(R.string.fee_kas))) },
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                            focusedLabelColor = KaspaTeal,
-                            unfocusedLabelColor = LocalAppColors.current.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Default: %.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, defaultFeeSompi / 100_000_000.0),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val kas = feeEditorInput.toDoubleOrNull()
-                    customExtraFeeSompi = if (kas != null && kas > 0) {
-                        val desiredFeeSompi = Math.round(kas * 100_000_000.0)
-                        (desiredFeeSompi - defaultFeeSompi).coerceAtLeast(0L)
-                    } else {
-                        null
-                    }
-                    showFeeEditor = false
-                }) {
-                    Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { customExtraFeeSompi = null; showFeeEditor = false }) {
-                        Text(stringResource(R.string.use_default), color = LocalAppColors.current.textSecondary)
-                    }
-                    TextButton(onClick = { showFeeEditor = false }) {
-                        Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                    }
-                }
-            }
-        )
     }
 }
 

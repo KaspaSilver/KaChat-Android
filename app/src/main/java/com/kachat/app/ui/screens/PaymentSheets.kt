@@ -1,38 +1,24 @@
 package com.kachat.app.ui.screens
 
 import android.widget.Toast
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -41,37 +27,27 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,8 +60,6 @@ import com.kachat.app.repository.ChatRepository
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaUnit
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
@@ -139,18 +113,15 @@ fun SendKasSheet(
         confirmValueChange = { it != SheetValue.Hidden || !currentlySending },
     )
     val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = onAmountKasChange)
-    val amountFocus = remember { FocusRequester() }
     var showDustConfirm by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
-
-    // The amount is the first thing to type.
-    LaunchedEffect(Unit) {
-        delay(300)
-        runCatching { amountFocus.requestFocus() }
-    }
+    val focusManager = LocalFocusManager.current
 
     val submit = {
         if (amountSompi > 0 && !isSending) {
+            // The amount field (KaspaAmountEntry) keeps its own focus: drop the keyboard for the
+            // dust question or the send (iOS 4d0324f).
+            focusManager.clearFocus()
             if (amountSompi < DUST_LIMIT_SOMPI) showDustConfirm = true else onSend()
         }
     }
@@ -185,109 +156,26 @@ fun SendKasSheet(
                 )
             }
 
-            // The big centred amount with its unit, and under it the KAS/fiat switch (showing the
-            // converted value) and Max.
-            val display = fiatAmountState.displayText
-            val fontSize = when {
-                display.length <= 7 -> 52.sp
-                display.length <= 10 -> 40.sp
-                else -> 30.sp
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                            runCatching { amountFocus.requestFocus() }
-                        },
-                ) {
-                    val amountLabel = KaspaUnit.label(stringResource(R.string.amount_kas))
-                    BasicTextField(
-                        value = display,
-                        onValueChange = { raw ->
-                            // Digits and one decimal separator, as iOS's sanitizedAmount keeps.
-                            val normalized = raw.replace(',', '.')
-                            val filtered = buildString {
-                                var seenDot = false
-                                for (c in normalized) {
-                                    if (c.isDigit()) append(c)
-                                    else if (c == '.' && !seenDot) { append(c); seenDot = true }
-                                }
-                            }
-                            fiatAmountState.onDisplayTextChange(filtered, priceInCurrency)
-                        },
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            color = colors.textPrimary,
-                            fontSize = fontSize,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                        ),
-                        cursorBrush = SolidColor(KaspaTeal),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier
-                            .widthIn(min = 40.dp, max = 260.dp)
-                            .focusRequester(amountFocus)
-                            .clearAndSetSemantics { contentDescription = amountLabel },
-                        decorationBox = { inner ->
-                            Box(contentAlignment = Alignment.Center) {
-                                if (display.isEmpty()) {
-                                    Text("0", color = colors.textTertiary, fontSize = fontSize, fontWeight = FontWeight.Bold)
-                                }
-                                inner()
-                            }
-                        },
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (fiatAmountState.isFiatMode) currencyCode.uppercase() else KaspaUnit.symbol,
-                        color = colors.textSecondary,
-                        fontSize = fontSize * 0.55f,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (priceInCurrency != null) {
-                        val switchLabel = stringResource(R.string.payment_switch_currency)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(colors.surface)
-                                .clickable { fiatAmountState.toggleMode(priceInCurrency) }
-                                .clearAndSetSemantics {
-                                    contentDescription = switchLabel
-                                    role = Role.Button
-                                }
-                                .padding(horizontal = 12.dp, vertical = 7.dp),
-                        ) {
-                            Icon(Icons.Default.SwapVert, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(14.dp))
-                            Text(
-                                fiatAmountState.conversionLabelText(priceInCurrency, currencyCode)
-                                    ?: if (fiatAmountState.isFiatMode) KaspaUnit.symbol else currencyCode.uppercase(),
-                                color = colors.textPrimary,
-                                fontSize = 12.sp,
-                            )
+            // The big centred amount, the KAS/fiat switch and Max - the shared Send Kaspa piece
+            // (iOS 4d0324f).
+            KaspaAmountEntry(
+                fiatAmountState = fiatAmountState,
+                priceInCurrency = priceInCurrency,
+                currencyCode = currencyCode,
+                // Digits and one decimal separator, as iOS's sanitizedAmount keeps.
+                sanitize = { raw ->
+                    val normalized = raw.replace(',', '.')
+                    buildString {
+                        var seenDot = false
+                        for (c in normalized) {
+                            if (c.isDigit()) append(c)
+                            else if (c == '.' && !seenDot) { append(c); seenDot = true }
                         }
                     }
-                    Text(
-                        stringResource(R.string.max),
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(colors.surface)
-                            .clickable { fiatAmountState.setMaxKas(maxKas(), priceInCurrency) }
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
-                    )
-                }
-            }
+                },
+                focusOnAppear = true,
+                onMax = { fiatAmountState.setMaxKas(maxKas(), priceInCurrency) },
+            )
 
             // The memo, encrypted to the recipient with the payment and shown in its bubble.
             Row(
@@ -399,68 +287,6 @@ fun SendKasSheet(
                 }
             },
         )
-    }
-}
-
-/**
- * A send button that fires only after a press is held (0.8 s): the fill sweeps across while
- * holding and resets if released early. Accessibility services get a plain click action instead.
- * Mirrors iOS's `HoldToSendButton` (8d208b2).
- */
-@Composable
-fun HoldToSendButton(
-    title: String,
-    isBusy: Boolean,
-    isEnabled: Boolean,
-    onSend: () -> Unit,
-) {
-    val progress = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
-    val currentOnSend by rememberUpdatedState(onSend)
-    val shape = RoundedCornerShape(28.dp)
-    BoxWithConstraints(
-        contentAlignment = Alignment.CenterStart,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clip(shape)
-            .background(KaspaTeal.copy(alpha = if (isEnabled || isBusy) 1f else 0.4f))
-            .pointerInput(isEnabled, isBusy) {
-                detectTapGestures(onPress = {
-                    if (!isEnabled || isBusy) return@detectTapGestures
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    val hold = scope.launch {
-                        progress.animateTo(1f, tween(durationMillis = 800, easing = LinearEasing))
-                        currentOnSend()
-                    }
-                    tryAwaitRelease()
-                    if (hold.isActive) hold.cancel()
-                    scope.launch { progress.animateTo(0f, tween(durationMillis = 200)) }
-                })
-            }
-            .clearAndSetSemantics {
-                contentDescription = title
-                role = Role.Button
-                onClick(label = title) {
-                    if (isEnabled && !isBusy) currentOnSend()
-                    true
-                }
-            },
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(maxWidth * progress.value)
-                .background(Color.White.copy(alpha = 0.28f)),
-        )
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-            if (isBusy) {
-                CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
-            } else {
-                Text(title, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            }
-        }
     }
 }
 
