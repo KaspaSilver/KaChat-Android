@@ -1137,89 +1137,91 @@ fun ChatThreadScreen(
                                 // Not while the chess or media step is up: they are steps of
                                 // ONE sheet, and rendering both would stack two sheets on screen.
                                 if (showComposerMenu && !showChessTimeControlMenu && composerMediaStep == null) {
-                                    // A sheet, not a popup: each option gets a line saying what
-                                    // it does. Matches iOS's composerPlusSheet. Five to seven rows;
-                                    // ActionSheetContainer opens expanded and wraps them, scrolling
-                                    // from the top, so the "Send" title always shows (iOS 1969c1a
-                                    // had to size its detent to the rows for the same result).
+                                    // A sheet, not a popup. Matches iOS's composerPlusSheet: five
+                                    // to seven square tiles, three to a row, each one's line its
+                                    // TalkBack hint (iOS d645d78). ActionSheetContainer opens
+                                    // expanded and wraps the grid, so the "Send" title always shows
+                                    // (iOS sizes its detent with ActionSheetTileMetrics for that).
                                     ActionSheetContainer(
                                         title = stringResource(R.string.send),
                                         subtitle = null,
                                         onDismiss = { showComposerMenu = false },
                                     ) {
-                                        // Pay first: the Kaspa logo left the input bubble, so this
-                                        // is the way into a payment (iOS 8b13460) - it opens the
-                                        // Send KAS sheet (8d208b2).
-                                        ActionSheetRow(
-                                            icon = painterResource(R.drawable.ic_kaspa_logo),
-                                            title = stringResource(R.string.pay_in_kaspa),
-                                            subtitle = stringResource(R.string.composer_pay_subtitle),
-                                        ) {
-                                            showComposerMenu = false
-                                            openPaymentSheet()
-                                        }
-                                        // Camera, Photo and Voice Message each ask on chain or via
-                                        // Nextcloud when a server is connected (that choice replaced
-                                        // the "Send Media via Nextcloud" setting), and go straight
-                                        // on chain when none is.
-                                        ActionSheetRow(
-                                            icon = Icons.Default.CameraAlt,
-                                            title = stringResource(R.string.camera),
-                                            subtitle = stringResource(R.string.composer_camera_subtitle),
-                                        ) { chooseMedia(ComposerMediaKind.CAMERA) }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Image,
-                                            title = stringResource(R.string.photo),
-                                            subtitle = stringResource(R.string.composer_photo_subtitle),
-                                        ) { chooseMedia(ComposerMediaKind.PHOTO) }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Mic,
-                                            title = stringResource(R.string.composer_voice_message),
-                                            subtitle = stringResource(R.string.composer_voice_subtitle),
-                                        ) { chooseMedia(ComposerMediaKind.VOICE) }
-                                        if (nextcloudAccount != null) {
+                                        ActionSheetTiles {
+                                            // Pay first: the Kaspa logo left the input bubble, so this
+                                            // is the way into a payment (iOS 8b13460) - it opens the
+                                            // Send KAS sheet (8d208b2).
                                             ActionSheetRow(
-                                                icon = Icons.Default.Description,
-                                                title = stringResource(R.string.composer_file),
-                                                subtitle = stringResource(R.string.composer_file_subtitle),
+                                                icon = painterResource(R.drawable.ic_kaspa_logo),
+                                                title = stringResource(R.string.pay_in_kaspa),
+                                                subtitle = stringResource(R.string.composer_pay_subtitle),
                                             ) {
                                                 showComposerMenu = false
-                                                showNextcloudPicker = true
+                                                openPaymentSheet()
                                             }
-                                        }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Apps,
-                                            title = stringResource(R.string.play_chess),
-                                            subtitle = "Invite this contact to a game on chain.",
-                                        ) {
-                                            // Stays in the SAME sheet - dismissing into a popup
-                                            // to answer one follow-up question loses the thread
-                                            // of the action.
-                                            showChessTimeControlMenu = true
-                                        }
-                                        // Always offered, exactly as iOS does - the only thing
-                                        // that rules it out is a chat with yourself, where there
-                                        // is nobody on the other side to accept it. It used to
-                                        // disappear once a handshake was outstanding or complete,
-                                        // which left no way to send another when the first never
-                                        // arrived; a handshake is an ordinary on-chain send and
-                                        // re-sending one is a normal thing to want.
-                                        // Only where first contact still needs one: an indexer
-                                        // without inbox lookups (iOS f7ca401).
-                                        if (contactId != myAddress && !inboxSupported) {
-                                            val handshakeOutstanding =
-                                                ChatViewModel.hasUnansweredOutgoingHandshake(messages)
+                                            // Camera, Photo and Voice Message each ask on chain or via
+                                            // Nextcloud when a server is connected (that choice replaced
+                                            // the "Send Media via Nextcloud" setting), and go straight
+                                            // on chain when none is.
                                             ActionSheetRow(
-                                                icon = Icons.Default.BackHand,
-                                                title = if (handshakeOutstanding) {
-                                                    "Handshake sent - send again"
-                                                } else {
-                                                    stringResource(R.string.send_handshake)
-                                                },
-                                                subtitle = "Asks to open an encrypted conversation.",
+                                                icon = Icons.Default.CameraAlt,
+                                                title = stringResource(R.string.camera),
+                                                subtitle = stringResource(R.string.composer_camera_subtitle),
+                                            ) { chooseMedia(ComposerMediaKind.CAMERA) }
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Image,
+                                                title = stringResource(R.string.photo),
+                                                subtitle = stringResource(R.string.composer_photo_subtitle),
+                                            ) { chooseMedia(ComposerMediaKind.PHOTO) }
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Mic,
+                                                title = stringResource(R.string.composer_voice_message),
+                                                subtitle = stringResource(R.string.composer_voice_subtitle),
+                                            ) { chooseMedia(ComposerMediaKind.VOICE) }
+                                            if (nextcloudAccount != null) {
+                                                ActionSheetRow(
+                                                    icon = Icons.Default.Description,
+                                                    title = stringResource(R.string.composer_file),
+                                                    subtitle = stringResource(R.string.composer_file_subtitle),
+                                                ) {
+                                                    showComposerMenu = false
+                                                    showNextcloudPicker = true
+                                                }
+                                            }
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Apps,
+                                                title = stringResource(R.string.play_chess),
+                                                subtitle = "Invite this contact to a game on chain.",
                                             ) {
-                                                showComposerMenu = false
-                                                chatViewModel.sendHandshake(contactId)
+                                                // Stays in the SAME sheet - dismissing into a popup
+                                                // to answer one follow-up question loses the thread
+                                                // of the action.
+                                                showChessTimeControlMenu = true
+                                            }
+                                            // Always offered, exactly as iOS does - the only thing
+                                            // that rules it out is a chat with yourself, where there
+                                            // is nobody on the other side to accept it. It used to
+                                            // disappear once a handshake was outstanding or complete,
+                                            // which left no way to send another when the first never
+                                            // arrived; a handshake is an ordinary on-chain send and
+                                            // re-sending one is a normal thing to want.
+                                            // Only where first contact still needs one: an indexer
+                                            // without inbox lookups (iOS f7ca401).
+                                            if (contactId != myAddress && !inboxSupported) {
+                                                val handshakeOutstanding =
+                                                    ChatViewModel.hasUnansweredOutgoingHandshake(messages)
+                                                ActionSheetRow(
+                                                    icon = Icons.Default.BackHand,
+                                                    title = if (handshakeOutstanding) {
+                                                        "Handshake sent - send again"
+                                                    } else {
+                                                        stringResource(R.string.send_handshake)
+                                                    },
+                                                    subtitle = "Asks to open an encrypted conversation.",
+                                                ) {
+                                                    showComposerMenu = false
+                                                    chatViewModel.sendHandshake(contactId)
+                                                }
                                             }
                                         }
                                     }

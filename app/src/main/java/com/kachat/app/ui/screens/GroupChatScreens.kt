@@ -798,38 +798,41 @@ fun GroupChatThreadScreen(
                                     // A sheet, not a popup - matches the 1:1 composer and iOS,
                                     // minus Pay in Kaspa and chess (a group has no single
                                     // recipient for either).
+                                    // Square tiles, three to a row, as in 1:1 (iOS d645d78).
                                     ActionSheetContainer(
                                         title = stringResource(R.string.send),
                                         subtitle = null,
                                         onDismiss = { showComposerMenu = false },
                                     ) {
-                                        // Camera, Photo and Voice Message each ask on chain or via
-                                        // Nextcloud when a server is connected (that choice
-                                        // replaced the "Send Media via Nextcloud" setting), and go
-                                        // straight on chain when none is.
-                                        ActionSheetRow(
-                                            icon = Icons.Default.CameraAlt,
-                                            title = stringResource(R.string.camera),
-                                            subtitle = stringResource(R.string.group_composer_camera_subtitle),
-                                        ) { chooseMedia(ComposerMediaKind.CAMERA) }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Image,
-                                            title = stringResource(R.string.photo),
-                                            subtitle = stringResource(R.string.group_composer_photo_subtitle),
-                                        ) { chooseMedia(ComposerMediaKind.PHOTO) }
-                                        ActionSheetRow(
-                                            icon = Icons.Default.Mic,
-                                            title = stringResource(R.string.composer_voice_message),
-                                            subtitle = stringResource(R.string.group_composer_voice_subtitle),
-                                        ) { chooseMedia(ComposerMediaKind.VOICE) }
-                                        if (nextcloudAccount != null) {
+                                        ActionSheetTiles {
+                                            // Camera, Photo and Voice Message each ask on chain or via
+                                            // Nextcloud when a server is connected (that choice
+                                            // replaced the "Send Media via Nextcloud" setting), and go
+                                            // straight on chain when none is.
                                             ActionSheetRow(
-                                                icon = Icons.Default.Description,
-                                                title = stringResource(R.string.composer_file),
-                                                subtitle = stringResource(R.string.composer_file_subtitle),
-                                            ) {
-                                                showComposerMenu = false
-                                                showNextcloudPicker = true
+                                                icon = Icons.Default.CameraAlt,
+                                                title = stringResource(R.string.camera),
+                                                subtitle = stringResource(R.string.group_composer_camera_subtitle),
+                                            ) { chooseMedia(ComposerMediaKind.CAMERA) }
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Image,
+                                                title = stringResource(R.string.photo),
+                                                subtitle = stringResource(R.string.group_composer_photo_subtitle),
+                                            ) { chooseMedia(ComposerMediaKind.PHOTO) }
+                                            ActionSheetRow(
+                                                icon = Icons.Default.Mic,
+                                                title = stringResource(R.string.composer_voice_message),
+                                                subtitle = stringResource(R.string.group_composer_voice_subtitle),
+                                            ) { chooseMedia(ComposerMediaKind.VOICE) }
+                                            if (nextcloudAccount != null) {
+                                                ActionSheetRow(
+                                                    icon = Icons.Default.Description,
+                                                    title = stringResource(R.string.composer_file),
+                                                    subtitle = stringResource(R.string.composer_file_subtitle),
+                                                ) {
+                                                    showComposerMenu = false
+                                                    showNextcloudPicker = true
+                                                }
                                             }
                                         }
                                     }
