@@ -1,5 +1,12 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.composed
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -100,10 +107,11 @@ import com.kachat.app.util.KaspaUnit
  */
 /**
  * A message's long-press menu, as a half sheet: what the message is at the top, the message
- * itself under it when there is text to show, then a row per action with a line saying what it
- * does. Every bubble in every kind of chat opens this - text, payment, call, chess, photo, file,
- * voice note and link card alike - so a Reply reads the same wherever it is offered. The
- * system-style popup of bare verbs was the one hold-out (iOS 1bc6ba6).
+ * itself under it when there is text to show, then a square tile per action, three to a row
+ * ([ActionSheetTiles] - iOS cdac6d0), each saying what it does to TalkBack. Every bubble in every
+ * kind of chat opens this - text, payment, call, chess, photo, file, voice note and link card
+ * alike - so a Reply reads the same wherever it is offered. The system-style popup of bare verbs
+ * was the one hold-out (iOS 1bc6ba6).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,14 +119,16 @@ fun MessageActionsSheet(
     title: String,
     preview: String?,
     onDismiss: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
+    /** The [ActionSheetRow]s - drawn as tiles. */
+    content: @Composable () -> Unit,
 ) {
     ActionSheetContainer(
         title = title,
         subtitle = preview?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("{") },
         onDismiss = onDismiss,
-        content = content,
-    )
+    ) {
+        ActionSheetTiles(content)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,7 +196,10 @@ fun ActionSheetContainer(
     }
 }
 
-/** One option in an [ActionSheetContainer]. Same shape as iOS's `ActionSheetRow`. */
+/**
+ * One option in an [ActionSheetContainer]. Same shape as iOS's `ActionSheetRow`: a row with its
+ * line saying what it does - or, inside [ActionSheetTiles], a square tile (iOS cdac6d0).
+ */
 @Composable
 fun ActionSheetRow(
     icon: ImageVector,
@@ -198,11 +211,13 @@ fun ActionSheetRow(
     onClick: () -> Unit,
 ) {
     ActionSheetRowFrame(
-        icon = { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp)) },
+        icon = { size -> Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size)) },
         title = title,
         subtitle = subtitle,
         onClick = onClick,
         enabled = enabled,
+        // iOS: the tile's title takes the tint, unless it is the accent.
+        tileTitleColor = if (tint == KaspaTeal) null else tint,
     )
 }
 
@@ -219,7 +234,10 @@ fun ActionSheetRow(
     onClick: () -> Unit,
 ) {
     ActionSheetRowFrame(
-        icon = { Icon(icon, contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(22.dp)) },
+        // A touch larger as a tile, like iOS's custom icon (26 pt against the glyphs' 24).
+        icon = { size ->
+            Icon(icon, contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(if (size > 22.dp) 26.dp else size))
+        },
         title = title,
         subtitle = subtitle,
         onClick = onClick,
@@ -228,13 +246,44 @@ fun ActionSheetRow(
 
 @Composable
 private fun ActionSheetRowFrame(
-    icon: @Composable () -> Unit,
+    icon: @Composable (Dp) -> Unit,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    /** The tile form's title colour; null is the primary text colour. */
+    tileTitleColor: Color? = null,
 ) {
     val colors = LocalAppColors.current
+    if (LocalActionSheetTiles.current) {
+        // The square form, for long-press menus: the icon and a short title, so a glance says
+        // what each one does. The explanatory line becomes the TalkBack hint (iOS cdac6d0).
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(if (enabled) 1f else 0.45f)
+                .sendKaspaGlass(18.dp)
+                .clickable(enabled = enabled) { onClick() }
+                .semantics { contentDescription = "$title. $subtitle" }
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(modifier = Modifier.height(30.dp), contentAlignment = Alignment.Center) {
+                icon(24.dp)
+            }
+            Text(
+                title,
+                color = tileTitleColor ?: colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        return
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -245,13 +294,53 @@ private fun ActionSheetRowFrame(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon()
+        icon(22.dp)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Text(subtitle, color = colors.textSecondary, fontSize = 12.sp)
         }
     }
+}
+
+/** Set by [ActionSheetTiles]: its [ActionSheetRow]s draw as square tiles instead of rows. */
+private val LocalActionSheetTiles = staticCompositionLocalOf { false }
+
+/**
+ * Lays the [ActionSheetRow]s inside it out as square tiles, three to a row - the look of every
+ * long-press menu in the app (messages, chat rows, group and room circles, room rows), so each
+ * option reads at a glance instead of as a paragraph (iOS cdac6d0 `ActionSheetTiles`). Other
+ * half sheets (confirmations, account menus) keep the row form.
+ *
+ * Each child is one tile: the columns share the width evenly, and a short last row keeps the
+ * column width rather than stretching. The sheet needs no height of its own - an
+ * [ActionSheetContainer] wraps whatever the grid measures, which is what iOS's
+ * `ActionSheetTileMetrics.sheetHeight` computes by hand for its detent.
+ */
+@Composable
+fun ActionSheetTiles(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalActionSheetTiles provides true) {
+        Layout(content = content, modifier = Modifier.fillMaxWidth()) { measurables, constraints ->
+            val spacing = ActionSheetTileMetrics.spacing.roundToPx()
+            val tileHeight = ActionSheetTileMetrics.tileHeight.roundToPx()
+            val width = constraints.maxWidth
+            val tileWidth = ((width - spacing * 2) / 3).coerceAtLeast(0)
+            val placeables = measurables.map { it.measure(Constraints.fixed(tileWidth, tileHeight)) }
+            val rows = (placeables.size + 2) / 3
+            val height = if (rows == 0) 0 else rows * tileHeight + (rows - 1) * spacing
+            layout(width, height) {
+                placeables.forEachIndexed { index, placeable ->
+                    placeable.place((index % 3) * (tileWidth + spacing), (index / 3) * (tileHeight + spacing))
+                }
+            }
+        }
+    }
+}
+
+/** Sizes for [ActionSheetTiles] (iOS cdac6d0 `ActionSheetTileMetrics`). */
+object ActionSheetTileMetrics {
+    val tileHeight = 96.dp
+    val spacing = 12.dp
 }
 
 /**

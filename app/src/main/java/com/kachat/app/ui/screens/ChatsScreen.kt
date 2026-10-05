@@ -659,8 +659,9 @@ fun ChatsScreen(
                             }
                             if (menuContactId == convo.contact.id) {
                                 // A sheet, not a dropdown: each option carries a line saying
-                                // what it does, and Silence needs one - it is not obvious
-                                // that it overrides the app-wide notification setting.
+                                // what it does (the TalkBack hint, now the options are square
+                                // tiles - iOS cdac6d0), and Silence needs one - it is not
+                                // obvious that it overrides the app-wide notification setting.
                                 val isSilent = com.kachat.app.models.ContactNotificationMode
                                     .fromName(convo.contact.notificationOverride) ==
                                     com.kachat.app.models.ContactNotificationMode.OFF
@@ -669,50 +670,52 @@ fun ChatsScreen(
                                     subtitle = null,
                                     onDismiss = { menuContactId = null },
                                 ) {
-                                    if (convo.unreadCount > 0) {
-                                        ActionSheetRow(
-                                            icon = Icons.Default.MarkEmailRead,
-                                            title = stringResource(R.string.mark_as_read),
-                                            subtitle = "Clears the unread badge on this chat.",
-                                        ) {
-                                            menuContactId = null
-                                            chatViewModel.markAsRead(convo.contact.id)
-                                        }
-                                    } else {
-                                        ActionSheetRow(
-                                            icon = Icons.Default.MarkEmailUnread,
-                                            title = stringResource(R.string.mark_as_unread),
-                                            subtitle = "Puts the unread badge back so you come across it again.",
-                                        ) {
-                                            menuContactId = null
-                                            chatViewModel.markAsUnread(convo.contact.id)
-                                        }
-                                    }
-                                    ActionSheetRow(
-                                        icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                                        title = if (isSilent) "Unsilence" else "Silence",
-                                        subtitle = if (isSilent) {
-                                            "Notifications from this chat resume."
+                                    ActionSheetTiles {
+                                        if (convo.unreadCount > 0) {
+                                            ActionSheetRow(
+                                                icon = Icons.Default.MarkEmailRead,
+                                                title = stringResource(R.string.mark_as_read),
+                                                subtitle = "Clears the unread badge on this chat.",
+                                            ) {
+                                                menuContactId = null
+                                                chatViewModel.markAsRead(convo.contact.id)
+                                            }
                                         } else {
-                                            "No notification from this chat, whatever your app-wide setting says."
-                                        },
-                                    ) {
-                                        menuContactId = null
-                                        chatViewModel.updateContactNotificationOverride(
-                                            convo.contact.id,
-                                            if (isSilent) null else com.kachat.app.models.ContactNotificationMode.OFF
-                                        )
-                                    }
-                                    // Your chat with yourself cannot be deleted - it is always
-                                    // there, first in the list (iOS ef4f183).
-                                    if (!convo.contact.id.equals(myAddress, ignoreCase = true)) ActionSheetRow(
-                                        icon = Icons.Default.Delete,
-                                        title = stringResource(R.string.delete),
-                                        subtitle = "Removes this chat and its messages from this device.",
-                                        tint = LocalAppColors.current.danger,
-                                    ) {
-                                        menuContactId = null
-                                        contactToDelete = convo.contact.id
+                                            ActionSheetRow(
+                                                icon = Icons.Default.MarkEmailUnread,
+                                                title = stringResource(R.string.mark_as_unread),
+                                                subtitle = "Puts the unread badge back so you come across it again.",
+                                            ) {
+                                                menuContactId = null
+                                                chatViewModel.markAsUnread(convo.contact.id)
+                                            }
+                                        }
+                                        ActionSheetRow(
+                                            icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                                            title = if (isSilent) "Unsilence" else "Silence",
+                                            subtitle = if (isSilent) {
+                                                "Notifications from this chat resume."
+                                            } else {
+                                                "No notification from this chat, whatever your app-wide setting says."
+                                            },
+                                        ) {
+                                            menuContactId = null
+                                            chatViewModel.updateContactNotificationOverride(
+                                                convo.contact.id,
+                                                if (isSilent) null else com.kachat.app.models.ContactNotificationMode.OFF
+                                            )
+                                        }
+                                        // Your chat with yourself cannot be deleted - it is always
+                                        // there, first in the list (iOS ef4f183).
+                                        if (!convo.contact.id.equals(myAddress, ignoreCase = true)) ActionSheetRow(
+                                            icon = Icons.Default.Delete,
+                                            title = stringResource(R.string.delete),
+                                            subtitle = "Removes this chat and its messages from this device.",
+                                            tint = LocalAppColors.current.danger,
+                                        ) {
+                                            menuContactId = null
+                                            contactToDelete = convo.contact.id
+                                        }
                                     }
                                 }
                             }
@@ -1111,7 +1114,8 @@ private fun ChatCircleAvatar(item: ChatCircle) {
  * A group or room circle's long-press half sheet - the chat row's options for that kind (iOS
  * f90a70a `circleActionSheet`): read state, pin to the front, notifications, (rooms) the room
  * link, and delete. A group's delete and a custom room's are confirmed first ([onDeleteGroup] /
- * [onDeleteRoom]); a default room is only switched off, as in Public Chats settings.
+ * [onDeleteRoom]); a default room is only switched off, as in Public Chats settings. As square
+ * tiles, like every long-press menu (iOS cdac6d0).
  */
 @Composable
 private fun ChatCircleActionSheet(
@@ -1149,46 +1153,48 @@ private fun ChatCircleActionSheet(
         val groupId = convo.group.groupId
         val isSilent = groupId in silentGroups
         ActionSheetContainer(title = convo.group.name, subtitle = null, onDismiss = onDismiss) {
-            if (convo.unreadCount > 0) {
-                ActionSheetRow(
-                    icon = Icons.Default.MarkEmailRead,
-                    title = stringResource(R.string.mark_as_read),
-                    subtitle = "Clears the unread badge on this group.",
-                ) {
-                    onDismiss()
-                    chatViewModel.markGroupsAsRead(listOf(groupId))
-                }
-            } else {
-                ActionSheetRow(
-                    icon = Icons.Default.MarkEmailUnread,
-                    title = stringResource(R.string.mark_as_unread),
-                    subtitle = "Puts the unread badge back so you come across it again.",
-                ) {
-                    onDismiss()
-                    chatViewModel.markGroupsAsUnread(listOf(groupId))
-                }
-            }
-            PinRow()
-            ActionSheetRow(
-                icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                title = if (isSilent) "Unsilence" else "Silence",
-                subtitle = if (isSilent) {
-                    "Notifications from this group resume, including mentions."
+            ActionSheetTiles {
+                if (convo.unreadCount > 0) {
+                    ActionSheetRow(
+                        icon = Icons.Default.MarkEmailRead,
+                        title = stringResource(R.string.mark_as_read),
+                        subtitle = "Clears the unread badge on this group.",
+                    ) {
+                        onDismiss()
+                        chatViewModel.markGroupsAsRead(listOf(groupId))
+                    }
                 } else {
-                    "No notification from this group, mentions included."
-                },
-            ) {
-                onDismiss()
-                chatViewModel.setGroupSilent(groupId, !isSilent)
-            }
-            ActionSheetRow(
-                icon = Icons.Default.Delete,
-                title = stringResource(R.string.delete),
-                subtitle = "Removes this group and its messages from this device.",
-                tint = LocalAppColors.current.danger,
-            ) {
-                onDismiss()
-                onDeleteGroup(groupId)
+                    ActionSheetRow(
+                        icon = Icons.Default.MarkEmailUnread,
+                        title = stringResource(R.string.mark_as_unread),
+                        subtitle = "Puts the unread badge back so you come across it again.",
+                    ) {
+                        onDismiss()
+                        chatViewModel.markGroupsAsUnread(listOf(groupId))
+                    }
+                }
+                PinRow()
+                ActionSheetRow(
+                    icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                    title = if (isSilent) "Unsilence" else "Silence",
+                    subtitle = if (isSilent) {
+                        "Notifications from this group resume, including mentions."
+                    } else {
+                        "No notification from this group, mentions included."
+                    },
+                ) {
+                    onDismiss()
+                    chatViewModel.setGroupSilent(groupId, !isSilent)
+                }
+                ActionSheetRow(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.delete),
+                    subtitle = "Removes this group and its messages from this device.",
+                    tint = LocalAppColors.current.danger,
+                ) {
+                    onDismiss()
+                    onDeleteGroup(groupId)
+                }
             }
         }
     } else if (id.startsWith("r:")) {
@@ -1197,73 +1203,75 @@ private fun ChatCircleActionSheet(
         val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
         val notifyOn = channel?.notifyEnabled == true
         ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = onDismiss) {
-            if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
-                ActionSheetRow(
-                    icon = Icons.Default.MarkEmailRead,
-                    title = stringResource(R.string.mark_as_read),
-                    subtitle = "Clears the unread badge on this room.",
-                ) {
-                    onDismiss()
-                    broadcastViewModel.markRoomRead(name)
-                }
-            } else {
-                ActionSheetRow(
-                    icon = Icons.Default.MarkEmailUnread,
-                    title = stringResource(R.string.mark_as_unread),
-                    subtitle = "Puts the unread badge back so you come across it again.",
-                ) {
-                    onDismiss()
-                    broadcastViewModel.markRoomUnread(name)
-                }
-            }
-            PinRow()
-            ActionSheetRow(
-                icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
-                title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
-                subtitle = when {
-                    notifyOn -> "No notification for new messages in this room."
-                    isCurated -> "Notifies you of new messages, even when the app is closed."
-                    else -> "Notifies you of new messages while the app is open."
-                },
-            ) {
-                onDismiss()
-                broadcastViewModel.setNotifyEnabledEnsuringJoined(name, !notifyOn)
-                toast(
-                    when {
-                        notifyOn -> "Notifications are off for this public chat"
-                        isCurated -> "You'll get notifications for new messages in this public chat, even when the app is closed"
-                        else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
+            ActionSheetTiles {
+                if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
+                    ActionSheetRow(
+                        icon = Icons.Default.MarkEmailRead,
+                        title = stringResource(R.string.mark_as_read),
+                        subtitle = "Clears the unread badge on this room.",
+                    ) {
+                        onDismiss()
+                        broadcastViewModel.markRoomRead(name)
                     }
-                )
-            }
-            ActionSheetRow(
-                icon = Icons.Default.Link,
-                title = "Copy Room Link",
-                subtitle = "A kachat.app link that opens this room.",
-            ) {
-                onDismiss()
-                clipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
-                toast("Room link copied")
-            }
-            if (isCurated) {
-                ActionSheetRow(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.delete),
-                    subtitle = stringResource(R.string.default_room_delete_subtitle),
-                    tint = LocalAppColors.current.danger,
-                ) {
-                    onDismiss()
-                    broadcastViewModel.removeFromList(name)
+                } else {
+                    ActionSheetRow(
+                        icon = Icons.Default.MarkEmailUnread,
+                        title = stringResource(R.string.mark_as_unread),
+                        subtitle = "Puts the unread badge back so you come across it again.",
+                    ) {
+                        onDismiss()
+                        broadcastViewModel.markRoomUnread(name)
+                    }
                 }
-            } else if (channel != null) {
+                PinRow()
                 ActionSheetRow(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.delete),
-                    subtitle = "Removes this room and its messages from this device.",
-                    tint = LocalAppColors.current.danger,
+                    icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                    title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
+                    subtitle = when {
+                        notifyOn -> "No notification for new messages in this room."
+                        isCurated -> "Notifies you of new messages, even when the app is closed."
+                        else -> "Notifies you of new messages while the app is open."
+                    },
                 ) {
                     onDismiss()
-                    onDeleteRoom(name)
+                    broadcastViewModel.setNotifyEnabledEnsuringJoined(name, !notifyOn)
+                    toast(
+                        when {
+                            notifyOn -> "Notifications are off for this public chat"
+                            isCurated -> "You'll get notifications for new messages in this public chat, even when the app is closed"
+                            else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
+                        }
+                    )
+                }
+                ActionSheetRow(
+                    icon = Icons.Default.Link,
+                    title = "Copy Room Link",
+                    subtitle = "A kachat.app link that opens this room.",
+                ) {
+                    onDismiss()
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
+                    toast("Room link copied")
+                }
+                if (isCurated) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Delete,
+                        title = stringResource(R.string.delete),
+                        subtitle = stringResource(R.string.default_room_delete_subtitle),
+                        tint = LocalAppColors.current.danger,
+                    ) {
+                        onDismiss()
+                        broadcastViewModel.removeFromList(name)
+                    }
+                } else if (channel != null) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Delete,
+                        title = stringResource(R.string.delete),
+                        subtitle = "Removes this room and its messages from this device.",
+                        tint = LocalAppColors.current.danger,
+                    ) {
+                        onDismiss()
+                        onDeleteRoom(name)
+                    }
                 }
             }
         }

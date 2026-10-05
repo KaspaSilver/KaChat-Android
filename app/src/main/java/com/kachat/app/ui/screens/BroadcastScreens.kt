@@ -323,6 +323,7 @@ fun BroadcastListScreen(
     // The long-press sheet, the same shape as a group's: read state, notifications, the room
     // link, and - for rooms you added yourself - listening, retention and delete. The curated
     // rooms are permanent, so they offer no delete.
+    // Square tiles, three to a row, like every long-press menu (iOS cdac6d0).
     roomActionTarget?.let { name ->
         val channel = channels.firstOrNull { it.channelName == name }
         val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
@@ -331,64 +332,66 @@ fun BroadcastListScreen(
         val hasUnread = (summaries[name]?.unreadCount ?: 0) > 0
         fun say(text: String) { coroutineScope.launch { snackbarHostState.showSnackbar(text) } }
         ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = { roomActionTarget = null }) {
-            if (hasUnread) {
-                ActionSheetRow(icon = Icons.Default.Drafts, title = stringResource(R.string.mark_as_read), subtitle = "Clears the unread badge on this room.") {
-                    roomActionTarget = null
-                    broadcastViewModel.markRoomRead(name)
+            ActionSheetTiles {
+                if (hasUnread) {
+                    ActionSheetRow(icon = Icons.Default.Drafts, title = stringResource(R.string.mark_as_read), subtitle = "Clears the unread badge on this room.") {
+                        roomActionTarget = null
+                        broadcastViewModel.markRoomRead(name)
+                    }
+                } else {
+                    ActionSheetRow(icon = Icons.Default.MarkEmailUnread, title = stringResource(R.string.mark_as_unread), subtitle = "Puts the unread badge back so you come across it again.") {
+                        roomActionTarget = null
+                        broadcastViewModel.markRoomUnread(name)
+                    }
                 }
-            } else {
-                ActionSheetRow(icon = Icons.Default.MarkEmailUnread, title = stringResource(R.string.mark_as_unread), subtitle = "Puts the unread badge back so you come across it again.") {
-                    roomActionTarget = null
-                    broadcastViewModel.markRoomUnread(name)
+                if (channel != null) {
+                    ActionSheetRow(
+                        icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                        title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
+                        subtitle = when {
+                            notifyOn -> "No notification for new messages in this room."
+                            isCurated -> "Notifies you of new messages, even when the app is closed."
+                            else -> "Notifies you of new messages while the app is open."
+                        },
+                    ) {
+                        roomActionTarget = null
+                        broadcastViewModel.setNotifyEnabled(name, !notifyOn)
+                        say(if (notifyOn) "Notifications are off for this room" else "Notifications are on for this room")
+                    }
                 }
-            }
-            if (channel != null) {
-                ActionSheetRow(
-                    icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
-                    title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
-                    subtitle = when {
-                        notifyOn -> "No notification for new messages in this room."
-                        isCurated -> "Notifies you of new messages, even when the app is closed."
-                        else -> "Notifies you of new messages while the app is open."
-                    },
-                ) {
+                ActionSheetRow(icon = Icons.Default.Link, title = "Copy Room Link", subtitle = "A kachat.app link that opens this room.") {
                     roomActionTarget = null
-                    broadcastViewModel.setNotifyEnabled(name, !notifyOn)
-                    say(if (notifyOn) "Notifications are off for this room" else "Notifications are on for this room")
+                    roomClipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
+                    say("Room link copied")
                 }
-            }
-            ActionSheetRow(icon = Icons.Default.Link, title = "Copy Room Link", subtitle = "A kachat.app link that opens this room.") {
-                roomActionTarget = null
-                roomClipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
-                say("Room link copied")
-            }
-            // No listening or retention rows: the bell is the one control. A room with
-            // notifications on is listened to while the app is open, which is what lets it notify
-            // and count unread (iOS ac34790).
-            if (channel != null && !isCurated) {
-                ActionSheetRow(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.delete),
-                    subtitle = "Removes this room and its messages from this device.",
-                    tint = LocalAppColors.current.danger,
-                ) {
-                    roomActionTarget = null
-                    channelToLeave = name
-                }
-            } else if (isCurated) {
-                // A default room is never really deleted - it is switched off, exactly like its
-                // toggle in Public Chats settings, and that toggle brings it back. Nothing is
-                // lost, so it needs no confirmation (iOS e08c4cc).
-                val offText = stringResource(R.string.default_room_switched_off, name)
-                ActionSheetRow(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.delete),
-                    subtitle = stringResource(R.string.default_room_delete_subtitle),
-                    tint = LocalAppColors.current.danger,
-                ) {
-                    roomActionTarget = null
-                    broadcastViewModel.removeFromList(name)
-                    say(offText)
+                // No listening or retention rows: the bell is the one control. A room with
+                // notifications on is listened to while the app is open, which is what lets it notify
+                // and count unread (iOS ac34790).
+                if (channel != null && !isCurated) {
+                    ActionSheetRow(
+                        icon = Icons.Default.Delete,
+                        title = stringResource(R.string.delete),
+                        subtitle = "Removes this room and its messages from this device.",
+                        tint = LocalAppColors.current.danger,
+                    ) {
+                        roomActionTarget = null
+                        channelToLeave = name
+                    }
+                } else if (isCurated) {
+                    // A default room is never really deleted - it is switched off, exactly like its
+                    // toggle in Public Chats settings, and that toggle brings it back. Nothing is
+                    // lost, so it needs no confirmation (iOS e08c4cc).
+                    val offText = stringResource(R.string.default_room_switched_off, name)
+                    ActionSheetRow(
+                        icon = Icons.Default.Delete,
+                        title = stringResource(R.string.delete),
+                        subtitle = stringResource(R.string.default_room_delete_subtitle),
+                        tint = LocalAppColors.current.danger,
+                    ) {
+                        roomActionTarget = null
+                        broadcastViewModel.removeFromList(name)
+                        say(offText)
+                    }
                 }
             }
         }
