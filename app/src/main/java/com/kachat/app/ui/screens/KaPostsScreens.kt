@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -46,6 +45,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
@@ -4132,16 +4132,16 @@ fun KaPostThreadOverlay(
                         LaunchedEffect(segment.posterAddress) {
                             viewModel.ensureSenderProfileFetched(segment.posterAddress)
                         }
-                        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
-                                    .width(2.dp)
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(1.dp))
-                                    .background(KaspaTeal.copy(alpha = 0.35f)),
-                            )
-                            Box(modifier = Modifier.weight(1f)) {
+                        // The chain rule is drawn behind the segment, not sized with
+                        // IntrinsicSize.Min: the cell's SubcomposeLayouts throw on intrinsic
+                        // measurement (same crash as the nested replies below).
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .drawBehind { drawThreadConnector(KaspaTeal.copy(alpha = 0.35f), startX = 16.dp.toPx(), insetY = 2.dp.toPx()) }
+                                .padding(start = 18.dp),
+                        ) {
+                            Box(modifier = Modifier.fillMaxWidth()) {
                                 KaPostCell(
                                     post = segment,
                                     viewModel = viewModel,
@@ -4445,17 +4445,18 @@ private fun ThreadCommentNode(
                     viewModel,
                     comment.remoteId?.let { KaPostsViewModel.pageThread(it) } ?: "thread:none",
                 )
-                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                    // Connector dropping from the comment's avatar column.
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 35.dp)
-                            .width(2.dp)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(colors.textSecondary.copy(alpha = 0.3f)),
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
+                // Connector dropping from the comment's avatar column, drawn behind the replies
+                // instead of as a sibling sized with IntrinsicSize.Min: a reply cell holds
+                // SubcomposeLayouts (BoxWithConstraints, SubcomposeAsyncImage), which throw when
+                // asked for intrinsic measurements - the crash on "View N replies".
+                val connectorColor = colors.textSecondary.copy(alpha = 0.3f)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawBehind { drawThreadConnector(connectorColor, startX = 35.dp.toPx(), insetY = 0f) }
+                        .padding(start = 37.dp),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         if (replies.isEmpty()) {
                             // Emptiness alone used to mean "loading", so a comment whose reply
                             // count is a SUBTREE count while get-replies returns its direct
@@ -6882,4 +6883,20 @@ private fun ExpandableBioText(bio: String) {
             }
         }
     }
+}
+
+/** A thread connector: a 2dp rounded rule at [startX], the full height less [insetY] at each end. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawThreadConnector(
+    color: androidx.compose.ui.graphics.Color,
+    startX: Float,
+    insetY: Float,
+) {
+    val height = size.height - 2 * insetY
+    if (height <= 0f) return
+    drawRoundRect(
+        color = color,
+        topLeft = androidx.compose.ui.geometry.Offset(startX, insetY),
+        size = Size(2.dp.toPx(), height),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()),
+    )
 }
