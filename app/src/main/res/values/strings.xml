@@ -1118,4 +1118,7 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">Slide to Send</string>
     <string name="slide_to_consolidate">Slide to Consolidate</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">Send From</string>
+    <string name="send_from_hint">Choose which spending address to send from</string>
 </resources>

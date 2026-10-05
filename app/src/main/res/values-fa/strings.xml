@@ -981,4 +981,7 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">برای ارسال بکشید</string>
     <string name="slide_to_consolidate">برای ادغام بکشید</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">ارسال از</string>
+    <string name="send_from_hint">انتخاب کنید از کدام آدرس خرج ارسال شود</string>
 </resources>

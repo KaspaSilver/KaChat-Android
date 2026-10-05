@@ -88,6 +88,17 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.collectAsState
+import com.kachat.app.repository.ChatRepository
+import com.kachat.app.services.WalletService
+import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
@@ -581,6 +592,137 @@ fun SendInfoPill(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             content = content,
         )
+    }
+}
+
+// MARK: - Send From
+
+/** A spending address as the Send screens name it: its nickname, else "Address #N" (iOS
+ *  `SpendingAddressEntry.displayLabel`, English like iOS). */
+fun spendingAddressDisplayLabel(index: Int, label: String?): String =
+    label?.trim()?.takeIf { it.isNotEmpty() } ?: "Address #$index"
+
+/**
+ * Which spending address a send comes from, picked from a Send screen's Available pill: every
+ * spending address you can see (plus hidden ones that hold Kaspa), funded ones first, each with
+ * its balance, a Primary tag, and a checkmark on the current source. Picking one changes this
+ * send only - the primary stays where it is. Mirrors iOS's `SpendingSourcePicker` (e994235).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SpendingSourcePicker(
+    currentIndex: Int,
+    viewModel: WalletViewModel,
+    onPick: (WalletService.SpendingAddressEntry) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val all by viewModel.manageAddresses.collectAsState()
+    var loaded by remember { mutableStateOf(false) }
+    // A live load, so the balances it lists are current (the list shows the last one meanwhile).
+    LaunchedEffect(Unit) {
+        viewModel.loadManageAddressesAndAwait()
+        loaded = true
+    }
+    val entries = remember(all, currentIndex) {
+        all.filter { !it.hidden || it.balanceSompi > 0 || it.index == currentIndex }
+            .sortedWith(compareBy({ if (it.balanceSompi > 0) 0 else 1 }, { it.index }))
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(),
+        containerColor = colors.background,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+        ) {
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
+                Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
+            }
+            Text(
+                stringResource(R.string.send_from),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 17.sp,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        if (entries.isEmpty()) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)) {
+                if (loaded) {
+                    Text("—", color = colors.textSecondary)
+                } else {
+                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = colors.textSecondary, strokeWidth = 2.dp)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp, bottom = 24.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colors.surface),
+            ) {
+                itemsIndexed(entries, key = { _, entry -> entry.index }) { position, entry ->
+                    if (position > 0) HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onPick(entry)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 16.dp, vertical = 11.dp),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    spendingAddressDisplayLabel(entry.index, entry.label),
+                                    color = colors.textPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (entry.isCurrent) {
+                                    Text(
+                                        stringResource(R.string.primary),
+                                        color = KaspaTeal,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(KaspaTeal.copy(alpha = 0.15f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    )
+                                }
+                            }
+                            Text(
+                                "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                                color = colors.textSecondary,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                            )
+                        }
+                        Text(
+                            "${ChatRepository.formatKas(entry.balanceSompi)} ${KaspaUnit.symbol}",
+                            color = if (entry.balanceSompi > 0) colors.textPrimary else colors.textSecondary,
+                            fontSize = 15.sp,
+                            style = TextStyle(fontFeatureSettings = "tnum"),
+                        )
+                        if (entry.index == currentIndex) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

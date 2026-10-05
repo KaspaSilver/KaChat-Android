@@ -5986,6 +5986,20 @@ fun SpendingAddressSendFlow(
     val sendResult by viewModel.sendResult.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
+    // The spending address this send comes from: [spendingIndex] / [fromAddress] (the primary
+    // from Profile, or the address opened from Manage Addresses), unless another was picked from
+    // the Available pill for this one send. The primary itself doesn't change: the send goes
+    // through withdrawFromSpendingAddress with the picked index, which rotates the primary only
+    // when that index IS the primary (iOS e994235). Compound UTXOs keeps its one address.
+    var chosenSource by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
+    var showSourcePicker by remember { mutableStateOf(false) }
+    val sourceIndex = chosenSource?.index ?: spendingIndex
+    val sourceAddress = chosenSource?.address ?: fromAddress
+    val sourceBalanceSompi = chosenSource?.balanceSompi ?: balanceSompi
+    // The opening address's nickname, for the pill's "Address #N" (iOS displayLabel).
+    val addressRows by viewModel.manageAddresses.collectAsState()
+    val spendingLabel = spendingIndex?.let { index -> addressRows.firstOrNull { it.index == index }?.label }
+
     // Real input count when known (coin control fixes it exactly) instead of always guessing 1 -
     // same reasoning as ColdSendFlow's estimatedMass, just without a live automatic-selection
     // preview (this path doesn't have one; the fee shown here is still exact once coin control
@@ -6104,7 +6118,7 @@ fun SpendingAddressSendFlow(
     if (showCoinControl) {
         BackHandler { showCoinControl = false }
         CoinControlScreen(
-            fromAddress = fromAddress,
+            fromAddress = sourceAddress,
             fetchUtxos = { addr -> viewModel.fetchUtxosForCoinControl(addr) },
             initialSelection = manualUtxos,
             onDone = { selection -> manualUtxos = selection; showCoinControl = false },
@@ -6139,7 +6153,7 @@ fun SpendingAddressSendFlow(
                     // null = the wallet cannot answer yet (the REST client is created a moment
                     // after launch); 0 = it answered, and the fee eats the balance. Neither may
                     // write "0" into the field, which is what made this read as a dead button.
-                    when (val maxSompi = viewModel.estimateMaxSendableAmount(fromAddress, feeRateOverrideSompi, manualUtxos)) {
+                    when (val maxSompi = viewModel.estimateMaxSendableAmount(sourceAddress, feeRateOverrideSompi, manualUtxos)) {
                         null -> Toast.makeText(context, "Still connecting. Try Max again in a moment.", Toast.LENGTH_SHORT).show()
                         0L -> Toast.makeText(context, "Not enough here to cover the network fee.", Toast.LENGTH_SHORT).show()
                         else -> fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
@@ -6149,7 +6163,7 @@ fun SpendingAddressSendFlow(
                 // Said out loud, not swallowed. A silent catch here is indistinguishable from a
                 // button that does nothing, which is exactly how this was reported - and it left
                 // no trace in the log to diagnose it from either.
-                Log.w("SendFlow", "Max estimate failed for ${fromAddress.redactedForLog()}", e)
+                Log.w("SendFlow", "Max estimate failed for ${sourceAddress.redactedForLog()}", e)
                 Toast.makeText(context, UserFacingError.message(e, "Could not work out the maximum."), Toast.LENGTH_SHORT).show()
             } finally {
                 isEstimatingMax = false
@@ -6159,8 +6173,8 @@ fun SpendingAddressSendFlow(
     val canSend = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0
     val send: () -> Unit = {
         amountSompi?.takeIf { canSend }?.let {
-            if (spendingIndex != null) {
-                viewModel.withdrawFromSpendingAddress(spendingIndex, effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
+            if (sourceIndex != null) {
+                viewModel.withdrawFromSpendingAddress(sourceIndex, effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
             } else {
                 viewModel.onSendClicked(effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
             }
@@ -6173,7 +6187,13 @@ fun SpendingAddressSendFlow(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        if (isCompoundMode) stringResource(R.string.compound_utxos) else title,
+                        when {
+                            isCompoundMode -> stringResource(R.string.compound_utxos)
+                            // A spending address's Send names the address it sends from, and
+                            // follows the source picked here (iOS e994235).
+                            sourceIndex != null -> "Send Kaspa from Address #$sourceIndex"
+                            else -> title
+                        },
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold
                     )
@@ -6224,8 +6244,30 @@ fun SpendingAddressSendFlow(
                 modifier = Modifier.padding(top = 8.dp),
             )
 
-            SendInfoPill {
-                Text(KaspaUnit.label("Available: ${ChatRepository.formatKas(balanceSompi)} KAS"))
+            if (spendingIndex == null) {
+                SendInfoPill {
+                    Text(KaspaUnit.label("Available: ${ChatRepository.formatKas(balanceSompi)} KAS"))
+                }
+            } else {
+                // "Available: X KAS · Address #N ⌄": tap to send from a different spending
+                // address (not in Compound, which is about this one address) - iOS e994235.
+                val sourceLabel = chosenSource?.let { spendingAddressDisplayLabel(it.index, it.label) }
+                    ?: spendingAddressDisplayLabel(spendingIndex, spendingLabel)
+                val pickerHint = stringResource(R.string.send_from_hint)
+                SendInfoPill(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(enabled = !isCompoundMode && !isSending, onClickLabel = pickerHint, role = androidx.compose.ui.semantics.Role.Button) {
+                            showSourcePicker = true
+                        },
+                ) {
+                    Text(KaspaUnit.label("Available: ${ChatRepository.formatKas(sourceBalanceSompi)} KAS"), maxLines = 1)
+                    Text("·")
+                    Text(sourceLabel, maxLines = 1)
+                    if (!isCompoundMode) {
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(14.dp))
+                    }
+                }
             }
 
             SendFeeControls(
@@ -6265,6 +6307,21 @@ fun SpendingAddressSendFlow(
                 onSend = send,
             )
         }
+    }
+
+    if (showSourcePicker && sourceIndex != null) {
+        SpendingSourcePicker(
+            currentIndex = sourceIndex,
+            viewModel = viewModel,
+            onPick = { picked ->
+                chosenSource = picked
+                // Coin control and the fee belong to the address they were set for.
+                manualUtxos = null
+                customExtraFeeSompi = null
+                isEditingFee = false
+            },
+            onDismiss = { showSourcePicker = false },
+        )
     }
 }
 

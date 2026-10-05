@@ -949,4 +949,8 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">밀어서 보내기</string>
     <string name="slide_to_consolidate">밀어서 통합</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">보내는 주소</string>
+    <string name="send_from_hint">보낼 지출 주소를 선택합니다</string>
+    <string name="primary">기본</string>
 </resources>

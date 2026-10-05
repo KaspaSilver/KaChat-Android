@@ -949,4 +949,8 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">Göndermek için kaydır</string>
     <string name="slide_to_consolidate">Birleştirmek için kaydır</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">Gönderen</string>
+    <string name="send_from_hint">Hangi harcama adresinden gönderileceğini seç</string>
+    <string name="primary">Birincil</string>
 </resources>

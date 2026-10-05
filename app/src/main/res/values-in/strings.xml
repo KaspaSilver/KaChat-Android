@@ -810,4 +810,7 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">Geser untuk mengirim</string>
     <string name="slide_to_consolidate">Geser untuk menggabungkan</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">Kirim Dari</string>
+    <string name="send_from_hint">Pilih alamat pengeluaran untuk mengirim</string>
 </resources>

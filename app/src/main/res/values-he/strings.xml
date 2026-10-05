@@ -949,4 +949,8 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">החליקו לשליחה</string>
     <string name="slide_to_consolidate">החליקו לאיחוד</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">שליחה מ-</string>
+    <string name="send_from_hint">בחרו מאיזו כתובת הוצאה לשלוח</string>
+    <string name="primary">ראשי</string>
 </resources>

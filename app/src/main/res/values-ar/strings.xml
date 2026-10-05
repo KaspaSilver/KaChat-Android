@@ -949,4 +949,8 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">اسحب للإرسال</string>
     <string name="slide_to_consolidate">اسحب للدمج</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">الإرسال من</string>
+    <string name="send_from_hint">اختر عنوان الإنفاق الذي تريد الإرسال منه</string>
+    <string name="primary">أساسي</string>
 </resources>

@@ -949,4 +949,8 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">滑动发送</string>
     <string name="slide_to_consolidate">滑动合并</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">发送自</string>
+    <string name="send_from_hint">选择从哪个支出地址发送</string>
+    <string name="primary">主节点</string>
 </resources>

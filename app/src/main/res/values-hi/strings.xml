@@ -949,4 +949,8 @@
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">भेजने के लिए स्लाइड करें</string>
     <string name="slide_to_consolidate">समेकित करने के लिए स्लाइड करें</string>
+    <!-- Send Kaspa: send from another spending address (iOS e994235) -->
+    <string name="send_from">यहाँ से भेजें</string>
+    <string name="send_from_hint">चुनें कि किस खर्च पते से भेजना है</string>
+    <string name="primary">प्राथमिक</string>
 </resources>
