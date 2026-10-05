@@ -12,13 +12,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 
 /**
  * The `.kachat` registry data layer's pure part (KachatNamesRegistryState.kt) - a port of iOS
  * scripts/test_kachat_names_registry.swift (KaChat 27edcd5; registry v2 - extend, the new renew,
- * periodStart, cache format 2 - from a1e38d6) without its `--live` mode: the
+ * periodStart, cache format 2 - from a1e38d6; registry v3 - the price shards, offer sellers, the
+ * period clock, cache format 3 - from c150042) without its `--live` mode: the
  * walker's transition decoder against the kachat-domains vectors (every e2e transaction applied in
  * order, every later step's records found in the walked state), the edge cases, refusals, the
  * walk loop over a simulated chain, the status / label / profile rules, the REST transaction
@@ -85,11 +85,18 @@ class KachatNamesRegistryTest {
     private fun outpointKey(u: JsonObject) = "${u.s("txid")}:${u.l("index")}"
 
     /**
-     * The vectors' end-to-end plan (README "The end-to-end run", registry v2): commits, three
-     * registrations, extend, renew, transfer, list, buy, three offers (accept, refund, withdraw),
-     * release, reclaim. The steps after it are edge cases on their own synthetic records.
+     * The vectors' end-to-end plan (README "The end-to-end run", registry v3), after both geneses:
+     * commits, three registrations, a price change, extend, renew, another price change, transfer,
+     * list, buy, four offers (accept, decline, refund, withdraw), release, reclaim. The steps after
+     * it are edge cases on their own synthetic records.
      */
-    private val e2eCount = 19
+    private val e2eCount = 23
+
+    /** A step's price shard records: `shard` (register, extend, renew) or `shards` (a price change). */
+    private fun shardRecords(rec: JsonObject): List<JsonObject> =
+        rec.optO("shard")?.let { listOf(it) } ?: rec.get("shards")?.takeIf { it.isJsonArray }?.asJsonArray?.map { it.asJsonObject }.orEmpty()
+
+    private fun JsonObject.longs(k: String): List<Long> = get(k).asJsonArray.map { it.asLong }
 
     /** Every record a step was built from must be in the walked state, exactly. */
     private fun checkRecords(st: JsonObject, state: RegistryState, r: Report) {
@@ -127,8 +134,20 @@ class KachatNamesRegistryTest {
             if (found != null) {
                 r.eq(found.key, o.s("key"), "$label: offer key")
                 r.eq(found.buyer, o.s("buyer"), "$label: offer buyer")
+                r.eq(found.seller, o.s("seller"), "$label: offer seller")
                 r.eq(found.refundAfter, o.l("refundAfter"), "$label: offer refundAfter")
                 r.eq(found.value, o.l("value"), "$label: offer value")
+            }
+        }
+        for (sh in shardRecords(rec)) {
+            val u = sh.o("utxo")
+            val found = state.shards.firstOrNull { "${it.txid}:${it.index}" == outpointKey(u) }
+            r.check(found != null) { "$label: price shard ${sh.l("shard")} at ${outpointKey(u).take(16)} not in the walked state" }
+            if (found != null) {
+                r.eq(found.shard, sh.l("shard"), "$label: shard index")
+                r.eq(found.authority, sh.s("authority"), "$label: shard authority")
+                r.eq(found.prices, sh.longs("prices"), "$label: shard prices")
+                r.eq(found.value, sh.l("value"), "$label: shard value")
             }
         }
     }
@@ -137,6 +156,7 @@ class KachatNamesRegistryTest {
     private fun seeded(st: JsonObject, m: Manifest): RegistryState {
         val state = RegistryState.atGenesis(m)
         state.gaps = emptyList()
+        state.shards = emptyList()
         state.applied = emptyList()
         val rec = st.o("records")
         for (k in listOf("gap", "below", "above")) {
@@ -157,6 +177,12 @@ class KachatNamesRegistryTest {
                 u.s("txid"), u.l("index").toInt(), o.s("key"), o.s("buyer"), o.s("seller"), o.l("refundAfter"), o.l("value"), o.optS("name")
             )
         }
+        for (sh in shardRecords(rec)) {
+            val u = sh.o("utxo")
+            state.shards = state.shards + RegistryState.Shard(
+                u.s("txid"), u.l("index").toInt(), sh.l("shard"), sh.s("authority"), sh.longs("prices"), sh.l("value")
+            )
+        }
         return state
     }
 
@@ -166,7 +192,6 @@ class KachatNamesRegistryTest {
 
     // The decoder over the vectors
 
-    @Ignore("registry v3 vectors: the walker follows the price shards in the next commit (iOS c150042)")
     @Test
     fun walkerOverTheVectors() {
         val r = Report()
@@ -187,8 +212,9 @@ class KachatNamesRegistryTest {
         r.eq(
             ops,
             listOf(
-                "register alpha-tn", "register bravo-tn", "register lapse-tn", "extend alpha-tn", "renew lapse-tn", "transfer alpha-tn", "list alpha-tn",
-                "sale alpha-tn", "offer bravo-tn", "offer_accepted bravo-tn", "offer_accept bravo-tn", "offer alpha-tn", "offer_refund alpha-tn",
+                "register alpha-tn", "register bravo-tn", "register lapse-tn", "prices ?", "extend alpha-tn", "renew lapse-tn", "prices ?",
+                "transfer alpha-tn", "list alpha-tn", "sale alpha-tn", "offer bravo-tn", "offer_accepted bravo-tn", "offer_accept bravo-tn",
+                "offer alpha-tn", "offer_decline alpha-tn", "offer alpha-tn", "offer_refund alpha-tn",
                 "offer alpha-tn", "offer_withdraw alpha-tn", "release bravo-tn", "reclaim lapse-tn"
             ),
             "e2e events"
@@ -196,6 +222,15 @@ class KachatNamesRegistryTest {
         r.eq(state.names.map { it.name }, listOf("alpha-tn"), "names left after the e2e plan")
         r.eq(state.gaps.size, 2, "gaps left after the e2e plan")
         r.eq(state.offers.size, 0, "offers left after the e2e plan")
+        // the price record: all K shards, carried through every register / extend / renew, at the
+        // last change's prices
+        val lastChange = e2e.last { it.s("op") == "setPrices" }.o("args")
+        r.eq(state.shards.size.toLong(), m.params.priceShards, "every price shard tracked")
+        r.eq(state.currentPrices?.prices, lastChange.longs("prices"), "current prices = the last change's")
+        r.eq(state.currentPrices?.let { hex(it.authority) }, lastChange.s("newAuthority"), "current authority")
+        r.eq(state.shardInfos.map { it.shard }, (0 until m.params.priceShards).toList(), "shards in order")
+        val priceEvents = state.events.filter { it.op == "prices" }
+        r.eq(priceEvents.map { it.price }, listOf(70_000_000L, 35_000_000L), "price events carry the 5+ price")
         val accepted = state.events.firstOrNull { it.op == "offer_accepted" }
         val payout = accepted?.price ?: 0L
         r.check(payout > 9 * 100_000_000L && payout < 10 * 100_000_000L) { "accepted offer payout is the offer less the fee ($payout)" }
@@ -204,7 +239,8 @@ class KachatNamesRegistryTest {
         r.eq(alpha?.registeredAt, 1_003L, "registration time carried through every transition")
         val alphaRegister = e2e[3].o("args")
         r.eq(alpha?.periodStart, alphaRegister.l("now"), "alpha-tn: periodStart = register's now, kept by extend, transfer, list and buy")
-        r.eq(alpha?.expiresAt, alphaRegister.l("now") + 2 * KachatNames.YEAR_MS, "alpha-tn: registered for 1 year, extended by 1")
+        r.eq(alpha?.expiresAt, alphaRegister.l("now") + 2 * m.params.periodMs, "alpha-tn: registered for 1 period, extended by 1")
+        r.eq(m.params.periodMs, 600_000L, "testnet vectors run the 10-minute clock")
         // applying again changes nothing
         val snapshot = state.copy()
         for ((i, st) in e2e.withIndex()) runCatching { state.apply(view(st, 1_000L + i), m) }
@@ -224,15 +260,26 @@ class KachatNamesRegistryTest {
                     r.check(events.isNotEmpty()) { "$label: no events" }
                 }
                 when (op) {
-                    "register" -> { r.eq(seededState.names.size, 1, "$label: name created"); r.eq(seededState.gaps.size, 2, "$label: gaps split") }
+                    "register" -> {
+                        r.eq(seededState.names.size, 1, "$label: name created"); r.eq(seededState.gaps.size, 2, "$label: gaps split")
+                        r.eq(seededState.shards.size, 1, "$label: the shard came back")
+                    }
                     "reclaim" -> { r.eq(seededState.names.size, 0, "$label: name gone"); r.eq(seededState.gaps.size, 1, "$label: gaps merged") }
-                    "acceptOffer" -> r.eq(seededState.offers.size, 0, "$label: offer gone")
+                    "acceptOffer", "declineOffer" -> r.eq(seededState.offers.size, 0, "$label: offer gone")
+                    "setPrices" -> {
+                        val a = st.o("args")
+                        r.eq(seededState.shards.size.toLong(), m.params.priceShards, "$label: every shard continues")
+                        r.eq(seededState.currentPrices?.prices, a.longs("prices"), "$label: new prices")
+                        r.eq(seededState.shardInfos.map { it.shard }, (0 until m.params.priceShards).toList(), "$label: each shard once, in order")
+                        r.eq(seededState.shards.map { it.authority }.toSet(), setOf(a.s("newAuthority")), "$label: every shard at the new authority")
+                    }
                     "extend", "renew" -> {
                         val years = st.o("args").l("years")
                         val after = seededState.names.firstOrNull()
                         r.eq(events.firstOrNull()?.op, op, "$label: event")
                         r.eq(events.firstOrNull()?.years, years, "$label: event years")
-                        r.eq(after?.expiresAt, before?.let { it.second + years * KachatNames.YEAR_MS }, "$label: expiresAt + years")
+                        r.eq(after?.expiresAt, before?.let { it.second + years * m.params.periodMs }, "$label: expiresAt + periods")
+                        r.eq(seededState.shards.size, 1, "$label: the shard came back")
                         // extend keeps the period; renew starts the next one at the old expiry
                         r.eq(after?.periodStart, if (op == "extend") before?.first else before?.second, "$label: periodStart")
                     }
@@ -268,8 +315,30 @@ class KachatNamesRegistryTest {
         val badRedeem = base.copy(inputs = base.inputs.mapIndexed { k, x -> if (k == 0) ViewInput(x.outpoint, badScript) else x })
         r.check(runCatching { st0.apply(badRedeem, m) }.isFailure) { "a spend revealing another redeem script was accepted" }
         r.eq(st0, RegistryState.atGenesis(m), "refusals left the state alone")
+        // the price record: a shard continuation at another state, or a change missing a shard
+        val stReg = RegistryState.atGenesis(m)
+        for (st in steps.take(3)) runCatching { stReg.apply(view(st, 1), m) }
+        val beforeReg = stReg.copy()
+        val regView = view(reg, 2)
+        val o3 = regView.outputs[3]
+        val shardTamper = withOutput(regView, 3, TxOutput(o3.value, o3.scriptVersion, o3.script.copyOf().also { it[5] = (it[5].toInt() xor 0x01).toByte() }, o3.covenant))
+        r.check(runCatching { stReg.apply(shardTamper, m) }.isFailure) { "a register whose shard continuation holds another state was accepted" }
+        val shardOther = withOutput(regView, 3, TxOutput(o3.value, o3.scriptVersion, o3.script, CovenantBinding(o3.covenant!!.authorizingInput, m.registryCovenantId)))
+        r.check(runCatching { stReg.apply(shardOther, m) }.isFailure) { "a shard continuation under the registry id was accepted" }
+        r.eq(stReg, beforeReg, "refused shard spends left the state alone")
+        val stPrices = RegistryState.atGenesis(m)
+        for (st in steps.take(6)) runCatching { stPrices.apply(view(st, 1), m) }
+        val beforePrices = stPrices.copy()
+        val change = view(steps[6], 7)
+        val o5 = change.outputs[5]
+        val changeTamper = withOutput(change, 5, TxOutput(o5.value, o5.scriptVersion, o5.script.copyOf().also { it[5] = (it[5].toInt() xor 0x01).toByte() }, o5.covenant))
+        r.check(runCatching { stPrices.apply(changeTamper, m) }.isFailure) { "a price change with one shard at other prices was accepted" }
+        val changeDropped = change.copy(outputs = change.outputs.filterIndexed { k, _ -> k != 7 })
+        r.check(runCatching { stPrices.apply(changeDropped, m) }.isFailure) { "a price change missing a shard continuation was accepted" }
+        r.eq(stPrices, beforePrices, "refused price changes left the state alone")
         // an unrelated transaction is ignored
         r.eq(runCatching { st0.apply(view(steps[0], 1), m) }.getOrNull()?.size, 0, "a commit is not a registry transaction")
+        println("walkerOverTheVectors: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
 
@@ -277,7 +346,6 @@ class KachatNamesRegistryTest {
      * The walk loop over a simulated chain holding every e2e transaction: liveness from the
      * simulated UTXO set, spends found through addresses, transactions handed back newest first.
      */
-    @Ignore("registry v3 vectors: the walker follows the price shards in the next commit (iOS c150042)")
     @Test
     fun walkOverASimulatedChain() = runBlocking {
         val r = Report()
@@ -289,10 +357,11 @@ class KachatNamesRegistryTest {
             for ((k, o) in t.outputs.withIndex()) created["${t.idHex}:$k"] = o.script
             for (i in t.inputs) spentBy["${hex(i.outpoint.txid)}:${i.outpoint.index}"] = t.idHex
         }
-        // the genesis gap lives at the manifest's genesis outpoint
+        // the genesis gap lives at the manifest's genesis outpoint, the shards at the price genesis
         created["${hex(m.genesisTxid)}:0"] = m.genesisOutput.script
+        for ((i, sh) in m.genesisShards.withIndex()) created["${hex(m.priceGenesisTxid)}:$i"] = sh.first.script
 
-        for (upTo in listOf(3, 6, 7, 8, 11, e2eCount)) {
+        for (upTo in listOf(3, 6, 7, 8, 10, 11, 17, e2eCount)) {
             val visible = txs.take(upTo)
             val visibleIds = visible.map { it.idHex }.toSet()
             val walked = RegistryState.atGenesis(m)
@@ -303,7 +372,7 @@ class KachatNamesRegistryTest {
                     live = { addresses ->
                         created.filter { (op, script) ->
                             addresses.contains(addr(script) ?: "") &&
-                                (op.startsWith(hex(m.genesisTxid)) || visibleIds.contains(op.take(64))) &&
+                                (op.startsWith(hex(m.genesisTxid)) || op.startsWith(hex(m.priceGenesisTxid)) || visibleIds.contains(op.take(64))) &&
                                 spentBy[op]?.let { visibleIds.contains(it) } != true
                         }.keys
                     },
@@ -319,6 +388,9 @@ class KachatNamesRegistryTest {
                 r.eq(walked.gaps.map { "${it.txid}:${it.index}" }.toSet(), reference.gaps.map { "${it.txid}:${it.index}" }.toSet(), "walk to $upTo: gaps")
                 r.eq(walked.names.map { it.name }.sorted(), reference.names.map { it.name }.sorted(), "walk to $upTo: names")
                 r.eq(walked.names.map { "${it.txid}:${it.index}" }.toSet(), reference.names.map { "${it.txid}:${it.index}" }.toSet(), "walk to $upTo: name outpoints")
+                r.eq(walked.shards.map { "${it.txid}:${it.index}" }.toSet(), reference.shards.map { "${it.txid}:${it.index}" }.toSet(), "walk to $upTo: shard outpoints")
+                r.eq(walked.currentPrices, reference.currentPrices, "walk to $upTo: prices")
+                r.eq(walked.offers.map { "${it.txid}:${it.index}" }.toSet(), reference.offers.map { "${it.txid}:${it.index}" }.toSet(), "walk to $upTo: offers")
                 r.check(report.unresolved.isEmpty()) { "walk to $upTo: unresolved ${report.unresolved}" }
                 // the first three are commits: nothing in the registry moves until the first register
                 r.check((upTo <= 3) == report.applied.isEmpty()) { "walk to $upTo: walked ${report.applied.size}" }
@@ -327,6 +399,7 @@ class KachatNamesRegistryTest {
                 r.check(false) { "walk to $upTo threw $e" }
             }
         }
+        println("walkOverASimulatedChain: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
 
@@ -431,7 +504,7 @@ class KachatNamesRegistryTest {
         r.check(SocialSource.from("t.me/telegram", BIO) != null) { "bio source on Telegram" }
         r.eq(SocialSource.discordDescription("{\"guild\":{\"id\":\"1\",\"description\":\"Devs\"}}"), "Devs", "Discord server description")
 
-        // the paid period on a NameInfo (registry v2)
+        // the paid period on a NameInfo (mainnet's clock: a year, a 10-day window)
         val params = Params(
             bond = 1, gapValue = 1, tCommit = 600, maxYears = 2, periodMs = KachatNames.YEAR_MS, graceMs = g, renewWindowMs = 864_000_000,
             genesisPrices = listOf(1, 1, 1, 1, 1), priceShards = 8, priceValue = 100_000_000, offerMaxFee = 1
@@ -448,23 +521,50 @@ class KachatNamesRegistryTest {
         r.eq(known.renewOpens(params), now + KachatNames.YEAR_MS - 864_000_000, "renewal opens 10 days before expiry")
         r.check(known.renewOpen(params, nowMs = now + KachatNames.YEAR_MS - 864_000_000)) { "renewal open at the opening" }
         r.eq(period(now, now + 2 * KachatNames.YEAR_MS).extendableYears(params), 0L, "2 years paid: no extend")
+        // testnet's 10-minute clock (registry v3)
+        val tn = Params(
+            bond = 1, gapValue = 1, tCommit = 600, maxYears = 2, periodMs = 600_000, graceMs = 600_000, renewWindowMs = 600_000,
+            genesisPrices = listOf(1, 1, 1, 1, 1), priceShards = 8, priceValue = 100_000_000, offerMaxFee = 1
+        )
+        r.eq(period(now, now + 600_000).extendableYears(tn), 1L, "10 min paid of 20: extend by 1")
+        r.check(period(now, now + 600_000).renewOpen(tn, nowMs = now)) { "a 1-period name's window is open at once on the short clock" }
+        r.eq(period(now, now + 1_200_000).extendableYears(tn), 0L, "20 min paid: no extend")
+        r.check(!period(now, now + 1_200_000).renewOpen(tn, nowMs = now)) { "renewal closed 20 min before expiry" }
 
-        // a cache written before registry v2 (no periodStart, format 1) is dropped: Gson reads it
-        // (absent fields stay 0/null, unlike Swift's Decodable, which refuses it outright), but the
-        // registry keeps a cache only when it `matches` - the format version included
+        // offers: declined once the name has another owner (registry v3)
+        val seller = ByteArray(32) { 3 }
+        val offer = OfferInfo(Outpoint(KachatNames.ZERO32, 0), Codec.key("x"), "x", me, seller, 5, 100)
+        r.check(!offer.isDeclined(currentOwner = seller)) { "an offer to the current owner stands" }
+        r.check(offer.isDeclined(currentOwner = me)) { "an offer to an earlier owner is declined" }
+        r.eq(hex(offer.fields.seller), hex(seller), "offer fields carry the seller")
+
+        // a cache written before registry v3 (format 1 or 2: no shards, offers without a seller) is
+        // dropped: Gson reads it (absent fields stay 0/null, unlike Swift's Decodable, which refuses
+        // it outright), but the registry keeps a cache only when it `matches` - the format version
+        // and the price covenant id included
         val m = manifest()
         val v1Cache = "{\"version\":1,\"network\":\"testnet-10\",\"registryCovenantId\":\"${hex(m.registryCovenantId)}\",\"gaps\":[]," +
             "\"names\":[{\"txid\":\"00\",\"index\":0,\"name\":\"a\",\"key\":\"00\",\"owner\":\"00\",\"price\":0,\"expiresAt\":1,\"value\":1}]," +
             "\"offers\":[],\"applied\":[],\"events\":[]}"
         val decoded = runCatching { Gson().fromJson(v1Cache, RegistryState::class.java) }.getOrNull()
         r.check(decoded?.matches(m) != true) { "a registry v1 cache is kept" }
-        r.eq(RegistryState.FORMAT_VERSION, 2, "cache format 2 (registry v2)")
+        val v2Cache = "{\"version\":2,\"network\":\"testnet-10\",\"registryCovenantId\":\"${hex(m.registryCovenantId)}\",\"gaps\":[]," +
+            "\"names\":[],\"offers\":[],\"applied\":[],\"events\":[]}"
+        val decoded2 = runCatching { Gson().fromJson(v2Cache, RegistryState::class.java) }.getOrNull()
+        r.check(decoded2?.matches(m) != true) { "a registry v2 cache is kept" }
+        r.eq(RegistryState.FORMAT_VERSION, 3, "cache format 3 (registry v3)")
+        // and a current cache round-trips through Gson and is kept
+        val fresh = RegistryState.atGenesis(m)
+        val back = Gson().fromJson(Gson().toJson(fresh), RegistryState::class.java)
+        r.check(back.matches(m)) { "a format 3 cache is kept" }
+        r.eq(back.shardInfos, fresh.shardInfos, "the shards survive the cache")
 
         val k = ByteArray(31) { 0x10 } + byteArrayOf(0x00)
         r.eq(KachatNames.step(k, -1)?.let { hex(it) }, hex(ByteArray(30) { 0x10 } + byteArrayOf(0x0f, 0xff.toByte())), "key - 1 borrows")
         r.eq(KachatNames.step(k, 1)?.let { hex(it) }, hex(ByteArray(31) { 0x10 } + byteArrayOf(0x01)), "key + 1")
         r.eq(KachatNames.step(KachatNames.ZERO32, -1), null, "0 - 1")
         r.eq(KachatNames.step(KachatNames.FF32, 1), null, "ff..ff + 1")
+        println("rules: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
 
@@ -547,13 +647,40 @@ class KachatNamesRegistryTest {
             "an indexer name object without a name is refused"
         }
         val status = IndexerApi.StatusJson.parse(
-            JsonParser.parseString("{\"network\":\"testnet-10\",\"registryCovenantId\":\"9444\",\"indexedDaa\":5,\"synced\":true}")
+            JsonParser.parseString("{\"network\":\"testnet-10\",\"registryCovenantId\":\"9444\",\"priceCovenantId\":\"7777\",\"indexedDaa\":5,\"synced\":true}")
         )
         r.eq(status.registryCovenantId, "9444", "indexer status")
+        r.eq(status.priceCovenantId, "7777", "indexer status: the price covenant (registry v3)")
+
+        // registry v3: offers carry the seller; an indexer without it gives no offer
+        val ab = "ab".repeat(32)
+        val cd = "cd".repeat(32)
+        val keyOf: (String) -> ByteArray? = {
+            when (it) {
+                "kaspatest:buyer" -> KachatNames.unhex32(ab)
+                "kaspatest:seller" -> KachatNames.unhex32(cd)
+                else -> null
+            }
+        }
+        val offerJson = "{\"outpoint\":{\"txId\":\"$cd\",\"index\":0},\"buyer\":\"kaspatest:buyer\",\"seller\":\"kaspatest:seller\",\"amount\":\"500000000\",\"refundAfter\":7,\"name\":\"alice\"}"
+        val o = IndexerApi.OfferJson.parseOffers(JsonParser.parseString("{\"offers\":[$offerJson]}")).single().info(null, keyOf)
+        r.eq(o?.let { hex(it.seller) }, cd, "indexer offer seller")
+        r.eq(o?.amount, 500_000_000L, "indexer offer amount")
+        val v2Offer = "{\"outpoint\":{\"txId\":\"$cd\",\"index\":0},\"buyer\":\"kaspatest:buyer\",\"amount\":\"500000000\",\"refundAfter\":7,\"name\":\"alice\"}"
+        r.check(IndexerApi.OfferJson.parseOffers(JsonParser.parseString("{\"offers\":[$v2Offer]}")).single().info(null, keyOf) == null) {
+            "an offer without a seller is dropped"
+        }
+        val pricesJson = "{\"prices\":[\"1\",\"2\",\"3\",\"4\",\"5\"],\"authority\":\"$ab\",\"shards\":[" +
+            "{\"shard\":0,\"outpoint\":{\"txId\":\"$cd\",\"index\":0},\"authority\":\"$ab\",\"prices\":[\"1\",\"2\",\"3\",\"4\",\"5\"],\"value\":\"100000000\"}," +
+            "{\"shard\":1,\"outpoint\":{\"txId\":\"$cd\",\"index\":1},\"authority\":\"$ab\",\"prices\":[\"1\",\"2\",\"3\"],\"value\":\"100000000\"}]}"
+        val pj = IndexerApi.PricesJson.parse(JsonParser.parseString(pricesJson))
+        r.eq(pj.shards.mapNotNull { it.info }.map { it.shard }, listOf(0L), "indexer shards: a malformed one dropped")
+        r.eq(pj.shards.first().info?.fields?.price(9), 5L, "indexer shard price for a long name")
         val events = IndexerApi.EventJson.parseEvents(
             JsonParser.parseString("{\"events\":[{\"txId\":\"aa\",\"op\":\"sale\",\"name\":\"bob\",\"price\":\"12\",\"at\":7}],\"next\":null}")
         )
         r.eq(events, listOf(Event(txId = "aa", op = "sale", name = "bob", at = 7, price = 12)), "indexer events")
+        println("restAndIndexerShapes: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
 

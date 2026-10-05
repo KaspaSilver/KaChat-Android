@@ -16,7 +16,8 @@ import java.text.BreakIterator
 // rule, the label rule, the address profile record, and the registry walker's state with its
 // transition decoder - a port of the kachat-domains CLI's `registry.rs` (`Registry::apply`,
 // KACHAT_NAMES_INDEXER.md B3), through iOS KaChat/Services/KachatNames/KachatNamesRegistryState.swift
-// (KaChat 27edcd5; registry v2 - periodStart, extend, the new renew - from a1e38d6). Pure Kotlin + Gson: no network, no keys, no Android, so it is tested on the JVM
+// (KaChat 27edcd5; registry v2 - periodStart, extend, the new renew - from a1e38d6; registry v3 - the
+// price shards, offers with a seller, periodMs - from c150042). Pure Kotlin + Gson: no network, no keys, no Android, so it is tested on the JVM
 // (`KachatNamesRegistryTest`, the port of iOS scripts/test_kachat_names_registry.swift).
 //
 // Swift nests these in `extension KachatNames`; Kotlin cannot add nested types to the object from
@@ -83,7 +84,7 @@ class NameInfo(
 
     // The paid period (registry v2, KACHAT_NAMES.md 4.1)
 
-    /** Whole years `extend` can add now (0 when the period start is unknown). */
+    /** Whole periods `extend` can add now (0 when the period start is unknown). */
     fun extendableYears(p: Params): Long = periodStart?.let { p.extendableYears(it, expiresAt) } ?: 0
 
     /** When the renewal window opens: `expiresAt - renewWindowMs` (unix ms). */
@@ -142,6 +143,12 @@ class OfferInfo(
 
     fun refundable(atDaa: Long): Boolean = atDaa > maxOf(refundAfter, 0L)
 
+    /**
+     * Made to an earlier owner of the name (registry v3, iOS c150042): it can never be accepted
+     * and goes back to the buyer (withdraw, decline, or a refund once it expires).
+     */
+    fun isDeclined(currentOwner: ByteArray): Boolean = !seller.contentEquals(currentOwner)
+
     override fun equals(other: Any?): Boolean =
         other is OfferInfo && outpoint == other.outpoint && key.contentEquals(other.key) && name == other.name &&
             buyer.contentEquals(other.buyer) && seller.contentEquals(other.seller) && amount == other.amount &&
@@ -153,13 +160,21 @@ class OfferInfo(
         "OfferInfo($id, name=$name, buyer=${hex(buyer)}, seller=${hex(seller)}, amount=$amount, refundAfter=$refundAfter)"
 }
 
+/** One price shard as the screens and the actions read it (registry v3, iOS c150042). */
+data class ShardInfo(val outpoint: Outpoint, val fields: PriceFields, val value: Long) {
+    val shard: Long get() = fields.shard
+}
+
 /**
  * One registry event (history, activity). Parties are x-only keys or addresses depending on the
  * source; the screens show them through a party label.
  */
 data class Event(
     val txId: String,
-    /** register, transfer, list, delist, sale, extend, renew, release, reclaim, offer_accepted, offer */
+    /**
+     * register, transfer, list, delist, sale, extend, renew, release, reclaim, offer_accepted,
+     * offer, offer_<entry>; the walker's price changes are prices / price_authority (registry v3)
+     */
     val op: String,
     val name: String? = null,
     val at: Long? = null,
@@ -768,9 +783,10 @@ class TxView(
 // The walker's registry state (cached on disk, per network)
 
 /**
- * The registry without an indexer: the live gaps and names (and the offers this device made),
- * decoded, moved forward one spending transaction at a time from the manifest's genesis gap.
- * Hex strings throughout so the cache file stays readable.
+ * The registry without an indexer: the live price shards, gaps and names (and the offers this
+ * device made), decoded, moved forward one spending transaction at a time from both geneses (the
+ * price genesis's K shards and the genesis gap; registry v3, iOS c150042). Hex strings throughout
+ * so the cache file stays readable.
  *
  * Swift's value semantics: every mutation REPLACES a list (never mutates one in place), so
  * `copy()` is an independent snapshot - the registry walks a copy and keeps it only on success.
@@ -779,6 +795,8 @@ data class RegistryState(
     var version: Int = FORMAT_VERSION,
     var network: String,
     var registryCovenantId: String,
+    var priceCovenantId: String,
+    var shards: List<Shard>,
     var gaps: List<Gap>,
     var names: List<Name>,
     var offers: List<Offer>,
@@ -820,6 +838,16 @@ data class RegistryState(
         val createdAt: Long? = null
     )
 
+    /** A price shard (registry v3). */
+    data class Shard(
+        val txid: String,
+        val index: Int,
+        val shard: Long,
+        val authority: String,
+        val prices: List<Long>,
+        val value: Long
+    )
+
     /** One UTXO the walker follows, with the script it must hold. */
     class Tracked(val outpoint: String, val script: ByteArray, val registry: Boolean)
 
@@ -834,7 +862,14 @@ data class RegistryState(
 
     /** Whether this cache belongs to [m]'s registry. */
     fun matches(m: Manifest): Boolean =
-        version == FORMAT_VERSION && network == m.network && registryCovenantId == hex(m.registryCovenantId)
+        version == FORMAT_VERSION && network == m.network && registryCovenantId == hex(m.registryCovenantId) &&
+            priceCovenantId == hex(m.priceCovenantId)
+
+    /** Every shard, as the screens and actions read them (shard order). */
+    val shardInfos: List<ShardInfo> get() = shards.sortedBy { it.shard }.map { info(it) }
+
+    /** The current prices: shard 0's (every shard agrees: a change rewrites them all). */
+    val currentPrices: PriceFields? get() = shardInfos.firstOrNull()?.fields
 
     // Reading
 
@@ -872,6 +907,14 @@ data class RegistryState(
                 throw Failure("the last gap ends at ${g.hi.take(8)}")
             }
         }
+        // the price shards: each index once, all holding the same prices and authority (a change
+        // rewrites every shard in one transaction)
+        if (shards.isNotEmpty()) {
+            if (shards.map { it.shard }.toSet().size != shards.size) throw Failure("a price shard twice")
+            if (shards.map { it.prices }.toSet().size != 1 || shards.map { it.authority }.toSet().size != 1) {
+                throw Failure("the price shards disagree")
+            }
+        }
     }
 
     /** Every UTXO the walker follows, with the script it must hold. */
@@ -884,6 +927,7 @@ data class RegistryState(
         }
         for (n in names) out.add(Tracked("${n.txid}:${n.index}", m.name.script(fields(n).encoded), true))
         for (o in offers) out.add(Tracked("${o.txid}:${o.index}", m.offer.script(info(o).fields.encoded), false))
+        for (sh in shards) out.add(Tracked("${sh.txid}:${sh.index}", m.price.script(info(sh).fields.encoded), true))
         return out
     }
 
@@ -900,6 +944,7 @@ data class RegistryState(
     private sealed class Predicted {
         data class GapP(val lo: String, val hi: String) : Predicted()
         data class NameP(val fields: NameFields, val name: String) : Predicted()
+        data class PriceP(val fields: PriceFields) : Predicted()
     }
 
     private class Spend(val args: List<ByteArray>, val entry: String, val redeem: ByteArray)
@@ -914,7 +959,11 @@ data class RegistryState(
         val id = tx.idHex
         if (applied.contains(id)) return emptyList()
         val registryId = unhex32(registryCovenantId)
-        val regOuts = tx.outputs.indices.filter { tx.outputs[it].covenant?.covenantId?.contentEquals(registryId) == true }
+        val priceId = unhex32(priceCovenantId)
+        val regOuts = tx.outputs.indices.filter {
+            val c = tx.outputs[it].covenant?.covenantId
+            c != null && (c.contentEquals(registryId) || c.contentEquals(priceId))
+        }
         fun key(o: Outpoint) = hex(o.txid) to o.index
         val gapIns = tx.inputs.withIndex().mapNotNull { (i, input) ->
             val (t, x) = key(input.outpoint)
@@ -928,8 +977,12 @@ data class RegistryState(
             val (t, x) = key(input.outpoint)
             offers.firstOrNull { it.txid == t && it.index == x }?.let { i to it }
         }
+        val shardIns = tx.inputs.withIndex().mapNotNull { (i, input) ->
+            val (t, x) = key(input.outpoint)
+            shards.firstOrNull { it.txid == t && it.index == x }?.let { i to it }
+        }
         val newOffer = offerFromMarker(tx, m)
-        if (regOuts.isEmpty() && gapIns.isEmpty() && nameIns.isEmpty() && offerIns.isEmpty() && newOffer == null) {
+        if (regOuts.isEmpty() && gapIns.isEmpty() && nameIns.isEmpty() && offerIns.isEmpty() && shardIns.isEmpty() && newOffer == null) {
             return emptyList()
         }
         val short = id.take(12)
@@ -1024,6 +1077,41 @@ data class RegistryState(
             }
         }
 
+        for ((i, sh) in shardIns) {
+            val sp = try {
+                decodeSpend(m.price, tx.inputs[i].signatureScript)
+            } catch (e: Exception) {
+                throw Failure("$short: price input $i: ${e.message}")
+            }
+            val cur = info(sh).fields
+            if (!sp.redeem.contentEquals(m.price.redeem(cur.encoded))) {
+                throw Failure("$short: price input $i reveals a redeem script that is not the tracked shard state")
+            }
+            when (sp.entry) {
+                "use" -> predicted.add(i to Predicted.PriceP(cur))
+                "update" -> {
+                    // shard 0 writes every shard's continuation; each is authorized by that shard's input
+                    val authority = arg32(sp.args, 0)
+                    val prices = (0 until 5).map { t ->
+                        val v = argInt(sp.args, 1 + t)
+                        if (v < 0) throw Failure("$short: negative price")
+                        v
+                    }
+                    for ((j, other) in shardIns) {
+                        predicted.add(j to Predicted.PriceP(PriceFields(other.shard, authority, prices)))
+                    }
+                    events.add(
+                        Event(
+                            txId = id, op = if (prices == cur.prices) "price_authority" else "prices", name = null, at = tx.at,
+                            from = sh.authority, to = hex(authority), price = prices.last()
+                        )
+                    )
+                }
+                "follow" -> Unit
+                else -> throw Failure("$short: unexpected price entry ${sp.entry}")
+            }
+        }
+
         for ((i, o) in offerIns) {
             val sp = try {
                 decodeSpend(m.offer, tx.inputs[i].signatureScript)
@@ -1040,12 +1128,14 @@ data class RegistryState(
         // that predicted it (the P2SH script commits to the whole state).
         val matched = LinkedHashMap<Int, Predicted>()
         for ((auth, p) in predicted) {
-            val script = when (p) {
-                is Predicted.GapP -> m.gap.script(Codec.gapState(unhex32(p.lo), unhex32(p.hi)))
-                is Predicted.NameP -> m.name.script(p.fields.encoded)
+            val (script, cov) = when (p) {
+                is Predicted.GapP -> m.gap.script(Codec.gapState(unhex32(p.lo), unhex32(p.hi))) to registryId
+                is Predicted.NameP -> m.name.script(p.fields.encoded) to registryId
+                is Predicted.PriceP -> m.price.script(p.fields.encoded) to priceId
             }
             val idx = regOuts.firstOrNull { j ->
-                matched[j] == null && tx.outputs[j].script.contentEquals(script) && tx.outputs[j].covenant?.authorizingInput == auth
+                matched[j] == null && tx.outputs[j].script.contentEquals(script) && tx.outputs[j].covenant?.authorizingInput == auth &&
+                    tx.outputs[j].covenant?.covenantId?.contentEquals(cov) == true
             } ?: throw Failure("$short: predicted registry output not found (authorized by input $auth)")
             matched[idx] = p
         }
@@ -1060,6 +1150,7 @@ data class RegistryState(
         val newGaps = gaps.filterNot { "${it.txid}:${it.index}" in spent }.toMutableList()
         val newNames = names.filterNot { "${it.txid}:${it.index}" in spent }.toMutableList()
         var newOffers = offers.filterNot { "${it.txid}:${it.index}" in spent }
+        val newShards = shards.filterNot { "${it.txid}:${it.index}" in spent }.toMutableList()
         for (idx in matched.keys.sorted()) {
             val value = tx.outputs[idx].value
             when (val p = matched.getValue(idx)) {
@@ -1075,6 +1166,10 @@ data class RegistryState(
                             registeredTxId = before?.registeredTxId ?: id, updatedAt = tx.at
                         )
                     )
+                }
+                is Predicted.PriceP -> {
+                    val f = p.fields
+                    newShards.add(Shard(id, idx, f.shard, hex(f.authority), f.prices, value))
                 }
             }
         }
@@ -1094,6 +1189,7 @@ data class RegistryState(
         gaps = newGaps
         names = newNames
         offers = newOffers
+        shards = newShards
         applied = (applied + id).takeLast(APPLIED_KEEP)
         this.events = (this.events + events).takeLast(EVENTS_KEEP)
         return events
@@ -1178,18 +1274,26 @@ data class RegistryState(
     }
 
     companion object {
-        /** 2: registry v2 (names carry periodStart); an older cache is dropped and walked again. */
-        const val FORMAT_VERSION = 2
+        /**
+         * 3: registry v3 (price shards, offers with a seller; iOS c150042); an older cache is
+         * dropped and walked again.
+         */
+        const val FORMAT_VERSION = 3
         const val APPLIED_KEEP = 4096
         const val EVENTS_KEEP = 1000
 
+        /** Both geneses: the price genesis's K shards and the lone genesis gap. */
         fun atGenesis(m: Manifest): RegistryState = RegistryState(
             network = m.network,
             registryCovenantId = hex(m.registryCovenantId),
+            priceCovenantId = hex(m.priceCovenantId),
+            shards = m.genesisShards.mapIndexed { i, (output, fields) ->
+                Shard(hex(m.priceGenesisTxid), i, fields.shard, hex(fields.authority), fields.prices, output.value)
+            },
             gaps = listOf(Gap(hex(m.genesisTxid), 0, hex(m.genesisState.first), hex(m.genesisState.second), m.params.gapValue)),
             names = emptyList(),
             offers = emptyList(),
-            applied = listOf(hex(m.genesisTxid)),
+            applied = listOf(hex(m.priceGenesisTxid), hex(m.genesisTxid)),
             events = emptyList(),
             verifiedAt = null
         )
@@ -1231,6 +1335,12 @@ data class RegistryState(
             amount = o.value,
             refundAfter = o.refundAfter,
             createdAt = o.createdAt
+        )
+
+        fun info(s: Shard): ShardInfo = ShardInfo(
+            outpoint = outpoint(s.txid, s.index),
+            fields = PriceFields(s.shard, runCatching { unhex32(s.authority) }.getOrNull() ?: KachatNames.ZERO32, s.prices),
+            value = s.value
         )
 
         private fun decodeSpend(t: Template, sigScript: ByteArray): Spend {
@@ -1474,6 +1584,45 @@ object IndexerApi {
         }
     }
 
+    /**
+     * `GET /names/prices` (registry v3, iOS c150042): the current prices and every live shard, so
+     * a reader picks one (the app re-reads the picked shard's UTXO from a node before spending it).
+     */
+    class PricesJson(val prices: List<String>, val authority: String?, val shards: List<ShardJson>) {
+        class ShardJson(val shard: Long, val outpoint: OutpointJson, val authority: String, val prices: List<String>, val value: String) {
+            val info: ShardInfo?
+                get() {
+                    val op = outpoint.outpoint ?: return null
+                    val auth = runCatching { unhex32(authority) }.getOrNull() ?: return null
+                    if (prices.size != 5) return null
+                    val v = value.toLongOrNull()?.takeIf { it >= 0 } ?: return null
+                    val p = prices.mapNotNull { x -> x.toLongOrNull()?.takeIf { it >= 0 } }
+                    if (p.size != 5) return null
+                    return ShardInfo(op, PriceFields(shard, auth, p), v)
+                }
+
+            companion object {
+                fun from(o: JsonObject): ShardJson = ShardJson(
+                    shard = o.long("shard") ?: throw Failure("the names indexer answered without \"shard\""),
+                    outpoint = OutpointJson.from(o.obj("outpoint") ?: throw Failure("the names indexer answered without \"outpoint\"")),
+                    authority = required(o.str("authority"), "authority"),
+                    prices = strings(o, "prices"),
+                    value = required(o.str("value"), "value")
+                )
+            }
+        }
+
+        companion object {
+            private fun strings(o: JsonObject, k: String): List<String> =
+                o.array(k).map { e -> e.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString ?: throw Failure("the names indexer answered an unexpected \"$k\"") }
+
+            fun parse(e: JsonElement): PricesJson {
+                val o = objectOf(e)
+                return PricesJson(strings(o, "prices"), o.str("authority"), o.array("shards").map { ShardJson.from(objectOf(it)) })
+            }
+        }
+    }
+
     class IdentityJson(val address: String, val label: String?, val names: List<String>?, val profile: Profile?) {
         val identity: Identity get() = Identity(address, label, names ?: emptyList(), profile?.sanitized())
 
@@ -1511,6 +1660,8 @@ object IndexerApi {
     class StatusJson(
         val network: String?,
         val registryCovenantId: String?,
+        /** registry v3: the price covenant the indexer follows */
+        val priceCovenantId: String?,
         val genesisTxId: String?,
         val indexedDaa: Long?,
         val synced: Boolean?
@@ -1518,7 +1669,10 @@ object IndexerApi {
         companion object {
             fun parse(e: JsonElement): StatusJson {
                 val o = objectOf(e)
-                return StatusJson(o.str("network"), o.str("registryCovenantId"), o.str("genesisTxId"), o.long("indexedDaa"), o.bool("synced"))
+                return StatusJson(
+                    o.str("network"), o.str("registryCovenantId"), o.str("priceCovenantId"), o.str("genesisTxId"), o.long("indexedDaa"),
+                    o.bool("synced")
+                )
             }
         }
     }

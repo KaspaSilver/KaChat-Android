@@ -242,6 +242,7 @@ class KachatNamesRegistry @Inject constructor(
         // a copy: the walk only replaces the published state once it succeeded
         val state = (_chainState.value ?: RegistryState.atGenesis(m)).copy()
         val registryId = hex(m.registryCovenantId)
+        val priceId = hex(m.priceCovenantId)
         val report = state.walk(
             manifest = m,
             address = { KachatNamesService.p2shAddress(it) },
@@ -250,9 +251,12 @@ class KachatNamesRegistry @Inject constructor(
                 for (chunk in addresses.chunked(50)) {
                     for (u in service.utxosByAddresses(chunk)) {
                         // A node reports the covenant id; the REST fallback cannot (null). A UTXO
-                        // carrying another id is not the registry's.
+                        // carrying another id is not the registry's. The price shards the walker
+                        // follows since registry v3 carry the price covenant id: without it here
+                        // every shard would read as spent and never resolve (iOS c150042 keeps
+                        // only the registry id).
                         val c = u.entry.covenantId
-                        if (c != null && hex(c) != registryId) continue
+                        if (c != null && hex(c) != registryId && hex(c) != priceId) continue
                         out.add("${hex(u.outpoint.txid)}:${u.outpoint.index}")
                     }
                 }
@@ -655,8 +659,8 @@ class KachatNamesRegistry @Inject constructor(
         val st = runCatching { gson.fromJson(String(data, Charsets.UTF_8), RegistryState::class.java) }.getOrNull() ?: return null
         // Gson bypasses Kotlin's null checks: a file missing a list is not a cache
         @Suppress("SENSELESS_COMPARISON")
-        if (st.network == null || st.registryCovenantId == null || st.gaps == null || st.names == null ||
-            st.offers == null || st.applied == null || st.events == null
+        if (st.network == null || st.registryCovenantId == null || st.priceCovenantId == null || st.shards == null ||
+            st.gaps == null || st.names == null || st.offers == null || st.applied == null || st.events == null
         ) return null
         if (!st.matches(m) || runCatching { st.checkInvariants() }.isFailure) return null
         return st
