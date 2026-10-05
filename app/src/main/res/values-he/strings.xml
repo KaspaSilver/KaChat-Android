@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">עריכת פרופיל KaChat</string>
     <string name="kn_err_wrong_address_network">הכתובת הזו שייכת לרשת אחרת מזו של האפליקציה.</string>
     <string name="kn_primary_not_on_mainnet">שמות .kachat עדיין לא זמינים ברשת הראשית. האווטאר, הבאנר, הביו והקישורים נשמרים כבר עכשיו; תוכלו לבחור שם ראשי כשהשמות יושקו.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">קבלת קספה של רשת הבדיקות</string>
+    <string name="faucet_waiting">ממתין לתשלום מהברז...</string>
+    <string name="faucet_claimed_again_in">התקבל. אפשר לבקש שוב בעוד %1$s.</string>
+    <string name="faucet_claim_subtitle">מעתיק את כתובת הצ׳אט ופותח את ברז TN10: הדביקו אותה, עברו את הבדיקה ובקשו את הסכום המרבי.</string>
+    <string name="faucet_address_copied_notice">כתובת הצ׳אט שלכם ב-TN10 הועתקה. הדביקו אותה בשדה הכתובת של הברז.</string>
 </resources>

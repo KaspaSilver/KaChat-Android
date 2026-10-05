@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">KaChat profilini düzenle</string>
     <string name="kn_err_wrong_address_network">Bu adres uygulamadan farklı bir ağda.</string>
     <string name="kn_primary_not_on_mainnet">.kachat adları henüz mainnet\'te yok. Avatarın, bannerın, biyografin ve bağlantıların şimdi kaydedilir; adlar başladığında birincil ad seçebilirsin.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">Testnet Kaspa al</string>
+    <string name="faucet_waiting">Musluğun ödemesi bekleniyor...</string>
+    <string name="faucet_claimed_again_in">Alındı. %1$s sonra yeniden alabilirsin.</string>
+    <string name="faucet_claim_subtitle">Sohbet adresini kopyalar ve TN10 musluğunu açar: yapıştır, doğrulamayı geç ve sunulan en yüksek miktarı al.</string>
+    <string name="faucet_address_copied_notice">TN10 sohbet adresin kopyalandı. Musluğun adres alanına yapıştır.</string>
 </resources>

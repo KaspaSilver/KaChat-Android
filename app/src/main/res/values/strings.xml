@@ -1133,4 +1133,10 @@
     <string name="edit_kachat_profile">Edit KaChat Profile</string>
     <string name="kn_err_wrong_address_network">This address is on a different network than the app.</string>
     <string name="kn_primary_not_on_mainnet">.kachat names aren\'t on mainnet yet. Your avatar, banner, bio and links save now; you can pick a primary name once names launch.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">Claim Testnet Kaspa</string>
+    <string name="faucet_waiting">Waiting for the faucet\'s payment...</string>
+    <string name="faucet_claimed_again_in">Claimed. You can claim again in %1$s.</string>
+    <string name="faucet_claim_subtitle">Copies your chatting address and opens the TN10 faucet: paste it, pass the check and claim the most it offers.</string>
+    <string name="faucet_address_copied_notice">Your TN10 chatting address is copied. Paste it into the faucet\'s address field.</string>
 </resources>

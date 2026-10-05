@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">KaChat प्रोफ़ाइल संपादित करें</string>
     <string name="kn_err_wrong_address_network">यह पता ऐप से अलग नेटवर्क पर है।</string>
     <string name="kn_primary_not_on_mainnet">.kachat नाम अभी मेननेट पर नहीं हैं। आपका अवतार, बैनर, बायो और लिंक अभी सहेजे जाते हैं; नाम लॉन्च होने पर आप प्राथमिक नाम चुन सकेंगे।</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">टेस्टनेट कास्पा क्लेम करें</string>
+    <string name="faucet_waiting">फ़ॉसेट के भुगतान की प्रतीक्षा...</string>
+    <string name="faucet_claimed_again_in">क्लेम हो गया। आप %1$s में फिर से क्लेम कर सकते हैं।</string>
+    <string name="faucet_claim_subtitle">आपका चैटिंग पता कॉपी करके TN10 फ़ॉसेट खोलता है: पेस्ट करें, जाँच पास करें और अधिकतम राशि क्लेम करें।</string>
+    <string name="faucet_address_copied_notice">आपका TN10 चैटिंग पता कॉपी हो गया है। इसे फ़ॉसेट के पता फ़ील्ड में पेस्ट करें।</string>
 </resources>

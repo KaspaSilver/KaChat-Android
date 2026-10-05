@@ -4234,6 +4234,15 @@ fun ProfileScreen(
             // that hid the exact same three actions behind a chevron tap; the rich management
             // screens stay reachable via Manage exactly as before.
             val addressCardClipboardManager = LocalClipboardManager.current
+            // Testnet only: free TN10 coins for the chatting address, from the official faucet
+            // (iOS 182ae68).
+            if (com.kachat.app.util.KaspaNetwork.isTestnet && address != null) {
+                TestnetFaucetClaimButton(
+                    address = address!!,
+                    balanceSompi = { viewModel.balanceSompi.value },
+                    refreshBalance = { viewModel.refreshBalanceAndAwait() },
+                )
+            }
             ProfileAddressActionCard(
                 title = "Chatting",
                 address = address,

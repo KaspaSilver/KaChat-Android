@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">Modifier le profil KaChat</string>
     <string name="kn_err_wrong_address_network">Cette adresse est sur un autre réseau que l’app.</string>
     <string name="kn_primary_not_on_mainnet">Les noms .kachat ne sont pas encore sur le mainnet. Votre avatar, bannière, bio et liens s’enregistrent dès maintenant ; vous pourrez choisir un nom principal au lancement des noms.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">Réclamer des Kaspa de testnet</string>
+    <string name="faucet_waiting">En attente du paiement du faucet...</string>
+    <string name="faucet_claimed_again_in">Réclamé. Vous pourrez réclamer à nouveau dans %1$s.</string>
+    <string name="faucet_claim_subtitle">Copie votre adresse de discussion et ouvre le faucet TN10 : collez-la, passez la vérification et réclamez le maximum proposé.</string>
+    <string name="faucet_address_copied_notice">Votre adresse de discussion TN10 est copiée. Collez-la dans le champ d’adresse du faucet.</string>
 </resources>

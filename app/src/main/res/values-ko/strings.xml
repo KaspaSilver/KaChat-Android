@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">KaChat 프로필 편집</string>
     <string name="kn_err_wrong_address_network">이 주소는 앱과 다른 네트워크에 있습니다.</string>
     <string name="kn_primary_not_on_mainnet">.kachat 이름은 아직 메인넷에 없습니다. 아바타, 배너, 소개, 링크는 지금 저장되며, 이름이 출시되면 대표 이름을 고를 수 있습니다.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">테스트넷 Kaspa 받기</string>
+    <string name="faucet_waiting">포싯 송금을 기다리는 중...</string>
+    <string name="faucet_claimed_again_in">받았습니다. %1$s 후에 다시 받을 수 있습니다.</string>
+    <string name="faucet_claim_subtitle">채팅 주소를 복사하고 TN10 포싯을 엽니다. 붙여넣고 확인을 통과한 뒤 최대 금액을 받으세요.</string>
+    <string name="faucet_address_copied_notice">TN10 채팅 주소가 복사되었습니다. 포싯의 주소 칸에 붙여넣으세요.</string>
 </resources>

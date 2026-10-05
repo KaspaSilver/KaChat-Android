@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">تعديل ملف KaChat</string>
     <string name="kn_err_wrong_address_network">هذا العنوان على شبكة غير شبكة التطبيق.</string>
     <string name="kn_primary_not_on_mainnet">أسماء .kachat غير متاحة على الشبكة الرئيسية بعد. تُحفظ صورتك الرمزية والغلاف والنبذة والروابط الآن، ويمكنك اختيار اسم أساسي عند إطلاق الأسماء.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">المطالبة بكاسبا التجريبية</string>
+    <string name="faucet_waiting">بانتظار دفعة الصنبور...</string>
+    <string name="faucet_claimed_again_in">تمت المطالبة. يمكنك المطالبة مجددًا خلال %1$s.</string>
+    <string name="faucet_claim_subtitle">ينسخ عنوان الدردشة ويفتح صنبور TN10: الصقه، واجتز التحقق، واطلب أقصى ما يقدمه.</string>
+    <string name="faucet_address_copied_notice">تم نسخ عنوان دردشة TN10. الصقه في خانة العنوان في الصنبور.</string>
 </resources>

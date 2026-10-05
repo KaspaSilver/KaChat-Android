@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Tune
@@ -39,6 +40,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.ui.res.stringResource
+import com.kachat.app.R
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -146,7 +156,7 @@ fun KaspaAppsGrid(onOpen: (KaspaApp) -> Unit) {
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun InAppBrowserScreen(url: String, title: String, onClose: () -> Unit) {
+fun InAppBrowserScreen(url: String, title: String, notice: String? = null, onClose: () -> Unit) {
     val colors = LocalAppColors.current
     Column(
         modifier = Modifier
@@ -164,6 +174,22 @@ fun InAppBrowserScreen(url: String, title: String, onClose: () -> Unit) {
             }
             Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
+        // Optional strip under the top bar (Claim Testnet Kaspa: "your address is copied",
+        // iOS 2a81767).
+        if (notice != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(KaspaTeal.copy(alpha = 0.15f))
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.ContentPaste, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(notice, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        }
+        androidx.compose.material3.HorizontalDivider(color = colors.divider, thickness = 0.5.dp)
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
@@ -264,4 +290,144 @@ private fun HelpRow(icon: ImageVector, label: String, subtitle: String, onClick:
         }
         Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = colors.textSecondary, modifier = Modifier.size(24.dp))
     }
+}
+
+/**
+ * "Claim Testnet Kaspa", above the Chatting card on Profile, testnet only (iOS 182ae68, 2a81767).
+ * The official TN10 faucet sits behind a Cloudflare check, so it can't be claimed in the
+ * background: the button copies the chatting address in its `kaspatest:` form and opens the
+ * faucet in the in-app browser, with a strip saying it's copied. The faucet allows one claim a
+ * day, so once the chatting balance goes up after a visit the button locks for 24 hours (kept
+ * per address, with a countdown). No rise leaves it free to try again.
+ */
+@Composable
+fun TestnetFaucetClaimButton(
+    address: String,
+    balanceSompi: () -> Long,
+    refreshBalance: suspend () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val prefs = remember { context.getSharedPreferences("kachat_tn10_faucet", android.content.Context.MODE_PRIVATE) }
+    val key = "claimed_${address.lowercase()}"
+    var claimedAt by remember(key) { mutableStateOf(prefs.getLong(key, 0L).takeIf { it > 0L }) }
+    var showFaucet by remember { mutableStateOf(false) }
+    var balanceBefore by remember { mutableStateOf<Long?>(null) }
+    var checkingClaim by remember { mutableStateOf(false) }
+    // TimelineView(.periodic(by: 60)): re-read the clock every minute for the countdown.
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            now = System.currentTimeMillis()
+            kotlinx.coroutines.delay(60_000L)
+        }
+    }
+    val until = claimedAt?.let { it + FAUCET_LOCK_MS }?.takeIf { it > now }
+    val locked = until != null
+
+    /** After the faucet closes: the payment usually lands within seconds, so watch the chatting
+     *  balance for up to a minute. A rise means the claim went through - lock for 24 hours. */
+    suspend fun checkForClaim() {
+        val before = balanceBefore ?: return
+        checkingClaim = true
+        try {
+            repeat(12) { attempt ->
+                if (attempt > 0) kotlinx.coroutines.delay(5_000L)
+                runCatching { refreshBalance() }
+                if (balanceSompi() > before) {
+                    val at = System.currentTimeMillis()
+                    claimedAt = at
+                    now = at
+                    prefs.edit().putLong(key, at).apply()
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    return
+                }
+            }
+        } finally {
+            checkingClaim = false
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+            .background(KaspaTeal.copy(alpha = if (locked) 0.06f else 0.15f))
+            .clickable(enabled = !locked && !checkingClaim) {
+                // The faucet's address field takes the TN10 form; the wallet already shows it
+                // that way on testnet - this makes sure of it.
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(com.kachat.app.util.KaspaNetwork.reencode(address, "kaspatest")))
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                balanceBefore = balanceSompi()
+                showFaucet = true
+            }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            when {
+                checkingClaim -> Icons.Default.HourglassTop
+                locked -> Icons.Default.CheckCircle
+                else -> Icons.Default.WaterDrop
+            },
+            contentDescription = null,
+            tint = if (locked) colors.textSecondary else KaspaTeal,
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.faucet_claim_title),
+                color = if (locked) colors.textSecondary else colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                when {
+                    checkingClaim -> stringResource(R.string.faucet_waiting)
+                    until != null -> stringResource(R.string.faucet_claimed_again_in, faucetRemaining(until - now))
+                    else -> stringResource(R.string.faucet_claim_subtitle)
+                },
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
+        if (!locked && !checkingClaim) {
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+        }
+    }
+
+    if (showFaucet) {
+        val close = {
+            showFaucet = false
+            scope.launch { checkForClaim() }
+            Unit
+        }
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = close,
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            InAppBrowserScreen(
+                url = FAUCET_URL,
+                title = "faucet-tn10.kaspanet.io",
+                notice = stringResource(R.string.faucet_address_copied_notice),
+                onClose = close,
+            )
+        }
+    }
+}
+
+private const val FAUCET_URL = "https://faucet-tn10.kaspanet.io"
+private const val FAUCET_LOCK_MS = 24L * 60 * 60 * 1000
+
+/** "5h 12m" / "37m" - iOS's abbreviated DateComponentsFormatter, at least a minute. */
+private fun faucetRemaining(ms: Long): String {
+    val minutes = maxOf(1L, ms / 60_000L)
+    return if (ms >= 3_600_000L) "${minutes / 60}h ${minutes % 60}m" else "${minutes}m"
 }

@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">编辑 KaChat 资料</string>
     <string name="kn_err_wrong_address_network">此地址属于与应用不同的网络。</string>
     <string name="kn_primary_not_on_mainnet">.kachat 名称尚未在主网推出。你的头像、横幅、简介和链接现在即可保存；名称上线后即可选择主名称。</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">领取测试网 Kaspa</string>
+    <string name="faucet_waiting">正在等待水龙头付款...</string>
+    <string name="faucet_claimed_again_in">已领取。%1$s后可再次领取。</string>
+    <string name="faucet_claim_subtitle">复制你的聊天地址并打开 TN10 水龙头：粘贴地址、通过验证，然后领取最高额度。</string>
+    <string name="faucet_address_copied_notice">已复制你的 TN10 聊天地址。请粘贴到水龙头的地址栏中。</string>
 </resources>

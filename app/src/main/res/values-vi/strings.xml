@@ -966,4 +966,10 @@
     <string name="edit_kachat_profile">Sửa hồ sơ KaChat</string>
     <string name="kn_err_wrong_address_network">Địa chỉ này thuộc mạng khác với ứng dụng.</string>
     <string name="kn_primary_not_on_mainnet">Tên .kachat chưa có trên mainnet. Ảnh đại diện, ảnh bìa, tiểu sử và liên kết của bạn được lưu ngay; bạn có thể chọn tên chính khi tên ra mắt.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">Nhận Kaspa testnet</string>
+    <string name="faucet_waiting">Đang chờ vòi thanh toán...</string>
+    <string name="faucet_claimed_again_in">Đã nhận. Bạn có thể nhận lại sau %1$s.</string>
+    <string name="faucet_claim_subtitle">Sao chép địa chỉ trò chuyện và mở vòi TN10: dán vào, vượt qua bước kiểm tra và nhận mức tối đa.</string>
+    <string name="faucet_address_copied_notice">Đã sao chép địa chỉ trò chuyện TN10. Hãy dán vào ô địa chỉ của vòi.</string>
 </resources>

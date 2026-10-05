@@ -997,4 +997,10 @@
     <string name="edit_kachat_profile">ویرایش نمایه KaChat</string>
     <string name="kn_err_wrong_address_network">این نشانی روی شبکه‌ای غیر از شبکهٔ برنامه است.</string>
     <string name="kn_primary_not_on_mainnet">نام‌های .kachat هنوز روی شبکهٔ اصلی نیستند. آواتار، بنر، بیوگرافی و پیوندهای شما همین حالا ذخیره می‌شوند؛ پس از راه‌اندازی نام‌ها می‌توانید نام اصلی را انتخاب کنید.</string>
+    <!-- Claim Testnet Kaspa (iOS 182ae68, 2a81767) -->
+    <string name="faucet_claim_title">دریافت کاسپای تست‌نت</string>
+    <string name="faucet_waiting">در انتظار پرداخت فاست...</string>
+    <string name="faucet_claimed_again_in">دریافت شد. %1$s دیگر می‌توانید دوباره دریافت کنید.</string>
+    <string name="faucet_claim_subtitle">نشانی گفتگوی شما را کپی می‌کند و فاست TN10 را باز می‌کند: آن را بچسبانید، از بررسی عبور کنید و بیشترین مقدار را دریافت کنید.</string>
+    <string name="faucet_address_copied_notice">نشانی گفتگوی TN10 شما کپی شد. آن را در کادر نشانی فاست بچسبانید.</string>
 </resources>
