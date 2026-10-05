@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">Ваш адрес для чатов в TN10 скопирован. Вставьте его в поле адреса на кране.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">Копирует адрес</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">Управление именем</string>
+    <string name="kn_manage_extend_hint">Оплачивает дополнительные годы сейчас, до лимита в 2 года.</string>
+    <string name="kn_manage_renew_hint">Начинает новый оплаченный период с даты окончания.</string>
+    <string name="kn_manage_change_price_hint">Меняет цену продажи.</string>
+    <string name="kn_manage_delist_hint">Снимает имя с продажи.</string>
+    <string name="kn_manage_list_hint">Выставляет имя на продажу по вашей цене.</string>
+    <string name="kn_manage_transfer_hint">Отправляет имя на другой адрес.</string>
+    <string name="kn_manage_primary_hint">Показывает вас под этим именем во всём KaChat.</string>
+    <string name="kn_manage_release_hint">Отказывается от имени и возвращает залог.</string>
 </resources>

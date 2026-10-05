@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">عنوان دردشة TN10 اتنسخ. الصقه في خانة العنوان في الصنبور.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">بينسخ العنوان</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">إدارة الاسم</string>
+    <string name="kn_manage_extend_hint">بيدفع لسنين زيادة دلوقتي، لحد حد السنتين.</string>
+    <string name="kn_manage_renew_hint">بيبدأ فترة مدفوعة جديدة من تاريخ الانتهاء.</string>
+    <string name="kn_manage_change_price_hint">بيغيّر السعر المطلوب.</string>
+    <string name="kn_manage_delist_hint">بيشيل الاسم من السوق.</string>
+    <string name="kn_manage_list_hint">بيعرض الاسم للبيع بالسعر اللي تحدده.</string>
+    <string name="kn_manage_transfer_hint">بيبعت الاسم لعنوان تاني.</string>
+    <string name="kn_manage_primary_hint">بيظهرك بالاسم ده في كل KaChat.</string>
+    <string name="kn_manage_release_hint">بيتنازل عن الاسم ويرجّع العربون بتاعه.</string>
 </resources>

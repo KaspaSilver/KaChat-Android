@@ -1140,4 +1140,14 @@
     <string name="faucet_address_copied_notice">Your TN10 chatting address is copied. Paste it into the faucet\'s address field.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">Copies the address</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">Manage Name</string>
+    <string name="kn_manage_extend_hint">Pays for more years now, up to the 2-year limit.</string>
+    <string name="kn_manage_renew_hint">Starts a new paid period from the expiry date.</string>
+    <string name="kn_manage_change_price_hint">Changes the asking price.</string>
+    <string name="kn_manage_delist_hint">Takes the name off the market.</string>
+    <string name="kn_manage_list_hint">Puts the name up for sale at your price.</string>
+    <string name="kn_manage_transfer_hint">Sends the name to another address.</string>
+    <string name="kn_manage_primary_hint">Shows you by this name across KaChat.</string>
+    <string name="kn_manage_release_hint">Gives the name up and returns its deposit.</string>
 </resources>

@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">Votre adresse de discussion TN10 est copiée. Collez-la dans le champ d’adresse du faucet.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">Copie l’adresse</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">Gérer le nom</string>
+    <string name="kn_manage_extend_hint">Paie des années supplémentaires maintenant, jusqu’à la limite de 2 ans.</string>
+    <string name="kn_manage_renew_hint">Démarre une nouvelle période payée à partir de la date d’expiration.</string>
+    <string name="kn_manage_change_price_hint">Modifie le prix demandé.</string>
+    <string name="kn_manage_delist_hint">Retire le nom du marché.</string>
+    <string name="kn_manage_list_hint">Met le nom en vente à votre prix.</string>
+    <string name="kn_manage_transfer_hint">Envoie le nom à une autre adresse.</string>
+    <string name="kn_manage_primary_hint">Vous affiche sous ce nom dans tout KaChat.</string>
+    <string name="kn_manage_release_hint">Abandonne le nom et rend son dépôt.</string>
 </resources>

@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">כתובת הצ׳אט שלכם ב-TN10 הועתקה. הדביקו אותה בשדה הכתובת של הברז.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">מעתיק את הכתובת</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">ניהול השם</string>
+    <string name="kn_manage_extend_hint">משלם עכשיו על שנים נוספות, עד מגבלת השנתיים.</string>
+    <string name="kn_manage_renew_hint">מתחיל תקופה בתשלום חדשה מתאריך התפוגה.</string>
+    <string name="kn_manage_change_price_hint">משנה את המחיר המבוקש.</string>
+    <string name="kn_manage_delist_hint">מוריד את השם מהשוק.</string>
+    <string name="kn_manage_list_hint">מציע את השם למכירה במחיר שלכם.</string>
+    <string name="kn_manage_transfer_hint">שולח את השם לכתובת אחרת.</string>
+    <string name="kn_manage_primary_hint">מציג אתכם בשם הזה בכל KaChat.</string>
+    <string name="kn_manage_release_hint">מוותר על השם ומחזיר את הפיקדון שלו.</string>
 </resources>

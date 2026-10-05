@@ -837,4 +837,14 @@
     <string name="faucet_address_copied_notice">Alamat obrolan TN10 Anda sudah disalin. Tempelkan ke kolom alamat faucet.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">Menyalin alamat</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">Kelola Nama</string>
+    <string name="kn_manage_extend_hint">Membayar tahun tambahan sekarang, hingga batas 2 tahun.</string>
+    <string name="kn_manage_renew_hint">Memulai periode berbayar baru dari tanggal kedaluwarsa.</string>
+    <string name="kn_manage_change_price_hint">Mengubah harga jual.</string>
+    <string name="kn_manage_delist_hint">Menarik nama dari pasar.</string>
+    <string name="kn_manage_list_hint">Menjual nama dengan harga Anda.</string>
+    <string name="kn_manage_transfer_hint">Mengirim nama ke alamat lain.</string>
+    <string name="kn_manage_primary_hint">Menampilkan Anda dengan nama ini di seluruh KaChat.</string>
+    <string name="kn_manage_release_hint">Melepas nama dan mengembalikan depositnya.</string>
 </resources>

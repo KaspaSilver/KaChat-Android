@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">TN10 sohbet adresin kopyalandı. Musluğun adres alanına yapıştır.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">Adresi kopyalar</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">Adı yönet</string>
+    <string name="kn_manage_extend_hint">Şimdi ek yılları öder, 2 yıllık sınıra kadar.</string>
+    <string name="kn_manage_renew_hint">Bitiş tarihinden itibaren yeni bir ödenmiş dönem başlatır.</string>
+    <string name="kn_manage_change_price_hint">Satış fiyatını değiştirir.</string>
+    <string name="kn_manage_delist_hint">Adı piyasadan çeker.</string>
+    <string name="kn_manage_list_hint">Adı senin fiyatından satışa çıkarır.</string>
+    <string name="kn_manage_transfer_hint">Adı başka bir adrese gönderir.</string>
+    <string name="kn_manage_primary_hint">Seni KaChat\'in her yerinde bu adla gösterir.</string>
+    <string name="kn_manage_release_hint">Adı bırakır ve depozitosunu iade eder.</string>
 </resources>

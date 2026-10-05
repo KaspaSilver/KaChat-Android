@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">Đã sao chép địa chỉ trò chuyện TN10. Hãy dán vào ô địa chỉ của vòi.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">Sao chép địa chỉ</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">Quản lý tên</string>
+    <string name="kn_manage_extend_hint">Trả thêm năm ngay bây giờ, tối đa giới hạn 2 năm.</string>
+    <string name="kn_manage_renew_hint">Bắt đầu kỳ trả phí mới từ ngày hết hạn.</string>
+    <string name="kn_manage_change_price_hint">Thay đổi giá bán.</string>
+    <string name="kn_manage_delist_hint">Gỡ tên khỏi chợ.</string>
+    <string name="kn_manage_list_hint">Rao bán tên với giá của bạn.</string>
+    <string name="kn_manage_transfer_hint">Gửi tên đến địa chỉ khác.</string>
+    <string name="kn_manage_primary_hint">Hiển thị bạn bằng tên này trên toàn KaChat.</string>
+    <string name="kn_manage_release_hint">Từ bỏ tên và hoàn lại tiền đặt cọc.</string>
 </resources>

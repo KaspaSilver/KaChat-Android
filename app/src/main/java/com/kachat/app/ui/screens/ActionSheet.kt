@@ -51,6 +51,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -141,15 +142,40 @@ fun ActionSheetContainer(
     detail: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val colors = LocalAppColors.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
+    ActionSheetContainer(
+        title = title,
+        subtitle = subtitle,
+        onDismiss = onDismiss,
         // Opens EXPANDED, not half-height. Partial expansion caps the opening height at about
         // half the screen, so a sheet with more than a few options opened already cut off - the
         // 1:1 composer's + menu hid Send Handshake below the fold, and an option you cannot see
         // is an option that does not exist. Expanded still wraps its content, so a short sheet
         // looks exactly as it did.
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        detail = detail,
+        content = content,
+    )
+}
+
+/**
+ * The same sheet on a [sheetState] the caller holds, for a caller that hides the sheet itself and
+ * acts once it has gone down (the .kachat Manage Name sheet, iOS f61b978). A separate overload so
+ * the experimental [SheetState] stays out of every other caller's signature.
+ */
+@ExperimentalMaterial3Api
+@Composable
+fun ActionSheetContainer(
+    title: String,
+    subtitle: String?,
+    onDismiss: () -> Unit,
+    sheetState: SheetState,
+    detail: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = colors.background,
     ) {
         Column(

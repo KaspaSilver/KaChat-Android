@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">已复制你的 TN10 聊天地址。请粘贴到水龙头的地址栏中。</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">复制地址</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">管理名称</string>
+    <string name="kn_manage_extend_hint">现在预付更多年份，最多 2 年。</string>
+    <string name="kn_manage_renew_hint">从到期日开始新的付费期。</string>
+    <string name="kn_manage_change_price_hint">更改要价。</string>
+    <string name="kn_manage_delist_hint">将名称从市场下架。</string>
+    <string name="kn_manage_list_hint">以你的价格出售该名称。</string>
+    <string name="kn_manage_transfer_hint">将名称发送到另一个地址。</string>
+    <string name="kn_manage_primary_hint">在整个 KaChat 中以此名称显示你。</string>
+    <string name="kn_manage_release_hint">放弃该名称并退还押金。</string>
 </resources>

@@ -1640,6 +1640,9 @@ fun KachatLiveNameDetailScreen(
     var history by remember { mutableStateOf<List<Event>>(emptyList()) }
     var gone by remember { mutableStateOf(false) }
     var confirmPrimary by remember { mutableStateOf(false) }
+    // The Manage Name half sheet (iOS f61b978): what it picks opens once it has gone down.
+    var showManage by remember { mutableStateOf(false) }
+    val manifest by vm.service.manifest.collectAsState()
     // Which of this wallet's addresses holds the name (chatting, a spending address, a KasSigner
     // address), or null for someone else's. Resolved on load: it derives addresses (iOS 881ada6).
     var heldBy by remember(initial.name) { mutableStateOf<KachatNamesActions.OwnAddress?>(null) }
@@ -1800,28 +1803,18 @@ fun KachatLiveNameDetailScreen(
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         val big = Modifier.fillMaxWidth()
                         if (canActAsOwner) {
-                            KachatPeriodActions(info, status, vm) { sheet = it }
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                KachatButton(
-                                    stringResource(if (info.isListed) R.string.kn_change_price else R.string.kn_list_for_sale),
-                                    Modifier.weight(1f), Icons.Default.Sell, enabled = status == Status.ACTIVE, large = true
-                                ) { sheet = KachatDetailSheet.LIST }
-                                KachatButton(stringResource(R.string.portfolio_type_transfer), Modifier.weight(1f), Icons.AutoMirrored.Filled.CompareArrows, large = true) { sheet = KachatDetailSheet.TRANSFER }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                if (info.isListed) {
-                                    KachatButton(stringResource(R.string.kn_delist), Modifier.weight(1f), Icons.AutoMirrored.Filled.LabelOff, large = true) { sheet = KachatDetailSheet.DELIST }
-                                }
-                                // The primary name is the chatting address's identity; a name on a
-                                // spending address can't be it (iOS 881ada6).
-                                if (mine) {
-                                    KachatButton(
-                                        stringResource(R.string.set_as_primary), Modifier.weight(1f), Icons.Default.HowToReg,
-                                        enabled = status == Status.ACTIVE, large = true
-                                    ) { confirmPrimary = true }
+                            // Expired (in grace or lapsed) and renewable: the one thing that
+                            // matters now stays on the page instead of inside the menu (iOS f61b978).
+                            val p = manifest?.params
+                            if (status != Status.ACTIVE && p != null && info.renewOpen(p)) {
+                                KachatButton(stringResource(R.string.kn_renew), big, Icons.Default.Refresh, prominent = true, large = true) {
+                                    sheet = KachatDetailSheet.RENEW
                                 }
                             }
-                            KachatButton(stringResource(R.string.kn_release_name), big, Icons.Default.Delete, destructive = true, large = true) { sheet = KachatDetailSheet.RELEASE }
+                            // Every owner action lives in one half sheet of tiles.
+                            KachatButton(stringResource(R.string.kn_manage_name), big, Icons.Default.Tune, prominent = status == Status.ACTIVE, large = true) {
+                                showManage = true
+                            }
                         } else if (heldBy is KachatNamesActions.OwnAddress.KasSigner) {
                             // Read-only: the app shows that a KasSigner address holds the name (the
                             // Owner card says which); acting on it is the device's job (iOS 881ada6).
@@ -1949,44 +1942,94 @@ fun KachatLiveNameDetailScreen(
             PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
         }
     }
+
+    if (showManage) {
+        KachatManageNameSheet(
+            info, status, manifest?.params, mine,
+            onDismiss = { showManage = false },
+            onOpen = { sheet = it },
+            onPrimary = { confirmPrimary = true }
+        )
+    }
 }
 
+/** One tile of the Manage Name sheet (iOS f61b978 `ManageItem`). */
+private class KachatManageItem(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val tint: Color? = null,
+    val enabled: Boolean = true,
+    val run: () -> Unit,
+)
+
 /**
- * Registry v2 (iOS bd2c54a `periodActions`): "Extend" while the paid period holds less than 2
- * years (labelled "Extend to 2 years" when that fills it), "Renew" once the renewal window is open
- * (10 days before the expiry, and on through grace and lapse), otherwise a disabled "Renewal opens
- * on <date>".
+ * The Manage Name half sheet (iOS f61b978 `manageSheet`): the name, "Renewal opens on <date>"
+ * while the renewal window hasn't opened, and the owner's actions as square tiles
+ * ([ActionSheetTiles]). Registry v2 periods: "Extend" while the paid period holds less than 2
+ * years ("Extend to 2 years" when that fills it), "Renew" once the renewal window is open (10 days
+ * before the expiry, and on through grace and lapse). Set as Primary only when the chatting
+ * address holds the name ([mine], iOS 881ada6). The picked action runs once the sheet has gone
+ * down: iOS can't present two sheets at once, and here the action's own sheet replaces the page.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KachatPeriodActions(info: NameInfo, status: Status, vm: KachatLiveViewModel, open: (KachatDetailSheet) -> Unit) {
-    val manifest by vm.service.manifest.collectAsState()
-    val p = manifest?.params ?: return
-    val extendable = info.extendableYears(p)
-    val renewOpen = info.renewOpen(p)
-    if (extendable > 0 || renewOpen) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun KachatManageNameSheet(
+    info: NameInfo,
+    status: Status,
+    params: Params?,
+    mine: Boolean,
+    onDismiss: () -> Unit,
+    onOpen: (KachatDetailSheet) -> Unit,
+    onPrimary: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    /** Closes the sheet and runs [then] once it has gone. */
+    fun close(then: () -> Unit) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            onDismiss()
+            then()
+        }
+    }
+    val open: (KachatDetailSheet) -> () -> Unit = { s -> { close { onOpen(s) } } }
+    val active = status == Status.ACTIVE
+    val items = buildList {
+        if (params != null) {
+            val extendable = info.extendableYears(params)
             if (extendable > 0) {
-                val title = if (KachatLive.fillsPeriod(info, extendable, p)) {
-                    stringResource(R.string.kn_extend_to_years, p.maxYears.toInt())
+                val title = if (KachatLive.fillsPeriod(info, extendable, params)) {
+                    stringResource(R.string.kn_extend_to_years, params.maxYears.toInt())
                 } else {
                     stringResource(R.string.kn_extend)
                 }
-                KachatButton(title, Modifier.weight(1f), Icons.Default.MoreTime, prominent = status != Status.ACTIVE && !renewOpen, large = true) {
-                    open(KachatDetailSheet.EXTEND)
-                }
+                add(KachatManageItem(title, stringResource(R.string.kn_manage_extend_hint), Icons.Default.MoreTime, run = open(KachatDetailSheet.EXTEND)))
             }
-            if (renewOpen) {
-                KachatButton(stringResource(R.string.kn_renew), Modifier.weight(1f), Icons.Default.Refresh, prominent = status != Status.ACTIVE, large = true) {
-                    open(KachatDetailSheet.RENEW)
-                }
+            if (info.renewOpen(params)) {
+                add(KachatManageItem(stringResource(R.string.kn_renew), stringResource(R.string.kn_manage_renew_hint), Icons.Default.Refresh, run = open(KachatDetailSheet.RENEW)))
             }
         }
+        if (info.isListed) {
+            add(KachatManageItem(stringResource(R.string.kn_change_price), stringResource(R.string.kn_manage_change_price_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST)))
+            add(KachatManageItem(stringResource(R.string.kn_delist), stringResource(R.string.kn_manage_delist_hint), Icons.AutoMirrored.Filled.LabelOff, run = open(KachatDetailSheet.DELIST)))
+        } else {
+            add(KachatManageItem(stringResource(R.string.kn_list_for_sale), stringResource(R.string.kn_manage_list_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST)))
+        }
+        add(KachatManageItem(stringResource(R.string.portfolio_type_transfer), stringResource(R.string.kn_manage_transfer_hint), Icons.AutoMirrored.Filled.CompareArrows, run = open(KachatDetailSheet.TRANSFER)))
+        // The primary name is the chatting address's identity; a name on a spending address can't be it.
+        if (mine) {
+            add(KachatManageItem(stringResource(R.string.set_as_primary), stringResource(R.string.kn_manage_primary_hint), Icons.Default.HowToReg, enabled = active) { close(onPrimary) })
+        }
+        add(KachatManageItem(stringResource(R.string.kn_release_name), stringResource(R.string.kn_manage_release_hint), Icons.Default.Delete, tint = LocalAppColors.current.danger, run = open(KachatDetailSheet.RELEASE)))
     }
-    if (!renewOpen) {
-        KachatButton(
-            stringResource(R.string.kn_renewal_opens_on, KachatLive.date(info.renewOpens(p))),
-            Modifier.fillMaxWidth(), Icons.Default.Schedule, enabled = false, large = true
-        ) {}
+    // When the renewal window opens, while it hasn't yet - under the sheet's title.
+    val note = params?.takeIf { !info.renewOpen(it) }?.let { stringResource(R.string.kn_renewal_opens_on, KachatLive.date(info.renewOpens(it))) }
+    ActionSheetContainer(title = info.display, subtitle = note, onDismiss = onDismiss, sheetState = sheetState) {
+        ActionSheetTiles {
+            items.forEach { item ->
+                ActionSheetRow(item.icon, item.title, item.subtitle, tint = item.tint ?: KaspaTeal, enabled = item.enabled, onClick = item.run)
+            }
+        }
     }
 }
 

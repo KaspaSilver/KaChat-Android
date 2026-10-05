@@ -973,4 +973,14 @@
     <string name="faucet_address_copied_notice">TN10 채팅 주소가 복사되었습니다. 포싯의 주소 칸에 붙여넣으세요.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">주소를 복사합니다</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">이름 관리</string>
+    <string name="kn_manage_extend_hint">2년 한도까지 지금 더 많은 기간을 결제합니다.</string>
+    <string name="kn_manage_renew_hint">만료일부터 새 결제 기간을 시작합니다.</string>
+    <string name="kn_manage_change_price_hint">판매 가격을 변경합니다.</string>
+    <string name="kn_manage_delist_hint">이름을 시장에서 내립니다.</string>
+    <string name="kn_manage_list_hint">원하는 가격에 이름을 판매합니다.</string>
+    <string name="kn_manage_transfer_hint">이름을 다른 주소로 보냅니다.</string>
+    <string name="kn_manage_primary_hint">KaChat 전체에서 이 이름으로 표시됩니다.</string>
+    <string name="kn_manage_release_hint">이름을 포기하고 보증금을 돌려받습니다.</string>
 </resources>

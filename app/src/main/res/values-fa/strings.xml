@@ -1004,4 +1004,14 @@
     <string name="faucet_address_copied_notice">نشانی گفتگوی TN10 شما کپی شد. آن را در کادر نشانی فاست بچسبانید.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
     <string name="kn_copies_the_address">نشانی را کپی می‌کند</string>
+    <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
+    <string name="kn_manage_name">مدیریت نام</string>
+    <string name="kn_manage_extend_hint">هم‌اکنون برای سال‌های بیشتر پرداخت می‌کند، تا سقف ۲ سال.</string>
+    <string name="kn_manage_renew_hint">یک دورهٔ پرداخت‌شدهٔ تازه از تاریخ انقضا آغاز می‌کند.</string>
+    <string name="kn_manage_change_price_hint">قیمت درخواستی را تغییر می‌دهد.</string>
+    <string name="kn_manage_delist_hint">نام را از بازار خارج می‌کند.</string>
+    <string name="kn_manage_list_hint">نام را با قیمت شما برای فروش می‌گذارد.</string>
+    <string name="kn_manage_transfer_hint">نام را به نشانی دیگری می‌فرستد.</string>
+    <string name="kn_manage_primary_hint">شما را در سراسر KaChat با این نام نشان می‌دهد.</string>
+    <string name="kn_manage_release_hint">نام را رها می‌کند و سپردهٔ آن را برمی‌گرداند.</string>
 </resources>
