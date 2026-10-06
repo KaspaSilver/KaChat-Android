@@ -11158,6 +11158,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     value = translationServiceUrl,
                     onClick = { editingTranslationUrl = true }
                 )
+                // Same words as iOS's footer; TRANSLATION_SERVICE.md lives in the iOS repo.
                 SettingsFooter(
                     "Translates KaPosts written in another language. Runs on the KaPost indexer's " +
                         "box by default; point this at your own if you host one (see " +

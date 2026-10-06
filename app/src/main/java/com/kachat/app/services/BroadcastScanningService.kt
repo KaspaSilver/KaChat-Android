@@ -70,7 +70,7 @@ class BroadcastScanningService @Inject constructor(
     private val broadcastRepository: BroadcastRepository,
     private val notificationHelper: NotificationHelper,
     // Consulted ONLY at the notification-posting site: while native FCM push is active, the
-    // server pushes bell-enabled channels' messages (PUSH_EXTENSIONS.md §2/§4) and a local
+    // server pushes bell-enabled channels' messages (the iOS repo's PUSH_EXTENSIONS.md §2/§4) and a local
     // banner here too would be a duplicate. Scanning/caching itself is never gated on it.
     private val pushState: PushState,
     // Global notification center (Profile bell): live incoming channel rows are listed there,

@@ -54,12 +54,12 @@ import javax.inject.Singleton
  * bell-enabled broadcast channels, hidden broadcast senders, and the notifications setting — and
  * re-registers (debounced 2s, so an edit burst is one round-trip) whenever any of it changes,
  * mirroring iOS's updateWatchedAddresses triggers (PUSH_NOTIFICATIONS.md) and the "bell toggles
- * re-send registration immediately" contract (PUSH_EXTENSIONS.md §1). The same observer
+ * re-send registration immediately" contract (the iOS repo's PUSH_EXTENSIONS.md §1). The same observer
  * unregisters when notifications are switched off or the last account disappears.
  *
  * [PushState.setActive] is flipped true only after a registration round-trip succeeds while
  * system notifications are deliverable, and false on failure/unregister — the pollers consult it
- * to suppress their duplicate local banners for push-covered types (PUSH_EXTENSIONS.md §4).
+ * to suppress their duplicate local banners for push-covered types (the iOS repo's PUSH_EXTENSIONS.md §4).
  */
 @OptIn(FlowPreview::class)
 @Singleton
@@ -200,7 +200,7 @@ class PushRegistrationManager @Inject constructor(
 
     /**
      * Asks the push service to ring [toAddress]'s devices for a call this device is placing
-     * (PUSH_EXTENSIONS.md §5). The request is signed like every other push call, which is how the
+     * (the iOS repo's PUSH_EXTENSIONS.md §5). The request is signed like every other push call, which is how the
      * service knows the sender it names in the push; [payloadHex] is the opening call message
      * encrypted to the contact, exactly as it went on chain.
      *
@@ -213,7 +213,7 @@ class PushRegistrationManager @Inject constructor(
         val token = FirebaseMessaging.getInstance().token.await().trim()
         if (token.isEmpty()) throw IllegalStateException("no FCM token")
         val material = signingMaterial()
-        // The service checks a ring in its legacy shape (PUSH_EXTENSIONS.md §5, push.rs ring_call
+        // The service checks a ring in its legacy shape (the iOS repo's PUSH_EXTENSIONS.md §5, push.rs ring_call
         // -> LegacyV1): no watched_group_ids_hash line, and the caller's own wallet address as
         // primary_address - the same preimage iOS signs since 7182b4a/82eb7f7 (audit XP-010).
         val auth = buildAuth(

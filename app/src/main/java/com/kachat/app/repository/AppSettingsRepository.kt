@@ -377,7 +377,7 @@ class AppSettingsRepository @Inject constructor(
     }
 
     /**
-     * Server-side KaPost translation (see TRANSLATION_SERVICE.md). Its own setting rather than
+     * Server-side KaPost translation (see the iOS repo's TRANSLATION_SERVICE.md). Its own setting rather than
      * riding on [kapostIndexerUrl], so someone running their own translator does not have to run
      * their own KaPosts indexer as well - and the reverse. Blank falls back to the default: an
      * empty base URL builds a request that fails and reads as the server being down.
@@ -690,7 +690,7 @@ class AppSettingsRepository @Inject constructor(
      * not label.
      *
      * The server pushes every kind to any device registered with a `kaposts_pubkey` - it has no
-     * idea what the reader switched off, because nothing ever told it (see PUSH_EXTENSIONS.md
+     * idea what the reader switched off, because nothing ever told it (see the iOS repo's PUSH_EXTENSIONS.md
      * §3, where per-kind registration is now specified as the proper fix). Until it does, the
      * filtering has to happen here or the five switches only govern the local poller.
      *

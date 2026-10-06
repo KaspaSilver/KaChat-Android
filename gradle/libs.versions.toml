@@ -125,7 +125,7 @@ webrtc = { group = "io.github.webrtc-sdk", name = "android", version.ref = "webr
 
 # Language IDENTIFICATION for KaPosts, on device: it decides whether to OFFER a Translate link,
 # which is asked for every post that scrolls past, so it cannot be a server round trip. The
-# translation itself is a server call now - see TRANSLATION_SERVICE.md.
+# translation itself is a server call now - see the iOS repo's TRANSLATION_SERVICE.md.
 mlkit-language-id = { group = "com.google.mlkit", name = "language-id", version.ref = "mlkitLanguageId" }
 
 # Biometric / device-credential prompt — gates the seed phrase and unlocking a saved account.

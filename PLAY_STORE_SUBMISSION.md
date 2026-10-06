@@ -122,7 +122,7 @@ on device (ML Kit language-id, bundled).
 | Data type | Collected | Shared | Purpose / endpoint |
 | --- | --- | --- | --- |
 | Financial info — other (Kaspa address) | Yes | Yes | Push routing (KaChat indexer), KNS lookups, and the swap destination sent to ChangeNOW. App functionality; required. |
-| Messages — other in-app messages | Yes (ephemeral) | No | Public KaPost text goes to KaChat's translation service **only** when the reader taps Translate. The request carries no identifier of any kind; see `TRANSLATION_SERVICE.md`. |
+| Messages — other in-app messages | Yes (ephemeral) | No | Public KaPost text goes to KaChat's translation service **only** when the reader taps Translate. The request carries no identifier of any kind; see the iOS repo's `TRANSLATION_SERVICE.md`. |
 | App activity — other | Yes (ephemeral) | No | Which addresses/rooms/groups to watch, sent to the indexer for push. Addresses are hashed in the auth preimage. |
 | Device ID | Yes | No | FCM registration token, sent to the KaChat indexer's `/v1/push`, signed with the wallet key. |
 | Photos | No | No | Images are attached from the device and sent in-chat; never uploaded to a KaChat service. |

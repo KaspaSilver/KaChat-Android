@@ -104,7 +104,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     "kaposts" -> {
                         val txId = data["tx_id"].orEmpty()
                         // The id of the content that was acted ON. The published contract calls
-                        // it `postId` (PUSH_EXTENSIONS.md section 3), this file's own schema
+                        // it `postId` (the iOS repo's PUSH_EXTENSIONS.md section 3), this file's own schema
                         // comment said `post_id`, and the code read `content_id` — accept all
                         // three rather than let one server-side spelling silently disable the
                         // deep link. It is deliberately absent for a follow.

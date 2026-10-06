@@ -22,7 +22,7 @@ interface PushApi {
     suspend fun register(@Body body: PushRegistrationRequest): PushResponse
 
     /**
-     * Ring the callee's devices for a call this device is placing (PUSH_EXTENSIONS.md §5).
+     * Ring the callee's devices for a call this device is placing (the iOS repo's PUSH_EXTENSIONS.md §5).
      * A closed app cannot watch the chain, so the caller asks the service to wake the other
      * phone; the ring carries the same opening message that went on chain.
      */
@@ -64,7 +64,7 @@ data class PushRegistrationRequest(
     @SerializedName("kaposts_pubkey") val kaPostsPubkey: String? = null,
     /**
      * The reader's per-kind KaPosts switches, so the server can skip a push at the source
-     * (PUSH_EXTENSIONS.md §3). A KaPosts push carries a `notification` block, so while the app
+     * (the iOS repo's PUSH_EXTENSIONS.md §3). A KaPosts push carries a `notification` block, so while the app
      * is in the background the OS shows it without this client ever running - registering the
      * kinds is the only way a switched-off kind stops arriving there. Mentions are deliberately
      * not switchable. Same five fields iOS sends.
@@ -92,7 +92,7 @@ data class KaPostsNotifyKinds(
 
 /**
  * `POST /v1/push/ring` — ring [toAddress]'s devices for a call this device is placing
- * (PUSH_EXTENSIONS.md §5, same body iOS sends).
+ * (the iOS repo's PUSH_EXTENSIONS.md §5, same body iOS sends).
  *
  * The service trusts [auth] for the sender it names in the push, so the callee can show who is
  * calling without decrypting anything. [payload] is the opening call message encrypted to the

@@ -8,7 +8,7 @@ import javax.inject.Singleton
 /**
  * Whether native FCM push is currently ACTIVE for this device — meaning the server, not the
  * in-app pollers, is the notification source for the push-covered surfaces (1:1 DMs, broadcast
- * channels, KaPosts pings), per PUSH_EXTENSIONS.md §4: the app posts no banners of its own for
+ * channels, KaPosts pings), per the iOS repo's PUSH_EXTENSIONS.md §4: the app posts no banners of its own for
  * what it discovers itself while push is active.
  *
  * Foreground included. The app used to banner from both sources while on screen - the local

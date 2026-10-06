@@ -1148,7 +1148,7 @@ class CallService @Inject constructor(
     }
 
     /**
-     * Asks the push service to ring the callee's phones for this call (PUSH_EXTENSIONS.md §5).
+     * Asks the push service to ring the callee's phones for this call (the iOS repo's PUSH_EXTENSIONS.md §5).
      * A phone with KaChat closed cannot see the chain, so without this it only rings once the app
      * happens to sync. [payloadHex] is the very message that just went on chain, so the push
      * carries nothing the chain does not.

@@ -59,7 +59,7 @@ class ChatRepository @Inject constructor(
     private val notificationHelper: NotificationHelper,
     // Consulted at the notification-posting sites below AND by the poll-loop gate in init:
     // while native FCM push is active AND the app is backgrounded, the server is the
-    // notification source for 1:1 handshakes/messages/payments (PUSH_EXTENSIONS.md §4) and the
+    // notification source for 1:1 handshakes/messages/payments (the iOS repo's PUSH_EXTENSIONS.md §4) and the
     // 2s sync loop pauses entirely (see the gate in init). While the app is foregrounded the
     // local poll posts its own banners (only the open thread is suppressed, inside
     // NotificationHelper) — txId dedupe there collapses a racing push for the same message.

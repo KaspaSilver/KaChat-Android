@@ -31,7 +31,7 @@ class KaPostsNotificationPoller @Inject constructor(
     private val walletManager: WalletManager,
     private val notificationHelper: NotificationHelper,
     private val dataStore: DataStore<Preferences>,
-    // While native FCM push is active the server sends the KaPosts pings (PUSH_EXTENSIONS.md
+    // While native FCM push is active the server sends the KaPosts pings (the iOS repo's PUSH_EXTENSIONS.md
     // §3/§4), so the poller must not post duplicates — but it still polls: last-seen tracking
     // and the Notifications screen's data depend on it.
     private val pushState: PushState,

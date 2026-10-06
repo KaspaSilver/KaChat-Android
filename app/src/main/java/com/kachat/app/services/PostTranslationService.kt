@@ -25,7 +25,7 @@ import javax.inject.Singleton
  * link, tapping it swaps the text in place, and the link becomes "Translated from Spanish - Show
  * original".
  *
- * The translation itself happens on the KaChat server (see `TRANSLATION_SERVICE.md`), the way X
+ * The translation itself happens on the KaChat server (see the iOS repo's `TRANSLATION_SERVICE.md`), the way X
  * does it, rather than on the device. On-device translation - ML Kit here, Apple's Translation
  * framework on iOS - was private but cost the reader a language-pack download of tens of megabytes
  * before the first translation finished, and re-translated the same post on every device that read
@@ -312,7 +312,7 @@ class PostTranslationService @Inject constructor(
      * whose language the deployment does not serve is never offered a link that can only fail.
      *
      * Null means "we do not know", either because the endpoint is absent or the request failed.
-     * Both fall back to offering the link anyway, which is what `TRANSLATION_SERVICE.md`
+     * Both fall back to offering the link anyway, which is what the iOS repo's `TRANSLATION_SERVICE.md`
      * specifies.
      */
     private suspend fun supportedLanguages(): SupportedLanguages? {
