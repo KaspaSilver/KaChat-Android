@@ -69,6 +69,16 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // service is torn down.
         runBlocking {
             try {
+                // Any push about the other network - the service this device left when it moved
+                // between mainnet and testnet still pushing it - stays silent, whatever its type:
+                // DMs, payments and handshakes as before, and now group, public chat, KaPosts and
+                // .kachat name pushes too (iOS d946a65 rule, audit AND-006). Not filed either: the
+                // same key would decrypt it into the wrong account (iOS df52425).
+                if (com.kachat.app.util.PushNetworkFilter.isOtherNetwork(data, com.kachat.app.util.KaspaNetwork.launch)) {
+                    data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                    Log.i(TAG, "Silenced a $type push from the other network")
+                    return@runBlocking
+                }
                 when (type) {
                     // .kachat name events (KACHAT_NAMES_INDEXER.md Part E): offers, sales,
                     // renewal reminders, written in the device's language (iOS beeedd4).
@@ -233,7 +243,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     // "Started a conversation") — no decryption needed.
                     "payment", "handshake" -> {
                         val sender = data["sender"] ?: return@runBlocking
-                        if (silenceOtherNetwork(sender, data)) return@runBlocking
                         // Payments land in your own chat and ring as before; a handshake is
                         // first contact like any other (Message Requests).
                         if (type == "handshake" && applyMessageRequestRule(sender, data)) return@runBlocking
@@ -260,7 +269,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      */
     private suspend fun handleDirectMessage(data: Map<String, String>) {
         val sender = data["sender"] ?: return
-        if (silenceOtherNetwork(sender, data)) return
         // Media/large messages exceed FCM's 4KB cap, so the server can't attach the encrypted body
         // (enc_payload absent) — the server's generic body is used for those. Small text messages
         // carry enc_payload and are decrypted here for the real preview.
@@ -379,18 +387,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     /** Sompi as KAS text: up to 8 decimals, trailing zeros dropped (iOS kasText). */
     private fun kasText(sompi: Long): String =
         String.format(java.util.Locale.US, "%.8f", sompi / 100_000_000.0).trimEnd('0').trimEnd('.')
-
-    /**
-     * A push about the other network's address - the mainnet service still pushing a device that
-     * has moved to testnet - is silenced and not filed; the same key would decrypt it into the
-     * wrong account (iOS NotificationService, df52425).
-     */
-    private suspend fun silenceOtherNetwork(sender: String, data: Map<String, String>): Boolean {
-        if (com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(sender)) return false
-        data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
-        Log.i(TAG, "Silenced a push from the other network")
-        return true
-    }
 
     private suspend fun applyMessageRequestRule(sender: String, data: Map<String, String>): Boolean {
         val myAddress = runCatching { walletManager.getAddress() }.getOrNull() ?: return false

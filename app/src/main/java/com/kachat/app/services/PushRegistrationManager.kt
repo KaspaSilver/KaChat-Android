@@ -333,18 +333,43 @@ class PushRegistrationManager @Inject constructor(
         pushPrefs.edit().remove(KEY_REGISTERED_BASE_URL).putBoolean(KEY_LEFT, true).apply()
         val token = try { FirebaseMessaging.getInstance().token.await().trim() } catch (e: Exception) { return }
         if (token.isEmpty()) return
-        try {
-            val body = gson.toJson(PushUnregisterRequest(deviceToken = token, auth = null))
-                .toRequestBody("application/json".toMediaType())
-            val request = okhttp3.Request.Builder()
-                .url(registeredBase.trimEnd('/') + "/v1/push/unregister")
-                .delete(body)
-                .build()
-            leaveClient.newCall(request).execute().close()
+        if (sendUnsignedUnregister(registeredBase, token)) {
             Log.i(TAG, "No push service on this network; sent unregister to $registeredBase")
-        } catch (e: Exception) {
-            Log.w(TAG, "Unregister from the other network's push service failed: ${e.message}")
         }
+    }
+
+    /**
+     * The push URL changed since this device last registered - most often the Testnet switch
+     * taking effect at launch, since each network has its own push service (e6339ff) - and the
+     * OLD service still holds this token with the old network's address, contacts, groups and
+     * rooms, and keeps pushing them (audit AND-006). Port of iOS
+     * `unregisterFromSupersededServiceIfNeeded`: the stored base is forgotten first (one attempt
+     * per supersession - a dead old host must not be retried forever), then one unsigned DELETE
+     * goes to it (unsigned: the signed form binds the address of the network being left), errors
+     * ignored. Runs before every registration, ahead of the fingerprint skip.
+     */
+    private fun unregisterFromSupersededServiceIfNeeded(token: String, currentBase: String) {
+        val oldBase = supersededBase(pushPrefs.getString(KEY_REGISTERED_BASE_URL, null), currentBase) ?: return
+        pushPrefs.edit().remove(KEY_REGISTERED_BASE_URL).apply()
+        if (sendUnsignedUnregister(oldBase, token)) {
+            Log.i(TAG, "Sent unregister to the superseded push service $oldBase")
+        }
+    }
+
+    /** One unsigned `DELETE <base>/v1/push/unregister` for [token]. False on any failure, which
+     *  callers only log - both uses are best effort. */
+    private fun sendUnsignedUnregister(base: String, token: String): Boolean = try {
+        val body = gson.toJson(PushUnregisterRequest(deviceToken = token, auth = null))
+            .toRequestBody("application/json".toMediaType())
+        val request = okhttp3.Request.Builder()
+            .url(base.trim().trimEnd('/') + "/v1/push/unregister")
+            .delete(body)
+            .build()
+        leaveClient.newCall(request).execute().close()
+        true
+    } catch (e: Exception) {
+        Log.w(TAG, "Unregister from $base failed: ${e.message}")
+        false
     }
 
     private val leaveClient by lazy {
@@ -371,6 +396,7 @@ class PushRegistrationManager @Inject constructor(
             pushState.recordAttempt("register", succeeded = false, error = "FCM returned an empty token", fcmTokenPresent = false)
             return@withLock
         }
+        withContext(Dispatchers.IO) { unregisterFromSupersededServiceIfNeeded(token, settings.pushIndexerUrl.first()) }
 
         val privateKey = walletManager.getPrivateKeyBytes()
         // Kaspa addresses are canonical lowercase bech32, so this already matches the server's
@@ -714,6 +740,18 @@ class PushRegistrationManager @Inject constructor(
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     companion object {
+        /**
+         * The push service this device must leave before registering at [currentBase]: the base
+         * it last registered with ([storedBase]), when there is one and it is a different
+         * service. Trailing slashes and letter case don't make a different service. Null with no
+         * current base - the no-service path (leavePushServiceOfOtherNetworkIfNeeded) owns that.
+         */
+        internal fun supersededBase(storedBase: String?, currentBase: String): String? {
+            val old = storedBase?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            val current = currentBase.trim().takeIf { it.isNotEmpty() } ?: return null
+            return if (old.trimEnd('/').equals(current.trimEnd('/'), ignoreCase = true)) null else old
+        }
+
         private const val KEY_REGISTERED_BASE_URL = "registered_base_url"
         private const val KEY_LEFT = "left_push_service"
         // Shared with KaChatFirebaseMessagingService so `adb logcat -s KaChatPush` shows the
