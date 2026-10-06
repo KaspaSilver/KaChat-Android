@@ -830,7 +830,6 @@
     <string name="kn_new_period">새 기간</string>
     <string name="kn_renewal_open">갱신 가능</string>
     <string name="kn_extend_footer">연장하면 현재 결제된 기간에 연수가 더해져요. 한 기간은 최대 2년이에요. 가격은 채굴자에게 가요.</string>
-    <string name="kn_renew_period_footer">갱신하면 현재 만료일부터 다음 기간이 시작되므로, 만료일이 지났더라도 시간을 잃거나 더 얻지 않아요. 가격은 채굴자에게 가요.</string>
     <string name="kn_err_period_unknown">이름 인덱서가 이 이름의 결제 기간을 보내지 않았어요. 아래로 당겨 새로 고친 뒤 다시 시도하세요.</string>
     <string name="kn_my_names_extend_detail">연장, 갱신, 판매 등록, 전송, 해제를 하고 KaChat이 보여 줄 이름을 고르세요.</string>
     <string name="kn_claim_step3_cap">이름은 결제한 연수 동안 내 것이에요(최대 2년 앞까지). 1년 이름은 2년으로 연장할 수 있고, 만료 10일 전부터 갱신할 수 있어요.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">확인한 뒤 가격이 %1$s(으)로 바뀌었어요. 아무것도 전송되지 않았어요. 새 가격을 확인하고 다시 확인하세요.</string>
     <string name="kn_stage_price_changed">확인한 뒤 가격이 %1$s(으)로 바뀌어서 아무것도 전송되지 않았어요. 계속하려면 새 가격을 확인하거나 커밋을 취소하세요.</string>
     <string name="kn_confirm_new_price">새 가격 확인</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">갱신은 다음 기간을 오늘이 아니라 현재 만료일부터 시작해요. 그래서 만료된 지 좀 된 이름은 기간이 짧아져요. 가격은 채굴자에게 가요.</string>
+    <string name="kn_err_renew_expired_too_long">이 이름은 만료된 지 너무 오래되어 갱신할 수 없어요. 회수한 뒤 다시 등록하는 수밖에 없어요.</string>
+    <string name="kn_err_offer_name_not_active">제안은 활성 이름에만 할 수 있어요.</string>
+    <string name="kn_err_accept_name_expired">이 이름은 만료되었어요. 제안은 이름이 활성 상태일 때만 수락할 수 있어요. 먼저 갱신하세요.</string>
 </resources>

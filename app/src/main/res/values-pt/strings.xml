@@ -830,7 +830,6 @@
     <string name="kn_new_period">Novo período</string>
     <string name="kn_renewal_open">Renovação aberta</string>
     <string name="kn_extend_footer">Estender adiciona anos ao período pago atual, que cobre no máximo 2 anos. O preço vai para os mineradores.</string>
-    <string name="kn_renew_period_footer">Uma renovação começa o próximo período na expiração atual, então nenhum tempo é perdido ou ganho, mesmo depois que ela passou. O preço vai para os mineradores.</string>
     <string name="kn_err_period_unknown">O indexador de nomes não enviou o período pago deste nome. Puxe para atualizar e tente de novo.</string>
     <string name="kn_my_names_extend_detail">Estenda, renove, anuncie, transfira ou libere seus nomes, e escolha o que o KaChat mostra para você.</string>
     <string name="kn_claim_step3_cap">O nome é seu pelos anos pagos, no máximo 2 adiantados. Um nome de 1 ano pode ser estendido para 2 anos; a partir de 10 dias antes de expirar, você pode renová-lo.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">O preço mudou para %1$s desde que você confirmou. Nada foi enviado. Confira o novo preço e confirme de novo.</string>
     <string name="kn_stage_price_changed">O preço mudou para %1$s desde que você confirmou, então nada foi enviado. Confirme o novo preço para continuar ou cancele o commit.</string>
     <string name="kn_confirm_new_price">Confirmar novo preço</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">Uma renovação começa o próximo período no vencimento atual, não a partir de hoje, então um nome vencido há algum tempo recebe menos tempo. O preço vai para os mineradores.</string>
+    <string name="kn_err_renew_expired_too_long">Este nome está vencido há tempo demais para ser renovado. Ele só pode ser recuperado e registrado de novo.</string>
+    <string name="kn_err_offer_name_not_active">Só é possível fazer ofertas por nomes ativos.</string>
+    <string name="kn_err_accept_name_expired">Este nome venceu. As ofertas só podem ser aceitas enquanto o nome está ativo. Renove-o primeiro.</string>
 </resources>

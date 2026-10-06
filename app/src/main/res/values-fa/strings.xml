@@ -867,7 +867,6 @@
     <string name="kn_new_period">دوره جدید</string>
     <string name="kn_renewal_open">تمدید باز است</string>
     <string name="kn_extend_footer">افزایش مدت، سال‌هایی به دوره پرداخت‌شده فعلی اضافه می‌کند که حداکثر ۲ سال است. قیمت به ماینرها می‌رسد.</string>
-    <string name="kn_renew_period_footer">تمدید، دوره بعدی را از تاریخ انقضای فعلی شروع می‌کند، پس هیچ زمانی از دست نمی‌رود یا اضافه نمی‌شود، حتی اگر گذشته باشد. قیمت به ماینرها می‌رسد.</string>
     <string name="kn_err_period_unknown">ایندکسر نام‌ها دوره پرداخت‌شده این نام را نفرستاد. برای تازه‌سازی به پایین بکشید و دوباره امتحان کنید.</string>
     <string name="kn_my_names_extend_detail">مدتشان را افزایش دهید، تمدید کنید، برای فروش بگذارید، منتقل یا رها کنید، و نامی را که KaChat برای شما نشان می‌دهد انتخاب کنید.</string>
     <string name="kn_claim_step3_cap">نام برای سال‌هایی که پرداخته‌اید مال شماست، حداکثر ۲ سال جلوتر. مدت نام ۱ ساله را می‌توان تا ۲ سال افزایش داد؛ از ۱۰ روز پیش از انقضا می‌توانید آن را تمدید کنید.</string>
@@ -1037,4 +1036,9 @@
     <string name="kn_err_price_changed">قیمت از زمان تأیید شما به %1$s تغییر کرد. چیزی ارسال نشد. قیمت جدید را بررسی و دوباره تأیید کنید.</string>
     <string name="kn_stage_price_changed">قیمت از زمان تأیید شما به %1$s تغییر کرد، پس چیزی ارسال نشد. برای ادامه قیمت جدید را تأیید کنید، یا تعهد را لغو کنید.</string>
     <string name="kn_confirm_new_price">تأیید قیمت جدید</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">تمدید، دوره بعدی را از تاریخ انقضای فعلی شروع می‌کند، نه از امروز؛ پس نامی که مدتی پیش منقضی شده زمان کمتری می‌گیرد. قیمت به ماینرها می‌رسد.</string>
+    <string name="kn_err_renew_expired_too_long">این نام مدت زیادی است که منقضی شده و قابل تمدید نیست. فقط می‌توان آن را بازپس گرفت و دوباره ثبت کرد.</string>
+    <string name="kn_err_offer_name_not_active">فقط برای نام‌های فعال می‌توان پیشنهاد داد.</string>
+    <string name="kn_err_accept_name_expired">این نام منقضی شده است. پیشنهادها فقط تا وقتی نام فعال است پذیرفته می‌شوند. ابتدا آن را تمدید کنید.</string>
 </resources>

@@ -194,6 +194,20 @@ class KachatNamesActions @Inject constructor(
         /** an offer past the app's 7-day cap, or one already refundable (iOS 49c0baa) */
         class OfferTooLong : ActionError("An offer can run for up to 7 days.")
 
+        /** a renewal that would still end in the past: paid for nothing, and anyone could reclaim
+         *  the name right after (iOS 71128c4, IOS-056) */
+        class ExpiredTooLongToRenew :
+            ActionError("This name has been expired too long to renew. It can only be reclaimed and registered again.")
+
+        /** an offer on a name that isn't active: anyone can reclaim it soon, so the buyer would
+         *  pay for nothing (iOS 71128c4, IOS-055) */
+        class OfferNameNotActive : ActionError("Offers can only be made on active names.")
+
+        /** accept on a name that isn't active: the contract would hand it over, to a buyer who
+         *  gets a name anyone can reclaim (iOS 71128c4, IOS-055) */
+        class AcceptNameExpired :
+            ActionError("This name has expired. Offers can only be accepted while the name is active. Renew it first.")
+
         /** the price record asks more than the price the person confirmed (iOS 4f5d95e) */
         class PriceChanged(val price: Long) :
             ActionError("The price changed to $price sompi since you confirmed. Nothing was sent. Check the new price and confirm again.")
@@ -449,6 +463,9 @@ class KachatNamesActions @Inject constructor(
                 if (!Builder.renewWindowOpen(env, m.params, op.name.expiresAt)) {
                     throw ActionError.RenewalNotOpen(op.name.renewOpens(m.params))
                 }
+                // A renewal counts from the old expiry, not from today: one that would still end
+                // in the past is paid for nothing, and anyone could reclaim the name right after.
+                checkRenewEndsAhead(op.name.expiresAt, op.years, m.params.periodMs, env.wallMs)
                 b.renew(env, wallet, liveName(op.name, m), liveShard(m, avoidShards), op.years)
             }
             is Operation.Transfer -> {
@@ -467,6 +484,8 @@ class KachatNamesActions @Inject constructor(
             }
             is Operation.Offer -> {
                 validateKey(env.me, "Your key")
+                // an expired name can be reclaimed by anyone soon: the buyer would pay for nothing
+                checkActiveForOffer(op.target, m.params.graceMs)
                 if (op.target.owner.contentEquals(env.me)) throw ActionError.OwnName()
                 // the app's cap: the buyer's funds come back within a week at most
                 val cap = env.blockDaa + MAX_OFFER_DAYS * 86_400L * DAA_PER_SECOND
@@ -478,6 +497,9 @@ class KachatNamesActions @Inject constructor(
             is Operation.Accept -> {
                 // The contract would still take an expired offer; the app doesn't - it goes back (iOS ba07975).
                 if (op.offer.refundable(env.blockDaa)) throw ActionError.OfferExpired()
+                // The contract would hand over an expired name too; the buyer would get a name
+                // anyone can reclaim. Only an active name is accepted (iOS 71128c4).
+                checkActiveForAccept(op.name, m.params.graceMs)
                 // Made to an earlier owner: the contract refuses it, and it goes back to the buyer (iOS 49c0baa).
                 if (op.offer.isDeclined(op.name.owner)) throw ActionError.OfferDeclined()
                 validateKey(op.offer.buyer, "The buyer")
@@ -1138,6 +1160,30 @@ class KachatNamesActions @Inject constructor(
          */
         fun checkPriceCap(priceFee: Long, maxPrice: Long?) {
             if (maxPrice != null && priceFee > maxPrice) throw ActionError.PriceChanged(priceFee)
+        }
+
+        /**
+         * A renewal starts the next period at the old expiry: [years] periods from [expiresAt]
+         * must end after [wallMs], or it is refused - paid for nothing otherwise, and the name
+         * stays reclaimable (iOS 71128c4, IOS-056).
+         */
+        fun checkRenewEndsAhead(expiresAt: Long, years: Long, periodMs: Long, wallMs: Long) {
+            val end = try {
+                Math.addExact(expiresAt, Math.multiplyExact(years, periodMs))
+            } catch (_: ArithmeticException) {
+                throw ActionError.ExpiredTooLongToRenew()
+            }
+            if (end <= wallMs) throw ActionError.ExpiredTooLongToRenew()
+        }
+
+        /** Offers only on an active name (iOS 71128c4, IOS-055). */
+        fun checkActiveForOffer(target: NameInfo, graceMs: Long, nowMs: Long = KachatNames.nowMs()) {
+            if (target.status(graceMs, nowMs) != Status.ACTIVE) throw ActionError.OfferNameNotActive()
+        }
+
+        /** Accept only while the name is active (iOS 71128c4, IOS-055). */
+        fun checkActiveForAccept(name: NameInfo, graceMs: Long, nowMs: Long = KachatNames.nowMs()) {
+            if (name.status(graceMs, nowMs) != Status.ACTIVE) throw ActionError.AcceptNameExpired()
         }
 
         /** Whether a submit failed because an input was spent meanwhile (iOS 49c0baa `isSpentConflict`). */

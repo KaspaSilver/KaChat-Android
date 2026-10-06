@@ -324,6 +324,10 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.OfferTooLong -> getString(R.string.kn_err_offer_max_days)
         // localized on iOS too (4f5d95e)
         is KachatNamesActions.ActionError.PriceChanged -> getString(R.string.kn_err_price_changed, KaspaUnit.amount(e.price))
+        // localized on iOS too (71128c4)
+        is KachatNamesActions.ActionError.ExpiredTooLongToRenew -> getString(R.string.kn_err_renew_expired_too_long)
+        is KachatNamesActions.ActionError.OfferNameNotActive -> getString(R.string.kn_err_offer_name_not_active)
+        is KachatNamesActions.ActionError.AcceptNameExpired -> getString(R.string.kn_err_accept_name_expired)
         is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
         // localized on iOS too (d36fc42 `wrongAddressNetwork`)
         is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
@@ -1369,8 +1373,10 @@ private fun KachatOfferRow(
     val withdrawingOffers by vm.actions.withdrawingOffers.collectAsState()
     val refundable = virtualDaa?.let { offer.refundable(it) } ?: false
     val returning = offer.id in returningOffers
-    // The owner can take it: still inside its time (an expired one is on its way back).
-    val acceptable = isOwner && !refundable && !declined
+    // The owner can take it: still inside its time (an expired one is on its way back), and the
+    // name itself still active - an expired name would reach the buyer only to be reclaimed (iOS 71128c4).
+    val nameActive = name?.status(vm.graceMs) == Status.ACTIVE
+    val acceptable = isOwner && !refundable && !declined && nameActive
     // Declined and being pulled back by this app (the buyer's).
     val withdrawing = offer.id in withdrawingOffers
     val expiresIn = virtualDaa?.let { daa ->
@@ -2026,7 +2032,10 @@ fun KachatLiveNameDetailScreen(
                                 if (info.isListed && status == Status.ACTIVE) {
                                     KachatButton(stringResource(R.string.kl_buy_now), Modifier.weight(1f), Icons.Default.ShoppingCart, prominent = true, large = true) { sheet = KachatDetailSheet.BUY }
                                 }
-                                KachatButton(stringResource(R.string.kl_make_offer), Modifier.weight(1f), Icons.Default.PanTool, large = true) { sheet = KachatDetailSheet.OFFER }
+                                // an expired name can be reclaimed by anyone soon: no offers on it (iOS 71128c4)
+                                if (status == Status.ACTIVE) {
+                                    KachatButton(stringResource(R.string.kl_make_offer), Modifier.weight(1f), Icons.Default.PanTool, large = true) { sheet = KachatDetailSheet.OFFER }
+                                }
                             }
                         }
                     }
@@ -2360,7 +2369,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     KachatTxSheet(
         title = stringResource(R.string.kn_renew), confirmTitle = stringResource(R.string.kn_renew),
         doneTitle = R.string.kn_ev_renewed,
-        footer = stringResource(R.string.kn_renew_period_footer),
+        footer = stringResource(R.string.kn_renew_from_expiry_footer),
         rows = listOf(
             KachatTxRow(stringResource(R.string.kl_name), info.display),
             KachatTxRow(pricePerPeriodTitle(params), KaspaUnit.amount(perYear)),

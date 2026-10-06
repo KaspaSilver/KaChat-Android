@@ -8,7 +8,9 @@ import org.junit.Test
 
 /**
  * The app's own rules on what a `.kachat` action may spend (the iOS audit fixes): never more than
- * the price the person confirmed (iOS 4f5d95e, IOS-054).
+ * the price the person confirmed (iOS 4f5d95e, IOS-054); no offers on, and no accepting them for,
+ * a name that isn't active, and no renewal that leaves a name still expired (iOS 71128c4, IOS-055,
+ * IOS-056).
  */
 class KachatNamesSpendRulesTest {
 
@@ -95,5 +97,74 @@ class KachatNamesSpendRulesTest {
         assertEquals(PendingRegistration.Stage.PRICE_CHANGED, back.stage)
         assertEquals(900_00000000L, back.priceChangedTo)
         assertEquals(700_00000000L, back.maxPrice)
+    }
+
+    // Expired names: offers and renewals (IOS-055, IOS-056)
+
+    private val period = 600_000L // testnet's 10-minute clock
+    private val grace = 600_000L
+
+    private fun name(expiresAt: Long) =
+        NameInfo("ab", ByteArray(32), ByteArray(32) { 7 }, 0L, expiresAt, Outpoint(ByteArray(32), 0))
+
+    @Test
+    fun aRenewalThatStillEndsInThePastIsRefused() {
+        val now = 10_000_000L
+        // expired an hour ago: 2 periods of 10 minutes still end 40 minutes ago
+        val expired = now - 3_600_000L
+        for (years in 1L..2L) {
+            try {
+                KachatNamesActions.checkRenewEndsAhead(expired, years, period, now)
+                fail("a renewal ending in the past passed ($years period(s))")
+            } catch (_: KachatNamesActions.ActionError.ExpiredTooLongToRenew) {
+            }
+        }
+        // ending exactly now is still not ahead
+        try {
+            KachatNamesActions.checkRenewEndsAhead(now - period, 1, period, now)
+            fail("a renewal ending exactly now passed")
+        } catch (_: KachatNamesActions.ActionError.ExpiredTooLongToRenew) {
+        }
+    }
+
+    @Test
+    fun aRenewalThatEndsAheadPasses() {
+        val now = 10_000_000L
+        // in the renewal window, not yet expired
+        KachatNamesActions.checkRenewEndsAhead(now + 60_000L, 1, period, now)
+        // expired 15 minutes ago: 1 period isn't enough, 2 are
+        try {
+            KachatNamesActions.checkRenewEndsAhead(now - 900_000L, 1, period, now)
+            fail("1 period from 15 minutes ago passed")
+        } catch (_: KachatNamesActions.ActionError.ExpiredTooLongToRenew) {
+        }
+        KachatNamesActions.checkRenewEndsAhead(now - 900_000L, 2, period, now)
+    }
+
+    @Test
+    fun offersOnlyOnActiveNames() {
+        val now = 10_000_000L
+        KachatNamesActions.checkActiveForOffer(name(now + 1), grace, now)
+        for (expiresAt in listOf(now, now - grace + 1, now - grace, now - 10 * grace)) {
+            try {
+                KachatNamesActions.checkActiveForOffer(name(expiresAt), grace, now)
+                fail("an offer on a name past its expiry passed (${name(expiresAt).status(grace, now)})")
+            } catch (_: KachatNamesActions.ActionError.OfferNameNotActive) {
+            }
+        }
+    }
+
+    @Test
+    fun acceptOnlyWhileTheNameIsActive() {
+        val now = 10_000_000L
+        KachatNamesActions.checkActiveForAccept(name(now + 1), grace, now)
+        // in grace and lapsed: the buyer would get a name anyone can reclaim
+        for (expiresAt in listOf(now, now - grace + 1, now - grace, now - 10 * grace)) {
+            try {
+                KachatNamesActions.checkActiveForAccept(name(expiresAt), grace, now)
+                fail("accepting an offer on a name past its expiry passed")
+            } catch (_: KachatNamesActions.ActionError.AcceptNameExpired) {
+            }
+        }
     }
 }

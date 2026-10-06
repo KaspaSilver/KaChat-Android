@@ -830,7 +830,6 @@
     <string name="kn_new_period">תקופה חדשה</string>
     <string name="kn_renewal_open">החידוש פתוח</string>
     <string name="kn_extend_footer">הארכה מוסיפה שנים לתקופה המשולמת הנוכחית, שמחזיקה לכל היותר שנתיים. המחיר הולך לכורים.</string>
-    <string name="kn_renew_period_footer">חידוש מתחיל את התקופה הבאה בתאריך התפוגה הנוכחי, כך ששום זמן לא אובד ולא מתווסף, גם אם התאריך כבר עבר. המחיר הולך לכורים.</string>
     <string name="kn_err_period_unknown">האינדקסר של השמות לא שלח את התקופה המשולמת של השם הזה. משכו לרענון ונסו שוב.</string>
     <string name="kn_my_names_extend_detail">האריכו, חדשו, הציעו למכירה, העבירו או שחררו אותם, ובחרו את השם ש-KaChat מציג עבורכם.</string>
     <string name="kn_claim_step3_cap">השם שלכם לשנים ששילמתם, לכל היותר שנתיים מראש. שם לשנה אחת אפשר להאריך לשנתיים; מ-10 ימים לפני התפוגה אפשר לחדש אותו.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">המחיר השתנה ל-%1$s מאז שאישרת. דבר לא נשלח. בדקו את המחיר החדש ואשרו שוב.</string>
     <string name="kn_stage_price_changed">המחיר השתנה ל-%1$s מאז שאישרת, ולכן דבר לא נשלח. אשרו את המחיר החדש כדי להמשיך, או בטלו את ההתחייבות.</string>
     <string name="kn_confirm_new_price">אישור המחיר החדש</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">חידוש מתחיל את התקופה הבאה במועד התפוגה הנוכחי, לא מהיום, ולכן שם שפג לפני זמן מה מקבל פחות זמן. המחיר עובר לכורים.</string>
+    <string name="kn_err_renew_expired_too_long">השם הזה פג לפני יותר מדי זמן מכדי לחדש אותו. אפשר רק לדרוש אותו בחזרה ולרשום אותו מחדש.</string>
+    <string name="kn_err_offer_name_not_active">אפשר להציע הצעות רק על שמות פעילים.</string>
+    <string name="kn_err_accept_name_expired">השם הזה פג. אפשר לקבל הצעות רק כל עוד השם פעיל. חדשו אותו קודם.</string>
 </resources>

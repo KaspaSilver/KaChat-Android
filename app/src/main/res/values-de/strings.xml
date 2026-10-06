@@ -830,7 +830,6 @@
     <string name="kn_new_period">Neuer Zeitraum</string>
     <string name="kn_renewal_open">Verlängerung offen</string>
     <string name="kn_extend_footer">Erweitern fügt dem aktuellen bezahlten Zeitraum Jahre hinzu; er umfasst höchstens 2 Jahre. Der Preis geht an die Miner.</string>
-    <string name="kn_renew_period_footer">Eine Verlängerung beginnt den nächsten Zeitraum am aktuellen Ablaufdatum, so geht keine Zeit verloren oder dazu, auch wenn es schon vorbei ist. Der Preis geht an die Miner.</string>
     <string name="kn_err_period_unknown">Der Namens-Indexer hat den bezahlten Zeitraum dieses Namens nicht geschickt. Zum Aktualisieren nach unten ziehen und erneut versuchen.</string>
     <string name="kn_my_names_extend_detail">Erweitere, verlängere, verkaufe, übertrage oder gib sie frei, und wähle den, den KaChat für dich zeigt.</string>
     <string name="kn_claim_step3_cap">Der Name gehört dir für die bezahlten Jahre, höchstens 2 im Voraus. Ein Name für 1 Jahr lässt sich auf 2 Jahre erweitern; ab 10 Tagen vor Ablauf kannst du ihn verlängern.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">Der Preis hat sich seit deiner Bestätigung auf %1$s geändert. Es wurde nichts gesendet. Prüfe den neuen Preis und bestätige erneut.</string>
     <string name="kn_stage_price_changed">Der Preis hat sich seit deiner Bestätigung auf %1$s geändert, daher wurde nichts gesendet. Bestätige den neuen Preis, um fortzufahren, oder storniere den Commit.</string>
     <string name="kn_confirm_new_price">Neuen Preis bestätigen</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">Eine Verlängerung beginnt den nächsten Zeitraum am aktuellen Ablauf, nicht ab heute. Ein Name, der vor einer Weile abgelaufen ist, bekommt also weniger Zeit. Der Preis geht an die Miner.</string>
+    <string name="kn_err_renew_expired_too_long">Dieser Name ist zu lange abgelaufen, um ihn zu verlängern. Er kann nur zurückgefordert und neu registriert werden.</string>
+    <string name="kn_err_offer_name_not_active">Angebote sind nur für aktive Namen möglich.</string>
+    <string name="kn_err_accept_name_expired">Dieser Name ist abgelaufen. Angebote können nur angenommen werden, solange der Name aktiv ist. Verlängere ihn zuerst.</string>
 </resources>

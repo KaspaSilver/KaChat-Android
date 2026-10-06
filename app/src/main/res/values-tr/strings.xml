@@ -830,7 +830,6 @@
     <string name="kn_new_period">Yeni dönem</string>
     <string name="kn_renewal_open">Yenileme açık</string>
     <string name="kn_extend_footer">Uzatma, en fazla 2 yıl kapsayan mevcut ödenmiş döneme yıl ekler. Fiyat madencilere gider.</string>
-    <string name="kn_renew_period_footer">Yenileme, sonraki dönemi mevcut bitiş tarihinde başlatır; tarih geçmiş olsa bile zaman kaybedilmez veya kazanılmaz. Fiyat madencilere gider.</string>
     <string name="kn_err_period_unknown">Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.</string>
     <string name="kn_my_names_extend_detail">Onları uzatın, yenileyin, satışa çıkarın, aktarın veya bırakın ve KaChat\'in sizin için gösterdiğini seçin.</string>
     <string name="kn_claim_step3_cap">Ad, ödediğiniz yıllar boyunca sizindir, en fazla 2 yıl ileriye. 1 yıllık bir ad 2 yıla uzatılabilir; bitişinden 10 gün önceden itibaren yenileyebilirsiniz.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">Onayladığınızdan beri fiyat %1$s oldu. Hiçbir şey gönderilmedi. Yeni fiyatı kontrol edip tekrar onaylayın.</string>
     <string name="kn_stage_price_changed">Onayladığınızdan beri fiyat %1$s oldu, bu yüzden hiçbir şey gönderilmedi. Devam etmek için yeni fiyatı onaylayın veya taahhüdü iptal edin.</string>
     <string name="kn_confirm_new_price">Yeni Fiyatı Onayla</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">Yenileme bir sonraki dönemi bugünden değil, mevcut bitiş tarihinden başlatır; bu yüzden bir süre önce süresi dolan bir ad daha az süre alır. Ücret madencilere gider.</string>
+    <string name="kn_err_renew_expired_too_long">Bu adın süresi yenilenemeyecek kadar uzun zaman önce doldu. Yalnızca geri alınıp yeniden kaydedilebilir.</string>
+    <string name="kn_err_offer_name_not_active">Yalnızca etkin adlara teklif verilebilir.</string>
+    <string name="kn_err_accept_name_expired">Bu adın süresi doldu. Teklifler yalnızca ad etkinken kabul edilebilir. Önce yenileyin.</string>
 </resources>

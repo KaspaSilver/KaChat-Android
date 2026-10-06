@@ -830,7 +830,6 @@
     <string name="kn_new_period">新しい期間</string>
     <string name="kn_renewal_open">更新受付中</string>
     <string name="kn_extend_footer">延長すると現在の支払い済み期間に年数が加わります。期間は最長 2 年です。価格はマイナーに渡ります。</string>
-    <string name="kn_renew_period_footer">更新すると現在の有効期限から次の期間が始まるので、期限を過ぎていても時間が失われたり増えたりしません。価格はマイナーに渡ります。</string>
     <string name="kn_err_period_unknown">名前インデクサーがこの名前の支払い済み期間を返しませんでした。引っ張って更新し、もう一度お試しください。</string>
     <string name="kn_my_names_extend_detail">延長、更新、出品、譲渡、解放ができ、KaChat に表示する名前も選べます。</string>
     <string name="kn_claim_step3_cap">名前は支払った年数の間あなたのものです（最長 2 年先まで）。1 年の名前は 2 年に延長でき、期限の 10 日前から更新できます。</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">確認後に価格が %1$s に変わりました。何も送信されていません。新しい価格を確認して、もう一度確定してください。</string>
     <string name="kn_stage_price_changed">確認後に価格が %1$s に変わったため、何も送信されていません。続けるには新しい価格を確定するか、コミットをキャンセルしてください。</string>
     <string name="kn_confirm_new_price">新しい価格を確定</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">更新は次の期間を今日からではなく現在の期限から開始します。そのため、しばらく前に期限切れになった名前は期間が短くなります。代金はマイナーに支払われます。</string>
+    <string name="kn_err_renew_expired_too_long">この名前は期限切れから時間が経ちすぎているため更新できません。回収して再登録するしかありません。</string>
+    <string name="kn_err_offer_name_not_active">オファーはアクティブな名前にのみ行えます。</string>
+    <string name="kn_err_accept_name_expired">この名前は期限切れです。オファーは名前がアクティブな間しか承諾できません。先に更新してください。</string>
 </resources>

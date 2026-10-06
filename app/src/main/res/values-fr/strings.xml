@@ -830,7 +830,6 @@
     <string name="kn_new_period">Nouvelle période</string>
     <string name="kn_renewal_open">Renouvellement ouvert</string>
     <string name="kn_extend_footer">Prolonger ajoute des années à la période payée en cours, qui couvre au plus 2 ans. Le prix va aux mineurs.</string>
-    <string name="kn_renew_period_footer">Un renouvellement commence la période suivante à l’expiration actuelle : aucun temps n’est perdu ni gagné, même si elle est passée. Le prix va aux mineurs.</string>
     <string name="kn_err_period_unknown">L’indexeur de noms n’a pas envoyé la période payée de ce nom. Tirez pour actualiser et réessayez.</string>
     <string name="kn_my_names_extend_detail">Prolongez-les, renouvelez-les, mettez-les en vente, transférez-les ou libérez-les, et choisissez celui que KaChat affiche pour vous.</string>
     <string name="kn_claim_step3_cap">Le nom est à vous pour les années payées, au plus 2 d’avance. Un nom d’1 an peut être prolongé à 2 ans ; dès 10 jours avant son expiration, vous pouvez le renouveler.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">Le prix est passé à %1$s depuis votre confirmation. Rien n’a été envoyé. Vérifiez le nouveau prix et confirmez à nouveau.</string>
     <string name="kn_stage_price_changed">Le prix est passé à %1$s depuis votre confirmation, donc rien n’a été envoyé. Confirmez le nouveau prix pour continuer, ou annulez l’engagement.</string>
     <string name="kn_confirm_new_price">Confirmer le nouveau prix</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">Un renouvellement commence la période suivante à l’expiration actuelle, pas à partir d’aujourd’hui : un nom expiré depuis un moment obtient donc moins de temps. Le prix va aux mineurs.</string>
+    <string name="kn_err_renew_expired_too_long">Ce nom est expiré depuis trop longtemps pour être renouvelé. Il ne peut qu’être récupéré puis enregistré à nouveau.</string>
+    <string name="kn_err_offer_name_not_active">Les offres ne sont possibles que sur des noms actifs.</string>
+    <string name="kn_err_accept_name_expired">Ce nom a expiré. Une offre ne peut être acceptée que tant que le nom est actif. Renouvelez-le d’abord.</string>
 </resources>

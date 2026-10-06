@@ -1003,7 +1003,6 @@
     <string name="kn_new_period">New period</string>
     <string name="kn_renewal_open">Renewal open</string>
     <string name="kn_extend_footer">Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners.</string>
-    <string name="kn_renew_period_footer">A renewal starts the next period at the current expiry, so no time is lost or gained, even after it passed. The price goes to the miners.</string>
     <string name="kn_err_period_unknown">The names indexer didn\'t send this name\'s paid period. Pull to refresh and try again.</string>
     <string name="kn_my_names_extend_detail">Extend, renew, list, transfer or release them, and pick the one KaChat shows for you.</string>
     <string name="kn_claim_step3_cap">The name is yours for the years you paid, at most 2 ahead. A 1-year name can be extended to 2 years; from 10 days before it expires you can renew it.</string>
@@ -1173,4 +1172,9 @@
     <string name="kn_err_price_changed">The price changed to %1$s since you confirmed. Nothing was sent. Check the new price and confirm again.</string>
     <string name="kn_stage_price_changed">The price changed to %1$s since you confirmed, so nothing was sent. Confirm the new price to continue, or cancel the commit.</string>
     <string name="kn_confirm_new_price">Confirm New Price</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">A renewal starts the next period at the current expiry, not from today, so a name that expired a while ago gets less time. The price goes to the miners.</string>
+    <string name="kn_err_renew_expired_too_long">This name has been expired too long to renew. It can only be reclaimed and registered again.</string>
+    <string name="kn_err_offer_name_not_active">Offers can only be made on active names.</string>
+    <string name="kn_err_accept_name_expired">This name has expired. Offers can only be accepted while the name is active. Renew it first.</string>
 </resources>

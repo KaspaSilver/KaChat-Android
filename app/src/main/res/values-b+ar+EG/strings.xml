@@ -830,7 +830,6 @@
     <string name="kn_new_period">فترة جديدة</string>
     <string name="kn_renewal_open">التجديد متاح</string>
     <string name="kn_extend_footer">يضيف التمديد سنوات إلى الفترة المدفوعة الحالية، التي لا تتجاوز سنتين. يذهب السعر إلى المعدِّنين.</string>
-    <string name="kn_renew_period_footer">يبدأ التجديد الفترة التالية عند تاريخ الانتهاء الحالي، فلا يضيع وقت ولا يُضاف، حتى بعد مروره. يذهب السعر إلى المعدِّنين.</string>
     <string name="kn_err_period_unknown">لم يرسل مفهرس الأسماء الفترة المدفوعة لهذا الاسم. اسحب للتحديث وحاول مرة أخرى.</string>
     <string name="kn_my_names_extend_detail">مدّدها أو جدّدها أو اعرضها للبيع أو انقلها أو تخلَّ عنها، واختر الاسم الذي يعرضه KaChat لك.</string>
     <string name="kn_claim_step3_cap">الاسم لك طوال السنوات التي دفعتها، وسنتين مقدمًا كحد أقصى. يمكن تمديد اسم لسنة واحدة إلى سنتين؛ ومن 10 أيام قبل انتهائه يمكنك تجديده.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">تغيّر السعر إلى %1$s منذ أن أكدت. لم يُرسل شيء. راجع السعر الجديد وأكد مرة أخرى.</string>
     <string name="kn_stage_price_changed">تغيّر السعر إلى %1$s منذ أن أكدت، لذا لم يُرسل شيء. أكد السعر الجديد للمتابعة، أو ألغِ الالتزام.</string>
     <string name="kn_confirm_new_price">تأكيد السعر الجديد</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">يبدأ التجديد الفترة التالية من تاريخ الانتهاء الحالي، وليس من اليوم، لذا يحصل الاسم المنتهي منذ مدة على وقت أقل. يذهب السعر إلى المعدّنين.</string>
+    <string name="kn_err_renew_expired_too_long">انتهت صلاحية هذا الاسم منذ مدة طويلة جدًا لتجديده. يمكن فقط استرداده وتسجيله من جديد.</string>
+    <string name="kn_err_offer_name_not_active">لا يمكن تقديم العروض إلا على الأسماء النشطة.</string>
+    <string name="kn_err_accept_name_expired">انتهت صلاحية هذا الاسم. لا يمكن قبول العروض إلا أثناء نشاط الاسم. جدّده أولًا.</string>
 </resources>

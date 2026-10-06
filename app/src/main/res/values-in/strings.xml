@@ -709,7 +709,6 @@
     <string name="kn_new_period">Periode baru</string>
     <string name="kn_renewal_open">Perpanjangan dibuka</string>
     <string name="kn_extend_footer">Menambah masa memberi tahun tambahan pada periode berbayar saat ini, yang paling lama 2 tahun. Harga diberikan ke penambang.</string>
-    <string name="kn_renew_period_footer">Perpanjangan memulai periode berikutnya pada tanggal kedaluwarsa saat ini, jadi tidak ada waktu yang hilang atau bertambah, meski sudah lewat. Harga diberikan ke penambang.</string>
     <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
     <string name="kn_my_names_extend_detail">Tambah masa, perpanjang, jual, transfer, atau lepas nama Anda, dan pilih yang ditampilkan KaChat untuk Anda.</string>
     <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
@@ -870,4 +869,9 @@
     <string name="kn_err_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa harga baru dan konfirmasi lagi.</string>
     <string name="kn_stage_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi, jadi tidak ada yang dikirim. Konfirmasi harga baru untuk melanjutkan, atau batalkan commit.</string>
     <string name="kn_confirm_new_price">Konfirmasi Harga Baru</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">Perpanjangan memulai periode berikutnya pada tanggal kedaluwarsa saat ini, bukan dari hari ini, jadi nama yang sudah lama kedaluwarsa mendapat waktu lebih sedikit. Harganya diberikan ke penambang.</string>
+    <string name="kn_err_renew_expired_too_long">Nama ini sudah terlalu lama kedaluwarsa untuk diperpanjang. Nama ini hanya bisa diklaim ulang lalu didaftarkan lagi.</string>
+    <string name="kn_err_offer_name_not_active">Penawaran hanya bisa diajukan untuk nama yang aktif.</string>
+    <string name="kn_err_accept_name_expired">Nama ini sudah kedaluwarsa. Penawaran hanya bisa diterima selama nama masih aktif. Perpanjang dulu.</string>
 </resources>

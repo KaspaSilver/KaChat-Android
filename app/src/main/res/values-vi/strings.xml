@@ -830,7 +830,6 @@
     <string name="kn_new_period">Kỳ mới</string>
     <string name="kn_renewal_open">Đang mở gia hạn</string>
     <string name="kn_extend_footer">Kéo dài thêm năm vào kỳ đã trả hiện tại, mỗi kỳ tối đa 2 năm. Giá trả cho thợ đào.</string>
-    <string name="kn_renew_period_footer">Gia hạn bắt đầu kỳ tiếp theo tại ngày hết hạn hiện tại, nên không mất hay thêm thời gian, kể cả khi đã quá hạn. Giá trả cho thợ đào.</string>
     <string name="kn_err_period_unknown">Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.</string>
     <string name="kn_my_names_extend_detail">Kéo dài, gia hạn, rao bán, chuyển hoặc nhả tên, và chọn tên KaChat hiển thị cho bạn.</string>
     <string name="kn_claim_step3_cap">Tên là của bạn trong số năm đã trả, tối đa trước 2 năm. Tên 1 năm có thể kéo dài thành 2 năm; từ 10 ngày trước khi hết hạn bạn có thể gia hạn.</string>
@@ -1006,4 +1005,9 @@
     <string name="kn_err_price_changed">Giá đã đổi thành %1$s kể từ khi bạn xác nhận. Chưa có gì được gửi. Hãy xem giá mới và xác nhận lại.</string>
     <string name="kn_stage_price_changed">Giá đã đổi thành %1$s kể từ khi bạn xác nhận, nên chưa có gì được gửi. Xác nhận giá mới để tiếp tục, hoặc hủy commit.</string>
     <string name="kn_confirm_new_price">Xác nhận giá mới</string>
+    <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
+    <string name="kn_renew_from_expiry_footer">Gia hạn bắt đầu kỳ tiếp theo tại ngày hết hạn hiện tại, không phải từ hôm nay, nên tên đã hết hạn một thời gian sẽ có ít thời gian hơn. Khoản phí được trả cho thợ đào.</string>
+    <string name="kn_err_renew_expired_too_long">Tên này đã hết hạn quá lâu để gia hạn. Chỉ có thể thu hồi và đăng ký lại.</string>
+    <string name="kn_err_offer_name_not_active">Chỉ có thể đưa đề nghị cho tên đang hoạt động.</string>
+    <string name="kn_err_accept_name_expired">Tên này đã hết hạn. Chỉ có thể chấp nhận đề nghị khi tên còn hoạt động. Hãy gia hạn trước.</string>
 </resources>
