@@ -3208,12 +3208,12 @@ class ChatViewModel @Inject constructor(
                 // (KaspaWalletEngine's pending-spent tracking), so an immediately-following
                 // message can't race onto the just-spent outpoints.
                 val privacyOn = paymentPoolService.isChatsPrivacyEnabled()
-                // Sealed to the contact's chatting key even when paying a pool address - the same
-                // key iOS seals it to (KaspaAddress.publicKey(from: contact.address)).
+                // Sealed to the contact's chatting key even when paying a pool address - the key
+                // every reader opens payment payloads with (iOS 6b20d77, MESSAGING.md).
                 val payload = if (memo.isEmpty()) null else MessageProtocol.buildPaymentPayload(
                     note = memo,
                     amountSompi = sompi,
-                    recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
+                    recipientXOnlyPubKey = com.kachat.app.util.PaymentPoolProtocol.paymentPayloadSealKey(contactId)
                 )
                 val txId = if (privacyOn) {
                     walletService.payInKaspa(
@@ -3239,7 +3239,7 @@ class ChatViewModel @Inject constructor(
                 // Pool-address payments announce themselves to the recipient (payment_notice) -
                 // their payment detection only watches the chatting address. No-op when the
                 // destination is the chatting address.
-                paymentPoolService.handlePoolPaymentSubmitted(contactId, txId, sompi, destination, pendingId)
+                paymentPoolService.handlePoolPaymentSubmitted(contactId, txId, sompi, destination, pendingId, memo = memo)
 
                 // The Available pill tracks the post-send state: the fresh-address indicator may
                 // flip (an address was consumed), and the rotated-to spending address's balance

@@ -32,13 +32,52 @@ object PaymentPoolProtocol {
     )
 
     /** Sent by the PAYER alongside a pool-address payment - payment detection only watches the
-     *  chatting address, so without this the recipient's chat would show nothing. */
+     *  chatting address, so without this the recipient's chat would show nothing. [memo]
+     *  (optional, absent when empty - Gson omits nulls) is the payer's note: the notice is the
+     *  only part of a pool payment the recipient's chat reads, and it already travels encrypted
+     *  to the contact (iOS 6b20d77, MESSAGING.md "payment_notice"). */
     data class PaymentNoticeContent(
         val type: String = "payment_notice",
         val txId: String,
         val amountSompi: Long,
-        val address: String
+        val address: String,
+        val memo: String? = null
     )
+
+    /** The longest note a notice carries or shows (iOS PaymentNoticeContent.maxMemoLength). */
+    const val MAX_NOTICE_MEMO_LENGTH = 500
+
+    /** A note as a notice carries / shows it: trimmed, at most [MAX_NOTICE_MEMO_LENGTH]
+     *  characters (user-perceived characters, like Swift's `prefix`), null when empty. Used on
+     *  both the send and the receive side, as iOS does. */
+    fun noticeMemo(raw: String?): String? {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isEmpty()) return null
+        val iterator = java.text.BreakIterator.getCharacterInstance()
+        iterator.setText(trimmed)
+        var end = 0
+        var count = 0
+        while (count < MAX_NOTICE_MEMO_LENGTH) {
+            val next = iterator.next()
+            if (next == java.text.BreakIterator.DONE) { end = trimmed.length; break }
+            end = next
+            count++
+        }
+        return trimmed.substring(0, end).takeIf { it.isNotEmpty() }
+    }
+
+    /** The recipient's bubble for a notice: "Received X KAS", or "Received X KAS — memo" when the
+     *  notice carries one - the same stored shape as a chatting-address payment with a note. */
+    fun receivedNoticeText(formattedAmount: String, symbol: String, memo: String?): String {
+        val note = noticeMemo(memo)
+        return "Received $formattedAmount $symbol" + (note?.let { " — $it" } ?: "")
+    }
+
+    /** The key a `kchat:1:pay:` payload is sealed to: the contact's CHAT key, whichever address
+     *  the payment pays (a pool address's key belongs to the recipient's spending chain, which no
+     *  reader tries) - MESSAGING.md, Fresh-Address Payment Pools, payer step 2. */
+    fun paymentPayloadSealKey(contactChatAddress: String): ByteArray =
+        KaspaAddress.decode(contactChatAddress).second
 
     sealed class Envelope {
         data class Pool(val content: AddressPoolContent) : Envelope()

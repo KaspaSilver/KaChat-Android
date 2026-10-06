@@ -406,15 +406,21 @@ class PaymentPoolService @Inject constructor(
      * shows the payment bubble their chain-side detection would miss, then checks the low-water
      * mark. No-op for chatting-address payments - existing detection already covers those.
      */
-    fun handlePoolPaymentSubmitted(contactId: String, txId: String, amountSompi: Long, destinationAddress: String, pendingTxId: String) {
+    fun handlePoolPaymentSubmitted(contactId: String, txId: String, amountSompi: Long, destinationAddress: String, pendingTxId: String, memo: String = "") {
         store.forgetPaymentDestination(pendingTxId)
         if (destinationAddress == contactId) return
         scope.launch {
             val walletAddress = walletAddressOrNull() ?: return@launch
             poolMutex.withLock {
                 try {
+                    // The note travels in the notice: it is what the recipient's chat reads.
                     val payload = PaymentPoolProtocol.encode(
-                        PaymentPoolProtocol.PaymentNoticeContent(txId = txId, amountSompi = amountSompi, address = destinationAddress)
+                        PaymentPoolProtocol.PaymentNoticeContent(
+                            txId = txId,
+                            amountSompi = amountSompi,
+                            address = destinationAddress,
+                            memo = PaymentPoolProtocol.noticeMemo(memo)
+                        )
                     )
                     sendInvisibleEnvelope(contactId, payload, walletAddress)
                     Log.i(TAG, "Sent payment_notice for ${txId.take(12)}")
@@ -634,7 +640,8 @@ class PaymentPoolService @Inject constructor(
         // insert it already-read and skip the notification, matching every other backfill insert
         // path (ChatRepository.isBackfill).
         val backfill = noticeBlockTime < settingsRepository.liveNotificationBaseline(myAddress)
-        val displayText = "Received ${ChatRepository.formatKas(content.amountSompi)} ${KaspaUnit.symbol}"
+        // Same stored shape as a chatting-address payment, note included.
+        val displayText = PaymentPoolProtocol.receivedNoticeText(ChatRepository.formatKas(content.amountSompi), KaspaUnit.symbol, content.memo)
         chatRepositoryLazy.get().insertMessage(
             MessageEntity(
                 id = txId,
@@ -660,12 +667,12 @@ class PaymentPoolService @Inject constructor(
             )
         }
 
-        verifyPaymentNoticeAgainstChain(txId, content.address, content.amountSompi, myAddress)
+        verifyPaymentNoticeAgainstChain(txId, content.address, content.amountSompi, myAddress, content.memo)
     }
 
     /** Best-effort background verification of a `payment_notice` against the on-chain tx. Silent
      *  on network failure (verification is opportunistic by design). */
-    private suspend fun verifyPaymentNoticeAgainstChain(txId: String, claimedAddress: String, claimedAmount: Long, myAddress: String) {
+    private suspend fun verifyPaymentNoticeAgainstChain(txId: String, claimedAddress: String, claimedAmount: Long, myAddress: String, memo: String?) {
         val api = networkService.kaspaRestApi.value ?: return
         val tx = try { api.getTransaction(txId) } catch (e: Exception) { return }
         val paidToClaimed = tx.outputs.filter { it.scriptPublicKeyAddress == claimedAddress }.sumOf { it.amount }
@@ -674,7 +681,7 @@ class PaymentPoolService @Inject constructor(
             database.messageDao().updatePaymentVerification(
                 id = txId,
                 walletAddress = myAddress,
-                body = "Received ${ChatRepository.formatKas(claimedAmount)} ${KaspaUnit.symbol}",
+                body = PaymentPoolProtocol.receivedNoticeText(ChatRepository.formatKas(claimedAmount), KaspaUnit.symbol, memo),
                 amountSompi = claimedAmount,
                 status = "warning"
             )
@@ -683,7 +690,7 @@ class PaymentPoolService @Inject constructor(
             database.messageDao().updatePaymentVerification(
                 id = txId,
                 walletAddress = myAddress,
-                body = "Received ${ChatRepository.formatKas(paidToClaimed)} ${KaspaUnit.symbol}",
+                body = PaymentPoolProtocol.receivedNoticeText(ChatRepository.formatKas(paidToClaimed), KaspaUnit.symbol, memo),
                 amountSompi = paidToClaimed,
                 status = "sent"
             )
