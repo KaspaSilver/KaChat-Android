@@ -793,9 +793,10 @@ class KachatSocialImageResolver @Inject constructor(
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
-     * No request outlives 8 s (iOS c124cb3's ephemeral session). The app's client keeps no cookies
-     * and no HTTP cache, so nothing is written to a shared store either. Redirects are followed,
-     * as URLSession does.
+     * No request outlives 8 s (iOS c124cb3's ephemeral session); each step sets its own shorter
+     * timeout on its call ([fetch], iOS 683d311). The app's client keeps no cookies and no HTTP
+     * cache, so nothing is written to a shared store either. Redirects are followed, as URLSession
+     * does.
      */
     private val http: OkHttpClient = okHttpClient.newBuilder()
         .connectTimeout(8, TimeUnit.SECONDS)
@@ -847,8 +848,9 @@ class KachatSocialImageResolver @Inject constructor(
     /**
      * Looks the profile up now (the editor's preview), sharing a lookup in flight. An answer under
      * [maxAgeMs] old is the answer, so the three fields of one account cost one request (iOS
-     * 0f44a07). A lookup never takes longer than 10 s, every request and fallback included
-     * (c124cb3).
+     * 0f44a07). A lookup never takes longer than 20 s, every request and fallback included, and
+     * each step has its own shorter timeout so a slow first source can't use up the time the next
+     * one needs (c124cb3, 683d311).
      */
     suspend fun resolve(source: SocialSource, maxAgeMs: Long = 300_000): Lookup {
         val key = source.link
@@ -926,11 +928,14 @@ class KachatSocialImageResolver @Inject constructor(
             }
             SocialSource.Platform.X -> {
                 // FxTwitter first: one small JSON answer with avatar, banner and bio. X's own page
-                // (served to link-preview crawlers) is the fallback (iOS c124cb3).
-                fetch("https://api.fxtwitter.com/${source.handle}", BROWSER_AGENT)
-                    ?.takeIf { it.second == 200 || it.second == 404 }
+                // (served to link-preview crawlers) is the fallback, and unavatar.io the last
+                // resort for the avatar alone (iOS c124cb3, 683d311). Each step's outcome is
+                // logged: a phone network can be challenged or rate-limited where a desktop is not.
+                val answer = fetch("https://api.fxtwitter.com/${source.handle}", BROWSER_AGENT, timeoutSec = 5)
+                answer?.takeIf { it.second == 200 || it.second == 404 }
                     ?.let { SocialSource.fxTwitterProfile(it.first) }
                     ?.let { return it }
+                Log.i(TAG, "x ${source.handle}: FxTwitter ${answer?.let { "HTTP ${it.second}" } ?: "no answer"}")
             }
             SocialSource.Platform.GITHUB -> {
                 val (body, status) = fetch("https://api.github.com/users/${source.handle}", BROWSER_AGENT) ?: return null
@@ -941,9 +946,18 @@ class KachatSocialImageResolver @Inject constructor(
             }
             else -> Unit
         }
-        val (html, status) = fetch(source.link, CRAWLER_AGENT) ?: return null
-        if (status == 404 || status == 410) return SocialProfile()
-        if (status != 200) return null
+        val page = fetch(source.link, CRAWLER_AGENT)
+        when (val verdict = pageVerdict(page?.second, page?.first)) {
+            PageVerdict.Gone -> return SocialProfile()
+            is PageVerdict.NotRead -> {
+                // A login wall, a challenge or a script shell is "couldn't look it up", never
+                // cached as an empty answer that would read as "this account has no avatar".
+                Log.i(TAG, "${source.platform.name.lowercase()} ${source.handle}: ${verdict.reason}")
+                return xAvatarOnly(source)
+            }
+            PageVerdict.Profile -> Unit
+        }
+        val html = page!!.first
         val image = SocialSource.openGraphImage(html)
         val banner = when (source.platform) {
             SocialSource.Platform.X -> SocialSource.xBanner(html)
@@ -959,10 +973,27 @@ class KachatSocialImageResolver @Inject constructor(
     }
 
     /**
-     * The body (first 3 MB, as text) and status, or null when nothing came back. Suspends on an
-     * enqueued call so that cancelling the lookup (its 10 s deadline) cancels the request too.
+     * X only, when FxTwitter and X's page both failed: the avatar from unavatar.io, which answers
+     * with the image itself (404 when the account has none). null = still unreachable (iOS
+     * `xAvatarOnly`, 683d311).
      */
-    private suspend fun fetch(url: String, agent: String, cookie: String? = null): Pair<String, Int>? {
+    private suspend fun xAvatarOnly(source: SocialSource): SocialProfile? {
+        if (source.platform != SocialSource.Platform.X) return null
+        val url = "https://unavatar.io/x/${source.handle}?fallback=false"
+        val (body, status) = fetch(url, BROWSER_AGENT, timeoutSec = 5) ?: return null
+        if (status != 200 || body.isEmpty()) {
+            Log.i(TAG, "x ${source.handle}: unavatar HTTP $status")
+            return null
+        }
+        return SocialProfile(avatar = url)
+    }
+
+    /**
+     * The body (first 3 MB, as text) and status, or null when nothing came back within
+     * [timeoutSec] (iOS 683d311: 6 s by default, 5 s for FxTwitter and unavatar.io). Suspends on
+     * an enqueued call so that cancelling the lookup (its 20 s deadline) cancels the request too.
+     */
+    private suspend fun fetch(url: String, agent: String, cookie: String? = null, timeoutSec: Long = 6): Pair<String, Int>? {
         val request = runCatching {
             Request.Builder().url(url)
                 .header("User-Agent", agent)
@@ -971,6 +1002,7 @@ class KachatSocialImageResolver @Inject constructor(
                 .build()
         }.getOrNull() ?: return null
         val call = http.newCall(request)
+        call.timeout().timeout(timeoutSec, TimeUnit.SECONDS)
         return suspendCancellableCoroutine { cont ->
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : okhttp3.Callback {
@@ -1011,8 +1043,9 @@ class KachatSocialImageResolver @Inject constructor(
         private const val FRESH_FOR_MS = 24L * 3600 * 1000
         private const val MAX_ENTRIES = 500
         private const val MAX_BODY_BYTES = 3_000_000L
-        /** Hard limit for one lookup: a preview never spins longer than this (iOS c124cb3). */
-        private const val DEADLINE_MS = 10_000L
+        /** Hard limit for one lookup, every step included: a preview never spins longer than
+         *  this (iOS c124cb3; 20 s since 683d311, each step having its own shorter timeout). */
+        private const val DEADLINE_MS = 20_000L
         /** The link-preview crawler user agent: X, TikTok and others serve their Open Graph tags to it. */
         private const val CRAWLER_AGENT = "facebookexternalhit/1.1"
         /** A desktop browser: YouTube's desktop channel page carries the banner in plain form (the
@@ -1022,5 +1055,29 @@ class KachatSocialImageResolver @Inject constructor(
 
         /** The cache key of a social link: its normalized form; null for an unsupported link. */
         fun key(link: String?): String? = link?.let { SocialSource.from(it, SocialSource.Kind.AVATAR)?.link }
+
+        /**
+         * What a profile page's answer ([status] and [html], both null when nothing came back)
+         * says (iOS 683d311): the account is gone (404/410, an empty answer), it is a profile, or
+         * the page couldn't be read - no answer, an error status, or a page with no profile tags
+         * at all (a login wall, a challenge or a script shell), which is "couldn't look it up",
+         * never "this account has no avatar".
+         */
+        fun pageVerdict(status: Int?, html: String?): PageVerdict = when {
+            status == null || html == null -> PageVerdict.NotRead("page no answer")
+            status == 404 || status == 410 -> PageVerdict.Gone
+            status != 200 -> PageVerdict.NotRead("page HTTP $status")
+            SocialSource.openGraphImage(html) == null && SocialSource.openGraphDescription(html) == null ->
+                PageVerdict.NotRead("page has no profile tags (${html.toByteArray(Charsets.UTF_8).size} bytes)")
+            else -> PageVerdict.Profile
+        }
+    }
+
+    /** See [pageVerdict]. */
+    sealed class PageVerdict {
+        object Gone : PageVerdict()
+        object Profile : PageVerdict()
+        /** [reason] is what the log says. */
+        data class NotRead(val reason: String) : PageVerdict()
     }
 }
