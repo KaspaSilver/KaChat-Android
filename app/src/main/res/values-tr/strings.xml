@@ -1057,4 +1057,9 @@
     <string name="kn_err_finish_claiming_first">Önce almakta olduğunuz adı tamamlayın.</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">Artık sizin değil ve pazar yerinde Geri alınabilir bölümüne taşındı. Teminatınızı geri almak için kendiniz geri alın.</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">Bahşiş</string>
+    <string name="tip_goes_to_fresh_address">Paylaştığı yeni özel bir adrese gider</string>
+    <string name="tip_goes_to_public_address">Herkese açık sohbet adresine gider</string>
+    <string name="available_amount_kas">kullanılabilir: %1$s KAS</string>
 </resources>

@@ -85,6 +85,8 @@ private const val DUST_LIMIT_SOMPI = 10_000_001L
 @Composable
 fun SendKasSheet(
     recipientName: String,
+    /** The sheet's heading: "Send KAS" in a chat, "Tip" for a KaPosts tip (iOS 0e08006). */
+    title: String = KaspaUnit.label(stringResource(R.string.send_kas_title)),
     amountSompi: Long,
     onAmountKasChange: (String) -> Unit,
     priceInCurrency: Double?,
@@ -116,6 +118,9 @@ fun SendKasSheet(
     isSending: Boolean,
     onSend: () -> Unit,
     onDismiss: () -> Unit,
+    /** A line under the memo saying where the payment goes - the KaPosts tip's fresh private /
+     *  public chatting address line (iOS 0e08006). None in a chat. */
+    destinationLine: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     val currentlySending by rememberUpdatedState(isSending)
@@ -166,7 +171,7 @@ fun SendKasSheet(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    KaspaUnit.label(stringResource(R.string.send_kas_title)),
+                    title,
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
@@ -218,6 +223,8 @@ fun SendKasSheet(
                     },
                 )
             }
+
+            destinationLine?.invoke()
 
             // The available pill, then the fee card (iOS 62c2773).
             val sourcePickerHint = stringResource(R.string.send_from_hint)

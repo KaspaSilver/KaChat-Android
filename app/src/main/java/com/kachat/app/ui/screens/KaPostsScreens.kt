@@ -171,6 +171,8 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Lock
+import com.kachat.app.repository.ChatRepository
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ChatBubble
@@ -665,7 +667,7 @@ private fun KaPostsFeedScreen(
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
     // The profile whose follow list is open: null = my own list, non-null = another user's.
     var followListPubkey by remember { mutableStateOf<String?>(null) }
-    // Quick-tip dialog target: (poster address, display name).
+    // Tip sheet target: (poster address, display name).
     var tipTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     val defaultTipSompi by settingsViewModel.kaPostsDefaultTipSompi.collectAsState()
     /**
@@ -1499,7 +1501,7 @@ private fun KaPostsFeedScreen(
     }
 
     tipTarget?.let { (tipAddress, tipName) ->
-        KaPostTipDialog(
+        KaPostTipSheet(
             address = tipAddress,
             displayName = tipName,
             onDismiss = { tipTarget = null },
@@ -5455,229 +5457,219 @@ private fun notificationKindTint(kind: KaPostsViewModel.NotificationItem.Kind, s
 }
 
 /**
- * Quick tip: Send-Kaspa-style dialog matching iOS's KaPostTipSheet - fixed recipient with the
- * pool-destination indicator, amount with the funding source's Available, Normal/Fast/Priority
- * tiers (a rate multiplier consumed by the next send). The send routes through
- * ChatViewModel.sendPayment, so destination + funding follow the chat payment privacy rules
- * exactly, and the payment bubble lands in the 1:1 conversation.
+ * Tipping a poster: the same Send Kaspa sheet as a payment inside a chat ([SendKasSheet], iOS
+ * 0e08006 `KaPostTipSheet`) - the big amount with the KAS / currency switch and Max, an encrypted
+ * memo sent with the tip (140 characters), where it goes (a fresh private address they shared, or
+ * their public chatting address), the available balance, the fee card with speed, custom fee and
+ * coin control, the small-amount question, and slide-to-send so a tip can't go out on a stray
+ * touch. The send is ChatViewModel.sendPayment, a chat payment's: the same `kchat:1:pay:` memo
+ * payload, destination and funding (Chats Payment Privacy), and the payment bubble lands in the
+ * 1:1 conversation.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KaPostTipDialog(
+fun KaPostTipSheet(
     address: String,
     displayName: String,
     onDismiss: () -> Unit,
     chatViewModel: ChatViewModel = hiltViewModel(),
+    walletViewModel: WalletViewModel = hiltViewModel(),
+    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
-    var amountText by remember { mutableStateOf("") }
-    var feeTier by remember { mutableStateOf(1L) }
+    val amountText by chatViewModel.paymentAmount.collectAsState()
+    var memo by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
+    // Fee speed, a custom fee and coin control - the chat sheet's controls (SendFeeControls).
+    var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var customExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
+    var isEditingFee by remember { mutableStateOf(false) }
+    var customFeeText by remember { mutableStateOf("") }
+    var manualUtxos by remember { mutableStateOf<List<com.kachat.app.services.UtxoEntry>?>(null) }
+    var showCoinControl by remember { mutableStateOf(false) }
     // The completed tip, driving the sent-confirmation half sheet. Set instead of dismissing, so
-    // the transaction id is handed over rather than the dialog just closing on nothing.
+    // the transaction id is handed over rather than the sheet just closing on nothing.
     var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val paysViaPool by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
-    val spendingUtxos by chatViewModel.spendingUtxos.collectAsState()
-    val availableKas = remember(spendingUtxos) {
-        spendingUtxos.sumOf { it.utxoEntry.amount } / 100_000_000.0
+    // The FUNDING SOURCE's coins, exactly what the send will spend: the primary spending address
+    // when Chats Payment Privacy is on, the chatting address when it's off.
+    val fundingUtxos by chatViewModel.spendingUtxos.collectAsState()
+    val fundsFromSpending by chatViewModel.spendingUtxosFromSpendingAddress.collectAsState()
+    val spendingAddress by walletViewModel.spendingAddress.collectAsState()
+    val chattingAddress by walletViewModel.address.collectAsState()
+    val priceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
+    val currencyCode by portfolioViewModel.currency.collectAsState()
+    val fundingBalanceSompi = remember(fundingUtxos) {
+        com.kachat.app.util.UtxoMath.checkedTotal(fundingUtxos.map { it.utxoEntry.amount }) ?: 0L
     }
-    val paysFromSpending by chatViewModel.spendingUtxosFromSpendingAddress.collectAsState()
 
-    LaunchedEffect(address) {
-        // Deliberately does NOT create a contact here: opening the tip dialog and cancelling
-        // must leave no trace in the Chats list. The contact is created in the Send Tip
-        // click, right before the payment goes out.
-        chatViewModel.refreshFreshPoolIndicator(address)
-        chatViewModel.refreshSpendingUtxos()
+    val resetPaymentState: () -> Unit = {
+        chatViewModel.setPaymentAmount("")
+        chatViewModel.setPaymentNote("")
+        chatViewModel.setPaymentManualUtxos(null)
         chatViewModel.setFeeRateOverride(null)
     }
-    // The amount drives the live fee preview through the same estimator the chat composer uses.
-    LaunchedEffect(amountText) { chatViewModel.setPaymentAmount(amountText) }
+    LaunchedEffect(address) {
+        // Deliberately does NOT create a contact here: opening the tip sheet and cancelling must
+        // leave no trace in the Chats list. The contact is created on the send, right before the
+        // payment goes out.
+        resetPaymentState()
+        chatViewModel.refreshFreshPoolIndicator(address)
+        chatViewModel.setPaymentSource(null)
+        chatViewModel.refreshSpendingUtxos()
+    }
+    // The memo rides in the payload, so the fee preview prices it (as in a chat).
+    LaunchedEffect(memo) { chatViewModel.setPaymentNote(memo) }
 
-    com.kachat.app.ui.theme.IosAlertDialog(
-        onDismissRequest = {
-            // A tip in flight cannot be dismissed out from under the send (iOS
-            // interactiveDismissDisabled(isSending)).
-            if (isSending) return@IosAlertDialog
-            chatViewModel.setFeeRateOverride(null)
-            chatViewModel.setPaymentAmount("")
-            onDismiss()
-        },
-        properties = DialogProperties(dismissOnBackPress = !isSending, dismissOnClickOutside = !isSending),
-        containerColor = colors.surface,
-        title = { Text("Tip $displayName", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-        text = {
-            // Sectioned like iOS's KaPostTipSheet Form: recipient card + destination line,
-            // amount with the Kaspa logo + Available footer, fee tiers + Network Fee row.
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
-                Text("TIPPING", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.surfaceVariant)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        displayName,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        KaspaAddress.shortDisplay(address),
-                        color = colors.textSecondary,
-                        fontSize = 11.sp,
-                    )
-                }
-                // Which privacy scenario this tip will hit (same signal as the chat composer).
-                Text(
-                    if (paysViaPool) "🔒 Goes to a fresh private address they shared"
-                    else "🌐 Goes to their public chatting address",
-                    color = if (paysViaPool) Color(0xFF35C48D) else colors.textSecondary,
-                    fontSize = 12.5.sp,
-                )
-                Text(
-                    "Your Chats Payment Privacy setting decides the destination and funding, exactly like a payment inside their chat.",
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                )
-                Text("AMOUNT", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                com.kachat.app.ui.theme.IosTextField(
-                    value = amountText,
-                    // Digits and one decimal point ("," read as "."), at most 8 decimals (iOS 16b64bc).
-                    onValueChange = { amountText = KaspaUnit.sanitizeAmountInput(it); errorText = null },
-                    label = { Text("Amount (${KaspaUnit.symbol})") },
-                    singleLine = true,
-                    leadingIcon = {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
+    val closeSheet: () -> Unit = {
+        resetPaymentState()
+        onDismiss()
+    }
+
+    // Exact: "2.3" is 230,000,000 sompi, never 229,999,999.
+    val amountSompi = KaspaUnit.sompiFromUserText(amountText) ?: 0L
+    // The extra over the base fee: a custom fee, else what the speed adds (Fast 2x, Priority 5x).
+    val baseFeeSompi = estimatedFee
+    val extraFeeSompi = baseFeeSompi?.let { base -> customExtraFeeSompi ?: (base * (feeTier.multiplier - 1)) } ?: 0L
+    val totalFeeSompi = baseFeeSompi?.let { it + extraFeeSompi }
+
+    if (sentTransaction == null) {
+        SendKasSheet(
+            title = stringResource(R.string.kaposts_tip_title),
+            recipientName = displayName,
+            amountSompi = amountSompi,
+            onAmountKasChange = { chatViewModel.setPaymentAmount(it); errorText = null },
+            priceInCurrency = priceInCurrency,
+            currencyCode = currencyCode,
+            note = memo,
+            onNoteChange = { memo = it },
+            // The funding source's spendable balance: never a picker here (iOS SendInfoPill).
+            availableText = KaspaUnit.label(stringResource(R.string.available_amount_kas, ChatRepository.formatKas(fundingBalanceSompi))),
+            availableTappable = false,
+            onAvailableClick = {},
+            availableSourceLabel = null,
+            paysToFreshAddress = paysViaPool,
+            maxKas = {
+                chatViewModel.paymentMaxSompi(fundingBalanceSompi, feeTier.multiplier, customExtraFeeSompi).toDouble() / 100_000_000.0
+            },
+            maxRefreshKey = Triple(feeTier, customExtraFeeSompi, extraFeeSompi),
+            feeControls = {
+                SendFeeControls(
+                    feeTier = feeTier,
+                    onFeeTierChange = {
+                        feeTier = it
+                        customExtraFeeSompi = null
+                        isEditingFee = false
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
+                    isEditingFee = isEditingFee,
+                    customFeeText = customFeeText,
+                    onCustomFeeTextChange = { customFeeText = it },
+                    isEstimatingFee = false,
+                    feeText = totalFeeSompi?.let { "${ChatRepository.formatKas(it)} ${KaspaUnit.symbol}" },
+                    onStartEditing = {
+                        totalFeeSompi?.let { total ->
+                            customFeeText = ChatRepository.formatKas(total)
+                            isEditingFee = true
+                        }
+                    },
+                    onCommit = {
+                        // A typed total under the network's base fee is raised to it.
+                        val base = baseFeeSompi
+                        val total = KaspaUnit.sompiFromUserText(customFeeText)
+                        if (base != null && total != null) customExtraFeeSompi = (total - base).coerceAtLeast(0L)
+                        isEditingFee = false
+                    },
+                    coinControlSummary = coinControlSummary(manualUtxos),
+                    onCoinControl = { if (!isSending) showCoinControl = true },
                 )
-                Text(
-                    "Available: ${"%.8f".format(availableKas).trimEnd('0').trimEnd('.')} ${KaspaUnit.symbol} from your " +
-                        (if (paysFromSpending) "primary spending address" else "chatting address"),
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
-                Text("FEE", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    listOf("Normal" to 1L, "Fast" to 2L, "Priority" to 5L).forEach { (label, mult) ->
-                        val selected = feeTier == mult
-                        Text(
-                            label,
-                            color = if (selected) Color.Black else colors.textSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (selected) KaspaTeal else colors.surfaceVariant)
-                                .clickable {
-                                    feeTier = mult
-                                    chatViewModel.setFeeTierMultiplier(mult)
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                        )
-                    }
-                }
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("Network Fee", color = colors.textPrimary, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        // estimatedFeeSompi already reflects the tier (the estimator combines
-                        // the fee-rate override) - display it as-is, never re-multiply.
-                        estimatedFee?.let { fee ->
-                            "${"%.8f".format(fee / 100_000_000.0).trimEnd('0').trimEnd('.')} ${KaspaUnit.symbol}"
-                        } ?: "—",
-                        color = colors.textSecondary,
-                        fontSize = 13.sp,
-                    )
-                }
-                Text(
-                    "If the network is busy, Fast or Priority pays a higher fee to help your tip confirm sooner.",
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                )
-                errorText?.let {
-                    Text(it, color = Color(0xFFE57373), fontSize = 12.sp)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = !isSending && (KaspaUnit.sompiFromUserText(amountText) ?: 0L) > 0L,
-                onClick = {
+            },
+            error = errorText,
+            isSending = isSending,
+            onSend = {
+                if (amountSompi > 0 && !isSending) {
                     isSending = true
                     errorText = null
-                    // The chat with the poster is created HERE, on an actual send - not when
-                    // the dialog opened - so a cancelled tip never leaves an orphan chat. Added
-                    // with no alias, as iOS does: the KNS name keeps resolving live rather than
-                    // being frozen into a nickname.
+                    // The chat with the poster is created HERE, on an actual send - not when the
+                    // sheet opened - so a cancelled tip never leaves an orphan chat. Added with no
+                    // alias, as iOS does: the name keeps resolving live.
                     chatViewModel.addContact(address, null)
-                    // Re-apply the tier right before the send (sendPayment consumes the override).
-                    chatViewModel.setFeeTierMultiplier(feeTier)
-                    val tipSompi = KaspaUnit.sompiFromUserText(amountText) ?: 0L
-                    chatViewModel.sendPayment(address, amountText.trim()) { ok, error, txId ->
+                    chatViewModel.sendPayment(
+                        address,
+                        amountText.trim(),
+                        memo,
+                        extraFeeSompi = extraFeeSompi,
+                        manualUtxos = manualUtxos,
+                    ) { ok, error, txId ->
+                        isSending = false
                         if (ok) {
-                            chatViewModel.setPaymentAmount("")
-                            isSending = false
                             if (txId.isNullOrEmpty()) {
                                 // Queued rather than sent (no confirmed inputs yet): there is no
                                 // transaction to show, so the sheet just closes (iOS).
-                                chatViewModel.setFeeRateOverride(null)
-                                onDismiss()
+                                closeSheet()
                             } else {
-                                sentTransaction = SentTransaction(
-                                    txId = txId,
-                                    amountSompi = tipSompi,
-                                    recipient = displayName,
-                                )
+                                sentTransaction = SentTransaction(txId = txId, amountSompi = amountSompi, recipient = displayName)
                             }
                         } else {
-                            isSending = false
                             errorText = error ?: "Tip failed."
                         }
                     }
-                },
+                }
+            },
+            onDismiss = closeSheet,
+            destinationLine = {
+                // Which of the privacy scenarios this tip will actually hit (the same signal as
+                // the chat composer's fresh-address indicator).
+                val fresh = com.kachat.app.util.KaPostTip.destination(paysViaPool) ==
+                    com.kachat.app.util.KaPostTip.Destination.FRESH_PRIVATE_ADDRESS
+                val tint = if (fresh) colors.success else colors.textSecondary
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        if (fresh) Icons.Default.Lock else Icons.Default.Public,
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Text(
+                        stringResource(if (fresh) R.string.tip_goes_to_fresh_address else R.string.tip_goes_to_public_address),
+                        color = tint,
+                        fontSize = 12.sp,
+                    )
+                }
+            },
+        )
+    }
+
+    // Coin control on the address the tip comes from - over the tip sheet, as in a chat.
+    if (showCoinControl) {
+        val coinControlAddress = if (fundsFromSpending) spendingAddress else chattingAddress
+        if (coinControlAddress != null) {
+            ModalBottomSheet(
+                onDismissRequest = { showCoinControl = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = colors.background,
+                dragHandle = null,
             ) {
-                if (isSending) {
-                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                } else {
-                    Text("Send Tip", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                Box(Modifier.fillMaxSize()) {
+                    CoinControlScreen(
+                        fromAddress = coinControlAddress,
+                        fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
+                        initialSelection = manualUtxos,
+                        onDone = { selection ->
+                            manualUtxos = selection?.takeIf { it.isNotEmpty() }
+                            chatViewModel.setPaymentManualUtxos(manualUtxos)
+                            showCoinControl = false
+                        },
+                        onCancel = { showCoinControl = false },
+                    )
                 }
             }
-        },
-        dismissButton = {
-            TextButton(
-                enabled = !isSending,
-                onClick = {
-                    chatViewModel.setFeeRateOverride(null)
-                    chatViewModel.setPaymentAmount("")
-                    onDismiss()
-                },
-            ) { Text("Cancel", color = colors.textSecondary) }
-        },
-    )
+        } else {
+            showCoinControl = false
+        }
+    }
 
     sentTransaction?.let { sent ->
         SentConfirmationSheet(
@@ -5686,8 +5678,7 @@ fun KaPostTipDialog(
             explorerUrl = sent.txId.takeIf { it.isNotEmpty() }?.let { kaspaExplorer.txUrl(it) },
         ) {
             sentTransaction = null
-            chatViewModel.setFeeRateOverride(null)
-            onDismiss()
+            closeSheet()
         }
     }
 }

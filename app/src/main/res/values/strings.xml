@@ -1224,4 +1224,9 @@
     <string name="kn_err_finish_claiming_first">Finish the name you\'re claiming first.</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">It\'s no longer yours and has moved to Reclaimable in the marketplace. Reclaim it yourself to get your bond back.</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">Tip</string>
+    <string name="tip_goes_to_fresh_address">Goes to a fresh private address they shared</string>
+    <string name="tip_goes_to_public_address">Goes to their public chatting address</string>
+    <string name="available_amount_kas">available: %1$s KAS</string>
 </resources>

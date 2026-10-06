@@ -1057,4 +1057,9 @@
     <string name="kn_err_finish_claiming_first">请先完成正在认领的名称。</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">它已不再属于你，已移至市场的“可回收”标签。自己回收即可取回你的押金。</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">打赏</string>
+    <string name="tip_goes_to_fresh_address">发送到对方分享的新私人地址</string>
+    <string name="tip_goes_to_public_address">发送到对方的公开聊天地址</string>
+    <string name="available_amount_kas">可用: %1$s KAS</string>
 </resources>

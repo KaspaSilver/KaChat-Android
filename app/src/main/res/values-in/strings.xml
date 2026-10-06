@@ -922,4 +922,9 @@
     <string name="kn_err_finish_claiming_first">Selesaikan dulu nama yang sedang Anda klaim.</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">Nama ini bukan milik Anda lagi dan sudah pindah ke Dapat diklaim ulang di marketplace. Klaim ulang sendiri untuk mendapatkan kembali jaminan Anda.</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">Tip</string>
+    <string name="tip_goes_to_fresh_address">Dikirim ke alamat pribadi baru yang mereka bagikan</string>
+    <string name="tip_goes_to_public_address">Dikirim ke alamat chat publik mereka</string>
+    <string name="available_amount_kas">tersedia: %1$s KAS</string>
 </resources>

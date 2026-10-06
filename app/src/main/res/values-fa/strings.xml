@@ -1088,4 +1088,9 @@
     <string name="kn_err_finish_claiming_first">ابتدا نامی را که در حال دریافت آن هستید تمام کنید.</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">دیگر متعلق به شما نیست و به بخش «قابل بازپس‌گیری» در بازار منتقل شده است. خودتان آن را بازپس بگیرید تا وثیقه‌تان برگردد.</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">انعام</string>
+    <string name="tip_goes_to_fresh_address">به یک آدرس خصوصی تازه که به اشتراک گذاشته‌اند می‌رود</string>
+    <string name="tip_goes_to_public_address">به آدرس عمومی گفتگوی آن‌ها می‌رود</string>
+    <string name="available_amount_kas">موجودی در دسترس: %1$s KAS</string>
 </resources>

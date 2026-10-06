@@ -1057,4 +1057,9 @@
     <string name="kn_err_finish_claiming_first">पहले वह नाम पूरा करें जिसका आप दावा कर रहे हैं।</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">यह अब आपका नहीं है और मार्केटप्लेस में “वापस लेने योग्य” में चला गया है। अपनी जमानत वापस पाने के लिए इसे खुद पुनः प्राप्त करें।</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">टिप</string>
+    <string name="tip_goes_to_fresh_address">उनके साझा किए गए नए निजी पते पर जाता है</string>
+    <string name="tip_goes_to_public_address">उनके सार्वजनिक चैटिंग पते पर जाता है</string>
+    <string name="available_amount_kas">उपलब्ध: %1$s KAS</string>
 </resources>

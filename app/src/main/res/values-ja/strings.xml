@@ -1057,4 +1057,9 @@
     <string name="kn_err_finish_claiming_first">先に取得中の名前を完了してください。</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">この名前はもうあなたのものではなく、マーケットプレイスの「回収可能」に移りました。自分で取り戻すと保証金が返ってきます。</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">チップ</string>
+    <string name="tip_goes_to_fresh_address">相手が共有した新しいプライベートアドレスに送られます</string>
+    <string name="tip_goes_to_public_address">相手の公開チャットアドレスに送られます</string>
+    <string name="available_amount_kas">利用可能: %1$s KAS</string>
 </resources>

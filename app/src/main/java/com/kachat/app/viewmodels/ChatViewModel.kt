@@ -3128,12 +3128,6 @@ class ChatViewModel @Inject constructor(
      * as [sendMessage], but with no retry entry point — matches iOS explicitly excluding
      * payment retry, since blindly re-sending a payment risks paying twice.
      */
-    /** KaPosts quick tip: Normal/Fast/Priority as a multiplier over the live network fee rate.
-     *  1 (or less) clears the override; the next send consumes whatever is set. */
-    fun setFeeTierMultiplier(multiplier: Long) {
-        _feeRateOverride.value = if (multiplier <= 1) null else (_networkFeeRate.value * multiplier).toLong()
-    }
-
     /** [onResult] is (succeeded, errorMessage, txId). The txId is what a sent-confirmation sheet
      *  links to on the explorer (KaPosts tips; a 1:1 chat payment has none any more - its bubble
      *  is the confirmation, iOS 80a6aae); it is null on failure.
@@ -3210,8 +3204,8 @@ class ChatViewModel @Inject constructor(
                 val privacyOn = paymentPoolService.isChatsPrivacyEnabled()
                 // Sealed to the contact's chatting key even when paying a pool address - the key
                 // every reader opens payment payloads with (iOS 6b20d77, MESSAGING.md).
-                val payload = if (memo.isEmpty()) null else MessageProtocol.buildPaymentPayload(
-                    note = memo,
+                val payload = if (memo.isEmpty()) null else MessageProtocol.paymentMemoPayload(
+                    memo = memo,
                     amountSompi = sompi,
                     recipientXOnlyPubKey = com.kachat.app.util.PaymentPoolProtocol.paymentPayloadSealKey(contactId)
                 )

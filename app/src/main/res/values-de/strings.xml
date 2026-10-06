@@ -1057,4 +1057,9 @@
     <string name="kn_err_finish_claiming_first">Schließe zuerst den Namen ab, den du gerade beanspruchst.</string>
     <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
     <string name="kn_bell_lapsed_moved_body">Er gehört dir nicht mehr und steht jetzt unter „Zurückholbar“ im Marktplatz. Fordere ihn selbst zurück, um deine Kaution zurückzubekommen.</string>
+    <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
+    <string name="kaposts_tip_title">Trinkgeld</string>
+    <string name="tip_goes_to_fresh_address">Geht an eine neue private Adresse, die sie geteilt haben</string>
+    <string name="tip_goes_to_public_address">Geht an ihre öffentliche Chat-Adresse</string>
+    <string name="available_amount_kas">verfügbar: %1$s KAS</string>
 </resources>

@@ -159,6 +159,16 @@ object MessageProtocol {
         return PAY_PREFIX_BYTES + encrypt(json, recipientXOnlyPubKey).toBytes()
     }
 
+    /**
+     * What a payment carries for its memo - a chat payment and a KaPosts tip alike (iOS
+     * 0e08006): nothing when the memo is empty once trimmed (a payment with no memo has no
+     * payload), else [buildPaymentPayload] of the trimmed memo, sealed to [recipientXOnlyPubKey].
+     */
+    fun paymentMemoPayload(memo: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): ByteArray? {
+        val trimmed = memo.trim()
+        return if (trimmed.isEmpty()) null else buildPaymentPayload(trimmed, amountSompi, recipientXOnlyPubKey)
+    }
+
     /** True for a payment payload of any root (new or legacy). */
     fun isPaymentPayload(rawBytes: ByteArray): Boolean = paymentPrefixLength(rawBytes) != null
 
