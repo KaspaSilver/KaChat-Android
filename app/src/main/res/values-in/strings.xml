@@ -866,4 +866,8 @@
     <string name="kn_decline_footer">Penawaran kembali ke pembeli. Biaya jaringannya diambil dari penawaran, jadi menolak tidak memakan biaya apa pun bagi Anda.</string>
     <string name="kn_offer_locked_decline">KAS Anda tetap terkunci di chain sampai pemilik menerima atau menolak, Anda menarik penawaran, atau penawaran kedaluwarsa - lalu siapa pun bisa mengembalikannya kepada Anda.</string>
     <string name="kn_offer_below_listing_buy">Nama ini dijual lebih murah dari penawaran Anda. Pertimbangkan untuk membelinya saja.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa harga baru dan konfirmasi lagi.</string>
+    <string name="kn_stage_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi, jadi tidak ada yang dikirim. Konfirmasi harga baru untuk melanjutkan, atau batalkan commit.</string>
+    <string name="kn_confirm_new_price">Konfirmasi Harga Baru</string>
 </resources>

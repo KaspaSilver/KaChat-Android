@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">Teklif alıcıya geri döner. Ağ ücreti tekliften karşılanır, yani reddetmek size hiçbir şeye mal olmaz.</string>
     <string name="kn_offer_locked_decline">KAS\'ınız sahibi kabul edene veya reddedene, teklifi geri çekene veya süresi dolana kadar zincirde kilitli kalır - sonra herkes size geri gönderebilir.</string>
     <string name="kn_offer_below_listing_buy">Bu ad teklifinizden daha düşük bir fiyata listelenmiş. Bunun yerine satın almayı düşünün.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">Onayladığınızdan beri fiyat %1$s oldu. Hiçbir şey gönderilmedi. Yeni fiyatı kontrol edip tekrar onaylayın.</string>
+    <string name="kn_stage_price_changed">Onayladığınızdan beri fiyat %1$s oldu, bu yüzden hiçbir şey gönderilmedi. Devam etmek için yeni fiyatı onaylayın veya taahhüdü iptal edin.</string>
+    <string name="kn_confirm_new_price">Yeni Fiyatı Onayla</string>
 </resources>

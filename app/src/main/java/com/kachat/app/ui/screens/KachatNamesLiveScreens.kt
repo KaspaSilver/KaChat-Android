@@ -322,6 +322,8 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.PriceBusy -> getString(R.string.kn_err_price_busy)
         is KachatNamesActions.ActionError.OwnName -> getString(R.string.kn_err_offer_own_name)
         is KachatNamesActions.ActionError.OfferTooLong -> getString(R.string.kn_err_offer_max_days)
+        // localized on iOS too (4f5d95e)
+        is KachatNamesActions.ActionError.PriceChanged -> getString(R.string.kn_err_price_changed, KaspaUnit.amount(e.price))
         is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
         // localized on iOS too (d36fc42 `wrongAddressNetwork`)
         is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
@@ -1104,6 +1106,11 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
         }
     }
 
+    // Paying a higher price is a new approval: it goes through the device lock like any send (iOS 4f5d95e).
+    fun authorizeNewPrice() {
+        context.kachatAuthorize { vm.actions.acceptNewPrice(registration) }
+    }
+
     fun authorizeCancel() {
         context.kachatAuthorize {
             working = true
@@ -1141,6 +1148,8 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
             PendingRegistration.Stage.REGISTERED -> stringResource(R.string.kn_stage_registered)
             PendingRegistration.Stage.TAKEN -> KaspaUnit.label(stringResource(R.string.kn_stage_taken))
             PendingRegistration.Stage.FAILED -> stringResource(R.string.kn_stage_failed)
+            PendingRegistration.Stage.PRICE_CHANGED ->
+                stringResource(R.string.kn_stage_price_changed, KaspaUnit.amount(registration.priceChangedTo ?: 0L))
             PendingRegistration.Stage.CANCELLING -> stringResource(R.string.kn_stage_cancelling)
             PendingRegistration.Stage.CANCELLED -> stringResource(R.string.kn_stage_cancelled)
         }
@@ -1169,6 +1178,10 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
             }
             PendingRegistration.Stage.TAKEN ->
                 KachatButton(stringResource(R.string.kn_cancel_commit), destructive = true, enabled = !working) { confirmCancel = true }
+            PendingRegistration.Stage.PRICE_CHANGED -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KachatButton(stringResource(R.string.kn_confirm_new_price), prominent = true) { authorizeNewPrice() }
+                KachatButton(stringResource(R.string.kn_cancel_commit), destructive = true, enabled = !working) { confirmCancel = true }
+            }
             PendingRegistration.Stage.FAILED -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 KachatButton(stringResource(R.string.try_again), prominent = true) { vm.actions.retry(registration) }
                 KachatButton(stringResource(R.string.kn_cancel_commit), destructive = true, enabled = !working) { confirmCancel = true }
@@ -1532,8 +1545,10 @@ fun KachatTxSheet(
     val currentOperation by rememberUpdatedState(operation)
     val chattingBalance by vm.wallet.balance.collectAsState()
     val chattingBalanceKnown by vm.wallet.balanceKnown.collectAsState()
+    // bumped to build the plan again (the price moved at send time, iOS 4f5d95e `rebuild()`)
+    var rebuilds by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(operationKey) {
+    LaunchedEffect(operationKey, rebuilds) {
         plan = null
         planError = null
         val op = currentOperation
@@ -1556,7 +1571,8 @@ fun KachatTxSheet(
         sendError = null
         vm.launch {
             try {
-                val id = vm.actions.perform(op)
+                // never pays more than the price shown (the price record can change at any time, iOS 4f5d95e)
+                val id = vm.actions.perform(op, maxPrice = plan?.priceFee)
                 txId = id
                 view.successHaptic()
                 onDone(id)
@@ -1565,6 +1581,8 @@ fun KachatTxSheet(
                 throw e
             } catch (e: Exception) {
                 sendError = context.kachatErrorText(e)
+                // the price moved: show the new plan so the person can confirm it
+                if (e is KachatNamesActions.ActionError.PriceChanged) rebuilds++
             }
             sending = false
         }
@@ -1687,11 +1705,14 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     }
 
     fun start() {
+        // the price shown is the most the registration will ever pay (iOS 4f5d95e)
+        val q = quote
+        if (q == null || q.years != years) return
         starting = true
         startError = null
         vm.launch {
             try {
-                vm.actions.startRegistration(target.name, years)
+                vm.actions.startRegistration(target.name, years, maxPrice = q.price)
                 view.successHaptic()
                 onStarted()
                 onClose()

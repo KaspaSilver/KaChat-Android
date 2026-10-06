@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">ऑफ़र खरीदार के पास लौट जाता है। इसका नेटवर्क शुल्क ऑफ़र से ही कटता है, इसलिए अस्वीकार करने में आपका कुछ खर्च नहीं होता।</string>
     <string name="kn_offer_locked_decline">आपके KAS चेन पर लॉक रहते हैं जब तक मालिक स्वीकार या अस्वीकार न करे, आप ऑफ़र वापस न लें, या यह समाप्त न हो - फिर कोई भी इसे आपको वापस भेज सकता है।</string>
     <string name="kn_offer_below_listing_buy">यह नाम आपके ऑफ़र से कम में बिक्री के लिए सूचीबद्ध है। इसके बजाय इसे खरीदने पर विचार करें।</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">आपके पुष्टि करने के बाद मूल्य बदलकर %1$s हो गया। कुछ भी नहीं भेजा गया। नया मूल्य देखें और फिर से पुष्टि करें।</string>
+    <string name="kn_stage_price_changed">आपके पुष्टि करने के बाद मूल्य बदलकर %1$s हो गया, इसलिए कुछ भी नहीं भेजा गया। जारी रखने के लिए नए मूल्य की पुष्टि करें, या कमिट रद्द करें।</string>
+    <string name="kn_confirm_new_price">नए मूल्य की पुष्टि करें</string>
 </resources>

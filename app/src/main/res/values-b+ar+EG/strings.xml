@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">يعود العرض إلى المشتري. تُقتطع رسوم الشبكة من العرض، فلا يكلّفك الرفض شيئًا.</string>
     <string name="kn_offer_locked_decline">تبقى KAS الخاصة بك مقفلة على السلسلة حتى يقبل المالك أو يرفض، أو تسحب العرض، أو تنتهي مدته - وعندها يمكن لأي شخص إعادتها إليك.</string>
     <string name="kn_offer_below_listing_buy">هذا الاسم معروض للبيع بأقل من عرضك. فكّر في شرائه بدلًا من ذلك.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">تغيّر السعر إلى %1$s منذ أن أكدت. لم يُرسل شيء. راجع السعر الجديد وأكد مرة أخرى.</string>
+    <string name="kn_stage_price_changed">تغيّر السعر إلى %1$s منذ أن أكدت، لذا لم يُرسل شيء. أكد السعر الجديد للمتابعة، أو ألغِ الالتزام.</string>
+    <string name="kn_confirm_new_price">تأكيد السعر الجديد</string>
 </resources>

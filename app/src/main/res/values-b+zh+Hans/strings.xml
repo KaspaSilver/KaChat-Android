@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">报价会退还给买家。网络费从报价中扣除，所以拒绝不会让你花费任何费用。</string>
     <string name="kn_offer_locked_decline">你的 KAS 会锁定在链上，直到所有者接受或拒绝、你撤回报价或报价到期——之后任何人都可以把它退还给你。</string>
     <string name="kn_offer_below_listing_buy">此名称的挂牌价低于你的报价。不如直接购买。</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">自你确认后价格已变为 %1$s。未发送任何内容。请查看新价格并再次确认。</string>
+    <string name="kn_stage_price_changed">自你确认后价格已变为 %1$s，因此未发送任何内容。确认新价格以继续，或取消承诺。</string>
+    <string name="kn_confirm_new_price">确认新价格</string>
 </resources>

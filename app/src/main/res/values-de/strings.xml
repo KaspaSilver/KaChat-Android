@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">Das Angebot geht an den Käufer zurück. Die Netzwerkgebühr wird vom Angebot abgezogen, das Ablehnen kostet dich also nichts.</string>
     <string name="kn_offer_locked_decline">Deine KAS bleiben auf der Chain gesperrt, bis der Inhaber annimmt oder ablehnt, du das Angebot zurückziehst oder es abläuft - dann kann sie dir jeder zurückschicken.</string>
     <string name="kn_offer_below_listing_buy">Dieser Name ist günstiger gelistet als dein Angebot. Kauf ihn vielleicht lieber direkt.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">Der Preis hat sich seit deiner Bestätigung auf %1$s geändert. Es wurde nichts gesendet. Prüfe den neuen Preis und bestätige erneut.</string>
+    <string name="kn_stage_price_changed">Der Preis hat sich seit deiner Bestätigung auf %1$s geändert, daher wurde nichts gesendet. Bestätige den neuen Preis, um fortzufahren, oder storniere den Commit.</string>
+    <string name="kn_confirm_new_price">Neuen Preis bestätigen</string>
 </resources>

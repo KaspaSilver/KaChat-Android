@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">L’offre retourne à l’acheteur. Ses frais de réseau sont prélevés sur l’offre, refuser ne vous coûte donc rien.</string>
     <string name="kn_offer_locked_decline">Vos KAS restent bloqués sur la chaîne jusqu’à ce que le propriétaire accepte ou refuse, que vous retiriez l’offre ou qu’elle expire - n’importe qui peut alors vous les renvoyer.</string>
     <string name="kn_offer_below_listing_buy">Ce nom est en vente pour moins que votre offre. Pensez plutôt à l’acheter.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">Le prix est passé à %1$s depuis votre confirmation. Rien n’a été envoyé. Vérifiez le nouveau prix et confirmez à nouveau.</string>
+    <string name="kn_stage_price_changed">Le prix est passé à %1$s depuis votre confirmation, donc rien n’a été envoyé. Confirmez le nouveau prix pour continuer, ou annulez l’engagement.</string>
+    <string name="kn_confirm_new_price">Confirmer le nouveau prix</string>
 </resources>

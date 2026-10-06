@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">A oferta volta para o comprador. A taxa de rede sai da própria oferta, então recusar não custa nada para você.</string>
     <string name="kn_offer_locked_decline">Seus KAS ficam travados na chain até o dono aceitar ou recusar, você retirar a oferta ou ela expirar - aí qualquer pessoa pode devolvê-los a você.</string>
     <string name="kn_offer_below_listing_buy">Este nome está à venda por menos que a sua oferta. Considere comprá-lo diretamente.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">O preço mudou para %1$s desde que você confirmou. Nada foi enviado. Confira o novo preço e confirme de novo.</string>
+    <string name="kn_stage_price_changed">O preço mudou para %1$s desde que você confirmou, então nada foi enviado. Confirme o novo preço para continuar ou cancele o commit.</string>
+    <string name="kn_confirm_new_price">Confirmar novo preço</string>
 </resources>

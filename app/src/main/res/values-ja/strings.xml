@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">オファーは購入者に返されます。ネットワーク手数料はオファーから差し引かれるため、辞退に費用はかかりません。</string>
     <string name="kn_offer_locked_decline">KAS は所有者が承諾または辞退するか、あなたが取り下げるか、期限が来るまでチェーン上にロックされます。その後は誰でもあなたに返せます。</string>
     <string name="kn_offer_below_listing_buy">この名前はあなたのオファーより安く出品されています。代わりに購入することを検討してください。</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">確認後に価格が %1$s に変わりました。何も送信されていません。新しい価格を確認して、もう一度確定してください。</string>
+    <string name="kn_stage_price_changed">確認後に価格が %1$s に変わったため、何も送信されていません。続けるには新しい価格を確定するか、コミットをキャンセルしてください。</string>
+    <string name="kn_confirm_new_price">新しい価格を確定</string>
 </resources>

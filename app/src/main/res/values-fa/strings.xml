@@ -1033,4 +1033,8 @@
     <string name="kn_decline_footer">پیشنهاد به خریدار برمی‌گردد. کارمزد شبکه از خود پیشنهاد کم می‌شود، پس رد کردن برای شما هزینه‌ای ندارد.</string>
     <string name="kn_offer_locked_decline">KAS شما روی زنجیره قفل می‌ماند تا مالک بپذیرد یا رد کند، پیشنهاد را پس بگیرید یا منقضی شود - سپس هر کسی می‌تواند آن را به شما برگرداند.</string>
     <string name="kn_offer_below_listing_buy">این نام کمتر از پیشنهاد شما برای فروش گذاشته شده است. بهتر است همان را بخرید.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">قیمت از زمان تأیید شما به %1$s تغییر کرد. چیزی ارسال نشد. قیمت جدید را بررسی و دوباره تأیید کنید.</string>
+    <string name="kn_stage_price_changed">قیمت از زمان تأیید شما به %1$s تغییر کرد، پس چیزی ارسال نشد. برای ادامه قیمت جدید را تأیید کنید، یا تعهد را لغو کنید.</string>
+    <string name="kn_confirm_new_price">تأیید قیمت جدید</string>
 </resources>

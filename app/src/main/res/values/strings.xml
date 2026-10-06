@@ -1169,4 +1169,8 @@
     <string name="kn_decline_footer">The offer goes back to the buyer. Its network fee comes out of the offer, so declining costs you nothing.</string>
     <string name="kn_offer_locked_decline">Your KAS stays locked on chain until the owner accepts or declines, you withdraw the offer, or it expires - then anyone can send it back to you.</string>
     <string name="kn_offer_below_listing_buy">This name is listed for less than your offer. Consider buying it instead.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">The price changed to %1$s since you confirmed. Nothing was sent. Check the new price and confirm again.</string>
+    <string name="kn_stage_price_changed">The price changed to %1$s since you confirmed, so nothing was sent. Confirm the new price to continue, or cancel the commit.</string>
+    <string name="kn_confirm_new_price">Confirm New Price</string>
 </resources>

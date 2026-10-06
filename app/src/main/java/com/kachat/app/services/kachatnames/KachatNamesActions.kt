@@ -54,7 +54,12 @@ data class PendingRegistration(
     val stage: Stage,
     val createdAt: Long,
     val updatedAt: Long,
-    val lastError: String? = null
+    val lastError: String? = null,
+    /** The price the person confirmed for the whole registration (sompi). The registration never
+     *  pays more; null only for a registration started before the cap existed (iOS 4f5d95e). */
+    val maxPrice: Long? = null,
+    /** What the price record asked when the registration stopped at [Stage.PRICE_CHANGED]. */
+    val priceChangedTo: Long? = null
 ) {
     enum class Stage {
         /** the commit transaction was built and is being submitted */
@@ -66,6 +71,9 @@ data class PendingRegistration(
         @SerializedName("registered") REGISTERED,
         /** someone registered the name first; the commit can be cancelled */
         @SerializedName("taken") TAKEN,
+        /** the price record now asks more than the person confirmed ([priceChangedTo]): nothing is
+         *  sent until they confirm the new price (iOS 4f5d95e) */
+        @SerializedName("priceChanged") PRICE_CHANGED,
         @SerializedName("failed") FAILED,
         @SerializedName("cancelling") CANCELLING,
         @SerializedName("cancelled") CANCELLED
@@ -76,6 +84,28 @@ data class PendingRegistration(
 
     /** The driver has work to do. */
     val needsDriving: Boolean get() = stage in setOf(Stage.COMMITTING, Stage.WAITING, Stage.REGISTERING, Stage.CANCELLING)
+
+    /**
+     * Never pay more than the person confirmed: prices can change while the commit ages. This
+     * registration stopped at [Stage.PRICE_CHANGED] when the price record asks [price] (sompi, the
+     * whole registration) above [maxPrice]; null when it may go on (iOS 4f5d95e).
+     */
+    fun stoppedAtPrice(price: Long): PendingRegistration? {
+        val cap = maxPrice ?: return null
+        if (price <= cap) return null
+        return copy(stage = Stage.PRICE_CHANGED, priceChangedTo = price, lastError = null)
+    }
+
+    /**
+     * This registration, stopped at [Stage.PRICE_CHANGED], going on capped at the new price the
+     * person just confirmed; null when it isn't stopped there. It still stops again if the price
+     * goes up further (iOS 4f5d95e `acceptNewPrice`).
+     */
+    fun acceptingNewPrice(): PendingRegistration? {
+        if (stage != Stage.PRICE_CHANGED) return null
+        val price = priceChangedTo ?: return null
+        return copy(maxPrice = price, priceChangedTo = null, stage = Stage.WAITING, lastError = null)
+    }
 }
 
 /**
@@ -163,6 +193,10 @@ class KachatNamesActions @Inject constructor(
 
         /** an offer past the app's 7-day cap, or one already refundable (iOS 49c0baa) */
         class OfferTooLong : ActionError("An offer can run for up to 7 days.")
+
+        /** the price record asks more than the price the person confirmed (iOS 4f5d95e) */
+        class PriceChanged(val price: Long) :
+            ActionError("The price changed to $price sompi since you confirmed. Nothing was sent. Check the new price and confirm again.")
     }
 
     // Wallet
@@ -462,11 +496,15 @@ class KachatNamesActions @Inject constructor(
         return plan to env
     }
 
-    /** Builds, signs and submits [op]; returns the txid. The registry refreshes once the
-     *  transaction is accepted. */
-    suspend fun perform(op: Operation): String = withContext(Dispatchers.IO) {
+    /**
+     * Builds, signs and submits [op]; returns the txid. The registry refreshes once the
+     * transaction is accepted. [maxPrice] is the price the person saw and confirmed (a plan's
+     * `priceFee`): a register, extend or renew never pays more. Prices can change at any time in
+     * the price record (iOS 4f5d95e).
+     */
+    suspend fun perform(op: Operation, maxPrice: Long? = null): String = withContext(Dispatchers.IO) {
         val s = signer(op)
-        val txId = submit(op, s)
+        val txId = submit(op, s, maxPrice)
         when (op) {
             // A name that leaves this owner takes no offers with it: the ones made to this owner
             // can never be accepted any more, so they go straight back to their buyers (iOS 49c0baa).
@@ -484,10 +522,11 @@ class KachatNamesActions @Inject constructor(
      * else's transaction (the node rejects it as already spent; nothing was sent) is rebuilt on
      * another shard, up to twice (iOS 49c0baa).
      */
-    private suspend fun submit(op: Operation, s: Signer): String {
+    private suspend fun submit(op: Operation, s: Signer, maxPrice: Long?): String {
         val avoid = HashSet<Long>()
         for (attempt in 0 until 3) {
             val (plan, env) = build(op, s, avoid)
+            checkPriceCap(plan.priceFee, maxPrice)
             try {
                 val txId = service.signAndSubmit(plan, s.privateKey, env)
                 val o = plan.newOffer
@@ -729,9 +768,10 @@ class KachatNamesActions @Inject constructor(
     /**
      * Starts registering [raw]: a fresh salt (encrypted preferences), the salted commit
      * (submitted), then the driver registers once the commit is `tCommit` deep. Returns the commit
-     * txid.
+     * txid. [maxPrice] is the price the person confirmed: the registration never pays more (iOS
+     * 4f5d95e).
      */
-    suspend fun startRegistration(raw: String, years: Long): String = withContext(Dispatchers.IO) {
+    suspend fun startRegistration(raw: String, years: Long, maxPrice: Long): String = withContext(Dispatchers.IO) {
         val s = signer()
         val name = Codec.normalize(raw)
         Codec.validate(name)
@@ -748,7 +788,8 @@ class KachatNamesActions @Inject constructor(
         val now = System.currentTimeMillis()
         var record = PendingRegistration(
             id = id, name = name, years = years, owner = hex(s.me), commitTxId = plan.unsignedTx.idHex,
-            commitScript = hex(script), stage = PendingRegistration.Stage.COMMITTING, createdAt = now, updatedAt = now
+            commitScript = hex(script), stage = PendingRegistration.Stage.COMMITTING, createdAt = now, updatedAt = now,
+            maxPrice = maxPrice
         )
         loadPending(s.address)
         upsert(record)
@@ -784,7 +825,18 @@ class KachatNamesActions @Inject constructor(
 
     /** Try a failed registration again. */
     fun retry(p: PendingRegistration) {
-        set(p) { it.copy(stage = PendingRegistration.Stage.WAITING, lastError = null) }
+        set(p) { it.copy(stage = PendingRegistration.Stage.WAITING, lastError = null, priceChangedTo = null) }
+        startDriver()
+    }
+
+    /**
+     * Continue a registration stopped at [PendingRegistration.Stage.PRICE_CHANGED], now capped at
+     * the new price the person just confirmed (behind the device lock). It still stops again if
+     * the price goes up further (iOS 4f5d95e).
+     */
+    fun acceptNewPrice(p: PendingRegistration) {
+        if (p.acceptingNewPrice() == null) return
+        set(p) { it.acceptingNewPrice() ?: it }
         startDriver()
     }
 
@@ -914,7 +966,8 @@ class KachatNamesActions @Inject constructor(
                 }
             }
             PendingRegistration.Stage.REGISTERED, PendingRegistration.Stage.TAKEN,
-            PendingRegistration.Stage.FAILED, PendingRegistration.Stage.CANCELLED -> Unit
+            PendingRegistration.Stage.FAILED, PendingRegistration.Stage.CANCELLED,
+            PendingRegistration.Stage.PRICE_CHANGED -> Unit
         }
     }
 
@@ -949,12 +1002,19 @@ class KachatNamesActions @Inject constructor(
                 is Lookup.Free -> l.gap ?: throw KachatNames.Failure("no gap for ${p.name} yet")
             }
             val c = context(s)
+            // a random live shard each try: one someone else just spent fails this try, and the
+            // next tick picks again
+            val shard = liveShard(m)
+            // Never pay more than the person confirmed: prices can change while the commit ages (iOS 4f5d95e).
+            val price = Math.multiplyExact(shard.price(p.name.toByteArray(Charsets.UTF_8).size), maxOf(p.years, 1L))
+            if (p.stoppedAtPrice(price) != null) {
+                set(p) { it.stoppedAtPrice(price) ?: it }
+                return
+            }
             val plan = c.builder.register(
                 c.env, c.wallet, liveGap(gap, m),
                 CommitRecord(p.name, s.me, salt, commit.entry.amount, commit),
-                // a random live shard each try: one someone else just spent fails this try, and
-                // the next tick picks again
-                liveShard(m), p.years, Builder.registerNow(c.env)
+                shard, p.years, Builder.registerNow(c.env)
             )
             val txId = service.signAndSubmit(plan, s.privateKey, c.env)
             set(p) { it.copy(stage = PendingRegistration.Stage.REGISTERING, registerTxId = txId, lastError = null) }
@@ -1070,6 +1130,15 @@ class KachatNamesActions @Inject constructor(
 
         /** Kaspa's DAA scores per second (offer refund times are DAA scores). */
         const val DAA_PER_SECOND: Long = 10
+
+        /**
+         * A register, extend or renew never pays more than [maxPrice], the price the person saw
+         * and confirmed (null: no cap, the operations without a price). A higher [priceFee] throws
+         * [ActionError.PriceChanged] before anything is signed; a lower one is paid (iOS 4f5d95e).
+         */
+        fun checkPriceCap(priceFee: Long, maxPrice: Long?) {
+            if (maxPrice != null && priceFee > maxPrice) throw ActionError.PriceChanged(priceFee)
+        }
 
         /** Whether a submit failed because an input was spent meanwhile (iOS 49c0baa `isSpentConflict`). */
         fun isSpentConflict(error: Throwable): Boolean {

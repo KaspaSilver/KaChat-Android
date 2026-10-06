@@ -1002,4 +1002,8 @@
     <string name="kn_decline_footer">ההצעה חוזרת לקונה. עמלת הרשת יורדת מההצעה עצמה, כך שהדחייה לא עולה לך כלום.</string>
     <string name="kn_offer_locked_decline">ה-KAS שלך נשאר נעול בשרשרת עד שהבעלים יקבל או ידחה, תמשכו את ההצעה או שהיא תפוג - ואז כל אחד יכול להחזיר אותו אליכם.</string>
     <string name="kn_offer_below_listing_buy">השם הזה מוצע למכירה בפחות מההצעה שלך. כדאי לשקול לקנות אותו במקום.</string>
+    <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
+    <string name="kn_err_price_changed">המחיר השתנה ל-%1$s מאז שאישרת. דבר לא נשלח. בדקו את המחיר החדש ואשרו שוב.</string>
+    <string name="kn_stage_price_changed">המחיר השתנה ל-%1$s מאז שאישרת, ולכן דבר לא נשלח. אשרו את המחיר החדש כדי להמשיך, או בטלו את ההתחייבות.</string>
+    <string name="kn_confirm_new_price">אישור המחיר החדש</string>
 </resources>
