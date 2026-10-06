@@ -5518,6 +5518,12 @@ fun KaPostTipSheet(
     val fundingBalanceSompi = remember(fundingUtxos) {
         com.kachat.app.util.UtxoMath.checkedTotal(fundingUtxos.map { it.utxoEntry.amount }) ?: 0L
     }
+    // Available, as iOS shows it: "--" until this sheet's read of the funding source's coins is
+    // done, then every coin but the coinbase (mining-reward) ones.
+    var fundingLoaded by remember { mutableStateOf(false) }
+    val availableSompi = remember(fundingUtxos, fundingLoaded) {
+        if (fundingLoaded) com.kachat.app.util.KaPostTip.availableSompi(fundingUtxos) else null
+    }
 
     val resetPaymentState: () -> Unit = {
         chatViewModel.setPaymentAmount("")
@@ -5532,7 +5538,8 @@ fun KaPostTipSheet(
         resetPaymentState()
         chatViewModel.refreshFreshPoolIndicator(address)
         chatViewModel.setPaymentSource(null)
-        chatViewModel.refreshSpendingUtxos()
+        chatViewModel.refreshSpendingUtxos().join()
+        fundingLoaded = true
     }
     // The memo rides in the payload, so the fee preview prices it (as in a chat).
     LaunchedEffect(memo) { chatViewModel.setPaymentNote(memo) }
@@ -5560,7 +5567,12 @@ fun KaPostTipSheet(
             note = memo,
             onNoteChange = { memo = it },
             // The funding source's spendable balance: never a picker here (iOS SendInfoPill).
-            availableText = KaspaUnit.label(stringResource(R.string.available_amount_kas, ChatRepository.formatKas(fundingBalanceSompi))),
+            availableText = KaspaUnit.label(
+                stringResource(
+                    R.string.available_amount_kas,
+                    com.kachat.app.util.KaPostTip.availableAmountText(availableSompi) { ChatRepository.formatKas(it) },
+                )
+            ),
             availableTappable = false,
             onAvailableClick = {},
             availableSourceLabel = null,

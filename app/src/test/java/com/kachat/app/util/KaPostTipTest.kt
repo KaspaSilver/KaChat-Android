@@ -1,5 +1,9 @@
 package com.kachat.app.util
 
+import com.kachat.app.services.Outpoint
+import com.kachat.app.services.ScriptPublicKey
+import com.kachat.app.services.UtxoData
+import com.kachat.app.services.UtxoEntry
 import com.kachat.app.ui.screens.MAX_PAYMENT_MEMO_LENGTH
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -72,5 +76,42 @@ class KaPostTipTest {
         val pub = Schnorr.publicKeyXOnly(randomScalarBytes())
         val payload = MessageProtocol.paymentMemoPayload("thanks", 1_000_000_000L, pub)!!
         assertEquals(payload.size, MessageProtocol.estimatedPaymentPayloadSize("thanks", 1_000_000_000L))
+    }
+
+    private fun coin(amount: Long, isCoinbase: Boolean = false, index: Int = 0) = UtxoEntry(
+        address = "kaspa:qtest",
+        outpoint = Outpoint(transactionId = "tx$index", index = index),
+        utxoEntry = UtxoData(amount = amount, scriptPublicKey = ScriptPublicKey(""), blockDaaScore = 0L, isCoinbase = isCoinbase),
+    )
+
+    @Test
+    fun `available leaves out coinbase coins, as iOS does`() {
+        val coins = listOf(
+            coin(100_000_000L, index = 0),
+            coin(500_000_000L, isCoinbase = true, index = 1),
+            coin(25_000_000L, index = 2),
+        )
+        assertEquals(125_000_000L, KaPostTip.availableSompi(coins))
+    }
+
+    @Test
+    fun `available is zero when every coin is coinbase or there are none`() {
+        assertEquals(0L, KaPostTip.availableSompi(listOf(coin(500_000_000L, isCoinbase = true))))
+        assertEquals(0L, KaPostTip.availableSompi(emptyList()))
+    }
+
+    @Test
+    fun `available is unknown when a counted coin's amount is not real`() {
+        assertNull(KaPostTip.availableSompi(listOf(coin(-1L), coin(1L, index = 1))))
+        // A broken coinbase coin is left out, so it can't spoil the total.
+        assertEquals(1L, KaPostTip.availableSompi(listOf(coin(-1L, isCoinbase = true), coin(1L, index = 1))))
+    }
+
+    @Test
+    fun `the available pill reads -- until the coins are known`() {
+        assertEquals("--", KaPostTip.AVAILABLE_PLACEHOLDER)
+        assertEquals("--", KaPostTip.availableAmountText(null) { "x" })
+        assertEquals("1.5", KaPostTip.availableAmountText(150_000_000L) { (it / 100_000_000.0).toString() })
+        assertEquals("0", KaPostTip.availableAmountText(0L) { it.toString() })
     }
 }

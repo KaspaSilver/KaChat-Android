@@ -1388,9 +1388,11 @@ class ChatViewModel @Inject constructor(
         refreshSpendingUtxos()
     }
 
-    fun refreshSpendingUtxos() {
+    /** Re-reads the payment source's coins into [spendingUtxos]; the returned job completes when
+     *  the read is done (the KaPosts tip sheet shows "--" until then). */
+    fun refreshSpendingUtxos(): kotlinx.coroutines.Job {
         val source = _paymentSourceIndex.value
-        viewModelScope.launch {
+        return viewModelScope.launch {
             try {
                 val privacy = paymentPoolService.isChatsPrivacyEnabled()
                 _spendingUtxosFromSpendingAddress.value = privacy
