@@ -950,12 +950,14 @@ object KaChatLink {
     }
 
     /** A linked address is attacker-controlled like everything else in a link: it has to be a
-     *  valid Kaspa address, checksum and all, or the link is not ours. */
+     *  valid Kaspa address, checksum and all, or the link is not ours. It opens on the network the
+     *  app runs on: a link without a prefix (or shared from the other network) names the same
+     *  key, so it becomes that key's address here - a `kaspa:` contact on testnet could never be
+     *  reached (iOS ce20e87, IOS-003). */
     fun profileAddress(raw: String): String? {
-        var address = raw.trim().lowercase()
-        if (':' !in address) address = "kaspa:$address"
-        if (address.length > 100) return null
-        return address.takeIf { runCatching { com.kachat.app.util.KaspaAddress.isValid(it) }.getOrDefault(false) }
+        val trimmed = raw.trim()
+        if (trimmed.length > 100) return null
+        return runCatching { com.kachat.app.util.KaspaAddress.onActiveNetwork(trimmed) }.getOrNull()
     }
 }
 

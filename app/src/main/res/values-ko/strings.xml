@@ -1011,4 +1011,7 @@
     <string name="kn_err_accept_name_expired">이 이름은 만료되었어요. 제안은 이름이 활성 상태일 때만 수락할 수 있어요. 먼저 갱신하세요.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
     <string name="kn_buy_soon_left">이 이름의 만료까지 %1$s도 남지 않았어요. 곧 갱신해야 해요.</string>
+    <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
+    <string name="address_other_network_testnet">Testnet 주소예요. KaChat은 Mainnet에서 실행 중이에요.</string>
+    <string name="address_other_network_mainnet">Mainnet 주소예요. KaChat은 Testnet에서 실행 중이에요.</string>
 </resources>

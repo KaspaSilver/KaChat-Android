@@ -58,8 +58,10 @@ class ColdStorageSendEngine @Inject constructor(
         extraFeeSompi: Long = 0L
     ): Result<UnsignedColdTx> = mutex.withLock {
         try {
-            require(KaspaAddress.isValid(toAddress)) { "Invalid recipient address" }
             require(amountSompi > 0) { "Amount must be greater than zero" }
+            // The script ignores the prefix: a kaspatest: address on mainnet would pay real KAS.
+            KaspaAddress.requireActiveNetwork(toAddress)
+            require(KaspaAddress.isValid(toAddress)) { "Invalid recipient address" }
 
             val api = networkService.kaspaRestApi.value
                 ?: return@withLock Result.failure(IllegalStateException("Network service unavailable"))

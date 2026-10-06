@@ -6367,7 +6367,9 @@ fun SpendingAddressSendFlow(
     }
 
     val amountSompi = KaspaUnit.sompiFromUserText(amountInput)
-    val isValidAddress = remember(recipientInput) { KaspaAddress.isValid(recipientInput) }
+    // Only an address of the network the app runs on: the other network's is the same key on
+    // another chain, refused with its own reason under the field (iOS ce20e87).
+    val isValidAddress = remember(recipientInput) { KaspaAddress.isValidOnActiveNetwork(recipientInput.trim()) }
     val effectiveAddress = knsResolvedAddress ?: recipientInput
     val hasValidRecipient = if (knsResolvedAddress != null) true else (isValidAddress && !isResolvingKns)
 
@@ -11699,7 +11701,10 @@ fun CreateChatScreen(
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
     // Trimmed: a pasted address often carries a stray space or newline, which failed the check.
-    val isValidRawAddress = remember(address) { KaspaAddress.isValid(KaspaAddress.fromScanned(address)) }
+    // Only an address of the network the app runs on: the other network's is the same key on
+    // another chain, refused with its own reason (iOS ce20e87).
+    val isValidRawAddress = remember(address) { KaspaAddress.isValidOnActiveNetwork(KaspaAddress.fromScanned(address)) }
+    val otherNetworkMessageRes = remember(address) { KaspaAddress.otherNetworkMessageRes(KaspaAddress.fromScanned(address)) }
     // A name on any service - .kachat, .kas, .k, .kaspa - typed with or without its ending (iOS a0dbc15).
     val looksLikeKnsDomain = remember(address) { com.kachat.app.services.NameServicesClient.looksLikeName(address) }
     val nameResolutions by chatViewModel.nameResolutions.collectAsState()
@@ -12074,6 +12079,9 @@ fun CreateChatScreen(
                         if (looksLikeKnsDomain) {
                             OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
                         }
+                    } else if (!looksLikeKnsDomain && otherNetworkMessageRes != null) {
+                        Spacer(Modifier.height(8.dp))
+                        OtherNetworkAddressLine(otherNetworkMessageRes)
                     }
 
                     // Who you are about to add, as they will appear once added. A raw address tells
@@ -12265,6 +12273,9 @@ fun CreateChatScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                } else if (!looksLikeKnsDomain && otherNetworkMessageRes != null) {
+                    OtherNetworkAddressLine(otherNetworkMessageRes)
                     Spacer(modifier = Modifier.height(16.dp))
                 } else {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -12668,7 +12679,18 @@ data class GroupAddressRow(
      * skips, and it was silently keeping "Add Address"/"Create" disabled even after a domain
      * resolved successfully.
      */
-    val isValid: Boolean get() = if (looksLikeDomain) resolvedAddress != null else KaspaAddress.isValid(trimmedText)
+    val isValid: Boolean get() = if (looksLikeDomain) resolvedAddress != null else KaspaAddress.isValidOnActiveNetwork(trimmedText)
+}
+
+/** "This is a Testnet address. KaChat is on Mainnet." (or the reverse) under an address field:
+ *  the other network's address is the same key on another chain, refused (iOS ce20e87). */
+@Composable
+private fun OtherNetworkAddressLine(messageRes: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.Cancel, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(messageRes), color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 /**

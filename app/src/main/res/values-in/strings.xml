@@ -875,4 +875,7 @@
     <string name="kn_err_accept_name_expired">Nama ini sudah kedaluwarsa. Penawaran hanya bisa diterima selama nama masih aktif. Perpanjang dulu.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
     <string name="kn_buy_soon_left">Tersisa kurang dari %1$s sebelum nama ini kedaluwarsa. Anda perlu segera memperpanjangnya.</string>
+    <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
+    <string name="address_other_network_testnet">Ini alamat Testnet. KaChat sedang di Mainnet.</string>
+    <string name="address_other_network_mainnet">Ini alamat Mainnet. KaChat sedang di Testnet.</string>
 </resources>

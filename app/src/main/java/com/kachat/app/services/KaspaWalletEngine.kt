@@ -137,7 +137,10 @@ class KaspaWalletEngine @Inject constructor(
         sweepMaxInputs: Int = Int.MAX_VALUE
     ): Result<String> = sendMutex.withLock {
         try {
-            // 1. Validate address
+            // 1. Validate address: well formed, and of the network the app runs on - the script
+            //    is built from the payload alone, so a kaspatest: address on mainnet would pay real
+            //    KAS to that key's mainnet script (iOS ce20e87, AND-011).
+            KaspaAddress.otherNetworkReason(toAddress)?.let { return Result.failure(IllegalArgumentException(it)) }
             if (!isValidAddress(toAddress)) {
                 return Result.failure(IllegalArgumentException("Invalid recipient address: $toAddress"))
             }
@@ -760,8 +763,8 @@ class KaspaWalletEngine @Inject constructor(
 
     private fun isValidAddress(address: String): Boolean {
         return try {
-            // Basic validation using KaspaAddress utility
-            KaspaAddress.getScriptPublicKey(address).isNotEmpty()
+            // A known prefix and a payload that fits its version, then a script that builds.
+            KaspaAddress.isValid(address) && KaspaAddress.getScriptPublicKey(address).isNotEmpty()
         } catch (e: Exception) {
             false
         }

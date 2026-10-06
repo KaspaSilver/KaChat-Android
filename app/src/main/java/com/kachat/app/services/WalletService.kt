@@ -895,6 +895,7 @@ class WalletService @Inject constructor(
             sourcePrivateKey = walletManager.getPrivateKeyBytes()
         }
 
+        KaspaAddress.requireActiveNetwork(toAddress)
         require(KaspaAddress.isValid(toAddress)) { "Invalid recipient address" }
         require(toAddress != sourceAddress) { "Recipient address must be different from your wallet" }
         require(toAddress.substringBefore(":") == sourceAddress.substringBefore(":")) { "Recipient address is on the wrong network" }

@@ -222,6 +222,7 @@ fun SendRecipientCard(
             AddressResolutionCard(input = trimmed)
             if (trimmed.isNotEmpty()) {
                 SendRecipientStatusLine(
+                    input = trimmed,
                     isResolving = isResolving,
                     resolvedAddress = resolvedAddress,
                     resolvedName = resolvedName,
@@ -235,6 +236,7 @@ fun SendRecipientCard(
 
 @Composable
 private fun SendRecipientStatusLine(
+    input: String,
     isResolving: Boolean,
     resolvedAddress: String?,
     resolvedName: String?,
@@ -274,7 +276,7 @@ private fun SendRecipientStatusLine(
                 modifier = Modifier.size(14.dp),
             )
             Text(
-                stringResource(if (isValidAddress) R.string.valid_address else R.string.invalid_address_format),
+                addressValidityText(input, isValidAddress),
                 color = tint,
                 fontSize = 12.sp,
             )
@@ -872,4 +874,16 @@ fun SendActionButton(
             }
         }
     }
+}
+
+/**
+ * The line under an address field: "Valid address", the other network's reason ("This is a
+ * Testnet address. KaChat is on Mainnet."), or "Invalid address format" (iOS
+ * `KaspaAddress.validityText`, ce20e87).
+ */
+@Composable
+fun addressValidityText(address: String, isValid: Boolean): String = when {
+    isValid -> stringResource(R.string.valid_address)
+    else -> KaspaAddress.otherNetworkMessageRes(address)?.let { stringResource(it) }
+        ?: stringResource(R.string.invalid_address_format)
 }

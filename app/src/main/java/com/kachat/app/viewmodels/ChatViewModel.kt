@@ -3163,6 +3163,11 @@ class ChatViewModel @Inject constructor(
         // toLong() paid 229,999,999. Comma or dot, at most 8 decimals, nothing above the supply.
         val sompi = KaspaUnit.sompiFromUserText(amount)?.takeIf { it > 0 }
             ?: run { onResult?.invoke(false, "Enter a valid amount.", null); return }
+        // The other network's address is the same key on another chain: never paid (iOS ce20e87).
+        com.kachat.app.util.KaspaAddress.otherNetworkMessageRes(contactId)?.let {
+            onResult?.invoke(false, appContext.getString(it), null)
+            return
+        }
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
         val memo = note.trim()

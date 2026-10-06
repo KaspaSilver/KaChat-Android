@@ -35,9 +35,6 @@ object KaspaAddress {
     }
 
     /**
-     * Basic validation of a Kaspa address string.
-     */
-    /**
      * What a scanned QR code (or a pasted payment link) holds, as an address to put in a field
      * (iOS handleScannedQRCode):
      * trimmed, and a payment URI's query (`kaspa:ADDRESS?amount=X`, `kaspatest:...`) dropped -
@@ -64,13 +61,91 @@ object KaspaAddress {
         return address
     }
 
+    /** The two address prefixes there are: mainnet's and testnet's. */
+    private val KNOWN_HRPS = setOf(KaspaNetwork.Type.MAINNET.hrp, KaspaNetwork.Type.TESTNET.hrp)
+
+    /**
+     * The payload an address version carries (iOS `Bech32.isValid`): v0 a 32-byte x-only Schnorr
+     * key, v1 a 33-byte compressed ECDSA key, v8 a 32-byte script hash. Any other version, or any
+     * other length, is not an address - a script built from it is malformed (AND-011).
+     */
+    fun hasValidPayload(version: Byte, payload: ByteArray): Boolean = when (version.toInt()) {
+        0, 8 -> payload.size == 32
+        1 -> payload.size == 33
+        else -> false
+    }
+
+    /**
+     * A well-formed Kaspa address of either network: checksum, a `kaspa` or `kaspatest` prefix,
+     * and a payload that fits its version (iOS `KaspaAddress.isValid`). Says nothing about the
+     * network the app runs on - a recipient is checked with [isValidOnActiveNetwork].
+     */
     fun isValid(address: String): Boolean {
         return try {
-            decode(address)
-            true
+            if (address.substringBefore(':', "") !in KNOWN_HRPS) return false
+            val (version, payload) = decode(address)
+            hasValidPayload(version, payload)
         } catch (e: Exception) {
             false
         }
+    }
+
+    // MARK: - The running network (iOS ce20e87, IOS-003 / AND-011)
+
+    /**
+     * A recipient the app can use: a valid address whose prefix is [hrp] - by default the network
+     * this launch runs on. A `kaspa:` address on testnet (or `kaspatest:` on mainnet) is the same
+     * key on the other chain: the script is built from the payload alone, so paying it would send
+     * coins on the wrong network.
+     */
+    fun isValidOnNetwork(address: String, hrp: String = KaspaNetwork.hrp): Boolean =
+        isValid(address) && address.substringBefore(':') == hrp
+
+    /** [isValidOnNetwork] for the network the app runs on. */
+    fun isValidOnActiveNetwork(address: String): Boolean = isValidOnNetwork(address)
+
+    /** The network of a valid address that is NOT the one the app runs on; null for an address
+     *  of the running network or one that isn't valid at all. */
+    fun otherNetwork(address: String): KaspaNetwork.Type? {
+        val trimmed = address.trim()
+        if (!isValid(trimmed)) return null
+        val network = KaspaNetwork.ofAddress(trimmed) ?: return null
+        return network.takeIf { it != KaspaNetwork.launch }
+    }
+
+    /** Why a valid address can't be used here, in English (iOS `otherNetworkReason`) - for the
+     *  send paths' errors. The UI shows the localized strings (address_other_network_*). */
+    fun otherNetworkReason(address: String): String? = when (otherNetwork(address)) {
+        KaspaNetwork.Type.TESTNET -> "This is a Testnet address. KaChat is on Mainnet."
+        KaspaNetwork.Type.MAINNET -> "This is a Mainnet address. KaChat is on Testnet."
+        null -> null
+    }
+
+    /** The localized line for [otherNetwork] ("This is a Testnet address. KaChat is on Mainnet."),
+     *  as a string resource; null when the address is not the other network's. */
+    fun otherNetworkMessageRes(address: String): Int? = when (otherNetwork(address)) {
+        KaspaNetwork.Type.TESTNET -> com.kachat.app.R.string.address_other_network_testnet
+        KaspaNetwork.Type.MAINNET -> com.kachat.app.R.string.address_other_network_mainnet
+        null -> null
+    }
+
+    /** Refuses the other network's address on a send path: a payment there would go to the same
+     *  key on the wrong chain. */
+    fun requireActiveNetwork(address: String) {
+        otherNetworkReason(address)?.let { throw IllegalArgumentException(it) }
+    }
+
+    /**
+     * The same key's address on the network the app runs on, for an address with or without its
+     * prefix (profile links drop it) - iOS `KaspaAddress.onActiveNetwork`. null if it isn't a
+     * valid address on either network.
+     */
+    fun onActiveNetwork(raw: String): String? {
+        val lower = raw.trim().lowercase()
+        val candidates = if (':' in lower) listOf(lower) else KNOWN_HRPS.map { "$it:$lower" }
+        val valid = candidates.firstOrNull { isValid(it) } ?: return null
+        val converted = KaspaNetwork.reencode(valid)
+        return converted.takeIf { isValidOnActiveNetwork(it) }
     }
 
     /**
@@ -111,6 +186,8 @@ object KaspaAddress {
      */
     fun getScriptPublicKey(address: String): String {
         val (version, payload) = decode(address)
+        // A payload that doesn't fit its version builds a malformed script (AND-011).
+        require(hasValidPayload(version, payload)) { "Invalid address payload for version $version" }
         val payloadHex = payload.joinToString("") { "%02x".format(it) }
 
         return when (version.toInt()) {

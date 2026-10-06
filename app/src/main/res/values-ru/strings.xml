@@ -1011,4 +1011,7 @@
     <string name="kn_err_accept_name_expired">Срок этого имени истёк. Предложения можно принимать, только пока имя активно. Сначала продлите его.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
     <string name="kn_buy_soon_left">До истечения этого имени осталось меньше %1$s. Скоро его придётся продлить.</string>
+    <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
+    <string name="address_other_network_testnet">Это адрес Testnet. KaChat работает в Mainnet.</string>
+    <string name="address_other_network_mainnet">Это адрес Mainnet. KaChat работает в Testnet.</string>
 </resources>

@@ -1254,7 +1254,8 @@ private fun ColdSendFlow(
     )
     // The one exact parser for typed KAS (iOS 16b64bc): comma or dot, at most 8 decimals.
     val amountSompi = KaspaUnit.sompiFromUserText(amountText)
-    val isValidRecipient = remember(toAddress) { KaspaAddress.isValid(toAddress) }
+    // Only an address of the network the app runs on (iOS ce20e87).
+    val isValidRecipient = remember(toAddress) { KaspaAddress.isValidOnActiveNetwork(toAddress.trim()) }
 
     // Debounced live preview of what automatic selection would pick for the current amount/fee —
     // see the LaunchedEffect below. Non-null only while still fresh for the current amount/fee;

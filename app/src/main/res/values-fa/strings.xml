@@ -1042,4 +1042,7 @@
     <string name="kn_err_accept_name_expired">این نام منقضی شده است. پیشنهادها فقط تا وقتی نام فعال است پذیرفته می‌شوند. ابتدا آن را تمدید کنید.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
     <string name="kn_buy_soon_left">کمتر از %1$s تا انقضای این نام مانده است. باید به‌زودی تمدیدش کنید.</string>
+    <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
+    <string name="address_other_network_testnet">این یک آدرس Testnet است. KaChat روی Mainnet است.</string>
+    <string name="address_other_network_mainnet">این یک آدرس Mainnet است. KaChat روی Testnet است.</string>
 </resources>

@@ -1011,4 +1011,7 @@
     <string name="kn_err_accept_name_expired">Tên này đã hết hạn. Chỉ có thể chấp nhận đề nghị khi tên còn hoạt động. Hãy gia hạn trước.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
     <string name="kn_buy_soon_left">Còn chưa đến %1$s là tên này hết hạn. Bạn sẽ phải gia hạn sớm.</string>
+    <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
+    <string name="address_other_network_testnet">Đây là địa chỉ Testnet. KaChat đang ở Mainnet.</string>
+    <string name="address_other_network_mainnet">Đây là địa chỉ Mainnet. KaChat đang ở Testnet.</string>
 </resources>

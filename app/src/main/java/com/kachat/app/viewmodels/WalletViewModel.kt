@@ -1701,6 +1701,8 @@ class WalletViewModel @Inject constructor(
                 }
                 if (!KaspaAddress.isValid(resolved)) throw IllegalStateException("Invalid recipient address")
                 if (resolved == myAddress) throw IllegalStateException("Recipient must be different from your own wallet")
+                // The other network's address is the same key on another chain (iOS ce20e87).
+                KaspaAddress.otherNetworkMessageRes(resolved)?.let { throw IllegalStateException(appContext.getString(it)) }
                 if (myAddress != null && resolved.substringBefore(":") != myAddress.substringBefore(":")) {
                     throw IllegalStateException("Recipient address is on the wrong network")
                 }

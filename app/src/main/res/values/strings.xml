@@ -1178,4 +1178,7 @@
     <string name="kn_err_accept_name_expired">This name has expired. Offers can only be accepted while the name is active. Renew it first.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
     <string name="kn_buy_soon_left">Less than %1$s is left before this name expires. You\'d have to renew it soon.</string>
+    <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
+    <string name="address_other_network_testnet">This is a Testnet address. KaChat is on Mainnet.</string>
+    <string name="address_other_network_mainnet">This is a Mainnet address. KaChat is on Testnet.</string>
 </resources>
