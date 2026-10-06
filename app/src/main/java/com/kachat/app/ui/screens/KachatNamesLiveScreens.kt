@@ -620,6 +620,8 @@ private fun KachatButton(
     destructive: Boolean = false,
     enabled: Boolean = true,
     large: Boolean = false,
+    /** iOS `.controlSize(.small)`: a shorter capsule, smaller type. */
+    small: Boolean = false,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -628,7 +630,11 @@ private fun KachatButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier,
-        contentPadding = if (large) PaddingValues(horizontal = 12.dp, vertical = 12.dp) else PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+        contentPadding = when {
+            large -> PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+            small -> PaddingValues(horizontal = 10.dp, vertical = 3.dp)
+            else -> PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+        },
         colors = if (prominent) {
             ButtonDefaults.buttonColors(containerColor = tint, contentColor = Color.Black)
         } else {
@@ -642,7 +648,7 @@ private fun KachatButton(
         Text(
             title,
             fontWeight = if (prominent) FontWeight.Bold else FontWeight.SemiBold,
-            fontSize = 15.sp,
+            fontSize = if (small) 13.sp else 15.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -879,6 +885,87 @@ private fun KachatLiveNameRow(
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
     }
+}
+
+// MARK: - Name tiles
+
+/**
+ * A square tile for one name in the marketplace grids (For sale, Reclaimable; iOS 27a4f39
+ * `KachatNameTile`): the full name - it wraps onto more lines, never truncates, and the tile grows
+ * to fit - with ".kachat" under it, and the price (or a Reclaim button) at the bottom. [name] null
+ * draws the tile's shape redacted (the preview pages: no invented name). [onClick] opens the name;
+ * a button in [footer] keeps its own tap.
+ */
+@Composable
+fun KachatNameTile(
+    name: String?,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    footer: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val redacted = colors.textSecondary.copy(alpha = 0.25f)
+    Column(
+        modifier.fillMaxWidth().heightIn(min = 140.dp).kachatGlass(colors)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (name != null) {
+                Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+            } else {
+                Box(Modifier.size(90.dp, 17.dp).clip(RoundedCornerShape(4.dp)).background(redacted))
+                Box(Modifier.size(44.dp, 12.dp).clip(RoundedCornerShape(4.dp)).background(redacted))
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        footer()
+    }
+}
+
+/** Two tiles per row (iOS 27a4f39 `KachatNameGrid`). */
+@Composable
+fun <T> KachatNameGrid(items: List<T>, tile: @Composable (T) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                row.forEach { item -> Box(Modifier.weight(1f)) { tile(item) } }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** One line that shrinks to fit rather than being cut, down to [minScale] of its size (iOS
+ *  `.lineLimit(1).minimumScaleFactor`). */
+@Composable
+private fun KachatFitText(
+    text: String,
+    color: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit = 15.sp,
+    fontWeight: FontWeight = FontWeight.SemiBold,
+    minScale: Float = 0.7f,
+    textAlign: TextAlign? = null,
+    modifier: Modifier = Modifier,
+) {
+    var size by remember(text) { mutableStateOf(fontSize) }
+    Text(
+        text,
+        color = color,
+        fontSize = size,
+        fontWeight = fontWeight,
+        maxLines = 1,
+        softWrap = false,
+        textAlign = textAlign,
+        modifier = modifier,
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && size.value > fontSize.value * minScale) {
+                size = (size.value * 0.94f).coerceAtLeast(fontSize.value * minScale).sp
+            }
+        },
+    )
 }
 
 // MARK: - Hub: search result
@@ -1197,10 +1284,10 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
         if (vm == null || vm.listings.isEmpty()) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_listings) else null)
         } else {
-            KachatGlassList {
-                vm.listings.forEachIndexed { index, n ->
-                    KachatLiveNameRow(n, vm) { onOpen(n) }
-                    if (index < vm.listings.lastIndex) KachatRowDivider(62)
+            val colors = LocalAppColors.current
+            KachatNameGrid(vm.listings) { n ->
+                KachatNameTile(n.name, onClick = { onOpen(n) }) {
+                    KachatFitText(KaspaUnit.amount(n.price), color = colors.textPrimary)
                 }
             }
         }
@@ -1218,13 +1305,10 @@ fun KachatLiveReclaimablePage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Un
         if (vm == null || vm.lapsed.isEmpty()) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_to_reclaim) else null)
         } else {
-            KachatGlassList {
-                vm.lapsed.forEachIndexed { index, n ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        KachatLiveNameRow(n, vm, modifier = Modifier.weight(1f), showPrice = false) { onOpen(n) }
-                        KachatButton(stringResource(R.string.kn_reclaim), modifier = Modifier.padding(end = 12.dp)) { onReclaim(n) }
-                    }
-                    if (index < vm.lapsed.lastIndex) KachatRowDivider(62)
+            // the tile opens the name; the Reclaim button inside keeps its own tap
+            KachatNameGrid(vm.lapsed) { n ->
+                KachatNameTile(n.name, onClick = { onOpen(n) }) {
+                    KachatButton(stringResource(R.string.kn_reclaim), small = true) { onReclaim(n) }
                 }
             }
         }

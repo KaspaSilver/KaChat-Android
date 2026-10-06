@@ -451,16 +451,11 @@
     <string name="coming_soon">Yakında</string>
     <string name="not_available_on_this_network">Bu ağda kullanılamıyor</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_hero_title">KaChat\'teki adın</string>
-    <string name="km_hero_body">Bir .kachat adı al ya da adları doğrudan kişiler arasında alıp sat. Ad ve ödeme Kaspa\'da birlikte gerçekleşir - arada hiç kimse ikisini de tutmaz.</string>
     <string name="km_find_a_name">Ad bul</string>
     <string name="km_registration_not_open">Kayıt henüz açık değil.</string>
     <string name="km_claim">Al</string>
     <string name="km_marketplace">Pazar yeri</string>
     <string name="km_activity">Etkinlik</string>
-    <string name="km_featured">Öne çıkanlar</string>
-    <string name="km_featured_detail">Sahiplerinin satışa çıkardığı adlar.</string>
-    <string name="km_recently_listed">Yeni satışa çıkanlar</string>
     <string name="km_list_a_name">Bir adı satışa çıkar</string>
     <string name="km_listings_appear">İlanlar .kachat adları başladığında burada görünür.</string>
     <string name="km_no_names">Henüz .kachat adın yok</string>

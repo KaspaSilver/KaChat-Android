@@ -451,16 +451,11 @@
     <string name="coming_soon">Sắp ra mắt</string>
     <string name="not_available_on_this_network">Không khả dụng trên mạng này</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_hero_title">Tên của bạn trên KaChat</string>
-    <string name="km_hero_body">Nhận một tên .kachat, hoặc mua bán tên trực tiếp giữa mọi người. Tên và khoản thanh toán được thực hiện cùng lúc trên Kaspa - không ai giữ thứ gì ở giữa.</string>
     <string name="km_find_a_name">Tìm tên</string>
     <string name="km_registration_not_open">Chưa mở đăng ký.</string>
     <string name="km_claim">Nhận</string>
     <string name="km_marketplace">Chợ</string>
     <string name="km_activity">Hoạt động</string>
-    <string name="km_featured">Nổi bật</string>
-    <string name="km_featured_detail">Các tên mà chủ sở hữu đã rao bán.</string>
-    <string name="km_recently_listed">Mới rao bán</string>
     <string name="km_list_a_name">Rao bán tên</string>
     <string name="km_listings_appear">Tin rao sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
     <string name="km_no_names">Chưa có tên .kachat</string>

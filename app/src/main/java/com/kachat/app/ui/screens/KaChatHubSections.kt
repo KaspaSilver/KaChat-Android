@@ -184,17 +184,10 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Hero
-            Column(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.Black, fontSize = 40.sp)
-                Text(stringResource(R.string.km_hero_title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                Text(
-                    stringResource(R.string.km_hero_body),
-                    color = colors.textSecondary,
-                    fontSize = 15.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
+            // Hero: the logo and the testnet / setting-up status - no title or description, so
+            // the search sits higher (iOS 27a4f39).
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.Black, fontSize = 35.sp)
                 if (isLive) {
                     KachatTestnetBadge()
                 } else if (KachatLive.isEnabled && live?.upgrading == true) {
@@ -415,30 +408,9 @@ private fun SectionHeader(title: String, detail: String?) {
 private fun MarketPage(onOpenListing: () -> Unit) {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
-        SectionHeader(stringResource(R.string.km_featured), stringResource(R.string.km_featured_detail))
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            repeat(4) {
-                Column(
-                    Modifier.clip(RoundedCornerShape(18.dp)).background(colors.surface).clickable(onClick = onOpenListing).padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(Modifier.size(170.dp, 90.dp).clip(RoundedCornerShape(14.dp)).background(KaspaTeal), contentAlignment = Alignment.Center) {
-                        Redacted(100, 16, Color.Black.copy(alpha = 0.25f))
-                    }
-                    Redacted(60)
-                    Redacted(30, 12)
-                }
-            }
-        }
-        SectionHeader(stringResource(R.string.km_recently_listed), null)
-        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
-            repeat(5) { index ->
-                ListingPlaceholderRow(onClick = onOpenListing)
-                if (index < 4) HorizontalDivider(Modifier.padding(start = 64.dp), color = colors.background)
-            }
+        SectionHeader(stringResource(R.string.kn_for_sale), stringResource(R.string.kn_for_sale_detail))
+        KachatNameGrid(List(4) { it }) {
+            TilePlaceholder(onClick = onOpenListing)
         }
         OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp)) {
             Icon(Icons.Default.Sell, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -455,16 +427,21 @@ private fun MarketPage(onOpenListing: () -> Unit) {
     }
 }
 
+/** A name tile's shape, redacted: no invented name or price (iOS 27a4f39 `tilePlaceholder`). */
+@Composable
+private fun TilePlaceholder(onClick: (() -> Unit)? = null) {
+    KachatNameTile(name = null, onClick = onClick) {
+        Redacted(60, 15)
+    }
+}
+
 @Composable
 private fun ReclaimablePage() {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
         SectionHeader(stringResource(R.string.kn_reclaimable), stringResource(R.string.kn_reclaimable_detail))
-        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
-            repeat(3) { index ->
-                ListingPlaceholderRow()
-                if (index < 2) HorizontalDivider(Modifier.padding(start = 16.dp), color = colors.background)
-            }
+        KachatNameGrid(List(2) { it }) {
+            TilePlaceholder()
         }
         Text(
             stringResource(R.string.km_reclaimable_appear),
@@ -473,26 +450,6 @@ private fun ReclaimablePage() {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
-    }
-}
-
-/** A listing row's shape, redacted: no invented name or price. */
-@Composable
-private fun ListingPlaceholderRow(onClick: (() -> Unit)? = null) {
-    val colors = LocalAppColors.current
-    Row(
-        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.size(36.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.25f)))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Redacted(120)
-            Redacted(70, 10)
-        }
-        Redacted(50)
-        Spacer(Modifier.width(8.dp))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
     }
 }
 

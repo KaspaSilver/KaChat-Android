@@ -488,16 +488,11 @@
     <string name="coming_soon">به‌زودی</string>
     <string name="not_available_on_this_network">در این شبکه در دسترس نیست</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_hero_title">نام شما در KaChat</string>
-    <string name="km_hero_body">یک نام .kachat بگیرید، یا نام‌ها را مستقیم بین افراد بخرید و بفروشید. نام و پرداخت با هم روی Kaspa تسویه می‌شوند - هیچ‌کس در این میان هیچ‌کدام را نگه نمی‌دارد.</string>
     <string name="km_find_a_name">یافتن نام</string>
     <string name="km_registration_not_open">ثبت‌نام هنوز باز نشده است.</string>
     <string name="km_claim">گرفتن</string>
     <string name="km_marketplace">بازار</string>
     <string name="km_activity">فعالیت</string>
-    <string name="km_featured">برگزیده</string>
-    <string name="km_featured_detail">نام‌هایی که صاحبانشان برای فروش گذاشته‌اند.</string>
-    <string name="km_recently_listed">تازه به فروش گذاشته‌شده</string>
     <string name="km_list_a_name">گذاشتن نام برای فروش</string>
     <string name="km_listings_appear">آگهی‌ها پس از راه‌اندازی نام‌های .kachat اینجا نمایش داده می‌شوند.</string>
     <string name="km_no_names">هنوز نام .kachat ندارید</string>

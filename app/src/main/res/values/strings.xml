@@ -622,16 +622,11 @@
     <string name="coming_soon">Coming soon</string>
     <string name="not_available_on_this_network">Not available on this network</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_hero_title">Your name on KaChat</string>
-    <string name="km_hero_body">Claim a .kachat name, or buy and sell them peer to peer. The name and the payment settle together on Kaspa - nobody holds either in between.</string>
     <string name="km_find_a_name">Find a name</string>
     <string name="km_registration_not_open">Registration isn\'t open yet.</string>
     <string name="km_claim">Claim</string>
     <string name="km_marketplace">Marketplace</string>
     <string name="km_activity">Activity</string>
-    <string name="km_featured">Featured</string>
-    <string name="km_featured_detail">Names their owners have put up for sale.</string>
-    <string name="km_recently_listed">Recently listed</string>
     <string name="km_list_a_name">List a Name for Sale</string>
     <string name="km_listings_appear">Listings appear here once .kachat names launch.</string>
     <string name="km_no_names">No .kachat names yet</string>

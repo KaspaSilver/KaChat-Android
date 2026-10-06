@@ -451,16 +451,11 @@
     <string name="coming_soon">Prossimamente</string>
     <string name="not_available_on_this_network">Non disponibile su questa rete</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_hero_title">Il tuo nome su KaChat</string>
-    <string name="km_hero_body">Rivendica un nome .kachat, oppure compra e vendi nomi da persona a persona. Nome e pagamento si regolano insieme su Kaspa: nessuno detiene nessuno dei due nel frattempo.</string>
     <string name="km_find_a_name">Cerca un nome</string>
     <string name="km_registration_not_open">La registrazione non è ancora aperta.</string>
     <string name="km_claim">Rivendica</string>
     <string name="km_marketplace">Mercato</string>
     <string name="km_activity">Attività</string>
-    <string name="km_featured">In evidenza</string>
-    <string name="km_featured_detail">Nomi che i proprietari hanno messo in vendita.</string>
-    <string name="km_recently_listed">Messi in vendita di recente</string>
     <string name="km_list_a_name">Metti in vendita un nome</string>
     <string name="km_listings_appear">Gli annunci appariranno qui al lancio dei nomi .kachat.</string>
     <string name="km_no_names">Ancora nessun nome .kachat</string>

@@ -451,16 +451,11 @@
     <string name="coming_soon">곧 제공</string>
     <string name="not_available_on_this_network">이 네트워크에서는 사용할 수 없음</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_hero_title">KaChat에서의 내 이름</string>
-    <string name="km_hero_body">.kachat 이름을 받거나 사람들끼리 직접 사고팔 수 있습니다. 이름과 결제는 Kaspa에서 함께 정산되며, 그 사이에 누구도 둘 중 무엇도 맡아 두지 않습니다.</string>
     <string name="km_find_a_name">이름 찾기</string>
     <string name="km_registration_not_open">아직 등록이 열리지 않았습니다.</string>
     <string name="km_claim">받기</string>
     <string name="km_marketplace">마켓</string>
     <string name="km_activity">활동</string>
-    <string name="km_featured">추천</string>
-    <string name="km_featured_detail">소유자가 판매 중인 이름.</string>
-    <string name="km_recently_listed">최근 등록</string>
     <string name="km_list_a_name">이름 판매 등록</string>
     <string name="km_listings_appear">.kachat 이름이 출시되면 여기에 판매 목록이 표시됩니다.</string>
     <string name="km_no_names">아직 .kachat 이름이 없습니다</string>
