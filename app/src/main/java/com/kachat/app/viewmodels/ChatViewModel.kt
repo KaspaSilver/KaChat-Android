@@ -1132,29 +1132,27 @@ class ChatViewModel @Inject constructor(
 
     /**
      * The Send KAS sheet's Max: what the payment's source can send after the base fee and the
-     * Fast / Priority / custom [extraFeeSompi] (iOS 62c2773 estimateMaxPaymentAmount leaves room
-     * for the extra). With coin control on, only the picked coins count. Every coin counted is an
-     * input, as the send spends them all (a spending address's sweep, coin control's exact set,
-     * or the chatting address's send-everything). The memo's payload is priced in, so a Max
-     * payment carrying a memo still covers its fee.
+     * Fast / Priority / custom extra (iOS 62c2773 estimateMaxPaymentAmount leaves room for the
+     * extra). With coin control on, only the picked coins count. Every coin counted is an input,
+     * as the send spends them all (a spending address's sweep, coin control's exact set, or the
+     * chatting address's send-everything). The memo's payload is priced in, so a Max payment
+     * carrying a memo still covers its fee.
+     *
+     * The extra is worked out here, from the base this prices ([feeMultiplier] - 1 times it, or
+     * [customExtraFeeSompi]) - not taken from the sheet, whose extra comes from the fee estimate
+     * and is 0 while the amount is empty. Max with Fast or Priority then filled in balance - base,
+     * and the send needed base + extra on top of it (audit AND-010).
      */
-    fun paymentMaxSompi(sourceBalanceSompi: Long, extraFeeSompi: Long): Long {
+    fun paymentMaxSompi(sourceBalanceSompi: Long, feeMultiplier: Long, customExtraFeeSompi: Long?): Long {
         val manual = _paymentManualUtxos.value
-        val balance = manual?.sumOf { it.utxoEntry.amount } ?: sourceBalanceSompi
-        val inputs = manual?.size ?: _spendingUtxos.value.size
-        val note = _paymentNote.value.trim()
-        val payloadSize = if (note.isEmpty()) 0 else MessageProtocol.estimatedPaymentPayloadSize(note, balance)
-        val rate = (_feeRateOverride.value?.toDouble() ?: _networkFeeRate.value)
-        val mass = com.kachat.app.util.KaspaMass.calculateMass(
-            numInputs = inputs.coerceAtLeast(1),
-            outputScriptLens = listOf(34, 34),
-            payloadSize = payloadSize
+        return computePaymentMaxSompi(
+            balanceSompi = manual?.sumOf { it.utxoEntry.amount } ?: sourceBalanceSompi,
+            inputCount = manual?.size ?: _spendingUtxos.value.size,
+            note = _paymentNote.value,
+            feeRate = _feeRateOverride.value?.toDouble() ?: _networkFeeRate.value,
+            feeMultiplier = feeMultiplier,
+            customExtraFeeSompi = customExtraFeeSompi,
         )
-        val fee = com.kachat.app.util.KaspaMass.calculateFee(
-            mass,
-            kotlin.math.ceil(rate).toLong().coerceAtLeast(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
-        )
-        return (balance - fee - extraFeeSompi).coerceAtLeast(0L)
     }
 
     // -------------------------------------------------------------------------
@@ -3503,6 +3501,32 @@ class ChatViewModel @Inject constructor(
     private val knsNameSweepRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
     companion object {
+        /**
+         * [paymentMaxSompi]'s arithmetic: [balanceSompi] over [inputCount] inputs, less the base
+         * fee at [feeRate] (rounded up, never under the network minimum - the rate the send pays)
+         * with the memo's payload priced in, less the extra derived from that same base.
+         */
+        fun computePaymentMaxSompi(
+            balanceSompi: Long,
+            inputCount: Int,
+            note: String,
+            feeRate: Double,
+            feeMultiplier: Long,
+            customExtraFeeSompi: Long?,
+        ): Long {
+            val trimmed = note.trim()
+            val payloadSize = if (trimmed.isEmpty()) 0 else MessageProtocol.estimatedPaymentPayloadSize(trimmed, balanceSompi)
+            val rate = kotlin.math.ceil(feeRate).toLong().coerceAtLeast(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
+            return com.kachat.app.util.SendFeeModel.maxAfterFees(
+                totalSompi = balanceSompi,
+                inputCount = inputCount,
+                feeRateSompiPerGram = rate,
+                feeMultiplier = feeMultiplier,
+                customExtraFeeSompi = customExtraFeeSompi,
+                payloadSize = payloadSize,
+            )
+        }
+
         /** The longest a pull-to-refresh wheel stays up; the work itself keeps going. */
         private const val REFRESH_SPINNER_CAP_MS = 15_000L
         /** Newest rows the open thread keeps live from the store - iOS

@@ -1872,10 +1872,12 @@ fun ChatThreadScreen(
                 // Same source the send will use: the paying spending address (the picked one,
                 // else the primary) with privacy ON, chatting balance with privacy OFF - or just
                 // the coins picked in coin control. Leaves room for the base fee (KaspaWalletEngine's
-                // mass model and rate) and the speed / custom extra (iOS 62c2773).
+                // mass model and rate) and the speed / custom extra (iOS 62c2773), the extra worked
+                // out from Max's own base - the one here is 0 while the amount is empty.
                 val sourceBalanceSompi = if (paymentPrivacyOn) (paymentSource?.balanceSompi ?: spendingBalanceSompi) else identityBalanceSompi
-                chatViewModel.paymentMaxSompi(sourceBalanceSompi, paymentExtraFeeSompi).toDouble() / 100_000_000.0
+                chatViewModel.paymentMaxSompi(sourceBalanceSompi, paymentFeeTier.multiplier, paymentCustomExtraFeeSompi).toDouble() / 100_000_000.0
             },
+            maxRefreshKey = Triple(paymentFeeTier, paymentCustomExtraFeeSompi, paymentExtraFeeSompi),
             feeControls = {
                 SendFeeControls(
                     feeTier = paymentFeeTier,

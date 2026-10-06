@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,6 +104,10 @@ fun SendKasSheet(
     paysToFreshAddress: Boolean,
     /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
     maxKas: () -> Double,
+    /** Changes whenever the fee Max leaves room for may have changed (the speed, a custom fee,
+     *  the extra the send will pay). While the amount is still what Max filled in, Max is worked
+     *  out again, so a speed picked after Max cannot push the payment past the balance. */
+    maxRefreshKey: Any? = null,
     /** The shared fee card (SendFeeControls): Network Fee (tap for a custom fee), Normal / Fast /
      *  Priority, and Coin Control on the address this payment comes from - in place of the old
      *  fee pill (iOS 62c2773). The screen owns its state, as it owns the send. */
@@ -119,7 +124,20 @@ fun SendKasSheet(
         // Not while the payment is going out (iOS interactiveDismissDisabled(isSending)).
         confirmValueChange = { it != SheetValue.Hidden || !currentlySending },
     )
-    val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = onAmountKasChange)
+    // What Max last wrote (as KAS text); dropped as soon as the amount is edited away from it.
+    var maxFilledKasText by remember { mutableStateOf<String?>(null) }
+    val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = { text ->
+        if (text != maxFilledKasText) maxFilledKasText = null
+        onAmountKasChange(text)
+    })
+    val applyMax: () -> Unit = {
+        val kas = maxKas()
+        maxFilledKasText = com.kachat.app.util.formatKasAmount(kas)
+        fiatAmountState.setMaxKas(kas, priceInCurrency)
+    }
+    LaunchedEffect(maxRefreshKey) {
+        if (maxFilledKasText != null) applyMax()
+    }
     var showDustConfirm by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
@@ -180,7 +198,7 @@ fun SendKasSheet(
                     }
                 },
                 focusOnAppear = true,
-                onMax = { fiatAmountState.setMaxKas(maxKas(), priceInCurrency) },
+                onMax = applyMax,
             )
 
             // The memo, encrypted to the recipient with the payment and shown in its bubble.
