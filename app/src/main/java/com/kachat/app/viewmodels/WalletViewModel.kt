@@ -1543,6 +1543,7 @@ class WalletViewModel @Inject constructor(
     }
 
     fun getActiveMnemonic(): String? = walletManager.getActiveMnemonic()
+    fun getActivePassphrase(): String? = walletManager.getActivePassphrase()
     fun getPrivateKeyHex(): String = walletManager.getPrivateKeyHex()
 
     /** Hex-encoded private key for one spending-chain address — powers the per-address "Export" screen. */

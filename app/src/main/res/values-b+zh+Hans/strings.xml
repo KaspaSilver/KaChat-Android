@@ -1016,4 +1016,7 @@
     <string name="address_other_network_mainnet">这是 Mainnet 地址。KaChat 正在 Testnet 上运行。</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">一笔交易最多只能花费 %1$d 个 UTXO，因此无法再选择更多。</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">此钱包还使用了密码短语。恢复时需要它和这些单词一起使用。</string>
+    <string name="seed_phrase_passphrase_label">密码短语</string>
 </resources>

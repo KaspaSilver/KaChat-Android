@@ -1016,4 +1016,7 @@
     <string name="address_other_network_mainnet">Đây là địa chỉ Mainnet. KaChat đang ở Testnet.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">Một giao dịch chỉ có thể chi tiêu tối đa %1$d UTXO, vì vậy không thể chọn thêm.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">Ví này cũng dùng một cụm mật khẩu. Bạn cần nó cùng với các từ này để khôi phục ví.</string>
+    <string name="seed_phrase_passphrase_label">Cụm mật khẩu</string>
 </resources>

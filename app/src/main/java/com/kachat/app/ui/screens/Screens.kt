@@ -8842,6 +8842,9 @@ private fun EditProfileTextField(label: String, value: String, onValueChange: (S
 fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
     var revealed by remember { mutableStateOf(false) }
     val mnemonic = remember { viewModel.getActiveMnemonic() ?: "" }
+    // A passphrase (the "25th word") changes every key: the words alone restore a different,
+    // empty wallet, so the backup screen must say so and show it (iOS 3076ab7, IOS-017).
+    val passphrase = remember { viewModel.getActivePassphrase() }
     val privateKey = remember { viewModel.getPrivateKeyHex() }
     val words = remember { mnemonic.split(" ") }
     val context = LocalContext.current
@@ -8919,6 +8922,27 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                 }
             }
 
+            if (passphrase != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Key,
+                        contentDescription = null,
+                        tint = LocalAppColors.current.warning,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.seed_phrase_also_uses_passphrase),
+                        color = LocalAppColors.current.warning,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
 
             if (!revealed) {
@@ -8969,6 +8993,30 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
+                    }
+                }
+                // Under the words, with the same FLAG_SECURE window and 7-second auto-hide.
+                if (passphrase != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(LocalAppColors.current.surface)
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.seed_phrase_passphrase_label),
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = passphrase,
+                            color = LocalAppColors.current.textPrimary,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }

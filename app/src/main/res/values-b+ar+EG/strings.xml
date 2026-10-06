@@ -1016,4 +1016,7 @@
     <string name="address_other_network_mainnet">هذا عنوان على Mainnet. يعمل KaChat على Testnet.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">يمكن لمعاملة واحدة أن تنفق %1$d من UTXOs كحد أقصى، لذا لا يمكن تحديد المزيد.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">تستخدم هذه المحفظة أيضًا عبارة مرور. تحتاج إليها مع هذه الكلمات لاستعادتها.</string>
+    <string name="seed_phrase_passphrase_label">عبارة المرور</string>
 </resources>

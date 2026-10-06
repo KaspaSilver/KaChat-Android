@@ -880,4 +880,7 @@
     <string name="address_other_network_mainnet">Ini alamat Mainnet. KaChat sedang di Testnet.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">Satu transaksi dapat membelanjakan paling banyak %1$d UTXO, jadi tidak bisa memilih lebih banyak lagi.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">Dompet ini juga memakai frasa sandi. Anda memerlukannya bersama kata-kata ini untuk memulihkannya.</string>
+    <string name="seed_phrase_passphrase_label">Frasa sandi</string>
 </resources>

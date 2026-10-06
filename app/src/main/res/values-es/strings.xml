@@ -1016,4 +1016,7 @@
     <string name="address_other_network_mainnet">Esta es una dirección de Mainnet. KaChat está en Testnet.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">Una transacción puede gastar como máximo %1$d UTXO, así que no se pueden seleccionar más.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">Esta billetera también usa una frase de contraseña. La necesitas junto con estas palabras para restaurarla.</string>
+    <string name="seed_phrase_passphrase_label">Frase de contraseña</string>
 </resources>

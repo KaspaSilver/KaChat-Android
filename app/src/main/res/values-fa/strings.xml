@@ -1047,4 +1047,7 @@
     <string name="address_other_network_mainnet">این یک آدرس Mainnet است. KaChat روی Testnet است.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">یک تراکنش حداکثر می‌تواند %1$d UTXO را خرج کند، بنابراین نمی‌توان موارد بیشتری انتخاب کرد.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">این کیف پول از یک عبارت عبور هم استفاده می‌کند. برای بازیابی، آن را همراه این کلمات لازم دارید.</string>
+    <string name="seed_phrase_passphrase_label">عبارت عبور</string>
 </resources>

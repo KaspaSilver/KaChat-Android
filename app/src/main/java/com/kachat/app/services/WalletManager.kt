@@ -678,6 +678,10 @@ class WalletManager @Inject constructor(
         return getActiveAccount()?.mnemonic
     }
 
+    /** The active account's BIP39 passphrase, or null when it has none - part of the backup: the
+     *  words alone restore a different, empty wallet (iOS 3076ab7, IOS-017). */
+    fun getActivePassphrase(): String? = activePassphrase().takeIf { it.isNotEmpty() }
+
     fun getPrivateKeyHex(): String {
         return getPrivateKeyBytes().joinToString("") { "%02x".format(it) }
     }

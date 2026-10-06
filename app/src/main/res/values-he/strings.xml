@@ -1016,4 +1016,7 @@
     <string name="address_other_network_mainnet">זו כתובת Mainnet. ‏KaChat פועל ב-Testnet.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">עסקה אחת יכולה להוציא לכל היותר %1$d UTXO, ולכן אי אפשר לבחור עוד.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">הארנק הזה משתמש גם בביטוי סיסמה. צריך אותו יחד עם המילים האלה כדי לשחזר אותו.</string>
+    <string name="seed_phrase_passphrase_label">ביטוי סיסמה</string>
 </resources>

@@ -1183,4 +1183,7 @@
     <string name="address_other_network_mainnet">This is a Mainnet address. KaChat is on Testnet.</string>
     <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
     <string name="coin_control_max_selection">One transaction can spend at most %1$d UTXOs, so no more can be selected.</string>
+    <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
+    <string name="seed_phrase_also_uses_passphrase">This wallet also uses a passphrase. You need it together with these words to restore it.</string>
+    <string name="seed_phrase_passphrase_label">Passphrase</string>
 </resources>
