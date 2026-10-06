@@ -1082,15 +1082,12 @@ class ChatViewModel @Inject constructor(
 
         var total = 0L
         var count = 0
-        if (isPayment && (coins.manual != null || coins.paymentSweeps)) {
-            // Every one of these coins is spent: coin control's exact pick, or a spending
-            // address's sweep (iOS 62c2773 estimatePaymentFee(manualUtxos:)).
-            val spent = coins.manual ?: coins.payment
-            total = spent.sumOf { it.utxoEntry.amount }
-            count = spent.size
+        if (isPayment) {
+            val (paymentTotal, paymentCount) = paymentFeeInputs(coins.payment, coins.manual, coins.paymentSweeps, sompiNeeded)
+            total = paymentTotal
+            count = paymentCount
         } else {
-            val utxos = if (isPayment) coins.payment else coins.identity
-            for (utxo in utxos) {
+            for (utxo in coins.identity) {
                 total += utxo.utxoEntry.amount
                 count++
                 if (total >= sompiNeeded + 1000) break // Buffer for fee
@@ -1142,12 +1139,15 @@ class ChatViewModel @Inject constructor(
      * [customExtraFeeSompi]) - not taken from the sheet, whose extra comes from the fee estimate
      * and is 0 while the amount is empty. Max with Fast or Priority then filled in balance - base,
      * and the send needed base + extra on top of it (audit AND-010).
+     *
+     * Only what one transaction can spend counts: the 80 largest coins when there are more (see
+     * [paymentMaxCoins]) - a busy chatting address holding more was refused at send (AND-012).
      */
     fun paymentMaxSompi(sourceBalanceSompi: Long, feeMultiplier: Long, customExtraFeeSompi: Long?): Long {
-        val manual = _paymentManualUtxos.value
+        val (balance, inputs) = paymentMaxCoins(sourceBalanceSompi, _spendingUtxos.value, _paymentManualUtxos.value)
         return computePaymentMaxSompi(
-            balanceSompi = manual?.sumOf { it.utxoEntry.amount } ?: sourceBalanceSompi,
-            inputCount = manual?.size ?: _spendingUtxos.value.size,
+            balanceSompi = balance,
+            inputCount = inputs,
             note = _paymentNote.value,
             feeRate = _feeRateOverride.value?.toDouble() ?: _networkFeeRate.value,
             feeMultiplier = feeMultiplier,
@@ -3501,6 +3501,57 @@ class ChatViewModel @Inject constructor(
     private val knsNameSweepRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
     companion object {
+        /**
+         * The balance and input count the Send KAS sheet's Max prices: coin control's pick, else
+         * the source's coins - in both cases only the
+         * [com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest when there
+         * are more, since the engine refuses a transaction with more inputs (audit AND-012;
+         * mirrors WalletViewModel.estimateMaxSendableAmount). Under the cap it is unchanged:
+         * the picked coins, or [sourceBalanceSompi] over every source coin.
+         */
+        fun paymentMaxCoins(
+            sourceBalanceSompi: Long,
+            sourceCoins: List<com.kachat.app.services.UtxoEntry>,
+            manual: List<com.kachat.app.services.UtxoEntry>?,
+        ): Pair<Long, Int> {
+            val coins = manual ?: sourceCoins
+            val capped = com.kachat.app.util.SendFeeModel.largestSpendable(coins)
+            return when {
+                capped.size < coins.size -> capped.sumOf { it.utxoEntry.amount } to capped.size
+                manual != null -> manual.sumOf { it.utxoEntry.amount } to manual.size
+                else -> sourceBalanceSompi to sourceCoins.size
+            }
+        }
+
+        /**
+         * The coins a payment's fee preview prices, as (their total, how many): coin control's
+         * exact pick; a spending address's sweep, which spends its 80 largest coins
+         * (KaspaWalletEngine.sendSpendingPayment - iOS 62c2773 estimatePaymentFee(manualUtxos:));
+         * otherwise the largest coins, one by one, until the amount and a little fee are covered -
+         * the engine's own largest-first selection, also stopping at 80 inputs. A busy address
+         * used to be priced on every coin it held, in fetch order, past what one send can spend.
+         */
+        fun paymentFeeInputs(
+            paymentCoins: List<com.kachat.app.services.UtxoEntry>,
+            manual: List<com.kachat.app.services.UtxoEntry>?,
+            sweeps: Boolean,
+            sompiNeeded: Long,
+        ): Pair<Long, Int> {
+            if (manual != null) return manual.sumOf { it.utxoEntry.amount } to manual.size
+            if (sweeps) {
+                val swept = com.kachat.app.util.SendFeeModel.largestSpendable(paymentCoins)
+                return swept.sumOf { it.utxoEntry.amount } to swept.size
+            }
+            var total = 0L
+            var count = 0
+            for (utxo in paymentCoins.sortedByDescending { it.utxoEntry.amount }.take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)) {
+                total += utxo.utxoEntry.amount
+                count++
+                if (total >= sompiNeeded + 1000) break // Buffer for fee
+            }
+            return total to count
+        }
+
         /**
          * [paymentMaxSompi]'s arithmetic: [balanceSompi] over [inputCount] inputs, less the base
          * fee at [feeRate] (rounded up, never under the network minimum - the rate the send pays)
