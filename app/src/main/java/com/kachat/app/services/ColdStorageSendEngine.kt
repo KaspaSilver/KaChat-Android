@@ -28,13 +28,19 @@ class ColdStorageSendEngine @Inject constructor(
     // Same reasoning as KaspaWalletEngine.sendMutex — one build-then-broadcast sequence at a time.
     private val mutex = Mutex()
 
+    /** Coins this engine has broadcast that a fetch may still list - filtered out of every
+     *  build, Max, preview and coin-control list (audit AND-015). */
+    private val pendingSpent = PendingSpentOutpoints()
+
     data class UnsignedColdTx(
         val rawTx: RawTransaction,
         // Same order as rawTx.inputs — KSPT's per-input amount/scriptPublicKey come from here,
         // since RawInput alone (just an outpoint + empty signatureScript) doesn't carry them.
         val inputUtxos: List<UtxoEntry>,
         val feeSompi: Long,
-        val changeSompi: Long
+        val changeSompi: Long,
+        /** The address every input comes from - where [broadcastSigned] records them as spent. */
+        val fromAddress: String = ""
     )
 
     /**
@@ -67,8 +73,9 @@ class ColdStorageSendEngine @Inject constructor(
             val api = networkService.kaspaRestApi.value
                 ?: return@withLock Result.failure(IllegalStateException("Network service unavailable"))
 
-            // Node first, REST second - see NodePoolManager.getUtxosByAddress.
-            val utxos = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
+            // Node first, REST second - see NodePoolManager.getUtxosByAddress. Without the coins an
+            // earlier send from here already spent: the fetch can still list them (AND-015).
+            val utxos = pendingSpent.filter(fromAddress, nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress))
             if (utxos.isEmpty()) {
                 return@withLock Result.failure(IllegalStateException("No spendable UTXOs at this address"))
             }
@@ -128,7 +135,8 @@ class ColdStorageSendEngine @Inject constructor(
                     rawTx = rawTx,
                     inputUtxos = selection.selectedUtxos,
                     feeSompi = built.paidFeeSompi,
-                    changeSompi = built.changeSompi
+                    changeSompi = built.changeSompi,
+                    fromAddress = fromAddress
                 )
             )
         } catch (e: Exception) {
@@ -158,7 +166,7 @@ class ColdStorageSendEngine @Inject constructor(
     ): Long {
         val api = networkService.kaspaRestApi.value
             ?: throw IllegalStateException("Network service unavailable")
-        val fetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
+        val fetched = pendingSpent.filter(fromAddress, nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress))
         if (fetched.isEmpty()) return 0L
 
         val utxos = if (!manualUtxos.isNullOrEmpty()) {
@@ -205,7 +213,7 @@ class ColdStorageSendEngine @Inject constructor(
         if (amountSompi <= 0) return null
         val api = networkService.kaspaRestApi.value ?: return null
         val utxos = try {
-            nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
+            pendingSpent.filter(fromAddress, nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress))
         } catch (e: Exception) {
             return null
         }
@@ -225,7 +233,7 @@ class ColdStorageSendEngine @Inject constructor(
     suspend fun fetchUtxos(fromAddress: String): List<UtxoEntry> {
         val api = networkService.kaspaRestApi.value ?: return emptyList()
         return try {
-            api.getUtxos(fromAddress)
+            pendingSpent.filter(fromAddress, api.getUtxos(fromAddress))
         } catch (e: Exception) {
             emptyList()
         }
@@ -345,10 +353,23 @@ class ColdStorageSendEngine @Inject constructor(
             val txId = nodePoolManager.submitConfirmingKnown(signedTx, networkService.kaspaRestApi.value) {
                 nodePoolManager.getBroadcastConnection().submitTransaction(signedTx)
             }
+            // Spent: a send built before the index catches up must not pick these again (AND-015).
+            recordSpent(unsignedTx)
             Result.success(txId)
         } catch (e: Exception) {
             Log.e("ColdStorageSendEngine", "Failed to broadcast signed transaction", e)
             Result.failure(e)
+        }
+    }
+
+    /** Records [tx]'s inputs as spent from the address they came from. */
+    private fun recordSpent(tx: UnsignedColdTx) {
+        if (tx.fromAddress.isNotEmpty()) {
+            pendingSpent.record(tx.fromAddress, tx.rawTx.inputs.map { it.previousOutpoint })
+        } else {
+            tx.inputUtxos.groupBy { it.address }.forEach { (address, utxos) ->
+                pendingSpent.record(address, utxos.map { it.outpoint })
+            }
         }
     }
 
