@@ -1019,4 +1019,6 @@
     <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
     <string name="seed_phrase_also_uses_passphrase">Этот кошелёк также использует парольную фразу. Для восстановления она нужна вместе с этими словами.</string>
     <string name="seed_phrase_passphrase_label">Парольная фраза</string>
+    <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
+    <string name="current_account_keys_not_backed_up">Не удалось сохранить резервную копию ключей текущего аккаунта на этом устройстве, поэтому ничего не изменено. Попробуйте ещё раз.</string>
 </resources>

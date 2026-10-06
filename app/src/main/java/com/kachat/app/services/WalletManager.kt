@@ -44,6 +44,24 @@ class WalletManager @Inject constructor(
         private val SPENDING_CACHE_TYPE = object : TypeToken<List<CachedSpendingAddress>>() {}.type
         private val USED_ADDRESSES_TYPE = object : TypeToken<Set<String>>() {}.type
 
+        /**
+         * True when [written] (the account list read back after an import / create) still holds
+         * every account of [previous] with its seed and passphrase intact - the one being
+         * (re)imported at [newAddress] aside, since it is the same account coming back (iOS
+         * snapshotStoredWallet's read-back, 9758568 / IOS-016).
+         */
+        internal fun accountsKeptIntact(previous: List<Account>, written: List<Account>?, newAddress: String): Boolean {
+            if (written == null || written.none { it.address == newAddress }) return false
+            return previous
+                .filter { !com.kachat.app.util.KaspaNetwork.isSameAccount(it.address, newAddress) }
+                .all { p ->
+                    written.any { w ->
+                        com.kachat.app.util.KaspaNetwork.isSameAccount(w.address, p.address) &&
+                            w.mnemonic == p.mnemonic && (w.passphrase ?: "") == (p.passphrase ?: "")
+                    }
+                }
+        }
+
         private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         private const val KEY_ALIAS = "kachat_wallet_key"
         private const val SECURE_PREFS_NAME = "kachat_secure_prefs"
@@ -177,6 +195,61 @@ class WalletManager @Inject constructor(
             .distinctBy { it.address.lowercase() }
         accountsCache = onNetwork
         return onNetwork
+    }
+
+    /** Thrown when an import / create would leave an account already on this device without its
+     *  keys - nothing has been changed when it is thrown. */
+    class AccountsNotKeptException(message: String) : Exception(message)
+
+    private fun accountsNotKept() =
+        AccountsNotKeptException(context.getString(com.kachat.app.R.string.current_account_keys_not_backed_up))
+
+    /**
+     * The accounts already saved on this device, for a write that will replace the stored list
+     * (import, create). Throws [AccountsNotKeptException] when a stored list exists but can't be
+     * read: [getAccounts] would read it as empty, and writing the new list would then drop every
+     * other account's seed - the Android form of iOS IOS-016 (the keys must be safely kept
+     * before anything is overwritten).
+     */
+    private fun accountsForReplacingWrite(): List<Account> {
+        val json = try {
+            sharedPrefs.getString(PREF_ACCOUNTS, null)
+        } catch (e: Exception) {
+            throw accountsNotKept()
+        } ?: return emptyList()
+        val parsed = try {
+            gson.fromJson<List<Account>>(json, ACCOUNTS_TYPE)
+        } catch (e: Exception) {
+            null
+        }
+        @Suppress("SENSELESS_COMPARISON")
+        if (parsed == null || parsed.any { it == null || it.address == null || it.mnemonic == null }) throw accountsNotKept()
+        accountsCache = null
+        return getAccounts()
+    }
+
+    /**
+     * Writes [accounts] synchronously and reads them back; throws [AccountsNotKeptException] (with
+     * the previous list put back) unless every account of [previous] survived intact.
+     */
+    private fun saveAccountsKeepingExisting(accounts: List<Account>, previous: List<Account>, newAddress: String) {
+        val committed = try {
+            sharedPrefs.edit().putString(PREF_ACCOUNTS, gson.toJson(accounts)).commit()
+        } catch (e: Exception) {
+            false
+        }
+        val back = try {
+            sharedPrefs.getString(PREF_ACCOUNTS, null)?.let { gson.fromJson<List<Account>>(it, ACCOUNTS_TYPE) }
+        } catch (e: Exception) {
+            null
+        }
+        if (!committed || !accountsKeptIntact(previous, back, newAddress)) {
+            runCatching { sharedPrefs.edit().putString(PREF_ACCOUNTS, gson.toJson(previous)).commit() }
+            accountsCache = null
+            throw accountsNotKept()
+        }
+        accountsCache = accounts
+        refreshPrimarySpendingIndexFlow()
     }
 
     private fun saveAccounts(accounts: List<Account>) {
@@ -361,9 +434,11 @@ class WalletManager @Inject constructor(
     fun commitCreatedWallet(name: String, mnemonic: List<String>, passphrase: String = "") {
         // A freshly created wallet is by definition a KaChat wallet: standard family, index 0.
         val address = deriveIdentityAddress(mnemonic, passphrase, WalletSourceFamily.KASPA_STANDARD, 0)
-        val accounts = getAccounts().toMutableList()
+        // The accounts already here must be kept before the list is rewritten (IOS-016).
+        val previous = accountsForReplacingWrite()
+        val accounts = previous.toMutableList()
         accounts.add(Account(name, address, mnemonic.joinToString(" "), passphrase = passphrase))
-        saveAccounts(accounts)
+        saveAccountsKeepingExisting(accounts, previous, address)
         stampAccountAddedAt(address)
         setActiveAccount(address)
     }
@@ -427,8 +502,12 @@ class WalletManager @Inject constructor(
         // The family + index shape the identity path the same way (a KDX seed and a KaChat seed
         // with the same words are genuinely different accounts, on different branches).
         val address = deriveIdentityAddress(mnemonic, passphrase, family, chattingAddressIndex)
-        val existing = getAccounts().firstOrNull { it.address == address }
-        val accounts = getAccounts().filter { it.address != address }.toMutableList()
+        // The accounts already here must be kept before the list is rewritten: an unreadable
+        // stored list, or a write that doesn't read back with them intact, stops the import with
+        // nothing changed (iOS 9758568, IOS-016). Re-importing the same account is not a loss.
+        val previous = accountsForReplacingWrite()
+        val existing = previous.firstOrNull { it.address == address }
+        val accounts = previous.filter { it.address != address }.toMutableList()
         accounts.add(
             0,
             Account(
@@ -442,7 +521,7 @@ class WalletManager @Inject constructor(
                 chattingAddressIndex = chattingAddressIndex
             )
         )
-        saveAccounts(accounts)
+        saveAccountsKeepingExisting(accounts, previous, address)
         // Only if this address has never been seen here - re-importing a seed already on the
         // device is not the account arriving again.
         stampAccountAddedAt(address)

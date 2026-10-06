@@ -84,4 +84,24 @@ class WalletManagerTest {
 
         assertEquals(5, accounts[0].spendingAddressIndex)
     }
+
+    // Import / create stop unless the accounts already here survive the write (iOS 9758568, IOS-016).
+
+    @Test
+    fun `accounts are kept intact only when every other account's seed and passphrase read back`() {
+        val a = WalletManager.Account(name = "A", address = "kaspa:qa", mnemonic = "a b c", passphrase = "pa")
+        val b = WalletManager.Account(name = "B", address = "kaspa:qb", mnemonic = "d e f")
+        val n = WalletManager.Account(name = "N", address = "kaspa:qn", mnemonic = "g h i")
+        val previous = listOf(a, b)
+
+        org.junit.Assert.assertTrue(WalletManager.accountsKeptIntact(previous, listOf(n, a, b), "kaspa:qn"))
+        // Lost an account, lost a passphrase, the write unreadable, or the new one missing: stop.
+        org.junit.Assert.assertFalse(WalletManager.accountsKeptIntact(previous, listOf(n, a), "kaspa:qn"))
+        org.junit.Assert.assertFalse(WalletManager.accountsKeptIntact(previous, listOf(n, a.copy(passphrase = ""), b), "kaspa:qn"))
+        org.junit.Assert.assertFalse(WalletManager.accountsKeptIntact(previous, null, "kaspa:qn"))
+        org.junit.Assert.assertFalse(WalletManager.accountsKeptIntact(previous, listOf(a, b), "kaspa:qn"))
+        // Re-importing the same account replaces its own entry: not a loss.
+        val reimported = a.copy(name = "A again")
+        org.junit.Assert.assertTrue(WalletManager.accountsKeptIntact(previous, listOf(reimported, b), "kaspa:qa"))
+    }
 }

@@ -1019,4 +1019,6 @@
     <!-- Seed phrase screen: the passphrase is part of the backup (iOS 3076ab7, IOS-017) -->
     <string name="seed_phrase_also_uses_passphrase">এই ওয়ালেট একটি পাসফ্রেজও ব্যবহার করে। এটি পুনরুদ্ধার করতে এই শব্দগুলোর সাথে সেটিও লাগবে।</string>
     <string name="seed_phrase_passphrase_label">পাসফ্রেজ</string>
+    <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
+    <string name="current_account_keys_not_backed_up">এই ডিভাইসে বর্তমান অ্যাকাউন্টের কী ব্যাকআপ করা যায়নি, তাই কিছুই বদলানো হয়নি। আবার চেষ্টা করুন।</string>
 </resources>

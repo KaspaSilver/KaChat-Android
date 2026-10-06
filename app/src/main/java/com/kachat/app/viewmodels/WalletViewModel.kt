@@ -1228,7 +1228,15 @@ class WalletViewModel @Inject constructor(
      *  save happens before login() so the main shell sees a fully-persisted active account. */
     fun commitCreatedWallet(passphrase: String) {
         viewModelScope.launch {
-            walletManager.commitCreatedWallet(pendingAccountName, pendingMnemonicWords, passphrase)
+            try {
+                walletManager.commitCreatedWallet(pendingAccountName, pendingMnemonicWords, passphrase)
+            } catch (e: WalletManager.AccountsNotKeptException) {
+                // The accounts already on this device couldn't be kept: nothing was changed.
+                android.util.Log.e("WalletViewModel", "commitCreatedWallet stopped", e)
+                _createWalletError.value = e.message
+                return@launch
+            }
+            _createWalletError.value = null
             _hasWallet.value = true
             _address.value = walletManager.getAddress()
             _accountName.value = walletManager.getAccountName()
@@ -1420,10 +1428,21 @@ class WalletViewModel @Inject constructor(
                 android.util.Log.e("WalletViewModel", "importWallet failed", e)
                 _importWalletState.value = ImportWalletUiState(
                     status = ImportWalletStatus.FAILED,
-                    errorMessage = "Invalid seed phrase. Please check the words and try again."
+                    // The saved accounts couldn't be kept (IOS-016): say so, nothing was changed.
+                    errorMessage = (e as? WalletManager.AccountsNotKeptException)?.message
+                        ?: "Invalid seed phrase. Please check the words and try again."
                 )
             }
         }
+    }
+
+    /** Why committing a new wallet stopped (the saved accounts couldn't be kept - IOS-016), or
+     *  null. Shown on the create flow's passphrase step. */
+    private val _createWalletError = MutableStateFlow<String?>(null)
+    val createWalletError: StateFlow<String?> = _createWalletError.asStateFlow()
+
+    fun clearCreateWalletError() {
+        _createWalletError.value = null
     }
 
     fun resetImportWalletState() {

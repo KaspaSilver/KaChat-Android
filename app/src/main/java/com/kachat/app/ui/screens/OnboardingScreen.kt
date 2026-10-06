@@ -112,8 +112,11 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
             )
         }
         composable("passphrase_create") {
+            val createError by viewModel.createWalletError.collectAsState()
             PassphraseSetupScreen(
                 mode = PassphraseMode.CREATE,
+                errorMessage = createError,
+                onDismissError = { viewModel.clearCreateWalletError() },
                 onBack = { navController.popBackStack() },
                 previewAddress = { viewModel.previewChattingAddress(it) },
                 // commitCreatedWallet() derives + saves with the passphrase, arms the guide, and
