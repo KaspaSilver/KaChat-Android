@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">নবায়নের জন্য %1$d দিন বাকি।</string>
     <string name="kn_push_one_day_left">নবায়নের জন্য ১ দিন বাকি।</string>
     <string name="kn_push_expired">%1$s-এর মেয়াদ শেষ</string>
-    <string name="kn_push_grace">১০ দিনের মধ্যে নবায়ন করুন, নইলে যে কেউ দাবি করতে পারবে।</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">এই নামটি এখন নিবন্ধিত নয়।</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">একটি ফাইল পাঠিয়েছেন</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">এই মুহূর্তে এই ফোন থেকে কিছু লিংক যাচাই করা যায়নি। এগুলো যেমন লেখা হয়েছে তেমনই সংরক্ষিত হবে, আর অন্যদের অ্যাপ সম্ভব হলে সেগুলো লোড করবে।</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">%1$s নবায়ন করুন</string>
+    <string name="kn_bell_renewal_open">নবায়ন খোলা: রাখতে %1$s-এর আগে নবায়ন করুন।</string>
+    <string name="kn_bell_expired_title">%1$s-এর মেয়াদ শেষ</string>
+    <string name="kn_bell_expired_body">%1$s-এর আগে নবায়ন করুন, নইলে যে কেউ এটি দাবি করতে পারবে।</string>
+    <string name="kn_bell_lapsed_title">%1$s বাতিল হয়েছে</string>
+    <string name="kn_bell_lapsed_body">এখন যে কেউ এটি দাবি করতে পারে। বন্ড ফেরত পেতে নিজেই পুনরুদ্ধার করুন।</string>
+    <string name="kn_bell_sold_title">%1$s বিক্রি হয়েছে</string>
+    <string name="kn_bell_paid">আপনাকে %1$s KAS দেওয়া হয়েছে।</string>
+    <string name="kn_bell_listing_bought">আপনার তালিকাভুক্ত নাম কেনা হয়েছে।</string>
+    <string name="kn_bell_accepted_offer">আপনি এর জন্য একটি প্রস্তাব গ্রহণ করেছেন।</string>
+    <string name="kn_bell_reclaimed_title">%1$s পুনরুদ্ধার করা হয়েছে</string>
+    <string name="kn_bell_reclaimed_body">মেয়াদ শেষে অন্য কেউ এটি পুনরুদ্ধার করেছে। এটি আবার নিবন্ধন করা যায়।</string>
+    <string name="kn_bell_new_offer_title">%1$s-এ নতুন প্রস্তাব</string>
+    <string name="kn_bell_offered">এর জন্য %1$s KAS প্রস্তাব করা হয়েছে।</string>
+    <string name="kn_bell_yours_now">%1$s এখন আপনার।</string>
+    <string name="kn_bell_declined_title">%1$s-এ প্রস্তাব প্রত্যাখ্যাত</string>
+    <string name="kn_bell_declined_body">মালিক এটি প্রত্যাখ্যান করেছেন। KAS আপনার কাছে ফিরে এসেছে।</string>
+    <string name="kn_bell_offer_expired_title">%1$s-এ প্রস্তাবের মেয়াদ শেষ</string>
+    <string name="kn_bell_offer_expired_body">সময়মতো কেউ গ্রহণ করেনি। KAS আপনার কাছে ফিরে এসেছে।</string>
+    <string name="kn_bell_returned_title">%1$s-এ প্রস্তাব ফেরত</string>
+    <string name="kn_bell_returned_body">এটি আর গ্রহণ করা যাবে না। KAS আপনার কাছে ফিরে এসেছে।</string>
+    <string name="notification_center_empty">আপনার ওয়ালেটে আসা Kaspa আর আপনার .kachat নামের খবর এখানে দেখা যায়।</string>
+    <string name="kn_push_renew_soon">রাখতে শীঘ্রই নবায়ন করুন।</string>
+    <string name="kn_push_grace_soon">শীঘ্রই নবায়ন করুন, নইলে যে কেউ এটি দাবি করতে পারবে।</string>
 </resources>

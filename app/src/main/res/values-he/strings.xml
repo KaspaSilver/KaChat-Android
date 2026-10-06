@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">נותרו %1$d ימים לחידוש.</string>
     <string name="kn_push_one_day_left">נותר יום אחד לחידוש.</string>
     <string name="kn_push_expired">%1$s פג</string>
-    <string name="kn_push_grace">חדש תוך 10 ימים, אחרת כל אחד יוכל לתבוע אותו.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">השם הזה לא רשום כרגע.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">נשלח קובץ</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">לא ניתן היה לבדוק כרגע חלק מהקישורים מהטלפון הזה. הם נשמרים כפי שהוזנו, והאפליקציות של אחרים יטענו אותם כשיוכלו.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">חידוש %1$s</string>
+    <string name="kn_bell_renewal_open">החידוש פתוח: חדשו לפני %1$s כדי לשמור עליו.</string>
+    <string name="kn_bell_expired_title">%1$s פג</string>
+    <string name="kn_bell_expired_body">חדשו לפני %1$s, אחרת כל אחד יוכל לדרוש אותו.</string>
+    <string name="kn_bell_lapsed_title">%1$s פקע</string>
+    <string name="kn_bell_lapsed_body">כעת כל אחד יכול לדרוש אותו. דרשו אותו בעצמכם כדי לקבל את הפיקדון בחזרה.</string>
+    <string name="kn_bell_sold_title">%1$s נמכר</string>
+    <string name="kn_bell_paid">שולמו לך %1$s KAS.</string>
+    <string name="kn_bell_listing_bought">הרישום שלך נקנה.</string>
+    <string name="kn_bell_accepted_offer">קיבלת הצעה עבורו.</string>
+    <string name="kn_bell_reclaimed_title">%1$s נדרש בחזרה</string>
+    <string name="kn_bell_reclaimed_body">הוא פקע ומישהו דרש אותו. אפשר לרשום אותו מחדש.</string>
+    <string name="kn_bell_new_offer_title">הצעה חדשה על %1$s</string>
+    <string name="kn_bell_offered">הוצעו עבורו %1$s KAS.</string>
+    <string name="kn_bell_yours_now">%1$s שלך עכשיו.</string>
+    <string name="kn_bell_declined_title">ההצעה על %1$s נדחתה</string>
+    <string name="kn_bell_declined_body">הבעלים דחה אותה. ה-KAS חזרו אליך.</string>
+    <string name="kn_bell_offer_expired_title">ההצעה על %1$s פגה</string>
+    <string name="kn_bell_offer_expired_body">אף אחד לא קיבל אותה בזמן. ה-KAS חזרו אליך.</string>
+    <string name="kn_bell_returned_title">ההצעה על %1$s הוחזרה</string>
+    <string name="kn_bell_returned_body">אי אפשר לקבל אותה יותר. ה-KAS חזרו אליך.</string>
+    <string name="notification_center_empty">כאן מופיעים Kaspa שמגיעים לארנקים שלך וחדשות על שמות ה-.kachat שלך.</string>
+    <string name="kn_push_renew_soon">חדשו אותו בקרוב כדי לשמור עליו.</string>
+    <string name="kn_push_grace_soon">חדשו אותו בקרוב, אחרת כל אחד יוכל לדרוש אותו.</string>
 </resources>

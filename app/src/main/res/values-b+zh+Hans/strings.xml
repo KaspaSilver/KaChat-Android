@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">还有 %1$d 天可续期。</string>
     <string name="kn_push_one_day_left">还有 1 天可续期。</string>
     <string name="kn_push_expired">%1$s 已过期</string>
-    <string name="kn_push_grace">请在 10 天内续期，否则任何人都可以领取。</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">这个名称目前未注册。</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">发送了一个文件</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">暂时无法从这部手机检查部分链接。它们会按输入内容保存，其他人的应用会在可以时加载。</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">续期 %1$s</string>
+    <string name="kn_bell_renewal_open">续期已开放：在 %1$s 前续期以保留它。</string>
+    <string name="kn_bell_expired_title">%1$s 已过期</string>
+    <string name="kn_bell_expired_body">在 %1$s 前续期，否则任何人都可以认领。</string>
+    <string name="kn_bell_lapsed_title">%1$s 已失效</string>
+    <string name="kn_bell_lapsed_body">现在任何人都可以认领。自己回收即可取回保证金。</string>
+    <string name="kn_bell_sold_title">%1$s 已售出</string>
+    <string name="kn_bell_paid">已向你支付 %1$s KAS。</string>
+    <string name="kn_bell_listing_bought">你挂牌的名称已被购买。</string>
+    <string name="kn_bell_accepted_offer">你接受了对它的报价。</string>
+    <string name="kn_bell_reclaimed_title">%1$s 已被回收</string>
+    <string name="kn_bell_reclaimed_body">它已失效并被他人回收，可以重新注册。</string>
+    <string name="kn_bell_new_offer_title">%1$s 收到新报价</string>
+    <string name="kn_bell_offered">有人为它报价 %1$s KAS。</string>
+    <string name="kn_bell_yours_now">%1$s 现在归你了。</string>
+    <string name="kn_bell_declined_title">对 %1$s 的报价被拒绝</string>
+    <string name="kn_bell_declined_body">所有者拒绝了报价。KAS 已退回给你。</string>
+    <string name="kn_bell_offer_expired_title">对 %1$s 的报价已过期</string>
+    <string name="kn_bell_offer_expired_body">没有人及时接受。KAS 已退回给你。</string>
+    <string name="kn_bell_returned_title">对 %1$s 的报价已退回</string>
+    <string name="kn_bell_returned_body">它已无法被接受。KAS 已退回给你。</string>
+    <string name="notification_center_empty">到达你钱包的 Kaspa 和你的 .kachat 名称动态都会显示在这里。</string>
+    <string name="kn_push_renew_soon">请尽快续期以保留它。</string>
+    <string name="kn_push_grace_soon">请尽快续期，否则任何人都可以认领。</string>
 </resources>

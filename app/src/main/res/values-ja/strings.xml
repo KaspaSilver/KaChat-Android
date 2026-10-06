@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">更新まであと %1$d 日です。</string>
     <string name="kn_push_one_day_left">更新まであと 1 日です。</string>
     <string name="kn_push_expired">%1$s の期限が切れました</string>
-    <string name="kn_push_grace">10 日以内に更新しないと、誰でも取得できるようになります。</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">この名前は現在登録されていません。</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">ファイルを送信しました</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">いくつかのリンクを今このスマートフォンから確認できませんでした。入力どおりに保存され、ほかの人のアプリが読み込めるときに読み込みます。</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">%1$s を更新</string>
+    <string name="kn_bell_renewal_open">更新できます: 保持するには %1$s までに更新してください。</string>
+    <string name="kn_bell_expired_title">%1$s の期限が切れました</string>
+    <string name="kn_bell_expired_body">%1$s までに更新しないと誰でも取得できるようになります。</string>
+    <string name="kn_bell_lapsed_title">%1$s が失効しました</string>
+    <string name="kn_bell_lapsed_body">今は誰でも取得できます。自分で回収すればボンドが戻ります。</string>
+    <string name="kn_bell_sold_title">%1$s が売れました</string>
+    <string name="kn_bell_paid">%1$s KAS が支払われました。</string>
+    <string name="kn_bell_listing_bought">出品した名前が購入されました。</string>
+    <string name="kn_bell_accepted_offer">この名前へのオファーを承諾しました。</string>
+    <string name="kn_bell_reclaimed_title">%1$s が回収されました</string>
+    <string name="kn_bell_reclaimed_body">失効し、他の人が回収しました。再登録できます。</string>
+    <string name="kn_bell_new_offer_title">%1$s に新しいオファー</string>
+    <string name="kn_bell_offered">%1$s KAS のオファーがありました。</string>
+    <string name="kn_bell_yours_now">%1$s があなたのものになりました。</string>
+    <string name="kn_bell_declined_title">%1$s へのオファーが辞退されました</string>
+    <string name="kn_bell_declined_body">所有者が辞退しました。KAS は返金されました。</string>
+    <string name="kn_bell_offer_expired_title">%1$s へのオファーが期限切れ</string>
+    <string name="kn_bell_offer_expired_body">期限内に承諾されませんでした。KAS は返金されました。</string>
+    <string name="kn_bell_returned_title">%1$s へのオファーが返却されました</string>
+    <string name="kn_bell_returned_body">もう承諾できません。KAS は返金されました。</string>
+    <string name="notification_center_empty">ウォレットに届いた Kaspa と .kachat 名のお知らせがここに表示されます。</string>
+    <string name="kn_push_renew_soon">保持するには早めに更新してください。</string>
+    <string name="kn_push_grace_soon">早めに更新しないと誰でも取得できるようになります。</string>
 </resources>

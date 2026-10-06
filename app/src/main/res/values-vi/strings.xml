@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">Còn %1$d ngày để gia hạn.</string>
     <string name="kn_push_one_day_left">Còn 1 ngày để gia hạn.</string>
     <string name="kn_push_expired">%1$s đã hết hạn</string>
-    <string name="kn_push_grace">Gia hạn trong 10 ngày, nếu không ai cũng có thể lấy.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Tên này hiện chưa được đăng ký.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">Đã gửi một tệp</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Hiện chưa thể kiểm tra một số liên kết từ điện thoại này. Chúng được lưu đúng như đã nhập và ứng dụng của người khác sẽ tải khi có thể.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">Gia hạn %1$s</string>
+    <string name="kn_bell_renewal_open">Đã mở gia hạn: gia hạn trước %1$s để giữ tên.</string>
+    <string name="kn_bell_expired_title">%1$s đã hết hạn</string>
+    <string name="kn_bell_expired_body">Gia hạn trước %1$s nếu không ai cũng có thể lấy.</string>
+    <string name="kn_bell_lapsed_title">%1$s đã mất hiệu lực</string>
+    <string name="kn_bell_lapsed_body">Giờ ai cũng có thể lấy. Tự thu hồi để nhận lại tiền ký quỹ.</string>
+    <string name="kn_bell_sold_title">%1$s đã bán</string>
+    <string name="kn_bell_paid">Bạn đã nhận %1$s KAS.</string>
+    <string name="kn_bell_listing_bought">Tên bạn rao bán đã được mua.</string>
+    <string name="kn_bell_accepted_offer">Bạn đã chấp nhận một đề nghị cho tên này.</string>
+    <string name="kn_bell_reclaimed_title">%1$s đã bị thu hồi</string>
+    <string name="kn_bell_reclaimed_body">Tên mất hiệu lực và người khác đã thu hồi. Có thể đăng ký lại.</string>
+    <string name="kn_bell_new_offer_title">Đề nghị mới cho %1$s</string>
+    <string name="kn_bell_offered">Có người đề nghị %1$s KAS cho tên này.</string>
+    <string name="kn_bell_yours_now">%1$s giờ là của bạn.</string>
+    <string name="kn_bell_declined_title">Đề nghị cho %1$s bị từ chối</string>
+    <string name="kn_bell_declined_body">Chủ đã từ chối. KAS đã trở về với bạn.</string>
+    <string name="kn_bell_offer_expired_title">Đề nghị cho %1$s đã hết hạn</string>
+    <string name="kn_bell_offer_expired_body">Không ai chấp nhận kịp. KAS đã trở về với bạn.</string>
+    <string name="kn_bell_returned_title">Đề nghị cho %1$s đã được trả lại</string>
+    <string name="kn_bell_returned_body">Không thể chấp nhận nữa. KAS đã trở về với bạn.</string>
+    <string name="notification_center_empty">Kaspa đến ví của bạn và tin tức về tên .kachat của bạn hiển thị ở đây.</string>
+    <string name="kn_push_renew_soon">Hãy sớm gia hạn để giữ tên.</string>
+    <string name="kn_push_grace_soon">Hãy sớm gia hạn nếu không ai cũng có thể lấy.</string>
 </resources>

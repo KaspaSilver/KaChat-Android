@@ -3866,8 +3866,8 @@ fun ProfileScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp)
             ) {
-                // The global notification centre: KaPosts activity, group @mentions, live
-                // broadcasts. Declared before the bar it now lives in.
+                // The Profile bell: Kaspa arriving in your wallets and .kachat news (iOS 86471dd,
+                // 4500ebc). Declared before the bar it now lives in.
                 val notifCenterVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
                 val notifEntries by notifCenterVm.store.entries.collectAsState()
                 val notifLastSeen by notifCenterVm.store.lastSeenAt.collectAsState()
@@ -3970,7 +3970,7 @@ fun ProfileScreen(
                         text = {
                             if (notifEntries.isEmpty()) {
                                 Text(
-                                    "Kaspa arriving in your wallets and cold storage shows up here.",
+                                    stringResource(R.string.notification_center_empty),
                                     color = LocalAppColors.current.textSecondary,
                                 )
                             } else {
@@ -4006,6 +4006,15 @@ fun ProfileScreen(
                                                             ?.let { channel ->
                                                                 { navController.navigate("broadcast_channel/$channel") }
                                                             }
+                                                        // The name, the same way a tapped .kachat
+                                                        // push opens it (iOS 86471dd).
+                                                        com.kachat.app.services.kachatnames.KachatNamesNotifier.SOURCE ->
+                                                            entry.targetId?.takeIf { name -> name.isNotBlank() }?.let { name ->
+                                                                {
+                                                                    KachatDeepLink.pendingName.value =
+                                                                        com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(name)
+                                                                }
+                                                            }
                                                         else -> null
                                                     }
                                                     if (open != null) it.clickable {
@@ -4037,7 +4046,7 @@ fun ProfileScreen(
                                                 )
                                             }
                                             Text(
-                                                "${entry.source} · ${android.text.format.DateUtils.getRelativeTimeSpanString(entry.timestampMs)}",
+                                                "${com.kachat.app.services.GlobalNotificationCenterStore.sourceLabel(entry.source)} · ${android.text.format.DateUtils.getRelativeTimeSpanString(entry.timestampMs)}",
                                                 color = LocalAppColors.current.textSecondary,
                                                 fontSize = 10.5.sp,
                                             )

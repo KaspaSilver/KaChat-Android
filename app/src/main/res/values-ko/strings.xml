@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">갱신까지 %1$d일 남았습니다.</string>
     <string name="kn_push_one_day_left">갱신까지 1일 남았습니다.</string>
     <string name="kn_push_expired">%1$s 만료됨</string>
-    <string name="kn_push_grace">10일 안에 갱신하지 않으면 누구나 가져갈 수 있습니다.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">이 이름은 현재 등록되어 있지 않습니다.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">파일을 보냈습니다</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">지금 이 휴대폰에서 일부 링크를 확인하지 못했어요. 입력한 그대로 저장되며, 다른 사람들의 앱이 가능할 때 불러와요.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">%1$s 갱신</string>
+    <string name="kn_bell_renewal_open">갱신 가능: 유지하려면 %1$s 전에 갱신하세요.</string>
+    <string name="kn_bell_expired_title">%1$s 만료됨</string>
+    <string name="kn_bell_expired_body">%1$s 전에 갱신하지 않으면 누구나 가져갈 수 있어요.</string>
+    <string name="kn_bell_lapsed_title">%1$s 소멸됨</string>
+    <string name="kn_bell_lapsed_body">이제 누구나 가져갈 수 있어요. 직접 회수하면 보증금을 돌려받아요.</string>
+    <string name="kn_bell_sold_title">%1$s 판매됨</string>
+    <string name="kn_bell_paid">%1$s KAS가 지급되었어요.</string>
+    <string name="kn_bell_listing_bought">등록한 이름이 판매되었어요.</string>
+    <string name="kn_bell_accepted_offer">이 이름에 대한 제안을 수락했어요.</string>
+    <string name="kn_bell_reclaimed_title">%1$s 회수됨</string>
+    <string name="kn_bell_reclaimed_body">소멸된 뒤 다른 사람이 회수했어요. 다시 등록할 수 있어요.</string>
+    <string name="kn_bell_new_offer_title">%1$s에 새 제안</string>
+    <string name="kn_bell_offered">%1$s KAS가 제안되었어요.</string>
+    <string name="kn_bell_yours_now">%1$s이(가) 이제 내 것이에요.</string>
+    <string name="kn_bell_declined_title">%1$s에 대한 제안 거절됨</string>
+    <string name="kn_bell_declined_body">소유자가 거절했어요. KAS가 돌아왔어요.</string>
+    <string name="kn_bell_offer_expired_title">%1$s에 대한 제안 만료됨</string>
+    <string name="kn_bell_offer_expired_body">제때 아무도 수락하지 않았어요. KAS가 돌아왔어요.</string>
+    <string name="kn_bell_returned_title">%1$s에 대한 제안 반환됨</string>
+    <string name="kn_bell_returned_body">더 이상 수락할 수 없어요. KAS가 돌아왔어요.</string>
+    <string name="notification_center_empty">지갑에 도착한 Kaspa와 .kachat 이름 소식이 여기에 표시돼요.</string>
+    <string name="kn_push_renew_soon">유지하려면 곧 갱신하세요.</string>
+    <string name="kn_push_grace_soon">곧 갱신하지 않으면 누구나 가져갈 수 있어요.</string>
 </resources>

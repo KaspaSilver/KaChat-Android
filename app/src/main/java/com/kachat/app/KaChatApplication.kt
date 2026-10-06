@@ -256,6 +256,18 @@ class KaChatApplication : Application(), Configuration.Provider {
                     } catch (e: Exception) {
                         android.util.Log.w("KaChatApplication", ".kachat registration resume failed", e)
                     }
+                    // .kachat news for the Profile bell (offers, sales, renewal, expiry): the
+                    // refresh runs KachatNamesNotifier (iOS 86471dd). Testnet only until names
+                    // launch on mainnet.
+                    owner.lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            kachatNamesRegistry.get().refreshIfStale()
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            android.util.Log.w("KaChatApplication", ".kachat registry refresh failed", e)
+                        }
+                    }
                 }
                 // Group invites (gctl_root) otherwise only surface via the 15-min SyncWorker
                 // periodic job or the live block-scan - unlike 1:1 chat, which has its own

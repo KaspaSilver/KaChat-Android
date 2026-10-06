@@ -888,7 +888,6 @@
     <string name="kn_push_days_left">%1$d روز برای تمدید باقی مانده.</string>
     <string name="kn_push_one_day_left">۱ روز برای تمدید باقی مانده.</string>
     <string name="kn_push_expired">%1$s منقضی شد</string>
-    <string name="kn_push_grace">ظرف ۱۰ روز تمدید کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">این نام در حال حاضر ثبت نشده است.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1063,4 +1062,29 @@
     <string name="dm_notif_sent_file">یک فایل فرستاد</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">برخی پیوندها همین حالا از این گوشی بررسی نشدند. همان‌طور که وارد شده‌اند ذخیره می‌شوند و برنامه‌های دیگران هر وقت بتوانند آن‌ها را بارگیری می‌کنند.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">تمدید %1$s</string>
+    <string name="kn_bell_renewal_open">تمدید باز است: پیش از %1$s تمدیدش کنید تا بماند.</string>
+    <string name="kn_bell_expired_title">%1$s منقضی شد</string>
+    <string name="kn_bell_expired_body">پیش از %1$s تمدیدش کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
+    <string name="kn_bell_lapsed_title">%1$s از دست رفت</string>
+    <string name="kn_bell_lapsed_body">اکنون هر کسی می‌تواند آن را بگیرد. خودتان بازپس بگیرید تا ودیعه‌تان برگردد.</string>
+    <string name="kn_bell_sold_title">%1$s فروخته شد</string>
+    <string name="kn_bell_paid">%1$s KAS به شما پرداخت شد.</string>
+    <string name="kn_bell_listing_bought">آگهی شما خریده شد.</string>
+    <string name="kn_bell_accepted_offer">یک پیشنهاد برای آن را پذیرفتید.</string>
+    <string name="kn_bell_reclaimed_title">%1$s بازپس گرفته شد</string>
+    <string name="kn_bell_reclaimed_body">از دست رفت و کسی آن را بازپس گرفت. دوباره قابل ثبت است.</string>
+    <string name="kn_bell_new_offer_title">پیشنهاد تازه برای %1$s</string>
+    <string name="kn_bell_offered">%1$s KAS برای آن پیشنهاد شد.</string>
+    <string name="kn_bell_yours_now">%1$s اکنون مال شماست.</string>
+    <string name="kn_bell_declined_title">پیشنهاد برای %1$s رد شد</string>
+    <string name="kn_bell_declined_body">مالک آن را رد کرد. KAS به شما برگشت.</string>
+    <string name="kn_bell_offer_expired_title">پیشنهاد برای %1$s منقضی شد</string>
+    <string name="kn_bell_offer_expired_body">کسی به‌موقع آن را نپذیرفت. KAS به شما برگشت.</string>
+    <string name="kn_bell_returned_title">پیشنهاد برای %1$s برگشت</string>
+    <string name="kn_bell_returned_body">دیگر قابل پذیرش نیست. KAS به شما برگشت.</string>
+    <string name="notification_center_empty">Kaspa رسیده به کیف‌پول‌هایتان و خبرهای نام‌های .kachat شما اینجا نمایش داده می‌شود.</string>
+    <string name="kn_push_renew_soon">به‌زودی تمدیدش کنید تا بماند.</string>
+    <string name="kn_push_grace_soon">به‌زودی تمدیدش کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
 </resources>

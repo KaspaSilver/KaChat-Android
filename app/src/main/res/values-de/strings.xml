@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">Noch %1$d Tage zum Verlängern.</string>
     <string name="kn_push_one_day_left">Noch 1 Tag zum Verlängern.</string>
     <string name="kn_push_expired">%1$s ist abgelaufen</string>
-    <string name="kn_push_grace">Verlängere innerhalb von 10 Tagen, sonst kann ihn jeder beanspruchen.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Dieser Name ist gerade nicht registriert.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">Hat eine Datei gesendet</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Einige Links konnten von diesem Telefon gerade nicht geprüft werden. Sie werden wie eingegeben gespeichert, und die Apps der anderen laden sie, sobald es geht.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">%1$s verlängern</string>
+    <string name="kn_bell_renewal_open">Verlängerung möglich: verlängere vor %1$s, um ihn zu behalten.</string>
+    <string name="kn_bell_expired_title">%1$s ist abgelaufen</string>
+    <string name="kn_bell_expired_body">Verlängere vor %1$s, sonst kann ihn jeder beanspruchen.</string>
+    <string name="kn_bell_lapsed_title">%1$s ist verfallen</string>
+    <string name="kn_bell_lapsed_body">Jetzt kann ihn jeder beanspruchen. Fordere ihn selbst zurück, um deine Kaution zurückzubekommen.</string>
+    <string name="kn_bell_sold_title">%1$s verkauft</string>
+    <string name="kn_bell_paid">%1$s KAS wurden an dich gezahlt.</string>
+    <string name="kn_bell_listing_bought">Dein Angebot wurde gekauft.</string>
+    <string name="kn_bell_accepted_offer">Du hast ein Angebot dafür angenommen.</string>
+    <string name="kn_bell_reclaimed_title">%1$s wurde zurückgefordert</string>
+    <string name="kn_bell_reclaimed_body">Er ist verfallen und jemand hat ihn zurückgefordert. Er kann neu registriert werden.</string>
+    <string name="kn_bell_new_offer_title">Neues Angebot für %1$s</string>
+    <string name="kn_bell_offered">%1$s KAS dafür geboten.</string>
+    <string name="kn_bell_yours_now">%1$s gehört jetzt dir.</string>
+    <string name="kn_bell_declined_title">Angebot für %1$s abgelehnt</string>
+    <string name="kn_bell_declined_body">Der Inhaber hat es abgelehnt. Die KAS sind wieder bei dir.</string>
+    <string name="kn_bell_offer_expired_title">Angebot für %1$s abgelaufen</string>
+    <string name="kn_bell_offer_expired_body">Niemand hat es rechtzeitig angenommen. Die KAS sind wieder bei dir.</string>
+    <string name="kn_bell_returned_title">Angebot für %1$s zurückgegeben</string>
+    <string name="kn_bell_returned_body">Es kann nicht mehr angenommen werden. Die KAS sind wieder bei dir.</string>
+    <string name="notification_center_empty">Hier erscheinen Kaspa, die in deinen Wallets ankommen, und Neues zu deinen .kachat-Namen.</string>
+    <string name="kn_push_renew_soon">Verlängere ihn bald, um ihn zu behalten.</string>
+    <string name="kn_push_grace_soon">Verlängere ihn bald, sonst kann ihn jeder beanspruchen.</string>
 </resources>

@@ -358,7 +358,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     /**
      * A `.kachat` name event, written in the device's language (iOS NotificationService
      * handleNameEvent). Payload (indexer Part E): `event` (name_offer, name_sold,
-     * name_offer_accepted, name_renewal_open, name_expiring, name_grace), `name` (without
+     * name_offer_accepted, name_renewal_open, name_expiring, name_grace; name_lapsed,
+     * name_offer_declined and name_offer_refunded for when the indexer sends them, iOS 86471dd),
+     * `name` (without
      * .kachat), optional `amount` (sompi) and `days`. An event this build doesn't know keeps the
      * server's own text. Tapping it opens the name.
      */
@@ -377,9 +379,18 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                 (amount?.let { getString(com.kachat.app.R.string.kn_push_paid, it) } ?: getString(com.kachat.app.R.string.kn_push_listing_bought))
             "name_offer_accepted" -> getString(com.kachat.app.R.string.kn_push_offer_accepted) to getString(com.kachat.app.R.string.kn_push_yours_now, name)
             "name_renewal_open" -> getString(com.kachat.app.R.string.kn_push_renew, name) to getString(com.kachat.app.R.string.kn_push_renewal_open)
-            "name_expiring" -> getString(com.kachat.app.R.string.kn_push_expires_soon, name) to
-                (if (days != null && days > 1) getString(com.kachat.app.R.string.kn_push_days_left, days) else getString(com.kachat.app.R.string.kn_push_one_day_left))
-            "name_grace" -> getString(com.kachat.app.R.string.kn_push_expired, name) to getString(com.kachat.app.R.string.kn_push_grace)
+            // days on mainnet's yearly clock; testnet's periods are minutes long (days = 0)
+            "name_expiring" -> getString(com.kachat.app.R.string.kn_push_expires_soon, name) to when {
+                days != null && days > 1 -> getString(com.kachat.app.R.string.kn_push_days_left, days)
+                days == 1 -> getString(com.kachat.app.R.string.kn_push_one_day_left)
+                else -> getString(com.kachat.app.R.string.kn_push_renew_soon)
+            }
+            "name_grace" -> getString(com.kachat.app.R.string.kn_push_expired, name) to getString(com.kachat.app.R.string.kn_push_grace_soon)
+            "name_lapsed" -> getString(com.kachat.app.R.string.kn_bell_lapsed_title, name) to getString(com.kachat.app.R.string.kn_bell_lapsed_body)
+            "name_offer_declined" -> getString(com.kachat.app.R.string.kn_bell_declined_title, name) to
+                com.kachat.app.util.KaspaUnit.label(getString(com.kachat.app.R.string.kn_bell_declined_body))
+            "name_offer_refunded" -> getString(com.kachat.app.R.string.kn_bell_offer_expired_title, name) to
+                com.kachat.app.util.KaspaUnit.label(getString(com.kachat.app.R.string.kn_bell_offer_expired_body))
             else -> data["title"].orEmpty().ifEmpty { name } to data["body"].orEmpty()
         }
         val dedupeKey = data["tx_id"]?.takeIf { it.isNotBlank() } ?: "${data["event"]}:$bare:${data["amount"]}:${data["days"]}"

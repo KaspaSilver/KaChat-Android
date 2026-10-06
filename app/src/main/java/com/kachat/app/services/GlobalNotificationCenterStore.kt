@@ -12,11 +12,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The bell on the Profile screen: Kaspa arriving in one of your own wallets - the chatting
- * wallet, a spending address, cold storage (fed by [AddressActivityNotifier]). Nothing else:
- * KaPosts has its own bell, and group chats and public rooms carry their own unread counts in
- * the Chats tab (iOS cda2715, 2010124). Entries are account-scoped, persisted, deduped by id and
- * capped; opening the list marks everything seen.
+ * The bell on the Profile screen holds two things (iOS 86471dd, 4500ebc):
+ * - Kaspa arriving in one of your own wallets - the chatting wallet, a spending address, cold
+ *   storage (fed by [AddressActivityNotifier]);
+ * - your .kachat names: offers, sales, renewal and expiry, what happened to your offers
+ *   ([com.kachat.app.services.kachatnames.KachatNamesNotifier]).
+ * Never KaPosts (it has its own bell), and not group chats or public rooms (they keep their own
+ * unread counts in the Chats tab; iOS cda2715, 2010124). Entries are account-scoped, persisted,
+ * deduped by id and capped; opening the list marks everything seen.
  */
 @Singleton
 class GlobalNotificationCenterStore @Inject constructor(
@@ -26,12 +29,13 @@ class GlobalNotificationCenterStore @Inject constructor(
 ) {
     data class Entry(
         val id: String,
-        /** "wallet" - older builds also stored "kaposts", "group" and "broadcast" rows. */
+        /** "wallet" or "kachat" ([IN_BELL]) - older builds also stored "kaposts", "group" and
+         *  "broadcast" rows. */
         val source: String,
         val title: String,
         val body: String,
         val timestampMs: Long,
-        /** group id / channel name / post txid - what tapping the row relates to. */
+        /** group id / channel name / post txid / .kachat name - what tapping the row relates to. */
         val targetId: String?,
     )
 
@@ -67,10 +71,10 @@ class GlobalNotificationCenterStore @Inject constructor(
         val loaded = try {
             gson.fromJson(prefs.getString(entriesKey(wallet), null) ?: "[]", listType) ?: emptyList()
         } catch (_: Exception) { emptyList<Entry>() }
-        // Wallet rows only. KaPosts rows live in KaPosts' own bell, group mentions and public
-        // rooms carry their own unread counts in the Chats tab; anything an older build saved
-        // for those is dropped here so the bell never double-counts.
-        val kept = loaded.filter { it.source == "wallet" }
+        // Wallet and .kachat rows only. KaPosts rows live in KaPosts' own bell, group mentions and
+        // public rooms carry their own unread counts in the Chats tab; anything an older build
+        // saved for those is dropped here so the bell never double-counts.
+        val kept = loaded.filter { it.source in IN_BELL }
         _entries.value = kept
         _lastSeenAt.value = prefs.getLong(seenKey(wallet), 0L)
         if (kept.size != loaded.size) persist()
@@ -83,9 +87,9 @@ class GlobalNotificationCenterStore @Inject constructor(
 
     @Synchronized
     fun record(id: String, source: String, title: String, body: String, timestampMs: Long, targetId: String?) {
-        // Wallet activity only. Refused here rather than merely left uncalled, so a future caller
-        // cannot quietly put KaPosts, group or room activity back in the bell.
-        if (source != "wallet") return
+        // Wallet and .kachat news only. Refused here rather than merely left uncalled, so a future
+        // caller cannot quietly put KaPosts, group or room activity back in the bell.
+        if (source !in IN_BELL) return
         reloadIfNeeded()
         if (loadedWallet == null) return
         if (id.isEmpty() || _entries.value.any { it.id == id }) return
@@ -152,6 +156,19 @@ class GlobalNotificationCenterStore @Inject constructor(
 
     companion object {
         private const val TAG = "GlobalNotifCenter"
+
+        /** What the Profile bell lists (iOS `Entry.Source.inBell`, 4500ebc). */
+        val IN_BELL = setOf("wallet", "kachat")
+
+        /** The source tag a row shows (iOS `Entry.Source.label`). */
+        fun sourceLabel(source: String): String = when (source) {
+            "wallet" -> "Wallet"
+            "kachat" -> ".kachat"
+            "kaposts" -> "KaPosts"
+            "group" -> "Group"
+            "broadcast" -> "Public Chat"
+            else -> source
+        }
 
         /** Same @token rule as the KaPosts mention parser. */
         val MENTION_TOKEN_REGEX = Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)", RegexOption.IGNORE_CASE)

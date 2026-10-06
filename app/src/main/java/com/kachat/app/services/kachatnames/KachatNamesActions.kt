@@ -527,6 +527,13 @@ class KachatNamesActions @Inject constructor(
     suspend fun perform(op: Operation, maxPrice: Long? = null): String = withContext(Dispatchers.IO) {
         val s = signer(op)
         val txId = submit(op, s, maxPrice)
+        // An offer you withdrew or refunded yourself isn't news in the Profile bell; the ones this
+        // app returns on its own (expired, made to an earlier owner) are (iOS 86471dd).
+        when (op) {
+            is Operation.Withdraw -> if (op.offer.id !in _withdrawingOffers.value) KachatNamesNotifier.selfClosedOffers.add(op.offer.id)
+            is Operation.Refund -> if (op.offer.id !in _returningOffers.value) KachatNamesNotifier.selfClosedOffers.add(op.offer.id)
+            else -> Unit
+        }
         when (op) {
             // A name that leaves this owner takes no offers with it: the ones made to this owner
             // can never be accepted any more, so they go straight back to their buyers (iOS 49c0baa).

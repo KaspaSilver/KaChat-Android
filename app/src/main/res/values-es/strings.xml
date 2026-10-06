@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">Quedan %1$d días para renovarlo.</string>
     <string name="kn_push_one_day_left">Queda 1 día para renovarlo.</string>
     <string name="kn_push_expired">%1$s ha caducado</string>
-    <string name="kn_push_grace">Renuévalo en 10 días o cualquiera podrá reclamarlo.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Este nombre no está registrado ahora mismo.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">Envió un archivo</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Algunos enlaces no se pudieron comprobar desde este teléfono ahora mismo. Se guardan tal como se escribieron y las apps de los demás los cargarán cuando puedan.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">Renueva %1$s</string>
+    <string name="kn_bell_renewal_open">La renovación está abierta: renuévalo antes del %1$s para conservarlo.</string>
+    <string name="kn_bell_expired_title">%1$s ha vencido</string>
+    <string name="kn_bell_expired_body">Renuévalo antes del %1$s o cualquiera podrá reclamarlo.</string>
+    <string name="kn_bell_lapsed_title">%1$s ha caducado</string>
+    <string name="kn_bell_lapsed_body">Ahora cualquiera puede reclamarlo. Reclámalo tú para recuperar tu fianza.</string>
+    <string name="kn_bell_sold_title">%1$s vendido</string>
+    <string name="kn_bell_paid">Se te pagaron %1$s KAS.</string>
+    <string name="kn_bell_listing_bought">Compraron tu anuncio.</string>
+    <string name="kn_bell_accepted_offer">Aceptaste una oferta por él.</string>
+    <string name="kn_bell_reclaimed_title">%1$s fue reclamado</string>
+    <string name="kn_bell_reclaimed_body">Caducó y alguien lo reclamó. Se puede registrar de nuevo.</string>
+    <string name="kn_bell_new_offer_title">Nueva oferta por %1$s</string>
+    <string name="kn_bell_offered">Ofrecieron %1$s KAS por él.</string>
+    <string name="kn_bell_yours_now">%1$s ya es tuyo.</string>
+    <string name="kn_bell_declined_title">Oferta por %1$s rechazada</string>
+    <string name="kn_bell_declined_body">El dueño la rechazó. Los KAS volvieron a ti.</string>
+    <string name="kn_bell_offer_expired_title">Oferta por %1$s vencida</string>
+    <string name="kn_bell_offer_expired_body">Nadie la aceptó a tiempo. Los KAS volvieron a ti.</string>
+    <string name="kn_bell_returned_title">Oferta por %1$s devuelta</string>
+    <string name="kn_bell_returned_body">Ya no se puede aceptar. Los KAS volvieron a ti.</string>
+    <string name="notification_center_empty">Aquí aparecen los Kaspa que llegan a tus billeteras y las novedades de tus nombres .kachat.</string>
+    <string name="kn_push_renew_soon">Renuévalo pronto para conservarlo.</string>
+    <string name="kn_push_grace_soon">Renuévalo pronto o cualquiera podrá reclamarlo.</string>
 </resources>

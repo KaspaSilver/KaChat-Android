@@ -64,7 +64,10 @@ class KachatNamesRegistry @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: AppSettingsRepository,
     private val service: KachatNamesService,
-    okHttpClient: OkHttpClient
+    okHttpClient: OkHttpClient,
+    /** The Profile bell's .kachat news, run after every good refresh (iOS 86471dd). Lazy: it
+     *  reads the registry itself. */
+    private val notifier: dagger.Lazy<KachatNamesNotifier>
 ) {
     sealed class Source {
         data class Indexer(val base: String) : Source()
@@ -218,6 +221,8 @@ class KachatNamesRegistry @Inject constructor(
             _lastError.value = null
             _refreshedAt.value = System.currentTimeMillis()
             bump()
+            // what changed for this wallet's names and offers, into the Profile bell (iOS 86471dd)
+            scope.launch { notifier.get().check() }
         } catch (e: kotlinx.coroutines.CancellationException) {
             // nothing changed: no bump (a screen that refreshes on `revision` and is recomposed
             // by the bump would cancel and restart itself)

@@ -851,7 +851,6 @@
     <string name="kn_push_days_left">Осталось %1$d дн. на продление.</string>
     <string name="kn_push_one_day_left">Остался 1 день на продление.</string>
     <string name="kn_push_expired">Срок %1$s истёк</string>
-    <string name="kn_push_grace">Продлите в течение 10 дней, иначе его сможет занять любой.</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <string name="kn_name_not_registered">Это имя сейчас не зарегистрировано.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
@@ -1032,4 +1031,29 @@
     <string name="dm_notif_sent_file">Отправил(а) файл</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Некоторые ссылки сейчас не удалось проверить с этого телефона. Они сохраняются как введены, а приложения других людей загрузят их, когда смогут.</string>
+    <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
+    <string name="kn_bell_renew_title">Продлите %1$s</string>
+    <string name="kn_bell_renewal_open">Продление открыто: продлите до %1$s, чтобы сохранить имя.</string>
+    <string name="kn_bell_expired_title">Срок %1$s истёк</string>
+    <string name="kn_bell_expired_body">Продлите до %1$s, иначе его сможет забрать кто угодно.</string>
+    <string name="kn_bell_lapsed_title">%1$s освободилось</string>
+    <string name="kn_bell_lapsed_body">Теперь его может забрать кто угодно. Верните его сами, чтобы получить залог.</string>
+    <string name="kn_bell_sold_title">%1$s продано</string>
+    <string name="kn_bell_paid">Вам выплачено %1$s KAS.</string>
+    <string name="kn_bell_listing_bought">Ваш лот купили.</string>
+    <string name="kn_bell_accepted_offer">Вы приняли предложение за него.</string>
+    <string name="kn_bell_reclaimed_title">%1$s возвращено в реестр</string>
+    <string name="kn_bell_reclaimed_body">Имя освободилось, и его вернул кто-то другой. Его можно зарегистрировать снова.</string>
+    <string name="kn_bell_new_offer_title">Новое предложение за %1$s</string>
+    <string name="kn_bell_offered">За него предложили %1$s KAS.</string>
+    <string name="kn_bell_yours_now">%1$s теперь ваше.</string>
+    <string name="kn_bell_declined_title">Предложение за %1$s отклонено</string>
+    <string name="kn_bell_declined_body">Владелец его отклонил. KAS вернулись к вам.</string>
+    <string name="kn_bell_offer_expired_title">Предложение за %1$s истекло</string>
+    <string name="kn_bell_offer_expired_body">Никто не принял его вовремя. KAS вернулись к вам.</string>
+    <string name="kn_bell_returned_title">Предложение за %1$s возвращено</string>
+    <string name="kn_bell_returned_body">Его больше нельзя принять. KAS вернулись к вам.</string>
+    <string name="notification_center_empty">Здесь появляются Kaspa, пришедшие на ваши кошельки, и новости о ваших именах .kachat.</string>
+    <string name="kn_push_renew_soon">Продлите его в ближайшее время, чтобы сохранить.</string>
+    <string name="kn_push_grace_soon">Продлите его в ближайшее время, иначе его сможет забрать кто угодно.</string>
 </resources>
