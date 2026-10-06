@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">İptal edildi.</string>
     <string name="kn_auth_reason">.kachat işlemini onaylayın</string>
     <string name="kn_for_sale">Satılık</string>
-    <string name="kn_for_sale_detail">Sahiplerinin satışa koyduğu adlar. Satın almak tek işlemde sahibine ödeme yapar ve adı size geçirir.</string>
     <string name="kn_no_listings">Şu anda satışta ad yok.</string>
     <string name="kn_reclaimable">Geri alınabilir</string>
     <string name="kn_reclaimable_detail">Sahiplerinin düşmeye bıraktığı adlar. Herkes geri alabilir: teminat son sahibine döner, açığa çıkan depozito ödül olarak sizde kalır ve ad kayda açılır.</string>

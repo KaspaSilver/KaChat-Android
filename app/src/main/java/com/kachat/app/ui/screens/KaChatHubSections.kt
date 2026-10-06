@@ -401,7 +401,7 @@ private fun SectionHeader(title: String, detail: String?) {
 private fun MarketPage(onOpenListing: () -> Unit) {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
-        SectionHeader(stringResource(R.string.kn_for_sale), stringResource(R.string.kn_for_sale_detail))
+        SectionHeader(stringResource(R.string.kn_for_sale), null)
         KachatNameGrid(List(4) { it }) {
             TilePlaceholder(onClick = onOpenListing)
         }

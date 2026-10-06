@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">בוטל.</string>
     <string name="kn_auth_reason">אישור עסקת .kachat זו</string>
     <string name="kn_for_sale">למכירה</string>
-    <string name="kn_for_sale_detail">שמות שבעליהם הציעו למכירה. קנייה משלמת לבעלים ומעבירה אליך את השם בעסקה אחת.</string>
     <string name="kn_no_listings">אין כרגע שמות למכירה.</string>
     <string name="kn_reclaimable">ניתנים לדרישה מחדש</string>
     <string name="kn_reclaimable_detail">שמות שבעליהם הניחו להם לפקוע. כל אחד יכול לדרוש אותם מחדש: הערבון חוזר לבעלים האחרון, את הפיקדון שהשתחרר תשמרו כפרס, והשם מתפנה לרישום.</string>

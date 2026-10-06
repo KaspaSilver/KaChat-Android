@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">বাতিল হয়েছে।</string>
     <string name="kn_auth_reason">এই .kachat লেনদেন নিশ্চিত করুন</string>
     <string name="kn_for_sale">বিক্রির জন্য</string>
-    <string name="kn_for_sale_detail">মালিকেরা যে নামগুলো তালিকাভুক্ত করেছেন। কিনলে এক লেনদেনেই মালিক টাকা পান আর নাম আপনার হয়।</string>
     <string name="kn_no_listings">এখন কোনো নাম তালিকাভুক্ত নেই।</string>
     <string name="kn_reclaimable">পুনরুদ্ধারযোগ্য</string>
     <string name="kn_reclaimable_detail">যেসব নামের মালিক মেয়াদ পেরোতে দিয়েছেন। যে কেউ পুনরুদ্ধার করতে পারেন: বন্ড শেষ মালিকের কাছে ফেরে, মুক্ত হওয়া জমা পুরস্কার হিসেবে আপনি রাখেন, আর নামটি নেওয়ার জন্য খালি হয়।</string>

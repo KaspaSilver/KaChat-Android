@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">취소됐어요.</string>
     <string name="kn_auth_reason">이 .kachat 거래 확인</string>
     <string name="kn_for_sale">판매 중</string>
-    <string name="kn_for_sale_detail">소유자가 판매 중인 이름이에요. 구매하면 한 번의 거래로 소유자에게 지불되고 이름이 나에게 옵니다.</string>
     <string name="kn_no_listings">지금은 판매 중인 이름이 없어요.</string>
     <string name="kn_reclaimable">회수 가능</string>
     <string name="kn_reclaimable_detail">소유자가 소멸되도록 둔 이름이에요. 누구나 회수할 수 있어요. 보증금은 마지막 소유자에게 돌아가고, 풀려난 예치금은 보상으로 내가 갖고, 이름은 다시 받을 수 있게 돼요.</string>

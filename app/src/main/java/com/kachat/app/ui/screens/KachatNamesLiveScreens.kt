@@ -912,7 +912,8 @@ private fun KachatLiveNameRow(
 /**
  * A square tile for one name in the marketplace grids (For sale, Reclaimable; iOS 27a4f39
  * `KachatNameTile`): the full name - it wraps onto more lines, never truncates, and the tile grows
- * to fit - with ".kachat" under it, and the price (or a Reclaim button) at the bottom. [name] null
+ * to fit - with ".kachat" under it, then the footer: the price asked, and any button. Centered
+ * (iOS c488d1d). [name] null
  * draws the tile's shape redacted (the preview pages: no invented name). [onClick] opens the name;
  * a button in [footer] keeps its own tap.
  */
@@ -929,19 +930,21 @@ fun KachatNameTile(
         modifier.fillMaxWidth().heightIn(min = 140.dp).kachatGlass(colors)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Spacer(Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             if (name != null) {
-                Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(name, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp, textAlign = TextAlign.Center)
                 Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
             } else {
                 Box(Modifier.size(90.dp, 17.dp).clip(RoundedCornerShape(4.dp)).background(redacted))
                 Box(Modifier.size(44.dp, 12.dp).clip(RoundedCornerShape(4.dp)).background(redacted))
             }
         }
-        Spacer(Modifier.weight(1f))
         footer()
+        Spacer(Modifier.weight(1f))
     }
 }
 
@@ -1357,7 +1360,7 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
 @Composable
 fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
-        KachatLiveSectionHeader(stringResource(R.string.kn_for_sale), stringResource(R.string.kn_for_sale_detail))
+        KachatLiveSectionHeader(stringResource(R.string.kn_for_sale), null)
         if (vm == null || vm.listings.isEmpty()) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_listings) else null)
         } else {
@@ -1383,8 +1386,14 @@ fun KachatLiveReclaimablePage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Un
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_to_reclaim) else null)
         } else {
             // the tile opens the name; the Reclaim button inside keeps its own tap
+            val colors = LocalAppColors.current
+            vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
             KachatNameGrid(vm.lapsed) { n ->
                 KachatNameTile(n.name, onClick = { onOpen(n) }) {
+                    // what claiming it costs once reclaimed: the price for its length (iOS c488d1d)
+                    KachatLive.price(vm.registry, n.name)?.let { price ->
+                        KachatFitText(KaspaUnit.amount(price), color = colors.textPrimary)
+                    }
                     KachatButton(stringResource(R.string.kn_reclaim), small = true) { onReclaim(n) }
                 }
             }

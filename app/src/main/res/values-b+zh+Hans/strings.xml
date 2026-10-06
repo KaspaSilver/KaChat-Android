@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">已取消。</string>
     <string name="kn_auth_reason">确认这笔 .kachat 交易</string>
     <string name="kn_for_sale">出售中</string>
-    <string name="kn_for_sale_detail">所有者挂牌出售的名称。购买时，付款给所有者和名称转给你在同一笔交易中完成。</string>
     <string name="kn_no_listings">目前没有挂牌出售的名称。</string>
     <string name="kn_reclaimable">可回收</string>
     <string name="kn_reclaimable_detail">所有者任其失效的名称。任何人都可以回收：保证金退还给最后的所有者，释放出的押金作为奖励归你，名称重新可注册。</string>

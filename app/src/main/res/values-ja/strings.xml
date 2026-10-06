@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">取り消しました。</string>
     <string name="kn_auth_reason">この .kachat 取引を確認</string>
     <string name="kn_for_sale">販売中</string>
-    <string name="kn_for_sale_detail">所有者が出品した名前です。購入すると、1 回の取引で所有者に支払われ、名前があなたに移ります。</string>
     <string name="kn_no_listings">現在出品中の名前はありません。</string>
     <string name="kn_reclaimable">回収可能</string>
     <string name="kn_reclaimable_detail">所有者が失効させた名前です。誰でも回収できます。保証金は最後の所有者に戻り、解放された預託金は報酬としてあなたのものになり、名前は取得可能になります。</string>

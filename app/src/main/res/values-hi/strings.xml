@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">रद्द हो गया।</string>
     <string name="kn_auth_reason">इस .kachat लेन-देन की पुष्टि करें</string>
     <string name="kn_for_sale">बिक्री के लिए</string>
-    <string name="kn_for_sale_detail">वे नाम जिन्हें मालिकों ने बिक्री पर रखा है। खरीदने पर एक ही लेन-देन में मालिक को भुगतान होता है और नाम आपको मिलता है।</string>
     <string name="kn_no_listings">अभी कोई नाम बिक्री पर नहीं है।</string>
     <string name="kn_reclaimable">वापस लेने योग्य</string>
     <string name="kn_reclaimable_detail">वे नाम जिन्हें मालिकों ने व्यपगत होने दिया। कोई भी इन्हें वापस ले सकता है: बॉन्ड पिछले मालिक को लौटता है, मुक्त हुई जमा राशि इनाम के रूप में आपकी, और नाम लेने के लिए खाली हो जाता है।</string>

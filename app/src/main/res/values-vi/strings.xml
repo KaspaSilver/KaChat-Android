@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">Đã hủy.</string>
     <string name="kn_auth_reason">Xác nhận giao dịch .kachat này</string>
     <string name="kn_for_sale">Đang bán</string>
-    <string name="kn_for_sale_detail">Những tên do chủ sở hữu rao bán. Mua sẽ trả tiền cho chủ và chuyển tên cho bạn trong một giao dịch.</string>
     <string name="kn_no_listings">Hiện chưa có tên nào được rao bán.</string>
     <string name="kn_reclaimable">Có thể thu hồi</string>
     <string name="kn_reclaimable_detail">Những tên mà chủ để mất hiệu lực. Ai cũng có thể thu hồi: tiền bảo đảm trả về chủ cuối, bạn giữ khoản ký quỹ được giải phóng làm thưởng, và tên trở nên trống.</string>

@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">تم الإلغاء.</string>
     <string name="kn_auth_reason">تأكيد معاملة .kachat هذه</string>
     <string name="kn_for_sale">للبيع</string>
-    <string name="kn_for_sale_detail">أسماء عرضها أصحابها للبيع. الشراء يدفع للمالك وينقل الاسم إليك في معاملة واحدة.</string>
     <string name="kn_no_listings">لا توجد أسماء معروضة للبيع الآن.</string>
     <string name="kn_reclaimable">قابلة للاسترداد</string>
     <string name="kn_reclaimable_detail">أسماء تركها أصحابها تسقط. يمكن لأي شخص استردادها: يعود الضمان إلى آخر مالك، وتحتفظ أنت بالوديعة المحرَّرة كمكافأة، ويصبح الاسم متاحًا للتسجيل.</string>

@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">Отменено.</string>
     <string name="kn_auth_reason">Подтвердите эту транзакцию .kachat</string>
     <string name="kn_for_sale">Продаются</string>
-    <string name="kn_for_sale_detail">Имена, выставленные владельцами на продажу. Покупка оплачивает владельца и передаёт имя вам одной транзакцией.</string>
     <string name="kn_no_listings">Сейчас нет имён на продаже.</string>
     <string name="kn_reclaimable">Можно вернуть</string>
     <string name="kn_reclaimable_detail">Имена, которые владельцы не продлили. Любой может их вернуть: залог уходит последнему владельцу, освободившийся депозит вы забираете как награду, и имя становится свободным.</string>

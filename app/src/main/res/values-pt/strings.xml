@@ -678,7 +678,6 @@
     <string name="kn_stage_cancelled">Cancelado.</string>
     <string name="kn_auth_reason">Confirme esta transação .kachat</string>
     <string name="kn_for_sale">À venda</string>
-    <string name="kn_for_sale_detail">Nomes que os donos colocaram à venda. Comprar paga o dono e passa o nome para você em uma única transação.</string>
     <string name="kn_no_listings">Nenhum nome à venda no momento.</string>
     <string name="kn_reclaimable">Recuperáveis</string>
     <string name="kn_reclaimable_detail">Nomes que os donos deixaram caducar. Qualquer pessoa pode recuperá-los: a caução volta ao último dono, você fica com o depósito liberado como recompensa e o nome fica livre.</string>

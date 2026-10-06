@@ -715,7 +715,6 @@
     <string name="kn_stage_cancelled">لغو شد.</string>
     <string name="kn_auth_reason">تأیید این تراکنش .kachat</string>
     <string name="kn_for_sale">برای فروش</string>
-    <string name="kn_for_sale_detail">نام‌هایی که مالکانشان برای فروش گذاشته‌اند. خرید در یک تراکنش هم به مالک پرداخت می‌کند و هم نام را به شما می‌دهد.</string>
     <string name="kn_no_listings">در حال حاضر نامی برای فروش نیست.</string>
     <string name="kn_reclaimable">قابل بازپس‌گیری</string>
     <string name="kn_reclaimable_detail">نام‌هایی که مالکانشان گذاشتند ساقط شوند. هر کسی می‌تواند بازپسشان بگیرد: وثیقه به آخرین مالک برمی‌گردد، سپردهٔ آزادشده به‌عنوان پاداش به شما می‌رسد و نام آزاد می‌شود.</string>

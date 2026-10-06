@@ -555,7 +555,6 @@
     <string name="kn_stage_cancelled">Dibatalkan.</string>
     <string name="kn_auth_reason">Konfirmasi transaksi .kachat ini</string>
     <string name="kn_for_sale">Dijual</string>
-    <string name="kn_for_sale_detail">Nama yang dijual pemiliknya. Membeli membayar pemilik dan memindahkan nama ke Anda dalam satu transaksi.</string>
     <string name="kn_no_listings">Belum ada nama yang dijual saat ini.</string>
     <string name="kn_reclaimable">Dapat diklaim ulang</string>
     <string name="kn_reclaimable_detail">Nama yang dibiarkan hangus oleh pemiliknya. Siapa pun boleh mengklaim ulang: jaminan kembali ke pemilik terakhir, Anda menyimpan deposit yang terlepas sebagai hadiah, dan nama bebas diklaim.</string>

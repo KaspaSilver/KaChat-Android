@@ -851,7 +851,6 @@
     <string name="kn_stage_cancelled">Cancelled.</string>
     <string name="kn_auth_reason">Confirm this .kachat transaction</string>
     <string name="kn_for_sale">For sale</string>
-    <string name="kn_for_sale_detail">Names their owners have listed. Buying pays the owner and moves the name to you in one transaction.</string>
     <string name="kn_no_listings">No names are listed right now.</string>
     <string name="kn_reclaimable">Reclaimable</string>
     <string name="kn_reclaimable_detail">Names whose owners let them lapse. Anyone may reclaim one: the bond goes back to its last owner, you keep the freed deposit as a bounty, and the name is free to claim.</string>
