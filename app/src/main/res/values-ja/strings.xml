@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">.kachat 名の開始後、回収できる名前がここに表示されます。</string>
     <string name="kn_activity_all_detail">レジストリでのすべての登録、更新、出品、販売、オファー、譲渡、回収。</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">回収して取り戻す</string>
+    <string name="kn_reclaim_to_own_hint">失効した名前を消してボンドを取り戻し、もう一度登録します。</string>
+    <string name="kn_register_again_q">%1$s を再登録しますか？</string>
+    <string name="kn_register_again">再登録</string>
+    <string name="kn_register_again_body">今は空いています。新しい名前と同じように保有期間を選んでください。先に非公開のコミットが送られ、約1分後に名前が登録されます。</string>
+    <string name="kn_reclaim_to_own_footer">名前が失効したため、もう更新できません。回収するとレジストリから消え、ボンドが戻り、解放されたレジストリの預かり金もネットワーク手数料を除いて受け取れます。その後、再登録できます。</string>
+    <string name="kn_bond_back_to_you">あなたに戻るボンド</string>
+    <string name="kn_err_waiting_old_name">古い %1$s がレジストリから消えるのを待っています。</string>
 </resources>

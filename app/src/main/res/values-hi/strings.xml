@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">.kachat नाम लॉन्च होने पर वापस लिए जा सकने वाले नाम यहाँ दिखेंगे।</string>
     <string name="kn_activity_all_detail">रजिस्ट्री का हर पंजीकरण, नवीनीकरण, लिस्टिंग, बिक्री, ऑफ़र, ट्रांसफ़र और वापसी।</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">अपनाने के लिए वापस लें</string>
+    <string name="kn_reclaim_to_own_hint">समाप्त नाम हटाएँ और अपना बॉन्ड वापस पाएँ, फिर इसे दोबारा पंजीकृत करें।</string>
+    <string name="kn_register_again_q">%1$s फिर से पंजीकृत करें?</string>
+    <string name="kn_register_again">फिर से पंजीकृत करें</string>
+    <string name="kn_register_again_body">यह अब खाली है। किसी भी नए नाम की तरह चुनें कि कितने समय रखना है: पहले छिपा कमिट जाता है और लगभग एक मिनट बाद नाम पंजीकृत होता है।</string>
+    <string name="kn_reclaim_to_own_footer">आपका नाम समाप्त हो गया, इसलिए अब इसे नवीनीकृत नहीं किया जा सकता। वापस लेने से यह रजिस्ट्री से हटता है: आपका बॉन्ड आपको वापस मिलता है, और नेटवर्क शुल्क घटाकर मुक्त हुई रजिस्ट्री जमा भी आपकी रहती है। फिर आप इसे दोबारा पंजीकृत कर सकते हैं।</string>
+    <string name="kn_bond_back_to_you">बॉन्ड आपको वापस</string>
+    <string name="kn_err_waiting_old_name">रजिस्ट्री से पुराने %1$s के हटने का इंतज़ार है।</string>
 </resources>

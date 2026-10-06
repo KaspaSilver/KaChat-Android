@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">.kachat 名称上线后，可回收的名称会显示在这里。</string>
     <string name="kn_activity_all_detail">注册表中的每一次注册、续期、挂牌、出售、报价、转让和回收。</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">回收并重新拥有</string>
+    <string name="kn_reclaim_to_own_hint">清除已失效的名称并取回保证金，然后重新注册。</string>
+    <string name="kn_register_again_q">要重新注册 %1$s 吗？</string>
+    <string name="kn_register_again">重新注册</string>
+    <string name="kn_register_again_body">它现在是空闲的。像注册任何新名称一样选择持有时长：先发送隐藏的承诺，约一分钟后完成注册。</string>
+    <string name="kn_reclaim_to_own_footer">你的名称已失效，无法再续期。回收会将其从注册表中清除：保证金退还给你，你还能拿到释放出的注册押金（扣除网络费）。之后你可以重新注册。</string>
+    <string name="kn_bond_back_to_you">退还给你的保证金</string>
+    <string name="kn_err_waiting_old_name">正在等待旧的 %1$s 从注册表中清除。</string>
 </resources>

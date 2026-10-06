@@ -1076,4 +1076,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">نام‌های قابل بازپس‌گیری پس از راه‌اندازی نام‌های .kachat اینجا نمایش داده می‌شوند.</string>
     <string name="kn_activity_all_detail">هر ثبت، تمدید، آگهی، فروش، پیشنهاد، انتقال و بازپس‌گیری در رجیستری.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">بازپس‌گیری برای مالکیت</string>
+    <string name="kn_reclaim_to_own_hint">نام از دست رفته را پاک کنید و ودیعه را پس بگیرید، سپس دوباره ثبتش کنید.</string>
+    <string name="kn_register_again_q">%1$s دوباره ثبت شود؟</string>
+    <string name="kn_register_again">ثبت دوباره</string>
+    <string name="kn_register_again_body">اکنون آزاد است. مانند هر نام تازه، مدت نگهداری را انتخاب کنید: ابتدا تعهد پنهان ارسال می‌شود و حدود یک دقیقه بعد نام ثبت می‌شود.</string>
+    <string name="kn_reclaim_to_own_footer">نام شما از دست رفته و دیگر قابل تمدید نیست. بازپس‌گیری آن را از رجیستری پاک می‌کند: ودیعه‌تان برمی‌گردد و سپرده آزادشده رجیستری را هم منهای کارمزد شبکه نگه می‌دارید. سپس می‌توانید دوباره ثبتش کنید.</string>
+    <string name="kn_bond_back_to_you">ودیعه به شما برمی‌گردد</string>
+    <string name="kn_err_waiting_old_name">در انتظار پاک شدن %1$s قدیمی از رجیستری.</string>
 </resources>

@@ -1212,4 +1212,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">Reclaimable names appear here once .kachat names launch.</string>
     <string name="kn_activity_all_detail">Every claim, renewal, listing, sale, offer, transfer and reclaim across the registry.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Reclaim to Own</string>
+    <string name="kn_reclaim_to_own_hint">Clear the lapsed name and get your bond back, then register it again.</string>
+    <string name="kn_register_again_q">Register %1$s again?</string>
+    <string name="kn_register_again">Register Again</string>
+    <string name="kn_register_again_body">It\'s free now. Pick how long to hold it, like any new name: the hidden commit goes first and the name is registered about a minute later.</string>
+    <string name="kn_reclaim_to_own_footer">Your name lapsed, so it can\'t be renewed any more. Reclaiming clears it from the registry: your bond comes back to you, and you also keep the freed registry deposit, less the network fee. Then you can register it again.</string>
+    <string name="kn_bond_back_to_you">Bond back to you</string>
+    <string name="kn_err_waiting_old_name">Waiting for the old %1$s to be cleared from the registry.</string>
 </resources>

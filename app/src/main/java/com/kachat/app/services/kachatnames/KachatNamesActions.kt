@@ -215,6 +215,18 @@ class KachatNamesActions @Inject constructor(
 
     // Wallet
 
+    /** What the registration driver does with the registry's answer for its name (iOS ba1a734). */
+    sealed class RegisterStep {
+        /** The old record is still there, lapsed (its reclaim not seen yet): wait for it to clear. */
+        object WaitForOldName : RegisterStep()
+        /** Registered to this wallet: done. */
+        object Mine : RegisterStep()
+        /** Someone else registered it first. */
+        object Taken : RegisterStep()
+        /** Free: register into [gap] (null while the source has no gap for it yet). */
+        class Claim(val gap: GapInfo?) : RegisterStep()
+    }
+
     class Signer(val address: String, val privateKey: ByteArray, val me: ByteArray)
 
     /** The current wallet's testnet address, key and x-only key (they must agree). */
@@ -805,7 +817,9 @@ class KachatNamesActions @Inject constructor(
         val name = Codec.normalize(raw)
         Codec.validate(name)
         registry.refresh()
-        if (registry.lookup(name) is Lookup.Registered) {
+        // Lapsed: being reclaimed (Reclaim to Own, or by anyone). The commit can go out now; the
+        // registration waits until the old name is cleared from the registry (iOS ba1a734).
+        if (!isRegisterable(registry.lookup(name), registry.graceMs)) {
             throw ActionError.NotRegisterable("$name.kachat is already registered.")
         }
         val c = context(s)
@@ -1000,6 +1014,8 @@ class KachatNamesActions @Inject constructor(
         }
     }
 
+    /** This wallet holds [name] as a live registration (a lapsed old record of it doesn't count:
+     *  that is what a Reclaim to Own registers over, iOS ba1a734). */
     private suspend fun ownsName(name: String): Boolean {
         val me = myKey ?: return false
         val l = try {
@@ -1009,7 +1025,7 @@ class KachatNamesActions @Inject constructor(
         } catch (_: Exception) {
             return false
         }
-        return l is Lookup.Registered && l.info.owner.contentEquals(me)
+        return holdsLive(l, me, registry.graceMs)
     }
 
     private suspend fun register(p: PendingRegistration, commit: Utxo) {
@@ -1019,16 +1035,18 @@ class KachatNamesActions @Inject constructor(
             val salt = loadSalt(p.id, s.address) ?: throw ActionError.NoSalt()
             registry.refresh()
             val m = registry.prepare()
-            val gap = when (val l = registry.lookup(p.name)) {
-                is Lookup.Registered -> {
-                    if (l.info.owner.contentEquals(s.me)) {
-                        finishRegistered(p)
-                    } else {
-                        set(p) { it.copy(stage = PendingRegistration.Stage.TAKEN, lastError = null) }
-                    }
+            val gap = when (val step = registerStep(registry.lookup(p.name), s.me, registry.graceMs)) {
+                // the old, lapsed name is still there (its reclaim not seen yet): next tick (iOS ba1a734)
+                RegisterStep.WaitForOldName -> {
+                    set(p) { it.copy(lastError = waitingForOldName(p.name)) }
                     return
                 }
-                is Lookup.Free -> l.gap ?: throw KachatNames.Failure("no gap for ${p.name} yet")
+                RegisterStep.Mine -> { finishRegistered(p); return }
+                RegisterStep.Taken -> {
+                    set(p) { it.copy(stage = PendingRegistration.Stage.TAKEN, lastError = null) }
+                    return
+                }
+                is RegisterStep.Claim -> step.gap ?: throw KachatNames.Failure("no gap for ${p.name} yet")
             }
             val c = context(s)
             // a random live shard each try: one someone else just spent fails this try, and the
@@ -1153,6 +1171,28 @@ class KachatNamesActions @Inject constructor(
         private const val TAG = "KachatNames"
         private const val SALT_PREFS_NAME = "kachat_names_secure_prefs"
         private val PENDING_LIST_TYPE = object : TypeToken<List<PendingRegistration>>() {}.type
+
+        fun registerStep(lookup: Lookup, me: ByteArray, graceMs: Long, nowMs: Long = KachatNames.nowMs()): RegisterStep = when (lookup) {
+            is Lookup.Registered -> when {
+                lookup.info.status(graceMs, nowMs) == Status.LAPSED -> RegisterStep.WaitForOldName
+                lookup.info.owner.contentEquals(me) -> RegisterStep.Mine
+                else -> RegisterStep.Taken
+            }
+            is Lookup.Free -> RegisterStep.Claim(lookup.gap)
+        }
+
+        /** A registration may start: the name is free, or only a lapsed record of it is left
+         *  (being reclaimed - Reclaim to Own, or by anyone; iOS ba1a734). */
+        fun isRegisterable(lookup: Lookup, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Boolean =
+            lookup !is Lookup.Registered || lookup.info.status(graceMs, nowMs) == Status.LAPSED
+
+        /** [me] holds the name as a live registration (not a lapsed old record of it). */
+        fun holdsLive(lookup: Lookup, me: ByteArray, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Boolean =
+            lookup is Lookup.Registered && lookup.info.owner.contentEquals(me) && lookup.info.status(graceMs, nowMs) != Status.LAPSED
+
+        /** The driver's note while the old record waits to be cleared; English like the driver's
+         *  other messages, localized by the screens (`kachatPendingError`). */
+        fun waitingForOldName(name: String): String = "Waiting for the old $name.kachat to be cleared from the registry."
 
         /** Longest an offer can run before its buyer may take it back (the app's cap, registry v3, iOS 49c0baa). */
         const val MAX_OFFER_DAYS: Long = 7

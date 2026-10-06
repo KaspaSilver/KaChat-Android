@@ -910,4 +910,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">Nama yang bisa diklaim ulang muncul di sini setelah nama .kachat diluncurkan.</string>
     <string name="kn_activity_all_detail">Setiap klaim, perpanjangan, listing, penjualan, penawaran, transfer, dan klaim ulang di registri.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Klaim Ulang untuk Dimiliki</string>
+    <string name="kn_reclaim_to_own_hint">Bersihkan nama yang gugur dan dapatkan jaminan Anda kembali, lalu daftarkan lagi.</string>
+    <string name="kn_register_again_q">Daftarkan %1$s lagi?</string>
+    <string name="kn_register_again">Daftarkan Lagi</string>
+    <string name="kn_register_again_body">Nama ini sekarang bebas. Pilih berapa lama memegangnya, seperti nama baru lainnya: komitmen tersembunyi dikirim dulu dan nama didaftarkan sekitar satu menit kemudian.</string>
+    <string name="kn_reclaim_to_own_footer">Nama Anda sudah gugur, jadi tidak bisa diperpanjang lagi. Klaim ulang menghapusnya dari registri: jaminan kembali kepada Anda, dan Anda juga menyimpan deposit registri yang dibebaskan, dikurangi biaya jaringan. Setelah itu Anda bisa mendaftarkannya lagi.</string>
+    <string name="kn_bond_back_to_you">Jaminan kembali ke Anda</string>
+    <string name="kn_err_waiting_old_name">Menunggu %1$s lama dihapus dari registri.</string>
 </resources>

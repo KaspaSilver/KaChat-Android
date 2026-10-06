@@ -398,8 +398,9 @@ class KachatNamesRegistry @Inject constructor(
     suspend fun listings(): List<NameInfo> {
         prepare()
         return when (val src = _source.value) {
+            // an expired name's old listing is not for sale, whatever the indexer kept (iOS ba1a734)
             is Source.Indexer ->
-                IndexerApi.NameJson.parseListings(get(src.base, "/market/listings?sort=recent")).mapNotNull { it.info(::keyOf) }
+                forSale(IndexerApi.NameJson.parseListings(get(src.base, "/market/listings?sort=recent")).mapNotNull { it.info(::keyOf) }, graceMs)
             else -> {
                 val grace = graceMs
                 (_chainState.value?.names ?: emptyList()).map { RegistryState.info(it) }
@@ -733,6 +734,11 @@ class KachatNamesRegistry @Inject constructor(
          *  profiles; see KaChatApplication), for
          *  screens outside the .kachat hub that show an address's identity (User Info). */
         val shared: KachatNamesRegistry? get() = instance
+
+        /** Listings that still stand: a listing only means something while the name is active
+         *  (an expired name can't be bought, only renewed or reclaimed; iOS ba1a734). */
+        fun forSale(listings: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
+            listings.filter { it.isListed && it.status(graceMs, nowMs) == Status.ACTIVE }
 
         // The display rules (iOS e52357d): testnet identity is .kachat everywhere
 

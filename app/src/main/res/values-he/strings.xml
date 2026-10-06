@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">שמות שאפשר לדרוש בחזרה יופיעו כאן כשהשמות של .kachat יושקו.</string>
     <string name="kn_activity_all_detail">כל רישום, חידוש, הצעה למכירה, מכירה, הצעה, העברה ודרישה חוזרת במרשם.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">דרישה חוזרת לבעלות</string>
+    <string name="kn_reclaim_to_own_hint">פנו את השם שפקע וקבלו את הפיקדון בחזרה, ואז רשמו אותו מחדש.</string>
+    <string name="kn_register_again_q">לרשום את %1$s שוב?</string>
+    <string name="kn_register_again">לרשום שוב</string>
+    <string name="kn_register_again_body">הוא פנוי עכשיו. בחרו לכמה זמן להחזיק בו, כמו כל שם חדש: קודם נשלחת ההתחייבות המוסתרת, והשם נרשם כעבור כדקה.</string>
+    <string name="kn_reclaim_to_own_footer">השם שלך פקע ולכן אי אפשר לחדש אותו יותר. דרישה חוזרת מוחקת אותו מהמרשם: הפיקדון שלך חוזר אליך, ואת גם שומר/ת את פיקדון המרשם שהשתחרר, פחות עמלת הרשת. אחר כך אפשר לרשום אותו מחדש.</string>
+    <string name="kn_bond_back_to_you">הפיקדון חוזר אליך</string>
+    <string name="kn_err_waiting_old_name">ממתינים שה-%1$s הישן יוסר מהמרשם.</string>
 </resources>

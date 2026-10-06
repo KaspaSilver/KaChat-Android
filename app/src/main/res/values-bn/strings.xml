@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">.kachat নাম চালু হলে পুনরুদ্ধারযোগ্য নামগুলো এখানে দেখা যাবে।</string>
     <string name="kn_activity_all_detail">রেজিস্ট্রির প্রতিটি দাবি, নবায়ন, তালিকাভুক্তি, বিক্রি, প্রস্তাব, স্থানান্তর আর পুনরুদ্ধার।</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">মালিকানার জন্য পুনরুদ্ধার</string>
+    <string name="kn_reclaim_to_own_hint">বাতিল হওয়া নামটি সরিয়ে বন্ড ফেরত নিন, তারপর আবার নিবন্ধন করুন।</string>
+    <string name="kn_register_again_q">%1$s আবার নিবন্ধন করবেন?</string>
+    <string name="kn_register_again">আবার নিবন্ধন করুন</string>
+    <string name="kn_register_again_body">এটি এখন খালি। যেকোনো নতুন নামের মতো কতদিন রাখবেন বেছে নিন: আগে গোপন কমিট যায়, প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়।</string>
+    <string name="kn_reclaim_to_own_footer">আপনার নামটি বাতিল হয়েছে, তাই আর নবায়ন করা যাবে না। পুনরুদ্ধার এটিকে রেজিস্ট্রি থেকে সরায়: আপনার বন্ড আপনার কাছে ফিরে আসে, আর নেটওয়ার্ক ফি বাদে মুক্ত হওয়া রেজিস্ট্রি জমাও আপনি রাখেন। তারপর আবার নিবন্ধন করতে পারবেন।</string>
+    <string name="kn_bond_back_to_you">বন্ড আপনার কাছে ফেরত</string>
+    <string name="kn_err_waiting_old_name">রেজিস্ট্রি থেকে পুরোনো %1$s সরানোর অপেক্ষা চলছে।</string>
 </resources>

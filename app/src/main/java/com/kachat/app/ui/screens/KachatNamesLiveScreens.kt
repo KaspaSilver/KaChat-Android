@@ -312,11 +312,17 @@ fun Context.kachatErrorText(e: Throwable): String {
 }
 
 /** A registration's `lastError`: the driver's own two messages are localized (iOS 1ed6e57). */
-fun Context.kachatPendingError(m: String): String = when (m) {
-    "The commit never reached the chain." -> getString(R.string.kn_err_commit_never)
-    "The commit is no longer on chain." -> getString(R.string.kn_err_commit_gone)
-    else -> m
+fun Context.kachatPendingError(m: String): String {
+    WAITING_FOR_OLD_NAME.matchEntire(m)?.let { return getString(R.string.kn_err_waiting_old_name, it.groupValues[1]) }
+    return when (m) {
+        "The commit never reached the chain." -> getString(R.string.kn_err_commit_never)
+        "The commit is no longer on chain." -> getString(R.string.kn_err_commit_gone)
+        else -> m
+    }
 }
+
+/** [KachatNamesActions.waitingForOldName] (iOS ba1a734). */
+private val WAITING_FOR_OLD_NAME = Regex("Waiting for the old (.+) to be cleared from the registry\\.")
 
 /** iOS `Haptics.success()`. */
 private fun android.view.View.successHaptic() {
@@ -1834,7 +1840,36 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
 
 // MARK: - Name detail
 
-private enum class KachatDetailSheet { BUY, OFFER, EXTEND, RENEW, LIST, DELIST, TRANSFER, RELEASE, RECLAIM }
+private enum class KachatDetailSheet { BUY, OFFER, EXTEND, RENEW, LIST, DELIST, TRANSFER, RELEASE, RECLAIM, RECLAIM_TO_OWN }
+
+/**
+ * The Manage Name sheet's actions for an owner (iOS f61b978 `manageItems`), in order. A lapsed
+ * name is past saving - listing, transferring or making it primary means nothing now - so its
+ * one way back is Reclaim to Own: clear it and register it again (iOS ba1a734).
+ */
+object KachatManageMenu {
+    enum class Action { RECLAIM_TO_OWN, EXTEND, RENEW, CHANGE_PRICE, DELIST, LIST, TRANSFER, PRIMARY, RELEASE }
+
+    fun actions(info: NameInfo, status: Status, params: Params?, mine: Boolean): List<Action> {
+        if (status == Status.LAPSED) return listOf(Action.RECLAIM_TO_OWN)
+        return buildList {
+            if (params != null) {
+                if (info.extendableYears(params) > 0) add(Action.EXTEND)
+                if (info.renewOpen(params)) add(Action.RENEW)
+            }
+            if (info.isListed) {
+                add(Action.CHANGE_PRICE)
+                add(Action.DELIST)
+            } else {
+                add(Action.LIST)
+            }
+            add(Action.TRANSFER)
+            // The primary name is the chatting address's identity; a name on a spending address can't be it.
+            if (mine) add(Action.PRIMARY)
+            add(Action.RELEASE)
+        }
+    }
+}
 
 /**
  * A registered name, live: who owns it, its status and expiry, its price, and what the person can
@@ -1871,6 +1906,14 @@ fun KachatLiveNameDetailScreen(
     var history by remember { mutableStateOf<List<Event>>(emptyList()) }
     var gone by remember { mutableStateOf(false) }
     var confirmPrimary by remember { mutableStateOf(false) }
+    // Reclaim to Own (your own name, lapsed; iOS ba1a734): the gaps around it before the reclaim
+    // (the merged gap the reclaim creates spans them), the reclaim's txid once it went out, then
+    // "register it again?" and the claim sheet.
+    var reclaimSpan by remember(initial.name) { mutableStateOf<Pair<ByteArray, ByteArray>?>(null) }
+    var reclaimedTxId by remember(initial.name) { mutableStateOf<String?>(null) }
+    var askOwnAgain by remember { mutableStateOf(false) }
+    var claimTarget by remember { mutableStateOf<KachatClaimTarget?>(null) }
+    val scope = rememberCoroutineScope()
     // The Manage Name half sheet (iOS f61b978): what it picks opens once it has gone down.
     var showManage by remember { mutableStateOf(false) }
     val manifest by vm.service.manifest.collectAsState()
@@ -1888,7 +1931,32 @@ fun KachatLiveNameDetailScreen(
     // Held by any of this wallet's addresses - never offered Buy / Make an Offer.
     val ownedByWallet = heldBy != null || mine
     val status = info.status(vm.graceMs)
+    // Listed and still active: the only state in which the asking price means anything (iOS ba1a734).
+    val forSale = info.isListed && status == Status.ACTIVE
     val ownerAddress = KachatNamesRegistry.address(info.owner)
+
+    /** Reclaim to Own, step 1: the reclaim sheet. The gaps around the name (which the reclaim
+     *  merges) are noted on load; fetched here if that hasn't happened yet. */
+    fun startReclaimToOwn() {
+        reclaimedTxId = null
+        scope.launch {
+            if (reclaimSpan == null) {
+                runCatching { vm.registry.exitGaps(info) }.getOrNull()?.let { (below, above) -> reclaimSpan = below.lo to above.hi }
+            }
+            sheet = KachatDetailSheet.RECLAIM_TO_OWN
+        }
+    }
+
+    /** Reclaim to Own, step 2: the claim sheet for the freed name, on the gap the reclaim created
+     *  (output 0 of the reclaim). The registration itself looks the gap up again. */
+    fun registerAgain() {
+        val txId = reclaimedTxId
+        val span = reclaimSpan
+        reclaimedTxId = null
+        val txid = txId?.let { runCatching { KachatNames.unhex32(it) }.getOrNull() } ?: return
+        if (span == null) return
+        claimTarget = KachatClaimTarget(info.name, GapInfo(span.first, span.second, com.kachat.app.services.kachatnames.Outpoint(txid, 0)))
+    }
 
     LaunchedEffect(revision, initial.name) {
         try {
@@ -1903,6 +1971,12 @@ fun KachatLiveNameDetailScreen(
         val owner = KachatNamesRegistry.address(info.owner)
         val held = runCatching { vm.actions.ownAddress(info.owner) }.getOrNull()
         heldBy = held
+        // your own lapsed name: note the gaps around it now, for Reclaim to Own (iOS ba1a734)
+        val ownerHere0 = held == KachatNamesActions.OwnAddress.Chatting || held is KachatNamesActions.OwnAddress.Spending ||
+            (held == null && vm.isMine(info.owner))
+        if (ownerHere0 && info.status(vm.graceMs) == Status.LAPSED && reclaimSpan == null) {
+            runCatching { vm.registry.exitGaps(info) }.getOrNull()?.let { (below, above) -> reclaimSpan = below.lo to above.hi }
+        }
         if (held == null && !vm.isMine(info.owner) && owner != null) {
             runCatching { vm.registry.identity(owner) }.getOrNull()?.let { ownerLabel = it.label }
         }
@@ -1925,12 +1999,20 @@ fun KachatLiveNameDetailScreen(
     }
 
     // Sheets over the detail (full-screen swaps, Cancel top left).
+    claimTarget?.let { target ->
+        KachatClaimSheet(target, onClose = { claimTarget = null }, vm = vm)
+        return
+    }
     offerAction?.let { action ->
         KachatOfferActionSheet(action, onClose = { offerAction = null })
         return
     }
     sheet?.let { s ->
-        val close = { sheet = null }
+        val close = {
+            sheet = null
+            // a Reclaim to Own that went out: offer to register the name again
+            if (reclaimedTxId != null) askOwnAgain = true
+        }
         when (s) {
             KachatDetailSheet.BUY -> KachatLiveBuySheet(info, close)
             KachatDetailSheet.OFFER -> KachatLiveOfferSheet(info, close)
@@ -1954,6 +2036,19 @@ fun KachatLiveNameDetailScreen(
                 onClose = close, vm = vm, doneTitle = R.string.kn_done_released
             )
             KachatDetailSheet.RECLAIM -> KachatReclaimSheet(info, close)
+            KachatDetailSheet.RECLAIM_TO_OWN -> KachatTxSheet(
+                title = stringResource(R.string.kn_reclaim_to_own), confirmTitle = stringResource(R.string.kn_reclaim),
+                doneTitle = R.string.kn_done_reclaimed,
+                footer = stringResource(R.string.kn_reclaim_to_own_footer),
+                rows = listOf(
+                    KachatTxRow(stringResource(R.string.kl_name), info.display),
+                    KachatTxRow(stringResource(R.string.kn_bond_back_to_you), KaspaUnit.amount(manifest?.params?.bond ?: 0L)),
+                ),
+                operation = KachatNamesActions.Operation.Reclaim(info),
+                operationKey = "reclaim-own-${KachatNames.hex(info.outpoint.txid)}",
+                onDone = { reclaimedTxId = it },
+                onClose = close, vm = vm
+            )
         }
         return
     }
@@ -2014,8 +2109,10 @@ fun KachatLiveNameDetailScreen(
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(stringResource(if (info.isListed) R.string.kl_price else R.string.kn_not_for_sale), color = colors.textSecondary, fontSize = 12.sp)
-                            if (info.isListed) Text(KaspaUnit.amount(info.price), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            // A listing only stands while the name is active: an expired or lapsed
+                            // name's old asking price is never shown (iOS ba1a734).
+                            Text(stringResource(if (forSale) R.string.kl_price else R.string.kn_not_for_sale), color = colors.textSecondary, fontSize = 12.sp)
+                            if (forSale) Text(KaspaUnit.amount(info.price), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             KachatStatusPill(status)
@@ -2050,7 +2147,13 @@ fun KachatLiveNameDetailScreen(
                             // Expired (in grace or lapsed) and renewable: the one thing that
                             // matters now stays on the page instead of inside the menu (iOS f61b978).
                             val p = manifest?.params
-                            if (status != Status.ACTIVE && p != null && info.renewOpen(p)) {
+                            if (status == Status.LAPSED) {
+                                // Past grace: a renewal can't bring it back, so the way back is to
+                                // clear it (your bond comes back) and register it again (iOS ba1a734).
+                                KachatButton(stringResource(R.string.kn_reclaim_to_own), big, Icons.Default.Autorenew, prominent = true, large = true) {
+                                    startReclaimToOwn()
+                                }
+                            } else if (status != Status.ACTIVE && p != null && info.renewOpen(p)) {
                                 KachatButton(stringResource(R.string.kn_renew), big, Icons.Default.Refresh, prominent = true, large = true) {
                                     sheet = KachatDetailSheet.RENEW
                                 }
@@ -2196,8 +2299,26 @@ fun KachatLiveNameDetailScreen(
         KachatManageNameSheet(
             info, status, manifest?.params, mine,
             onDismiss = { showManage = false },
-            onOpen = { sheet = it },
+            onOpen = { if (it == KachatDetailSheet.RECLAIM_TO_OWN) startReclaimToOwn() else sheet = it },
             onPrimary = { confirmPrimary = true }
+        )
+    }
+
+    if (askOwnAgain) {
+        IosAlertDialog(
+            onDismissRequest = { askOwnAgain = false; reclaimedTxId = null; reclaimSpan = null },
+            title = { Text(stringResource(R.string.kn_register_again_q, info.display)) },
+            text = { Text(stringResource(R.string.kn_register_again_body)) },
+            confirmButton = {
+                TextButton(onClick = { askOwnAgain = false; registerAgain() }) {
+                    Text(stringResource(R.string.kn_register_again), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { askOwnAgain = false; reclaimedTxId = null; reclaimSpan = null }) {
+                    Text(stringResource(R.string.not_now), color = KaspaTeal)
+                }
+            }
         )
     }
 }
@@ -2243,36 +2364,41 @@ private fun KachatManageNameSheet(
     }
     val open: (KachatDetailSheet) -> () -> Unit = { s -> { close { onOpen(s) } } }
     val active = status == Status.ACTIVE
-    val items = buildList {
-        if (params != null) {
-            val extendable = info.extendableYears(params)
-            if (extendable > 0) {
-                val yearly = KachatLive.yearlyPeriods(params)
+    val danger = LocalAppColors.current.danger
+    val items = KachatManageMenu.actions(info, status, params, mine).map { action ->
+        when (action) {
+            KachatManageMenu.Action.RECLAIM_TO_OWN -> KachatManageItem(
+                stringResource(R.string.kn_reclaim_to_own), stringResource(R.string.kn_reclaim_to_own_hint), Icons.Default.Autorenew,
+                run = open(KachatDetailSheet.RECLAIM_TO_OWN)
+            )
+            KachatManageMenu.Action.EXTEND -> {
+                val p = params!!
+                val extendable = info.extendableYears(p)
+                val yearly = KachatLive.yearlyPeriods(p)
                 val title = when {
-                    !KachatLive.fillsPeriod(info, extendable, params) -> stringResource(R.string.kn_extend)
-                    yearly -> stringResource(R.string.kn_extend_to_years, params.maxYears.toInt())
-                    else -> stringResource(R.string.kn_extend_to_period, yearsText(params.maxYears.toInt(), params))
+                    !KachatLive.fillsPeriod(info, extendable, p) -> stringResource(R.string.kn_extend)
+                    yearly -> stringResource(R.string.kn_extend_to_years, p.maxYears.toInt())
+                    else -> stringResource(R.string.kn_extend_to_period, yearsText(p.maxYears.toInt(), p))
                 }
                 val subtitle = if (yearly) stringResource(R.string.kn_manage_extend_hint)
-                else stringResource(R.string.kn_manage_extend_hint_time, yearsText(params.maxYears.toInt(), params))
-                add(KachatManageItem(title, subtitle, Icons.Default.MoreTime, run = open(KachatDetailSheet.EXTEND)))
+                else stringResource(R.string.kn_manage_extend_hint_time, yearsText(p.maxYears.toInt(), p))
+                KachatManageItem(title, subtitle, Icons.Default.MoreTime, run = open(KachatDetailSheet.EXTEND))
             }
-            if (info.renewOpen(params)) {
-                add(KachatManageItem(stringResource(R.string.kn_renew), stringResource(R.string.kn_manage_renew_hint), Icons.Default.Refresh, run = open(KachatDetailSheet.RENEW)))
-            }
+            KachatManageMenu.Action.RENEW ->
+                KachatManageItem(stringResource(R.string.kn_renew), stringResource(R.string.kn_manage_renew_hint), Icons.Default.Refresh, run = open(KachatDetailSheet.RENEW))
+            KachatManageMenu.Action.CHANGE_PRICE ->
+                KachatManageItem(stringResource(R.string.kn_change_price), stringResource(R.string.kn_manage_change_price_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST))
+            KachatManageMenu.Action.DELIST ->
+                KachatManageItem(stringResource(R.string.kn_delist), stringResource(R.string.kn_manage_delist_hint), Icons.AutoMirrored.Filled.LabelOff, run = open(KachatDetailSheet.DELIST))
+            KachatManageMenu.Action.LIST ->
+                KachatManageItem(stringResource(R.string.kn_list_for_sale), stringResource(R.string.kn_manage_list_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST))
+            KachatManageMenu.Action.TRANSFER ->
+                KachatManageItem(stringResource(R.string.portfolio_type_transfer), stringResource(R.string.kn_manage_transfer_hint), Icons.AutoMirrored.Filled.CompareArrows, run = open(KachatDetailSheet.TRANSFER))
+            KachatManageMenu.Action.PRIMARY ->
+                KachatManageItem(stringResource(R.string.set_as_primary), stringResource(R.string.kn_manage_primary_hint), Icons.Default.HowToReg, enabled = active) { close(onPrimary) }
+            KachatManageMenu.Action.RELEASE ->
+                KachatManageItem(stringResource(R.string.kn_release_name), stringResource(R.string.kn_manage_release_hint), Icons.Default.Delete, tint = danger, run = open(KachatDetailSheet.RELEASE))
         }
-        if (info.isListed) {
-            add(KachatManageItem(stringResource(R.string.kn_change_price), stringResource(R.string.kn_manage_change_price_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST)))
-            add(KachatManageItem(stringResource(R.string.kn_delist), stringResource(R.string.kn_manage_delist_hint), Icons.AutoMirrored.Filled.LabelOff, run = open(KachatDetailSheet.DELIST)))
-        } else {
-            add(KachatManageItem(stringResource(R.string.kn_list_for_sale), stringResource(R.string.kn_manage_list_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST)))
-        }
-        add(KachatManageItem(stringResource(R.string.portfolio_type_transfer), stringResource(R.string.kn_manage_transfer_hint), Icons.AutoMirrored.Filled.CompareArrows, run = open(KachatDetailSheet.TRANSFER)))
-        // The primary name is the chatting address's identity; a name on a spending address can't be it.
-        if (mine) {
-            add(KachatManageItem(stringResource(R.string.set_as_primary), stringResource(R.string.kn_manage_primary_hint), Icons.Default.HowToReg, enabled = active) { close(onPrimary) })
-        }
-        add(KachatManageItem(stringResource(R.string.kn_release_name), stringResource(R.string.kn_manage_release_hint), Icons.Default.Delete, tint = LocalAppColors.current.danger, run = open(KachatDetailSheet.RELEASE)))
     }
     // When the renewal window opens, while it hasn't yet - under the sheet's title.
     val note = params?.takeIf { !info.renewOpen(it) }?.let { stringResource(R.string.kn_renewal_opens_on, KachatLive.date(info.renewOpens(it))) }

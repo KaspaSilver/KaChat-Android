@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">Имена, которые можно вернуть, появятся здесь после запуска имён .kachat.</string>
     <string name="kn_activity_all_detail">Все регистрации, продления, выставления, продажи, предложения, передачи и возвраты в реестре.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Вернуть и забрать себе</string>
+    <string name="kn_reclaim_to_own_hint">Освободите истёкшее имя и верните залог, затем зарегистрируйте его снова.</string>
+    <string name="kn_register_again_q">Зарегистрировать %1$s снова?</string>
+    <string name="kn_register_again">Зарегистрировать снова</string>
+    <string name="kn_register_again_body">Теперь оно свободно. Выберите срок, как для любого нового имени: сначала уходит скрытый коммит, а примерно через минуту имя регистрируется.</string>
+    <string name="kn_reclaim_to_own_footer">Имя освободилось, и его больше нельзя продлить. Возврат удаляет его из реестра: ваш залог возвращается к вам, и вы также получаете освободившийся депозит реестра за вычетом комиссии сети. Затем его можно зарегистрировать снова.</string>
+    <string name="kn_bond_back_to_you">Залог вернётся к вам</string>
+    <string name="kn_err_waiting_old_name">Ждём, пока старое %1$s уберут из реестра.</string>
 </resources>

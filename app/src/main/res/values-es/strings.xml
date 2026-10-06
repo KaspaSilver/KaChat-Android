@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">Los nombres reclamables aparecen aquí cuando se lancen los nombres .kachat.</string>
     <string name="kn_activity_all_detail">Cada registro, renovación, anuncio, venta, oferta, transferencia y reclamo del registro.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Reclamar para recuperarlo</string>
+    <string name="kn_reclaim_to_own_hint">Libera el nombre caducado y recupera tu fianza; luego regístralo de nuevo.</string>
+    <string name="kn_register_again_q">¿Registrar %1$s de nuevo?</string>
+    <string name="kn_register_again">Registrar de nuevo</string>
+    <string name="kn_register_again_body">Ya está libre. Elige cuánto tiempo conservarlo, como con cualquier nombre nuevo: primero va el compromiso oculto y el nombre se registra aproximadamente un minuto después.</string>
+    <string name="kn_reclaim_to_own_footer">Tu nombre caducó, así que ya no se puede renovar. Reclamarlo lo quita del registro: tu fianza vuelve a ti y además te quedas con el depósito liberado del registro, menos la comisión de red. Después puedes registrarlo de nuevo.</string>
+    <string name="kn_bond_back_to_you">Fianza devuelta a ti</string>
+    <string name="kn_err_waiting_old_name">Esperando a que %1$s antiguo se quite del registro.</string>
 </resources>

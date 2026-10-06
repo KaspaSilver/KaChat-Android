@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">Các tên có thể thu hồi sẽ hiện ở đây khi tên .kachat ra mắt.</string>
     <string name="kn_activity_all_detail">Mọi lần đăng ký, gia hạn, rao bán, bán, đề nghị, chuyển nhượng và thu hồi trong sổ đăng ký.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Thu hồi để sở hữu lại</string>
+    <string name="kn_reclaim_to_own_hint">Dọn tên đã mất hiệu lực và nhận lại tiền ký quỹ, rồi đăng ký lại.</string>
+    <string name="kn_register_again_q">Đăng ký lại %1$s?</string>
+    <string name="kn_register_again">Đăng ký lại</string>
+    <string name="kn_register_again_body">Giờ tên đã trống. Chọn thời gian giữ như mọi tên mới: cam kết ẩn được gửi trước và tên được đăng ký khoảng một phút sau.</string>
+    <string name="kn_reclaim_to_own_footer">Tên của bạn đã mất hiệu lực nên không thể gia hạn nữa. Thu hồi sẽ xóa nó khỏi sổ đăng ký: tiền ký quỹ trở về với bạn, và bạn cũng giữ khoản đặt cọc sổ đăng ký được giải phóng, trừ phí mạng. Sau đó bạn có thể đăng ký lại.</string>
+    <string name="kn_bond_back_to_you">Tiền ký quỹ trở về bạn</string>
+    <string name="kn_err_waiting_old_name">Đang chờ %1$s cũ được xóa khỏi sổ đăng ký.</string>
 </resources>

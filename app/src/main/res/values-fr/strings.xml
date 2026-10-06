@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">Les noms récupérables apparaîtront ici au lancement des noms .kachat.</string>
     <string name="kn_activity_all_detail">Chaque enregistrement, renouvellement, annonce, vente, offre, transfert et récupération du registre.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Récupérer pour le garder</string>
+    <string name="kn_reclaim_to_own_hint">Libérez le nom périmé et récupérez votre caution, puis enregistrez-le à nouveau.</string>
+    <string name="kn_register_again_q">Enregistrer %1$s à nouveau ?</string>
+    <string name="kn_register_again">Enregistrer à nouveau</string>
+    <string name="kn_register_again_body">Il est libre. Choisissez combien de temps le garder, comme pour tout nouveau nom : l’engagement caché part d’abord et le nom est enregistré environ une minute plus tard.</string>
+    <string name="kn_reclaim_to_own_footer">Votre nom est périmé et ne peut plus être renouvelé. Le récupérer le retire du registre : votre caution vous revient et vous gardez aussi le dépôt du registre libéré, moins les frais de réseau. Ensuite vous pouvez l’enregistrer à nouveau.</string>
+    <string name="kn_bond_back_to_you">Caution qui vous revient</string>
+    <string name="kn_err_waiting_old_name">En attente du retrait de l’ancien %1$s du registre.</string>
 </resources>

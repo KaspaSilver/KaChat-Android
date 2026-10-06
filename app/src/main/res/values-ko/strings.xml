@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">.kachat 이름이 출시되면 회수 가능한 이름이 여기에 표시돼요.</string>
     <string name="kn_activity_all_detail">레지스트리의 모든 등록, 갱신, 판매 등록, 판매, 제안, 양도, 회수.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">회수해서 다시 소유</string>
+    <string name="kn_reclaim_to_own_hint">소멸된 이름을 정리하고 보증금을 돌려받은 뒤 다시 등록해요.</string>
+    <string name="kn_register_again_q">%1$s을(를) 다시 등록할까요?</string>
+    <string name="kn_register_again">다시 등록</string>
+    <string name="kn_register_again_body">이제 비어 있어요. 새 이름처럼 보유 기간을 고르세요. 숨겨진 커밋이 먼저 전송되고 약 1분 뒤 이름이 등록돼요.</string>
+    <string name="kn_reclaim_to_own_footer">이름이 소멸되어 더 이상 갱신할 수 없어요. 회수하면 레지스트리에서 정리되어 보증금이 돌아오고, 네트워크 수수료를 뺀 레지스트리 예치금도 받아요. 그다음 다시 등록할 수 있어요.</string>
+    <string name="kn_bond_back_to_you">돌려받는 보증금</string>
+    <string name="kn_err_waiting_old_name">예전 %1$s이(가) 레지스트리에서 정리되기를 기다리는 중이에요.</string>
 </resources>

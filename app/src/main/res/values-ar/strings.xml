@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">تظهر هنا الأسماء القابلة للاسترداد عند إطلاق أسماء .kachat.</string>
     <string name="kn_activity_all_detail">كل تسجيل وتجديد وإدراج وبيع وعرض ونقل واسترداد في السجل.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">استرداد للتملّك</string>
+    <string name="kn_reclaim_to_own_hint">امسح الاسم المنقضي واستعد تأمينك، ثم سجّله من جديد.</string>
+    <string name="kn_register_again_q">تسجيل %1$s مرة أخرى؟</string>
+    <string name="kn_register_again">سجّله مرة أخرى</string>
+    <string name="kn_register_again_body">أصبح متاحًا الآن. اختر مدة الاحتفاظ به مثل أي اسم جديد: يُرسل الالتزام المخفي أولًا ثم يُسجَّل الاسم بعد نحو دقيقة.</string>
+    <string name="kn_reclaim_to_own_footer">انقضى اسمك، لذا لم يعد بالإمكان تجديده. الاسترداد يزيله من السجل: يعود إليك تأمينك، وتحتفظ أيضًا بإيداع السجل المُحرَّر ناقص رسوم الشبكة. بعدها يمكنك تسجيله من جديد.</string>
+    <string name="kn_bond_back_to_you">التأمين يعود إليك</string>
+    <string name="kn_err_waiting_old_name">بانتظار إزالة %1$s القديم من السجل.</string>
 </resources>

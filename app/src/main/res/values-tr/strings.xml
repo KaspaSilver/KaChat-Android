@@ -1045,4 +1045,13 @@
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <string name="km_reclaimable_appear">.kachat adları başlayınca geri alınabilir adlar burada görünecek.</string>
     <string name="kn_activity_all_detail">Kayıttaki her talep, yenileme, ilan, satış, teklif, aktarım ve geri alma.</string>
+    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
+    <string name="kn_reclaim_to_own">Sahiplenmek İçin Geri Al</string>
+    <string name="kn_reclaim_to_own_hint">Düşmüş adı temizleyip teminatınızı geri alın, sonra yeniden kaydedin.</string>
+    <string name="kn_register_again_q">%1$s yeniden kaydedilsin mi?</string>
+    <string name="kn_register_again">Yeniden Kaydet</string>
+    <string name="kn_register_again_body">Artık boşta. Her yeni ad gibi ne kadar tutacağınızı seçin: önce gizli taahhüt gönderilir, ad yaklaşık bir dakika sonra kaydedilir.</string>
+    <string name="kn_reclaim_to_own_footer">Adınızın süresi düştü, bu yüzden artık yenilenemez. Geri almak onu kayıttan temizler: teminatınız size döner ve ağ ücreti düşülmüş serbest kalan kayıt depozitosunu da alırsınız. Ardından yeniden kaydedebilirsiniz.</string>
+    <string name="kn_bond_back_to_you">Size dönen teminat</string>
+    <string name="kn_err_waiting_old_name">Eski %1$s adının kayıttan temizlenmesi bekleniyor.</string>
 </resources>
