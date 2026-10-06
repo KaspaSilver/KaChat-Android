@@ -894,4 +894,6 @@
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
     <string name="dm_notif_sent_video">Mengirim video</string>
     <string name="dm_notif_sent_file">Mengirim file</string>
+    <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
+    <string name="kn_save_unchecked_links">Beberapa tautan belum bisa diperiksa dari ponsel ini sekarang. Tautan disimpan sesuai yang dimasukkan, dan aplikasi orang lain akan memuatnya saat bisa.</string>
 </resources>

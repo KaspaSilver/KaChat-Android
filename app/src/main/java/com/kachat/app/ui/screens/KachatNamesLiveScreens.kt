@@ -2589,11 +2589,29 @@ fun KachatLiveDomainsTab(
 // MARK: - Edit KaChat Profile
 
 /**
- * Where a source's lookup stands - the editor saves only a field whose lookup found what that
- * field shows, so what gets saved is what was reviewed (iOS `KachatSocialLookup`, 169f6a0 /
- * c124cb3).
+ * Where a source's lookup stands (iOS `KachatSocialLookup`, 169f6a0 / c124cb3). A field whose
+ * lookup hasn't found what it shows no longer blocks saving (iOS 5cac6af, [KachatProfileSaveRule]).
  */
 enum class KachatSocialLookup { NONE, LOOKING, FOUND, EMPTY, UNREACHABLE }
+
+/**
+ * When Edit KaChat Profile can save (iOS `KachatLiveProfileEditor.blocked` /
+ * `hasUncheckedLinks`, 5cac6af). Only a malformed handle or Linktree username stops a save. A
+ * filled-in field whose lookup hasn't found what it shows (still looking, unreachable, or nothing
+ * there) doesn't: a social site being slow or unreachable from this phone must never stop a
+ * profile (or a primary name) from saving. The link is saved as entered, every viewer's app looks
+ * it up itself, and the editor just says so.
+ */
+object KachatProfileSaveRule {
+    data class Field(val input: KachatSourceInput, val kind: SocialSource.Kind, val lookup: KachatSocialLookup)
+
+    private fun notReviewed(f: Field) = !f.input.isEmpty && f.lookup != KachatSocialLookup.FOUND
+
+    fun blocked(fields: List<Field>, badLinktree: Boolean): Boolean =
+        badLinktree || fields.any { it.input.isBad(it.kind) }
+
+    fun hasUncheckedLinks(fields: List<Field>): Boolean = fields.any(::notReviewed)
+}
 
 /**
  * One profile field's source as the editor holds it: the platform picked and the handle typed
@@ -2832,10 +2850,15 @@ fun KachatLiveProfileEditorScreen(
 
     // The Linktree field holds just the username (`linktr.ee/` is shown in front of it).
     val badLinktree = linktree.trim().let { it.isNotEmpty() && Profile.linktreeLinkFromUsername(it) == null }
-    // A field is saved only once its lookup found what it shows - what you reviewed.
-    fun notReviewed(input: KachatSourceInput, lookup: KachatSocialLookup) = !input.isEmpty && lookup != KachatSocialLookup.FOUND
-    val blocked = avatarIn.isBad(SocialSource.Kind.AVATAR) || bannerIn.isBad(SocialSource.Kind.BANNER) || bioIn.isBad(SocialSource.Kind.BIO) ||
-        badLinktree || notReviewed(avatarIn, avatarLookup) || notReviewed(bannerIn, bannerLookup) || notReviewed(bioIn, bioLookup)
+    // Only a malformed handle or Linktree username stops a save; links that couldn't be checked
+    // are saved as entered, with a note saying so (iOS 5cac6af).
+    val saveFields = listOf(
+        KachatProfileSaveRule.Field(avatarIn, SocialSource.Kind.AVATAR, avatarLookup),
+        KachatProfileSaveRule.Field(bannerIn, SocialSource.Kind.BANNER, bannerLookup),
+        KachatProfileSaveRule.Field(bioIn, SocialSource.Kind.BIO, bioLookup),
+    )
+    val blocked = KachatProfileSaveRule.blocked(saveFields, badLinktree)
+    val hasUncheckedLinks = KachatProfileSaveRule.hasUncheckedLinks(saveFields)
 
     fun profile(): Profile = Profile(
         avatar = avatarIn.source(SocialSource.Kind.AVATAR)?.link,
@@ -2922,7 +2945,17 @@ fun KachatLiveProfileEditorScreen(
             }
         }
         // Saves on every network: a profile is a self-send, with no registry behind it (iOS d36fc42).
-        FormSection(footer = { FormFooter(stringResource(R.string.kn_save_footer)) }) {
+        FormSection(footer = {
+            Column(
+                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (hasUncheckedLinks) {
+                    Text(stringResource(R.string.kn_save_unchecked_links), fontSize = 13.sp, lineHeight = 18.sp, color = colors.textSecondary)
+                }
+                Text(stringResource(R.string.kn_save_footer), fontSize = 13.sp, lineHeight = 18.sp, color = colors.textSecondary)
+            }
+        }) {
             FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked && KachatNamesService.profilesEnabled) { showSave = true }
         }
     }

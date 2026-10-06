@@ -1030,4 +1030,6 @@
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
     <string name="dm_notif_sent_video">נשלח סרטון</string>
     <string name="dm_notif_sent_file">נשלח קובץ</string>
+    <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
+    <string name="kn_save_unchecked_links">לא ניתן היה לבדוק כרגע חלק מהקישורים מהטלפון הזה. הם נשמרים כפי שהוזנו, והאפליקציות של אחרים יטענו אותם כשיוכלו.</string>
 </resources>
