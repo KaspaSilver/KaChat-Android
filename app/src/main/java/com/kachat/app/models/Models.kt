@@ -166,7 +166,7 @@ data class ContactEntity(
     val addedAt: Long = System.currentTimeMillis(),
     val conversationStatus: String = "active", // "pending" | "active" | "rejected"
     val theirAlias: String? = null,         // Alias THEY sent us in their handshake — required to query their self-stashed messages
-    val myAlias: String? = null,            // OUR protocol alias for THIS contact — 12 lowercase hex chars, NOT our display name (see WalletService.generateAlias)
+    val myAlias: String? = null,            // OUR protocol alias for THIS contact — 12 lowercase hex chars, NOT our display name. Set by a handshake: the deterministic alias since XP-003; a random one only on chats from older builds (see HandshakeAliasPolicy)
     val knsAvatarUrl: String? = null,       // Cached from the KNS profile of `knsName`, so the chat list can render an avatar without a live fetch per row
     val systemContactId: String? = null,    // Phone contact's LOOKUP_KEY, once linked via "Link from Contacts" — takes priority over KNS auto-rename
     val systemContactName: String? = null,  // Name snapshot at link time, for the "Linked: X" row

@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.util.HandshakeAliasPolicy
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -41,7 +42,10 @@ class WalletService @Inject constructor(
     private val knsInscriptionEngine: KnsInscriptionEngine,
     /** Fresh-address payment-pool reservations - offered ones are locked visible ("Chat privacy
      *  address" rows), so every visibility write/read here consults the store. */
-    private val paymentPoolStore: PaymentPoolStore
+    private val paymentPoolStore: PaymentPoolStore,
+    /** Writes the `saved_handshake` note after every handshake (XP-003). Lazy: the note service
+     *  sends through this one. */
+    private val contactNotesLazy: dagger.Lazy<ContactNoteService>,
 ) {
     private val gson = Gson()
 
@@ -588,11 +592,12 @@ class WalletService @Inject constructor(
 
     /**
      * Sends an encrypted on-chain message (Kasia "comm" protocol) as a self-stash
-     * transaction. No handshake is required first: if we've already completed a real
-     * handshake with this contact we keep using that legacy alias, otherwise we tag
-     * the message with a deterministic alias derived via ECDH from both addresses —
-     * the recipient can independently derive the exact same value and find it without
-     * ever seeing a handshake (see [WalletManager.theirDeterministicAlias]).
+     * transaction. No handshake is required first: the message is tagged with the deterministic
+     * alias derived via ECDH from both addresses - the recipient can independently derive the
+     * exact same value and find it without ever seeing a handshake (see
+     * [WalletManager.theirDeterministicAlias]). Only a pre-existing legacy handshake chat - one
+     * whose handshake from an older build stored a random alias of ours - keeps writing on that
+     * alias (XP-003, [HandshakeAliasPolicy]).
      */
     suspend fun sendKasiaMessage(toContactId: String, text: String, feeRateOverride: Long? = null): SendResult {
         // Writing to someone is consent: their chat is accepted, and a block on them lifts
@@ -601,11 +606,11 @@ class WalletService @Inject constructor(
         val recipientPubKey = KaspaAddress.decode(toContactId).second
         val contact = chatRepository.getContact(toContactId)
 
-        val alias = if (contact?.handshakeComplete == true && contact.myAlias != null) {
-            contact.myAlias
-        } else {
-            walletManager.theirDeterministicAlias(toContactId)
-        }
+        val alias = HandshakeAliasPolicy.messageAlias(
+            handshakeComplete = contact?.handshakeComplete == true,
+            myAlias = contact?.myAlias,
+            deterministicAlias = walletManager.theirDeterministicAlias(toContactId),
+        )
 
         val encrypted = MessageProtocol.encrypt(text, recipientPubKey)
         // First contact carries their inbox tag so they can find it (NO_HANDSHAKE_MESSAGING.md §3).
@@ -641,11 +646,16 @@ class WalletService @Inject constructor(
      */
     private suspend fun sendHandshake(toAddress: String, recipientPubKey: ByteArray, isResponse: Boolean = false): String {
         val existing = chatRepository.getContact(toAddress)
-        // Our protocol alias is a random per-contact ID (real clients validate it as
-        // exactly 12 lowercase hex chars) — NOT our human-readable account name. Using
-        // the account name here fails that validation on the receiving client and
-        // silently breaks the whole handshake/message exchange with it.
-        val myAlias = existing?.myAlias ?: generateAlias()
+        // Our protocol alias (12 lowercase hex chars, which real clients validate) - NOT our
+        // human-readable account name. It is our actual outgoing alias for this contact
+        // (DETERMINISTIC_ALIASES.md §4.4, audit XP-003): the deterministic one for a new chat -
+        // the alias Desktop fetches under and a reinstall derives again - and a legacy random
+        // alias only for a chat that already has one from an older build. Never generated
+        // fresh. Accepting an incoming (legacy) handshake follows the same rule.
+        val myAlias = HandshakeAliasPolicy.handshakeAlias(
+            existingMyAlias = existing?.myAlias,
+            deterministicAlias = walletManager.theirDeterministicAlias(toAddress),
+        )
 
         val payload = HandshakePayload(
             alias = myAlias,
@@ -702,6 +712,15 @@ class WalletService @Inject constructor(
                 amountSompi = HANDSHAKE_AMOUNT_SOMPI,
                 blockTimestamp = System.currentTimeMillis()
             )
+        )
+
+        // The iOS-shape `saved_handshake` note (alias, theirAlias, partnerAddress), so a reinstall
+        // of this seed finds the chat again - the handshake itself is sealed to the peer.
+        contactNotesLazy.get().onHandshakeSent(
+            partnerAddress = toAddress,
+            ourAlias = myAlias,
+            theirAlias = existing?.theirAlias,
+            isResponse = isResponse,
         )
 
         return txId
@@ -1031,7 +1050,9 @@ class WalletService @Inject constructor(
     companion object {
         private const val MAINNET_REVENUE_ADDRESS = "kaspa:qyp4nvaq3pdq7609z09fvdgwtc9c7rg07fuw5zgeee7xpr085de59eseqfcmynn"
 
-        /** Real per-conversation pseudonymous alias — 6 random bytes as 12 lowercase hex chars, matching the format both Kasia web and iOS KaChat generate and validate. */
+        /** Legacy per-conversation random alias — 6 random bytes as 12 lowercase hex chars, the
+         *  format Kasia web and iOS KaChat validate. No longer used for new chats (XP-003: a
+         *  handshake carries the deterministic alias); kept for its format test. */
         internal fun generateAlias(): String {
             val bytes = ByteArray(6)
             SecureRandom().nextBytes(bytes)

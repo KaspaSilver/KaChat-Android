@@ -3,12 +3,12 @@ package com.kachat.app.services
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
-import com.google.gson.JsonObject
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.repository.ChatRepository
 import com.kachat.app.services.database.KaChatDatabase
 import com.kachat.app.util.KasiaCipher
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.SavedHandshakeNote
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +33,12 @@ import javax.inject.Singleton
  * A note is written once per contact, and only after one complete read-back of the notes
  * already on chain, so it never duplicates one - the known set and the read-back flag are kept
  * per wallet. Notes that cannot be sent yet (no spare coins) stay queued for the next sync.
+ *
+ * Every handshake we send also writes a **handshake** note (iOS buildHandshakeSelfStashTx, audit
+ * XP-003): our alias, their alias when known and the partner's address, so a reinstall finds the
+ * chat and the alias it was on. Those are written straight after the handshake, without the
+ * read-back gate (each handshake gets its own, as on iOS), and queued like the rest when no coin
+ * is spare yet.
  */
 @Singleton
 class ContactNoteService @Inject constructor(
@@ -42,6 +48,7 @@ class ContactNoteService @Inject constructor(
     private val walletService: WalletService,
     private val chatRepository: ChatRepository,
     private val networkService: NetworkService,
+    private val peerAliasStore: PeerAliasStore,
 ) {
     private val prefs = context.getSharedPreferences("kachat_contact_notes", Context.MODE_PRIVATE)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -53,6 +60,26 @@ class ContactNoteService @Inject constructor(
     private fun pendingKey(wallet: String) = "pending_$wallet"
     private fun highWaterKey(wallet: String) = "high_water_$wallet"
     private fun fullScanKey(wallet: String) = "full_scan_at_$wallet"
+    private fun pendingHandshakeKey(wallet: String) = "pending_handshake_notes_$wallet"
+
+    /** A handshake note waiting for a spare coin. */
+    private data class PendingHandshakeNote(
+        val partnerAddress: String,
+        val alias: String,
+        val theirAlias: String?,
+        val isResponse: Boolean,
+    )
+
+    private fun pendingHandshakeNotes(wallet: String): List<PendingHandshakeNote> =
+        prefs.getString(pendingHandshakeKey(wallet), null)?.let { raw ->
+            runCatching {
+                gson.fromJson<List<PendingHandshakeNote>>(raw, object : com.google.gson.reflect.TypeToken<List<PendingHandshakeNote>>() {}.type)
+            }.getOrNull()
+        }.orEmpty()
+
+    private fun savePendingHandshakeNotes(wallet: String, notes: List<PendingHandshakeNote>) {
+        prefs.edit().putString(pendingHandshakeKey(wallet), gson.toJson(notes)).apply()
+    }
 
     private fun known(wallet: String): Set<String> = prefs.getStringSet(knownKey(wallet), emptySet()).orEmpty()
     private fun pending(wallet: String): Set<String> = prefs.getStringSet(pendingKey(wallet), emptySet()).orEmpty()
@@ -112,10 +139,14 @@ class ContactNoteService @Inject constructor(
             val contact = content.contactAddress
             if (contact.isEmpty()) continue
             noted += contact
-            // A handshake note's chat comes back through its handshake; a contact note (no
-            // alias) is the only trace of a deterministic chat, so it re-creates the contact and
-            // the next sync fetches its messages.
-            if (content.alias.isNullOrEmpty()) restoreContact(wallet, contact)
+            // Every note re-creates its chat (a contact note is the only trace of a deterministic
+            // chat). A handshake note also hands back the alias they write under, so their
+            // messages are read again; our own side always restores on the deterministic alias -
+            // a random alias is never taken up again for a chat this device does not hold
+            // (XP-003), and the sync derives that alias from the address.
+            val handshakeNote = !content.alias.isNullOrEmpty()
+            if (handshakeNote) content.theirAlias?.let { peerAliasStore.add(wallet, contact, it) }
+            restoreContact(wallet, contact, fromHandshake = handshakeNote)
         }
         // A wallet switch during the read must not credit this wallet's notes to the next one.
         if (!isActive(wallet)) return@withLock
@@ -185,9 +216,45 @@ class ContactNoteService @Inject constructor(
         editor.apply()
     }
 
+    /**
+     * A handshake to [partnerAddress] went out on [ourAlias]: write its `saved_handshake` note
+     * (iOS sendOrQueueSelfStash after sendHandshake) - straight away, or queued until a coin is
+     * spare. Never blocks or fails the handshake itself.
+     */
+    fun onHandshakeSent(partnerAddress: String, ourAlias: String, theirAlias: String?, isResponse: Boolean) {
+        scope.launch {
+            mutex.withLock {
+                val wallet = runCatching { walletManager.getAddress() }.getOrNull() ?: return@withLock
+                if (partnerAddress.isEmpty() || partnerAddress.equals(wallet, ignoreCase = true)) return@withLock
+                val job = PendingHandshakeNote(partnerAddress, ourAlias, theirAlias?.takeIf { it.isNotEmpty() }, isResponse)
+                val queued = pendingHandshakeNotes(wallet)
+                if (queued.none { it.partnerAddress == job.partnerAddress && it.alias == job.alias }) {
+                    savePendingHandshakeNotes(wallet, queued + job)
+                }
+                sendPending(wallet)
+            }
+        }
+    }
+
     /** Sends queued notes, one small transaction each, until one fails (usually no spare coin
-     *  yet); the rest wait for the next sync. */
+     *  yet); the rest wait for the next sync. Handshake notes go first. */
     private suspend fun sendPending(wallet: String) {
+        for (job in pendingHandshakeNotes(wallet)) {
+            if (!isActive(wallet)) return
+            try {
+                val json = SavedHandshakeNote.handshakeJson(job.alias, job.theirAlias, job.partnerAddress, job.isResponse, System.currentTimeMillis())
+                val payload = SavedHandshakeNote.payload(json, KaspaAddress.decode(wallet).second)
+                val txId = walletService.sendKaspa(toAddress = wallet, amountSompi = 0, payloadBytes = payload)
+                savePendingHandshakeNotes(wallet, pendingHandshakeNotes(wallet) - job)
+                prefs.edit().putStringSet(knownKey(wallet), known(wallet) + job.partnerAddress).apply()
+                Log.i(TAG, "Handshake note written for …${job.partnerAddress.takeLast(10)}: ${txId.take(16)}")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Handshake note for …${job.partnerAddress.takeLast(10)} not sent yet", e)
+                return
+            }
+        }
         for (contact in pending(wallet)) {
             // sendKaspa spends from the active account: never send this wallet's note from another.
             if (!isActive(wallet)) return
@@ -210,42 +277,32 @@ class ContactNoteService @Inject constructor(
 
     private fun isActive(wallet: String) = runCatching { walletManager.getAddress() }.getOrNull() == wallet
 
-    private suspend fun restoreContact(wallet: String, contactAddress: String) {
+    /** Re-creates a chat a note names, unless it is here already or was deleted. A handshake
+     *  note's chat had a handshake, so it comes back active with it (as the outgoing-handshake
+     *  restore does), with no alias of ours: it writes on the deterministic alias. */
+    private suspend fun restoreContact(wallet: String, contactAddress: String, fromHandshake: Boolean = false) {
         if (database.contactDao().getContact(contactAddress, wallet) != null) return
         if (chatRepository.hasDeletionTombstone(contactAddress)) return
         chatRepository.addContact(
-            ContactEntity(id = contactAddress, walletAddress = wallet, alias = null, knsName = null, publicKeyHex = null)
+            ContactEntity(
+                id = contactAddress, walletAddress = wallet, alias = null, knsName = null, publicKeyHex = null,
+                handshakeComplete = fromHandshake,
+            )
         )
-        Log.i(TAG, "Restored chat …${contactAddress.takeLast(10)} from its contact note")
+        Log.i(TAG, "Restored chat …${contactAddress.takeLast(10)} from its ${if (fromHandshake) "handshake" else "contact"} note")
     }
 
-    /** `kchat:1:self_stash:saved_handshake:` + the note encrypted to our own key (raw bytes). */
-    private fun buildNotePayload(wallet: String, partnerAddress: String): ByteArray {
-        val json = JsonObject().apply {
-            addProperty("type", "contact")
-            addProperty("timestamp", System.currentTimeMillis())
-            addProperty("version", 1)
-            addProperty("partnerAddress", partnerAddress)
-            addProperty("recipientAddress", partnerAddress)
-        }
-        val ownPubKey = KaspaAddress.decode(wallet).second
-        val encrypted = KasiaCipher.encrypt(gson.toJson(json), ownPubKey)
-        return "kchat:1:self_stash:$SCOPE:".toByteArray(Charsets.US_ASCII) + encrypted.toBytes()
-    }
+    /** `kchat:1:self_stash:saved_handshake:` + the contact note encrypted to our own key. */
+    private fun buildNotePayload(wallet: String, partnerAddress: String): ByteArray =
+        SavedHandshakeNote.payload(
+            SavedHandshakeNote.contactJson(partnerAddress, System.currentTimeMillis()),
+            KaspaAddress.decode(wallet).second,
+        )
 
-    private data class NoteContent(val alias: String?, val contactAddress: String)
-
-    private fun decrypt(stashedHex: String, privateKey: ByteArray): NoteContent? = try {
+    private fun decrypt(stashedHex: String, privateKey: ByteArray): SavedHandshakeNote.Content? = try {
         val bytes = hexToBytes(stashedHex) ?: throw IllegalArgumentException("not hex")
         val message = KasiaCipher.EncryptedMessage.fromBytes(bytes) ?: throw IllegalArgumentException("short")
-        val json = gson.fromJson(KasiaCipher.decrypt(message, privateKey), JsonObject::class.java)
-        fun field(vararg names: String) = names.firstNotNullOfOrNull { name ->
-            json.get(name)?.takeIf { it.isJsonPrimitive }?.asString?.takeIf { it.isNotEmpty() }
-        }
-        NoteContent(
-            alias = field("alias"),
-            contactAddress = field("partnerAddress", "recipientAddress", "partner_address", "recipient_address").orEmpty(),
-        )
+        SavedHandshakeNote.parse(KasiaCipher.decrypt(message, privateKey))
     } catch (e: Exception) {
         null
     }
@@ -262,7 +319,7 @@ class ContactNoteService @Inject constructor(
 
     private companion object {
         const val TAG = "ContactNoteService"
-        const val SCOPE = "saved_handshake"
+        const val SCOPE = SavedHandshakeNote.SCOPE
         val SCOPE_HEX = SCOPE.toByteArray(Charsets.UTF_8).joinToString("") { "%02x".format(it) }
         const val PAGE_SIZE = 50
         const val MAX_PAGES = 200
