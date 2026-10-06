@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Tên của bạn đã mất hiệu lực nên không thể gia hạn nữa. Thu hồi sẽ xóa nó khỏi sổ đăng ký: tiền ký quỹ trở về với bạn, và bạn cũng giữ khoản đặt cọc sổ đăng ký được giải phóng, trừ phí mạng. Sau đó bạn có thể đăng ký lại.</string>
     <string name="kn_bond_back_to_you">Tiền ký quỹ trở về bạn</string>
     <string name="kn_err_waiting_old_name">Đang chờ %1$s cũ được xóa khỏi sổ đăng ký.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Có thể đăng ký</string>
 </resources>

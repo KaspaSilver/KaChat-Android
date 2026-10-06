@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">انقضى اسمك، لذا لم يعد بالإمكان تجديده. الاسترداد يزيله من السجل: يعود إليك تأمينك، وتحتفظ أيضًا بإيداع السجل المُحرَّر ناقص رسوم الشبكة. بعدها يمكنك تسجيله من جديد.</string>
     <string name="kn_bond_back_to_you">التأمين يعود إليك</string>
     <string name="kn_err_waiting_old_name">بانتظار إزالة %1$s القديم من السجل.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">متاح للمطالبة</string>
 </resources>

@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">名前が失効したため、もう更新できません。回収するとレジストリから消え、ボンドが戻り、解放されたレジストリの預かり金もネットワーク手数料を除いて受け取れます。その後、再登録できます。</string>
     <string name="kn_bond_back_to_you">あなたに戻るボンド</string>
     <string name="kn_err_waiting_old_name">古い %1$s がレジストリから消えるのを待っています。</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">取得可能</string>
 </resources>

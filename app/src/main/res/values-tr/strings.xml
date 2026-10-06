@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Adınızın süresi düştü, bu yüzden artık yenilenemez. Geri almak onu kayıttan temizler: teminatınız size döner ve ağ ücreti düşülmüş serbest kalan kayıt depozitosunu da alırsınız. Ardından yeniden kaydedebilirsiniz.</string>
     <string name="kn_bond_back_to_you">Size dönen teminat</string>
     <string name="kn_err_waiting_old_name">Eski %1$s adının kayıttan temizlenmesi bekleniyor.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Talep edilebilir</string>
 </resources>

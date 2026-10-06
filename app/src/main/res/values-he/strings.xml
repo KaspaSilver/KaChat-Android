@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">השם שלך פקע ולכן אי אפשר לחדש אותו יותר. דרישה חוזרת מוחקת אותו מהמרשם: הפיקדון שלך חוזר אליך, ואת גם שומר/ת את פיקדון המרשם שהשתחרר, פחות עמלת הרשת. אחר כך אפשר לרשום אותו מחדש.</string>
     <string name="kn_bond_back_to_you">הפיקדון חוזר אליך</string>
     <string name="kn_err_waiting_old_name">ממתינים שה-%1$s הישן יוסר מהמרשם.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">פנוי לתביעה</string>
 </resources>

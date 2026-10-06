@@ -919,4 +919,6 @@
     <string name="kn_reclaim_to_own_footer">Nama Anda sudah gugur, jadi tidak bisa diperpanjang lagi. Klaim ulang menghapusnya dari registri: jaminan kembali kepada Anda, dan Anda juga menyimpan deposit registri yang dibebaskan, dikurangi biaya jaringan. Setelah itu Anda bisa mendaftarkannya lagi.</string>
     <string name="kn_bond_back_to_you">Jaminan kembali ke Anda</string>
     <string name="kn_err_waiting_old_name">Menunggu %1$s lama dihapus dari registri.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Bebas untuk diklaim</string>
 </resources>

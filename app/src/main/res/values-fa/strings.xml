@@ -1085,4 +1085,6 @@
     <string name="kn_reclaim_to_own_footer">نام شما از دست رفته و دیگر قابل تمدید نیست. بازپس‌گیری آن را از رجیستری پاک می‌کند: ودیعه‌تان برمی‌گردد و سپرده آزادشده رجیستری را هم منهای کارمزد شبکه نگه می‌دارید. سپس می‌توانید دوباره ثبتش کنید.</string>
     <string name="kn_bond_back_to_you">ودیعه به شما برمی‌گردد</string>
     <string name="kn_err_waiting_old_name">در انتظار پاک شدن %1$s قدیمی از رجیستری.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">آزاد برای ثبت</string>
 </resources>

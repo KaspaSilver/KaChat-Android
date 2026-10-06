@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">আপনার নামটি বাতিল হয়েছে, তাই আর নবায়ন করা যাবে না। পুনরুদ্ধার এটিকে রেজিস্ট্রি থেকে সরায়: আপনার বন্ড আপনার কাছে ফিরে আসে, আর নেটওয়ার্ক ফি বাদে মুক্ত হওয়া রেজিস্ট্রি জমাও আপনি রাখেন। তারপর আবার নিবন্ধন করতে পারবেন।</string>
     <string name="kn_bond_back_to_you">বন্ড আপনার কাছে ফেরত</string>
     <string name="kn_err_waiting_old_name">রেজিস্ট্রি থেকে পুরোনো %1$s সরানোর অপেক্ষা চলছে।</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">দাবি করার জন্য খালি</string>
 </resources>

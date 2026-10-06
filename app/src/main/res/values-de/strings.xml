@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Dein Name ist verfallen und kann nicht mehr verlängert werden. Zurückfordern entfernt ihn aus dem Register: Deine Kaution kommt zurück, und du behältst auch die freigewordene Registereinlage abzüglich der Netzwerkgebühr. Danach kannst du ihn neu registrieren.</string>
     <string name="kn_bond_back_to_you">Kaution zurück an dich</string>
     <string name="kn_err_waiting_old_name">Warte, bis der alte %1$s aus dem Register entfernt ist.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Frei zum Registrieren</string>
 </resources>

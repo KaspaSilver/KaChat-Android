@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Seu nome caducou, então não pode mais ser renovado. Recuperá-lo o tira do registro: sua caução volta para você e você também fica com o depósito do registro liberado, menos a taxa de rede. Depois você pode registrá-lo de novo.</string>
     <string name="kn_bond_back_to_you">Caução de volta para você</string>
     <string name="kn_err_waiting_old_name">Aguardando o antigo %1$s ser removido do registro.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Livre para registrar</string>
 </resources>

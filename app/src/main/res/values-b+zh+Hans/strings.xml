@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">你的名称已失效，无法再续期。回收会将其从注册表中清除：保证金退还给你，你还能拿到释放出的注册押金（扣除网络费）。之后你可以重新注册。</string>
     <string name="kn_bond_back_to_you">退还给你的保证金</string>
     <string name="kn_err_waiting_old_name">正在等待旧的 %1$s 从注册表中清除。</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">可认领</string>
 </resources>

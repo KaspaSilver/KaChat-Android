@@ -584,6 +584,19 @@ private fun KachatStatusPill(status: Status) {
     )
 }
 
+/** The green "Available" capsule of a name that is free to claim (iOS f420343). */
+@Composable
+private fun KachatAvailablePill() {
+    val colors = LocalAppColors.current
+    Text(
+        stringResource(R.string.kn_available),
+        color = colors.success,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(colors.success.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 4.dp)
+    )
+}
+
 @Composable
 private fun KachatLiveSectionHeader(title: String, detail: String?) {
     val colors = LocalAppColors.current
@@ -1905,6 +1918,8 @@ fun KachatLiveNameDetailScreen(
     var offers by remember { mutableStateOf<List<OfferInfo>>(emptyList()) }
     var history by remember { mutableStateOf<List<Event>>(emptyList()) }
     var gone by remember { mutableStateOf(false) }
+    // The free gap the name now sits in, once it's gone (released or reclaimed): Claim uses it (iOS f420343).
+    var freeGap by remember { mutableStateOf<GapInfo?>(null) }
     var confirmPrimary by remember { mutableStateOf(false) }
     // Reclaim to Own (your own name, lapsed; iOS ba1a734): the gaps around it before the reclaim
     // (the merged gap the reclaim creates spans them), the reclaim's txid once it went out, then
@@ -1961,8 +1976,8 @@ fun KachatLiveNameDetailScreen(
     LaunchedEffect(revision, initial.name) {
         try {
             when (val l = vm.registry.lookup(info.name)) {
-                is Lookup.Registered -> { info = l.info; gone = false }
-                is Lookup.Free -> gone = true
+                is Lookup.Registered -> { info = l.info; gone = false; freeGap = null }
+                is Lookup.Free -> { gone = true; freeGap = l.gap }
             }
         } catch (e: CancellationException) {
             throw e
@@ -2107,37 +2122,51 @@ fun KachatLiveNameDetailScreen(
                     Box(Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(18.dp)).background(KaspaTeal), contentAlignment = Alignment.Center) {
                         Text(info.display, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 22.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
                     }
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            // A listing only stands while the name is active: an expired or lapsed
-                            // name's old asking price is never shown (iOS ba1a734).
-                            Text(stringResource(if (forSale) R.string.kl_price else R.string.kn_not_for_sale), color = colors.textSecondary, fontSize = 12.sp)
-                            if (forSale) Text(KaspaUnit.amount(info.price), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    if (gone) {
+                        // Released or reclaimed: the old record (its expiry, period, listing) is history.
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.kn_free_to_claim), color = colors.textSecondary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                            KachatAvailablePill()
                         }
-                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            KachatStatusPill(status)
-                            Text(stringResource(R.string.kn_expires_on, KachatLive.date(info.expiresAt)), color = colors.textSecondary, fontSize = 12.sp)
+                    } else {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                // A listing only stands while the name is active: an expired or lapsed
+                                // name's old asking price is never shown (iOS ba1a734).
+                                Text(stringResource(if (forSale) R.string.kl_price else R.string.kn_not_for_sale), color = colors.textSecondary, fontSize = 12.sp)
+                                if (forSale) Text(KaspaUnit.amount(info.price), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            }
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                KachatStatusPill(status)
+                                Text(stringResource(R.string.kn_expires_on, KachatLive.date(info.expiresAt)), color = colors.textSecondary, fontSize = 12.sp)
+                            }
                         }
-                    }
-                    info.periodStart?.let { start ->
-                        // registry v2: the paid period, from its start to the expiry (at most 2 years)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                stringResource(R.string.kn_paid_from_to, KachatLive.day(start), KachatLive.day(info.expiresAt)),
-                                color = colors.textSecondary, fontSize = 12.sp
-                            )
+                        info.periodStart?.let { start ->
+                            // registry v2: the paid period, from its start to the expiry (at most 2 years)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    stringResource(R.string.kn_paid_from_to, KachatLive.day(start), KachatLive.day(info.expiresAt)),
+                                    color = colors.textSecondary, fontSize = 12.sp
+                                )
+                            }
                         }
-                    }
-                    when {
-                        status == Status.GRACE && ownedByWallet -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
-                        status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace), color = colors.warning, fontSize = 13.sp)
-                        status == Status.LAPSED -> Text(stringResource(R.string.kn_detail_lapsed), color = colors.danger, fontSize = 13.sp)
+                        when {
+                            status == Status.GRACE && ownedByWallet -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
+                            status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace), color = colors.warning, fontSize = 13.sp)
+                            status == Status.LAPSED -> Text(stringResource(R.string.kn_detail_lapsed), color = colors.danger, fontSize = 13.sp)
+                        }
                     }
                 }
 
                 if (gone) {
+                    val gap = freeGap
+                    if (gap != null && KachatLive.isEnabled) {
+                        KachatButton(stringResource(R.string.km_claim), Modifier.fillMaxWidth().padding(horizontal = 16.dp), Icons.Default.AlternateEmail, prominent = true, large = true) {
+                            claimTarget = KachatClaimTarget(info.name, gap)
+                        }
+                    }
                     Text(stringResource(R.string.kn_name_gone), color = colors.textSecondary, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 20.dp))
                 } else {
                     // Actions

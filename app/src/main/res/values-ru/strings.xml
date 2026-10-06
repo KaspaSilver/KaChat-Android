@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Имя освободилось, и его больше нельзя продлить. Возврат удаляет его из реестра: ваш залог возвращается к вам, и вы также получаете освободившийся депозит реестра за вычетом комиссии сети. Затем его можно зарегистрировать снова.</string>
     <string name="kn_bond_back_to_you">Залог вернётся к вам</string>
     <string name="kn_err_waiting_old_name">Ждём, пока старое %1$s уберут из реестра.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Свободно для регистрации</string>
 </resources>

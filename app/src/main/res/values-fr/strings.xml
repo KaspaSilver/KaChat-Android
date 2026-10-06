@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Votre nom est périmé et ne peut plus être renouvelé. Le récupérer le retire du registre : votre caution vous revient et vous gardez aussi le dépôt du registre libéré, moins les frais de réseau. Ensuite vous pouvez l’enregistrer à nouveau.</string>
     <string name="kn_bond_back_to_you">Caution qui vous revient</string>
     <string name="kn_err_waiting_old_name">En attente du retrait de l’ancien %1$s du registre.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Libre à réserver</string>
 </resources>

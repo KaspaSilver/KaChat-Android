@@ -1054,4 +1054,6 @@
     <string name="kn_reclaim_to_own_footer">Il tuo nome è decaduto, quindi non si può più rinnovare. Recuperarlo lo toglie dal registro: la cauzione torna a te e tieni anche il deposito del registro liberato, meno la commissione di rete. Poi puoi registrarlo di nuovo.</string>
     <string name="kn_bond_back_to_you">Cauzione restituita a te</string>
     <string name="kn_err_waiting_old_name">In attesa che il vecchio %1$s venga rimosso dal registro.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Libero da registrare</string>
 </resources>

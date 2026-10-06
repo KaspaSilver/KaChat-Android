@@ -1221,4 +1221,6 @@
     <string name="kn_reclaim_to_own_footer">Your name lapsed, so it can\'t be renewed any more. Reclaiming clears it from the registry: your bond comes back to you, and you also keep the freed registry deposit, less the network fee. Then you can register it again.</string>
     <string name="kn_bond_back_to_you">Bond back to you</string>
     <string name="kn_err_waiting_old_name">Waiting for the old %1$s to be cleared from the registry.</string>
+    <!-- .kachat: a released or reclaimed name (iOS f420343) -->
+    <string name="kn_free_to_claim">Free to claim</string>
 </resources>
