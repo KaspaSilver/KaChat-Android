@@ -1258,7 +1258,7 @@ private fun ColdSendFlow(
     // Debounced live preview of what automatic selection would pick for the current amount/fee —
     // see the LaunchedEffect below. Non-null only while still fresh for the current amount/fee;
     // cleared immediately on any relevant change so a stale preview is never shown or built with.
-    var previewSelection by remember { mutableStateOf<ColdStorageSendEngine.AutomaticSelectionPreview?>(null) }
+    var previewSelection by remember { mutableStateOf<com.kachat.app.util.SendFeeModel.Preview?>(null) }
 
     val referenceMass1Input = remember {
         com.kachat.app.util.KaspaMass.calculateMass(numInputs = 1, outputScriptLens = listOf(34, 34), payloadSize = 0)
@@ -1269,18 +1269,11 @@ private fun ColdSendFlow(
     // is currently above the minimum.
     val baseFeeRateSompiPerGram = liveFeeRateSompiPerGram ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM
 
-    // Per-gram rate for the chosen tier/custom fee — deliberately derived only from the fixed
-    // 1-input reference mass, never from `previewSelection` or the real input count below. Both
-    // the real build and the live preview fetch need this exact rate to ask "how many inputs will
-    // this take"; if it depended on the preview's own result, fetching a preview and computing the
-    // rate to fetch it with would be circular.
-    val feeRateOverrideSompi: Long = if (feeTier == ColdFeeTier.NORMAL && customExtraFeeSompi == null) {
-        baseFeeRateSompiPerGram
-    } else {
-        val referenceFeeSompi = com.kachat.app.util.KaspaMass.calculateFee(referenceMass1Input, baseFeeRateSompiPerGram)
-        val extra = customExtraFeeSompi ?: (referenceFeeSompi * (feeTier.multiplier - 1))
-        kotlin.math.ceil((referenceFeeSompi + extra).toDouble() / referenceMass1Input).toLong()
-    }
+    // The build, Max and the preview all run at the live rate; Fast / Priority / a custom fee is a
+    // flat extra on top (SendFeeModel), paid exactly. This used to fold the extra into a per-gram
+    // rate sized on ONE input, which the build then charged on every real input - a custom fee on
+    // an 8-input send paid nearly five times what was typed.
+    val feeRateOverrideSompi: Long = baseFeeRateSompiPerGram
 
     // Real input count when known (coin control, or a fresh automatic-selection preview) instead
     // of always guessing 1 — otherwise the fee shown here could understate what a multi-UTXO send
@@ -1292,18 +1285,23 @@ private fun ColdSendFlow(
             com.kachat.app.util.KaspaMass.calculateMass(numInputs = previewSelection!!.utxos.size, outputScriptLens = listOf(34, 34), payloadSize = 0)
         else -> referenceMass1Input
     }
-    val defaultFeeSompi = com.kachat.app.util.KaspaMass.calculateFee(estimatedMass, baseFeeRateSompiPerGram)
+    // The live preview (when fresh and automatic selection is in play — coin control already
+    // knows its exact count another way) wins over the mass-derived number: it's the actual
+    // result of running the real selector, base and extra settled together, not a recomputation.
+    val usesPreview = manualUtxos == null && previewSelection != null
+    val defaultFeeSompi = if (usesPreview) {
+        previewSelection!!.baseFeeSompi
+    } else {
+        com.kachat.app.util.KaspaMass.calculateFee(estimatedMass, baseFeeRateSompiPerGram)
+    }
     // Normal/Fast/Priority multiplier system, same inline (no separate screen) pattern as iOS's
     // ColdSendFlowView and this app's own chatting-address withdraw flow's WithdrawFeeTier.
-    val extraFeeSompi = customExtraFeeSompi ?: (defaultFeeSompi * (feeTier.multiplier - 1))
-    // The live preview (when fresh and automatic selection is in play — coin control already
-    // knows its exact count another way) wins over the mass-derived number for display: it's the
-    // actual result of running the real selector at feeRateOverrideSompi, not a recomputation.
-    val effectiveFeeSompi = if (manualUtxos == null && previewSelection != null) {
-        previewSelection!!.feeSompi
+    val extraFeeSompi = if (usesPreview) {
+        previewSelection!!.extraFeeSompi
     } else {
-        defaultFeeSompi + extraFeeSompi
+        com.kachat.app.util.SendFeeModel.extraFee(defaultFeeSompi, feeTier.multiplier, customExtraFeeSompi)
     }
+    val effectiveFeeSompi = defaultFeeSompi + extraFeeSompi
 
     // Debounced (400ms) — cancels and restarts automatically whenever any key changes, so a
     // burst of typing doesn't fire a network call per keystroke. No-ops entirely once coin
@@ -1312,7 +1310,7 @@ private fun ColdSendFlow(
         previewSelection = null
         if (manualUtxos == null && amountSompi != null && amountSompi > 0) {
             kotlinx.coroutines.delay(400)
-            previewSelection = viewModel.previewAutomaticSelection(fromAddress, amountSompi, feeRateOverrideSompi)
+            previewSelection = viewModel.previewAutomaticSelection(fromAddress, amountSompi, feeRateOverrideSompi, feeTier.multiplier, customExtraFeeSompi)
         }
     }
 
@@ -1466,7 +1464,9 @@ private fun ColdSendFlow(
                                 coroutineScope.launch {
                                     isEstimatingMax = true
                                     try {
-                                        val maxSompi = viewModel.estimateMaxAmount(fromAddress, feeRateOverrideSompi, manualUtxos)
+                                        // Room for the base and the Fast / Priority / custom
+                                        // extra, the extra derived from Max's own base.
+                                        val maxSompi = viewModel.estimateMaxAmount(fromAddress, feeRateOverrideSompi, manualUtxos, feeTier.multiplier, customExtraFeeSompi)
                                         fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
                                     } catch (e: Exception) {
                                         // Leave the field untouched on failure — same as iOS.
@@ -1536,7 +1536,7 @@ private fun ColdSendFlow(
                                     // buildUnsignedTransaction either way, so this is never
                                     // stale-unsafe.
                                     val utxosForBuild = manualUtxos ?: previewSelection?.utxos
-                                    viewModel.startColdSend(fromAddress, effectiveAddress.trim(), it, feeRateOverrideSompi, utxosForBuild)
+                                    viewModel.startColdSend(fromAddress, effectiveAddress.trim(), it, feeRateOverrideSompi, utxosForBuild, extraFeeSompi)
                                 }
                             },
                         )

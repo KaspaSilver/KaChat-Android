@@ -6168,26 +6168,58 @@ fun SpendingAddressSendFlow(
     val addressRows by viewModel.manageAddresses.collectAsState()
     val spendingLabel = spendingIndex?.let { index -> addressRows.firstOrNull { it.index == index }?.label }
 
-    // Real input count when known (coin control fixes it exactly) instead of always guessing 1 -
-    // same reasoning as ColdSendFlow's estimatedMass, just without a live automatic-selection
-    // preview (this path doesn't have one; the fee shown here is still exact once coin control
-    // is active, and a close estimate otherwise).
-    val estimatedMass = remember(manualUtxos) {
-        val inputCount = manualUtxos?.size?.takeIf { it > 0 } ?: 1
-        KaspaMass.calculateMass(numInputs = inputCount, outputScriptLens = listOf(34, 34), payloadSize = 0)
-    }
-    val baseFeeRateSompiPerGram = KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM
-    val defaultFeeSompi = KaspaMass.calculateFee(estimatedMass, baseFeeRateSompiPerGram)
-    val extraFeeSompi = customExtraFeeSompi ?: (defaultFeeSompi * (feeTier.multiplier - 1))
-    val effectiveFeeSompi = defaultFeeSompi + extraFeeSompi
-    // Sompi-per-gram rate implied by effectiveFeeSompi/estimatedMass - what actually gets passed
-    // to the engine, since sendKaspa/withdrawFromSpendingAddress take a rate, not a flat fee.
-    val feeRateOverrideSompi = kotlin.math.ceil(effectiveFeeSompi.toDouble() / estimatedMass).toLong()
-
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
     var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
     var knsError by remember { mutableStateOf<String?>(null) }
+
+    // The fee, as iOS prices it (SendKaspaComponents / SpendingAddressWithdrawView) and as the chat
+    // Send KAS sheet already pays it: a base fee at the live quoted rate on the real inputs, plus
+    // Fast / Priority / a custom fee as a flat extra on top (SendFeeModel). The send goes out with
+    // no rate override (the engine prices the base at the quote) and the extra paid exactly - so a
+    // multi-input send no longer scales the chosen fee by its input count.
+    //
+    // The quote is fetched once when the screen opens; until then the base is priced at the
+    // network minimum, the floor of any quote.
+    var liveFeeRateSompiPerGram by remember { mutableStateOf<Long?>(null) }
+    val baseFeeRateSompiPerGram = liveFeeRateSompiPerGram ?: KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM
+    // What automatic selection spends and pays for the amount typed (coin control off) - see the
+    // preview LaunchedEffect below. Null while there is no amount, while it is being worked out,
+    // or when the coins cannot cover it.
+    var feePreview by remember { mutableStateOf<com.kachat.app.util.SendFeeModel.Preview?>(null) }
+    var isPreviewingFee by remember { mutableStateOf(false) }
+    // The amount Max last wrote, and the fee choice it left room for: changing the fee while the
+    // field still holds that amount works Max out again (see setMaxAmount).
+    var maxFill by remember { mutableStateOf<Triple<String, ColdFeeTier, Long?>?>(null) }
+    val previewAmountSompi = amountInput.toDoubleOrNull()?.let { Math.round(it * 100_000_000.0) }
+    // Base fee on the real inputs: coin control's exact set, else the automatic-selection preview,
+    // else (no amount yet) one input.
+    // The recipient's real script length when it is known (a P2SH or ECDSA address is a byte
+    // longer than the standard one), so the base priced here is the base the send is priced at.
+    val feeRecipient = (knsResolvedAddress ?: recipientInput).trim()
+    val recipientScriptLen = remember(feeRecipient) {
+        if (KaspaAddress.isValid(feeRecipient)) {
+            runCatching { KaspaAddress.getScriptPublicKey(feeRecipient).length / 2 }
+                .getOrDefault(com.kachat.app.util.SendFeeModel.STANDARD_SCRIPT_LEN)
+        } else {
+            com.kachat.app.util.SendFeeModel.STANDARD_SCRIPT_LEN
+        }
+    }
+    val manualInputCount = manualUtxos?.size?.takeIf { it > 0 }
+    val defaultFeeSompi = when {
+        manualInputCount != null -> com.kachat.app.util.SendFeeModel.baseFee(manualInputCount, baseFeeRateSompiPerGram, recipientScriptLen = recipientScriptLen)
+        feePreview != null -> feePreview!!.baseFeeSompi
+        else -> com.kachat.app.util.SendFeeModel.baseFee(1, baseFeeRateSompiPerGram)
+    }
+    // The preview settled its extra together with the inputs it needs; passing exactly that extra
+    // makes the send pick those same inputs and pay the total shown.
+    val extraFeeSompi = if (manualInputCount == null && feePreview != null) {
+        feePreview!!.extraFeeSompi
+    } else {
+        com.kachat.app.util.SendFeeModel.extraFee(defaultFeeSompi, feeTier.multiplier, customExtraFeeSompi)
+    }
+    val effectiveFeeSompi = defaultFeeSompi + extraFeeSompi
+
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
@@ -6221,19 +6253,54 @@ fun SpendingAddressSendFlow(
         }
     }
 
+    // Automatic selection's preview (coin control off): which coins this amount needs and what
+    // they cost, so the fee shown is priced on the real inputs rather than an assumed one -
+    // mirrors ColdSendFlow's previewSelection. Debounced; Send waits for it, so it never goes out
+    // with an extra worked out for a different amount.
+    LaunchedEffect(previewAmountSompi, baseFeeRateSompiPerGram, feeTier, customExtraFeeSompi, manualUtxos, sourceAddress, recipientScriptLen) {
+        feePreview = null
+        if (manualUtxos.isNullOrEmpty() && previewAmountSompi != null && previewAmountSompi > 0) {
+            isPreviewingFee = true
+            kotlinx.coroutines.delay(400)
+            feePreview = try {
+                viewModel.previewAutomaticSelection(
+                    address = sourceAddress,
+                    amountSompi = previewAmountSompi,
+                    feeRateSompiPerGram = baseFeeRateSompiPerGram,
+                    feeMultiplier = feeTier.multiplier,
+                    customExtraFeeSompi = customExtraFeeSompi,
+                    recipientScriptLen = recipientScriptLen,
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("SendFlow", "Fee preview failed for ${sourceAddress.redactedForLog()}", e)
+                null
+            }
+        }
+        isPreviewingFee = false
+    }
+
     LaunchedEffect(Unit) {
         if (isCompoundMode) {
             recipientInput = fromAddress
             isEstimatingMax = true
+        }
+        // The live quote, once (see baseFeeRateSompiPerGram). Falls back to the network minimum
+        // on any failure.
+        val quotedRate = viewModel.fetchQuotedFeeRateSompiPerGram()
+        liveFeeRateSompiPerGram = quotedRate
+        if (isCompoundMode) {
             try {
                 // Consolidation is bounded by Kaspa's per-transaction mass cap, so pin the send to
                 // one transaction's worth of UTXOs (largest-first, ≤MAX_INPUTS_PER_TRANSACTION) and
                 // estimate Max over exactly those. This is why Max works even when the address has
                 // more UTXOs than a single tx can hold - it consolidates one batch; repeat to reduce.
-                val chunk = viewModel.maxConsolidatableChunk(fromAddress, feeRateOverrideSompi)
+                val chunk = viewModel.maxConsolidatableChunk(fromAddress, quotedRate, feeTier.multiplier, customExtraFeeSompi)
                 if (chunk != null) {
                     manualUtxos = chunk.second
                     fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
+                    maxFill = Triple(com.kachat.app.util.formatKasAmount(chunk.first / 100_000_000.0), feeTier, customExtraFeeSompi)
                 }
             } catch (e: Exception) {
                 // Leave the field untouched on failure - same as the Max button itself.
@@ -6307,11 +6374,17 @@ fun SpendingAddressSendFlow(
         coroutineScope.launch {
             isEstimatingMax = true
             try {
+                // Room for the base fee and the Fast / Priority / custom extra, the extra derived
+                // from Max's own base - never from a fee estimated for whatever amount was typed
+                // before, which is how Max used to leave too little room for the extra.
+                val maxTier = feeTier
+                val maxCustomExtra = customExtraFeeSompi
                 if (isCompoundMode) {
-                    val chunk = viewModel.maxConsolidatableChunk(fromAddress, feeRateOverrideSompi)
+                    val chunk = viewModel.maxConsolidatableChunk(fromAddress, liveFeeRateSompiPerGram, maxTier.multiplier, maxCustomExtra)
                     if (chunk != null) {
                         manualUtxos = chunk.second
                         fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
+                        maxFill = Triple(com.kachat.app.util.formatKasAmount(chunk.first / 100_000_000.0), maxTier, maxCustomExtra)
                     } else {
                         // Same silence as the plain Max had: nothing to consolidate, or nothing
                         // known yet.
@@ -6321,10 +6394,13 @@ fun SpendingAddressSendFlow(
                     // null = the wallet cannot answer yet (the REST client is created a moment
                     // after launch); 0 = it answered, and the fee eats the balance. Neither may
                     // write "0" into the field, which is what made this read as a dead button.
-                    when (val maxSompi = viewModel.estimateMaxSendableAmount(sourceAddress, feeRateOverrideSompi, manualUtxos)) {
+                    when (val maxSompi = viewModel.estimateMaxSendableAmount(sourceAddress, liveFeeRateSompiPerGram, manualUtxos, maxTier.multiplier, maxCustomExtra)) {
                         null -> Toast.makeText(context, "Still connecting. Try Max again in a moment.", Toast.LENGTH_SHORT).show()
                         0L -> Toast.makeText(context, "Not enough here to cover the network fee.", Toast.LENGTH_SHORT).show()
-                        else -> fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                        else -> {
+                            fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                            maxFill = Triple(com.kachat.app.util.formatKasAmount(maxSompi / 100_000_000.0), maxTier, maxCustomExtra)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -6338,13 +6414,25 @@ fun SpendingAddressSendFlow(
             }
         }
     }
-    val canSend = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0
+    // The fee changed after Max filled the field (a speed picked, a custom fee set): Max is worked
+    // out again for the new fee, or the send would need more than the coins hold. Only while the
+    // field still holds what Max wrote - an amount typed since is left alone.
+    LaunchedEffect(feeTier, customExtraFeeSompi) {
+        val filled = maxFill ?: return@LaunchedEffect
+        if (filled.first == amountInput && (filled.second != feeTier || filled.third != customExtraFeeSompi)) {
+            setMaxAmount()
+        }
+    }
+    // Not while the fee preview is being worked out: the send passes the preview's extra.
+    val canSend = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0 && !isPreviewingFee
     val send: () -> Unit = {
         amountSompi?.takeIf { canSend }?.let {
+            // No rate override: the engine prices the base at the live quote, and the speed or
+            // custom fee goes on top as the flat extra shown (SendFeeModel).
             if (sourceIndex != null) {
-                viewModel.withdrawFromSpendingAddress(sourceIndex, effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
+                viewModel.withdrawFromSpendingAddress(sourceIndex, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             } else {
-                viewModel.onSendClicked(effectiveAddress.trim(), it, feeRateOverrideSompi, manualUtxos)
+                viewModel.onSendClicked(effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             }
         }
     }
@@ -6448,7 +6536,7 @@ fun SpendingAddressSendFlow(
                 isEditingFee = isEditingFee,
                 customFeeText = customFeeText,
                 onCustomFeeTextChange = { customFeeText = it },
-                isEstimatingFee = false,
+                isEstimatingFee = isPreviewingFee,
                 feeText = "${ChatRepository.formatKas(effectiveFeeSompi)} ${KaspaUnit.symbol}",
                 onStartEditing = {
                     customFeeText = ChatRepository.formatKas(effectiveFeeSompi)

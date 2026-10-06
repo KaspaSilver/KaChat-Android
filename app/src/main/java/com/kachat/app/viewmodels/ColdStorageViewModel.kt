@@ -731,14 +731,16 @@ class ColdStorageViewModel @Inject constructor(
         toAddress: String,
         amountSompi: Long,
         feeRateOverride: Long? = null,
-        manualUtxos: List<UtxoEntry>? = null
+        manualUtxos: List<UtxoEntry>? = null,
+        /** Fast / Priority / custom fee as a flat extra over the base fee, paid exactly. */
+        extraFeeSompi: Long = 0L
     ) {
         val step = _sendState.value.step
         if (step != ColdSendStep.IDLE && step != ColdSendStep.SUCCESS && step != ColdSendStep.FAILED) return
 
         _sendState.value = ColdSendUiState(step = ColdSendStep.BUILDING)
         viewModelScope.launch {
-            sendEngine.buildUnsignedTransaction(fromAddress, toAddress, amountSompi, feeRateOverride, manualUtxos).fold(
+            sendEngine.buildUnsignedTransaction(fromAddress, toAddress, amountSompi, feeRateOverride, manualUtxos, extraFeeSompi).fold(
                 onSuccess = { unsigned ->
                     pendingUnsignedTx = unsigned
                     val kspt = sendEngine.toKspt(unsigned)
@@ -784,16 +786,28 @@ class ColdStorageViewModel @Inject constructor(
         _sendState.value = ColdSendUiState()
     }
 
-    suspend fun estimateMaxAmount(fromAddress: String, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long =
-        sendEngine.estimateMaxAmount(fromAddress, feeRateOverride, manualUtxos)
+    suspend fun estimateMaxAmount(
+        fromAddress: String,
+        feeRateOverride: Long? = null,
+        manualUtxos: List<UtxoEntry>? = null,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null
+    ): Long =
+        sendEngine.estimateMaxAmount(fromAddress, feeRateOverride, manualUtxos, feeMultiplier, customExtraFeeSompi)
 
     suspend fun fetchUtxosForCoinControl(fromAddress: String): List<UtxoEntry> = sendEngine.fetchUtxos(fromAddress)
 
     suspend fun compoundInputs(fromAddress: String): ColdStorageSendEngine.CompoundInputs =
         sendEngine.compoundInputs(fromAddress)
 
-    suspend fun previewAutomaticSelection(fromAddress: String, amountSompi: Long, feeRateSompiPerGram: Long): ColdStorageSendEngine.AutomaticSelectionPreview? =
-        sendEngine.previewAutomaticSelection(fromAddress, amountSompi, feeRateSompiPerGram)
+    suspend fun previewAutomaticSelection(
+        fromAddress: String,
+        amountSompi: Long,
+        feeRateSompiPerGram: Long,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null
+    ): com.kachat.app.util.SendFeeModel.Preview? =
+        sendEngine.previewAutomaticSelection(fromAddress, amountSompi, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)
 
     suspend fun fetchQuotedFeeRateSompiPerGram(): Long = sendEngine.fetchQuotedFeeRateSompiPerGram()
 

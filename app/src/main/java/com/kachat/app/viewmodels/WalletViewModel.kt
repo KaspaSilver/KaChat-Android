@@ -20,6 +20,7 @@ import com.kachat.app.services.WalletManager
 import com.kachat.app.services.WalletService
 import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaUtxoSelector
+import com.kachat.app.util.SendFeeModel
 import com.kachat.app.util.ImagePrep
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaUnit
@@ -687,7 +688,10 @@ class WalletViewModel @Inject constructor(
         toAddress: String,
         amountSompi: Long,
         feeRateOverride: Long? = null,
-        manualUtxos: List<UtxoEntry>? = null
+        manualUtxos: List<UtxoEntry>? = null,
+        /** Fast / Priority / custom fee as a flat extra over the base fee, paid exactly - see
+         *  [com.kachat.app.util.SendFeeModel]. */
+        extraFeeSompi: Long = 0L,
     ) {
         viewModelScope.launch {
             _isSending.value = true
@@ -712,7 +716,8 @@ class WalletViewModel @Inject constructor(
                 signingPrivateKey = walletManager.getSpendingPrivateKeyBytes(index),
                 changeAddress = fresh?.second ?: fromAddress,
                 feeRateOverride = feeRateOverride,
-                manualUtxos = manualUtxos
+                manualUtxos = manualUtxos,
+                extraFeeSompi = extraFeeSompi
             )
             if (result.isSuccess && fresh != null) {
                 // The primary follows its change onto the fresh address. Manage Addresses
@@ -733,12 +738,51 @@ class WalletViewModel @Inject constructor(
      *  with no scriptPublicKey, which signing needs. */
     suspend fun fetchUtxosForCoinControl(address: String): List<UtxoEntry> = walletEngine.fetchUtxos(address)
 
+    /** The live quoted fee rate a send with no override pays - fetched once when the Send screen
+     *  opens, to price its base fee. */
+    suspend fun fetchQuotedFeeRateSompiPerGram(): Long = walletEngine.fetchQuotedFeeRateSompiPerGram()
+
+    /**
+     * What an automatic-selection send of [amountSompi] from [address] spends and pays - see
+     * [SendFeeModel.previewAutomaticSelection]. Same coins the send itself fetches
+     * ([KaspaWalletEngine.fetchUtxos]: node first, reconciled, immature coinbase dropped). Null
+     * when it cannot be worked out (no REST client yet, nothing there, or not enough to cover it).
+     */
+    suspend fun previewAutomaticSelection(
+        address: String,
+        amountSompi: Long,
+        feeRateSompiPerGram: Long,
+        feeMultiplier: Long,
+        customExtraFeeSompi: Long?,
+        recipientScriptLen: Int = SendFeeModel.STANDARD_SCRIPT_LEN,
+    ): SendFeeModel.Preview? {
+        if (!walletEngine.isRestApiReady) return null
+        val utxos = walletEngine.fetchUtxos(address)
+        val changeScriptLen = runCatching { KaspaAddress.getScriptPublicKey(address).length / 2 }
+            .getOrDefault(SendFeeModel.STANDARD_SCRIPT_LEN)
+        return SendFeeModel.previewAutomaticSelection(
+            utxos = utxos,
+            amountSompi = amountSompi,
+            feeRateSompiPerGram = feeRateSompiPerGram,
+            feeMultiplier = feeMultiplier,
+            customExtraFeeSompi = customExtraFeeSompi,
+            recipientScriptLen = recipientScriptLen,
+            changeScriptLen = changeScriptLen,
+        )
+    }
+
     /**
      * Maximum sendable amount from a specific spending address - thin wrapper over
      * [estimateMaxSendableAmount], resolving the index to an address first.
      */
-    suspend fun estimateMaxSpendingAddressAmount(index: Int, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long? =
-        estimateMaxSendableAmount(walletManager.deriveSpendingAddress(index), feeRateOverride, manualUtxos)
+    suspend fun estimateMaxSpendingAddressAmount(
+        index: Int,
+        feeRateOverride: Long? = null,
+        manualUtxos: List<UtxoEntry>? = null,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null,
+    ): Long? =
+        estimateMaxSendableAmount(walletManager.deriveSpendingAddress(index), feeRateOverride, manualUtxos, feeMultiplier, customExtraFeeSompi)
 
     /**
      * Maximum sendable amount from any address this wallet holds the key for (spending-chain or
@@ -753,8 +797,17 @@ class WalletViewModel @Inject constructor(
      * from an address that holds nothing. Returning 0 for that made Max fill in "0" during the
      * first seconds of a session and read as a button that does not work. 0 now means only what
      * it says: there is a balance, and the fee eats all of it.
+     *
+     * Leaves room for the Fast / Priority / custom extra ([feeMultiplier], [customExtraFeeSompi])
+     * as a flat amount, the extra derived from this same base - see [SendFeeModel.maxAfterFees].
      */
-    suspend fun estimateMaxSendableAmount(address: String, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long? {
+    suspend fun estimateMaxSendableAmount(
+        address: String,
+        feeRateOverride: Long? = null,
+        manualUtxos: List<UtxoEntry>? = null,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null,
+    ): Long? {
         if (!walletEngine.isRestApiReady) return null
         val fetched = walletEngine.fetchUtxos(address)
         if (fetched.isEmpty()) return 0L
@@ -780,19 +833,13 @@ class WalletViewModel @Inject constructor(
         // transaction can carry is not sendable. `maxConsolidatableChunk` already reasons this
         // way; this is the same rule for an ordinary send, and the send's own greedy selection
         // (largest-first, stops once covered) picks the same inputs back.
-        val capped = if (utxos.size > KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION) {
-            utxos.sortedByDescending { it.utxoEntry.amount }.take(KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)
-        } else {
-            utxos
-        }
+        val capped = SendFeeModel.largestSpendable(utxos)
 
         val totalBalance = capped.sumOf { it.utxoEntry.amount }
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
 
-        val mass = KaspaMass.calculateMass(numInputs = maxOf(capped.size, 1), outputScriptLens = listOf(34, 34), payloadSize = 0)
-        val fee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
-        return if (totalBalance > fee) totalBalance - fee else 0L
+        return SendFeeModel.maxAfterFees(totalBalance, capped.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)
     }
 
     /**
@@ -803,9 +850,15 @@ class WalletViewModel @Inject constructor(
      * balance — the user consolidates that chunk, then repeats to reduce further. Returns the chunk
      * so the send pins exactly those inputs; null if nothing is spendable. Mirrors iOS's
      * ChatService.maxConsolidatableChunk. [address]'s UTXOs come back already maturity-filtered
-     * (matured coinbase + non-coinbase) via [KaspaWalletEngine.fetchUtxos].
+     * (matured coinbase + non-coinbase) via [KaspaWalletEngine.fetchUtxos]. The Fast / Priority /
+     * custom extra comes off flat, as in [estimateMaxSendableAmount].
      */
-    suspend fun maxConsolidatableChunk(address: String, feeRateOverride: Long? = null): Pair<Long, List<UtxoEntry>>? {
+    suspend fun maxConsolidatableChunk(
+        address: String,
+        feeRateOverride: Long? = null,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null,
+    ): Pair<Long, List<UtxoEntry>>? {
         val fetched = walletEngine.fetchUtxos(address)
         if (fetched.isEmpty()) return null
         val chunk = fetched.sortedByDescending { it.utxoEntry.amount }
@@ -815,9 +868,7 @@ class WalletViewModel @Inject constructor(
         val totalBalance = chunk.sumOf { it.utxoEntry.amount }
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
-        val mass = KaspaMass.calculateMass(numInputs = chunk.size, outputScriptLens = listOf(34, 34), payloadSize = 0)
-        val fee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
-        val maxAmount = if (totalBalance > fee) totalBalance - fee else 0L
+        val maxAmount = SendFeeModel.maxAfterFees(totalBalance, chunk.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)
         return maxAmount to chunk
     }
 
@@ -1465,10 +1516,17 @@ class WalletViewModel @Inject constructor(
      * coin control the same way [withdrawFromSpendingAddress] already does for spending-chain
      * addresses - see [SpendingAddressSendFlow]'s shared coin-control UI.
      */
-    fun onSendClicked(address: String, amountSompi: Long, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null) {
+    fun onSendClicked(
+        address: String,
+        amountSompi: Long,
+        feeRateOverride: Long? = null,
+        manualUtxos: List<UtxoEntry>? = null,
+        /** Flat extra over the base fee, as in [withdrawFromSpendingAddress]. */
+        extraFeeSompi: Long = 0L,
+    ) {
         viewModelScope.launch {
             _isSending.value = true
-            val result = walletEngine.sendKaspa(address, amountSompi, feeRateOverride = feeRateOverride, manualUtxos = manualUtxos)
+            val result = walletEngine.sendKaspa(address, amountSompi, feeRateOverride = feeRateOverride, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             _sendResult.value = result
             _isSending.value = false
 

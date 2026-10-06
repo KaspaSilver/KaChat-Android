@@ -5,6 +5,7 @@ import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaUtxoSelector
 import com.kachat.app.util.KsptCodec
+import com.kachat.app.util.SendFeeModel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -51,7 +52,10 @@ class ColdStorageSendEngine @Inject constructor(
         toAddress: String,
         amountSompi: Long,
         feeRateOverride: Long? = null,
-        manualUtxos: List<UtxoEntry>? = null
+        manualUtxos: List<UtxoEntry>? = null,
+        /** Fast / Priority / custom fee as a flat extra over the base fee, paid exactly - see
+         *  [com.kachat.app.util.SendFeeModel]. */
+        extraFeeSompi: Long = 0L
     ): Result<UnsignedColdTx> = mutex.withLock {
         try {
             require(KaspaAddress.isValid(toAddress)) { "Invalid recipient address" }
@@ -80,7 +84,8 @@ class ColdStorageSendEngine @Inject constructor(
                     amountSompi = amountSompi,
                     feeRateSompiPerGram = feeRateSompiPerGram,
                     recipientScriptLen = recipientScriptHex.length / 2,
-                    changeScriptLen = changeScriptHex.length / 2
+                    changeScriptLen = changeScriptHex.length / 2,
+                    extraFeeSompi = extraFeeSompi
                 )
             } else {
                 KaspaUtxoSelector.selectUtxosAndCalculateFee(
@@ -89,7 +94,8 @@ class ColdStorageSendEngine @Inject constructor(
                     feeRateSompiPerGram = feeRateSompiPerGram,
                     payloadBytes = null,
                     recipientScriptLen = recipientScriptHex.length / 2,
-                    changeScriptLen = changeScriptHex.length / 2
+                    changeScriptLen = changeScriptHex.length / 2,
+                    extraFeeSompi = extraFeeSompi
                 )
             }
             if (selection.totalSelected < selection.requiredAmount) {
@@ -164,7 +170,15 @@ class ColdStorageSendEngine @Inject constructor(
     /** If coin control has fixed a UTXO set ([manualUtxos]), Max reflects only that subset
      *  (re-resolved against this call's own fresh fetch, same as [buildUnsignedTransaction])
      *  rather than the whole address's balance. */
-    suspend fun estimateMaxAmount(fromAddress: String, feeRateOverride: Long? = null, manualUtxos: List<UtxoEntry>? = null): Long {
+    /** The Fast / Priority / custom extra ([feeMultiplier], [customExtraFeeSompi]) comes off flat,
+     *  derived from this same base - see [com.kachat.app.util.SendFeeModel.maxAfterFees]. */
+    suspend fun estimateMaxAmount(
+        fromAddress: String,
+        feeRateOverride: Long? = null,
+        manualUtxos: List<UtxoEntry>? = null,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null
+    ): Long {
         val api = networkService.kaspaRestApi.value
             ?: throw IllegalStateException("Network service unavailable")
         val fetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
@@ -189,12 +203,8 @@ class ColdStorageSendEngine @Inject constructor(
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: fetchQuotedFeeRateSompiPerGram()
 
-        val mass = KaspaMass.calculateMass(numInputs = maxOf(utxos.size, 1), outputScriptLens = listOf(34, 34), payloadSize = 0)
-        val fee = KaspaMass.calculateFee(mass, feeRateSompiPerGram)
-        return if (totalBalance > fee) totalBalance - fee else 0L
+        return SendFeeModel.maxAfterFees(totalBalance, utxos.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)
     }
-
-    data class AutomaticSelectionPreview(val utxos: List<UtxoEntry>, val feeSompi: Long)
 
     /**
      * Live preview of what automatic selection *would* pick for [amountSompi] at
@@ -205,9 +215,16 @@ class ColdStorageSendEngine @Inject constructor(
      * can't diverge the way they could when each independently guessed at the input count. Uses
      * standard 34-byte output script lengths (matching the form's own reference-mass constant)
      * since this only needs to be right about *how many inputs*, not the recipient's exact
-     * address.
+     * address. The Fast / Priority / custom extra is settled together with the inputs it needs
+     * ([SendFeeModel.previewAutomaticSelection]); the build passes the preview's extra.
      */
-    suspend fun previewAutomaticSelection(fromAddress: String, amountSompi: Long, feeRateSompiPerGram: Long): AutomaticSelectionPreview? {
+    suspend fun previewAutomaticSelection(
+        fromAddress: String,
+        amountSompi: Long,
+        feeRateSompiPerGram: Long,
+        feeMultiplier: Long = 1L,
+        customExtraFeeSompi: Long? = null
+    ): SendFeeModel.Preview? {
         if (amountSompi <= 0) return null
         val api = networkService.kaspaRestApi.value ?: return null
         val utxos = try {
@@ -215,18 +232,13 @@ class ColdStorageSendEngine @Inject constructor(
         } catch (e: Exception) {
             return null
         }
-        if (utxos.isEmpty()) return null
-
-        val selection = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+        return SendFeeModel.previewAutomaticSelection(
             utxos = utxos,
             amountSompi = amountSompi,
             feeRateSompiPerGram = feeRateSompiPerGram,
-            payloadBytes = null,
-            recipientScriptLen = 34,
-            changeScriptLen = 34
+            feeMultiplier = feeMultiplier,
+            customExtraFeeSompi = customExtraFeeSompi
         )
-        if (selection.totalSelected < selection.requiredAmount) return null
-        return AutomaticSelectionPreview(utxos = selection.selectedUtxos, feeSompi = selection.estimatedFee)
     }
 
     /** Raw UTXOs at [fromAddress] for the coin-control picker — unlike
