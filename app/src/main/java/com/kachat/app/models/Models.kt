@@ -6,7 +6,7 @@ import androidx.room.Index
 /**
  * Message stored locally in Room.
  *
- * Maps to the ciph_msg protocol payloads:
+ * Maps to the kchat:1: protocol payloads (the legacy `ciph_msg:1:` root is read, never written):
  *   - type = "handshake" → handshake
  *   - type = "comm"      → contextual message
  *   - type = "pay"       → payment with memo
@@ -31,7 +31,7 @@ data class MessageEntity(
     val type: String,                       // "handshake" | "comm" | "pay"
     val direction: String,                  // "sent" | "received"
     val plaintextBody: String?,             // Decrypted message text (null if not yet decrypted)
-    val encryptedPayload: String,           // Raw ciph_msg payload from chain
+    val encryptedPayload: String,           // Raw kchat:1: payload from chain (legacy ciph_msg:1: read too)
     val amountSompi: Long?,                 // For "pay" type: amount in sompi (1 KAS = 1e8 sompi)
     val blockTimestamp: Long,               // Block time in epoch ms
     val isRead: Boolean = false,
@@ -283,7 +283,7 @@ data class UnreadCount(
 )
 
 /**
- * Inner JSON plaintext of a "handshake" ciph_msg payload, encrypted before transmission.
+ * Inner JSON plaintext of a `kchat:1:handshake:` payload, encrypted before transmission.
  * Field names match the iOS `HandshakePayload` struct so a real KaChat iOS user can decode it.
  */
 data class HandshakePayload(

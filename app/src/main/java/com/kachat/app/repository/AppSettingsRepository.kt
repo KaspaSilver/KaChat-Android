@@ -129,7 +129,7 @@ class AppSettingsRepository @Inject constructor(
         val KEY_REVEALED_PHOTO_TX_IDS = stringSetPreferencesKey("revealed_photo_tx_ids")
 
         // KaPosts local stores (poster ADDRESSES, chain-wide like revealed photos): who you
-        // follow (mirrored on-chain by k:1:follow txs - this set drives instant UI state),
+        // follow (mirrored on-chain by kchat:1:follow txs - this set drives instant UI state),
         // and muted/blocked authors whose content hides everywhere in KaPosts.
         val KEY_KAPOSTS_FOLLOWING = stringSetPreferencesKey("kaposts_following")
         val KEY_KAPOSTS_MUTED     = stringSetPreferencesKey("kaposts_muted")

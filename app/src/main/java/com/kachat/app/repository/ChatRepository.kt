@@ -1877,7 +1877,7 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Detects plain incoming KAS payments (no ciph_msg payload — those are handled by
+     * Detects plain incoming KAS payments (no kchat:1: payload — those are handled by
      * syncHandshakes/syncContextualMessages already) and creates a new conversation for
      * the sender if we've never seen them before, matching the real reference apps'
      * "Received X KAS" payment bubbles.
