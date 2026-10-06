@@ -9906,9 +9906,10 @@ fun ConnectionHubSections(
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val colors = LocalAppColors.current
     SettingsSection(title = stringResource(R.string.connection)) {
-        // Mainnet <-> testnet, first in the section (no footer). Each network keeps its own
-        // connection settings, so Connection Settings below shows the testnet values while this
-        // is on, and the mainnet ones come back when it's off.
+        // Mainnet <-> testnet, first in the section (no footer). The choice applies at the next
+        // launch, all at once (iOS e6f664f): until then the running app stays on its network.
+        // Each network keeps its own connection settings, so Connection Settings below shows
+        // the chosen network's values - the ones the app uses after the restart.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -10230,7 +10231,8 @@ fun TopStatusBar(
 @Composable
 fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = hiltViewModel()) {
     val network by viewModel.network.collectAsState()
-    val indexerUrl by viewModel.indexerUrl.collectAsState()
+    // The indexer this launch is connected to (a Testnet switch waits for the next launch).
+    val indexerUrl by viewModel.runningIndexerUrl.collectAsState()
 
     val activeNodes by viewModel.activeNodes.collectAsState()
     val allNodes by viewModel.allNodes.collectAsState()

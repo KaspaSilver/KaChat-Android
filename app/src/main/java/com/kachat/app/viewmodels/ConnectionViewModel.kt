@@ -150,14 +150,21 @@ class ConnectionViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Never")
 
     val network: StateFlow<String> = settings.network.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "Mainnet")
-    val indexerUrl: StateFlow<String> = settings.indexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val knsApiUrl: StateFlow<String> = settings.knsApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val kaspaRestApiUrl: StateFlow<String> = settings.kaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val kapostIndexerUrl: StateFlow<String> = settings.kapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val translationServiceUrl: StateFlow<String> = settings.translationServiceUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val broadcastIndexerUrl: StateFlow<String> = settings.broadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val pushIndexerUrl: StateFlow<String> = settings.pushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val trustedNodeAddress: StateFlow<String> = settings.trustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    // Connection Settings shows the Testnet switch's network's values: after a switch they are
+    // the chosen network's, which the app connects with from the next launch (iOS e6f664f). The
+    // running app keeps using its own network's until then (AppSettingsRepository).
+    val indexerUrl: StateFlow<String> = settings.selectedIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val knsApiUrl: StateFlow<String> = settings.selectedKnsApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val kaspaRestApiUrl: StateFlow<String> = settings.selectedKaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val kapostIndexerUrl: StateFlow<String> = settings.selectedKapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    /** The indexer the running app is connected to, for the connection status screen. */
+    val runningIndexerUrl: StateFlow<String> = settings.indexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    /** The KaPosts indexer the running app uses - whether KaPosts can open now. */
+    val runningKapostIndexerUrl: StateFlow<String?> = settings.kapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+    val translationServiceUrl: StateFlow<String> = settings.selectedTranslationServiceUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val broadcastIndexerUrl: StateFlow<String> = settings.selectedBroadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val pushIndexerUrl: StateFlow<String> = settings.selectedPushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val trustedNodeAddress: StateFlow<String> = settings.selectedTrustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     /**
      * True when node selection is AUTOMATIC (no pinned node, the pool discovers and picks),
      * false when pinned to a specific node (the shipped default or the user's own) - see
@@ -166,11 +173,12 @@ class ConnectionViewModel @Inject constructor(
      * keep pool-only sections hidden for that first frame instead of flashing them at a pinned
      * user (or vice versa) while DataStore loads.
      */
+    // The running pool's selection (the status screen describes the live pool).
     val nodeSelectionIsAutomatic: StateFlow<Boolean?> = settings.trustedNodeAddress
         .map { it.trim().isBlank() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val savedNodeAddresses: StateFlow<List<com.kachat.app.models.SavedNodeAddress>> =
-        settings.savedNodeAddresses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+        settings.selectedSavedNodeAddresses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
 
     /** Opt-in per-request HTTP logging (Diagnostics section), default OFF. */
     val verboseApiLogging: StateFlow<Boolean> =
@@ -179,8 +187,9 @@ class ConnectionViewModel @Inject constructor(
     private val _discoverNewPeers = MutableStateFlow(true)
     val discoverNewPeers: StateFlow<Boolean> = _discoverNewPeers
 
-    /** Settings > Connection > Testnet: keeps each network's connection settings (iOS
-     *  `SettingsViewModel.switchNetwork(to:)`); takes effect on the next launch. */
+    /** Settings > Connection > Testnet: only records the choice; the switch, with each network's
+     *  own connection settings, happens at the next launch (iOS `SettingsViewModel.switchNetwork(to:)`,
+     *  e6f664f). Choosing the running network again cancels it. */
     fun switchNetwork(to: com.kachat.app.util.KaspaNetwork.Type) { viewModelScope.launch { settings.switchNetwork(to) } }
     fun setIndexerUrl(value: String) { viewModelScope.launch { settings.setIndexerUrl(value) } }
     fun setKaspaRestApiUrl(value: String) { viewModelScope.launch { settings.setKaspaRestUrl(value) } }

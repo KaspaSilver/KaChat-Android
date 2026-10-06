@@ -521,7 +521,7 @@ fun KaPostsScreen(
     handlesDeepLinks: Boolean = true,
     connectionViewModel: com.kachat.app.viewmodels.ConnectionViewModel = hiltViewModel(),
 ) {
-    val kapostIndexerUrl by connectionViewModel.kapostIndexerUrl.collectAsState(initial = null)
+    val kapostIndexerUrl by connectionViewModel.runningKapostIndexerUrl.collectAsState()
     when {
         kapostIndexerUrl == null -> Box(Modifier.fillMaxSize().background(LocalAppColors.current.background))
         kapostIndexerUrl.isNullOrBlank() -> KaPostsUnavailable()

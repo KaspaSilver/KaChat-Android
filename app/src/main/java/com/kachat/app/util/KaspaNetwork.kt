@@ -9,11 +9,14 @@ import kotlinx.coroutines.flow.asStateFlow
  * Mainnet or testnet (testnet-10), iOS `NetworkType` + `AppSettings.networkType` (bdae4b7).
  *
  * Two values, as on iOS:
- *  - [selected] is what Settings > Connection's Testnet switch says. Switching it swaps the
- *    connection settings right away (AppSettingsRepository.switchNetwork).
+ *  - [selected] is what Settings > Connection's Testnet switch says: the choice for the next
+ *    launch (iOS `PendingNetworkSwitch` / `selectedNetworkType`, e6f664f). Flipping it only
+ *    records it (AppSettingsRepository.switchNetwork).
  *  - [launch] is the network the app started on (iOS `SettingsViewModel.launchNetworkType`). The
- *    node pool, the wallet address and every service are set up for it, so a switch takes effect
- *    on the next launch - and the switch's note says so while the two differ.
+ *    node pool, the wallet address and every service - indexer, REST, push, .kachat - follow it
+ *    until the app is opened again, so the switch happens at the next launch, all at once
+ *    ([init], from KaChatApplication.attachBaseContext); the switch's note says so while the two
+ *    differ (IOS-002 / AND-003).
  *
  * Kept in plain SharedPreferences, not the settings DataStore, because it has to be known
  * synchronously before any service starts (KaChatApplication.attachBaseContext calls [init]).
@@ -51,7 +54,8 @@ object KaspaNetwork {
         _selected.value = stored
     }
 
-    /** Persists the switch. The running app stays on [launch] until it is opened again. */
+    /** Records the choice for the next launch. The running app stays on [launch] until it is
+     *  opened again; choosing [launch] again cancels a pending switch. */
     fun select(type: Type) {
         prefs?.edit()?.putString(KEY_NETWORK, type.raw)?.commit()
         _selected.value = type

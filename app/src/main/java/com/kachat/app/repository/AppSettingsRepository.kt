@@ -9,8 +9,12 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.google.gson.Gson
 import com.kachat.app.models.PendingKnsCommit
+import com.kachat.app.util.KaspaNetwork
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -72,6 +76,9 @@ class AppSettingsRepository @Inject constructor(
          *  from (iOS `AppSettings.connectionProfiles`). Gson [ConnectionProfile]. */
         fun connectionProfileKey(network: com.kachat.app.util.KaspaNetwork.Type) =
             stringPreferencesKey("connection_profile_" + network.raw)
+        /** Which network's connection settings KEY_INDEXER_URL ... KEY_SAVED_NODE_ADDRESSES hold
+         *  ("mainnet"/"testnet"). Unset (before the IOS-002 port) = the launch network's. */
+        val KEY_CONNECTION_KEYS_NETWORK = stringPreferencesKey("connection_keys_network")
 
         // Defaults matching the iOS app
         const val DEFAULT_NETWORK        = "mainnet"
@@ -279,25 +286,70 @@ class AppSettingsRepository @Inject constructor(
      *  (iOS bdae4b7). Its own store (KaspaNetwork): it must be known before any service starts. */
     val network: Flow<String> = com.kachat.app.util.KaspaNetwork.selected.map { it.raw }
 
+    // MARK: - Connection settings: running vs selected network (iOS e6f664f, IOS-002 / AND-003)
+    //
+    // The Testnet switch takes effect at the next launch, all at once. Flipping it swaps the
+    // connection settings in the DataStore (switchNetwork), so the editable keys hold the CHOSEN
+    // network's values - Connection Settings shows and edits those - while the running network's
+    // values are set aside in its own profile. Everything the running app connects with (the
+    // indexer, REST, push, KaPosts and public chat clients, the node pool, .kachat) reads the
+    // flows below that resolve against [KaspaNetwork.launch], so nothing moves until the restart.
+    // Connection Settings reads the `selected*` flows instead.
+
+    private val gson = Gson()
+
+    /** The network whose values the editable connection keys hold. */
+    private fun liveKeysNetwork(prefs: Preferences): KaspaNetwork.Type =
+        prefs[KEY_CONNECTION_KEYS_NETWORK]?.let { KaspaNetwork.Type.fromRaw(it) } ?: KaspaNetwork.launch
+
+    private fun liveKeysProfile(prefs: Preferences) = ConnectionProfile(
+        indexerUrl = prefs[KEY_INDEXER_URL],
+        kapostIndexerUrl = prefs[KEY_KAPOST_INDEXER_URL],
+        broadcastIndexerUrl = prefs[KEY_BROADCAST_INDEXER_URL],
+        pushIndexerUrl = prefs[KEY_PUSH_INDEXER_URL],
+        translationServiceUrl = prefs[KEY_TRANSLATION_SERVICE_URL],
+        kaspaRestUrl = prefs[KEY_KASPA_REST_URL],
+        trustedNodeAddress = prefs[KEY_TRUSTED_NODE_ADDRESS],
+        savedNodeAddresses = prefs[KEY_SAVED_NODE_ADDRESSES],
+    )
+
+    private fun storedProfile(prefs: Preferences, network: KaspaNetwork.Type): ConnectionProfile? =
+        prefs[connectionProfileKey(network)]?.let { runCatching { gson.fromJson(it, ConnectionProfile::class.java) }.getOrNull() }
+
+    /** [network]'s connection settings: the editable keys when they hold that network's, else the
+     *  profile they were set aside in, else the network's defaults. */
+    private fun connectionProfile(prefs: Preferences, network: KaspaNetwork.Type): ConnectionProfile =
+        if (liveKeysNetwork(prefs) == network) liveKeysProfile(prefs)
+        else storedProfile(prefs, network) ?: ConnectionProfile.defaults(network)
+
+    /** The running network's settings - what every live client uses until the next launch. */
+    private val runningConnection: Flow<Pair<ConnectionProfile, KaspaNetwork.Type>> =
+        dataStore.data.map { connectionProfile(it, KaspaNetwork.launch) to KaspaNetwork.launch }
+
+    /** The Testnet switch's network's settings - what Connection Settings shows and edits. */
+    private val selectedConnection: Flow<Pair<ConnectionProfile, KaspaNetwork.Type>> =
+        combine(dataStore.data, KaspaNetwork.selected) { prefs, network -> connectionProfile(prefs, network) to network }
+
+    private fun Flow<Pair<ConnectionProfile, KaspaNetwork.Type>>.resolve(
+        value: (ConnectionProfile, KaspaNetwork.Type) -> String,
+    ): Flow<String> = map { (profile, network) -> value(profile, network) }.distinctUntilChanged()
+
     /** A blank field means the network's own default: the mainnet host on mainnet, the testnet-10
      *  indexer on testnet - so a blank left from before testnet had an indexer becomes it, and a
      *  custom URL is kept (iOS 5463ab7). */
-    private val onTestnetSettings: Boolean
-        get() = com.kachat.app.util.KaspaNetwork.selected.value == com.kachat.app.util.KaspaNetwork.Type.TESTNET
-
-    private fun indexerOrDefault(stored: String?, default: String): String {
+    private fun indexerOrDefault(stored: String?, default: String, network: KaspaNetwork.Type): String {
         val value = stored?.takeIf { it.isNotBlank() }
-        return value ?: if (onTestnetSettings) DEFAULT_TESTNET_INDEXER_URL else default
+        return value ?: if (network == KaspaNetwork.Type.TESTNET) DEFAULT_TESTNET_INDEXER_URL else default
     }
 
     // Transforms away superseded default indexers on read (rather than a one-time write-back
     // migration) - anyone who saved settings on an old default (kasia.fyi, or the previous
     // community default kasia.wtf) is moved to the current default (kachat.duckdns.org). Custom
     // indexers the user typed are kept as-is.
-    val indexerUrl: Flow<String> = dataStore.data.map {
-        val stored = it[KEY_INDEXER_URL]?.takeIf { url -> url.isNotBlank() }
-        if (onTestnetSettings) return@map stored ?: DEFAULT_TESTNET_INDEXER_URL
-        if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
+    private fun resolveIndexerUrl(profile: ConnectionProfile, network: KaspaNetwork.Type): String {
+        val stored = profile.indexerUrl?.takeIf { url -> url.isNotBlank() }
+        if (network == KaspaNetwork.Type.TESTNET) return stored ?: DEFAULT_TESTNET_INDEXER_URL
+        return if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
     }
 
     /**
@@ -309,21 +361,16 @@ class AppSettingsRepository @Inject constructor(
      * setting that caused it. There is no reason for this endpoint to vary per install, so on both
      * platforms it is now pinned rather than merely defaulted.
      */
-    val knsApiUrl: Flow<String> = com.kachat.app.util.KaspaNetwork.selected.map {
-        if (it == com.kachat.app.util.KaspaNetwork.Type.MAINNET) DEFAULT_KNS_API_URL else DEFAULT_KNS_TESTNET_API_URL
-    }
+    private fun knsApiUrlFor(network: KaspaNetwork.Type): String =
+        if (network == KaspaNetwork.Type.MAINNET) DEFAULT_KNS_API_URL else DEFAULT_KNS_TESTNET_API_URL
 
     // The rest stay overridable, but a BLANK stored value is treated as unset rather than passed
     // through - an empty base URL builds a request no HTTP client will send.
-    val kaspaRestUrl: Flow<String> = dataStore.data.map {
-        val stored = it[KEY_KASPA_REST_URL]?.takeIf { url -> url.isNotBlank() }
+    private fun resolveKaspaRestUrl(profile: ConnectionProfile, network: KaspaNetwork.Type): String {
+        val stored = profile.kaspaRestUrl?.takeIf { url -> url.isNotBlank() }
             // TN11's API is retired; its old default moves to TN10 (a custom URL is left alone).
             ?.let { url -> if (url == LEGACY_DEFAULT_KASPA_TESTNET_REST_URL) DEFAULT_KASPA_TESTNET_REST_URL else url }
-        stored ?: defaultKaspaRestUrl(com.kachat.app.util.KaspaNetwork.selected.value)
-    }
-
-    val kapostIndexerUrl: Flow<String> = dataStore.data.map {
-        indexerOrDefault(it[KEY_KAPOST_INDEXER_URL], DEFAULT_KAPOST_INDEXER_URL)
+        return stored ?: defaultKaspaRestUrl(network)
     }
 
     /**
@@ -334,13 +381,49 @@ class AppSettingsRepository @Inject constructor(
      */
     // Translating a post has nothing to do with which chain the app is on: blank means the
     // shipped service on both networks (iOS 2ca41aa).
-    val translationServiceUrl: Flow<String> = dataStore.data.map {
-        it[KEY_TRANSLATION_SERVICE_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_TRANSLATION_SERVICE_URL
-    }
+    private fun resolveTranslationServiceUrl(profile: ConnectionProfile): String =
+        profile.translationServiceUrl?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_TRANSLATION_SERVICE_URL
 
-    val broadcastIndexerUrl: Flow<String> = dataStore.data.map {
-        indexerOrDefault(it[KEY_BROADCAST_INDEXER_URL], DEFAULT_BROADCAST_INDEXER_URL)
-    }
+    // Falls back to DEFAULT_TRUSTED_NODE_ADDRESS only when the key has never been written at
+    // all (a fresh install) - once the user explicitly saves "" (clearing it via the Kaspa Node
+    // field), that's a real stored value distinct from "never touched", so it correctly stays
+    // empty (normal discovery) instead of snapping back to the default on every read.
+    private fun resolveTrustedNodeAddress(profile: ConnectionProfile): String =
+        profile.trustedNodeAddress ?: DEFAULT_TRUSTED_NODE_ADDRESS
+
+    private fun resolveSavedNodeAddresses(profile: ConnectionProfile): List<com.kachat.app.models.SavedNodeAddress> =
+        profile.savedNodeAddresses?.let { json ->
+            try {
+                gson.fromJson(json, Array<com.kachat.app.models.SavedNodeAddress>::class.java).toList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
+
+    // The running network's endpoints - every live client.
+    val indexerUrl: Flow<String> = runningConnection.resolve(::resolveIndexerUrl)
+    val knsApiUrl: Flow<String> = flow { emit(knsApiUrlFor(KaspaNetwork.launch)) }
+    val kaspaRestUrl: Flow<String> = runningConnection.resolve(::resolveKaspaRestUrl)
+    val kapostIndexerUrl: Flow<String> = runningConnection.resolve { p, n -> indexerOrDefault(p.kapostIndexerUrl, DEFAULT_KAPOST_INDEXER_URL, n) }
+    val translationServiceUrl: Flow<String> = runningConnection.resolve { p, _ -> resolveTranslationServiceUrl(p) }
+    val broadcastIndexerUrl: Flow<String> = runningConnection.resolve { p, n -> indexerOrDefault(p.broadcastIndexerUrl, DEFAULT_BROADCAST_INDEXER_URL, n) }
+    val pushIndexerUrl: Flow<String> = runningConnection.resolve { p, n -> indexerOrDefault(p.pushIndexerUrl, DEFAULT_PUSH_INDEXER_URL, n) }
+    val trustedNodeAddress: Flow<String> = runningConnection.resolve { p, _ -> resolveTrustedNodeAddress(p) }
+    val savedNodeAddresses: Flow<List<com.kachat.app.models.SavedNodeAddress>> =
+        runningConnection.map { (p, _) -> resolveSavedNodeAddresses(p) }.distinctUntilChanged()
+
+    // The Testnet switch's network's values, for Connection Settings: after a switch they are the
+    // chosen network's, which the app connects with from the next launch.
+    val selectedIndexerUrl: Flow<String> = selectedConnection.resolve(::resolveIndexerUrl)
+    val selectedKnsApiUrl: Flow<String> = KaspaNetwork.selected.map { knsApiUrlFor(it) }
+    val selectedKaspaRestUrl: Flow<String> = selectedConnection.resolve(::resolveKaspaRestUrl)
+    val selectedKapostIndexerUrl: Flow<String> = selectedConnection.resolve { p, n -> indexerOrDefault(p.kapostIndexerUrl, DEFAULT_KAPOST_INDEXER_URL, n) }
+    val selectedTranslationServiceUrl: Flow<String> = selectedConnection.resolve { p, _ -> resolveTranslationServiceUrl(p) }
+    val selectedBroadcastIndexerUrl: Flow<String> = selectedConnection.resolve { p, n -> indexerOrDefault(p.broadcastIndexerUrl, DEFAULT_BROADCAST_INDEXER_URL, n) }
+    val selectedPushIndexerUrl: Flow<String> = selectedConnection.resolve { p, n -> indexerOrDefault(p.pushIndexerUrl, DEFAULT_PUSH_INDEXER_URL, n) }
+    val selectedTrustedNodeAddress: Flow<String> = selectedConnection.resolve { p, _ -> resolveTrustedNodeAddress(p) }
+    val selectedSavedNodeAddresses: Flow<List<com.kachat.app.models.SavedNodeAddress>> =
+        selectedConnection.map { (p, _) -> resolveSavedNodeAddresses(p) }.distinctUntilChanged()
 
     /** Per-room overrides are kept per network (iOS 421a832) - a mainnet room's indexer is not
      *  asked on testnet. */
@@ -379,10 +462,6 @@ class AppSettingsRepository @Inject constructor(
             prefs[broadcastOverridesKey] =
                 current.entries.joinToString("\n") { "${it.key}\u0000${it.value}" }
         }
-    }
-
-    val pushIndexerUrl: Flow<String> = dataStore.data.map {
-        indexerOrDefault(it[KEY_PUSH_INDEXER_URL], DEFAULT_PUSH_INDEXER_URL)
     }
 
     /**
@@ -447,27 +526,9 @@ class AppSettingsRepository @Inject constructor(
     }
 
 
-    // Falls back to DEFAULT_TRUSTED_NODE_ADDRESS only when the key has never been written at
-    // all (a fresh install) - once the user explicitly saves "" (clearing it via the Kaspa Node
-    // field), that's a real stored value distinct from "never touched", so it correctly stays
-    // empty (normal discovery) instead of snapping back to the default on every read.
-    val trustedNodeAddress: Flow<String> = dataStore.data.map {
-        it[KEY_TRUSTED_NODE_ADDRESS] ?: DEFAULT_TRUSTED_NODE_ADDRESS
-    }
-
     // Last-known-good automatic-discovery nodes — see KEY_KNOWN_GOOD_NODES.
     val knownGoodNodeAddresses: Flow<List<String>> = dataStore.data.map { prefs ->
         prefs[knownGoodNodesKey]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
-    }
-
-    val savedNodeAddresses: Flow<List<com.kachat.app.models.SavedNodeAddress>> = dataStore.data.map { prefs ->
-        prefs[KEY_SAVED_NODE_ADDRESSES]?.let { json ->
-            try {
-                Gson().fromJson(json, Array<com.kachat.app.models.SavedNodeAddress>::class.java).toList()
-            } catch (e: Exception) {
-                emptyList()
-            }
-        } ?: emptyList()
     }
 
     val hasWallet: Flow<Boolean> = dataStore.data.map {
@@ -847,42 +908,39 @@ class AppSettingsRepository @Inject constructor(
         get() = if (com.kachat.app.util.KaspaNetwork.isTestnet) KEY_KNOWN_GOOD_NODES_TESTNET else KEY_KNOWN_GOOD_NODES
 
     /**
-     * Mainnet <-> testnet (iOS `AppSettings.switchNetwork(to:)`). The current network's connection
-     * settings are kept aside, the other network's come back (or its defaults, the first time),
-     * so each network remembers its own indexers, REST API, node and address book. The wallet
-     * address, node pool and services follow at the next launch.
+     * Settings > Connection > Testnet (iOS `SettingsViewModel.switchNetwork(to:)`, e6f664f). Only
+     * records the choice: the running app stays on [KaspaNetwork.launch] - wallet address, node
+     * pool, indexer, REST, push - and the whole switch happens at the next launch
+     * ([KaspaNetwork.init] starts on the chosen network). Choosing the running network again
+     * cancels it.
+     *
+     * Each network keeps its own connection settings (iOS `AppSettings.switchNetwork(to:)`): the
+     * editable keys take the chosen network's (or its defaults, the first time), so Connection
+     * Settings shows and edits what the app will use after the restart, and the values they held
+     * are set aside in their network's profile - where the live clients keep reading the running
+     * network's from until then (see runningConnection).
      */
     suspend fun switchNetwork(to: com.kachat.app.util.KaspaNetwork.Type) {
-        val current = com.kachat.app.util.KaspaNetwork.selected.value
-        if (to == current) return
-        val gson = Gson()
         dataStore.edit { prefs ->
-            val profile = ConnectionProfile(
-                indexerUrl = prefs[KEY_INDEXER_URL],
-                kapostIndexerUrl = prefs[KEY_KAPOST_INDEXER_URL],
-                broadcastIndexerUrl = prefs[KEY_BROADCAST_INDEXER_URL],
-                pushIndexerUrl = prefs[KEY_PUSH_INDEXER_URL],
-                translationServiceUrl = prefs[KEY_TRANSLATION_SERVICE_URL],
-                kaspaRestUrl = prefs[KEY_KASPA_REST_URL],
-                trustedNodeAddress = prefs[KEY_TRUSTED_NODE_ADDRESS],
-                savedNodeAddresses = prefs[KEY_SAVED_NODE_ADDRESSES],
-            )
-            prefs[connectionProfileKey(current)] = gson.toJson(profile)
-            val next = prefs[connectionProfileKey(to)]
-                ?.let { runCatching { gson.fromJson(it, ConnectionProfile::class.java) }.getOrNull() }
-                ?: ConnectionProfile.defaults(to)
-            fun put(key: androidx.datastore.preferences.core.Preferences.Key<String>, value: String?) {
-                if (value == null) prefs.remove(key) else prefs[key] = value
+            val current = liveKeysNetwork(prefs)
+            if (to != current) {
+                prefs[connectionProfileKey(current)] = gson.toJson(liveKeysProfile(prefs))
+                val next = storedProfile(prefs, to) ?: ConnectionProfile.defaults(to)
+                fun put(key: androidx.datastore.preferences.core.Preferences.Key<String>, value: String?) {
+                    if (value == null) prefs.remove(key) else prefs[key] = value
+                }
+                put(KEY_INDEXER_URL, next.indexerUrl)
+                put(KEY_KAPOST_INDEXER_URL, next.kapostIndexerUrl)
+                put(KEY_BROADCAST_INDEXER_URL, next.broadcastIndexerUrl)
+                put(KEY_PUSH_INDEXER_URL, next.pushIndexerUrl)
+                put(KEY_TRANSLATION_SERVICE_URL, next.translationServiceUrl)
+                put(KEY_KASPA_REST_URL, next.kaspaRestUrl)
+                put(KEY_TRUSTED_NODE_ADDRESS, next.trustedNodeAddress)
+                put(KEY_SAVED_NODE_ADDRESSES, next.savedNodeAddresses)
+                prefs[KEY_CONNECTION_KEYS_NETWORK] = to.raw
             }
-            put(KEY_INDEXER_URL, next.indexerUrl)
-            put(KEY_KAPOST_INDEXER_URL, next.kapostIndexerUrl)
-            put(KEY_BROADCAST_INDEXER_URL, next.broadcastIndexerUrl)
-            put(KEY_PUSH_INDEXER_URL, next.pushIndexerUrl)
-            put(KEY_TRANSLATION_SERVICE_URL, next.translationServiceUrl)
-            put(KEY_KASPA_REST_URL, next.kaspaRestUrl)
-            put(KEY_TRUSTED_NODE_ADDRESS, next.trustedNodeAddress)
-            put(KEY_SAVED_NODE_ADDRESSES, next.savedNodeAddresses)
-            // Selected inside the edit, so every flow re-reading these values sees the new network.
+            // The choice for the next launch, recorded inside the edit so the settings and the
+            // switch are written together.
             com.kachat.app.util.KaspaNetwork.select(to)
         }
     }
