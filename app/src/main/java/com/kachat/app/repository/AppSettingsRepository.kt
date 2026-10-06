@@ -313,8 +313,11 @@ class AppSettingsRepository @Inject constructor(
         savedNodeAddresses = prefs[KEY_SAVED_NODE_ADDRESSES],
     )
 
+    /** [network]'s set-aside profile; null when there is none, or when it was written by a
+     *  release build that renamed its fields (ConnectionProfile.decode) - the network's defaults
+     *  then apply, and [switchNetwork] drops the record (audit AND-001). */
     private fun storedProfile(prefs: Preferences, network: KaspaNetwork.Type): ConnectionProfile? =
-        prefs[connectionProfileKey(network)]?.let { runCatching { gson.fromJson(it, ConnectionProfile::class.java) }.getOrNull() }
+        prefs[connectionProfileKey(network)]?.let { ConnectionProfile.decode(it) }
 
     /** [network]'s connection settings: the editable keys when they hold that network's, else the
      *  profile they were set aside in, else the network's defaults. */
@@ -924,7 +927,13 @@ class AppSettingsRepository @Inject constructor(
         dataStore.edit { prefs ->
             val current = liveKeysNetwork(prefs)
             if (to != current) {
-                prefs[connectionProfileKey(current)] = gson.toJson(liveKeysProfile(prefs))
+                prefs[connectionProfileKey(current)] = ConnectionProfile.encode(liveKeysProfile(prefs))
+                // A record an obfuscated build wrote is reset here, once: the chosen network
+                // starts from its defaults instead of misreading it (audit AND-001).
+                prefs[connectionProfileKey(to)]?.takeIf { ConnectionProfile.isForeignRecord(it) }?.let {
+                    android.util.Log.w("AppSettings", "Dropped an unreadable ${to.raw} connection profile")
+                    prefs.remove(connectionProfileKey(to))
+                }
                 val next = storedProfile(prefs, to) ?: ConnectionProfile.defaults(to)
                 fun put(key: androidx.datastore.preferences.core.Preferences.Key<String>, value: String?) {
                     if (value == null) prefs.remove(key) else prefs[key] = value
@@ -1147,6 +1156,27 @@ data class ConnectionProfile(
     val savedNodeAddresses: String? = null,
 ) {
     companion object {
+        /** Every field name above, as Gson writes them. app/proguard-rules.pro keeps these names
+         *  in release builds; ConnectionProfileStoreTest checks the set against the class. */
+        internal val FIELDS = setOf(
+            "indexerUrl", "kapostIndexerUrl", "broadcastIndexerUrl", "pushIndexerUrl",
+            "translationServiceUrl", "kaspaRestUrl", "trustedNodeAddress", "savedNodeAddresses",
+        )
+
+        private val gson = com.google.gson.Gson()
+
+        fun encode(profile: ConnectionProfile): String = gson.toJson(profile)
+
+        /** A record written with renamed fields (a release build without the keep rule). */
+        fun isForeignRecord(json: String): Boolean = com.kachat.app.util.PersistedJson.hasForeignFields(json, FIELDS)
+
+        /** The stored profile; null when it does not parse or [isForeignRecord] - never a
+         *  profile read out of a record that is not one. */
+        fun decode(json: String): ConnectionProfile? {
+            if (isForeignRecord(json)) return null
+            return try { gson.fromJson(json, ConnectionProfile::class.java) } catch (e: Exception) { null }
+        }
+
         /** What a network starts with. Testnet: the public testnet-10 REST API, automatic node
          *  discovery, and KaChat's testnet-10 indexer (unset = the network's default) for chat,
          *  push, KaPosts and public chats (iOS 5463ab7). */

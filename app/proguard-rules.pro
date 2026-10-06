@@ -26,6 +26,15 @@
 -keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredCurrentPrice { *; }
 -keepclassmembers class com.kachat.app.viewmodels.ColdStorageViewModel$AddressRow { *; }
 
+# And two more in repository (audit AND-001): the per-network connection settings the Testnet
+# switch sets aside, and one wallet's Message Requests state. Release builds before this rule
+# wrote both with renamed fields; the stores detect such a record by its keys and reset it once
+# (PersistedJson) instead of misreading it - Stored's four lists share one type, so a shifted
+# mapping could have read the blocked list as the accepted one. Every other Gson-persisted class
+# lives in services/models/util (kept above) or is listed here.
+-keepclassmembers class com.kachat.app.repository.ConnectionProfile { *; }
+-keepclassmembers class com.kachat.app.repository.ChatRequestStore$Stored { *; }
+
 # Gson: retain generic signatures of TypeToken and its (usually anonymous, e.g.
 # `object : TypeToken<List<Account>>() {}`) subclasses. Without this, R8 can merge/strip those
 # synthetic subclasses and drop the generic signature Gson reads at runtime, throwing

@@ -38,7 +38,6 @@ class ChatRequestStore @Inject constructor(
     private val walletManager: WalletManager,
 ) {
     private val prefs = context.getSharedPreferences("kachat_chat_requests", Context.MODE_PRIVATE)
-    private val gson = Gson()
     private val cache = java.util.concurrent.ConcurrentHashMap<String, ChatRequestState>()
     private val lock = Any()
 
@@ -67,17 +66,14 @@ class ChatRequestStore @Inject constructor(
         cache[w]?.let { return it }
         synchronized(lock) {
             cache[w]?.let { return it }
-            val stored = prefs.getString(key(w), null)?.let { runCatching { gson.fromJson(it, Stored::class.java) }.getOrNull() }
-            val state = if (stored != null) {
-                ChatRequestState(
-                    accepted = stored.accepted.orEmpty().toSet(),
-                    privateChats = stored.privateChats.orEmpty().toSet(),
-                    blocked = stored.blocked.orEmpty().toSet(),
-                    inboxTagged = stored.inboxTagged.orEmpty().toSet(),
-                    inboxCursor = stored.inboxCursor ?: 0L,
-                    startedAt = stored.startedAt ?: System.currentTimeMillis(),
-                )
-            } else {
+            val raw = prefs.getString(key(w), null)
+            if (raw != null && isForeignRecord(raw)) {
+                // Written by a release build that renamed the fields (audit AND-001). Its four
+                // lists share one type, so reading it could file the blocked list as the
+                // accepted one; it is reset instead, once, and rebuilt like a first run below.
+                android.util.Log.w("ChatRequestStore", "Reset Message Requests state saved in an unreadable shape")
+            }
+            val state = raw?.let { decode(it) } ?: run {
                 // First run with Message Requests: everything already here stays an ordinary chat.
                 ChatRequestState().also { save(w, it) }
             }
@@ -87,15 +83,7 @@ class ChatRequestStore @Inject constructor(
     }
 
     private fun save(wallet: String, state: ChatRequestState) {
-        val stored = Stored(
-            accepted = state.accepted.toList(),
-            privateChats = state.privateChats.toList(),
-            blocked = state.blocked.toList(),
-            inboxTagged = state.inboxTagged.toList(),
-            inboxCursor = state.inboxCursor,
-            startedAt = state.startedAt,
-        )
-        prefs.edit().putString(key(wallet), gson.toJson(stored)).apply()
+        prefs.edit().putString(key(wallet), encode(state)).apply()
     }
 
     fun update(wallet: String? = activeWallet(), change: (ChatRequestState) -> ChatRequestState) {
@@ -167,6 +155,42 @@ class ChatRequestStore @Inject constructor(
     }
 
     companion object {
+        private val gson = Gson()
+
+        /** [Stored]'s field names, as Gson writes them. app/proguard-rules.pro keeps them in
+         *  release builds; ChatRequestStoreTest checks the set against the class. */
+        internal val STORED_FIELDS = setOf("accepted", "privateChats", "blocked", "inboxTagged", "inboxCursor", "startedAt")
+
+        internal fun encode(state: ChatRequestState): String = gson.toJson(
+            Stored(
+                accepted = state.accepted.toList(),
+                privateChats = state.privateChats.toList(),
+                blocked = state.blocked.toList(),
+                inboxTagged = state.inboxTagged.toList(),
+                inboxCursor = state.inboxCursor,
+                startedAt = state.startedAt,
+            )
+        )
+
+        /** A record written with renamed fields (a release build without the keep rule). */
+        internal fun isForeignRecord(json: String): Boolean =
+            com.kachat.app.util.PersistedJson.hasForeignFields(json, STORED_FIELDS)
+
+        /** The saved state; null when the record does not parse or [isForeignRecord] - the
+         *  caller then starts over rather than misread it. */
+        internal fun decode(json: String): ChatRequestState? {
+            if (isForeignRecord(json)) return null
+            val stored = try { gson.fromJson(json, Stored::class.java) } catch (e: Exception) { null } ?: return null
+            return ChatRequestState(
+                accepted = stored.accepted.orEmpty().toSet(),
+                privateChats = stored.privateChats.orEmpty().toSet(),
+                blocked = stored.blocked.orEmpty().toSet(),
+                inboxTagged = stored.inboxTagged.orEmpty().toSet(),
+                inboxCursor = stored.inboxCursor ?: 0L,
+                startedAt = stored.startedAt ?: System.currentTimeMillis(),
+            )
+        }
+
         /**
          * A conversation someone else started that the user hasn't accepted (iOS
          * `isMessageRequest`). Writing to them, a manually added contact, an explicit Accept, or a
