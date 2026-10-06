@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s 已过期</string>
     <string name="kn_bell_expired_body">在 %1$s 前续期，否则任何人都可以认领。</string>
     <string name="kn_bell_lapsed_title">%1$s 已失效</string>
-    <string name="kn_bell_lapsed_body">现在任何人都可以认领。自己回收即可取回保证金。</string>
     <string name="kn_bell_sold_title">%1$s 已售出</string>
     <string name="kn_bell_paid">已向你支付 %1$s KAS。</string>
     <string name="kn_bell_listing_bought">你挂牌的名称已被购买。</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">正在认领 %1$s</string>
     <string name="kn_keep_open_claiming">请保持 KaChat 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。</string>
     <string name="kn_err_finish_claiming_first">请先完成正在认领的名称。</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">它已不再属于你，已移至市场的“可回收”标签。自己回收即可取回你的押金。</string>
 </resources>

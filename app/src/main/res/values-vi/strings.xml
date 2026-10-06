@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s đã hết hạn</string>
     <string name="kn_bell_expired_body">Gia hạn trước %1$s nếu không ai cũng có thể lấy.</string>
     <string name="kn_bell_lapsed_title">%1$s đã mất hiệu lực</string>
-    <string name="kn_bell_lapsed_body">Giờ ai cũng có thể lấy. Tự thu hồi để nhận lại tiền ký quỹ.</string>
     <string name="kn_bell_sold_title">%1$s đã bán</string>
     <string name="kn_bell_paid">Bạn đã nhận %1$s KAS.</string>
     <string name="kn_bell_listing_bought">Tên bạn rao bán đã được mua.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">Đang nhận %1$s</string>
     <string name="kn_keep_open_claiming">Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.</string>
     <string name="kn_err_finish_claiming_first">Hãy hoàn tất tên bạn đang nhận trước.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Tên này không còn là của bạn và đã chuyển sang mục “Có thể thu hồi” trong chợ. Hãy tự thu hồi để lấy lại tiền đặt cọc.</string>
 </resources>

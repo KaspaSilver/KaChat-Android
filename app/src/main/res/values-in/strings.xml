@@ -888,7 +888,6 @@
     <string name="kn_bell_expired_title">%1$s sudah kedaluwarsa</string>
     <string name="kn_bell_expired_body">Perpanjang sebelum %1$s atau siapa pun bisa mengklaimnya.</string>
     <string name="kn_bell_lapsed_title">%1$s sudah gugur</string>
-    <string name="kn_bell_lapsed_body">Sekarang siapa pun bisa mengklaimnya. Klaim ulang sendiri untuk mendapatkan kembali jaminan Anda.</string>
     <string name="kn_bell_sold_title">%1$s terjual</string>
     <string name="kn_bell_paid">%1$s KAS dibayarkan kepada Anda.</string>
     <string name="kn_bell_listing_bought">Listing Anda dibeli.</string>
@@ -925,4 +924,6 @@
     <string name="kn_claiming_name">Mengklaim %1$s</string>
     <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
     <string name="kn_err_finish_claiming_first">Selesaikan dulu nama yang sedang Anda klaim.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Nama ini bukan milik Anda lagi dan sudah pindah ke Dapat diklaim ulang di marketplace. Klaim ulang sendiri untuk mendapatkan kembali jaminan Anda.</string>
 </resources>

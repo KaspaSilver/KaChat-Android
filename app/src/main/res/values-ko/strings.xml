@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s 만료됨</string>
     <string name="kn_bell_expired_body">%1$s 전에 갱신하지 않으면 누구나 가져갈 수 있어요.</string>
     <string name="kn_bell_lapsed_title">%1$s 소멸됨</string>
-    <string name="kn_bell_lapsed_body">이제 누구나 가져갈 수 있어요. 직접 회수하면 보증금을 돌려받아요.</string>
     <string name="kn_bell_sold_title">%1$s 판매됨</string>
     <string name="kn_bell_paid">%1$s KAS가 지급되었어요.</string>
     <string name="kn_bell_listing_bought">등록한 이름이 판매되었어요.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">%1$s 받는 중</string>
     <string name="kn_keep_open_claiming">KaChat을 열어 두세요. 숨겨진 커밋이 확인되고 약 1분 후에 이름이 등록됩니다. 앱을 나가도 돌아오면 이어서 진행됩니다.</string>
     <string name="kn_err_finish_claiming_first">먼저 받고 있는 이름을 완료하세요.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">더 이상 내 이름이 아니며 마켓플레이스의 회수 가능 탭으로 옮겨졌습니다. 직접 회수하면 보증금을 돌려받습니다.</string>
 </resources>

@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s की अवधि समाप्त</string>
     <string name="kn_bell_expired_body">%1$s से पहले नवीनीकृत करें वरना कोई भी इसे ले सकता है।</string>
     <string name="kn_bell_lapsed_title">%1$s समाप्त हो गया</string>
-    <string name="kn_bell_lapsed_body">अब कोई भी इसे ले सकता है। अपना बॉन्ड वापस पाने के लिए खुद वापस लें।</string>
     <string name="kn_bell_sold_title">%1$s बिक गया</string>
     <string name="kn_bell_paid">आपको %1$s KAS का भुगतान हुआ।</string>
     <string name="kn_bell_listing_bought">आपकी लिस्टिंग खरीदी गई।</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">%1$s का दावा किया जा रहा है</string>
     <string name="kn_keep_open_claiming">KaChat खुला रखें: छिपी प्रतिबद्धता की पुष्टि के लगभग एक मिनट बाद नाम पंजीकृत होता है। अगर आप बाहर जाते हैं, तो लौटने पर यह वहीं से जारी रहेगा।</string>
     <string name="kn_err_finish_claiming_first">पहले वह नाम पूरा करें जिसका आप दावा कर रहे हैं।</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">यह अब आपका नहीं है और मार्केटप्लेस में “वापस लेने योग्य” में चला गया है। अपनी जमानत वापस पाने के लिए इसे खुद पुनः प्राप्त करें।</string>
 </resources>

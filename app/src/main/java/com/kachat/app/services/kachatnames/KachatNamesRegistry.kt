@@ -418,9 +418,7 @@ class KachatNamesRegistry @Inject constructor(
                 IndexerApi.NameJson.parseNames(get(src.base, "/names/expiring")).mapNotNull { it.info(::keyOf) }
             else -> {
                 val grace = graceMs
-                (_chainState.value?.names ?: emptyList()).map { RegistryState.info(it) }
-                    .filter { it.status(grace) == Status.LAPSED }
-                    .sortedBy { it.expiresAt }
+                reclaimable((_chainState.value?.names ?: emptyList()).map { RegistryState.info(it) }, grace)
             }
         }
     }
@@ -734,6 +732,15 @@ class KachatNamesRegistry @Inject constructor(
          *  profiles; see KaChatApplication), for
          *  screens outside the .kachat hub that show an address's identity (User Info). */
         val shared: KachatNamesRegistry? get() = instance
+
+        /** The names an owner still holds: active ones and expired ones in grace (still renewable).
+         *  A lapsed name is no longer theirs - it's in the marketplace's Reclaimable tab (iOS e26562e). */
+        fun held(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
+            names.filter { it.status(graceMs, nowMs) != Status.LAPSED }
+
+        /** Lapsed names anyone may reclaim, oldest expiry first (the Reclaimable tab). */
+        fun reclaimable(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
+            names.filter { it.status(graceMs, nowMs) == Status.LAPSED }.sortedBy { it.expiresAt }
 
         /** Listings that still stand: a listing only means something while the name is active
          *  (an expired name can't be bought, only renewed or reclaimed; iOS ba1a734). */

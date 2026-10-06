@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s a expiré</string>
     <string name="kn_bell_expired_body">Renouvelez-le avant le %1$s ou n’importe qui pourra le récupérer.</string>
     <string name="kn_bell_lapsed_title">%1$s est périmé</string>
-    <string name="kn_bell_lapsed_body">N’importe qui peut le récupérer maintenant. Récupérez-le vous-même pour retrouver votre caution.</string>
     <string name="kn_bell_sold_title">%1$s vendu</string>
     <string name="kn_bell_paid">%1$s KAS vous ont été payés.</string>
     <string name="kn_bell_listing_bought">Votre annonce a été achetée.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">Réclamation de %1$s</string>
     <string name="kn_keep_open_claiming">Gardez KaChat ouvert : le nom est enregistré environ une minute après la confirmation de l\'engagement masqué. Si vous partez, il reprendra là où il s\'était arrêté à votre retour.</string>
     <string name="kn_err_finish_claiming_first">Terminez d\'abord le nom que vous réclamez.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Il ne vous appartient plus et figure désormais dans Récupérables sur la place de marché. Récupérez-le vous-même pour retrouver votre caution.</string>
 </resources>

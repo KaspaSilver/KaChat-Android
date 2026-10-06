@@ -1054,7 +1054,6 @@
     <string name="kn_bell_expired_title">%1$s منقضی شد</string>
     <string name="kn_bell_expired_body">پیش از %1$s تمدیدش کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
     <string name="kn_bell_lapsed_title">%1$s از دست رفت</string>
-    <string name="kn_bell_lapsed_body">اکنون هر کسی می‌تواند آن را بگیرد. خودتان بازپس بگیرید تا ودیعه‌تان برگردد.</string>
     <string name="kn_bell_sold_title">%1$s فروخته شد</string>
     <string name="kn_bell_paid">%1$s KAS به شما پرداخت شد.</string>
     <string name="kn_bell_listing_bought">آگهی شما خریده شد.</string>
@@ -1091,4 +1090,6 @@
     <string name="kn_claiming_name">در حال دریافت %1$s</string>
     <string name="kn_keep_open_claiming">KaChat را باز نگه دارید: نام حدود یک دقیقه پس از تأیید تعهد پنهان ثبت می‌شود. اگر خارج شوید، هنگام بازگشت از همان‌جا ادامه می‌یابد.</string>
     <string name="kn_err_finish_claiming_first">ابتدا نامی را که در حال دریافت آن هستید تمام کنید.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">دیگر متعلق به شما نیست و به بخش «قابل بازپس‌گیری» در بازار منتقل شده است. خودتان آن را بازپس بگیرید تا وثیقه‌تان برگردد.</string>
 </resources>

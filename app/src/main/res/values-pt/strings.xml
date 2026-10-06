@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s venceu</string>
     <string name="kn_bell_expired_body">Renove antes de %1$s ou qualquer pessoa poderá reivindicá-lo.</string>
     <string name="kn_bell_lapsed_title">%1$s caducou</string>
-    <string name="kn_bell_lapsed_body">Agora qualquer pessoa pode reivindicá-lo. Recupere-o você mesmo para receber sua caução de volta.</string>
     <string name="kn_bell_sold_title">%1$s vendido</string>
     <string name="kn_bell_paid">%1$s KAS foram pagos a você.</string>
     <string name="kn_bell_listing_bought">Seu anúncio foi comprado.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">Reivindicando %1$s</string>
     <string name="kn_keep_open_claiming">Mantenha o KaChat aberto: o nome é registrado cerca de um minuto depois que o compromisso oculto é confirmado. Se você sair, ele continua de onde parou quando você voltar.</string>
     <string name="kn_err_finish_claiming_first">Conclua primeiro o nome que você está reivindicando.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Não é mais seu e foi para Recuperáveis no marketplace. Recupere-o você mesmo para receber sua caução de volta.</string>
 </resources>

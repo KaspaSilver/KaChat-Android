@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">Срок %1$s истёк</string>
     <string name="kn_bell_expired_body">Продлите до %1$s, иначе его сможет забрать кто угодно.</string>
     <string name="kn_bell_lapsed_title">%1$s освободилось</string>
-    <string name="kn_bell_lapsed_body">Теперь его может забрать кто угодно. Верните его сами, чтобы получить залог.</string>
     <string name="kn_bell_sold_title">%1$s продано</string>
     <string name="kn_bell_paid">Вам выплачено %1$s KAS.</string>
     <string name="kn_bell_listing_bought">Ваш лот купили.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">Получение %1$s</string>
     <string name="kn_keep_open_claiming">Не закрывайте KaChat: имя регистрируется примерно через минуту после подтверждения скрытого обязательства. Если вы выйдете, процесс продолжится с того же места, когда вы вернётесь.</string>
     <string name="kn_err_finish_claiming_first">Сначала завершите получение текущего имени.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Оно больше не ваше и перешло в раздел «Можно вернуть» на маркетплейсе. Верните его сами, чтобы получить залог обратно.</string>
 </resources>

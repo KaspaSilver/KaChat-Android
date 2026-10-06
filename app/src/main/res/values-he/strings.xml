@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s פג</string>
     <string name="kn_bell_expired_body">חדשו לפני %1$s, אחרת כל אחד יוכל לדרוש אותו.</string>
     <string name="kn_bell_lapsed_title">%1$s פקע</string>
-    <string name="kn_bell_lapsed_body">כעת כל אחד יכול לדרוש אותו. דרשו אותו בעצמכם כדי לקבל את הפיקדון בחזרה.</string>
     <string name="kn_bell_sold_title">%1$s נמכר</string>
     <string name="kn_bell_paid">שולמו לך %1$s KAS.</string>
     <string name="kn_bell_listing_bought">הרישום שלך נקנה.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">תובע את %1$s</string>
     <string name="kn_keep_open_claiming">השאירו את KaChat פתוחה: השם נרשם כדקה אחרי שההתחייבות המוסתרת מאושרת. אם תצאו, התהליך ימשיך מהמקום שבו נעצר כשתחזרו.</string>
     <string name="kn_err_finish_claiming_first">סיימו קודם את השם שאתם תובעים.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">הוא כבר לא שלך ועבר ל״ניתנים לדרישה מחדש״ בשוק. השב אותו בעצמך כדי לקבל את הפיקדון שלך בחזרה.</string>
 </resources>

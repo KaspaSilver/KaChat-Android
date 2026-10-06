@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s süresi doldu</string>
     <string name="kn_bell_expired_body">%1$s tarihinden önce yenileyin, yoksa herkes alabilir.</string>
     <string name="kn_bell_lapsed_title">%1$s düştü</string>
-    <string name="kn_bell_lapsed_body">Artık herkes alabilir. Teminatınızı geri almak için kendiniz geri alın.</string>
     <string name="kn_bell_sold_title">%1$s satıldı</string>
     <string name="kn_bell_paid">Size %1$s KAS ödendi.</string>
     <string name="kn_bell_listing_bought">İlanınız satın alındı.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">%1$s alınıyor</string>
     <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
     <string name="kn_err_finish_claiming_first">Önce almakta olduğunuz adı tamamlayın.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Artık sizin değil ve pazar yerinde Geri alınabilir bölümüne taşındı. Teminatınızı geri almak için kendiniz geri alın.</string>
 </resources>

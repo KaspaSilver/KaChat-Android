@@ -1190,7 +1190,6 @@
     <string name="kn_bell_expired_title">%1$s has expired</string>
     <string name="kn_bell_expired_body">Renew it before %1$s or anyone can claim it.</string>
     <string name="kn_bell_lapsed_title">%1$s has lapsed</string>
-    <string name="kn_bell_lapsed_body">Anyone can claim it now. Reclaim it yourself to get your bond back.</string>
     <string name="kn_bell_sold_title">%1$s sold</string>
     <string name="kn_bell_paid">%1$s KAS was paid to you.</string>
     <string name="kn_bell_listing_bought">Your listing was bought.</string>
@@ -1227,4 +1226,6 @@
     <string name="kn_claiming_name">Claiming %1$s</string>
     <string name="kn_keep_open_claiming">Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.</string>
     <string name="kn_err_finish_claiming_first">Finish the name you\'re claiming first.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">It\'s no longer yours and has moved to Reclaimable in the marketplace. Reclaim it yourself to get your bond back.</string>
 </resources>

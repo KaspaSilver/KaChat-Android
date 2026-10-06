@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s の期限が切れました</string>
     <string name="kn_bell_expired_body">%1$s までに更新しないと誰でも取得できるようになります。</string>
     <string name="kn_bell_lapsed_title">%1$s が失効しました</string>
-    <string name="kn_bell_lapsed_body">今は誰でも取得できます。自分で回収すればボンドが戻ります。</string>
     <string name="kn_bell_sold_title">%1$s が売れました</string>
     <string name="kn_bell_paid">%1$s KAS が支払われました。</string>
     <string name="kn_bell_listing_bought">出品した名前が購入されました。</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">%1$s を取得中</string>
     <string name="kn_keep_open_claiming">KaChat を開いたままにしてください。非公開のコミットが承認されてから約1分後に名前が登録されます。アプリを離れても、戻ったときに続きから再開します。</string>
     <string name="kn_err_finish_claiming_first">先に取得中の名前を完了してください。</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">この名前はもうあなたのものではなく、マーケットプレイスの「回収可能」に移りました。自分で取り戻すと保証金が返ってきます。</string>
 </resources>

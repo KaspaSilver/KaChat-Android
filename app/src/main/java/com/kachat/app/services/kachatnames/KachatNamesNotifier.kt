@@ -104,7 +104,7 @@ class KachatNamesNotifier @Inject constructor(
     private fun body(n: News): String = when (n) {
         is News.RenewOpen -> s(R.string.kn_bell_renewal_open, day(n.expiresAt))
         is News.Expired -> s(R.string.kn_bell_expired_body, day(n.renewBy))
-        is News.Lapsed -> s(R.string.kn_bell_lapsed_body)
+        is News.Lapsed -> s(R.string.kn_bell_lapsed_moved_body)
         is News.Sold -> n.price?.let { s(R.string.kn_bell_paid, KaspaUnit.plain(it)) } ?: s(R.string.kn_bell_listing_bought)
         is News.SoldByOffer -> s(R.string.kn_bell_accepted_offer)
         is News.Reclaimed -> s(R.string.kn_bell_reclaimed_body)

@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s-এর মেয়াদ শেষ</string>
     <string name="kn_bell_expired_body">%1$s-এর আগে নবায়ন করুন, নইলে যে কেউ এটি দাবি করতে পারবে।</string>
     <string name="kn_bell_lapsed_title">%1$s বাতিল হয়েছে</string>
-    <string name="kn_bell_lapsed_body">এখন যে কেউ এটি দাবি করতে পারে। বন্ড ফেরত পেতে নিজেই পুনরুদ্ধার করুন।</string>
     <string name="kn_bell_sold_title">%1$s বিক্রি হয়েছে</string>
     <string name="kn_bell_paid">আপনাকে %1$s KAS দেওয়া হয়েছে।</string>
     <string name="kn_bell_listing_bought">আপনার তালিকাভুক্ত নাম কেনা হয়েছে।</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">%1$s দাবি করা হচ্ছে</string>
     <string name="kn_keep_open_claiming">KaChat খোলা রাখুন: গোপন প্রতিশ্রুতি নিশ্চিত হওয়ার প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়। আপনি চলে গেলে, ফিরে এলে যেখানে থেমেছিল সেখান থেকে চলবে।</string>
     <string name="kn_err_finish_claiming_first">আগে যে নামটি দাবি করছেন সেটি শেষ করুন।</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">এটি আর আপনার নয় এবং মার্কেটপ্লেসের পুনরুদ্ধারযোগ্য অংশে চলে গেছে। আপনার জামানত ফেরত পেতে নিজেই এটি পুনরুদ্ধার করুন।</string>
 </resources>

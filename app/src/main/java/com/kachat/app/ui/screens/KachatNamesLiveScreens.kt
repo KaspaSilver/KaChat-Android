@@ -2824,8 +2824,10 @@ fun KachatLiveDomainsTab(
         val key = KachatNamesRegistry.keyOf(walletAddress)
         if (vm == null || key == null) { loaded = true; return@LaunchedEffect }
         if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
+        // A lapsed name is no longer yours: it moves to the marketplace's Reclaimable tab (and the
+        // bell says so, KachatNamesNotifier). Expired names in grace stay, to be renewed (iOS e26562e).
         names = try {
-            vm.registry.names(key, includeInactive = true)
+            KachatNamesRegistry.held(vm.registry.names(key, includeInactive = true), vm.graceMs)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {

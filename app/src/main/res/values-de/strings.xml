@@ -1023,7 +1023,6 @@
     <string name="kn_bell_expired_title">%1$s ist abgelaufen</string>
     <string name="kn_bell_expired_body">Verlängere vor %1$s, sonst kann ihn jeder beanspruchen.</string>
     <string name="kn_bell_lapsed_title">%1$s ist verfallen</string>
-    <string name="kn_bell_lapsed_body">Jetzt kann ihn jeder beanspruchen. Fordere ihn selbst zurück, um deine Kaution zurückzubekommen.</string>
     <string name="kn_bell_sold_title">%1$s verkauft</string>
     <string name="kn_bell_paid">%1$s KAS wurden an dich gezahlt.</string>
     <string name="kn_bell_listing_bought">Dein Angebot wurde gekauft.</string>
@@ -1060,4 +1059,6 @@
     <string name="kn_claiming_name">%1$s wird beansprucht</string>
     <string name="kn_keep_open_claiming">Lass KaChat geöffnet: Der Name wird etwa eine Minute nach der Bestätigung des verdeckten Commits registriert. Wenn du die App verlässt, geht es bei deiner Rückkehr dort weiter.</string>
     <string name="kn_err_finish_claiming_first">Schließe zuerst den Namen ab, den du gerade beanspruchst.</string>
+    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
+    <string name="kn_bell_lapsed_moved_body">Er gehört dir nicht mehr und steht jetzt unter „Zurückholbar“ im Marktplatz. Fordere ihn selbst zurück, um deine Kaution zurückzubekommen.</string>
 </resources>
