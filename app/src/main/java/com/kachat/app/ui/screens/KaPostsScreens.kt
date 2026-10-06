@@ -173,6 +173,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Lock
 import com.kachat.app.repository.ChatRepository
+import com.kachat.app.services.kachatnames.KachatNamesService
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ChatBubble
@@ -473,18 +474,19 @@ private fun <T, R> StateFlow<T>.collectSelectedAsState(vararg keys: Any?, select
 }
 
 /**
- * The poster display chain (contact alias > KNS domain > shortened address) as LIVE per-address
- * state: recomposes its reader when THIS address's alias or KNS name lands, and only then.
- * Mirrors [KaPostsViewModel.posterDisplayName], which stays the one-shot non-reactive variant.
+ * The poster display chain (contact alias > .kachat name > shortened address, iOS 3d6fb7c) as
+ * LIVE per-address state: recomposes its reader when THIS address's alias or .kachat name lands
+ * (the registry's identity cache is snapshot state). A KNS domain isn't identity since 5.2: its
+ * branch is kept, unreachable, behind [KachatNamesService.isEnabled]. Mirrors
+ * [KaPostsViewModel.posterDisplayName], which stays the one-shot non-reactive variant.
  */
 @Composable
 private fun posterDisplayNameState(viewModel: KaPostsViewModel, address: String): String {
     val alias by viewModel.contactAliases.collectSelectedAsState(address) { it[address] }
     val kns by viewModel.senderKnsNames.collectSelectedAsState(address) { it[address] }
-    return remember(alias, kns, address) {
-        alias?.takeIf { it.isNotBlank() }?.let { viewModel.displayKasName(it) }
-            ?: kns?.takeIf { it.isNotBlank() }?.let { viewModel.displayKasName(it) }
-            ?: if (address.isEmpty()) "Unknown" else address.takeLast(10)
+    val kachat = if (address.isEmpty()) null else com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address)
+    return remember(alias, kachat, kns, address) {
+        KaPostsViewModel.posterName(address, alias, kachat, kns)
     }
 }
 
@@ -2214,6 +2216,7 @@ fun KaPostCell(
                     // A saved contact's own photo overrides the KNS avatar, as everywhere else.
                     deviceContactPhotoUri = contactPhoto?.deviceContactPhotoUri,
                     backupPhotoBase64 = contactPhoto?.backupPhotoBase64,
+                    address = post.posterAddress,
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -2574,6 +2577,7 @@ private fun QuotedEmbedCard(
                 imageUrl = avatarUrl,
                 fallbackText = displayName,
                 size = avatarSize,
+                address = quoted.posterAddress,
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
@@ -4583,8 +4587,14 @@ fun KaPostsProfileOverlay(
     // here meant every one of those results recomposed the entire overlay - banner, header
     // and both pager pages - mid-scroll.
     val profileAvatarUrl by viewModel.senderProfiles.collectSelectedAsState(address) { it[address] }
-    val profileBannerUrl by viewModel.senderBanners.collectSelectedAsState(address) { it[address] }
-    val profileBio by viewModel.senderBios.collectSelectedAsState(address) { it[address] }
+    val knsBannerUrl by viewModel.senderBanners.collectSelectedAsState(address) { it[address] }
+    val knsBio by viewModel.senderBios.collectSelectedAsState(address) { it[address] }
+    // Banner and bio are the .kachat profile's, yours and a tapped poster's alike, on every
+    // network (iOS 3d6fb7c KachatLive.profileBanner / profileBio); the KNS ones only with the
+    // .kachat UI off (unreachable, kept as the switch-back).
+    val kachatProfile = kachatProfileBannerAndBio(address)
+    val profileBannerUrl = kachatProfile.first ?: knsBannerUrl.takeUnless { KachatNamesService.isEnabled }
+    val profileBio = kachatProfile.second ?: knsBio.takeUnless { KachatNamesService.isEnabled }
     val profilePhoto by viewModel.contactPhotos.collectSelectedAsState(address) { it[address] }
     val following by viewModel.following.collectAsState()
     val posterProfile by viewModel.posterProfile.collectAsState()
@@ -4695,6 +4705,8 @@ fun KaPostsProfileOverlay(
                                     size = 76.dp,
                                     deviceContactPhotoUri = profilePhoto?.deviceContactPhotoUri,
                                     backupPhotoBase64 = profilePhoto?.backupPhotoBase64,
+                                    // The .kachat avatar - your own in your header too (iOS 3d6fb7c).
+                                    address = address,
                                 )
                             }
                         }
@@ -5114,7 +5126,7 @@ fun KaPostsSearchOverlay(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            ContactAvatar(imageUrl = personAvatar, fallbackText = personName, size = 36.dp)
+                            ContactAvatar(imageUrl = personAvatar, fallbackText = personName, size = 36.dp, address = person.address)
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     personName,
@@ -5298,6 +5310,7 @@ fun KaPostsNotificationsOverlay(
                                 size = 38.dp,
                                 deviceContactPhotoUri = actorPhoto?.deviceContactPhotoUri,
                                 backupPhotoBase64 = actorPhoto?.backupPhotoBase64,
+                                address = item.actorAddress,
                             )
                             Box(
                                 modifier = Modifier
@@ -6000,6 +6013,7 @@ fun KaPostsFollowListOverlay(
                             imageUrl = entryAvatar,
                             fallbackText = entryName,
                             size = 38.dp,
+                            address = entry.address,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -6160,6 +6174,7 @@ fun KaPostEngagementOverlay(
                                     imageUrl = actorAvatar,
                                     fallbackText = actorName,
                                     size = 38.dp,
+                                    address = entry.actorAddress,
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -6380,6 +6395,7 @@ fun KaPostsModerationOverlay(
                             imageUrl = rowAvatar,
                             fallbackText = rowName,
                             size = 40.dp,
+                            address = address,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(

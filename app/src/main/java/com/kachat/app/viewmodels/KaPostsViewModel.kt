@@ -136,6 +136,27 @@ class KaPostsViewModel @Inject constructor(
         private const val TAG = "KaPostsViewModel"
         const val UNDO_DELAY_MS = 5_000L
 
+        /**
+         * Who a poster is, everywhere in KaPosts (feed, quotes, engagement, follow lists,
+         * notifications, search - iOS 3d6fb7c): the alias YOU set for a saved contact, else
+         * their `.kachat` name ([kachatName], `KachatLive.identityName`), else the last ten
+         * characters of the address. A KNS domain isn't identity since 5.2: [knsName] is read
+         * only with the .kachat UI off ([showsKnsNames], unreachable - kept as the switch-back).
+         */
+        fun posterName(
+            address: String,
+            alias: String?,
+            kachatName: String?,
+            knsName: String?,
+            showsKnsNames: Boolean = !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled,
+        ): String {
+            if (address.isEmpty()) return "Unknown"
+            alias?.takeIf { it.isNotBlank() }?.let { return it.trim() }
+            kachatName?.takeIf { it.isNotBlank() }?.let { return it }
+            if (showsKnsNames) knsName?.takeIf { it.isNotBlank() }?.let { return it.trim() }
+            return address.takeLast(10)
+        }
+
         /** @mention token: @domain at start / after whitespace or opening punctuation (never
          *  inside an email). Same pattern as desktop/iOS and the indexer contract. */
         val MENTION_TOKEN_REGEX = Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)", RegexOption.IGNORE_CASE)
@@ -1105,12 +1126,12 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
-    fun posterDisplayName(address: String): String {
-        if (address.isEmpty()) return "Unknown"
-        contactAliases.value[address]?.takeIf { it.isNotBlank() }?.let { return displayKasName(it) }
-        _senderKnsNames.value[address]?.takeIf { it.isNotBlank() }?.let { return displayKasName(it) }
-        return address.takeLast(10)
-    }
+    fun posterDisplayName(address: String): String = posterName(
+        address = address,
+        alias = contactAliases.value[address],
+        kachatName = if (address.isEmpty()) null else com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address),
+        knsName = _senderKnsNames.value[address],
+    )
 
     fun myAddress(): String? = try { walletManager.getAddress() } catch (_: Exception) { null }
 

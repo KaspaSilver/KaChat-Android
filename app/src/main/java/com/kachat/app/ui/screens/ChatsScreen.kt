@@ -1539,6 +1539,24 @@ fun kachatAvatarUrl(address: String): String? {
     return resolver.cached(link, entries)?.avatar
 }
 
+/**
+ * [address]'s `.kachat` profile banner and bio (first, second), each looked up from its profile's
+ * social link on this device - every network, as profiles aren't registry data (iOS 3d6fb7c
+ * `KachatLive.profileBanner` / `profileBio`). Re-renders when the identity or a lookup lands.
+ */
+@Composable
+fun kachatProfileBannerAndBio(address: String): Pair<String?, String?> {
+    if (address.isEmpty()) return null to null
+    val resolver = com.kachat.app.services.kachatnames.KachatSocialImageResolver.instance ?: return null to null
+    val entries by resolver.entries.collectAsState()
+    val profile = com.kachat.app.services.kachatnames.KachatNamesRegistry.cachedIdentityOf(address)?.profile
+    LaunchedEffect(profile?.banner, profile?.bio) {
+        resolver.refreshIfStale(profile?.banner)
+        resolver.refreshIfStale(profile?.bio)
+    }
+    return resolver.cached(profile?.banner, entries)?.banner to resolver.cached(profile?.bio, entries)?.bio
+}
+
 private val backupAvatarCache = android.util.LruCache<String, ImageBitmap>(64)
 
 private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
