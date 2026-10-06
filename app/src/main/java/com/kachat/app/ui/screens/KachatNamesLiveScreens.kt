@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -1186,11 +1187,11 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
 // MARK: - Hub: pages
 
 /**
- * Marketplace: names for sale, and Reclaimable (lapsed names, with Reclaim). [vm] is null where
- * the registry isn't launched (mainnet): the same page, empty (iOS 7227d69).
+ * Marketplace: names for sale (iOS 0765ce0 `KachatLiveMarketPage`). [vm] is null where the registry
+ * isn't launched (mainnet): the same page, empty (iOS 7227d69).
  */
 @Composable
-fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, onReclaim: (NameInfo) -> Unit) {
+fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
         KachatLiveSectionHeader(stringResource(R.string.kn_for_sale), stringResource(R.string.kn_for_sale_detail))
         if (vm == null || vm.listings.isEmpty()) {
@@ -1203,7 +1204,16 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, o
                 }
             }
         }
+    }
+}
 
+/**
+ * Reclaimable: names that expired and stayed unrenewed through the grace period - anyone may
+ * reclaim one (iOS 0765ce0 `KachatLiveReclaimablePage`). [vm] null: mainnet, empty (iOS 7227d69).
+ */
+@Composable
+fun KachatLiveReclaimablePage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, onReclaim: (NameInfo) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
         KachatLiveSectionHeader(stringResource(R.string.kn_reclaimable), stringResource(R.string.kn_reclaimable_detail))
         if (vm == null || vm.lapsed.isEmpty()) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_to_reclaim) else null)
@@ -1221,47 +1231,20 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, o
     }
 }
 
-/** My Names, and My Offers (withdraw, refund once refundable). [vm] null: mainnet, empty (iOS
- *  7227d69). */
+/**
+ * The offers this wallet made, with Withdraw (and Refund once expired). Shown in Profile > Your
+ * Domains > .kachat, under your names - moved there from the marketplace's former My Names tab
+ * (iOS 0765ce0 `KachatMyOffersSection`).
+ */
 @Composable
-fun KachatLiveMyNamesPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, onOfferAction: (KachatOfferAction) -> Unit) {
-    val colors = LocalAppColors.current
-    // `vm` is null for the screen's whole life on mainnet, so this call is never conditional in practice.
-    val source = vm?.registry?.source?.collectAsState()?.value
-    Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
-        KachatLiveSectionHeader(stringResource(R.string.km_my_names), stringResource(R.string.kn_my_names_extend_detail))
-        if (vm == null || vm.mine.isEmpty()) {
-            Column(
-                Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(40.dp))
-                Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                Text(stringResource(R.string.kn_search_above), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
-            }
-        } else {
-            KachatGlassList {
-                vm.mine.forEachIndexed { index, n ->
-                    KachatLiveNameRow(n, vm, showRenewal = true) { onOpen(n) }
-                    if (index < vm.mine.lastIndex) KachatRowDivider(62)
-                }
-            }
-        }
-
+fun KachatMyOffersSection(offers: List<OfferInfo>, vm: KachatLiveViewModel, onOfferAction: (KachatOfferAction) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         KachatLiveSectionHeader(stringResource(R.string.kn_my_offers), stringResource(R.string.kn_my_offers_detail))
-        if (vm == null || vm.myOffers.isEmpty()) {
-            KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_open_offers) else null)
-        } else {
-            KachatGlassList {
-                vm.myOffers.forEachIndexed { index, o ->
-                    KachatOfferRow(o, vm, isBuyer = true, isOwner = false, onAction = onOfferAction)
-                    if (index < vm.myOffers.lastIndex) KachatRowDivider(50)
-                }
+        KachatGlassList {
+            offers.forEachIndexed { index, o ->
+                KachatOfferRow(o, vm, isBuyer = true, isOwner = false, onAction = onOfferAction)
+                if (index < offers.lastIndex) KachatRowDivider(50)
             }
-        }
-        if (source == KachatNamesRegistry.Source.Chain) {
-            Text(stringResource(R.string.kn_offers_need_indexer), color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp))
         }
     }
 }
@@ -1270,7 +1253,7 @@ fun KachatLiveMyNamesPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit, 
 @Composable
 fun KachatLiveActivityPage(vm: KachatLiveViewModel?) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
-        KachatLiveSectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.kn_activity_detail))
+        KachatLiveSectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.kn_activity_all_detail))
         if (vm == null || vm.activity.isEmpty()) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_yet) else null)
         } else {
@@ -2495,6 +2478,8 @@ fun KachatLiveDomainsTab(
     /** Set when the marketplace was just closed: the list refreshes so a new name shows at once. */
     refreshRequested: Boolean = false,
     onRefreshHandled: () -> Unit = {},
+    /** Withdraw or refund one of the offers this wallet made (My Offers, iOS 0765ce0). */
+    onOfferAction: (KachatOfferAction) -> Unit = {},
     vm: KachatLiveViewModel? = if (KachatNamesService.isLaunched) hiltViewModel() else null,
 ) {
     val colors = LocalAppColors.current
@@ -2502,6 +2487,8 @@ fun KachatLiveDomainsTab(
     val revision = vm?.registry?.revision?.collectAsState()?.value
     val upgrading = vm?.service?.registryUpgrading?.collectAsState()?.value == true
     var names by remember { mutableStateOf<List<NameInfo>>(emptyList()) }
+    // the offers this wallet made (moved here from the marketplace's former My Names tab, iOS 0765ce0)
+    var myOffers by remember { mutableStateOf<List<OfferInfo>>(emptyList()) }
     var loaded by remember { mutableStateOf(vm == null) }
 
     LaunchedEffect(revision, walletAddress) {
@@ -2514,6 +2501,19 @@ fun KachatLiveDomainsTab(
             throw e
         } catch (_: Exception) {
             emptyList()
+        }
+        myOffers = try {
+            vm.registry.myOffers(key)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (myOffers.isNotEmpty()) {
+            // expired offers, and ones made to an earlier owner, come back on their own (iOS ba07975)
+            vm.actions.refreshVirtualDaa()
+            vm.actions.returnExpiredOffers(myOffers)
+            vm.actions.withdrawDeclinedOffers(myOffers)
         }
         loaded = true
     }
@@ -2550,16 +2550,31 @@ fun KachatLiveDomainsTab(
                     Text(stringResource(R.string.kn_setting_up), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                     Text(stringResource(R.string.kn_registry_upgrading), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
-                names.isEmpty() -> Column(
-                    Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
-                    Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                }
-                else -> names.forEach { n ->
-                    DomainNameCard(title = n.display, badge = kachatNameBadge(n, vm?.graceMs ?: 0L), modifier = Modifier.clickable { onOpen(n) })
+                else -> {
+                    if (names.isEmpty()) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
+                            Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                        }
+                    } else {
+                        names.forEach { n ->
+                            DomainNameCard(title = n.display, badge = kachatNameBadge(n, vm?.graceMs ?: 0L), modifier = Modifier.clickable { onOpen(n) })
+                        }
+                    }
+                    if (vm != null && myOffers.isNotEmpty()) {
+                        // the section's own 16 dp gutters, flush with the list's
+                        Box(Modifier.padding(top = 8.dp).layout { measurable, constraints ->
+                            val wide = constraints.copy(maxWidth = constraints.maxWidth + 32.dp.roundToPx(), minWidth = constraints.minWidth + 32.dp.roundToPx())
+                            val placeable = measurable.measure(wide)
+                            layout(constraints.maxWidth, placeable.height) { placeable.place(-16.dp.roundToPx(), 0) }
+                        }) {
+                            KachatMyOffersSection(myOffers, vm, onOfferAction)
+                        }
+                    }
                 }
             }
         }

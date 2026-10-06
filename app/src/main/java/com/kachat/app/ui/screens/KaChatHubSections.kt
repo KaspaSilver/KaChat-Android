@@ -129,10 +129,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 KachatReclaimSheet(sheet.info, onClose = { liveSheet = null }, vm = live)
                 return
             }
-            is KachatHubSheet.Offer -> {
-                KachatOfferActionSheet(sheet.action, onClose = { liveSheet = null })
-                return
-            }
             null -> Unit
         }
     }
@@ -283,7 +279,10 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 }
             }
             UnderlineTabBar(
-                titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.km_my_names), stringResource(R.string.km_activity)),
+                // Names for sale, names anyone may reclaim, and everything that happens in the
+                // registry. Your own names (and the offers you made) live in Profile > Your Domains
+                // (iOS 0765ce0).
+                titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.kn_reclaimable), stringResource(R.string.km_activity)),
                 selectedIndex = page,
                 onSelect = { page = it },
             )
@@ -292,22 +291,18 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             // is setting up.
             if (isLive || !com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                 when (page) {
-                    0 -> KachatLiveMarketPage(
+                    0 -> KachatLiveMarketPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
+                    1 -> KachatLiveReclaimablePage(
                         live,
                         onOpen = { liveSheet = KachatHubSheet.Detail(it) },
                         onReclaim = { liveSheet = KachatHubSheet.Reclaim(it) },
-                    )
-                    1 -> KachatLiveMyNamesPage(
-                        live,
-                        onOpen = { liveSheet = KachatHubSheet.Detail(it) },
-                        onOfferAction = { liveSheet = KachatHubSheet.Offer(it) },
                     )
                     else -> KachatLiveActivityPage(live)
                 }
             } else {
                 when (page) {
                     0 -> MarketPage(onOpenListing = { openListing = true })
-                    1 -> MyNamesPage()
+                    1 -> ReclaimablePage()
                     else -> ActivityPage()
                 }
             }
@@ -333,8 +328,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     }
 }
 
-/** What the live hub shows over itself (iOS NavigationLink / .sheet): a name's detail, the claim
- *  sheet, a reclaim, or an offer action. */
 /**
  * Where a tapped `.kachat` name notification lands (iOS KachatDeepLink, beeedd4): the name, kept
  * until the `.kachat` screen is on screen to take it, so a cold start from the notification still
@@ -344,11 +337,12 @@ object KachatDeepLink {
     val pendingName = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }
 
+/** What the live hub shows over itself (iOS NavigationLink / .sheet): a name's detail, the claim
+ *  sheet, or a reclaim. */
 private sealed class KachatHubSheet {
     class Detail(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
     class Claim(val target: KachatClaimTarget) : KachatHubSheet()
     class Reclaim(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
-    class Offer(val action: KachatOfferAction) : KachatHubSheet()
 }
 
 /** The name a notification pointed at: its live detail once looked up (iOS KachatNameRouteView). */
@@ -442,17 +436,7 @@ private fun MarketPage(onOpenListing: () -> Unit) {
         SectionHeader(stringResource(R.string.km_recently_listed), null)
         Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
             repeat(5) { index ->
-                Row(Modifier.fillMaxWidth().clickable(onClick = onOpenListing).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(36.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.25f)))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Redacted(120)
-                        Redacted(70, 10)
-                    }
-                    Redacted(50)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
-                }
+                ListingPlaceholderRow(onClick = onOpenListing)
                 if (index < 4) HorizontalDivider(Modifier.padding(start = 64.dp), color = colors.background)
             }
         }
@@ -472,35 +456,43 @@ private fun MarketPage(onOpenListing: () -> Unit) {
 }
 
 @Composable
-private fun MyNamesPage() {
+private fun ReclaimablePage() {
     val colors = LocalAppColors.current
-    Column(
-        Modifier.fillMaxWidth().padding(top = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
-        Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-        Text(
-            stringResource(R.string.km_no_names_body),
-            color = colors.textSecondary,
-            fontSize = 15.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp)
-        )
-        Button(
-            onClick = {},
-            enabled = false,
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).padding(top = 4.dp).height(48.dp)
-        ) { Text(stringResource(R.string.km_claim_a_name), fontWeight = FontWeight.Bold) }
-        Column(Modifier.fillMaxWidth().padding(top = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionHeader(stringResource(R.string.kl_offers), stringResource(R.string.kl_offers_detail))
-            Box(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(vertical = 18.dp),
-                contentAlignment = Alignment.Center
-            ) { Text(stringResource(R.string.kl_no_offers), color = colors.textSecondary, fontSize = 15.sp) }
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
+        SectionHeader(stringResource(R.string.kn_reclaimable), stringResource(R.string.kn_reclaimable_detail))
+        Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
+            repeat(3) { index ->
+                ListingPlaceholderRow()
+                if (index < 2) HorizontalDivider(Modifier.padding(start = 16.dp), color = colors.background)
+            }
         }
+        Text(
+            stringResource(R.string.km_reclaimable_appear),
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/** A listing row's shape, redacted: no invented name or price. */
+@Composable
+private fun ListingPlaceholderRow(onClick: (() -> Unit)? = null) {
+    val colors = LocalAppColors.current
+    Row(
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(36.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.25f)))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Redacted(120)
+            Redacted(70, 10)
+        }
+        Redacted(50)
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -509,7 +501,7 @@ private fun ActivityPage() {
     val colors = LocalAppColors.current
     val icons = listOf(Icons.Default.Sell, Icons.Default.ShoppingCart, Icons.Default.AlternateEmail, Icons.AutoMirrored.Filled.CompareArrows)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
-        SectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.km_recent_activity_detail))
+        SectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.kn_activity_all_detail))
         Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
             icons.forEachIndexed { index, icon ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {

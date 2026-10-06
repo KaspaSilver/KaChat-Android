@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">L\'inscription n\'est pas encore ouverte.</string>
     <string name="km_claim">Réclamer</string>
     <string name="km_marketplace">Marché</string>
-    <string name="km_my_names">Mes noms</string>
     <string name="km_activity">Activité</string>
     <string name="km_featured">À la une</string>
     <string name="km_featured_detail">Des noms que leurs propriétaires ont mis en vente.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">Mettre un nom en vente</string>
     <string name="km_listings_appear">Les annonces apparaîtront ici dès le lancement des noms .kachat.</string>
     <string name="km_no_names">Pas encore de nom .kachat</string>
-    <string name="km_no_names_body">Les noms que vous réclamez ou achetez apparaissent ici. Vous pourrez en faire votre nom dans les discussions, le mettre en vente ou l\'envoyer à quelqu\'un.</string>
-    <string name="km_claim_a_name">Réclamer un nom</string>
     <string name="km_recent_activity">Activité récente</string>
-    <string name="km_recent_activity_detail">Réclamations, annonces et ventes sur tout le marché.</string>
     <string name="km_activity_appears">L\'activité apparaîtra ici dès le lancement des noms .kachat.</string>
     <string name="km_how_it_works">Comment ça marche</string>
     <string name="km_list">Vendre</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">Suivant</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Offres</string>
-    <string name="kl_offers_detail">Les offres que vous avez faites et celles reçues pour vos noms. Acceptez-en une ou retirez la vôtre ici.</string>
-    <string name="kl_no_offers">Aucune offre pour l\'instant.</string>
     <string name="kl_offer">Offre</string>
     <string name="kl_offer_detail">Proposez votre prix. Vos KAS attendent sur la chaîne jusqu\'à ce que le vendeur accepte, que vous retiriez l\'offre ou qu\'elle expire - et vous pouvez écrire au vendeur avant.</string>
     <string name="kl_listing">Annonce</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">Des noms que leurs propriétaires ont laissé échoir. Tout le monde peut les récupérer : la caution revient au dernier propriétaire, vous gardez le dépôt libéré comme prime, et le nom redevient libre.</string>
     <string name="kn_nothing_to_reclaim">Rien à récupérer.</string>
     <string name="kn_reclaim">Récupérer</string>
-    <string name="kn_search_above">Cherchez un nom ci-dessus et obtenez-le.</string>
     <string name="kn_my_offers">Mes offres</string>
     <string name="kn_no_open_offers">Aucune offre en cours.</string>
     <string name="kn_offers_need_indexer">Les offres des autres apparaissent une fois un indexeur de noms connecté.</string>
-    <string name="kn_activity_detail">Enregistrements, renouvellements, mises en vente, ventes et transferts dans tout le registre.</string>
     <string name="kn_nothing_yet">Rien pour l’instant.</string>
     <string name="kn_withdraw_offer">Retirer l’offre</string>
     <string name="kn_withdraw">Retirer</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">Renouvellement ouvert</string>
     <string name="kn_extend_footer">Prolonger ajoute des années à la période payée en cours, qui couvre au plus 2 ans. Le prix va aux mineurs.</string>
     <string name="kn_err_period_unknown">L’indexeur de noms n’a pas envoyé la période payée de ce nom. Tirez pour actualiser et réessayez.</string>
-    <string name="kn_my_names_extend_detail">Prolongez-les, renouvelez-les, mettez-les en vente, transférez-les ou libérez-les, et choisissez celui que KaChat affiche pour vous.</string>
     <string name="kn_claim_step3_cap">Le nom est à vous pour les années payées, au plus 2 d’avance. Un nom d’1 an peut être prolongé à 2 ans ; dès 10 jours avant son expiration, vous pouvez le renouveler.</string>
     <string name="kn_setting_up">Mise en place</string>
     <string name="kn_registry_upgrading">Le registre .kachat sur le Testnet est en cours de mise à niveau. Les noms rouvrent ici dès que le nouveau registre est en ligne.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">Les Kaspa qui arrivent dans vos portefeuilles et les nouvelles de vos noms .kachat apparaissent ici.</string>
     <string name="kn_push_renew_soon">Renouvelez-le bientôt pour le garder.</string>
     <string name="kn_push_grace_soon">Renouvelez-le bientôt ou n’importe qui pourra le récupérer.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">Les noms récupérables apparaîtront ici au lancement des noms .kachat.</string>
+    <string name="kn_activity_all_detail">Chaque enregistrement, renouvellement, annonce, vente, offre, transfert et récupération du registre.</string>
 </resources>

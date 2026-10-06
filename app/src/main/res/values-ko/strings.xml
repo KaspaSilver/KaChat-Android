@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">아직 등록이 열리지 않았습니다.</string>
     <string name="km_claim">받기</string>
     <string name="km_marketplace">마켓</string>
-    <string name="km_my_names">내 이름</string>
     <string name="km_activity">활동</string>
     <string name="km_featured">추천</string>
     <string name="km_featured_detail">소유자가 판매 중인 이름.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">이름 판매 등록</string>
     <string name="km_listings_appear">.kachat 이름이 출시되면 여기에 판매 목록이 표시됩니다.</string>
     <string name="km_no_names">아직 .kachat 이름이 없습니다</string>
-    <string name="km_no_names_body">받거나 구매한 이름이 여기에 표시됩니다. 여기서 채팅 이름으로 설정하거나, 판매 등록하거나, 다른 사람에게 보낼 수 있습니다.</string>
-    <string name="km_claim_a_name">이름 받기</string>
     <string name="km_recent_activity">최근 활동</string>
-    <string name="km_recent_activity_detail">마켓 전체의 등록, 판매 목록, 거래.</string>
     <string name="km_activity_appears">.kachat 이름이 출시되면 여기에 활동이 표시됩니다.</string>
     <string name="km_how_it_works">작동 방식</string>
     <string name="km_list">판매</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">다음</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">제안</string>
-    <string name="kl_offers_detail">내가 한 제안과 내 이름에 들어온 제안입니다. 여기서 제안을 수락하거나 내 제안을 철회할 수 있습니다.</string>
-    <string name="kl_no_offers">아직 제안이 없습니다.</string>
     <string name="kl_offer">제안</string>
     <string name="kl_offer_detail">원하는 가격을 제시하세요. KAS는 판매자가 수락하거나, 제안을 철회하거나, 만료될 때까지 체인에서 대기합니다. 먼저 판매자에게 메시지를 보낼 수도 있습니다.</string>
     <string name="kl_listing">판매 목록</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">소유자가 소멸되도록 둔 이름이에요. 누구나 회수할 수 있어요. 보증금은 마지막 소유자에게 돌아가고, 풀려난 예치금은 보상으로 내가 갖고, 이름은 다시 받을 수 있게 돼요.</string>
     <string name="kn_nothing_to_reclaim">회수할 이름이 없어요.</string>
     <string name="kn_reclaim">회수</string>
-    <string name="kn_search_above">위에서 이름을 검색해 받아 보세요.</string>
     <string name="kn_my_offers">내 제안</string>
     <string name="kn_no_open_offers">진행 중인 제안이 없어요.</string>
     <string name="kn_offers_need_indexer">다른 사람의 제안은 이름 인덱서가 연결되면 보여요.</string>
-    <string name="kn_activity_detail">레지스트리 전체의 등록, 갱신, 판매 등록, 판매, 이전.</string>
     <string name="kn_nothing_yet">아직 없어요.</string>
     <string name="kn_withdraw_offer">제안 철회</string>
     <string name="kn_withdraw">철회</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">갱신 가능</string>
     <string name="kn_extend_footer">연장하면 현재 결제된 기간에 연수가 더해져요. 한 기간은 최대 2년이에요. 가격은 채굴자에게 가요.</string>
     <string name="kn_err_period_unknown">이름 인덱서가 이 이름의 결제 기간을 보내지 않았어요. 아래로 당겨 새로 고친 뒤 다시 시도하세요.</string>
-    <string name="kn_my_names_extend_detail">연장, 갱신, 판매 등록, 전송, 해제를 하고 KaChat이 보여 줄 이름을 고르세요.</string>
     <string name="kn_claim_step3_cap">이름은 결제한 연수 동안 내 것이에요(최대 2년 앞까지). 1년 이름은 2년으로 연장할 수 있고, 만료 10일 전부터 갱신할 수 있어요.</string>
     <string name="kn_setting_up">설정 중</string>
     <string name="kn_registry_upgrading">테스트넷의 .kachat 레지스트리를 업그레이드하고 있어요. 새 레지스트리가 가동되면 여기서 이름이 다시 열려요.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">지갑에 도착한 Kaspa와 .kachat 이름 소식이 여기에 표시돼요.</string>
     <string name="kn_push_renew_soon">유지하려면 곧 갱신하세요.</string>
     <string name="kn_push_grace_soon">곧 갱신하지 않으면 누구나 가져갈 수 있어요.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">.kachat 이름이 출시되면 회수 가능한 이름이 여기에 표시돼요.</string>
+    <string name="kn_activity_all_detail">레지스트리의 모든 등록, 갱신, 판매 등록, 판매, 제안, 양도, 회수.</string>
 </resources>

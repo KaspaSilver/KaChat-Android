@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">Регистрация ещё не открыта.</string>
     <string name="km_claim">Получить</string>
     <string name="km_marketplace">Маркетплейс</string>
-    <string name="km_my_names">Мои имена</string>
     <string name="km_activity">Активность</string>
     <string name="km_featured">Избранное</string>
     <string name="km_featured_detail">Имена, которые владельцы выставили на продажу.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">Выставить имя на продажу</string>
     <string name="km_listings_appear">Объявления появятся здесь после запуска имён .kachat.</string>
     <string name="km_no_names">Пока нет имён .kachat</string>
-    <string name="km_no_names_body">Здесь будут имена, которые вы получите или купите. Отсюда вы сможете сделать имя своим в чатах, выставить на продажу или отправить кому-то.</string>
-    <string name="km_claim_a_name">Получить имя</string>
     <string name="km_recent_activity">Недавняя активность</string>
-    <string name="km_recent_activity_detail">Получения, объявления и продажи по всему маркетплейсу.</string>
     <string name="km_activity_appears">Активность появится здесь после запуска имён .kachat.</string>
     <string name="km_how_it_works">Как это работает</string>
     <string name="km_list">Продать</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">Далее</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Предложения</string>
-    <string name="kl_offers_detail">Ваши предложения и предложения на ваши имена. Здесь можно принять предложение или отозвать своё.</string>
-    <string name="kl_no_offers">Пока нет предложений.</string>
     <string name="kl_offer">Предложение</string>
     <string name="kl_offer_detail">Назовите свою цену. Ваши KAS ждут в блокчейне, пока продавец не примет предложение, вы его не отзовёте или оно не истечёт, а продавцу можно сначала написать.</string>
     <string name="kl_listing">Объявление</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">Имена, которые владельцы не продлили. Любой может их вернуть: залог уходит последнему владельцу, освободившийся депозит вы забираете как награду, и имя становится свободным.</string>
     <string name="kn_nothing_to_reclaim">Возвращать нечего.</string>
     <string name="kn_reclaim">Вернуть</string>
-    <string name="kn_search_above">Найдите имя выше и зарегистрируйте его.</string>
     <string name="kn_my_offers">Мои предложения</string>
     <string name="kn_no_open_offers">Нет открытых предложений.</string>
     <string name="kn_offers_need_indexer">Предложения других появятся после подключения индексатора имён.</string>
-    <string name="kn_activity_detail">Регистрации, продления, выставления, продажи и передачи во всём реестре.</string>
     <string name="kn_nothing_yet">Пока ничего.</string>
     <string name="kn_withdraw_offer">Отозвать предложение</string>
     <string name="kn_withdraw">Отозвать</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">Продление открыто</string>
     <string name="kn_extend_footer">Дополнение добавляет годы к текущему оплаченному периоду, который вмещает не больше 2 лет. Цена уходит майнерам.</string>
     <string name="kn_err_period_unknown">Индексатор имён не прислал оплаченный период этого имени. Потяните вниз, чтобы обновить, и попробуйте снова.</string>
-    <string name="kn_my_names_extend_detail">Дополняйте, продлевайте, выставляйте на продажу, передавайте или освобождайте их и выберите то, которое KaChat показывает для вас.</string>
     <string name="kn_claim_step3_cap">Имя ваше на оплаченные годы, не больше 2 вперёд. Имя на 1 год можно дополнить до 2 лет; за 10 дней до окончания срока его можно продлить.</string>
     <string name="kn_setting_up">Настраивается</string>
     <string name="kn_registry_upgrading">Реестр .kachat в Testnet обновляется. Имена снова откроются здесь, как только заработает новый реестр.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">Здесь появляются Kaspa, пришедшие на ваши кошельки, и новости о ваших именах .kachat.</string>
     <string name="kn_push_renew_soon">Продлите его в ближайшее время, чтобы сохранить.</string>
     <string name="kn_push_grace_soon">Продлите его в ближайшее время, иначе его сможет забрать кто угодно.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">Имена, которые можно вернуть, появятся здесь после запуска имён .kachat.</string>
+    <string name="kn_activity_all_detail">Все регистрации, продления, выставления, продажи, предложения, передачи и возвраты в реестре.</string>
 </resources>

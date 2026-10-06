@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">注册尚未开放。</string>
     <string name="km_claim">领取</string>
     <string name="km_marketplace">市场</string>
-    <string name="km_my_names">我的名称</string>
     <string name="km_activity">动态</string>
     <string name="km_featured">精选</string>
     <string name="km_featured_detail">所有者正在出售的名称。</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">出售名称</string>
     <string name="km_listings_appear">.kachat 名称上线后，挂单会显示在这里。</string>
     <string name="km_no_names">还没有 .kachat 名称</string>
-    <string name="km_no_names_body">你领取或购买的名称会显示在这里。在这里你可以把它设为聊天中的名字、挂出出售或发送给别人。</string>
-    <string name="km_claim_a_name">领取名称</string>
     <string name="km_recent_activity">最近动态</string>
-    <string name="km_recent_activity_detail">整个市场的领取、挂单和成交。</string>
     <string name="km_activity_appears">.kachat 名称上线后，动态会显示在这里。</string>
     <string name="km_how_it_works">运作方式</string>
     <string name="km_list">挂单</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">下一步</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">出价</string>
-    <string name="kl_offers_detail">你发出的出价，以及别人对你名称的出价。可在这里接受出价或撤回你的出价。</string>
-    <string name="kl_no_offers">还没有出价。</string>
     <string name="kl_offer">出价</string>
     <string name="kl_offer_detail">自己定价。你的 KAS 会在链上等待，直到卖家接受、你撤回或出价过期——你也可以先给卖家发消息。</string>
     <string name="kl_listing">挂单</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">所有者任其失效的名称。任何人都可以回收：保证金退还给最后的所有者，释放出的押金作为奖励归你，名称重新可注册。</string>
     <string name="kn_nothing_to_reclaim">没有可回收的名称。</string>
     <string name="kn_reclaim">回收</string>
-    <string name="kn_search_above">在上方搜索名称并注册。</string>
     <string name="kn_my_offers">我的报价</string>
     <string name="kn_no_open_offers">没有进行中的报价。</string>
     <string name="kn_offers_need_indexer">连接名称索引器后，才会显示他人的报价。</string>
-    <string name="kn_activity_detail">整个注册表中的注册、续期、挂牌、出售和转让。</string>
     <string name="kn_nothing_yet">暂无内容。</string>
     <string name="kn_withdraw_offer">撤回报价</string>
     <string name="kn_withdraw">撤回</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">可续期</string>
     <string name="kn_extend_footer">延长会为当前已付期间增加年数，每个期间最多 2 年。价格归矿工。</string>
     <string name="kn_err_period_unknown">名称索引器没有返回此名称的已付期间。下拉刷新后重试。</string>
-    <string name="kn_my_names_extend_detail">延长、续期、挂售、转让或释放名称，并选择 KaChat 为你显示的那一个。</string>
     <string name="kn_claim_step3_cap">名称在你付费的年数内归你所有，最多提前 2 年。1 年期的名称可以延长到 2 年；到期前 10 天起可以续期。</string>
     <string name="kn_setting_up">正在设置</string>
     <string name="kn_registry_upgrading">测试网上的 .kachat 注册表正在升级。新注册表上线后，名称会在这里重新开放。</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">到达你钱包的 Kaspa 和你的 .kachat 名称动态都会显示在这里。</string>
     <string name="kn_push_renew_soon">请尽快续期以保留它。</string>
     <string name="kn_push_grace_soon">请尽快续期，否则任何人都可以认领。</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">.kachat 名称上线后，可回收的名称会显示在这里。</string>
+    <string name="kn_activity_all_detail">注册表中的每一次注册、续期、挂牌、出售、报价、转让和回收。</string>
 </resources>

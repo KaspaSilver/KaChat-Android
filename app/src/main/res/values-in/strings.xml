@@ -334,7 +334,6 @@
     <string name="km_registration_not_open">Pendaftaran belum dibuka.</string>
     <string name="km_claim">Klaim</string>
     <string name="km_marketplace">Pasar</string>
-    <string name="km_my_names">Namaku</string>
     <string name="km_activity">Aktivitas</string>
     <string name="km_featured">Unggulan</string>
     <string name="km_featured_detail">Nama yang dijual oleh pemiliknya.</string>
@@ -342,10 +341,7 @@
     <string name="km_list_a_name">Jual Nama</string>
     <string name="km_listings_appear">Daftar jualan muncul di sini setelah nama .kachat diluncurkan.</string>
     <string name="km_no_names">Belum ada nama .kachat</string>
-    <string name="km_no_names_body">Nama yang kamu klaim atau beli muncul di sini. Dari sini kamu bisa menjadikannya namamu di obrolan, menjualnya, atau mengirimnya ke seseorang.</string>
-    <string name="km_claim_a_name">Klaim Nama</string>
     <string name="km_recent_activity">Aktivitas terbaru</string>
-    <string name="km_recent_activity_detail">Klaim, jualan, dan penjualan di seluruh pasar.</string>
     <string name="km_activity_appears">Aktivitas muncul di sini setelah nama .kachat diluncurkan.</string>
     <string name="km_how_it_works">Cara kerjanya</string>
     <string name="km_list">Jual</string>
@@ -421,8 +417,6 @@
     <string name="kg_next">Berikutnya</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Penawaran</string>
-    <string name="kl_offers_detail">Penawaran yang kamu buat dan penawaran untuk namamu. Terima salah satunya atau tarik penawaranmu di sini.</string>
-    <string name="kl_no_offers">Belum ada penawaran.</string>
     <string name="kl_offer">Penawaran</string>
     <string name="kl_offer_detail">Tentukan hargamu sendiri. KAS-mu menunggu di chain sampai penjual menerima, kamu menarik penawaran, atau penawaran kedaluwarsa - dan kamu bisa mengirim pesan ke penjual dulu.</string>
     <string name="kl_listing">Daftar Jual</string>
@@ -572,11 +566,9 @@
     <string name="kn_reclaimable_detail">Nama yang dibiarkan hangus oleh pemiliknya. Siapa pun boleh mengklaim ulang: jaminan kembali ke pemilik terakhir, Anda menyimpan deposit yang terlepas sebagai hadiah, dan nama bebas diklaim.</string>
     <string name="kn_nothing_to_reclaim">Tidak ada yang bisa diklaim ulang.</string>
     <string name="kn_reclaim">Klaim ulang</string>
-    <string name="kn_search_above">Cari nama di atas dan klaim.</string>
     <string name="kn_my_offers">Penawaran Saya</string>
     <string name="kn_no_open_offers">Tidak ada penawaran terbuka.</string>
     <string name="kn_offers_need_indexer">Penawaran dari orang lain muncul setelah indexer nama terhubung.</string>
-    <string name="kn_activity_detail">Klaim, perpanjangan, penjualan, dan pemindahan di seluruh registri.</string>
     <string name="kn_nothing_yet">Belum ada.</string>
     <string name="kn_withdraw_offer">Tarik Penawaran</string>
     <string name="kn_withdraw">Tarik</string>
@@ -709,7 +701,6 @@
     <string name="kn_renewal_open">Perpanjangan dibuka</string>
     <string name="kn_extend_footer">Menambah masa memberi tahun tambahan pada periode berbayar saat ini, yang paling lama 2 tahun. Harga diberikan ke penambang.</string>
     <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
-    <string name="kn_my_names_extend_detail">Tambah masa, perpanjang, jual, transfer, atau lepas nama Anda, dan pilih yang ditampilkan KaChat untuk Anda.</string>
     <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
     <string name="kn_setting_up">Sedang disiapkan</string>
     <string name="kn_registry_upgrading">Registri .kachat di Testnet sedang ditingkatkan. Nama dibuka lagi di sini setelah registri baru aktif.</string>
@@ -921,4 +912,7 @@
     <string name="notification_center_empty">Kaspa yang masuk ke dompet Anda dan kabar nama .kachat Anda muncul di sini.</string>
     <string name="kn_push_renew_soon">Perpanjang segera untuk mempertahankannya.</string>
     <string name="kn_push_grace_soon">Perpanjang segera atau siapa pun bisa mengklaimnya.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">Nama yang bisa diklaim ulang muncul di sini setelah nama .kachat diluncurkan.</string>
+    <string name="kn_activity_all_detail">Setiap klaim, perpanjangan, listing, penjualan, penawaran, transfer, dan klaim ulang di registri.</string>
 </resources>

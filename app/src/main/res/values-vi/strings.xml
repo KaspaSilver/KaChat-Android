@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">Chưa mở đăng ký.</string>
     <string name="km_claim">Nhận</string>
     <string name="km_marketplace">Chợ</string>
-    <string name="km_my_names">Tên của tôi</string>
     <string name="km_activity">Hoạt động</string>
     <string name="km_featured">Nổi bật</string>
     <string name="km_featured_detail">Các tên mà chủ sở hữu đã rao bán.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">Rao bán tên</string>
     <string name="km_listings_appear">Tin rao sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
     <string name="km_no_names">Chưa có tên .kachat</string>
-    <string name="km_no_names_body">Các tên bạn nhận hoặc mua sẽ hiện ở đây. Từ đây bạn có thể đặt làm tên trong trò chuyện, rao bán hoặc gửi cho người khác.</string>
-    <string name="km_claim_a_name">Nhận một tên</string>
     <string name="km_recent_activity">Hoạt động gần đây</string>
-    <string name="km_recent_activity_detail">Nhận tên, rao bán và giao dịch trên toàn chợ.</string>
     <string name="km_activity_appears">Hoạt động sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
     <string name="km_how_it_works">Cách hoạt động</string>
     <string name="km_list">Rao bán</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">Tiếp theo</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Đề nghị</string>
-    <string name="kl_offers_detail">Các đề nghị bạn đã gửi và đề nghị cho tên của bạn. Chấp nhận một đề nghị hoặc rút đề nghị của bạn tại đây.</string>
-    <string name="kl_no_offers">Chưa có đề nghị nào.</string>
     <string name="kl_offer">Đề nghị</string>
     <string name="kl_offer_detail">Tự đặt giá. KAS của bạn chờ trên chuỗi cho đến khi người bán chấp nhận, bạn rút đề nghị hoặc đề nghị hết hạn - và bạn có thể nhắn tin cho người bán trước.</string>
     <string name="kl_listing">Tin rao</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">Những tên mà chủ để mất hiệu lực. Ai cũng có thể thu hồi: tiền bảo đảm trả về chủ cuối, bạn giữ khoản ký quỹ được giải phóng làm thưởng, và tên trở nên trống.</string>
     <string name="kn_nothing_to_reclaim">Không có gì để thu hồi.</string>
     <string name="kn_reclaim">Thu hồi</string>
-    <string name="kn_search_above">Tìm một tên ở trên và nhận nó.</string>
     <string name="kn_my_offers">Đề nghị của tôi</string>
     <string name="kn_no_open_offers">Không có đề nghị đang mở.</string>
     <string name="kn_offers_need_indexer">Đề nghị từ người khác sẽ hiện khi có kết nối trình lập chỉ mục tên.</string>
-    <string name="kn_activity_detail">Đăng ký, gia hạn, rao bán, bán và chuyển nhượng trên toàn sổ đăng ký.</string>
     <string name="kn_nothing_yet">Chưa có gì.</string>
     <string name="kn_withdraw_offer">Rút đề nghị</string>
     <string name="kn_withdraw">Rút</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">Đang mở gia hạn</string>
     <string name="kn_extend_footer">Kéo dài thêm năm vào kỳ đã trả hiện tại, mỗi kỳ tối đa 2 năm. Giá trả cho thợ đào.</string>
     <string name="kn_err_period_unknown">Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.</string>
-    <string name="kn_my_names_extend_detail">Kéo dài, gia hạn, rao bán, chuyển hoặc nhả tên, và chọn tên KaChat hiển thị cho bạn.</string>
     <string name="kn_claim_step3_cap">Tên là của bạn trong số năm đã trả, tối đa trước 2 năm. Tên 1 năm có thể kéo dài thành 2 năm; từ 10 ngày trước khi hết hạn bạn có thể gia hạn.</string>
     <string name="kn_setting_up">Đang thiết lập</string>
     <string name="kn_registry_upgrading">Sổ đăng ký .kachat trên Testnet đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">Kaspa đến ví của bạn và tin tức về tên .kachat của bạn hiển thị ở đây.</string>
     <string name="kn_push_renew_soon">Hãy sớm gia hạn để giữ tên.</string>
     <string name="kn_push_grace_soon">Hãy sớm gia hạn nếu không ai cũng có thể lấy.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">Các tên có thể thu hồi sẽ hiện ở đây khi tên .kachat ra mắt.</string>
+    <string name="kn_activity_all_detail">Mọi lần đăng ký, gia hạn, rao bán, bán, đề nghị, chuyển nhượng và thu hồi trong sổ đăng ký.</string>
 </resources>

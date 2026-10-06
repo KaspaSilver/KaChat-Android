@@ -628,7 +628,6 @@
     <string name="km_registration_not_open">Registration isn\'t open yet.</string>
     <string name="km_claim">Claim</string>
     <string name="km_marketplace">Marketplace</string>
-    <string name="km_my_names">My Names</string>
     <string name="km_activity">Activity</string>
     <string name="km_featured">Featured</string>
     <string name="km_featured_detail">Names their owners have put up for sale.</string>
@@ -636,10 +635,7 @@
     <string name="km_list_a_name">List a Name for Sale</string>
     <string name="km_listings_appear">Listings appear here once .kachat names launch.</string>
     <string name="km_no_names">No .kachat names yet</string>
-    <string name="km_no_names_body">Names you claim or buy show here. From here you\'ll set one as your name in chats, list it for sale, or send it to someone.</string>
-    <string name="km_claim_a_name">Claim a Name</string>
     <string name="km_recent_activity">Recent activity</string>
-    <string name="km_recent_activity_detail">Claims, listings and sales across the marketplace.</string>
     <string name="km_activity_appears">Activity appears here once .kachat names launch.</string>
     <string name="km_how_it_works">How it works</string>
     <string name="km_list">List</string>
@@ -716,8 +712,6 @@
     <string name="kg_next">Next</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Offers</string>
-    <string name="kl_offers_detail">Offers you\'ve made, and offers on names you own. Accept one, or withdraw your own, from here.</string>
-    <string name="kl_no_offers">No offers yet.</string>
     <string name="kl_offer">Offer</string>
     <string name="kl_offer_detail">Name your own price. Your KAS waits on chain until the seller accepts, you withdraw the offer, or it expires - and you can message the seller first.</string>
     <string name="kl_listing">Listing</string>
@@ -868,11 +862,9 @@
     <string name="kn_reclaimable_detail">Names whose owners let them lapse. Anyone may reclaim one: the bond goes back to its last owner, you keep the freed deposit as a bounty, and the name is free to claim.</string>
     <string name="kn_nothing_to_reclaim">Nothing to reclaim.</string>
     <string name="kn_reclaim">Reclaim</string>
-    <string name="kn_search_above">Search for a name above and claim it.</string>
     <string name="kn_my_offers">My Offers</string>
     <string name="kn_no_open_offers">No open offers.</string>
     <string name="kn_offers_need_indexer">Offers from others appear once a names indexer is connected.</string>
-    <string name="kn_activity_detail">Claims, renewals, listings, sales and transfers across the registry.</string>
     <string name="kn_nothing_yet">Nothing yet.</string>
     <string name="kn_withdraw_offer">Withdraw Offer</string>
     <string name="kn_withdraw">Withdraw</string>
@@ -1003,7 +995,6 @@
     <string name="kn_renewal_open">Renewal open</string>
     <string name="kn_extend_footer">Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners.</string>
     <string name="kn_err_period_unknown">The names indexer didn\'t send this name\'s paid period. Pull to refresh and try again.</string>
-    <string name="kn_my_names_extend_detail">Extend, renew, list, transfer or release them, and pick the one KaChat shows for you.</string>
     <string name="kn_claim_step3_cap">The name is yours for the years you paid, at most 2 ahead. A 1-year name can be extended to 2 years; from 10 days before it expires you can renew it.</string>
     <string name="kn_setting_up">Setting up</string>
     <string name="kn_registry_upgrading">The .kachat registry on Testnet is being upgraded. Names open here again once the new registry is live.</string>
@@ -1223,4 +1214,7 @@
     <string name="notification_center_empty">Kaspa arriving in your wallets and news about your .kachat names show up here.</string>
     <string name="kn_push_renew_soon">Renew it soon to keep it.</string>
     <string name="kn_push_grace_soon">Renew it soon or anyone can claim it.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">Reclaimable names appear here once .kachat names launch.</string>
+    <string name="kn_activity_all_detail">Every claim, renewal, listing, sale, offer, transfer and reclaim across the registry.</string>
 </resources>

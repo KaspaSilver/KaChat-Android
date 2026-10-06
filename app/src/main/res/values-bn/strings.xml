@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">নিবন্ধন এখনো খোলেনি।</string>
     <string name="km_claim">নিন</string>
     <string name="km_marketplace">মার্কেটপ্লেস</string>
-    <string name="km_my_names">আমার নাম</string>
     <string name="km_activity">কার্যকলাপ</string>
     <string name="km_featured">বাছাই করা</string>
     <string name="km_featured_detail">যে নামগুলো মালিকরা বিক্রির জন্য রেখেছেন।</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">নাম বিক্রির জন্য রাখুন</string>
     <string name="km_listings_appear">.kachat নাম চালু হলে তালিকা এখানে দেখা যাবে।</string>
     <string name="km_no_names">এখনো কোনো .kachat নাম নেই</string>
-    <string name="km_no_names_body">আপনার নেওয়া বা কেনা নাম এখানে দেখা যায়। এখান থেকে একটিকে চ্যাটে আপনার নাম করতে, বিক্রির জন্য রাখতে বা কাউকে পাঠাতে পারবেন।</string>
-    <string name="km_claim_a_name">নাম নিন</string>
     <string name="km_recent_activity">সাম্প্রতিক কার্যকলাপ</string>
-    <string name="km_recent_activity_detail">পুরো মার্কেটপ্লেসে নাম নেওয়া, তালিকা ও বিক্রি।</string>
     <string name="km_activity_appears">.kachat নাম চালু হলে কার্যকলাপ এখানে দেখা যাবে।</string>
     <string name="km_how_it_works">কীভাবে কাজ করে</string>
     <string name="km_list">বিক্রি করুন</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">পরবর্তী</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">অফার</string>
-    <string name="kl_offers_detail">আপনার দেওয়া অফার এবং আপনার নামে আসা অফার। এখান থেকেই একটি গ্রহণ করুন বা আপনারটি তুলে নিন।</string>
-    <string name="kl_no_offers">এখনো কোনো অফার নেই।</string>
     <string name="kl_offer">অফার</string>
     <string name="kl_offer_detail">নিজের দাম বলুন। বিক্রেতা গ্রহণ না করা, আপনি অফার তুলে না নেওয়া বা মেয়াদ শেষ না হওয়া পর্যন্ত আপনার KAS চেইনে অপেক্ষা করে - আর আগে বিক্রেতাকে মেসেজও করতে পারেন।</string>
     <string name="kl_listing">তালিকা</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">যেসব নামের মালিক মেয়াদ পেরোতে দিয়েছেন। যে কেউ পুনরুদ্ধার করতে পারেন: বন্ড শেষ মালিকের কাছে ফেরে, মুক্ত হওয়া জমা পুরস্কার হিসেবে আপনি রাখেন, আর নামটি নেওয়ার জন্য খালি হয়।</string>
     <string name="kn_nothing_to_reclaim">পুনরুদ্ধার করার কিছু নেই।</string>
     <string name="kn_reclaim">পুনরুদ্ধার</string>
-    <string name="kn_search_above">ওপরে একটি নাম খুঁজে নিন।</string>
     <string name="kn_my_offers">আমার প্রস্তাব</string>
     <string name="kn_no_open_offers">কোনো খোলা প্রস্তাব নেই।</string>
     <string name="kn_offers_need_indexer">নেম ইনডেক্সার যুক্ত হলে অন্যদের প্রস্তাব দেখা যাবে।</string>
-    <string name="kn_activity_detail">পুরো রেজিস্ট্রিতে নেওয়া, নবায়ন, তালিকা, বিক্রি ও হস্তান্তর।</string>
     <string name="kn_nothing_yet">এখনও কিছু নেই।</string>
     <string name="kn_withdraw_offer">প্রস্তাব প্রত্যাহার</string>
     <string name="kn_withdraw">প্রত্যাহার</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">নবায়ন খোলা</string>
     <string name="kn_extend_footer">বাড়ালে বর্তমান পরিশোধিত মেয়াদকালে বছর যোগ হয়, যা সর্বোচ্চ ২ বছর ধরে। দাম যায় মাইনারদের কাছে।</string>
     <string name="kn_err_period_unknown">নাম ইনডেক্সার এই নামের পরিশোধিত মেয়াদকাল পাঠায়নি। রিফ্রেশ করতে নিচে টানুন এবং আবার চেষ্টা করুন।</string>
-    <string name="kn_my_names_extend_detail">সেগুলো বাড়ান, নবায়ন করুন, বিক্রির জন্য তালিকাভুক্ত করুন, হস্তান্তর করুন বা ছেড়ে দিন, এবং KaChat আপনার জন্য কোনটি দেখাবে তা বেছে নিন।</string>
     <string name="kn_claim_step3_cap">যত বছরের জন্য পরিশোধ করেছেন, নামটি তত বছর আপনার, সর্বোচ্চ ২ বছর আগাম। ১ বছরের নাম ২ বছর পর্যন্ত বাড়ানো যায়; মেয়াদ শেষের ১০ দিন আগে থেকে নবায়ন করতে পারবেন।</string>
     <string name="kn_setting_up">সেট আপ হচ্ছে</string>
     <string name="kn_registry_upgrading">টেস্টনেটে .kachat রেজিস্ট্রি আপগ্রেড হচ্ছে। নতুন রেজিস্ট্রি চালু হলে নামগুলো এখানে আবার খুলবে।</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">আপনার ওয়ালেটে আসা Kaspa আর আপনার .kachat নামের খবর এখানে দেখা যায়।</string>
     <string name="kn_push_renew_soon">রাখতে শীঘ্রই নবায়ন করুন।</string>
     <string name="kn_push_grace_soon">শীঘ্রই নবায়ন করুন, নইলে যে কেউ এটি দাবি করতে পারবে।</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">.kachat নাম চালু হলে পুনরুদ্ধারযোগ্য নামগুলো এখানে দেখা যাবে।</string>
+    <string name="kn_activity_all_detail">রেজিস্ট্রির প্রতিটি দাবি, নবায়ন, তালিকাভুক্তি, বিক্রি, প্রস্তাব, স্থানান্তর আর পুনরুদ্ধার।</string>
 </resources>

@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">التسجيل غير مفتوح بعد.</string>
     <string name="km_claim">احصل عليه</string>
     <string name="km_marketplace">السوق</string>
-    <string name="km_my_names">أسمائي</string>
     <string name="km_activity">النشاط</string>
     <string name="km_featured">مميزة</string>
     <string name="km_featured_detail">أسماء عرضها أصحابها للبيع.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">اعرض اسمًا للبيع</string>
     <string name="km_listings_appear">ستظهر العروض هنا عند إطلاق أسماء .kachat.</string>
     <string name="km_no_names">لا توجد أسماء .kachat بعد</string>
-    <string name="km_no_names_body">تظهر هنا الأسماء التي تحصل عليها أو تشتريها. من هنا ستجعل أحدها اسمك في المحادثات أو تعرضه للبيع أو ترسله لشخص ما.</string>
-    <string name="km_claim_a_name">احصل على اسم</string>
     <string name="km_recent_activity">النشاط الأخير</string>
-    <string name="km_recent_activity_detail">الحصول على الأسماء والعروض والمبيعات في السوق كله.</string>
     <string name="km_activity_appears">سيظهر النشاط هنا عند إطلاق أسماء .kachat.</string>
     <string name="km_how_it_works">كيف يعمل</string>
     <string name="km_list">اعرض للبيع</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">التالي</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">العروض</string>
-    <string name="kl_offers_detail">العروض التي قدمتها والعروض على أسمائك. اقبل عرضًا أو اسحب عرضك من هنا.</string>
-    <string name="kl_no_offers">لا توجد عروض بعد.</string>
     <string name="kl_offer">عرض</string>
     <string name="kl_offer_detail">حدّد سعرك. تنتظر KAS الخاصة بك على السلسلة حتى يقبل البائع أو تسحب العرض أو تنتهي صلاحيته - ويمكنك مراسلة البائع أولًا.</string>
     <string name="kl_listing">إعلان البيع</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">أسماء تركها أصحابها تسقط. يمكن لأي شخص استردادها: يعود الضمان إلى آخر مالك، وتحتفظ أنت بالوديعة المحرَّرة كمكافأة، ويصبح الاسم متاحًا للتسجيل.</string>
     <string name="kn_nothing_to_reclaim">لا يوجد ما يُسترد.</string>
     <string name="kn_reclaim">استرداد</string>
-    <string name="kn_search_above">ابحث عن اسم في الأعلى واحصل عليه.</string>
     <string name="kn_my_offers">عروضي</string>
     <string name="kn_no_open_offers">لا توجد عروض مفتوحة.</string>
     <string name="kn_offers_need_indexer">تظهر عروض الآخرين بعد ربط مفهرس للأسماء.</string>
-    <string name="kn_activity_detail">عمليات التسجيل والتجديد والعرض والبيع والنقل في السجل كله.</string>
     <string name="kn_nothing_yet">لا شيء بعد.</string>
     <string name="kn_withdraw_offer">سحب العرض</string>
     <string name="kn_withdraw">سحب</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">التجديد متاح</string>
     <string name="kn_extend_footer">يضيف التمديد سنوات إلى الفترة المدفوعة الحالية، التي لا تتجاوز سنتين. يذهب السعر إلى المعدِّنين.</string>
     <string name="kn_err_period_unknown">لم يرسل مفهرس الأسماء الفترة المدفوعة لهذا الاسم. اسحب للتحديث وحاول مرة أخرى.</string>
-    <string name="kn_my_names_extend_detail">مدّدها أو جدّدها أو اعرضها للبيع أو انقلها أو تخلَّ عنها، واختر الاسم الذي يعرضه KaChat لك.</string>
     <string name="kn_claim_step3_cap">الاسم لك طوال السنوات التي دفعتها، وسنتين مقدمًا كحد أقصى. يمكن تمديد اسم لسنة واحدة إلى سنتين؛ ومن 10 أيام قبل انتهائه يمكنك تجديده.</string>
     <string name="kn_setting_up">جارٍ الإعداد</string>
     <string name="kn_registry_upgrading">تتم ترقية سجل .kachat على الشبكة التجريبية. ستُفتح الأسماء هنا مجددًا بمجرد تشغيل السجل الجديد.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">تظهر هنا KAS التي تصل إلى محافظك وأخبار أسماء .kachat الخاصة بك.</string>
     <string name="kn_push_renew_soon">جدّده قريبًا للاحتفاظ به.</string>
     <string name="kn_push_grace_soon">جدّده قريبًا وإلا يمكن لأي شخص المطالبة به.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">تظهر هنا الأسماء القابلة للاسترداد عند إطلاق أسماء .kachat.</string>
+    <string name="kn_activity_all_detail">كل تسجيل وتجديد وإدراج وبيع وعرض ونقل واسترداد في السجل.</string>
 </resources>

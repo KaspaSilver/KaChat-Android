@@ -4485,6 +4485,8 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
     // Testnet: a .kachat name opened from the .kachat tab - its live detail (iOS 5df42b4).
     var selectedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
+    // Withdraw or refund one of the offers this wallet made, from My Offers (iOS 0765ce0).
+    var kachatOfferAction by remember { mutableStateOf<KachatOfferAction?>(null) }
     // Inscribe: the .kachat marketplace over Your Domains, whether or not .kachat is in the dock
     // or Kaspa Hub; the list refreshes when it closes (iOS e4da63d).
     var showKachatMarket by remember { mutableStateOf(false) }
@@ -4513,6 +4515,10 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
 
     selectedKachat?.let { info ->
         KachatLiveNameDetailScreen(info, onBack = { selectedKachat = null }, onOpenChat = onOpenChat)
+        return
+    }
+    kachatOfferAction?.let { action ->
+        KachatOfferActionSheet(action, onClose = { kachatOfferAction = null })
         return
     }
 
@@ -4613,6 +4619,7 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
                             onInscribe = { showKachatMarket = true },
                             refreshRequested = kachatRefreshRequested,
                             onRefreshHandled = { kachatRefreshRequested = false },
+                            onOfferAction = { kachatOfferAction = it },
                         )
                     } else {
                         KachatNamesComingSoon()

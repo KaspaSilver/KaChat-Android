@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">ההרשמה עדיין לא נפתחה.</string>
     <string name="km_claim">קבלה</string>
     <string name="km_marketplace">שוק</string>
-    <string name="km_my_names">השמות שלי</string>
     <string name="km_activity">פעילות</string>
     <string name="km_featured">מומלצים</string>
     <string name="km_featured_detail">שמות שבעליהם הציעו למכירה.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">הצעת שם למכירה</string>
     <string name="km_listings_appear">מודעות יופיעו כאן כשייצאו שמות .kachat.</string>
     <string name="km_no_names">עדיין אין שמות .kachat</string>
-    <string name="km_no_names_body">שמות שתקבלו או תקנו יופיעו כאן. מכאן תוכלו להגדיר אחד כשמכם בצ\'אטים, להציע אותו למכירה או לשלוח אותו למישהו.</string>
-    <string name="km_claim_a_name">קבלת שם</string>
     <string name="km_recent_activity">פעילות אחרונה</string>
-    <string name="km_recent_activity_detail">קבלות, מודעות ומכירות בכל השוק.</string>
     <string name="km_activity_appears">פעילות תופיע כאן כשייצאו שמות .kachat.</string>
     <string name="km_how_it_works">איך זה עובד</string>
     <string name="km_list">מכירה</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">הבא</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">הצעות</string>
-    <string name="kl_offers_detail">הצעות שהצעתם והצעות על השמות שלכם. קבלו הצעה או משכו את שלכם מכאן.</string>
-    <string name="kl_no_offers">אין הצעות עדיין.</string>
     <string name="kl_offer">הצעה</string>
     <string name="kl_offer_detail">קבעו מחיר משלכם. ה-KAS שלכם ממתינים בשרשרת עד שהמוכר יקבל, תמשכו את ההצעה או שתפוג - ואפשר לשלוח הודעה למוכר קודם.</string>
     <string name="kl_listing">מודעה</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">שמות שבעליהם הניחו להם לפקוע. כל אחד יכול לדרוש אותם מחדש: הערבון חוזר לבעלים האחרון, את הפיקדון שהשתחרר תשמרו כפרס, והשם מתפנה לרישום.</string>
     <string name="kn_nothing_to_reclaim">אין מה לדרוש מחדש.</string>
     <string name="kn_reclaim">דרישה מחדש</string>
-    <string name="kn_search_above">חפשו שם למעלה ורשמו אותו.</string>
     <string name="kn_my_offers">ההצעות שלי</string>
     <string name="kn_no_open_offers">אין הצעות פתוחות.</string>
     <string name="kn_offers_need_indexer">הצעות של אחרים יופיעו אחרי חיבור אינדקסר שמות.</string>
-    <string name="kn_activity_detail">רישומים, חידושים, הצעות למכירה, מכירות והעברות בכל הרישום.</string>
     <string name="kn_nothing_yet">עדיין אין כלום.</string>
     <string name="kn_withdraw_offer">משיכת ההצעה</string>
     <string name="kn_withdraw">משיכה</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">החידוש פתוח</string>
     <string name="kn_extend_footer">הארכה מוסיפה שנים לתקופה המשולמת הנוכחית, שמחזיקה לכל היותר שנתיים. המחיר הולך לכורים.</string>
     <string name="kn_err_period_unknown">האינדקסר של השמות לא שלח את התקופה המשולמת של השם הזה. משכו לרענון ונסו שוב.</string>
-    <string name="kn_my_names_extend_detail">האריכו, חדשו, הציעו למכירה, העבירו או שחררו אותם, ובחרו את השם ש-KaChat מציג עבורכם.</string>
     <string name="kn_claim_step3_cap">השם שלכם לשנים ששילמתם, לכל היותר שנתיים מראש. שם לשנה אחת אפשר להאריך לשנתיים; מ-10 ימים לפני התפוגה אפשר לחדש אותו.</string>
     <string name="kn_setting_up">בהקמה</string>
     <string name="kn_registry_upgrading">רישום ה-.kachat בטסטנט משודרג. השמות ייפתחו כאן שוב ברגע שהרישום החדש יפעל.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">כאן מופיעים Kaspa שמגיעים לארנקים שלך וחדשות על שמות ה-.kachat שלך.</string>
     <string name="kn_push_renew_soon">חדשו אותו בקרוב כדי לשמור עליו.</string>
     <string name="kn_push_grace_soon">חדשו אותו בקרוב, אחרת כל אחד יוכל לדרוש אותו.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">שמות שאפשר לדרוש בחזרה יופיעו כאן כשהשמות של .kachat יושקו.</string>
+    <string name="kn_activity_all_detail">כל רישום, חידוש, הצעה למכירה, מכירה, הצעה, העברה ודרישה חוזרת במרשם.</string>
 </resources>

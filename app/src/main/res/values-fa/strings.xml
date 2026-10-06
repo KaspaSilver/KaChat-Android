@@ -494,7 +494,6 @@
     <string name="km_registration_not_open">ثبت‌نام هنوز باز نشده است.</string>
     <string name="km_claim">گرفتن</string>
     <string name="km_marketplace">بازار</string>
-    <string name="km_my_names">نام‌های من</string>
     <string name="km_activity">فعالیت</string>
     <string name="km_featured">برگزیده</string>
     <string name="km_featured_detail">نام‌هایی که صاحبانشان برای فروش گذاشته‌اند.</string>
@@ -502,10 +501,7 @@
     <string name="km_list_a_name">گذاشتن نام برای فروش</string>
     <string name="km_listings_appear">آگهی‌ها پس از راه‌اندازی نام‌های .kachat اینجا نمایش داده می‌شوند.</string>
     <string name="km_no_names">هنوز نام .kachat ندارید</string>
-    <string name="km_no_names_body">نام‌هایی که می‌گیرید یا می‌خرید اینجا نمایش داده می‌شوند. از اینجا می‌توانید یکی را نام خود در گفتگوها کنید، برای فروش بگذارید یا برای کسی بفرستید.</string>
-    <string name="km_claim_a_name">گرفتن نام</string>
     <string name="km_recent_activity">فعالیت اخیر</string>
-    <string name="km_recent_activity_detail">گرفتن نام، آگهی‌ها و فروش‌ها در کل بازار.</string>
     <string name="km_activity_appears">فعالیت پس از راه‌اندازی نام‌های .kachat اینجا نمایش داده می‌شود.</string>
     <string name="km_how_it_works">چگونه کار می‌کند</string>
     <string name="km_list">فروش</string>
@@ -581,8 +577,6 @@
     <string name="kg_next">بعدی</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">پیشنهادها</string>
-    <string name="kl_offers_detail">پیشنهادهایی که داده‌اید و پیشنهادها برای نام‌های شما. از اینجا یکی را بپذیرید یا پیشنهاد خود را پس بگیرید.</string>
-    <string name="kl_no_offers">هنوز پیشنهادی نیست.</string>
     <string name="kl_offer">پیشنهاد</string>
     <string name="kl_offer_detail">قیمت خودتان را بدهید. KAS شما روی زنجیره منتظر می‌ماند تا فروشنده بپذیرد، پیشنهاد را پس بگیرید یا منقضی شود - و می‌توانید اول به فروشنده پیام بدهید.</string>
     <string name="kl_listing">آگهی</string>
@@ -732,11 +726,9 @@
     <string name="kn_reclaimable_detail">نام‌هایی که مالکانشان گذاشتند ساقط شوند. هر کسی می‌تواند بازپسشان بگیرد: وثیقه به آخرین مالک برمی‌گردد، سپردهٔ آزادشده به‌عنوان پاداش به شما می‌رسد و نام آزاد می‌شود.</string>
     <string name="kn_nothing_to_reclaim">چیزی برای بازپس‌گیری نیست.</string>
     <string name="kn_reclaim">بازپس‌گیری</string>
-    <string name="kn_search_above">بالا نامی را جستجو کنید و آن را بگیرید.</string>
     <string name="kn_my_offers">پیشنهادهای من</string>
     <string name="kn_no_open_offers">پیشنهاد بازی نیست.</string>
     <string name="kn_offers_need_indexer">پیشنهادهای دیگران پس از اتصال یک ایندکسر نام نمایش داده می‌شوند.</string>
-    <string name="kn_activity_detail">ثبت‌ها، تمدیدها، فهرست‌ها، فروش‌ها و انتقال‌ها در کل رجیستری.</string>
     <string name="kn_nothing_yet">هنوز چیزی نیست.</string>
     <string name="kn_withdraw_offer">پس گرفتن پیشنهاد</string>
     <string name="kn_withdraw">پس گرفتن</string>
@@ -867,7 +859,6 @@
     <string name="kn_renewal_open">تمدید باز است</string>
     <string name="kn_extend_footer">افزایش مدت، سال‌هایی به دوره پرداخت‌شده فعلی اضافه می‌کند که حداکثر ۲ سال است. قیمت به ماینرها می‌رسد.</string>
     <string name="kn_err_period_unknown">ایندکسر نام‌ها دوره پرداخت‌شده این نام را نفرستاد. برای تازه‌سازی به پایین بکشید و دوباره امتحان کنید.</string>
-    <string name="kn_my_names_extend_detail">مدتشان را افزایش دهید، تمدید کنید، برای فروش بگذارید، منتقل یا رها کنید، و نامی را که KaChat برای شما نشان می‌دهد انتخاب کنید.</string>
     <string name="kn_claim_step3_cap">نام برای سال‌هایی که پرداخته‌اید مال شماست، حداکثر ۲ سال جلوتر. مدت نام ۱ ساله را می‌توان تا ۲ سال افزایش داد؛ از ۱۰ روز پیش از انقضا می‌توانید آن را تمدید کنید.</string>
     <string name="kn_setting_up">در حال راه‌اندازی</string>
     <string name="kn_registry_upgrading">رجیستری .kachat در تست‌نت در حال ارتقاست. نام‌ها به محض فعال شدن رجیستری جدید دوباره اینجا باز می‌شوند.</string>
@@ -1087,4 +1078,7 @@
     <string name="notification_center_empty">Kaspa رسیده به کیف‌پول‌هایتان و خبرهای نام‌های .kachat شما اینجا نمایش داده می‌شود.</string>
     <string name="kn_push_renew_soon">به‌زودی تمدیدش کنید تا بماند.</string>
     <string name="kn_push_grace_soon">به‌زودی تمدیدش کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">نام‌های قابل بازپس‌گیری پس از راه‌اندازی نام‌های .kachat اینجا نمایش داده می‌شوند.</string>
+    <string name="kn_activity_all_detail">هر ثبت، تمدید، آگهی، فروش، پیشنهاد، انتقال و بازپس‌گیری در رجیستری.</string>
 </resources>

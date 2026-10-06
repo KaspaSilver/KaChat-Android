@@ -463,11 +463,24 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
-    /** Recent registry activity, newest first. */
+    /**
+     * Recent registry activity, newest first: every registration, renewal, extension, listing,
+     * sale, offer, transfer, release and reclaim. An indexer serves it at `GET /names/activity`;
+     * one without that endpoint yet answers only market events (`/market/activity`, iOS 0765ce0).
+     */
     suspend fun activity(): List<Event> {
         prepare()
         return when (val src = _source.value) {
-            is Source.Indexer -> IndexerApi.EventJson.parseEvents(get(src.base, "/market/activity"))
+            is Source.Indexer -> {
+                val all = try {
+                    IndexerApi.EventJson.parseEvents(get(src.base, "/names/activity"))
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+                all?.filterNot { it.op.startsWith("price") } ?: IndexerApi.EventJson.parseEvents(get(src.base, "/market/activity"))
+            }
             // name activity only: price changes are the registry's, not a name's (iOS 49c0baa)
             else -> (_chainState.value?.events ?: emptyList()).filterNot { it.op.startsWith("price") }.reversed().take(200)
         }

@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">Kayıt henüz açık değil.</string>
     <string name="km_claim">Al</string>
     <string name="km_marketplace">Pazar yeri</string>
-    <string name="km_my_names">Adlarım</string>
     <string name="km_activity">Etkinlik</string>
     <string name="km_featured">Öne çıkanlar</string>
     <string name="km_featured_detail">Sahiplerinin satışa çıkardığı adlar.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">Bir adı satışa çıkar</string>
     <string name="km_listings_appear">İlanlar .kachat adları başladığında burada görünür.</string>
     <string name="km_no_names">Henüz .kachat adın yok</string>
-    <string name="km_no_names_body">Aldığın veya satın aldığın adlar burada görünür. Buradan birini sohbetlerde adın yapabilir, satışa çıkarabilir ya da birine gönderebilirsin.</string>
-    <string name="km_claim_a_name">Ad al</string>
     <string name="km_recent_activity">Son etkinlik</string>
-    <string name="km_recent_activity_detail">Pazar yerindeki alımlar, ilanlar ve satışlar.</string>
     <string name="km_activity_appears">Etkinlik .kachat adları başladığında burada görünür.</string>
     <string name="km_how_it_works">Nasıl çalışır</string>
     <string name="km_list">Satışa çıkar</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">Ileri</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Teklifler</string>
-    <string name="kl_offers_detail">Yaptığın teklifler ve adlarına gelen teklifler. Buradan birini kabul edebilir ya da kendi teklifini geri çekebilirsin.</string>
-    <string name="kl_no_offers">Henüz teklif yok.</string>
     <string name="kl_offer">Teklif</string>
     <string name="kl_offer_detail">Kendi fiyatını belirle. KAS\'ın satıcı kabul edene, teklifi geri çekene ya da süresi dolana kadar zincirde bekler - önce satıcıya mesaj da atabilirsin.</string>
     <string name="kl_listing">İlan</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">Sahiplerinin düşmeye bıraktığı adlar. Herkes geri alabilir: teminat son sahibine döner, açığa çıkan depozito ödül olarak sizde kalır ve ad kayda açılır.</string>
     <string name="kn_nothing_to_reclaim">Geri alınacak bir şey yok.</string>
     <string name="kn_reclaim">Geri al</string>
-    <string name="kn_search_above">Yukarıda bir ad arayıp alın.</string>
     <string name="kn_my_offers">Tekliflerim</string>
     <string name="kn_no_open_offers">Açık teklif yok.</string>
     <string name="kn_offers_need_indexer">Başkalarının teklifleri bir ad dizinleyicisi bağlandığında görünür.</string>
-    <string name="kn_activity_detail">Kayıt genelinde alımlar, yenilemeler, satışa koymalar, satışlar ve devirler.</string>
     <string name="kn_nothing_yet">Henüz bir şey yok.</string>
     <string name="kn_withdraw_offer">Teklifi Geri Çek</string>
     <string name="kn_withdraw">Geri çek</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">Yenileme açık</string>
     <string name="kn_extend_footer">Uzatma, en fazla 2 yıl kapsayan mevcut ödenmiş döneme yıl ekler. Fiyat madencilere gider.</string>
     <string name="kn_err_period_unknown">Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.</string>
-    <string name="kn_my_names_extend_detail">Onları uzatın, yenileyin, satışa çıkarın, aktarın veya bırakın ve KaChat\'in sizin için gösterdiğini seçin.</string>
     <string name="kn_claim_step3_cap">Ad, ödediğiniz yıllar boyunca sizindir, en fazla 2 yıl ileriye. 1 yıllık bir ad 2 yıla uzatılabilir; bitişinden 10 gün önceden itibaren yenileyebilirsiniz.</string>
     <string name="kn_setting_up">Hazırlanıyor</string>
     <string name="kn_registry_upgrading">Testnet\'teki .kachat kaydı güncelleniyor. Yeni kayıt yayına girince adlar burada yeniden açılır.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">Cüzdanlarınıza gelen Kaspa ve .kachat adlarınızla ilgili haberler burada görünür.</string>
     <string name="kn_push_renew_soon">Korumak için yakında yenileyin.</string>
     <string name="kn_push_grace_soon">Yakında yenileyin, yoksa herkes alabilir.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">.kachat adları başlayınca geri alınabilir adlar burada görünecek.</string>
+    <string name="kn_activity_all_detail">Kayıttaki her talep, yenileme, ilan, satış, teklif, aktarım ve geri alma.</string>
 </resources>

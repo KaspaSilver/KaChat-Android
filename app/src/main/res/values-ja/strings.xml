@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">登録はまだ始まっていません。</string>
     <string name="km_claim">取得</string>
     <string name="km_marketplace">マーケット</string>
-    <string name="km_my_names">自分の名前</string>
     <string name="km_activity">アクティビティ</string>
     <string name="km_featured">注目</string>
     <string name="km_featured_detail">所有者が売りに出している名前。</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">名前を出品</string>
     <string name="km_listings_appear">.kachat 名が始まると、ここに出品が表示されます。</string>
     <string name="km_no_names">.kachat 名はまだありません</string>
-    <string name="km_no_names_body">取得・購入した名前がここに表示されます。ここからチャットでの名前に設定したり、出品したり、誰かに送ったりできます。</string>
-    <string name="km_claim_a_name">名前を取得</string>
     <string name="km_recent_activity">最近のアクティビティ</string>
-    <string name="km_recent_activity_detail">マーケット全体の取得、出品、売買。</string>
     <string name="km_activity_appears">.kachat 名が始まると、ここにアクティビティが表示されます。</string>
     <string name="km_how_it_works">仕組み</string>
     <string name="km_list">出品</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">次へ</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">オファー</string>
-    <string name="kl_offers_detail">あなたが出したオファーと、あなたの名前へのオファー。ここで承諾したり、自分のオファーを取り下げたりできます。</string>
-    <string name="kl_no_offers">オファーはまだありません。</string>
     <string name="kl_offer">オファー</string>
     <string name="kl_offer_detail">希望の価格を提示できます。KAS は売り手が承諾するか、取り下げるか、期限が切れるまでオンチェーンで待機します。事前に売り手にメッセージも送れます。</string>
     <string name="kl_listing">出品</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">所有者が失効させた名前です。誰でも回収できます。保証金は最後の所有者に戻り、解放された預託金は報酬としてあなたのものになり、名前は取得可能になります。</string>
     <string name="kn_nothing_to_reclaim">回収できる名前はありません。</string>
     <string name="kn_reclaim">回収</string>
-    <string name="kn_search_above">上で名前を検索して取得しましょう。</string>
     <string name="kn_my_offers">自分のオファー</string>
     <string name="kn_no_open_offers">進行中のオファーはありません。</string>
     <string name="kn_offers_need_indexer">他の人からのオファーは、名前インデクサーに接続すると表示されます。</string>
-    <string name="kn_activity_detail">レジストリ全体の取得・更新・出品・売却・譲渡。</string>
     <string name="kn_nothing_yet">まだ何もありません。</string>
     <string name="kn_withdraw_offer">オファーを取り下げ</string>
     <string name="kn_withdraw">取り下げ</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">更新受付中</string>
     <string name="kn_extend_footer">延長すると現在の支払い済み期間に年数が加わります。期間は最長 2 年です。価格はマイナーに渡ります。</string>
     <string name="kn_err_period_unknown">名前インデクサーがこの名前の支払い済み期間を返しませんでした。引っ張って更新し、もう一度お試しください。</string>
-    <string name="kn_my_names_extend_detail">延長、更新、出品、譲渡、解放ができ、KaChat に表示する名前も選べます。</string>
     <string name="kn_claim_step3_cap">名前は支払った年数の間あなたのものです（最長 2 年先まで）。1 年の名前は 2 年に延長でき、期限の 10 日前から更新できます。</string>
     <string name="kn_setting_up">準備中</string>
     <string name="kn_registry_upgrading">テストネットの .kachat レジストリをアップグレードしています。新しいレジストリが稼働すると、ここで名前が再び利用できるようになります。</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">ウォレットに届いた Kaspa と .kachat 名のお知らせがここに表示されます。</string>
     <string name="kn_push_renew_soon">保持するには早めに更新してください。</string>
     <string name="kn_push_grace_soon">早めに更新しないと誰でも取得できるようになります。</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">.kachat 名の開始後、回収できる名前がここに表示されます。</string>
+    <string name="kn_activity_all_detail">レジストリでのすべての登録、更新、出品、販売、オファー、譲渡、回収。</string>
 </resources>

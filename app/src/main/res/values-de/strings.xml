@@ -457,7 +457,6 @@
     <string name="km_registration_not_open">Die Registrierung ist noch nicht offen.</string>
     <string name="km_claim">Sichern</string>
     <string name="km_marketplace">Marktplatz</string>
-    <string name="km_my_names">Meine Namen</string>
     <string name="km_activity">Aktivität</string>
     <string name="km_featured">Empfohlen</string>
     <string name="km_featured_detail">Namen, die ihre Besitzer zum Verkauf angeboten haben.</string>
@@ -465,10 +464,7 @@
     <string name="km_list_a_name">Namen zum Verkauf anbieten</string>
     <string name="km_listings_appear">Angebote erscheinen hier, sobald .kachat-Namen starten.</string>
     <string name="km_no_names">Noch keine .kachat-Namen</string>
-    <string name="km_no_names_body">Namen, die du sicherst oder kaufst, erscheinen hier. Von hier aus legst du einen als deinen Namen in Chats fest, bietest ihn zum Verkauf an oder schickst ihn jemandem.</string>
-    <string name="km_claim_a_name">Namen sichern</string>
     <string name="km_recent_activity">Letzte Aktivität</string>
-    <string name="km_recent_activity_detail">Sicherungen, Angebote und Verkäufe auf dem ganzen Marktplatz.</string>
     <string name="km_activity_appears">Aktivität erscheint hier, sobald .kachat-Namen starten.</string>
     <string name="km_how_it_works">So funktioniert\'s</string>
     <string name="km_list">Anbieten</string>
@@ -544,8 +540,6 @@
     <string name="kg_next">Weiter</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
     <string name="kl_offers">Angebote</string>
-    <string name="kl_offers_detail">Angebote, die du gemacht hast, und Angebote für deine Namen. Nimm hier eines an oder zieh dein eigenes zurück.</string>
-    <string name="kl_no_offers">Noch keine Angebote.</string>
     <string name="kl_offer">Angebot</string>
     <string name="kl_offer_detail">Nenne deinen eigenen Preis. Deine KAS warten on-chain, bis der Verkäufer annimmt, du das Angebot zurückziehst oder es abläuft - und du kannst dem Verkäufer vorher schreiben.</string>
     <string name="kl_listing">Angebot</string>
@@ -695,11 +689,9 @@
     <string name="kn_reclaimable_detail">Namen, die ihre Inhaber verfallen ließen. Jeder darf einen zurückholen: Die Kaution geht an den letzten Inhaber, du behältst die freigewordene Einlage als Prämie, und der Name ist frei.</string>
     <string name="kn_nothing_to_reclaim">Nichts zum Zurückholen.</string>
     <string name="kn_reclaim">Zurückholen</string>
-    <string name="kn_search_above">Such oben nach einem Namen und sichere ihn dir.</string>
     <string name="kn_my_offers">Meine Angebote</string>
     <string name="kn_no_open_offers">Keine offenen Angebote.</string>
     <string name="kn_offers_need_indexer">Angebote anderer erscheinen, sobald ein Namens-Indexer verbunden ist.</string>
-    <string name="kn_activity_detail">Registrierungen, Verlängerungen, Angebote, Verkäufe und Übertragungen in der gesamten Registry.</string>
     <string name="kn_nothing_yet">Noch nichts.</string>
     <string name="kn_withdraw_offer">Angebot zurückziehen</string>
     <string name="kn_withdraw">Zurückziehen</string>
@@ -830,7 +822,6 @@
     <string name="kn_renewal_open">Verlängerung offen</string>
     <string name="kn_extend_footer">Erweitern fügt dem aktuellen bezahlten Zeitraum Jahre hinzu; er umfasst höchstens 2 Jahre. Der Preis geht an die Miner.</string>
     <string name="kn_err_period_unknown">Der Namens-Indexer hat den bezahlten Zeitraum dieses Namens nicht geschickt. Zum Aktualisieren nach unten ziehen und erneut versuchen.</string>
-    <string name="kn_my_names_extend_detail">Erweitere, verlängere, verkaufe, übertrage oder gib sie frei, und wähle den, den KaChat für dich zeigt.</string>
     <string name="kn_claim_step3_cap">Der Name gehört dir für die bezahlten Jahre, höchstens 2 im Voraus. Ein Name für 1 Jahr lässt sich auf 2 Jahre erweitern; ab 10 Tagen vor Ablauf kannst du ihn verlängern.</string>
     <string name="kn_setting_up">Wird eingerichtet</string>
     <string name="kn_registry_upgrading">Die .kachat-Registry im Testnet wird aktualisiert. Namen sind hier wieder verfügbar, sobald die neue Registry live ist.</string>
@@ -1056,4 +1047,7 @@
     <string name="notification_center_empty">Hier erscheinen Kaspa, die in deinen Wallets ankommen, und Neues zu deinen .kachat-Namen.</string>
     <string name="kn_push_renew_soon">Verlängere ihn bald, um ihn zu behalten.</string>
     <string name="kn_push_grace_soon">Verlängere ihn bald, sonst kann ihn jeder beanspruchen.</string>
+    <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
+    <string name="km_reclaimable_appear">Zurückforderbare Namen erscheinen hier, sobald .kachat-Namen starten.</string>
+    <string name="kn_activity_all_detail">Jede Registrierung, Verlängerung, Listung, jeder Verkauf, jedes Angebot, jede Übertragung und Rückforderung im Register.</string>
 </resources>
