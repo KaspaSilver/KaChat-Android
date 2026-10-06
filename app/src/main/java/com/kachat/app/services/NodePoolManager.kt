@@ -754,6 +754,57 @@ class NodePoolManager @Inject constructor(
     }
 
     /**
+     * Submits through [submit] and, if it throws, checks whether the network has [txId] anyway
+     * before passing the error on - see [SubmitConfirmation] (iOS ad29da9, audit IOS-014). The id
+     * is [transaction]'s, computed locally ([com.kachat.app.util.KaspaTransactionId]); should that
+     * ever fail, the submit runs exactly as before, unchecked. [rest] is the REST API for the
+     * acceptance lookup, null to ask the nodes only.
+     */
+    suspend fun submitConfirmingKnown(transaction: RawTransaction, rest: KaspaRestApi?, submit: suspend () -> String): String {
+        val txId = runCatching { com.kachat.app.util.KaspaTransactionId.compute(transaction) }.getOrDefault("")
+        return SubmitConfirmation.submitOrConfirmKnown(
+            txId = txId,
+            isKnown = { isTransactionKnown(it, rest) },
+            onRecovered = { e ->
+                Log.w("NodePoolManager", "Submit of ${txId.take(12)} reported \"${e.message}\" but the network has it: treated as sent")
+            },
+            submit = submit,
+        )
+    }
+
+    /** Whether the network already has [txId]: in a mempool (up to three nodes), or accepted
+     *  (REST API) - asked twice, 1.5 s apart (iOS NodePoolService.isTransactionKnown). */
+    suspend fun isTransactionKnown(txId: String, rest: KaspaRestApi?): Boolean =
+        SubmitConfirmation.isKnown(
+            txId = txId,
+            inMempool = { isInAnyMempool(it) },
+            acceptedViaRest = { id -> rest != null && isAcceptedViaRest(rest, id) },
+        )
+
+    /** Whether any of up to three nodes (the trusted node alone, when one is set) holds [txId]
+     *  in its mempool, orphan pool included. Asked in parallel, 2 s each. */
+    private suspend fun isInAnyMempool(txId: String): Boolean {
+        val connections = trustedNodeAddress.value?.let { listOf(connectionFor(it)) }
+            ?: registry.snapshot()
+                .filter { registry.statusOf(it) == "Active" }
+                .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+                .take(3)
+                .map { connectionFor(it.address) }
+                .ifEmpty { listOf(getBroadcastConnection()) }
+        return coroutineScope {
+            connections.map { connection -> async { connection.hasMempoolEntry(txId) } }.awaitAll().any { it }
+        }
+    }
+
+    private suspend fun isAcceptedViaRest(rest: KaspaRestApi, txId: String): Boolean = try {
+        withTimeoutOrNull(8_000L) { rest.getTransactionAcceptance(txId).isAccepted == true } ?: false
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
      * Drops the cached connection the next [getBroadcastConnection] would return, so it dials
      * fresh. A silently-died gRPC stream is otherwise only reaped by the 30s probe cycle — any
      * submit in that window queued onto the dead stream and ate the full 15s timeout, failing

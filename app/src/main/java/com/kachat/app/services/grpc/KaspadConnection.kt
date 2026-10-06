@@ -24,6 +24,7 @@ import protowire.RPCGrpcKt
 import protowire.Rpc
 import protowire.getBlockDagInfoRequestMessage
 import protowire.getInfoRequestMessage
+import protowire.getMempoolEntryRequestMessage
 import protowire.getPeerAddressesRequestMessage
 import protowire.getUtxosByAddressesRequestMessage
 import protowire.kaspadRequest
@@ -409,6 +410,37 @@ class KaspadConnection internal constructor(
             throw IllegalStateException(response.error.message)
         }
         return response.transactionId
+    }
+
+    /**
+     * Whether this node holds [transactionId] in its mempool, orphan pool included (iOS
+     * `queryMempoolEntryFromConnection`, 2 s). False for "not in the mempool" (an RPC error) and
+     * for any failure - this only ever answers "known here", never "unknown everywhere".
+     */
+    suspend fun hasMempoolEntry(transactionId: String, timeoutMs: Long = 2000): Boolean {
+        return try {
+            val response = call(
+                timeoutMs = timeoutMs,
+                build = { id ->
+                    kaspadRequest {
+                        this.id = id
+                        getMempoolEntryRequest = getMempoolEntryRequestMessage {
+                            txId = transactionId
+                            includeOrphanPool = true
+                            filterTransactionPool = false
+                        }
+                    }
+                },
+                extract = { it.getMempoolEntryResponse }
+            )
+            !response.hasError() && response.hasEntry() && response.entry.hasTransaction()
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun close() {

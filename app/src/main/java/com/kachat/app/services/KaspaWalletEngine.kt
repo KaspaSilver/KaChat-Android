@@ -332,7 +332,13 @@ class KaspaWalletEngine @Inject constructor(
             // burst of messages did. The gateway is now only the fallback for a plain payment
             // when no node can be reached at all; a payload send has no REST fallback (the
             // gateway rejects those, see above).
-            val transactionId = try {
+            //
+            // Whatever the path, a submit error is only final once the network is asked whether it
+            // has this transaction anyway (iOS ad29da9, audit IOS-014): the first submit can be
+            // accepted while its answer times out, and the retry below then hears "already in the
+            // mempool" for the same transaction - reported as a failure, that invites a resend that
+            // pays twice. The id is computed locally, before anything is sent.
+            val transactionId = nodePoolManager.submitConfirmingKnown(signedTx, api) { try {
                 try {
                     nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
                 } catch (e: Exception) {
@@ -383,7 +389,7 @@ class KaspaWalletEngine @Inject constructor(
                 } else {
                     throw e
                 }
-            }
+            } }
 
             val changeUtxo = if (changeOutputIndex >= 0) {
                 UtxoEntry(
@@ -744,7 +750,10 @@ class KaspaWalletEngine @Inject constructor(
      * post the indexer never took. Returns the id the node gives it.
      */
     suspend fun submitSignedTransaction(transaction: RawTransaction): String {
-        val txId = nodePoolManager.getBroadcastConnection().submitTransaction(transaction, allowOrphan = false)
+        // A submit error is checked against the network before it counts (audit IOS-014).
+        val txId = nodePoolManager.submitConfirmingKnown(transaction, networkService.kaspaRestApi.value) {
+            nodePoolManager.getBroadcastConnection().submitTransaction(transaction, allowOrphan = false)
+        }
         try { refreshAfterSubmit(transaction) } catch (_: Exception) {}
         return txId
     }

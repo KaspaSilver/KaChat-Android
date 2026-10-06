@@ -15,12 +15,18 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import protowire.Messages
 import protowire.RPCGrpcKt
 import protowire.getInfoRequestMessage
 import protowire.getInfoResponseMessage
+import protowire.getMempoolEntryResponseMessage
+import protowire.rPCError
+import protowire.rpcMempoolEntry
+import protowire.rpcTransaction
 import protowire.kaspadRequest
 import protowire.kaspadResponse
 
@@ -121,6 +127,44 @@ class KaspadConnectionTest {
             // expected — any exception is fine, we're only proving it doesn't hang forever
         }
 
+        conn.close()
+    }
+
+    @Test
+    fun `hasMempoolEntry is true only for a transaction the node holds (audit IOS-014)`() = runBlocking {
+        val known = "aa".repeat(32)
+        startServer(object : RPCGrpcKt.RPCCoroutineImplBase() {
+            override fun messageStream(requests: Flow<Messages.KaspadRequest>): Flow<Messages.KaspadResponse> =
+                requests.map { req ->
+                    val asked = req.getMempoolEntryRequest
+                    kaspadResponse {
+                        id = req.id
+                        getMempoolEntryResponse = if (asked.txId == known && asked.includeOrphanPool) {
+                            getMempoolEntryResponseMessage { entry = rpcMempoolEntry { transaction = rpcTransaction { version = 0 } } }
+                        } else {
+                            getMempoolEntryResponseMessage { error = rPCError { message = "transaction not found" } }
+                        }
+                    }
+                }
+        })
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val conn = newConnection(scope)
+        conn.connect()
+        assertTrue(conn.hasMempoolEntry(known))
+        assertFalse(conn.hasMempoolEntry("bb".repeat(32)))
+        conn.close()
+    }
+
+    @Test
+    fun `hasMempoolEntry answers false when the node never answers`() = runBlocking {
+        startServer(object : RPCGrpcKt.RPCCoroutineImplBase() {
+            override fun messageStream(requests: Flow<Messages.KaspadRequest>): Flow<Messages.KaspadResponse> =
+                flow { requests.collect { /* never respond */ } }
+        })
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val conn = newConnection(scope)
+        conn.connect()
+        assertFalse(conn.hasMempoolEntry("aa".repeat(32), timeoutMs = 200))
         conn.close()
     }
 }

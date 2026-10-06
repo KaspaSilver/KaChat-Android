@@ -335,7 +335,11 @@ class ColdStorageSendEngine @Inject constructor(
             }
 
             val signedTx = unsignedTx.rawTx.copy(inputs = signedInputs)
-            val txId = nodePoolManager.getBroadcastConnection().submitTransaction(signedTx)
+            // A submit error is checked against the network before it counts: a signed Cold
+            // Storage send reported failed would be signed and sent again (audit IOS-014).
+            val txId = nodePoolManager.submitConfirmingKnown(signedTx, networkService.kaspaRestApi.value) {
+                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx)
+            }
             Result.success(txId)
         } catch (e: Exception) {
             Log.e("ColdStorageSendEngine", "Failed to broadcast signed transaction", e)

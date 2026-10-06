@@ -97,6 +97,11 @@ data class TransactionPayloadResponse(
     @SerializedName("block_time") val blockTime: Long?,
 )
 
+/** Only whether the REST API has a transaction accepted - see [KaspaRestApi.getTransactionAcceptance]. */
+data class TransactionAcceptanceResponse(
+    @SerializedName("is_accepted") val isAccepted: Boolean?,
+)
+
 data class BlockRewardResponse(
     val blockreward: Double
 )
@@ -209,6 +214,16 @@ interface KaspaRestApi {
         @Query("outputs") outputs: Boolean = false,
         @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "no"
     ): TransactionPayloadResponse
+
+    /** Whether [txId] is accepted, and nothing else: no inputs, outputs or outpoint resolution
+     *  (iOS NodePoolService.isAcceptedViaREST). A 404 means the API has not seen it. */
+    @GET("transactions/{txId}")
+    suspend fun getTransactionAcceptance(
+        @Path("txId") txId: String,
+        @Query("inputs") inputs: Boolean = false,
+        @Query("outputs") outputs: Boolean = false,
+        @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "no"
+    ): TransactionAcceptanceResponse
 
     /** Current block reward in KAS - it steps down monthly, so it is read, not hardcoded. */
     @GET("info/blockreward")

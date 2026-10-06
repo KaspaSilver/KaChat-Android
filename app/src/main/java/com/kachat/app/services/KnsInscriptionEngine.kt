@@ -105,7 +105,10 @@ class KnsInscriptionEngine @Inject constructor(
             outputs = outputs
         )
         val signedTx = KaspaTransactionSigner.signTransaction(rawTx, selection.selectedUtxos, fundingPrivateKey)
-        val commitTxId = nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = false)
+        // A submit error is checked against the network before it counts (audit IOS-014).
+        val commitTxId = nodePoolManager.submitConfirmingKnown(signedTx, api) {
+            nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = false)
+        }
 
         val result = CommitResult(commitTxId, redeemScript, commitScriptPubKeyHex, commitAmountSompi, revealAmountSompi)
 
@@ -212,14 +215,16 @@ class KnsInscriptionEngine @Inject constructor(
         val signedTx = KaspaTransactionSigner.signRevealInput(rawTx, commitUtxo, commit.redeemScript, ownerPrivateKey)
 
         val connection = nodePoolManager.getBroadcastConnection()
-        val revealTxId = try {
-            connection.submitTransaction(signedTx, allowOrphan = false)
-        } catch (e: Exception) {
-            if (e.message?.contains("orphan", ignoreCase = true) == true) {
-                Log.w("KnsInscriptionEngine", "Reveal rejected as orphan, retrying with allowOrphan=true", e)
-                connection.submitTransaction(signedTx, allowOrphan = true)
-            } else {
-                throw e
+        val revealTxId = nodePoolManager.submitConfirmingKnown(signedTx, networkService.kaspaRestApi.value) {
+            try {
+                connection.submitTransaction(signedTx, allowOrphan = false)
+            } catch (e: Exception) {
+                if (e.message?.contains("orphan", ignoreCase = true) == true) {
+                    Log.w("KnsInscriptionEngine", "Reveal rejected as orphan, retrying with allowOrphan=true", e)
+                    connection.submitTransaction(signedTx, allowOrphan = true)
+                } else {
+                    throw e
+                }
             }
         }
 
