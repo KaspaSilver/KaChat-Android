@@ -109,4 +109,64 @@ class ChatRepositoryTest {
         org.junit.Assert.assertFalse(ChatRepository.isScriptAddress(null))
         org.junit.Assert.assertFalse(ChatRepository.isScriptAddress("not an address"))
     }
+
+    // MARK: first contact, whatever the address case (iOS 1e07e72, audit IOS-008)
+
+    private val me = "kaspa:qrme0000000000000000000000000000000000000000000000000000000"
+    private val them = "kaspa:qpthem00000000000000000000000000000000000000000000000000000"
+
+    /** The messages table as SQLite would answer it: stored contactIds lowered in SQL. */
+    private fun receivedFrom(vararg storedContactIds: String): suspend (String) -> Boolean = { lowered ->
+        storedContactIds.any { it.lowercase() == lowered }
+    }
+
+    @Test
+    fun `an established contact typed in upper case gets no inbox tag`() = kotlinx.coroutines.runBlocking {
+        var askedWith: String? = null
+        val tag = ChatRepository.firstContactInboxTagFor(
+            address = them.uppercase(),
+            me = me,
+            state = ChatRequestState(),
+            hasReceivedFrom = { askedWith = it; receivedFrom(them)(it) },
+            inboxSupported = { true },
+        )
+        org.junit.Assert.assertNull(tag)
+        assertEquals(them, askedWith) // the lookup is handed the lowercased address
+    }
+
+    @Test
+    fun `a stored mixed-case conversation is found from a lower-case address`() = kotlinx.coroutines.runBlocking {
+        val tag = ChatRepository.firstContactInboxTagFor(
+            address = them,
+            me = me,
+            state = ChatRequestState(),
+            hasReceivedFrom = receivedFrom("KASPA:QPTHEM00000000000000000000000000000000000000000000000000000"),
+            inboxSupported = { true },
+        )
+        org.junit.Assert.assertNull(tag)
+    }
+
+    @Test
+    fun `a true first contact still carries the tag, computed on the lowercased address`() = kotlinx.coroutines.runBlocking {
+        val tag = ChatRepository.firstContactInboxTagFor(
+            address = them.uppercase(),
+            me = me,
+            state = ChatRequestState(),
+            hasReceivedFrom = receivedFrom("kaspa:qpsomeoneelse"),
+            inboxSupported = { true },
+        )
+        assertEquals(com.kachat.app.util.InboxTag.compute(them), tag)
+    }
+
+    @Test
+    fun `self, private and already-tagged addresses are untagged whatever the case`() = kotlinx.coroutines.runBlocking {
+        val none = receivedFrom()
+        org.junit.Assert.assertNull(ChatRepository.firstContactInboxTagFor(me.uppercase(), me, ChatRequestState(), none) { true })
+        org.junit.Assert.assertNull(
+            ChatRepository.firstContactInboxTagFor(them.uppercase(), me, ChatRequestState(privateChats = setOf(them)), none) { true }
+        )
+        org.junit.Assert.assertNull(
+            ChatRepository.firstContactInboxTagFor(them.uppercase(), me, ChatRequestState(inboxTagged = setOf(them)), none) { true }
+        )
+    }
 }

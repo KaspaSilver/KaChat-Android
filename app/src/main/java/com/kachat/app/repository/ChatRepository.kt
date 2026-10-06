@@ -287,13 +287,13 @@ class ChatRepository @Inject constructor(
      */
     suspend fun firstContactInboxTag(address: String): String? {
         val me = runCatching { walletManager.getAddress() }.getOrNull() ?: return null
-        if (address.equals(me, ignoreCase = true)) return null
-        val state = chatRequestStore.state(me)
-        val key = address.lowercase()
-        if (key in state.privateChats || key in state.inboxTagged) return null
-        if (database.messageDao().hasReceivedFromContact(address, me)) return null
-        if (!inboxSupported()) return null
-        return com.kachat.app.util.InboxTag.compute(address)
+        return firstContactInboxTagFor(
+            address = address,
+            me = me,
+            state = chatRequestStore.state(me),
+            hasReceivedFrom = { lowered -> database.messageDao().hasReceivedFromContactIgnoringCase(lowered, me) },
+            inboxSupported = { inboxSupported() },
+        )
     }
 
     /** The one tagged first message to [address] is out - nothing after it is tagged. */
@@ -2032,6 +2032,28 @@ class ChatRepository @Inject constructor(
     }
 
     companion object {
+        /**
+         * [firstContactInboxTag]'s decision. Every address check is case-insensitive, the
+         * "have they written to us" lookup included: it used to match the stored conversation
+         * exactly, so an address typed or scanned in upper case sent an established contact a
+         * tagged first-contact message, landing in their Message Requests (iOS 1e07e72, audit
+         * IOS-008). [hasReceivedFrom] is handed the lowercased address.
+         */
+        internal suspend fun firstContactInboxTagFor(
+            address: String,
+            me: String,
+            state: ChatRequestState,
+            hasReceivedFrom: suspend (lowercasedAddress: String) -> Boolean,
+            inboxSupported: suspend () -> Boolean,
+        ): String? {
+            if (address.equals(me, ignoreCase = true)) return null
+            val key = address.lowercase()
+            if (key in state.privateChats || key in state.inboxTagged) return null
+            if (hasReceivedFrom(key)) return null
+            if (!inboxSupported()) return null
+            return com.kachat.app.util.InboxTag.compute(address)
+        }
+
         /** A pay-to-script-hash address (`kaspa:p...` / `kaspatest:p...`, version byte 0x08):
          *  a contract, never a chat partner (iOS 32fdaa4, isScriptAddress). */
         internal fun isScriptAddress(address: String?): Boolean {
