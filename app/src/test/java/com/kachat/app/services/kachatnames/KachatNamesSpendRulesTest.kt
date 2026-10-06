@@ -10,7 +10,7 @@ import org.junit.Test
  * The app's own rules on what a `.kachat` action may spend (the iOS audit fixes): never more than
  * the price the person confirmed (iOS 4f5d95e, IOS-054); no offers on, and no accepting them for,
  * a name that isn't active, and no renewal that leaves a name still expired (iOS 71128c4, IOS-055,
- * IOS-056).
+ * IOS-056); and when a name counts as expiring soon (iOS 24d673a, IOS-060).
  */
 class KachatNamesSpendRulesTest {
 
@@ -166,5 +166,22 @@ class KachatNamesSpendRulesTest {
             } catch (_: KachatNamesActions.ActionError.AcceptNameExpired) {
             }
         }
+    }
+
+    // Expires soon follows the period (IOS-060)
+
+    private fun params(periodMs: Long, renewWindowMs: Long) = Params(
+        bond = 0, gapValue = 0, tCommit = 600, maxYears = 2, periodMs = periodMs, graceMs = periodMs,
+        renewWindowMs = renewWindowMs, genesisPrices = List(5) { 0L }, priceShards = 1, priceValue = 0, offerMaxFee = 0
+    )
+
+    @Test
+    fun expiresSoonIsThirtyDaysOnAYearlyClockAndTheRenewalWindowOnAShortOne() {
+        // mainnet: a year, a 10-day renewal window -> 30 days
+        assertEquals(30L * 86_400_000L, params(KachatNames.YEAR_MS, 10L * 86_400_000L).expiresSoonMs)
+        // testnet-10: 10-minute periods and window -> the window, not 30 days that cover every name
+        assertEquals(600_000L, params(600_000L, 600_000L).expiresSoonMs)
+        // a short window on a short clock: a twelfth of the period
+        assertEquals(50_000L, params(600_000L, 10_000L).expiresSoonMs)
     }
 }

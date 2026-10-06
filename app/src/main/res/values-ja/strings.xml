@@ -740,7 +740,6 @@
     <string name="kn_no_history">まだ履歴はありません。</string>
     <string name="kn_release">解放</string>
     <string name="kn_release_warning">解放すると名前を完全に手放します。誰でも登録できるようになり、支払った期間は失われます。保証金とレジストリ預託金は戻ります。</string>
-    <string name="kn_buy_soon">この名前の期限まで 30 日を切っています。すぐに更新が必要です。</string>
     <string name="kn_buy_footer">支払いは売り手に、名前はあなたに同じ取引で届きます。両方が成立するか、どちらも成立しないかです。</string>
     <string name="kn_price_to_seller">価格（売り手へ）</string>
     <string name="kn_refundable_after">返金可能になるまで</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">この名前は期限切れから時間が経ちすぎているため更新できません。回収して再登録するしかありません。</string>
     <string name="kn_err_offer_name_not_active">オファーはアクティブな名前にのみ行えます。</string>
     <string name="kn_err_accept_name_expired">この名前は期限切れです。オファーは名前がアクティブな間しか承諾できません。先に更新してください。</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">この名前の期限まで %1$s を切っています。すぐに更新が必要です。</string>
 </resources>

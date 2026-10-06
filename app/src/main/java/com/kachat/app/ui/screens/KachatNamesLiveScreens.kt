@@ -2251,19 +2251,23 @@ private fun KachatManageNameSheet(
 // MARK: - Sheets with inputs
 
 @Composable
-fun KachatLiveBuySheet(info: NameInfo, onClose: () -> Unit) {
-    val soon = info.expiresAt - 30L * 86_400_000L < KachatNames.nowMs()
+fun KachatLiveBuySheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
+    val context = LocalContext.current
+    val manifest by vm.service.manifest.collectAsState()
+    // 30 days on mainnet's yearly clock, the renewal window on testnet's 10-minute one (iOS 24d673a)
+    val soonMs = manifest?.params?.expiresSoonMs ?: (30L * 86_400_000L)
+    val soon = info.expiresAt - soonMs < KachatNames.nowMs()
     KachatTxSheet(
         title = stringResource(R.string.kl_buy_name), confirmTitle = stringResource(R.string.kl_confirm_purchase),
         doneTitle = R.string.kn_done_bought,
-        footer = stringResource(if (soon) R.string.kn_buy_soon else R.string.kn_buy_footer),
+        footer = if (soon) stringResource(R.string.kn_buy_soon_left, KachatLive.duration(soonMs, context)) else stringResource(R.string.kn_buy_footer),
         rows = listOf(
             KachatTxRow(stringResource(R.string.kl_name), info.display),
             KachatTxRow(stringResource(R.string.kn_price_to_seller), KaspaUnit.amount(info.price)),
-            KachatTxRow(stringResource(R.string.kn_expires), KachatLive.date(info.expiresAt)),
+            KachatTxRow(stringResource(R.string.kn_expires), KachatLive.day(info.expiresAt)),
         ),
         operation = KachatNamesActions.Operation.Buy(info), operationKey = "buy-${KachatNames.hex(info.outpoint.txid)}",
-        onClose = onClose
+        onClose = onClose, vm = vm
     )
 }
 

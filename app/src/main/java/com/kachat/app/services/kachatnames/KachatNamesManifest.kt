@@ -93,6 +93,13 @@ data class Params(
      * once the network's past median time passes its lock time, which is at least this.
      */
     fun renewOpens(expiresAt: Long): Long = expiresAt - renewWindowMs
+
+    /**
+     * How close to expiry a name counts as "expires soon" (a buyer would have to renew it): 30
+     * days on a yearly clock, the renewal window on a short one (testnet's 10 minutes), where 30
+     * days would cover every name (iOS 24d673a, IOS-060).
+     */
+    val expiresSoonMs: Long get() = maxOf(renewWindowMs, minOf(30L * 86_400_000L, periodMs / 12))
 }
 
 /**

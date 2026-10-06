@@ -617,7 +617,6 @@
     <string name="kn_no_history">Belum ada riwayat.</string>
     <string name="kn_release">Lepas</string>
     <string name="kn_release_warning">Melepas berarti menyerahkan nama untuk selamanya: siapa pun bisa mendaftarkannya, dan waktu yang sudah Anda bayar hilang. Jaminan dan deposit registri dikembalikan kepada Anda.</string>
-    <string name="kn_buy_soon">Kurang dari 30 hari lagi nama ini kedaluwarsa. Anda perlu memperpanjangnya segera.</string>
     <string name="kn_buy_footer">Pembayaran sampai ke penjual dan nama sampai ke Anda dalam transaksi yang sama - keduanya terjadi, atau tidak sama sekali.</string>
     <string name="kn_price_to_seller">Harga (untuk penjual)</string>
     <string name="kn_refundable_after">Bisa dikembalikan setelah</string>
@@ -874,4 +873,6 @@
     <string name="kn_err_renew_expired_too_long">Nama ini sudah terlalu lama kedaluwarsa untuk diperpanjang. Nama ini hanya bisa diklaim ulang lalu didaftarkan lagi.</string>
     <string name="kn_err_offer_name_not_active">Penawaran hanya bisa diajukan untuk nama yang aktif.</string>
     <string name="kn_err_accept_name_expired">Nama ini sudah kedaluwarsa. Penawaran hanya bisa diterima selama nama masih aktif. Perpanjang dulu.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">Tersisa kurang dari %1$s sebelum nama ini kedaluwarsa. Anda perlu segera memperpanjangnya.</string>
 </resources>

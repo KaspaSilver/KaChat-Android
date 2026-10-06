@@ -740,7 +740,6 @@
     <string name="kn_no_history">এখনও কোনো ইতিহাস নেই।</string>
     <string name="kn_release">ছেড়ে দিন</string>
     <string name="kn_release_warning">ছেড়ে দিলে নামটি চিরতরে চলে যায়: যে কেউ এটি নিবন্ধন করতে পারবে, আর যে সময়ের জন্য টাকা দিয়েছিলেন তা হারাবেন। বন্ড ও রেজিস্ট্রি জমা আপনি ফেরত পাবেন।</string>
-    <string name="kn_buy_soon">এই নামের মেয়াদ শেষ হতে ৩০ দিনেরও কম বাকি। শিগগিরই নবায়ন করতে হবে।</string>
     <string name="kn_buy_footer">পেমেন্ট বিক্রেতার কাছে আর নাম আপনার কাছে একই লেনদেনে পৌঁছায় - দুটোই ঘটে, নয়তো কোনোটাই নয়।</string>
     <string name="kn_price_to_seller">দাম (বিক্রেতার জন্য)</string>
     <string name="kn_refundable_after">এর পরে ফেরতযোগ্য</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">এই নামের মেয়াদ অনেক আগে শেষ হয়েছে, তাই নবায়ন করা যাবে না। এটি কেবল পুনরুদ্ধার করে আবার নিবন্ধন করা যায়।</string>
     <string name="kn_err_offer_name_not_active">শুধু সক্রিয় নামেই প্রস্তাব দেওয়া যায়।</string>
     <string name="kn_err_accept_name_expired">এই নামের মেয়াদ শেষ হয়েছে। নাম সক্রিয় থাকাকালীনই প্রস্তাব গ্রহণ করা যায়। আগে এটি নবায়ন করুন।</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">এই নামের মেয়াদ শেষ হতে %1$s-এর কম বাকি। শীঘ্রই এটি নবায়ন করতে হবে।</string>
 </resources>

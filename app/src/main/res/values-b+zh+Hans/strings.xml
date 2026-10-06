@@ -740,7 +740,6 @@
     <string name="kn_no_history">暂无历史记录。</string>
     <string name="kn_release">释放</string>
     <string name="kn_release_warning">释放即永久放弃该名称：任何人都可以注册它，已付费的时间也将作废。保证金和注册表押金会退还给你。</string>
-    <string name="kn_buy_soon">这个名称将在 30 天内到期，你很快就需要续期。</string>
     <string name="kn_buy_footer">付款到达卖家、名称到达你，在同一笔交易中完成——要么都发生，要么都不发生。</string>
     <string name="kn_price_to_seller">价格（归卖家）</string>
     <string name="kn_refundable_after">可退还时间</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">此名称过期太久，无法续期。只能回收后重新注册。</string>
     <string name="kn_err_offer_name_not_active">只能对有效的名称报价。</string>
     <string name="kn_err_accept_name_expired">此名称已过期。只有在名称有效时才能接受报价。请先续期。</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">距离此名称到期已不足 %1$s。你很快就需要续期。</string>
 </resources>

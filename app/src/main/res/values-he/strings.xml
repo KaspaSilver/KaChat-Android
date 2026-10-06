@@ -740,7 +740,6 @@
     <string name="kn_no_history">אין היסטוריה עדיין.</string>
     <string name="kn_release">שחרור</string>
     <string name="kn_release_warning">שחרור מוותר על השם לתמיד: כל אחד יוכל לרשום אותו, והזמן ששילמת עליו יאבד. הערבון ופיקדון הרישום יחזרו אליך.</string>
-    <string name="kn_buy_soon">נותרו פחות מ-30 יום עד שהשם יפוג. תצטרכו לחדש אותו בקרוב.</string>
     <string name="kn_buy_footer">התשלום מגיע למוכר והשם מגיע אליך באותה עסקה - שניהם קורים, או אף אחד מהם.</string>
     <string name="kn_price_to_seller">מחיר (למוכר)</string>
     <string name="kn_refundable_after">ניתן להחזר אחרי</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">השם הזה פג לפני יותר מדי זמן מכדי לחדש אותו. אפשר רק לדרוש אותו בחזרה ולרשום אותו מחדש.</string>
     <string name="kn_err_offer_name_not_active">אפשר להציע הצעות רק על שמות פעילים.</string>
     <string name="kn_err_accept_name_expired">השם הזה פג. אפשר לקבל הצעות רק כל עוד השם פעיל. חדשו אותו קודם.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">נותרו פחות מ-%1$s עד שהשם הזה יפוג. תצטרכו לחדש אותו בקרוב.</string>
 </resources>

@@ -740,7 +740,6 @@
     <string name="kn_no_history">لا يوجد سجل بعد.</string>
     <string name="kn_release">تخلٍّ</string>
     <string name="kn_release_warning">التخلي يعني التنازل عن الاسم نهائيًا: يصبح متاحًا لأي شخص لتسجيله، وتضيع المدة التي دفعت عنها. يعود إليك الضمان ووديعة السجل.</string>
-    <string name="kn_buy_soon">تبقّى أقل من 30 يومًا على انتهاء هذا الاسم. ستحتاج إلى تجديده قريبًا.</string>
     <string name="kn_buy_footer">يصل الدفع إلى البائع والاسم إليك في المعاملة نفسها - إما أن يحدث الأمران أو لا يحدث أي منهما.</string>
     <string name="kn_price_to_seller">السعر (للبائع)</string>
     <string name="kn_refundable_after">قابل للاسترداد بعد</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">انتهت صلاحية هذا الاسم منذ مدة طويلة جدًا لتجديده. يمكن فقط استرداده وتسجيله من جديد.</string>
     <string name="kn_err_offer_name_not_active">لا يمكن تقديم العروض إلا على الأسماء النشطة.</string>
     <string name="kn_err_accept_name_expired">انتهت صلاحية هذا الاسم. لا يمكن قبول العروض إلا أثناء نشاط الاسم. جدّده أولًا.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">يتبقى أقل من %1$s قبل انتهاء صلاحية هذا الاسم. ستحتاج إلى تجديده قريبًا.</string>
 </resources>

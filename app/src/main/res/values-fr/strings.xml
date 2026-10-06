@@ -740,7 +740,6 @@
     <string name="kn_no_history">Pas encore d’historique.</string>
     <string name="kn_release">Libérer</string>
     <string name="kn_release_warning">Libérer le nom, c’est y renoncer pour de bon : n’importe qui pourra l’enregistrer, et le temps payé est perdu. Vous récupérez la caution et le dépôt du registre.</string>
-    <string name="kn_buy_soon">Ce nom expire dans moins de 30 jours. Il faudrait le renouveler bientôt.</string>
     <string name="kn_buy_footer">Le paiement parvient au vendeur et le nom vous parvient dans la même transaction : les deux ont lieu, ou aucun.</string>
     <string name="kn_price_to_seller">Prix (au vendeur)</string>
     <string name="kn_refundable_after">Remboursable après</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">Ce nom est expiré depuis trop longtemps pour être renouvelé. Il ne peut qu’être récupéré puis enregistré à nouveau.</string>
     <string name="kn_err_offer_name_not_active">Les offres ne sont possibles que sur des noms actifs.</string>
     <string name="kn_err_accept_name_expired">Ce nom a expiré. Une offre ne peut être acceptée que tant que le nom est actif. Renouvelez-le d’abord.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">Il reste moins de %1$s avant l’expiration de ce nom. Vous devriez le renouveler bientôt.</string>
 </resources>

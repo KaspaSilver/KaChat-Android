@@ -56,6 +56,11 @@ import javax.inject.Singleton
  * 7227d69).
  *
  * Callers: `KachatNamesRegistry` (reads) and `KachatNamesActions` (every operation).
+ *
+ * The flow every action follows ([KachatNamesActions]): [loadManifest], read the records it needs
+ * ([KachatNamesRegistry]: the indexer's `/names/...` or the chain walker), confirm them with
+ * [liveRegistryUtxo] / [livePriceUtxo], [environment], build with [builder], show the plan's fee,
+ * then [signAndSubmit] (iOS 24d673a).
  */
 @Singleton
 class KachatNamesService @Inject constructor(

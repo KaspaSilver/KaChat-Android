@@ -270,7 +270,7 @@ object KachatNames {
             Writer().u8(0x20).bytes(lo).u8(0x20).bytes(hi).toByteArray()
 
         /**
-         * Name state (registry v2, iOS 3ef2ec2), 126 bytes:
+         * Name state (registry v2 and v3, unchanged; iOS 3ef2ec2), 126 bytes:
          * `0x20 key 0x20 name 0x20 owner 0x08 price 0x08 periodStart 0x08 expiresAt`
          * (price at bytes 100..108, periodStart 109..117, expiresAt 118..126).
          */

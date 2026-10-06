@@ -740,7 +740,6 @@
     <string name="kn_no_history">Henüz geçmiş yok.</string>
     <string name="kn_release">Bırak</string>
     <string name="kn_release_warning">Bırakmak adı kalıcı olarak vermek demektir: herkes kaydedebilir ve ödediğiniz süre boşa gider. Teminat ve kayıt depozitosu size geri döner.</string>
-    <string name="kn_buy_soon">Bu adın süresinin dolmasına 30 günden az kaldı. Yakında yenilemeniz gerekir.</string>
     <string name="kn_buy_footer">Ödeme satıcıya, ad size aynı işlemde ulaşır - ya ikisi de olur ya hiçbiri.</string>
     <string name="kn_price_to_seller">Fiyat (satıcıya)</string>
     <string name="kn_refundable_after">Şu süreden sonra iade edilebilir</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">Bu adın süresi yenilenemeyecek kadar uzun zaman önce doldu. Yalnızca geri alınıp yeniden kaydedilebilir.</string>
     <string name="kn_err_offer_name_not_active">Yalnızca etkin adlara teklif verilebilir.</string>
     <string name="kn_err_accept_name_expired">Bu adın süresi doldu. Teklifler yalnızca ad etkinken kabul edilebilir. Önce yenileyin.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">Bu adın süresinin dolmasına %1$s süreden az kaldı. Yakında yenilemeniz gerekir.</string>
 </resources>

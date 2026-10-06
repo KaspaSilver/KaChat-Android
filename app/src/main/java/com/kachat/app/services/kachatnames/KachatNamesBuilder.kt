@@ -708,8 +708,8 @@ class Builder(val manifest: Manifest) {
                 PlannedOutput(TxOutput(value = n.fields.price, script = Codec.p2pkScript(n.fields.owner)), "payout to the seller")
             )
         )
-        if (n.fields.expiresAt - 30L * 86_400_000L < env.wallMs) {
-            d.notes.add("less than 30 days left before expiry")
+        if (n.fields.expiresAt - params.expiresSoonMs < env.wallMs) {
+            d.notes.add("expires soon: the buyer will have to renew it")
         }
         d.payload = Codec.namePayload("buy", n.name)
         return finish(d, wallet, FeeMode.Funded(KachatNames.MAX_INPUTS), env)

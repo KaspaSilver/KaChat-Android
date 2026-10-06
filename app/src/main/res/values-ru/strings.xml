@@ -740,7 +740,6 @@
     <string name="kn_no_history">Истории пока нет.</string>
     <string name="kn_release">Освободить</string>
     <string name="kn_release_warning">Освобождение — это отказ от имени навсегда: его сможет зарегистрировать любой, а оплаченное время пропадёт. Залог и депозит реестра вернутся вам.</string>
-    <string name="kn_buy_soon">До истечения этого имени меньше 30 дней. Его скоро придётся продлить.</string>
     <string name="kn_buy_footer">Платёж доходит до продавца, а имя — до вас в одной транзакции: либо оба, либо ничего.</string>
     <string name="kn_price_to_seller">Цена (продавцу)</string>
     <string name="kn_refundable_after">Можно вернуть через</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">Это имя истекло слишком давно, чтобы его продлить. Его можно только вернуть и зарегистрировать заново.</string>
     <string name="kn_err_offer_name_not_active">Предложения можно делать только на активные имена.</string>
     <string name="kn_err_accept_name_expired">Срок этого имени истёк. Предложения можно принимать, только пока имя активно. Сначала продлите его.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">До истечения этого имени осталось меньше %1$s. Скоро его придётся продлить.</string>
 </resources>

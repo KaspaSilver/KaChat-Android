@@ -913,7 +913,6 @@
     <string name="kn_no_history">No history yet.</string>
     <string name="kn_release">Release</string>
     <string name="kn_release_warning">Releasing gives the name up for good: it becomes free for anyone to register, and the time you paid for is lost. You get the bond and the registry deposit back.</string>
-    <string name="kn_buy_soon">Less than 30 days are left before this name expires. You\'d have to renew it soon.</string>
     <string name="kn_buy_footer">The payment reaches the seller and the name reaches you in the same transaction - both happen, or neither does.</string>
     <string name="kn_price_to_seller">Price (to the seller)</string>
     <string name="kn_refundable_after">Refundable after</string>
@@ -1177,4 +1176,6 @@
     <string name="kn_err_renew_expired_too_long">This name has been expired too long to renew. It can only be reclaimed and registered again.</string>
     <string name="kn_err_offer_name_not_active">Offers can only be made on active names.</string>
     <string name="kn_err_accept_name_expired">This name has expired. Offers can only be accepted while the name is active. Renew it first.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">Less than %1$s is left before this name expires. You\'d have to renew it soon.</string>
 </resources>

@@ -777,7 +777,6 @@
     <string name="kn_no_history">هنوز تاریخچه‌ای نیست.</string>
     <string name="kn_release">رها کردن</string>
     <string name="kn_release_warning">رها کردن یعنی کنار گذاشتن همیشگی نام: هر کسی می‌تواند ثبتش کند و زمانی که برایش پرداخته‌اید از دست می‌رود. وثیقه و سپردهٔ رجیستری به شما برمی‌گردد.</string>
-    <string name="kn_buy_soon">کمتر از ۳۰ روز تا انقضای این نام مانده است. باید به‌زودی تمدیدش کنید.</string>
     <string name="kn_buy_footer">پرداخت به فروشنده و نام به شما در همان تراکنش می‌رسد - یا هر دو انجام می‌شوند یا هیچ‌کدام.</string>
     <string name="kn_price_to_seller">قیمت (به فروشنده)</string>
     <string name="kn_refundable_after">قابل بازپرداخت پس از</string>
@@ -1041,4 +1040,6 @@
     <string name="kn_err_renew_expired_too_long">این نام مدت زیادی است که منقضی شده و قابل تمدید نیست. فقط می‌توان آن را بازپس گرفت و دوباره ثبت کرد.</string>
     <string name="kn_err_offer_name_not_active">فقط برای نام‌های فعال می‌توان پیشنهاد داد.</string>
     <string name="kn_err_accept_name_expired">این نام منقضی شده است. پیشنهادها فقط تا وقتی نام فعال است پذیرفته می‌شوند. ابتدا آن را تمدید کنید.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">کمتر از %1$s تا انقضای این نام مانده است. باید به‌زودی تمدیدش کنید.</string>
 </resources>

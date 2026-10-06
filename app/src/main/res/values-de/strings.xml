@@ -740,7 +740,6 @@
     <string name="kn_no_history">Noch kein Verlauf.</string>
     <string name="kn_release">Freigeben</string>
     <string name="kn_release_warning">Mit der Freigabe gibst du den Namen endgültig auf: Jeder kann ihn registrieren, und die bezahlte Zeit ist verloren. Kaution und Registry-Einlage bekommst du zurück.</string>
-    <string name="kn_buy_soon">Bis dieser Name abläuft, sind es weniger als 30 Tage. Du müsstest ihn bald verlängern.</string>
     <string name="kn_buy_footer">Die Zahlung geht an den Verkäufer und der Name an dich in derselben Transaktion - beides passiert, oder nichts davon.</string>
     <string name="kn_price_to_seller">Preis (an den Verkäufer)</string>
     <string name="kn_refundable_after">Erstattbar nach</string>
@@ -1010,4 +1009,6 @@
     <string name="kn_err_renew_expired_too_long">Dieser Name ist zu lange abgelaufen, um ihn zu verlängern. Er kann nur zurückgefordert und neu registriert werden.</string>
     <string name="kn_err_offer_name_not_active">Angebote sind nur für aktive Namen möglich.</string>
     <string name="kn_err_accept_name_expired">Dieser Name ist abgelaufen. Angebote können nur angenommen werden, solange der Name aktiv ist. Verlängere ihn zuerst.</string>
+    <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
+    <string name="kn_buy_soon_left">Bis dieser Name abläuft, bleibt weniger als %1$s. Du müsstest ihn bald verlängern.</string>
 </resources>
