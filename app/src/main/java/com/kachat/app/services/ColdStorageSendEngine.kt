@@ -114,34 +114,8 @@ class ColdStorageSendEngine @Inject constructor(
                 )
             }
 
-            val outputs = mutableListOf<RawOutputWithVersion>(
-                RawOutputWithVersion(amount = selection.finalAmount, scriptPublicKey = ScriptPublicKeyWithVersion(recipientScriptHex, 0))
-            )
-            // Change stands as its own output when this transaction's KIP-9 storage mass allows
-            // it (see KaspaMass.storageMass) - the same rule as KaspaWalletEngine; otherwise it
-            // is folded into the fee.
-            val inputAmounts = selection.selectedUtxos.map { it.utxoEntry.amount }
-            // Only dust is ever folded into the fee (iOS dd4d977) - see KaspaWalletEngine.
-            if (selection.storageMassBlocked || (selection.changeAmount > 0 &&
-                    !KaspaUtxoSelector.changeIsKeptOrFoldable(inputAmounts, listOf(selection.finalAmount), selection.changeAmount))
-            ) {
-                return@withLock Result.failure(IllegalStateException(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE))
-            }
-            val keepsChange = selection.changeAmount > 0 &&
-                KaspaMass.fitsStorageMass(inputAmounts, listOf(selection.finalAmount, selection.changeAmount))
-            if (keepsChange) {
-                outputs.add(
-                    RawOutputWithVersion(amount = selection.changeAmount, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0))
-                )
-            }
-            if (!KaspaMass.fitsStorageMass(inputAmounts, outputs.map { it.amount })) {
-                return@withLock Result.failure(IllegalStateException(
-                    "This amount is too small to send from the coins available (Kaspa storage-mass limit). Try a larger amount, or consolidate this address first."
-                ))
-            }
-            if (outputs.size > KsptCodec.MAX_OUTPUTS) {
-                return@withLock Result.failure(IllegalStateException("Too many outputs for KSPT"))
-            }
+            val built = coldOutputs(selection, recipientScriptHex, changeScriptHex)
+            val outputs = built.outputs
 
             val rawTx = RawTransaction(
                 inputs = selection.selectedUtxos.map { RawInput(previousOutpoint = it.outpoint, signatureScript = "") },
@@ -152,8 +126,8 @@ class ColdStorageSendEngine @Inject constructor(
                 UnsignedColdTx(
                     rawTx = rawTx,
                     inputUtxos = selection.selectedUtxos,
-                    feeSompi = selection.estimatedFee,
-                    changeSompi = if (keepsChange) selection.changeAmount else 0L
+                    feeSompi = built.paidFeeSompi,
+                    changeSompi = built.changeSompi
                 )
             )
         } catch (e: Exception) {
@@ -366,6 +340,62 @@ class ColdStorageSendEngine @Inject constructor(
         } catch (e: Exception) {
             Log.e("ColdStorageSendEngine", "Failed to broadcast signed transaction", e)
             Result.failure(e)
+        }
+    }
+
+    /** A Cold Storage send's outputs, and what it really pays - see [coldOutputs]. */
+    internal data class ColdOutputs(
+        val outputs: List<RawOutputWithVersion>,
+        /** The change output's value, 0 when none was emitted. */
+        val changeSompi: Long,
+        /** Everything the inputs hold that no output carries: the network fee plus any dust
+         *  folded into it. What the confirmation screen shows. */
+        val paidFeeSompi: Long
+    )
+
+    internal companion object {
+        /**
+         * The recipient output, plus the change whenever this transaction's KIP-9 storage mass
+         * lets it stand (the hot wallet's rule, and KasSigner's own dust test). Only a remainder
+         * of at most [KaspaUtxoSelector.MAX_FOLDED_CHANGE_SOMPI] is folded into the fee; a bigger
+         * one that cannot stand is refused with the small-send message (iOS dd4d977 / e6f0dfe).
+         *
+         * The fee reported is inputs - outputs, so a folded remainder is shown as paid rather
+         * than hidden behind the network fee alone (iOS e6f0dfe, audit IOS-013).
+         */
+        fun coldOutputs(
+            selection: KaspaUtxoSelector.SelectionResult,
+            recipientScriptHex: String,
+            changeScriptHex: String
+        ): ColdOutputs {
+            val outputs = mutableListOf(
+                RawOutputWithVersion(amount = selection.finalAmount, scriptPublicKey = ScriptPublicKeyWithVersion(recipientScriptHex, 0))
+            )
+            val inputAmounts = selection.selectedUtxos.map { it.utxoEntry.amount }
+            if (selection.storageMassBlocked || (selection.changeAmount > 0 &&
+                    !KaspaUtxoSelector.changeIsKeptOrFoldable(inputAmounts, listOf(selection.finalAmount), selection.changeAmount))
+            ) {
+                throw IllegalStateException(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE)
+            }
+            val keepsChange = selection.changeAmount > 0 &&
+                KaspaMass.fitsStorageMass(inputAmounts, listOf(selection.finalAmount, selection.changeAmount))
+            if (keepsChange) {
+                outputs.add(
+                    RawOutputWithVersion(amount = selection.changeAmount, scriptPublicKey = ScriptPublicKeyWithVersion(changeScriptHex, 0))
+                )
+            }
+            if (!KaspaMass.fitsStorageMass(inputAmounts, outputs.map { it.amount })) {
+                throw IllegalStateException(
+                    "This amount is too small to send from the coins available (Kaspa storage-mass limit). Try a larger amount, or consolidate this address first."
+                )
+            }
+            if (outputs.size > KsptCodec.MAX_OUTPUTS) {
+                throw IllegalStateException("Too many outputs for KSPT")
+            }
+            val inputTotal = inputAmounts.sum()
+            val outputTotal = outputs.sumOf { it.amount }
+            val paidFee = if (inputTotal >= outputTotal) inputTotal - outputTotal else selection.estimatedFee
+            return ColdOutputs(outputs, if (keepsChange) selection.changeAmount else 0L, paidFee)
         }
     }
 
