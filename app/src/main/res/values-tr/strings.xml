@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG üzerinde güvenli mesajlaşma</string>
     <string name="security_warning">Güvenlik Uyarısı</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Seed Phrase Uzunluğu</string>
     <string name="select_time">Saat Sec</string>
     <string name="select_chat">Sohbet sec</string>
     <string name="send">Gonder</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
     <string name="waiting_for_camera">Kamera bekleniyor...</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
-    <string name="you_will_be_shown_a_seed">Size bir kurtarma ifadesi gosterilecek. Hesabinizi kurtarmanin tek yolu budur. Yalnizca yazili olarak not aldiginizdan emin olun. Asla ekran goruntusu almayin veya cihazinizda saklamayin.</string>
     <string name="channel_name">kanal-adi</string>
     <string name="host_port_or_grpcs_host">host:port veya grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">İlandan veya kabul edilen teklifle satın alınan .kachat adları</string>
     <string name="ks_kachat_offers_detail">.kachat adlarına verilen teklifler</string>
     <string name="ks_kachat_activity_detail">İlanlar, aktarımlar, bırakmalar, geri almalar ve iade edilen teklifler</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">Cüzdanınız için bir ad oluşturun</string>
+    <string name="create_wallet_name_detail">Bu ad yalnızca bu cihazda saklanır ve cüzdanlarınızı ayırt etmenizi sağlar. Başka hiç kimse onu görmez.</string>
+    <string name="create_wallet_seed_next_warning">Sonraki ekran seed phrase\'inizi gösterir. Hesabınızı kurtarmanın tek yolu budur: yazın, güvenli bir yerde saklayın ve ekranınızı kimsenin görmediğinden emin olun.</string>
+    <string name="choose_seed_phrase_length">Seed phrase uzunluğunu seçin</string>
 </resources>

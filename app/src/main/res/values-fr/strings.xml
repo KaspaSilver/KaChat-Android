@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Messagerie sécurisée sur Kaspa BlockDAG</string>
     <string name="security_warning">Avertissement de sécurité</string>
     <string name="seed_phrase">Phrase de récupération</string>
-    <string name="seed_phrase_length">Longueur de la phrase de récupération</string>
     <string name="select_time">Selectionner l\'heure</string>
     <string name="select_chat">Selectionner la discussion</string>
     <string name="send">Envoyer</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">Voir sur ChangeNOW</string>
     <string name="waiting_for_camera">En attente de la camera...</string>
     <string name="waiting_on_opponent">En attente de l\'adversaire</string>
-    <string name="you_will_be_shown_a_seed">Une phrase de recuperation va vous etre affichee. C\'est le seul moyen de recuperer votre compte. Notez-la uniquement par ecrit. Ne prenez jamais de capture d\'ecran et ne la stockez pas sur votre appareil.</string>
     <string name="channel_name">nom-du-canal</string>
     <string name="host_port_or_grpcs_host">hote:port ou grpcs://hote</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">Noms .kachat achetés via une annonce ou une offre acceptée</string>
     <string name="ks_kachat_offers_detail">Offres faites sur des noms .kachat</string>
     <string name="ks_kachat_activity_detail">Annonces, transferts, libérations, récupérations et offres retournées</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">Créez un nom pour votre portefeuille</string>
+    <string name="create_wallet_name_detail">Ce nom est enregistré uniquement sur cet appareil, pour distinguer vos portefeuilles. Personne d\'autre ne le verra jamais.</string>
+    <string name="create_wallet_seed_next_warning">L\'écran suivant affiche votre seed phrase. C\'est le seul moyen de récupérer votre compte : notez-la, conservez-la en sécurité et assurez-vous que personne ne voit votre écran.</string>
+    <string name="choose_seed_phrase_length">Choisissez la longueur de la seed phrase</string>
 </resources>

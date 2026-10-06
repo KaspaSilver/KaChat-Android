@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">在 Kaspa BlockDAG 上安全通信</string>
     <string name="security_warning">安全警告</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Seed Phrase 长度</string>
     <string name="select_time">选择时间</string>
     <string name="select_chat">选择聊天</string>
     <string name="send">发送</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">在 ChangeNOW 上查看</string>
     <string name="waiting_for_camera">正在等待相机...</string>
     <string name="waiting_on_opponent">等待对手</string>
-    <string name="you_will_be_shown_a_seed">系统将向您显示助记词。这是恢复您账户的唯一方法。请确保只将其写下来。切勿截图或将其存储在您的设备上。</string>
     <string name="channel_name">频道名称</string>
     <string name="host_port_or_grpcs_host">host:port 或 grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">通过挂牌或接受报价购买的 .kachat 名称</string>
     <string name="ks_kachat_offers_detail">对 .kachat 名称的报价</string>
     <string name="ks_kachat_activity_detail">挂牌、转让、释放、回收和退回的报价</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">为你的钱包起个名字</string>
+    <string name="create_wallet_name_detail">此名称只保存在这台设备上，用于区分你的钱包。其他人永远看不到它。</string>
+    <string name="create_wallet_seed_next_warning">下一个屏幕会显示你的 seed phrase。这是恢复账户的唯一方法：请写下来并安全保管，并确保没有人能看到你的屏幕。</string>
+    <string name="choose_seed_phrase_length">选择 seed phrase 长度</string>
 </resources>

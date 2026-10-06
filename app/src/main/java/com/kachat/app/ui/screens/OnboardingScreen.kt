@@ -6,6 +6,15 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -46,6 +55,7 @@ import com.kachat.app.ui.theme.KaspaSubtext
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.DarkAppColors
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.CreateAccountSteps
 import com.kachat.app.util.authenticateWithDeviceCredential
 import com.kachat.app.viewmodels.WalletViewModel
 
@@ -82,8 +92,22 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 }
             )
         }
+        // Create Account in three steps (iOS acd879b): the name, the seed length, the seed phrase.
         composable("create_account") {
-            CreateAccountScreen(viewModel, onBack = { navController.popBackStack() })
+            CreateAccountScreen(
+                onBack = { navController.popBackStack() },
+                onNext = { name -> navController.navigate("create_account_length?name=${android.net.Uri.encode(name)}") }
+            )
+        }
+        composable(
+            "create_account_length?name={name}",
+            arguments = listOf(androidx.navigation.navArgument("name") { defaultValue = "" })
+        ) { backStackEntry ->
+            CreateAccountLengthScreen(
+                viewModel,
+                accountName = backStackEntry.arguments?.getString("name").orEmpty(),
+                onBack = { navController.popBackStack() }
+            )
         }
         composable("import_source") {
             ImportSourceWalletScreen(
@@ -569,196 +593,244 @@ fun SavedAccountCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Create Account, step 1 of 3 (iOS acd879b `CreateWalletView`): the account's name, stored only
+ * on this device. Then the seed length ([CreateAccountLengthScreen]), then the seed phrase itself
+ * ([BackupMnemonicScreen]), then the optional passphrase, which commits the account.
+ */
 @Composable
-fun CreateAccountScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
-    // Both start empty on purpose (iOS 3a5c852): the name and the seed length are the user's
-    // choice, and Generate Account stays disabled until both are made.
-    var accountName by remember { mutableStateOf("") }
-    var wordCount by remember { mutableIntStateOf(0) }
-    val canGenerate = accountName.isNotBlank() && wordCount != 0
+fun CreateAccountScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
+    val colors = LocalAppColors.current
+    // Starts empty on purpose: the name is the user's choice. Kept across the trip to the next
+    // step and back, as iOS keeps it.
+    var accountName by rememberSaveable { mutableStateOf("") }
+    val canContinue = CreateAccountSteps.canContinue(accountName)
+    val focus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val next = {
+        if (canContinue) {
+            focusManager.clearFocus()
+            onNext(CreateAccountSteps.accountName(accountName))
+        }
+    }
 
-    Surface(
-        color = LocalAppColors.current.background,
-        modifier = Modifier.fillMaxSize()
-    ) {
+    CreateAccountStepScaffold(onBack = onBack) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(R.string.create_wallet_name_title),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            Text(
+                text = stringResource(R.string.create_wallet_name_detail),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary
+            )
+        }
+
+        TextField(
+            value = accountName,
+            onValueChange = { accountName = it },
+            placeholder = { Text("Enter account name", color = colors.textSecondary) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .focusRequester(focus),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = colors.surface,
+                unfocusedContainerColor = colors.surface,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary,
+                cursorColor = KaspaTeal,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { next() }),
+            singleLine = true
+        )
+
+        CreateAccountNextButton(title = stringResource(R.string.next), enabled = canContinue, onClick = next)
+    }
+}
+
+/**
+ * Create Account, step 2 of 3 (iOS acd879b / c6bd716 `CreateWalletLengthStep`): 12 or 24 words as
+ * two full-width buttons in the Generate Account style (the chosen one filled; nothing chosen
+ * until the user taps one), and the warning that the seed phrase comes next.
+ */
+@Composable
+fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, onBack: () -> Unit) {
+    val colors = LocalAppColors.current
+    var wordCount by rememberSaveable { mutableStateOf<Int?>(null) }
+    // Until the seed phrase screen takes over (OnboardingScreen navigates on the new phrase).
+    var isCreating by remember { mutableStateOf(false) }
+
+    CreateAccountStepScaffold(onBack = onBack) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(R.string.choose_seed_phrase_length),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            // 12 first, and no "(recommended)" on 24: both lengths are secure.
+            CreateAccountSteps.WORD_COUNTS.forEach { count ->
+                CreateAccountLengthButton(
+                    title = stringResource(if (count == 12) R.string.n_12_words else R.string.n_24_words),
+                    chosen = wordCount == count,
+                    enabled = !isCreating,
+                    onClick = { wordCount = count },
+                )
+            }
+        }
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.surface)
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = colors.warning,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = stringResource(R.string.important),
+                    color = colors.warning,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            Text(
+                text = stringResource(R.string.create_wallet_seed_next_warning),
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        CreateAccountNextButton(
+            title = stringResource(R.string.generate_account),
+            enabled = CreateAccountSteps.canGenerate(wordCount, isCreating),
+            busy = isCreating,
+        ) {
+            val count = wordCount
+            if (count != null && CreateAccountSteps.canGenerate(count, isCreating)) {
+                isCreating = true
+                // The phrase is generated for display only; the account is derived and saved
+                // after the passphrase step.
+                viewModel.createWallet(accountName, count)
+            }
+        }
+    }
+}
+
+/** The Create Account steps' frame: Back, the large "Create Account" title, then the step's
+ *  content 24dp apart, scrolling above the keyboard. */
+@Composable
+private fun CreateAccountStepScaffold(onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalAppColors.current
+    Surface(color = colors.background, modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp)
-                // Without this, the "Account Name" field and "Generate Account" button below it
-                // (this Column has no scroll of its own — it relies on a weight(1f) spacer to push
-                // the button to the bottom) can end up rendered behind the keyboard on devices
-                // where edge-to-edge means windowSoftInputMode="adjustResize" alone doesn't shrink
-                // the window — Compose has to react to the IME inset itself.
+                // Edge-to-edge: Compose reacts to the keyboard inset itself, so the field and the
+                // button stay above it.
                 .imePadding()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Back button
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
                     .size(40.dp)
-                    .background(LocalAppColors.current.surface, CircleShape)
+                    .background(colors.surface, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                     contentDescription = stringResource(R.string.back),
-                    tint = com.kachat.app.ui.theme.KaspaTeal,
+                    tint = KaspaTeal,
                     modifier = Modifier.size(20.dp)
                 )
             }
-
             Spacer(modifier = Modifier.height(24.dp))
-
             Text(
                 text = stringResource(R.string.create_account),
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                color = LocalAppColors.current.textPrimary
+                color = colors.textPrimary
             )
-
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Important notice box
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = LocalAppColors.current.warning,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = stringResource(R.string.important),
-                        color = LocalAppColors.current.warning,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.you_will_be_shown_a_seed),
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = stringResource(R.string.seed_phrase_length),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Segmented control for word count
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // 12 first, and no "(recommended)" on 24: both lengths are secure, and calling
-                // one the right answer makes the other look like a mistake.
-                SegmentedButton(
-                    selected = wordCount == 12,
-                    onClick = { wordCount = 12 },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                        activeContentColor = LocalAppColors.current.textPrimary,
-                        inactiveContainerColor = LocalAppColors.current.surface,
-                        inactiveContentColor = LocalAppColors.current.textSecondary
-                    )
-                ) {
-                    Text(stringResource(R.string.n_12_words), fontSize = 12.sp)
-                }
-                SegmentedButton(
-                    selected = wordCount == 24,
-                    onClick = { wordCount = 24 },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                        activeContentColor = LocalAppColors.current.textPrimary,
-                        inactiveContainerColor = LocalAppColors.current.surface,
-                        inactiveContentColor = LocalAppColors.current.textSecondary
-                    )
-                ) {
-                    Text(stringResource(R.string.n_24_words), fontSize = 12.sp)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = stringResource(R.string.account_name),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Text field for account name
-            TextField(
-                value = accountName,
-                onValueChange = { accountName = it },
-                placeholder = { Text("Enter account name", color = LocalAppColors.current.textSecondary) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = LocalAppColors.current.surface,
-                    unfocusedContainerColor = LocalAppColors.current.surface,
-                    focusedTextColor = LocalAppColors.current.textPrimary,
-                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                    cursorColor = KaspaTeal,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                singleLine = true
-            )
-
-            // A fixed gap, not weight(1f) — a scrollable Column (added above for imePadding to
-            // actually help) can't host a weight()'d child, since scrolling gives it unbounded
-            // height to measure against.
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Generate button
-            Button(
-                onClick = { if (canGenerate) viewModel.createWallet(accountName.trim(), wordCount) },
-                enabled = canGenerate,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                // Visibly dimmed while disabled, as iOS's custom background is.
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = KaspaTeal.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AddCircle,
-                        contentDescription = null,
-                        tint = Color.Black
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.generate_account),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.Black
-                    )
-                }
-            }
-
+            Column(verticalArrangement = Arrangement.spacedBy(24.dp), content = content)
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
+
+/** The accent-filled continue button of the Create Account steps, dimmed while disabled (iOS
+ *  `CreateWalletNextButton`). */
+@Composable
+private fun CreateAccountNextButton(title: String, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = KaspaTeal,
+            // Not dimmed while busy, as on iOS.
+            disabledContainerColor = if (busy) KaspaTeal else KaspaTeal.copy(alpha = 0.4f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (busy) {
+                com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color.Black
+            )
+        }
+    }
+}
+
+/** One seed length: full width, filled with the accent when chosen, outlined otherwise (iOS
+ *  c6bd716 `lengthButton`). */
+@Composable
+private fun CreateAccountLengthButton(title: String, chosen: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (chosen) KaspaTeal else Color.Transparent)
+            .border(1.5.dp, KaspaTeal, shape)
+            .selectable(selected = chosen, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+            .padding(16.dp)
+    ) {
+        Icon(
+            imageVector = if (chosen) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+            contentDescription = null,
+            tint = if (chosen) Color.Black else KaspaTeal,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = title,
+            color = if (chosen) Color.Black else KaspaTeal,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }
 

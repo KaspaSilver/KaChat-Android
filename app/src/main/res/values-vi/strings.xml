@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Nhắn tin bảo mật trên Kaspa BlockDAG</string>
     <string name="security_warning">Cảnh báo bảo mật</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Độ dài seed phrase</string>
     <string name="select_time">Chọn giờ</string>
     <string name="select_chat">Chọn trò chuyện</string>
     <string name="send">Gửi</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">Xem trên ChangeNOW</string>
     <string name="waiting_for_camera">Đang chờ máy ảnh...</string>
     <string name="waiting_on_opponent">Dang cho doi thu</string>
-    <string name="you_will_be_shown_a_seed">Bạn sẽ được hiển thị một cụm từ khôi phục. Đây là cách duy nhất để khôi phục tài khoản của bạn. Đảm bảo bạn chỉ ghi nó ra giấy. Không bao giờ chụp ảnh màn hình hoặc lưu trữ nó trên thiết bị của bạn.</string>
     <string name="channel_name">ten-kenh</string>
     <string name="host_port_or_grpcs_host">host:port hoặc grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">Tên .kachat được mua từ tin rao bán hoặc qua đề nghị được chấp nhận</string>
     <string name="ks_kachat_offers_detail">Đề nghị cho tên .kachat</string>
     <string name="ks_kachat_activity_detail">Rao bán, chuyển nhượng, giải phóng, thu hồi và đề nghị được trả lại</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">Tạo tên cho ví của bạn</string>
+    <string name="create_wallet_name_detail">Tên này chỉ được lưu trên thiết bị này để bạn phân biệt các ví. Không ai khác nhìn thấy nó.</string>
+    <string name="create_wallet_seed_next_warning">Màn hình tiếp theo sẽ hiển thị seed phrase của bạn. Đây là cách duy nhất để khôi phục tài khoản: hãy ghi lại, lưu trữ an toàn và đảm bảo không ai nhìn thấy màn hình của bạn.</string>
+    <string name="choose_seed_phrase_length">Chọn độ dài seed phrase</string>
 </resources>

@@ -252,7 +252,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">پیام‌رسانی امن روی Kaspa BlockDAG</string>
     <string name="security_warning">هشدار امنیتی</string>
     <string name="seed_phrase">عبارت بازیابی</string>
-    <string name="seed_phrase_length">طول عبارت بازیابی</string>
     <string name="select_time">انتخاب زمان</string>
     <string name="select_all">انتخاب همه</string>
     <string name="select_chat">انتخاب گفتگو</string>
@@ -303,7 +302,6 @@
     <string name="view_on_changenow">مشاهده در ChangeNOW</string>
     <string name="waiting_for_camera">در انتظار دوربین...</string>
     <string name="waiting_on_opponent">در انتظار حریف</string>
-    <string name="you_will_be_shown_a_seed">یک عبارت بازیابی به شما نشان داده خواهد شد. این تنها راه بازیابی حساب شماست. مطمئن شوید که فقط آن را یادداشت می‌کنید. هرگز از آن اسکرین‌شات نگیرید یا آن را در دستگاه خود ذخیره نکنید.</string>
     <string name="channel_name">نام-کانال</string>
     <string name="host_port_or_grpcs_host">host:port یا grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1104,4 +1102,9 @@
     <string name="ks_kachat_sales_detail">نام‌های .kachat خریده‌شده از آگهی یا با پیشنهاد پذیرفته‌شده</string>
     <string name="ks_kachat_offers_detail">پیشنهادهای داده‌شده برای نام‌های .kachat</string>
     <string name="ks_kachat_activity_detail">آگهی‌ها، انتقال‌ها، رهاسازی‌ها، بازپس‌گیری‌ها و پیشنهادهای برگشتی</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">یک نام برای کیف پول خود بسازید</string>
+    <string name="create_wallet_name_detail">این نام فقط روی همین دستگاه ذخیره می‌شود تا کیف پول‌هایتان را از هم تشخیص دهید. هیچ‌کس دیگری هرگز آن را نمی‌بیند.</string>
+    <string name="create_wallet_seed_next_warning">صفحه بعد عبارت بازیابی شما را نشان می‌دهد. این تنها راه بازیابی حسابتان است: آن را یادداشت کنید، به صورت امن نگهداری کنید و مطمئن شوید کسی صفحه شما را نمی‌بیند.</string>
+    <string name="choose_seed_phrase_length">طول عبارت بازیابی را انتخاب کنید</string>
 </resources>

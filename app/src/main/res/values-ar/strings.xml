@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">مراسلة آمنة على Kaspa BlockDAG</string>
     <string name="security_warning">تحذير أمني</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">طول Seed Phrase</string>
     <string name="select_time">اختيار الوقت</string>
     <string name="select_chat">اختيار الدردشة</string>
     <string name="send">إرسال</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">عرض على ChangeNOW</string>
     <string name="waiting_for_camera">في انتظار الكاميرا...</string>
     <string name="waiting_on_opponent">في انتظار الخصم</string>
-    <string name="you_will_be_shown_a_seed">سيتم عرض عبارة استرداد لك. هذه هي الطريقة الوحيدة لاستعادة حسابك. تأكد من كتابتها فقط. لا تلتقط لقطة شاشة أبدًا ولا تخزنها على جهازك.</string>
     <string name="channel_name">اسم-القناة</string>
     <string name="host_port_or_grpcs_host">host:port أو grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">أسماء .kachat المشتراة من إدراج أو عبر عرض مقبول</string>
     <string name="ks_kachat_offers_detail">العروض المقدّمة على أسماء .kachat</string>
     <string name="ks_kachat_activity_detail">الإدراجات والنقل والتحرير والاسترداد والعروض المُعادة</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">أنشئ اسمًا لمحفظتك</string>
+    <string name="create_wallet_name_detail">يُحفظ هذا الاسم على هذا الجهاز فقط لتمييز محافظك عن بعضها. لن يراه أي شخص آخر.</string>
+    <string name="create_wallet_seed_next_warning">تعرض الشاشة التالية seed phrase الخاصة بك. هذه هي الطريقة الوحيدة لاستعادة حسابك: اكتبها واحفظها بأمان، وتأكد من ألا يرى أحد شاشتك.</string>
+    <string name="choose_seed_phrase_length">اختر طول seed phrase</string>
 </resources>

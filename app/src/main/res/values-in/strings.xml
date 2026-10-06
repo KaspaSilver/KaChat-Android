@@ -154,7 +154,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Perpesanan aman di Kaspa BlockDAG</string>
     <string name="security_warning">Peringatan Keamanan</string>
     <string name="seed_phrase">Frasa Pemulihan</string>
-    <string name="seed_phrase_length">Panjang Frasa Pemulihan</string>
     <string name="send">Kirim</string>
     <string name="send_all_kaspa_to_primary_spend">Kirim Semua Kaspa ke Alamat Pengeluaran Utama</string>
     <string name="send_from_cold_storage">Kirim dari Penyimpanan Dingin</string>
@@ -938,4 +937,9 @@
     <string name="ks_kachat_sales_detail">Nama .kachat yang dibeli dari listing atau lewat penawaran yang diterima</string>
     <string name="ks_kachat_offers_detail">Penawaran untuk nama .kachat</string>
     <string name="ks_kachat_activity_detail">Listing, transfer, pelepasan, klaim ulang, dan penawaran yang dikembalikan</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">Buat nama untuk dompet Anda</string>
+    <string name="create_wallet_name_detail">Nama ini hanya disimpan di perangkat ini, untuk membedakan dompet-dompet Anda. Tidak ada orang lain yang akan melihatnya.</string>
+    <string name="create_wallet_seed_next_warning">Layar berikutnya menampilkan frasa pemulihan Anda. Ini satu-satunya cara memulihkan akun Anda: catat, simpan dengan aman, dan pastikan tidak ada yang bisa melihat layar Anda.</string>
+    <string name="choose_seed_phrase_length">Pilih panjang frasa pemulihan</string>
 </resources>

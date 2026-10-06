@@ -333,7 +333,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Secure messaging on Kaspa BlockDAG</string>
     <string name="security_warning">Security Warning</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Seed Phrase Length</string>
     <string name="select_time">Select Time</string>
     <string name="select_all">Select All</string>
     <string name="select_chat">Select chat</string>
@@ -385,7 +384,6 @@
     <string name="waiting_for_camera">Waiting for camera...</string>
     <string name="waiting_on_opponent">Waiting on opponent</string>
     <string name="the_recipient_wont_see_your_messages">The recipient won\'t see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them.</string>
-    <string name="you_will_be_shown_a_seed">You will be shown a seed phrase. This is the only way to recover your account. Make sure you only write this down. Never take a screenshot or store it on your device.</string>
     <string name="channel_name">channel-name</string>
     <string name="host_port_or_grpcs_host">host:port or grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1240,4 +1238,9 @@
     <string name="ks_kachat_sales_detail">.kachat names bought from a listing or through an accepted offer</string>
     <string name="ks_kachat_offers_detail">Offers made on .kachat names</string>
     <string name="ks_kachat_activity_detail">Listings, transfers, releases, reclaims and returned offers</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">Create a name for your wallet</string>
+    <string name="create_wallet_name_detail">This name is only stored on this device, to tell your wallets apart. No one else will ever see it.</string>
+    <string name="create_wallet_seed_next_warning">The next screen shows your seed phrase. It is the only way to recover your account: write it down and store it securely, and make sure no one can see your screen.</string>
+    <string name="choose_seed_phrase_length">Choose seed phrase length</string>
 </resources>

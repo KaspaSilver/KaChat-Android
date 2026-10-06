@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG에서 안전한 메시징</string>
     <string name="security_warning">보안 경고</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Seed Phrase 길이</string>
     <string name="select_time">시간 선택</string>
     <string name="select_chat">채팅 선택</string>
     <string name="send">보내기</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">ChangeNOW에서 보기</string>
     <string name="waiting_for_camera">카메라 대기 중...</string>
     <string name="waiting_on_opponent">상대방 대기 중</string>
-    <string name="you_will_be_shown_a_seed">시드 문구가 표시됩니다. 이것이 계정을 복구하는 유일한 방법입니다. 반드시 종이에 적어두기만 하세요. 절대 스크린샷을 찍거나 기기에 저장하지 마세요.</string>
     <string name="channel_name">채널-이름</string>
     <string name="host_port_or_grpcs_host">host:port 또는 grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">판매 목록이나 수락된 제안으로 구매한 .kachat 이름</string>
     <string name="ks_kachat_offers_detail">.kachat 이름에 한 제안</string>
     <string name="ks_kachat_activity_detail">판매 등록, 양도, 해제, 회수, 반환된 제안</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">지갑 이름 만들기</string>
+    <string name="create_wallet_name_detail">이 이름은 지갑을 구분하기 위해 이 기기에만 저장됩니다. 다른 누구도 볼 수 없습니다.</string>
+    <string name="create_wallet_seed_next_warning">다음 화면에 seed phrase가 표시됩니다. 계정을 복구하는 유일한 방법입니다. 적어서 안전하게 보관하고, 아무도 화면을 볼 수 없는지 확인하세요.</string>
+    <string name="choose_seed_phrase_length">seed phrase 길이 선택</string>
 </resources>

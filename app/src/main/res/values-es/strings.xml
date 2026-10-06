@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Mensajería segura en Kaspa BlockDAG</string>
     <string name="security_warning">Advertencia de seguridad</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Longitud de seed phrase</string>
     <string name="select_time">Seleccionar hora</string>
     <string name="select_chat">Seleccionar chat</string>
     <string name="send">Enviar</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">Ver en ChangeNOW</string>
     <string name="waiting_for_camera">Esperando la camara...</string>
     <string name="waiting_on_opponent">Esperando al oponente</string>
-    <string name="you_will_be_shown_a_seed">Se te mostrara una frase semilla. Esta es la unica forma de recuperar tu cuenta. Asegurate de solo anotarla. Nunca tomes una captura de pantalla ni la guardes en tu dispositivo.</string>
     <string name="channel_name">nombre-del-canal</string>
     <string name="host_port_or_grpcs_host">host:puerto o grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">Nombres .kachat comprados de un anuncio o con una oferta aceptada</string>
     <string name="ks_kachat_offers_detail">Ofertas hechas por nombres .kachat</string>
     <string name="ks_kachat_activity_detail">Anuncios, transferencias, liberaciones, reclamos y ofertas devueltas</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">Crea un nombre para tu billetera</string>
+    <string name="create_wallet_name_detail">Este nombre solo se guarda en este dispositivo, para distinguir tus billeteras. Nadie más lo verá nunca.</string>
+    <string name="create_wallet_seed_next_warning">La siguiente pantalla muestra tu seed phrase. Es la única forma de recuperar tu cuenta: anótala, guárdala de forma segura y asegúrate de que nadie pueda ver tu pantalla.</string>
+    <string name="choose_seed_phrase_length">Elige la longitud de la seed phrase</string>
 </resources>

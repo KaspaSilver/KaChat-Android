@@ -219,7 +219,6 @@
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG-এ নিরাপদ মেসেজিং</string>
     <string name="security_warning">নিরাপত্তা সতর্কতা</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="seed_phrase_length">Seed Phrase-এর দৈর্ঘ্য</string>
     <string name="select_time">সময় নির্বাচন করুন</string>
     <string name="select_chat">চ্যাট নির্বাচন করুন</string>
     <string name="send">পাঠান</string>
@@ -266,7 +265,6 @@
     <string name="view_on_changenow">ChangeNOW-এ দেখুন</string>
     <string name="waiting_for_camera">ক্যামেরার জন্য অপেক্ষা করা হচ্ছে...</string>
     <string name="waiting_on_opponent">প্রতিপক্ষের জন্য অপেক্ষা করা হচ্ছে</string>
-    <string name="you_will_be_shown_a_seed">আপনাকে একটি সিড ফ্রেজ দেখানো হবে। আপনার অ্যাকাউন্ট পুনরুদ্ধারের এটাই একমাত্র উপায়। নিশ্চিত করুন যে আপনি এটি শুধু লিখে রাখেন। কখনো স্ক্রিনশট নেবেন না এবং এটি আপনার ডিভাইসে সংরক্ষণ করবেন না।</string>
     <string name="channel_name">চ্যানেল-নাম</string>
     <string name="host_port_or_grpcs_host">host:port বা grpcs://host</string>
     <string name="kpub">kpub</string>
@@ -1073,4 +1071,9 @@
     <string name="ks_kachat_sales_detail">তালিকা থেকে বা গৃহীত প্রস্তাবের মাধ্যমে কেনা .kachat নাম</string>
     <string name="ks_kachat_offers_detail">.kachat নামে দেওয়া প্রস্তাব</string>
     <string name="ks_kachat_activity_detail">তালিকাভুক্তি, স্থানান্তর, ছেড়ে দেওয়া, পুনরুদ্ধার ও ফেরত প্রস্তাব</string>
+    <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
+    <string name="create_wallet_name_title">আপনার ওয়ালেটের জন্য একটি নাম দিন</string>
+    <string name="create_wallet_name_detail">এই নামটি শুধু এই ডিভাইসে সংরক্ষিত থাকে, যাতে আপনি আপনার ওয়ালেটগুলো আলাদা করে চিনতে পারেন। অন্য কেউ এটি কখনো দেখতে পাবে না।</string>
+    <string name="create_wallet_seed_next_warning">পরের স্ক্রিনে আপনার seed phrase দেখানো হবে। এটি আপনার অ্যাকাউন্ট পুনরুদ্ধারের একমাত্র উপায়: এটি লিখে রাখুন, নিরাপদে সংরক্ষণ করুন, এবং নিশ্চিত করুন কেউ আপনার স্ক্রিন দেখতে পাচ্ছে না।</string>
+    <string name="choose_seed_phrase_length">seed phrase-এর দৈর্ঘ্য বেছে নিন</string>
 </resources>
