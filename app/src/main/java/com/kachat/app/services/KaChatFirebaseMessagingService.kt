@@ -144,8 +144,12 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         // at all (indexer lag, no network) does the generic fallback fire.
                         val groupId = data["blinded_group_id"] ?: return@runBlocking
                         val txId = data["tx_id"].orEmpty()
+                        // Bounded, as group_control is: syncGroups() is a full catch-up (every
+                        // group, backfill sends included) and FCM gives this handler about 20 s.
+                        // A sync still running at 8 s is left behind and the generic fallback
+                        // below posts in time (audit AND-008).
                         val ingested = try {
-                            groupRepository.syncGroups()
+                            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
                             txId.isNotBlank() && groupRepository.isGroupTxIngested(txId)
                         } catch (e: Exception) {
                             Log.w(TAG, "Push-triggered group sync failed: ${e.message}")
@@ -211,7 +215,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         // Bounded: a push handler has seconds, not minutes, and a notification
                         // that never posts is worse than one whose tap lands on the group list.
                         runCatching {
-                            kotlinx.coroutines.withTimeoutOrNull(8_000) { groupRepository.syncGroups() }
+                            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
                         }
                         val blindedId = data["blinded_group_id"]?.takeIf { it.isNotBlank() }
                         val key = blindedId ?: data["tx_id"] ?: "group"
@@ -272,9 +276,12 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // No enc_payload means the message was too big for FCM - which is EVERY photo and voice
         // message, since those run to tens of kilobytes. Read it off chain so the preview below
         // can say what it is instead of falling back to the server's generic wording.
+        // Bounded so the fallback text still posts when the REST API is slow (audit AND-008).
         val plaintext = decryptDirectMessage(data["enc_payload"])
             ?: data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
-                runCatching { chatRepository.decryptChainMessage(txId) }.getOrNull()
+                runCatching {
+                    kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { chatRepository.decryptChainMessage(txId) }
+                }.getOrNull()
             }
         if (plaintext != null && MessageReaction.parseOrNull(plaintext) != null) {
             // Reactions are never shown as their own notification (matches ChatRepository).
@@ -457,5 +464,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
          *  Kept in sync with MainActivity.FCM_KEYS_POST_ID, which reads the same payload when
          *  FCM drew the notification itself. */
         private val POST_ID_KEYS = listOf("post_id", "postId", "content_id")
+
+        /** How long a push may spend on a group catch-up before the generic banner posts. */
+        private const val GROUP_SYNC_BUDGET_MS = 8_000L
+
+        /** How long a payload-less DM push may spend reading its message off chain. */
+        private const val CHAIN_READ_BUDGET_MS = 5_000L
     }
 }
