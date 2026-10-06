@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">相手が共有した新しいプライベートアドレスに送られます</string>
     <string name="tip_goes_to_public_address">相手の公開チャットアドレスに送られます</string>
     <string name="available_amount_kas">利用可能: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">登録された名前</string>
+    <string name="ks_kachat_renewals">名前の更新</string>
+    <string name="ks_kachat_sales">名前の販売</string>
+    <string name="ks_kachat_offers">名前へのオファー</string>
+    <string name="ks_kachat_activity">名前のアクティビティ</string>
+    <string name="ks_kachat_registrations_detail">取得された .kachat 名</string>
+    <string name="ks_kachat_renewals_detail">延長・更新された .kachat 名</string>
+    <string name="ks_kachat_sales_detail">出品または承諾されたオファーで購入された .kachat 名</string>
+    <string name="ks_kachat_offers_detail">.kachat 名へのオファー</string>
+    <string name="ks_kachat_activity_detail">出品、譲渡、解放、回収、返却されたオファー</string>
 </resources>

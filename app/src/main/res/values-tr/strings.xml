@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">Paylaştığı yeni özel bir adrese gider</string>
     <string name="tip_goes_to_public_address">Herkese açık sohbet adresine gider</string>
     <string name="available_amount_kas">kullanılabilir: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">Kaydedilen Adlar</string>
+    <string name="ks_kachat_renewals">Ad Yenilemeleri</string>
+    <string name="ks_kachat_sales">Ad Satışları</string>
+    <string name="ks_kachat_offers">Ad Teklifleri</string>
+    <string name="ks_kachat_activity">Ad Etkinliği</string>
+    <string name="ks_kachat_registrations_detail">Talep edilen .kachat adları</string>
+    <string name="ks_kachat_renewals_detail">Uzatılan veya yenilenen .kachat adları</string>
+    <string name="ks_kachat_sales_detail">İlandan veya kabul edilen teklifle satın alınan .kachat adları</string>
+    <string name="ks_kachat_offers_detail">.kachat adlarına verilen teklifler</string>
+    <string name="ks_kachat_activity_detail">İlanlar, aktarımlar, bırakmalar, geri almalar ve iade edilen teklifler</string>
 </resources>

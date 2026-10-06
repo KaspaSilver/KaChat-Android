@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">تذهب إلى عنوان خاص جديد شاركه</string>
     <string name="tip_goes_to_public_address">تذهب إلى عنوان الدردشة العام الخاص به</string>
     <string name="available_amount_kas">المتاح: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">الأسماء المسجلة</string>
+    <string name="ks_kachat_renewals">تجديدات الأسماء</string>
+    <string name="ks_kachat_sales">مبيعات الأسماء</string>
+    <string name="ks_kachat_offers">عروض الأسماء</string>
+    <string name="ks_kachat_activity">نشاط الأسماء</string>
+    <string name="ks_kachat_registrations_detail">أسماء .kachat المُطالب بها</string>
+    <string name="ks_kachat_renewals_detail">أسماء .kachat الممدّدة أو المجدّدة</string>
+    <string name="ks_kachat_sales_detail">أسماء .kachat المشتراة من إدراج أو عبر عرض مقبول</string>
+    <string name="ks_kachat_offers_detail">العروض المقدّمة على أسماء .kachat</string>
+    <string name="ks_kachat_activity_detail">الإدراجات والنقل والتحرير والاسترداد والعروض المُعادة</string>
 </resources>

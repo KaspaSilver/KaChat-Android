@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">उनके साझा किए गए नए निजी पते पर जाता है</string>
     <string name="tip_goes_to_public_address">उनके सार्वजनिक चैटिंग पते पर जाता है</string>
     <string name="available_amount_kas">उपलब्ध: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">पंजीकृत नाम</string>
+    <string name="ks_kachat_renewals">नाम नवीनीकरण</string>
+    <string name="ks_kachat_sales">नाम बिक्री</string>
+    <string name="ks_kachat_offers">नाम ऑफ़र</string>
+    <string name="ks_kachat_activity">नाम गतिविधि</string>
+    <string name="ks_kachat_registrations_detail">दावा किए गए .kachat नाम</string>
+    <string name="ks_kachat_renewals_detail">बढ़ाए या नवीनीकृत .kachat नाम</string>
+    <string name="ks_kachat_sales_detail">लिस्टिंग से या स्वीकार किए गए ऑफ़र से खरीदे गए .kachat नाम</string>
+    <string name="ks_kachat_offers_detail">.kachat नामों पर दिए गए ऑफ़र</string>
+    <string name="ks_kachat_activity_detail">लिस्टिंग, ट्रांसफ़र, रिलीज़, वापसी और लौटाए गए ऑफ़र</string>
 </resources>

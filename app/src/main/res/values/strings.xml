@@ -1229,4 +1229,15 @@
     <string name="tip_goes_to_fresh_address">Goes to a fresh private address they shared</string>
     <string name="tip_goes_to_public_address">Goes to their public chatting address</string>
     <string name="available_amount_kas">available: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">Names Registered</string>
+    <string name="ks_kachat_renewals">Name Renewals</string>
+    <string name="ks_kachat_sales">Name Sales</string>
+    <string name="ks_kachat_offers">Name Offers</string>
+    <string name="ks_kachat_activity">Name Activity</string>
+    <string name="ks_kachat_registrations_detail">.kachat names claimed</string>
+    <string name="ks_kachat_renewals_detail">.kachat names extended or renewed</string>
+    <string name="ks_kachat_sales_detail">.kachat names bought from a listing or through an accepted offer</string>
+    <string name="ks_kachat_offers_detail">Offers made on .kachat names</string>
+    <string name="ks_kachat_activity_detail">Listings, transfers, releases, reclaims and returned offers</string>
 </resources>

@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">상대가 공유한 새 비공개 주소로 가요</string>
     <string name="tip_goes_to_public_address">상대의 공개 채팅 주소로 가요</string>
     <string name="available_amount_kas">사용 가능: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">등록된 이름</string>
+    <string name="ks_kachat_renewals">이름 갱신</string>
+    <string name="ks_kachat_sales">이름 판매</string>
+    <string name="ks_kachat_offers">이름 제안</string>
+    <string name="ks_kachat_activity">이름 활동</string>
+    <string name="ks_kachat_registrations_detail">등록된 .kachat 이름</string>
+    <string name="ks_kachat_renewals_detail">연장하거나 갱신한 .kachat 이름</string>
+    <string name="ks_kachat_sales_detail">판매 목록이나 수락된 제안으로 구매한 .kachat 이름</string>
+    <string name="ks_kachat_offers_detail">.kachat 이름에 한 제안</string>
+    <string name="ks_kachat_activity_detail">판매 등록, 양도, 해제, 회수, 반환된 제안</string>
 </resources>

@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">Vai para um novo endereço privado que a pessoa compartilhou</string>
     <string name="tip_goes_to_public_address">Vai para o endereço público de chat da pessoa</string>
     <string name="available_amount_kas">disponível: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">Nomes registrados</string>
+    <string name="ks_kachat_renewals">Renovações de nomes</string>
+    <string name="ks_kachat_sales">Vendas de nomes</string>
+    <string name="ks_kachat_offers">Ofertas por nomes</string>
+    <string name="ks_kachat_activity">Atividade de nomes</string>
+    <string name="ks_kachat_registrations_detail">Nomes .kachat registrados</string>
+    <string name="ks_kachat_renewals_detail">Nomes .kachat estendidos ou renovados</string>
+    <string name="ks_kachat_sales_detail">Nomes .kachat comprados de um anúncio ou por oferta aceita</string>
+    <string name="ks_kachat_offers_detail">Ofertas feitas por nomes .kachat</string>
+    <string name="ks_kachat_activity_detail">Anúncios, transferências, liberações, recuperações e ofertas devolvidas</string>
 </resources>

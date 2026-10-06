@@ -927,4 +927,15 @@
     <string name="tip_goes_to_fresh_address">Dikirim ke alamat pribadi baru yang mereka bagikan</string>
     <string name="tip_goes_to_public_address">Dikirim ke alamat chat publik mereka</string>
     <string name="available_amount_kas">tersedia: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">Nama Terdaftar</string>
+    <string name="ks_kachat_renewals">Perpanjangan Nama</string>
+    <string name="ks_kachat_sales">Penjualan Nama</string>
+    <string name="ks_kachat_offers">Penawaran Nama</string>
+    <string name="ks_kachat_activity">Aktivitas Nama</string>
+    <string name="ks_kachat_registrations_detail">Nama .kachat yang diklaim</string>
+    <string name="ks_kachat_renewals_detail">Nama .kachat yang ditambah atau diperpanjang</string>
+    <string name="ks_kachat_sales_detail">Nama .kachat yang dibeli dari listing atau lewat penawaran yang diterima</string>
+    <string name="ks_kachat_offers_detail">Penawaran untuk nama .kachat</string>
+    <string name="ks_kachat_activity_detail">Listing, transfer, pelepasan, klaim ulang, dan penawaran yang dikembalikan</string>
 </resources>

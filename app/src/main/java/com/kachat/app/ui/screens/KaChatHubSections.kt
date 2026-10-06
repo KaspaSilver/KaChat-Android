@@ -537,6 +537,13 @@ enum class KaChatStatCategory(val key: String, val title: Int, val detail: Int, 
     KAPOST_ACTIONS("kapostActions", R.string.ks_kapost_actions, R.string.ks_kapost_actions_detail, Icons.Default.ThumbUp, Color(0xFFBF5AF2)),
     CHESS_MOVES("chessMoves", R.string.ks_chess_moves, R.string.ks_chess_moves_detail, Icons.Default.GridOn, Color(0xFFAC8E68)),
     CHESS_GAMES("chessGames", R.string.ks_chess_games, R.string.ks_chess_games_detail, Icons.Default.EmojiEvents, Color(0xFFFFD60A)),
+    // .kachat names (registry transactions, iOS b2d108b). An indexer reports them only where names
+    // are live, so on a network without the registry yet (mainnet before launch) they stay hidden.
+    KACHAT_REGISTRATIONS("kachatRegistrations", R.string.ks_kachat_registrations, R.string.ks_kachat_registrations_detail, Icons.Default.AlternateEmail, Color(0xFF63E6E2)),
+    KACHAT_RENEWALS("kachatRenewals", R.string.ks_kachat_renewals, R.string.ks_kachat_renewals_detail, Icons.Default.Autorenew, Color(0xFF008C80)),
+    KACHAT_SALES("kachatSales", R.string.ks_kachat_sales, R.string.ks_kachat_sales_detail, Icons.Default.ShoppingCart, Color(0xFFFF453A)),
+    KACHAT_OFFERS("kachatOffers", R.string.ks_kachat_offers, R.string.ks_kachat_offers_detail, Icons.Default.PanTool, Color(0xFFD98C1A)),
+    KACHAT_ACTIVITY("kachatActivity", R.string.ks_kachat_activity, R.string.ks_kachat_activity_detail, Icons.Default.LocalOffer, Color(0xFF7373BF)),
     SELF_STASH("selfStash", R.string.ks_self_stash, R.string.ks_self_stash_detail, Icons.Default.Inventory2, Color(0xFF8E8E93));
 }
 
@@ -554,6 +561,36 @@ data class KaChatStatCounts(val total: Long?, val last24h: Long?, val last7d: Lo
         KaChatStatRange.WEEK -> last7d
         KaChatStatRange.ALL -> total
     }
+}
+
+/** The categories a snapshot reports, in the fixed display order, each with its count for
+ *  [range]. A category no indexer reports is left out rather than shown as zero. */
+fun kaChatStatRows(
+    counts: Map<KaChatStatCategory, KaChatStatCounts>,
+    range: KaChatStatRange,
+): List<Pair<KaChatStatCategory, Long?>> =
+    KaChatStatCategory.entries.mapNotNull { c -> counts[c]?.let { c to it.value(range) } }
+
+/** The KaChat transactions total for [rows]: the sum of every reported count (the .kachat names
+ *  categories included), null when none has a number for the range. */
+fun kaChatStatsTotal(rows: List<Pair<KaChatStatCategory, Long?>>): Long? =
+    rows.mapNotNull { it.second }.takeIf { it.isNotEmpty() }?.sum()
+
+/** Merges indexers' `GET /stats` `categories`: a category comes from the first response (in
+ *  settings order) that reports it; keys this app doesn't know are skipped. */
+fun mergeKaChatStatCategories(responses: List<JsonObject>): Map<KaChatStatCategory, KaChatStatCounts> {
+    val counts = mutableMapOf<KaChatStatCategory, KaChatStatCounts>()
+    for (response in responses) {
+        val categories = response.get("categories")?.takeIf { it.isJsonObject }?.asJsonObject ?: continue
+        for ((key, value) in categories.entrySet()) {
+            val category = KaChatStatCategory.entries.firstOrNull { it.key == key } ?: continue
+            if (category in counts || !value.isJsonObject) continue
+            val obj = value.asJsonObject
+            fun long(name: String) = obj.get(name)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
+            counts[category] = KaChatStatCounts(long("total"), long("last24h"), long("last7d"))
+        }
+    }
+    return counts
 }
 
 data class KaChatStatsSnapshot(
@@ -627,17 +664,7 @@ class KaChatStatsStore @Inject constructor(private val settings: AppSettingsRepo
      *  settings order) that reports it. Null when none of them reports a category this app knows. */
     private suspend fun fetch(bases: List<String>): KaChatStatsSnapshot? = coroutineScope {
         val responses = bases.map { base -> async { fetchOne(base) } }.mapNotNull { it.await() }
-        val counts = mutableMapOf<KaChatStatCategory, KaChatStatCounts>()
-        for (response in responses) {
-            val categories = response.getAsJsonObject("categories") ?: continue
-            for ((key, value) in categories.entrySet()) {
-                val category = KaChatStatCategory.entries.firstOrNull { it.key == key } ?: continue
-                if (category in counts || !value.isJsonObject) continue
-                val obj = value.asJsonObject
-                fun long(name: String) = obj.get(name)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
-                counts[category] = KaChatStatCounts(long("total"), long("last24h"), long("last7d"))
-            }
-        }
+        val counts = mergeKaChatStatCategories(responses)
         if (counts.isEmpty()) return@coroutineScope null
         fun long(obj: JsonObject, name: String) = obj.get(name)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong
         KaChatStatsSnapshot(
@@ -702,8 +729,8 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     val percentFormat = remember { NumberFormat.getPercentInstance().apply { maximumFractionDigits = 1 } }
 
     // The categories the indexer reports, in the fixed display order.
-    val rows = snapshot?.let { snap -> KaChatStatCategory.entries.mapNotNull { c -> snap.counts[c]?.let { c to it.value(range) } } }
-    val total = rows?.mapNotNull { it.second }?.takeIf { it.isNotEmpty() }?.sum()
+    val rows = snapshot?.let { snap -> kaChatStatRows(snap.counts, range) }
+    val total = rows?.let { kaChatStatsTotal(it) }
 
     Scaffold(
         containerColor = colors.background,

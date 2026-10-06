@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">তাদের শেয়ার করা একটি নতুন ব্যক্তিগত ঠিকানায় যায়</string>
     <string name="tip_goes_to_public_address">তাদের সর্বজনীন চ্যাটিং ঠিকানায় যায়</string>
     <string name="available_amount_kas">উপলব্ধ: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">নিবন্ধিত নাম</string>
+    <string name="ks_kachat_renewals">নাম নবায়ন</string>
+    <string name="ks_kachat_sales">নাম বিক্রি</string>
+    <string name="ks_kachat_offers">নামের প্রস্তাব</string>
+    <string name="ks_kachat_activity">নামের কার্যকলাপ</string>
+    <string name="ks_kachat_registrations_detail">দাবি করা .kachat নাম</string>
+    <string name="ks_kachat_renewals_detail">বাড়ানো বা নবায়ন করা .kachat নাম</string>
+    <string name="ks_kachat_sales_detail">তালিকা থেকে বা গৃহীত প্রস্তাবের মাধ্যমে কেনা .kachat নাম</string>
+    <string name="ks_kachat_offers_detail">.kachat নামে দেওয়া প্রস্তাব</string>
+    <string name="ks_kachat_activity_detail">তালিকাভুক্তি, স্থানান্তর, ছেড়ে দেওয়া, পুনরুদ্ধার ও ফেরত প্রস্তাব</string>
 </resources>

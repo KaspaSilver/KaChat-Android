@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">נשלח לכתובת פרטית חדשה ששיתפו</string>
     <string name="tip_goes_to_public_address">נשלח לכתובת הצ׳אט הציבורית שלהם</string>
     <string name="available_amount_kas">זמין: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">שמות שנרשמו</string>
+    <string name="ks_kachat_renewals">חידושי שמות</string>
+    <string name="ks_kachat_sales">מכירות שמות</string>
+    <string name="ks_kachat_offers">הצעות על שמות</string>
+    <string name="ks_kachat_activity">פעילות שמות</string>
+    <string name="ks_kachat_registrations_detail">שמות .kachat שנתבעו</string>
+    <string name="ks_kachat_renewals_detail">שמות .kachat שהוארכו או חודשו</string>
+    <string name="ks_kachat_sales_detail">שמות .kachat שנקנו מרישום או דרך הצעה שהתקבלה</string>
+    <string name="ks_kachat_offers_detail">הצעות שהוגשו על שמות .kachat</string>
+    <string name="ks_kachat_activity_detail">רישומים למכירה, העברות, שחרורים, דרישות חוזרות והצעות שהוחזרו</string>
 </resources>

@@ -1062,4 +1062,15 @@
     <string name="tip_goes_to_fresh_address">发送到对方分享的新私人地址</string>
     <string name="tip_goes_to_public_address">发送到对方的公开聊天地址</string>
     <string name="available_amount_kas">可用: %1$s KAS</string>
+    <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
+    <string name="ks_kachat_registrations">已注册名称</string>
+    <string name="ks_kachat_renewals">名称续期</string>
+    <string name="ks_kachat_sales">名称出售</string>
+    <string name="ks_kachat_offers">名称报价</string>
+    <string name="ks_kachat_activity">名称动态</string>
+    <string name="ks_kachat_registrations_detail">已认领的 .kachat 名称</string>
+    <string name="ks_kachat_renewals_detail">已延长或续期的 .kachat 名称</string>
+    <string name="ks_kachat_sales_detail">通过挂牌或接受报价购买的 .kachat 名称</string>
+    <string name="ks_kachat_offers_detail">对 .kachat 名称的报价</string>
+    <string name="ks_kachat_activity_detail">挂牌、转让、释放、回收和退回的报价</string>
 </resources>
