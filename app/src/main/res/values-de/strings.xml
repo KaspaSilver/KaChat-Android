@@ -104,7 +104,6 @@
     <string name="holdings">Bestände</string>
     <string name="how_long_messages_in_this_broadcast">Wie lange Nachrichten in diesem Broadcast auf diesem Gerät zwischengespeichert bleiben, bis maximal 3 Tage.</string>
     <string name="i_agree">Ich stimme zu</string>
-    <string name="i_ve_backed_it_up">Ich habe sie gesichert</string>
     <string name="if_the_network_is_busy_a">Wenn das Netzwerk ausgelastet ist, kann eine höhere Gebühr deine Transaktion schneller bestätigen lassen.</string>
     <string name="import_action">Importieren</string>
     <string name="import_account">Konto importieren</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">Dieser Name wird nur auf diesem Gerät gespeichert, damit du deine Wallets unterscheiden kannst. Niemand sonst wird ihn je sehen.</string>
     <string name="create_wallet_seed_next_warning">Der nächste Bildschirm zeigt deine Seed Phrase. Sie ist der einzige Weg, dein Konto wiederherzustellen: Schreibe sie auf, bewahre sie sicher auf und achte darauf, dass niemand deinen Bildschirm sieht.</string>
     <string name="choose_seed_phrase_length">Wähle die Länge der Seed Phrase</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">Schreibe deine Seed Phrase auf</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">Bewahre dies an einem sicheren Ort auf. Jeder mit diesen Wörtern kann auf dein Konto zugreifen.</string>
 </resources>

@@ -104,7 +104,6 @@
     <string name="holdings">হোল্ডিংস</string>
     <string name="how_long_messages_in_this_broadcast">এই সম্প্রচারের বার্তা এই ডিভাইসে কতক্ষণ ক্যাশে থাকে, সর্বোচ্চ 3 দিন পর্যন্ত।</string>
     <string name="i_agree">আমি সম্মত</string>
-    <string name="i_ve_backed_it_up">আমি এটি ব্যাকআপ করেছি</string>
     <string name="if_the_network_is_busy_a">নেটওয়ার্ক ব্যস্ত থাকলে, বেশি ফি আপনার লেনদেন দ্রুত নিশ্চিত হতে সাহায্য করতে পারে।</string>
     <string name="import_action">ইমপোর্ট করুন</string>
     <string name="import_account">অ্যাকাউন্ট ইমপোর্ট করুন</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">এই নামটি শুধু এই ডিভাইসে সংরক্ষিত থাকে, যাতে আপনি আপনার ওয়ালেটগুলো আলাদা করে চিনতে পারেন। অন্য কেউ এটি কখনো দেখতে পাবে না।</string>
     <string name="create_wallet_seed_next_warning">পরের স্ক্রিনে আপনার seed phrase দেখানো হবে। এটি আপনার অ্যাকাউন্ট পুনরুদ্ধারের একমাত্র উপায়: এটি লিখে রাখুন, নিরাপদে সংরক্ষণ করুন, এবং নিশ্চিত করুন কেউ আপনার স্ক্রিন দেখতে পাচ্ছে না।</string>
     <string name="choose_seed_phrase_length">seed phrase-এর দৈর্ঘ্য বেছে নিন</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">আপনার Seed Phrase লিখে রাখুন</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">এটি নিরাপদ স্থানে রাখুন। এই শব্দগুলো দিয়ে যে কেউ আপনার অ্যাকাউন্টে প্রবেশ করতে পারে।</string>
 </resources>

@@ -104,7 +104,6 @@
     <string name="holdings">持仓</string>
     <string name="how_long_messages_in_this_broadcast">此广播中的消息在此设备上缓存的时长,最多 3 天。</string>
     <string name="i_agree">我同意</string>
-    <string name="i_ve_backed_it_up">我已备份</string>
     <string name="if_the_network_is_busy_a">如果网络繁忙,更高的手续费可以帮助您的交易更快确认。</string>
     <string name="import_action">导入</string>
     <string name="import_account">导入账户</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">此名称只保存在这台设备上，用于区分你的钱包。其他人永远看不到它。</string>
     <string name="create_wallet_seed_next_warning">下一个屏幕会显示你的 seed phrase。这是恢复账户的唯一方法：请写下来并安全保管，并确保没有人能看到你的屏幕。</string>
     <string name="choose_seed_phrase_length">选择 seed phrase 长度</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">请记下你的 Seed Phrase</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">请妥善保管。任何拥有这些词的人都可以访问你的账户。</string>
 </resources>

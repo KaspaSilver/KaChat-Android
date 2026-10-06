@@ -104,7 +104,6 @@
     <string name="holdings">보유 자산</string>
     <string name="how_long_messages_in_this_broadcast">이 방송의 메시지가 이 기기에 얼마나 오래 캐시되는지, 최대 3일까지.</string>
     <string name="i_agree">동의합니다</string>
-    <string name="i_ve_backed_it_up">백업했습니다</string>
     <string name="if_the_network_is_busy_a">네트워크가 혼잡한 경우 더 높은 수수료가 거래를 더 빨리 확인하는 데 도움이 될 수 있습니다.</string>
     <string name="import_action">가져오기</string>
     <string name="import_account">계정 가져오기</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">이 이름은 지갑을 구분하기 위해 이 기기에만 저장됩니다. 다른 누구도 볼 수 없습니다.</string>
     <string name="create_wallet_seed_next_warning">다음 화면에 seed phrase가 표시됩니다. 계정을 복구하는 유일한 방법입니다. 적어서 안전하게 보관하고, 아무도 화면을 볼 수 없는지 확인하세요.</string>
     <string name="choose_seed_phrase_length">seed phrase 길이 선택</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">Seed Phrase를 적어두세요</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">안전한 곳에 보관하세요. 이 단어를 아는 사람은 누구나 계정에 접근할 수 있습니다.</string>
 </resources>

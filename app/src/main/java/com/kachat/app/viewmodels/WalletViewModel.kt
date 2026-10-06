@@ -117,7 +117,7 @@ class WalletViewModel @Inject constructor(
     val onMnemonicGenerated: StateFlow<String?> = _onMnemonicGenerated
 
     // Armed whenever an account is added — both the create-a-new-wallet flow
-    // (`BackupMnemonicScreen.onComplete`) and the import flow (`ImportWalletScreen`'s `onImported`)
+    // (`CreateAccountSeedScreen.onNext`) and the import flow (`ImportWalletScreen`'s `onImported`)
     // — so the main app shows the Welcome Guide automatically. The guide always appears on
     // create/import regardless of the "show setup guides" setting (that toggle only gates the
     // replayable guide entries in Settings). Also re-armed by the guide's own language step to

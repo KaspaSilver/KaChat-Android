@@ -104,7 +104,6 @@
     <string name="holdings">الممتلكات</string>
     <string name="how_long_messages_in_this_broadcast">مدة بقاء الرسائل في هذا البث مخزنة مؤقتًا على هذا الجهاز، بحد أقصى 3 أيام.</string>
     <string name="i_agree">أوافق</string>
-    <string name="i_ve_backed_it_up">لقد قمت بنسخها احتياطيًا</string>
     <string name="if_the_network_is_busy_a">إذا كانت الشبكة مزدحمة، يمكن لرسوم أعلى أن تساعد في تأكيد معاملتك بشكل أسرع.</string>
     <string name="import_action">استيراد</string>
     <string name="import_account">استيراد حساب</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">يُحفظ هذا الاسم على هذا الجهاز فقط لتمييز محافظك عن بعضها. لن يراه أي شخص آخر.</string>
     <string name="create_wallet_seed_next_warning">تعرض الشاشة التالية seed phrase الخاصة بك. هذه هي الطريقة الوحيدة لاستعادة حسابك: اكتبها واحفظها بأمان، وتأكد من ألا يرى أحد شاشتك.</string>
     <string name="choose_seed_phrase_length">اختر طول seed phrase</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">اكتب Seed Phrase الخاصة بك</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">احفظ هذا في مكان آمن. أي شخص يمتلك هذه الكلمات يمكنه الوصول إلى حسابك.</string>
 </resources>

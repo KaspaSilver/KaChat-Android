@@ -104,7 +104,6 @@
     <string name="holdings">Posicoes</string>
     <string name="how_long_messages_in_this_broadcast">Por quanto tempo as mensagens nesta transmissao ficam em cache neste dispositivo, ate um maximo de 3 dias.</string>
     <string name="i_agree">Eu concordo</string>
-    <string name="i_ve_backed_it_up">Ja fiz o backup</string>
     <string name="if_the_network_is_busy_a">Se a rede estiver ocupada, uma taxa maior pode ajudar sua transacao a confirmar mais rapido.</string>
     <string name="import_action">Importar</string>
     <string name="import_account">Importar conta</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">Este nome fica salvo apenas neste dispositivo, para diferenciar suas carteiras. Ninguém mais vai vê-lo.</string>
     <string name="create_wallet_seed_next_warning">A próxima tela mostra sua seed phrase. É a única maneira de recuperar sua conta: anote-a, guarde-a com segurança e garanta que ninguém possa ver sua tela.</string>
     <string name="choose_seed_phrase_length">Escolha o tamanho da seed phrase</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">Anote sua seed phrase</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">Guarde isso em um lugar seguro. Qualquer pessoa com essas palavras pode acessar sua conta.</string>
 </resources>

@@ -125,7 +125,6 @@
     <string name="holdings">دارایی‌ها</string>
     <string name="how_long_messages_in_this_broadcast">مدت زمانی که پیام‌های این پخش در این دستگاه در حافظه پنهان می‌مانند، حداکثر تا 3 روز.</string>
     <string name="i_agree">موافقم</string>
-    <string name="i_ve_backed_it_up">آن را پشتیبان‌گیری کرده‌ام</string>
     <string name="if_the_network_is_busy_a">اگر شبکه شلوغ باشد، کارمزد بالاتر می‌تواند به تأیید سریع‌تر تراکنش شما کمک کند.</string>
     <string name="import_action">وارد کردن</string>
     <string name="import_account">وارد کردن حساب</string>
@@ -1107,4 +1106,7 @@
     <string name="create_wallet_name_detail">این نام فقط روی همین دستگاه ذخیره می‌شود تا کیف پول‌هایتان را از هم تشخیص دهید. هیچ‌کس دیگری هرگز آن را نمی‌بیند.</string>
     <string name="create_wallet_seed_next_warning">صفحه بعد عبارت بازیابی شما را نشان می‌دهد. این تنها راه بازیابی حسابتان است: آن را یادداشت کنید، به صورت امن نگهداری کنید و مطمئن شوید کسی صفحه شما را نمی‌بیند.</string>
     <string name="choose_seed_phrase_length">طول عبارت بازیابی را انتخاب کنید</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">عبارت بازیابی خود را یادداشت کنید</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">این را در جای امنی نگهداری کنید. هر کسی با این کلمات می‌تواند به حسابتان دسترسی پیدا کند.</string>
 </resources>

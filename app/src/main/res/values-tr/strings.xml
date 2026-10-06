@@ -104,7 +104,6 @@
     <string name="holdings">Varliklar</string>
     <string name="how_long_messages_in_this_broadcast">Bu yayindaki mesajlarin bu cihazda ne kadar sure onbellekte kaldigi, en fazla 3 gun.</string>
     <string name="i_agree">Kabul Ediyorum</string>
-    <string name="i_ve_backed_it_up">Yedekledim</string>
     <string name="if_the_network_is_busy_a">Ag yogunsa, daha yuksek bir ucret isleminizin daha hizli onaylanmasina yardimci olabilir.</string>
     <string name="import_action">İçe Aktar</string>
     <string name="import_account">Hesabı İçe Aktar</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">Bu ad yalnızca bu cihazda saklanır ve cüzdanlarınızı ayırt etmenizi sağlar. Başka hiç kimse onu görmez.</string>
     <string name="create_wallet_seed_next_warning">Sonraki ekran seed phrase\'inizi gösterir. Hesabınızı kurtarmanın tek yolu budur: yazın, güvenli bir yerde saklayın ve ekranınızı kimsenin görmediğinden emin olun.</string>
     <string name="choose_seed_phrase_length">Seed phrase uzunluğunu seçin</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">Seed Phrase\'inizi Yazın</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">Bunu güvenli bir yerde saklayın. Bu kelimelere sahip herkes hesabınıza erişebilir.</string>
 </resources>

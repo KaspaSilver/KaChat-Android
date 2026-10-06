@@ -200,7 +200,6 @@
     <string name="holdings">Holdings</string>
     <string name="how_long_messages_in_this_broadcast">How long messages in this public chat stay cached on this device, up to a maximum of 3 days.</string>
     <string name="i_agree">I Agree</string>
-    <string name="i_ve_backed_it_up">I\'ve backed it up</string>
     <string name="if_the_network_is_busy_a">If the network is busy, a higher fee can help your transaction confirm faster.</string>
     <string name="import_action">Import</string>
     <string name="import_account">Import Account</string>
@@ -1243,4 +1242,7 @@
     <string name="create_wallet_name_detail">This name is only stored on this device, to tell your wallets apart. No one else will ever see it.</string>
     <string name="create_wallet_seed_next_warning">The next screen shows your seed phrase. It is the only way to recover your account: write it down and store it securely, and make sure no one can see your screen.</string>
     <string name="choose_seed_phrase_length">Choose seed phrase length</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">Write Down Your Seed Phrase</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">Store this in a safe place. Anyone with these words can access your account.</string>
 </resources>

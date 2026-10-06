@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.FocusRequester
@@ -129,10 +130,11 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
         }
         composable("backup_mnemonic/{words}") { backStackEntry ->
             val words = backStackEntry.arguments?.getString("words") ?: ""
-            BackupMnemonicScreen(
+            CreateAccountSeedScreen(
                 mnemonic = words,
+                onBack = { navController.popBackStack() },
                 // Wallet isn't committed yet — go collect the optional passphrase, then commit.
-                onComplete = { navController.navigate("passphrase_create") }
+                onNext = { navController.navigate("passphrase_create") }
             )
         }
         composable("passphrase_create") {
@@ -596,7 +598,7 @@ fun SavedAccountCard(
 /**
  * Create Account, step 1 of 3 (iOS acd879b `CreateWalletView`): the account's name, stored only
  * on this device. Then the seed length ([CreateAccountLengthScreen]), then the seed phrase itself
- * ([BackupMnemonicScreen]), then the optional passphrase, which commits the account.
+ * ([CreateAccountSeedScreen]), then the optional passphrase, which commits the account.
  */
 @Composable
 fun CreateAccountScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
@@ -853,7 +855,7 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
     // The typed-in phrase is fully visible in the slot grid — exactly as sensitive as the reveal
     // screens, so it gets the same screenshot/recording block. The custom keyboard already keeps
     // it away from the OS keyboard and clipboard; this closes the screen-capture side. Cleared
-    // on dispose like BackupMnemonicScreen/SeedPhraseScreen's identical guards.
+    // on dispose like CreateAccountSeedScreen/SeedPhraseScreen's identical guards.
     val window = (LocalContext.current as? Activity)?.window
     DisposableEffect(window) {
         window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -1074,17 +1076,23 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+/**
+ * Create Account, step 3 of 3 (iOS acd879b `CreateWalletSeedStep`): the seed phrase, behind a
+ * tap, written down by hand, then Next to the optional passphrase step (the account isn't derived
+ * or saved until after that). Same "Create Account" frame and Back as the first two steps.
+ * Settings > Seed Phrase is a separate screen ([SeedPhraseScreen]).
+ */
 @Composable
-fun BackupMnemonicScreen(mnemonic: String, onComplete: () -> Unit) {
-    val words = remember { mnemonic.split(" ") }
-    var hasConfirmedBackup by remember { mutableStateOf(false) }
-    // Hidden until tapped, matching iOS. The words appear the moment this screen opens otherwise,
-    // which is the one moment the user has no say in who is looking at the phone.
-    var showSeedPhrase by remember { mutableStateOf(false) }
+fun CreateAccountSeedScreen(mnemonic: String, onBack: () -> Unit, onNext: () -> Unit) {
+    val colors = LocalAppColors.current
+    val words = remember(mnemonic) { mnemonic.split(" ") }
+    var hasConfirmedBackup by rememberSaveable { mutableStateOf(false) }
+    // Hidden until tapped, as on iOS: the words would otherwise appear the moment this screen
+    // opens, the one moment the user has no say in who is looking at the phone.
+    var showSeedPhrase by rememberSaveable { mutableStateOf(false) }
 
     // Blocks screenshots and screen recording of the freshly-generated seed phrase for as long
-    // as this screen is on-screen - see SeedPhraseScreen's identical guard in Screens.kt.
+    // as this screen is on-screen (iOS `SecureView`) - see SeedPhraseScreen's identical guard.
     val window = (LocalContext.current as? Activity)?.window
     DisposableEffect(window) {
         window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -1093,167 +1101,165 @@ fun BackupMnemonicScreen(mnemonic: String, onComplete: () -> Unit) {
         }
     }
 
-    Surface(
-        color = LocalAppColors.current.background,
-        modifier = Modifier.fillMaxSize()
-    ) {
+    CreateAccountStepScaffold(onBack = onBack) {
+        // Warning
         Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.warning.copy(alpha = 0.1f))
+                .padding(16.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(modifier = Modifier.width(40.dp))
-                Text(stringResource(R.string.seed_phrase), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                TextButton(onClick = onComplete, enabled = hasConfirmedBackup) {
-                    Text(
-                        stringResource(R.string.done),
-                        color = if (hasConfirmedBackup) KaspaTeal else LocalAppColors.current.textSecondary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Security Warning
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF2C1E1E))
-                    .padding(16.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(
-                    imageVector = Icons.Default.Warning,
+                    imageVector = Icons.Default.Edit,
                     contentDescription = null,
-                    tint = LocalAppColors.current.warning,
-                    modifier = Modifier.size(24.dp)
+                    tint = colors.warning,
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = stringResource(R.string.security_warning),
-                        color = LocalAppColors.current.warning,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.anyone_with_your_seed_phrase_can),
-                        color = Color(0xFF948B8B),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Words Grid, behind a tap
-            if (showSeedPhrase) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    maxItemsInEachRow = 3
-                ) {
-                    words.forEachIndexed { index, word ->
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(LocalAppColors.current.surface)
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${index + 1}",
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 12.sp,
-                                modifier = Modifier.width(20.dp)
-                            )
-                            Text(
-                                text = word,
-                                color = LocalAppColors.current.textPrimary,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(LocalAppColors.current.surface)
-                        .clickable { showSeedPhrase = true }
-                        .padding(vertical = 40.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Icon(
-                        Icons.Default.VisibilityOff,
-                        contentDescription = null,
-                        tint = LocalAppColors.current.textSecondary,
-                        modifier = Modifier.size(34.dp),
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Tap to reveal seed phrase",
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { hasConfirmedBackup = !hasConfirmedBackup }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = hasConfirmedBackup,
-                    onCheckedChange = { hasConfirmedBackup = it },
-                    colors = CheckboxDefaults.colors(checkedColor = KaspaTeal, checkmarkColor = Color.Black)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = stringResource(R.string.i_have_written_down_my_seed_phrase),
-                    color = LocalAppColors.current.textPrimary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = onComplete,
-                enabled = hasConfirmedBackup,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.i_ve_backed_it_up),
-                    color = if (hasConfirmedBackup) Color.Black else LocalAppColors.current.textSecondary,
-                    fontWeight = FontWeight.Bold,
+                    text = stringResource(R.string.write_down_your_seed_phrase),
+                    color = colors.warning,
+                    fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium
                 )
             }
+            Text(
+                text = stringResource(R.string.store_this_in_a_safe_place_anyone_with_these_words),
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
+
+        // Seed phrase grid: three equal columns, behind a tap.
+        if (showSeedPhrase) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                words.chunked(3).forEachIndexed { rowIndex, row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEachIndexed { column, word ->
+                            CreateAccountSeedWord(
+                                number = rowIndex * 3 + column + 1,
+                                word = word,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.surface)
+                    .clickable { showSeedPhrase = true }
+                    .padding(40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.VisibilityOff,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(34.dp),
+                )
+                Text(
+                    stringResource(R.string.tap_to_reveal_seed_phrase),
+                    color = colors.textSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+
+        // Copying the seed phrase is intentionally not offered (as on iOS): recovery material is
+        // transcribed by hand, never placed on the clipboard.
+
+        // Confirmation checkbox (iOS `CheckboxToggleStyle`).
+        Row(
+            modifier = Modifier
+                .padding(top = 16.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .toggleable(value = hasConfirmedBackup, role = Role.Checkbox) { hasConfirmedBackup = it },
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (hasConfirmedBackup) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                contentDescription = null,
+                tint = if (hasConfirmedBackup) KaspaTeal else colors.textSecondary,
+                modifier = Modifier.size(24.dp)
+            )
+            Text(
+                text = stringResource(R.string.i_have_written_down_my_seed_phrase),
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Next: to the optional passphrase step. Gray until the backup is confirmed, as on iOS.
+        Button(
+            onClick = onNext,
+            enabled = hasConfirmedBackup,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = IosGray),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.next),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = if (hasConfirmedBackup) Color.Black else Color.White
+            )
+        }
+    }
+}
+
+/** iOS `Color.gray`, the disabled Next of the seed phrase step. */
+private val IosGray = Color(0xFF8E8E93)
+
+/** One word of the seed phrase grid: "N." then the word in monospace on one line, shrinking to
+ *  fit down to 60% rather than being cut (iOS `.lineLimit(1).minimumScaleFactor(0.6)`). */
+@Composable
+private fun CreateAccountSeedWord(number: Int, word: String, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    val maxSize = 15.sp
+    var size by remember(word) { mutableStateOf(maxSize) }
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(colors.surface)
+            .padding(horizontal = 6.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = "$number.",
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.width(18.dp)
+        )
+        Text(
+            text = word,
+            color = colors.textPrimary,
+            fontFamily = FontFamily.Monospace,
+            fontSize = size,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.weight(1f),
+            onTextLayout = { result ->
+                if (result.hasVisualOverflow && size.value > maxSize.value * 0.6f) {
+                    size = (size.value * 0.94f).coerceAtLeast(maxSize.value * 0.6f).sp
+                }
+            }
+        )
     }
 }
 

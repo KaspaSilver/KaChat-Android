@@ -104,7 +104,6 @@
     <string name="holdings">אחזקות</string>
     <string name="how_long_messages_in_this_broadcast">כמה זמן הודעות בשידור זה נשארות במטמון במכשיר זה, עד למקסימום 3 ימים.</string>
     <string name="i_agree">אני מסכים</string>
-    <string name="i_ve_backed_it_up">גיביתי אותה</string>
     <string name="if_the_network_is_busy_a">אם הרשת עמוסה, עמלה גבוהה יותר יכולה לעזור לעסקה שלך להתאשר מהר יותר.</string>
     <string name="import_action">ייבוא</string>
     <string name="import_account">ייבא חשבון</string>
@@ -1076,4 +1075,7 @@
     <string name="create_wallet_name_detail">השם הזה נשמר רק במכשיר הזה, כדי להבדיל בין הארנקים שלך. אף אחד אחר לא יראה אותו לעולם.</string>
     <string name="create_wallet_seed_next_warning">המסך הבא מציג את ה-seed phrase שלך. זו הדרך היחידה לשחזר את חשבונך: רשום אותה, שמור אותה בצורה מאובטחת, וודא שאף אחד לא רואה את המסך שלך.</string>
     <string name="choose_seed_phrase_length">בחר את אורך ה-seed phrase</string>
+    <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
+    <string name="write_down_your_seed_phrase">רשום את ה-Seed Phrase שלך</string>
+    <string name="store_this_in_a_safe_place_anyone_with_these_words">שמור זאת במקום בטוח. כל מי שיש לו מילים אלו יכול לגשת לחשבונך.</string>
 </resources>
