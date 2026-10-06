@@ -9,6 +9,7 @@ import com.kachat.app.util.Blake3
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 
@@ -244,23 +245,29 @@ class KachatNamesCoreTest {
     }
 
     /**
-     * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json): either a verified
-     * registry v3 one, or an earlier one (today the v2 genesis e20325f7...a426, registry id
-     * 82f4315c...0f89) that the app shows as "setting up" until the v3 genesis manifest is bundled
-     * (the Swift script's bundled-manifest check, iOS e1e3455).
+     * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json) is the live
+     * testnet-10 registry v3 of 2026-10-06 (registry 90f56bd1...6d24, iOS 32b7b32): it verifies
+     * both as bundled and as an indexer would serve it (every template pinned for this
+     * deployment), it is not a dry run, and a tampered offer template is refused.
      */
     @Test
-    fun bundledManifestVerifiesOrIsOutdated() {
+    fun bundledManifestIsTheDeployedRegistryV3() {
         val bytes = File("src/main/assets/${Manifest.ASSET_NAME}").readBytes()
-        try {
-            val m = Manifest.decode(bytes)
-            m.verify()
-            assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
-            Builder(m)
-            println("bundled manifest: registry v3, verified")
-        } catch (e: KachatNames.Failure) {
-            assertTrue("the bundled manifest neither verifies nor is an outdated one: $e", e.isOutdatedRegistry)
-            println("bundled manifest: an earlier registry (outdated) - the app shows .kachat as setting up until the v3 genesis manifest is bundled")
+        val m = Manifest.decode(bytes)
+        m.verify(Manifest.Source.BUNDLE)
+        m.verify(Manifest.Source.INDEXER)
+        assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
+        assertEquals("90f56bd1babeda8e901639eaffacd9dba211c32d3f4f2587916f419140ee6d24", KachatNames.hex(m.registryCovenantId))
+        Builder(m)
+        // a different offer build for this registry is refused, wherever the manifest came from
+        val wrongOffer = mapOf("KachatOffer" to "00".repeat(32))
+        for (source in listOf(Manifest.Source.BUNDLE, Manifest.Source.INDEXER)) {
+            try {
+                m.verify(source, Manifest.PINNED_TEMPLATE_HASHES + wrongOffer)
+                fail("a tampered offer pin must be refused ($source)")
+            } catch (e: KachatNames.Failure) {
+                assertTrue(e.toString(), e.toString().contains("not the pinned build"))
+            }
         }
     }
 
