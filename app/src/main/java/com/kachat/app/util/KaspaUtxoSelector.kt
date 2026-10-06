@@ -38,6 +38,9 @@ object KaspaUtxoSelector {
         changeAmount <= MAX_FOLDED_CHANGE_SOMPI ||
             KaspaMass.fitsStorageMass(inputAmounts, recipientAmounts + changeAmount)
 
+    // Every selector throws IllegalStateException(UtxoMath.INVALID_AMOUNT_MESSAGE) when a coin's
+    // amount, or the total, is not a real value (a broken or malicious node - audit IOS-020).
+
     data class SelectionResult(
         val selectedUtxos: List<UtxoEntry>,
         val totalSelected: Long,
@@ -85,7 +88,8 @@ object KaspaUtxoSelector {
         var storageMassBlocked = false
         for (utxo in utxos.sortedByDescending { it.utxoEntry.amount }) {
             selectedUtxos.add(utxo)
-            totalSelected += utxo.utxoEntry.amount
+            // Node-supplied: a nonsense amount is refused, never wrapped into a total (IOS-020).
+            totalSelected = UtxoMath.add(totalSelected, utxo.utxoEntry.amount)
 
             val mass = KaspaMass.calculateMass(
                 numInputs = selectedUtxos.size,
@@ -148,7 +152,7 @@ object KaspaUtxoSelector {
         /** Flat extra fee on top - see [selectUtxosAndCalculateFee]. */
         extraFeeSompi: Long = 0L
     ): SelectionResult {
-        val totalSelected = utxos.sumOf { it.utxoEntry.amount }
+        val totalSelected = UtxoMath.total(utxos.map { it.utxoEntry.amount })
         val outputScriptLens = if (amountSompi > 0) listOf(recipientScriptLen, changeScriptLen) else listOf(changeScriptLen)
         val mass = KaspaMass.calculateMass(numInputs = utxos.size, outputScriptLens = outputScriptLens, payloadSize = payloadBytes?.size ?: 0)
         val estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + extraFeeSompi
@@ -194,7 +198,7 @@ object KaspaUtxoSelector {
         extraFeeSompi: Long = 0L
     ): SelectionResult {
         val selectedUtxos = utxos.toList()
-        val totalSelected = selectedUtxos.sumOf { it.utxoEntry.amount }
+        val totalSelected = UtxoMath.total(selectedUtxos.map { it.utxoEntry.amount })
         val payloadSize = payloadBytes?.size ?: 0
         val outputScriptLens = if (amountSompi > 0) listOf(recipientScriptLen, changeScriptLen) else listOf(changeScriptLen)
 

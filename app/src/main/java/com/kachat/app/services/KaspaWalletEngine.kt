@@ -6,6 +6,7 @@ import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaTransactionSigner
 import com.kachat.app.util.KaspaUtxoSelector
 import com.kachat.app.util.SendFeeModel
+import com.kachat.app.util.UtxoMath
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -566,7 +567,9 @@ class KaspaWalletEngine @Inject constructor(
      * and a balance refresh that silently fails is a header that never moves after a send.
      */
     suspend fun nodeBalance(address: String): Long? =
-        nodePoolManager.getUtxosByAddress(address)?.sumOf { it.utxoEntry.amount }
+        // A total that is not a real value (a broken node, IOS-020) reads as "no answer", so
+        // the caller asks the REST gateway instead.
+        nodePoolManager.getUtxosByAddress(address)?.let { UtxoMath.checkedTotal(it.map { u -> u.utxoEntry.amount }) }
 
     suspend fun fetchUtxos(address: String): List<UtxoEntry> {
         val api = networkService.kaspaRestApi.value ?: return emptyList()
@@ -594,7 +597,8 @@ class KaspaWalletEngine @Inject constructor(
             return utxos
         }
         return utxos.filter { u ->
-            !u.utxoEntry.isCoinbase || (u.utxoEntry.blockDaaScore + COINBASE_MATURITY < virtualDaaScore)
+            // An overflowing or negative DAA score (a nonsense node value) is not yet mature (IOS-020).
+            !u.utxoEntry.isCoinbase || UtxoMath.isMatureCoinbase(u.utxoEntry.blockDaaScore, COINBASE_MATURITY, virtualDaaScore)
         }
     }
 
@@ -740,8 +744,8 @@ class KaspaWalletEngine @Inject constructor(
         )
         // Signed as the save signs it, so what is quoted is a transaction that would be valid.
         val signed = KaspaTransactionSigner.signTransaction(rawTx = rawTx, utxos = selection.selectedUtxos, privateKey = signingPrivateKey)
-        val spent = selection.selectedUtxos.sumOf { it.utxoEntry.amount }
-        val back = signed.outputs.sumOf { it.amount }
+        val spent = UtxoMath.total(selection.selectedUtxos.map { it.utxoEntry.amount })
+        val back = UtxoMath.total(signed.outputs.map { it.amount })
         maxOf(0L, spent - back)
     }
 

@@ -6,6 +6,7 @@ import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaUtxoSelector
 import com.kachat.app.util.KsptCodec
 import com.kachat.app.util.SendFeeModel
+import com.kachat.app.util.UtxoMath
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -175,7 +176,7 @@ class ColdStorageSendEngine @Inject constructor(
         }
         if (utxos.isEmpty()) return 0L
 
-        val totalBalance = utxos.sumOf { it.utxoEntry.amount }
+        val totalBalance = UtxoMath.total(utxos.map { it.utxoEntry.amount }) // throws on invalid node data (IOS-020)
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: fetchQuotedFeeRateSompiPerGram()
 
@@ -419,8 +420,8 @@ class ColdStorageSendEngine @Inject constructor(
             if (outputs.size > KsptCodec.MAX_OUTPUTS) {
                 throw IllegalStateException("Too many outputs for KSPT")
             }
-            val inputTotal = inputAmounts.sum()
-            val outputTotal = outputs.sumOf { it.amount }
+            val inputTotal = UtxoMath.total(inputAmounts)
+            val outputTotal = UtxoMath.total(outputs.map { it.amount })
             val paidFee = if (inputTotal >= outputTotal) inputTotal - outputTotal else selection.estimatedFee
             return ColdOutputs(outputs, if (keepsChange) selection.changeAmount else 0L, paidFee)
         }

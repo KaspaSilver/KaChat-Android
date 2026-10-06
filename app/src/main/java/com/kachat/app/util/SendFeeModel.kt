@@ -89,7 +89,8 @@ object SendFeeModel {
      * The extra changes how many inputs are needed (they must cover amount + base + extra), and a
      * tier's extra depends on the base, so this settles the two together. Whatever pass it ends
      * on, [Preview.baseFeeSompi] is priced on the inputs selected WITH [Preview.extraFeeSompi], so
-     * a send passing that extra pays [Preview.totalFeeSompi]. Null when the coins cannot cover it.
+     * a send passing that extra pays [Preview.totalFeeSompi]. Null when the coins cannot cover it,
+     * or when their amounts are not real values ([UtxoMath]).
      */
     fun previewAutomaticSelection(
         utxos: List<UtxoEntry>,
@@ -104,15 +105,19 @@ object SendFeeModel {
         var extra = customExtraFeeSompi?.coerceAtLeast(0L) ?: 0L
         var preview: Preview? = null
         repeat(MAX_PREVIEW_PASSES) {
-            val selection = KaspaUtxoSelector.selectUtxosAndCalculateFee(
-                utxos = utxos,
-                amountSompi = amountSompi,
-                feeRateSompiPerGram = feeRateSompiPerGram,
-                payloadBytes = null,
-                recipientScriptLen = recipientScriptLen,
-                changeScriptLen = changeScriptLen,
-                extraFeeSompi = extra,
-            )
+            val selection = try {
+                KaspaUtxoSelector.selectUtxosAndCalculateFee(
+                    utxos = utxos,
+                    amountSompi = amountSompi,
+                    feeRateSompiPerGram = feeRateSompiPerGram,
+                    payloadBytes = null,
+                    recipientScriptLen = recipientScriptLen,
+                    changeScriptLen = changeScriptLen,
+                    extraFeeSompi = extra,
+                )
+            } catch (e: IllegalStateException) {
+                return null // invalid node data (UtxoMath): no preview rather than a wrong one
+            }
             if (selection.totalSelected < selection.requiredAmount) return null
             val base = selection.estimatedFee - extra
             val settled = Preview(selection.selectedUtxos, base, extra)

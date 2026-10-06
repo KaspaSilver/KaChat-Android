@@ -21,6 +21,7 @@ import com.kachat.app.services.WalletService
 import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaUtxoSelector
 import com.kachat.app.util.SendFeeModel
+import com.kachat.app.util.UtxoMath
 import com.kachat.app.util.ImagePrep
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaUnit
@@ -835,7 +836,8 @@ class WalletViewModel @Inject constructor(
         // (largest-first, stops once covered) picks the same inputs back.
         val capped = SendFeeModel.largestSpendable(utxos)
 
-        val totalBalance = capped.sumOf { it.utxoEntry.amount }
+        // Node-supplied amounts that are not real values give no Max, not a wrong one (IOS-020).
+        val totalBalance = UtxoMath.checkedTotal(capped.map { it.utxoEntry.amount }) ?: return null
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
 
@@ -865,7 +867,7 @@ class WalletViewModel @Inject constructor(
             .take(KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)
         if (chunk.isEmpty()) return null
 
-        val totalBalance = chunk.sumOf { it.utxoEntry.amount }
+        val totalBalance = UtxoMath.checkedTotal(chunk.map { it.utxoEntry.amount }) ?: return null // IOS-020
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
         val maxAmount = SendFeeModel.maxAfterFees(totalBalance, chunk.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)

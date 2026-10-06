@@ -3520,9 +3520,12 @@ class ChatViewModel @Inject constructor(
         ): Pair<Long, Int> {
             val coins = manual ?: sourceCoins
             val capped = com.kachat.app.util.SendFeeModel.largestSpendable(coins)
+            // Node-supplied amounts that are not real values count as nothing (IOS-020).
+            fun sum(c: List<com.kachat.app.services.UtxoEntry>) =
+                com.kachat.app.util.UtxoMath.checkedTotal(c.map { it.utxoEntry.amount }) ?: 0L
             return when {
-                capped.size < coins.size -> capped.sumOf { it.utxoEntry.amount } to capped.size
-                manual != null -> manual.sumOf { it.utxoEntry.amount } to manual.size
+                capped.size < coins.size -> sum(capped) to capped.size
+                manual != null -> sum(manual) to manual.size
                 else -> sourceBalanceSompi to sourceCoins.size
             }
         }
@@ -3541,15 +3544,18 @@ class ChatViewModel @Inject constructor(
             sweeps: Boolean,
             sompiNeeded: Long,
         ): Pair<Long, Int> {
-            if (manual != null) return manual.sumOf { it.utxoEntry.amount } to manual.size
+            // Node-supplied amounts that are not real values count as nothing (IOS-020).
+            fun sum(c: List<com.kachat.app.services.UtxoEntry>) =
+                com.kachat.app.util.UtxoMath.checkedTotal(c.map { it.utxoEntry.amount }) ?: 0L
+            if (manual != null) return sum(manual) to manual.size
             if (sweeps) {
                 val swept = com.kachat.app.util.SendFeeModel.largestSpendable(paymentCoins)
-                return swept.sumOf { it.utxoEntry.amount } to swept.size
+                return sum(swept) to swept.size
             }
             var total = 0L
             var count = 0
             for (utxo in paymentCoins.sortedByDescending { it.utxoEntry.amount }.take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)) {
-                total += utxo.utxoEntry.amount
+                total = com.kachat.app.util.UtxoMath.checkedTotal(listOf(total, utxo.utxoEntry.amount)) ?: return 0L to 0
                 count++
                 if (total >= sompiNeeded + 1000) break // Buffer for fee
             }
