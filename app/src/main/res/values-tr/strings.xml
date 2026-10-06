@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">Eski %1$s adının kayıttan temizlenmesi bekleniyor.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Talep edilebilir</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">%1$s alınıyor</string>
+    <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
+    <string name="kn_err_finish_claiming_first">Önce almakta olduğunuz adı tamamlayın.</string>
 </resources>

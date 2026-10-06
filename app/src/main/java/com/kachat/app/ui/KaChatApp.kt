@@ -625,6 +625,9 @@ fun MainShell(
         }
     }
 
+    // A .kachat registration in flight: its progress half sheet, back up after a relaunch (iOS 61fb0fc).
+    com.kachat.app.ui.screens.KachatRegistrationPresenter()
+
     // Incoming system-share (text/link/image shared from another app — see MainActivity.
     // handleShareIntent): a direct-share pick carries the chosen conversation and opens the
     // in-place compose sheet directly; a plain "KaChat" share target lands on the Chats list,

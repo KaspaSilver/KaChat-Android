@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">بانتظار إزالة %1$s القديم من السجل.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">متاح للمطالبة</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">جارٍ المطالبة بـ %1$s</string>
+    <string name="kn_keep_open_claiming">أبقِ KaChat مفتوحًا: يُسجَّل الاسم بعد نحو دقيقة من تأكيد الالتزام المخفي. إذا غادرت، فسيكمل من حيث توقف عند عودتك.</string>
+    <string name="kn_err_finish_claiming_first">أكمل أولًا الاسم الذي تطالب به.</string>
 </resources>

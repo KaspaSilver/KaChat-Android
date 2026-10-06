@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">正在等待旧的 %1$s 从注册表中清除。</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">可认领</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">正在认领 %1$s</string>
+    <string name="kn_keep_open_claiming">请保持 KaChat 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。</string>
+    <string name="kn_err_finish_claiming_first">请先完成正在认领的名称。</string>
 </resources>

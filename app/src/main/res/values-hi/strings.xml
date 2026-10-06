@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">रजिस्ट्री से पुराने %1$s के हटने का इंतज़ार है।</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">दावा करने के लिए खाली</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">%1$s का दावा किया जा रहा है</string>
+    <string name="kn_keep_open_claiming">KaChat खुला रखें: छिपी प्रतिबद्धता की पुष्टि के लगभग एक मिनट बाद नाम पंजीकृत होता है। अगर आप बाहर जाते हैं, तो लौटने पर यह वहीं से जारी रहेगा।</string>
+    <string name="kn_err_finish_claiming_first">पहले वह नाम पूरा करें जिसका आप दावा कर रहे हैं।</string>
 </resources>

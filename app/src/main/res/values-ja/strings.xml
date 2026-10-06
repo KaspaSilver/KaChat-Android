@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">古い %1$s がレジストリから消えるのを待っています。</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">取得可能</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">%1$s を取得中</string>
+    <string name="kn_keep_open_claiming">KaChat を開いたままにしてください。非公開のコミットが承認されてから約1分後に名前が登録されます。アプリを離れても、戻ったときに続きから再開します。</string>
+    <string name="kn_err_finish_claiming_first">先に取得中の名前を完了してください。</string>
 </resources>

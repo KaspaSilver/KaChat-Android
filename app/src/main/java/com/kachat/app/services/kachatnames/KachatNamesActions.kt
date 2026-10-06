@@ -138,6 +138,9 @@ class KachatNamesActions @Inject constructor(
     /** The current wallet's registrations (in flight, registered, taken, failed). */
     val pending: StateFlow<List<PendingRegistration>> = _pending.asStateFlow()
 
+    /** The registration whose progress sheet is up: the open one (one at a time, iOS 61fb0fc). */
+    val openRegistration: PendingRegistration? get() = openRegistration(_pending.value)
+
     private val _virtualDaa = MutableStateFlow<Long?>(null)
     /** The virtual DAA score the driver last saw (registration progress, "refundable now"). */
     val virtualDaa: StateFlow<Long?> = _virtualDaa.asStateFlow()
@@ -816,6 +819,9 @@ class KachatNamesActions @Inject constructor(
         val s = signer()
         val name = Codec.normalize(raw)
         Codec.validate(name)
+        // One registration at a time: its progress sheet stays up until it's done (iOS 61fb0fc).
+        loadPending(s.address)
+        if (blocksNewRegistration(_pending.value)) throw ActionError.NotRegisterable(FINISH_CLAIMING_FIRST)
         registry.refresh()
         // Lapsed: being reclaimed (Reclaim to Own, or by anyone). The commit can go out now; the
         // registration waits until the old name is cleared from the registry (iOS ba1a734).
@@ -1189,6 +1195,18 @@ class KachatNamesActions @Inject constructor(
         /** [me] holds the name as a live registration (not a lapsed old record of it). */
         fun holdsLive(lookup: Lookup, me: ByteArray, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Boolean =
             lookup is Lookup.Registered && lookup.info.owner.contentEquals(me) && lookup.info.status(graceMs, nowMs) != Status.LAPSED
+
+        /** Why a second registration is refused while one is in progress; English like the other
+         *  action errors, localized by the screens (`kachatErrorText`, iOS 61fb0fc). */
+        const val FINISH_CLAIMING_FIRST = "Finish the name you're claiming first."
+
+        /** A registration is still in progress (open and not yet registered): no second one starts
+         *  until it is done or its commit is cancelled (iOS 61fb0fc). */
+        fun blocksNewRegistration(pending: List<PendingRegistration>): Boolean =
+            pending.any { it.isOpen && it.stage != PendingRegistration.Stage.REGISTERED }
+
+        /** The registration whose progress half sheet is up: the first open one (iOS 61fb0fc). */
+        fun openRegistration(pending: List<PendingRegistration>): PendingRegistration? = pending.firstOrNull { it.isOpen }
 
         /** The driver's note while the old record waits to be cleared; English like the driver's
          *  other messages, localized by the screens (`kachatPendingError`). */

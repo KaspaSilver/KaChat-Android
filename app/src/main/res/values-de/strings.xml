@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">Warte, bis der alte %1$s aus dem Register entfernt ist.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Frei zum Registrieren</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">%1$s wird beansprucht</string>
+    <string name="kn_keep_open_claiming">Lass KaChat geöffnet: Der Name wird etwa eine Minute nach der Bestätigung des verdeckten Commits registriert. Wenn du die App verlässt, geht es bei deiner Rückkehr dort weiter.</string>
+    <string name="kn_err_finish_claiming_first">Schließe zuerst den Namen ab, den du gerade beanspruchst.</string>
 </resources>

@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">En attente du retrait de l’ancien %1$s du registre.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Libre à réserver</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">Réclamation de %1$s</string>
+    <string name="kn_keep_open_claiming">Gardez KaChat ouvert : le nom est enregistré environ une minute après la confirmation de l\'engagement masqué. Si vous partez, il reprendra là où il s\'était arrêté à votre retour.</string>
+    <string name="kn_err_finish_claiming_first">Terminez d\'abord le nom que vous réclamez.</string>
 </resources>

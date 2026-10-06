@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">예전 %1$s이(가) 레지스트리에서 정리되기를 기다리는 중이에요.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">등록 가능</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">%1$s 받는 중</string>
+    <string name="kn_keep_open_claiming">KaChat을 열어 두세요. 숨겨진 커밋이 확인되고 약 1분 후에 이름이 등록됩니다. 앱을 나가도 돌아오면 이어서 진행됩니다.</string>
+    <string name="kn_err_finish_claiming_first">먼저 받고 있는 이름을 완료하세요.</string>
 </resources>

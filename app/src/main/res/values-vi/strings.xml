@@ -1056,4 +1056,8 @@
     <string name="kn_err_waiting_old_name">Đang chờ %1$s cũ được xóa khỏi sổ đăng ký.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Có thể đăng ký</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">Đang nhận %1$s</string>
+    <string name="kn_keep_open_claiming">Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.</string>
+    <string name="kn_err_finish_claiming_first">Hãy hoàn tất tên bạn đang nhận trước.</string>
 </resources>

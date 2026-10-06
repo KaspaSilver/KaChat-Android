@@ -149,8 +149,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     var showHowItWorks by remember { mutableStateOf(false) }
     // (smart-casts `live` to non-null where it is true)
     val isLive = live?.isLive == true
-    // `live` is null on mainnet for the screen's whole life, so this call is never conditional in practice.
-    val pending = live?.actions?.pending?.collectAsState()?.value ?: emptyList()
     // Pull to refresh on testnet only; mainnet has nothing to refresh.
     val pullState = rememberPullToRefreshState(enabled = { isLive })
     LaunchedEffect(pullState.isRefreshing) {
@@ -265,12 +263,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     }
                 }
             }
-            // Registrations in flight (testnet)
-            if (isLive) {
-                pending.filter { it.isOpen }.forEach { registration ->
-                    KachatRegistrationCard(registration, live)
-                }
-            }
+            // A registration in flight shows as its own half sheet (KachatRegistrationPresenter, iOS 61fb0fc).
             UnderlineTabBar(
                 // Names for sale, names anyone may reclaim, and everything that happens in the
                 // registry. Your own names (and the offers you made) live in Profile > Your Domains

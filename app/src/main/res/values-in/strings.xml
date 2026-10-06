@@ -921,4 +921,8 @@
     <string name="kn_err_waiting_old_name">Menunggu %1$s lama dihapus dari registri.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Bebas untuk diklaim</string>
+    <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
+    <string name="kn_claiming_name">Mengklaim %1$s</string>
+    <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
+    <string name="kn_err_finish_claiming_first">Selesaikan dulu nama yang sedang Anda klaim.</string>
 </resources>
