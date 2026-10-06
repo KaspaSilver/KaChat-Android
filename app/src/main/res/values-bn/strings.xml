@@ -1021,4 +1021,8 @@
     <string name="seed_phrase_passphrase_label">পাসফ্রেজ</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">এই ডিভাইসে বর্তমান অ্যাকাউন্টের কী ব্যাকআপ করা যায়নি, তাই কিছুই বদলানো হয়নি। আবার চেষ্টা করুন।</string>
+    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
+    <string name="contacts_call_confirm_title">%1$s-কে কল করবেন?</string>
+    <string name="contacts_call_confirm_voice">ভয়েস</string>
+    <string name="contacts_call_confirm_video">ভিডিও</string>
 </resources>

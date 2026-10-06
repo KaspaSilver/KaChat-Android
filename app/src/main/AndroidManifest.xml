@@ -192,13 +192,14 @@
 
         <!-- "KaChat call" / "KaChat video call" tapped on a phone contact's card. Exported
              because the Contacts app is what launches it; it accepts nothing but KaChat's own
-             contact rows (CallableContactsExporter). -->
+             contact rows (CallableContactsExporter), and it never places a call without the
+             user's tap on its "Call <name>?" sheet - any app can start it (audit AND-002). -->
         <activity
             android:name=".ui.CallFromContactsActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/Theme.KaChat.Translucent">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

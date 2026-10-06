@@ -1021,4 +1021,8 @@
     <string name="seed_phrase_passphrase_label">Cụm mật khẩu</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Không thể sao lưu khóa của tài khoản hiện tại trên thiết bị này, nên chưa có gì thay đổi. Hãy thử lại.</string>
+    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
+    <string name="contacts_call_confirm_title">Gọi cho %1$s?</string>
+    <string name="contacts_call_confirm_voice">Thoại</string>
+    <string name="contacts_call_confirm_video">Video</string>
 </resources>

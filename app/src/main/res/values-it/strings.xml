@@ -1021,4 +1021,8 @@
     <string name="seed_phrase_passphrase_label">Passphrase</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Non è stato possibile salvare le chiavi dell’account attuale su questo dispositivo, quindi non è cambiato nulla. Riprova.</string>
+    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
+    <string name="contacts_call_confirm_title">Chiamare %1$s?</string>
+    <string name="contacts_call_confirm_voice">Voce</string>
+    <string name="contacts_call_confirm_video">Video</string>
 </resources>
