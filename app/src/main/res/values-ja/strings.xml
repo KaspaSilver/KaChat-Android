@@ -655,7 +655,6 @@
     <string name="kn_status_expired">期限切れ</string>
     <string name="kn_status_lapsed">失効</string>
     <string name="kn_yours">あなたの名前</string>
-    <string name="kn_until">%1$sまで</string>
     <string name="kn_available_per_year">取得可能 · 年 %1$s</string>
     <string name="kn_not_valid_name">有効な名前ではありません。</string>
     <string name="kn_taken_for_sale">取得済み · %1$s で販売中</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">更新は %1$s から可能</string>
     <string name="kn_paid_from_to">%1$s から %2$s まで支払い済み</string>
     <string name="kn_new_period">新しい期間</string>
-    <string name="kn_renewal_open">更新受付中</string>
     <string name="kn_extend_footer">延長すると現在の支払い済み期間に年数が加わります。期間は最長 2 年です。価格はマイナーに渡ります。</string>
     <string name="kn_err_period_unknown">名前インデクサーがこの名前の支払い済み期間を返しませんでした。引っ張って更新し、もう一度お試しください。</string>
     <string name="kn_claim_step3_cap">名前は支払った年数の間あなたのものです（最長 2 年先まで）。1 年の名前は 2 年に延長でき、期限の 10 日前から更新できます。</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">更新まであと 1 日です。</string>
     <string name="kn_push_expired">%1$s の期限が切れました</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">この名前は現在登録されていません。</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">ボイスメッセージ</string>
     <string name="composer_file">ファイル</string>

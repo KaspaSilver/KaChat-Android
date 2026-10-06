@@ -655,7 +655,6 @@
     <string name="kn_status_expired">만료됨</string>
     <string name="kn_status_lapsed">소멸됨</string>
     <string name="kn_yours">내 이름</string>
-    <string name="kn_until">%1$s까지</string>
     <string name="kn_available_per_year">사용 가능 · 연 %1$s</string>
     <string name="kn_not_valid_name">올바른 이름이 아니에요.</string>
     <string name="kn_taken_for_sale">사용 중 · %1$s에 판매 중</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">갱신은 %1$s부터 가능</string>
     <string name="kn_paid_from_to">%1$s부터 %2$s까지 결제됨</string>
     <string name="kn_new_period">새 기간</string>
-    <string name="kn_renewal_open">갱신 가능</string>
     <string name="kn_extend_footer">연장하면 현재 결제된 기간에 연수가 더해져요. 한 기간은 최대 2년이에요. 가격은 채굴자에게 가요.</string>
     <string name="kn_err_period_unknown">이름 인덱서가 이 이름의 결제 기간을 보내지 않았어요. 아래로 당겨 새로 고친 뒤 다시 시도하세요.</string>
     <string name="kn_claim_step3_cap">이름은 결제한 연수 동안 내 것이에요(최대 2년 앞까지). 1년 이름은 2년으로 연장할 수 있고, 만료 10일 전부터 갱신할 수 있어요.</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">갱신까지 1일 남았습니다.</string>
     <string name="kn_push_expired">%1$s 만료됨</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">이 이름은 현재 등록되어 있지 않습니다.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">음성 메시지</string>
     <string name="composer_file">파일</string>

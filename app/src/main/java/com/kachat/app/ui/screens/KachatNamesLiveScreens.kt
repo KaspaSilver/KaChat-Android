@@ -856,57 +856,6 @@ private fun AmountField(value: String, onValueChange: (String) -> Unit) {
     }
 }
 
-// MARK: - One name in a list
-
-/** One name in a list: the name, a line about it, and its price or status. */
-@Composable
-private fun KachatLiveNameRow(
-    info: NameInfo,
-    vm: KachatLiveViewModel,
-    modifier: Modifier = Modifier,
-    showPrice: Boolean = true,
-    /** My Names: say when an active name's renewal window is open (iOS bd2c54a). */
-    showRenewal: Boolean = false,
-    onClick: () -> Unit
-) {
-    val colors = LocalAppColors.current
-    val status = info.status(vm.graceMs)
-    Row(modifier.clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(36.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(info.display, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val who = if (vm.isMine(info.owner)) stringResource(R.string.kn_yours)
-            else KachatNamesRegistry.address(info.owner)?.let { KachatNamesRegistry.shortAddress(it) }
-            Text(
-                listOfNotNull(who, "·", stringResource(R.string.kn_until, KachatLive.date(info.expiresAt))).joinToString(" "),
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        val params = KachatLive.params(vm.service)
-        if (showRenewal && status == Status.ACTIVE && params != null && info.renewOpen(params)) {
-            Text(
-                stringResource(R.string.kn_renewal_open),
-                color = colors.warning,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(colors.warning.copy(alpha = 0.15f)).padding(horizontal = 8.dp, vertical = 3.dp)
-            )
-        } else if (showPrice && info.isListed && status == Status.ACTIVE) {
-            Text(KaspaUnit.amount(info.price), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-        } else if (status != Status.ACTIVE) {
-            KachatStatusPill(status)
-        }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(20.dp))
-    }
-}
-
 // MARK: - Name tiles
 
 /**
@@ -2940,6 +2889,90 @@ fun KachatLiveDomainsTab(
             Text(stringResource(R.string.inscribe), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
     }
+    }
+}
+
+// MARK: - A name opened from a notification
+
+/** The bare page a notification's name opens on while it is looked up (spinner, [onRetry] null)
+ *  or when the lookup failed: the name, "Couldn't look that name up." and Try Again (iOS b799091). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KachatNameLookupScreen(name: String, onBack: () -> Unit, onRetry: (() -> Unit)?) {
+    KachatRoutePage(onBack) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (onRetry == null) {
+                IosActivityIndicator(color = KaspaTeal)
+            } else {
+                val colors = LocalAppColors.current
+                Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("$name.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.kn_err_lookup), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    KachatButton(stringResource(R.string.try_again), onClick = onRetry)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A name released or reclaimed since its notification: free to claim, with its price and Claim
+ * on the gap it sits in (disabled while the source has no gap for it; iOS b799091 `freeName`).
+ */
+@Composable
+fun KachatFreeNameScreen(name: String, gap: GapInfo?, onBack: () -> Unit, onClaim: (KachatClaimTarget) -> Unit, vm: KachatLiveViewModel) {
+    val colors = LocalAppColors.current
+    val params = vm.service.manifest.collectAsState().value?.params
+    vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
+    KachatRoutePage(onBack) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(Modifier.fillMaxWidth().kachatGlass(colors).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(18.dp)).background(KaspaTeal), contentAlignment = Alignment.Center) {
+                    KachatFitText(
+                        "$name.kachat", color = Color.Black, fontSize = 22.sp, fontWeight = FontWeight.Black, minScale = 0.5f,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.kn_free_to_claim), color = colors.textSecondary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    KachatAvailablePill()
+                }
+                vm.pricePerYear(name)?.let { price ->
+                    val text = if (KachatLive.yearlyPeriods(params)) {
+                        stringResource(R.string.kn_available_per_year, KaspaUnit.amount(price))
+                    } else {
+                        stringResource(R.string.kn_available_per_period, KaspaUnit.amount(price), yearsText(1, params))
+                    }
+                    Text(text, color = colors.textSecondary, fontSize = 12.sp)
+                }
+            }
+            KachatButton(stringResource(R.string.km_claim), Modifier.fillMaxWidth(), Icons.Default.AlternateEmail, prominent = true, enabled = gap != null, large = true) {
+                if (gap != null) onClaim(KachatClaimTarget(name, gap))
+            }
+        }
+    }
+}
+
+/** A pushed page with only its back button (iOS's inline navigation bar with no title). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KachatRoutePage(onBack: () -> Unit, content: @Composable () -> Unit) {
+    val colors = LocalAppColors.current
+    BackHandler(onBack = onBack)
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {},
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal) } },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) { content() }
     }
 }
 

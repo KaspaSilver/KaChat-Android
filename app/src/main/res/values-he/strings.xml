@@ -655,7 +655,6 @@
     <string name="kn_status_expired">פג תוקף</string>
     <string name="kn_status_lapsed">פקע</string>
     <string name="kn_yours">שלך</string>
-    <string name="kn_until">עד %1$s</string>
     <string name="kn_available_per_year">פנוי · %1$s לשנה</string>
     <string name="kn_not_valid_name">זה לא שם תקין.</string>
     <string name="kn_taken_for_sale">תפוס · למכירה ב-%1$s</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">החידוש נפתח ב-%1$s</string>
     <string name="kn_paid_from_to">שולם מ-%1$s עד %2$s</string>
     <string name="kn_new_period">תקופה חדשה</string>
-    <string name="kn_renewal_open">החידוש פתוח</string>
     <string name="kn_extend_footer">הארכה מוסיפה שנים לתקופה המשולמת הנוכחית, שמחזיקה לכל היותר שנתיים. המחיר הולך לכורים.</string>
     <string name="kn_err_period_unknown">האינדקסר של השמות לא שלח את התקופה המשולמת של השם הזה. משכו לרענון ונסו שוב.</string>
     <string name="kn_claim_step3_cap">השם שלכם לשנים ששילמתם, לכל היותר שנתיים מראש. שם לשנה אחת אפשר להאריך לשנתיים; מ-10 ימים לפני התפוגה אפשר לחדש אותו.</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">נותר יום אחד לחידוש.</string>
     <string name="kn_push_expired">%1$s פג</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">השם הזה לא רשום כרגע.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">הודעה קולית</string>
     <string name="composer_file">קובץ</string>

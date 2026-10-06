@@ -98,13 +98,33 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
         LaunchedEffect(Unit) { live.start() }
     }
     // A name a tapped notification pointed at (testnet only, where names are live).
+    // One name screen at a time (iOS b799091): the same name again leaves the open one as it is,
+    // and another name replaces it (closed first, then opened) instead of piling up.
     var nameRoute by remember { mutableStateOf<String?>(null) }
+    val routeScope = rememberCoroutineScope()
     val pendingName by KachatDeepLink.pendingName.collectAsState()
+    // The first take is this screen appearing (iOS onAppear); a tap that arrives while it is up is
+    // taken once the tab switch has landed (iOS's 0.4 s).
+    var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(pendingName) {
-        val name = pendingName ?: return@LaunchedEffect
-        if (live == null) return@LaunchedEffect
+        val wasUp = appeared
+        appeared = true
+        if (pendingName == null || live == null) return@LaunchedEffect
+        if (wasUp) kotlinx.coroutines.delay(400)
+        val name = KachatDeepLink.pendingName.value ?: return@LaunchedEffect
         KachatDeepLink.pendingName.value = null
-        nameRoute = name
+        val open = nameRoute
+        when {
+            open == null -> nameRoute = name
+            open == name -> Unit
+            else -> {
+                nameRoute = null
+                routeScope.launch {
+                    kotlinx.coroutines.delay(450)
+                    nameRoute = name
+                }
+            }
+        }
     }
     if (live != null) {
         nameRoute?.let { name ->
@@ -331,33 +351,45 @@ private sealed class KachatHubSheet {
     class Reclaim(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
 }
 
-/** The name a notification pointed at: its live detail once looked up (iOS KachatNameRouteView). */
+/**
+ * The name a notification pointed at (iOS KachatNameRouteView, b799091): its live detail once
+ * looked up, or - when it was released or reclaimed since - the name as free to claim, with its
+ * price and Claim. A failed lookup offers Try Again.
+ */
 @Composable
 private fun KachatNameRouteScreen(name: String, onBack: () -> Unit, onOpenChat: (String) -> Unit, vm: KachatLiveViewModel) {
-    var info by remember(name) { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
-    var missing by remember(name) { mutableStateOf(false) }
-    LaunchedEffect(name) {
-        val found = runCatching { vm.registry.lookup(name) }.getOrNull()
-        if (found is com.kachat.app.services.kachatnames.Lookup.Registered) info = found.info else missing = true
-    }
-    androidx.activity.compose.BackHandler(onBack = onBack)
-    val resolved = info
-    if (resolved != null) {
-        KachatLiveNameDetailScreen(resolved, onBack = onBack, onOpenChat = onOpenChat, vm = vm)
-        return
-    }
-    val colors = LocalAppColors.current
-    Box(Modifier.fillMaxSize().background(colors.background), contentAlignment = Alignment.Center) {
-        if (missing) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                Text("$name.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                Spacer(Modifier.height(10.dp))
-                Text(stringResource(R.string.kn_name_not_registered), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+    var found by remember(name) { mutableStateOf<KachatRouteFound?>(null) }
+    var attempt by remember(name) { mutableIntStateOf(0) }
+    var claimTarget by remember(name) { mutableStateOf<KachatClaimTarget?>(null) }
+    LaunchedEffect(name, attempt) {
+        found = null
+        found = try {
+            when (val l = vm.registry.lookup(name)) {
+                is com.kachat.app.services.kachatnames.Lookup.Registered -> KachatRouteFound.Registered(l.info)
+                is com.kachat.app.services.kachatnames.Lookup.Free -> KachatRouteFound.Free(l.gap)
             }
-        } else {
-            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            KachatRouteFound.Failed
         }
     }
+    claimTarget?.let { target ->
+        KachatClaimSheet(target, onClose = { claimTarget = null }, vm = vm)
+        return
+    }
+    when (val f = found) {
+        is KachatRouteFound.Registered -> KachatLiveNameDetailScreen(f.info, onBack = onBack, onOpenChat = onOpenChat, vm = vm)
+        is KachatRouteFound.Free -> KachatFreeNameScreen(name, f.gap, onBack = onBack, onClaim = { claimTarget = it }, vm = vm)
+        KachatRouteFound.Failed -> KachatNameLookupScreen(name, onBack = onBack, onRetry = { attempt++ })
+        null -> KachatNameLookupScreen(name, onBack = onBack, onRetry = null)
+    }
+}
+
+private sealed class KachatRouteFound {
+    class Registered(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatRouteFound()
+    class Free(val gap: com.kachat.app.services.kachatnames.GapInfo?) : KachatRouteFound()
+    object Failed : KachatRouteFound()
 }
 
 @Composable

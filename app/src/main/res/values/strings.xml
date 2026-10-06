@@ -828,7 +828,6 @@
     <string name="kn_status_expired">Expired</string>
     <string name="kn_status_lapsed">Lapsed</string>
     <string name="kn_yours">Yours</string>
-    <string name="kn_until">until %1$s</string>
     <string name="kn_available_per_year">Available · %1$s a year</string>
     <string name="kn_not_valid_name">Not a valid name.</string>
     <string name="kn_taken_for_sale">Taken · for sale at %1$s</string>
@@ -986,7 +985,6 @@
     <string name="kn_renewal_opens_on">Renewal opens on %1$s</string>
     <string name="kn_paid_from_to">Paid from %1$s to %2$s</string>
     <string name="kn_new_period">New period</string>
-    <string name="kn_renewal_open">Renewal open</string>
     <string name="kn_extend_footer">Extending adds years to the current paid period, which holds at most 2 years. The price goes to the miners.</string>
     <string name="kn_err_period_unknown">The names indexer didn\'t send this name\'s paid period. Pull to refresh and try again.</string>
     <string name="kn_claim_step3_cap">The name is yours for the years you paid, at most 2 ahead. A 1-year name can be extended to 2 years; from 10 days before it expires you can renew it.</string>
@@ -1010,7 +1008,6 @@
     <string name="kn_push_one_day_left">1 day left to renew it.</string>
     <string name="kn_push_expired">%1$s has expired</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">This name isn\'t registered right now.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">Voice Message</string>
     <string name="composer_file">File</string>

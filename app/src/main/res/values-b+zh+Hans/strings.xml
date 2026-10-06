@@ -655,7 +655,6 @@
     <string name="kn_status_expired">已过期</string>
     <string name="kn_status_lapsed">已失效</string>
     <string name="kn_yours">你的</string>
-    <string name="kn_until">至 %1$s</string>
     <string name="kn_available_per_year">可注册 · 每年 %1$s</string>
     <string name="kn_not_valid_name">不是有效的名称。</string>
     <string name="kn_taken_for_sale">已被注册 · 售价 %1$s</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">续期于 %1$s 开放</string>
     <string name="kn_paid_from_to">已付期间：%1$s 至 %2$s</string>
     <string name="kn_new_period">新期间</string>
-    <string name="kn_renewal_open">可续期</string>
     <string name="kn_extend_footer">延长会为当前已付期间增加年数，每个期间最多 2 年。价格归矿工。</string>
     <string name="kn_err_period_unknown">名称索引器没有返回此名称的已付期间。下拉刷新后重试。</string>
     <string name="kn_claim_step3_cap">名称在你付费的年数内归你所有，最多提前 2 年。1 年期的名称可以延长到 2 年；到期前 10 天起可以续期。</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">还有 1 天可续期。</string>
     <string name="kn_push_expired">%1$s 已过期</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">这个名称目前未注册。</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">语音消息</string>
     <string name="composer_file">文件</string>

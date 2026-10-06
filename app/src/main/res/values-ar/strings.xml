@@ -655,7 +655,6 @@
     <string name="kn_status_expired">منتهي</string>
     <string name="kn_status_lapsed">سقط</string>
     <string name="kn_yours">لك</string>
-    <string name="kn_until">حتى %1$s</string>
     <string name="kn_available_per_year">متاح · %1$s سنويًا</string>
     <string name="kn_not_valid_name">ليس اسمًا صالحًا.</string>
     <string name="kn_taken_for_sale">محجوز · للبيع بسعر %1$s</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">يبدأ التجديد في %1$s</string>
     <string name="kn_paid_from_to">مدفوع من %1$s إلى %2$s</string>
     <string name="kn_new_period">فترة جديدة</string>
-    <string name="kn_renewal_open">التجديد متاح</string>
     <string name="kn_extend_footer">يضيف التمديد سنوات إلى الفترة المدفوعة الحالية، التي لا تتجاوز سنتين. يذهب السعر إلى المعدِّنين.</string>
     <string name="kn_err_period_unknown">لم يرسل مفهرس الأسماء الفترة المدفوعة لهذا الاسم. اسحب للتحديث وحاول مرة أخرى.</string>
     <string name="kn_claim_step3_cap">الاسم لك طوال السنوات التي دفعتها، وسنتين مقدمًا كحد أقصى. يمكن تمديد اسم لسنة واحدة إلى سنتين؛ ومن 10 أيام قبل انتهائه يمكنك تجديده.</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">بقي يوم واحد لتجديده.</string>
     <string name="kn_push_expired">انتهت صلاحية %1$s</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">هذا الاسم غير مسجل حاليًا.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">رسالة صوتية</string>
     <string name="composer_file">ملف</string>

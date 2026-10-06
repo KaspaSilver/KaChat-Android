@@ -655,7 +655,6 @@
     <string name="kn_status_expired">Истекло</string>
     <string name="kn_status_lapsed">Утрачено</string>
     <string name="kn_yours">Ваше</string>
-    <string name="kn_until">до %1$s</string>
     <string name="kn_available_per_year">Свободно · %1$s в год</string>
     <string name="kn_not_valid_name">Недопустимое имя.</string>
     <string name="kn_taken_for_sale">Занято · продаётся за %1$s</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">Продление откроется %1$s</string>
     <string name="kn_paid_from_to">Оплачено с %1$s по %2$s</string>
     <string name="kn_new_period">Новый период</string>
-    <string name="kn_renewal_open">Продление открыто</string>
     <string name="kn_extend_footer">Дополнение добавляет годы к текущему оплаченному периоду, который вмещает не больше 2 лет. Цена уходит майнерам.</string>
     <string name="kn_err_period_unknown">Индексатор имён не прислал оплаченный период этого имени. Потяните вниз, чтобы обновить, и попробуйте снова.</string>
     <string name="kn_claim_step3_cap">Имя ваше на оплаченные годы, не больше 2 вперёд. Имя на 1 год можно дополнить до 2 лет; за 10 дней до окончания срока его можно продлить.</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">Остался 1 день на продление.</string>
     <string name="kn_push_expired">Срок %1$s истёк</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">Это имя сейчас не зарегистрировано.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">Голосовое сообщение</string>
     <string name="composer_file">Файл</string>

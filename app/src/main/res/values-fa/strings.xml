@@ -692,7 +692,6 @@
     <string name="kn_status_expired">منقضی</string>
     <string name="kn_status_lapsed">ساقط‌شده</string>
     <string name="kn_yours">مال شما</string>
-    <string name="kn_until">تا %1$s</string>
     <string name="kn_available_per_year">آزاد · سالانه %1$s</string>
     <string name="kn_not_valid_name">نام معتبری نیست.</string>
     <string name="kn_taken_for_sale">گرفته شده · برای فروش به %1$s</string>
@@ -850,7 +849,6 @@
     <string name="kn_renewal_opens_on">تمدید از %1$s باز می‌شود</string>
     <string name="kn_paid_from_to">پرداخت‌شده از %1$s تا %2$s</string>
     <string name="kn_new_period">دوره جدید</string>
-    <string name="kn_renewal_open">تمدید باز است</string>
     <string name="kn_extend_footer">افزایش مدت، سال‌هایی به دوره پرداخت‌شده فعلی اضافه می‌کند که حداکثر ۲ سال است. قیمت به ماینرها می‌رسد.</string>
     <string name="kn_err_period_unknown">ایندکسر نام‌ها دوره پرداخت‌شده این نام را نفرستاد. برای تازه‌سازی به پایین بکشید و دوباره امتحان کنید.</string>
     <string name="kn_claim_step3_cap">نام برای سال‌هایی که پرداخته‌اید مال شماست، حداکثر ۲ سال جلوتر. مدت نام ۱ ساله را می‌توان تا ۲ سال افزایش داد؛ از ۱۰ روز پیش از انقضا می‌توانید آن را تمدید کنید.</string>
@@ -874,7 +872,6 @@
     <string name="kn_push_one_day_left">۱ روز برای تمدید باقی مانده.</string>
     <string name="kn_push_expired">%1$s منقضی شد</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">این نام در حال حاضر ثبت نشده است.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">پیام صوتی</string>
     <string name="composer_file">فایل</string>

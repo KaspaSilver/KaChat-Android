@@ -532,7 +532,6 @@
     <string name="kn_status_expired">Kedaluwarsa</string>
     <string name="kn_status_lapsed">Hangus</string>
     <string name="kn_yours">Milik Anda</string>
-    <string name="kn_until">hingga %1$s</string>
     <string name="kn_available_per_year">Tersedia · %1$s per tahun</string>
     <string name="kn_not_valid_name">Bukan nama yang valid.</string>
     <string name="kn_taken_for_sale">Sudah dipakai · dijual seharga %1$s</string>
@@ -692,7 +691,6 @@
     <string name="kn_renewal_opens_on">Perpanjangan dibuka %1$s</string>
     <string name="kn_paid_from_to">Dibayar dari %1$s sampai %2$s</string>
     <string name="kn_new_period">Periode baru</string>
-    <string name="kn_renewal_open">Perpanjangan dibuka</string>
     <string name="kn_extend_footer">Menambah masa memberi tahun tambahan pada periode berbayar saat ini, yang paling lama 2 tahun. Harga diberikan ke penambang.</string>
     <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
     <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
@@ -701,7 +699,6 @@
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Nama .kachat</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">Nama ini sedang tidak terdaftar.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">Pesan Suara</string>
     <string name="composer_file">File</string>

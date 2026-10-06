@@ -655,7 +655,6 @@
     <string name="kn_status_expired">Expiré</string>
     <string name="kn_status_lapsed">Échu</string>
     <string name="kn_yours">À vous</string>
-    <string name="kn_until">jusqu’au %1$s</string>
     <string name="kn_available_per_year">Disponible · %1$s par an</string>
     <string name="kn_not_valid_name">Ce n’est pas un nom valide.</string>
     <string name="kn_taken_for_sale">Pris · en vente à %1$s</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">Le renouvellement ouvre le %1$s</string>
     <string name="kn_paid_from_to">Payé du %1$s au %2$s</string>
     <string name="kn_new_period">Nouvelle période</string>
-    <string name="kn_renewal_open">Renouvellement ouvert</string>
     <string name="kn_extend_footer">Prolonger ajoute des années à la période payée en cours, qui couvre au plus 2 ans. Le prix va aux mineurs.</string>
     <string name="kn_err_period_unknown">L’indexeur de noms n’a pas envoyé la période payée de ce nom. Tirez pour actualiser et réessayez.</string>
     <string name="kn_claim_step3_cap">Le nom est à vous pour les années payées, au plus 2 d’avance. Un nom d’1 an peut être prolongé à 2 ans ; dès 10 jours avant son expiration, vous pouvez le renouveler.</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">Il reste 1 jour pour le renouveler.</string>
     <string name="kn_push_expired">%1$s a expiré</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">Ce nom n\'est pas enregistré pour le moment.</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">Message vocal</string>
     <string name="composer_file">Fichier</string>

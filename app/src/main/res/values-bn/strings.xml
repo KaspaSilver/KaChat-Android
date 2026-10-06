@@ -655,7 +655,6 @@
     <string name="kn_status_expired">মেয়াদ শেষ</string>
     <string name="kn_status_lapsed">বাতিল হয়েছে</string>
     <string name="kn_yours">আপনার</string>
-    <string name="kn_until">%1$s পর্যন্ত</string>
     <string name="kn_available_per_year">পাওয়া যাচ্ছে · বছরে %1$s</string>
     <string name="kn_not_valid_name">বৈধ নাম নয়।</string>
     <string name="kn_taken_for_sale">নেওয়া হয়েছে · %1$s-এ বিক্রি হচ্ছে</string>
@@ -813,7 +812,6 @@
     <string name="kn_renewal_opens_on">নবায়ন খুলবে %1$s</string>
     <string name="kn_paid_from_to">%1$s থেকে %2$s পর্যন্ত পরিশোধিত</string>
     <string name="kn_new_period">নতুন মেয়াদকাল</string>
-    <string name="kn_renewal_open">নবায়ন খোলা</string>
     <string name="kn_extend_footer">বাড়ালে বর্তমান পরিশোধিত মেয়াদকালে বছর যোগ হয়, যা সর্বোচ্চ ২ বছর ধরে। দাম যায় মাইনারদের কাছে।</string>
     <string name="kn_err_period_unknown">নাম ইনডেক্সার এই নামের পরিশোধিত মেয়াদকাল পাঠায়নি। রিফ্রেশ করতে নিচে টানুন এবং আবার চেষ্টা করুন।</string>
     <string name="kn_claim_step3_cap">যত বছরের জন্য পরিশোধ করেছেন, নামটি তত বছর আপনার, সর্বোচ্চ ২ বছর আগাম। ১ বছরের নাম ২ বছর পর্যন্ত বাড়ানো যায়; মেয়াদ শেষের ১০ দিন আগে থেকে নবায়ন করতে পারবেন।</string>
@@ -837,7 +835,6 @@
     <string name="kn_push_one_day_left">নবায়নের জন্য ১ দিন বাকি।</string>
     <string name="kn_push_expired">%1$s-এর মেয়াদ শেষ</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
-    <string name="kn_name_not_registered">এই নামটি এখন নিবন্ধিত নয়।</string>
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">ভয়েস মেসেজ</string>
     <string name="composer_file">ফাইল</string>
