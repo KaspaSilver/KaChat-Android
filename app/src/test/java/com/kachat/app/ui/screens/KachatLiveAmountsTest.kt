@@ -7,7 +7,7 @@ import org.junit.Test
 
 /**
  * The live `.kachat` screens' amounts (iOS KachatNamesLiveViews.swift `KaspaUnit.plain` /
- * `parseSompi`, KaChat 5df42b4): exact, trailing zeros dropped, and typed amounts parsed to sompi
+ * `parseSompi`, KaChat 5df42b4; now the shared `KaspaUnit.sompiFromUserText`, iOS 16b64bc): exact, trailing zeros dropped, and typed amounts parsed to sompi
  * with at most 8 decimals - the price and offer fields send what these return.
  */
 class KachatLiveAmountsTest {
@@ -22,23 +22,23 @@ class KachatLiveAmountsTest {
 
     @Test
     fun parsesDotOrComma() {
-        assertEquals(1_250_000_000L, KaspaUnit.parseSompi("12.5"))
-        assertEquals(1_250_000_000L, KaspaUnit.parseSompi(" 12,5 "))
-        assertEquals(50_000_000L, KaspaUnit.parseSompi(".5"))
-        assertEquals(100_000_000L, KaspaUnit.parseSompi("1."))
-        assertEquals(1L, KaspaUnit.parseSompi("0.00000001"))
-        assertEquals(0L, KaspaUnit.parseSompi("0"))
+        assertEquals(1_250_000_000L, KaspaUnit.sompiFromUserText("12.5"))
+        assertEquals(1_250_000_000L, KaspaUnit.sompiFromUserText(" 12,5 "))
+        assertEquals(50_000_000L, KaspaUnit.sompiFromUserText(".5"))
+        assertEquals(100_000_000L, KaspaUnit.sompiFromUserText("1."))
+        assertEquals(1L, KaspaUnit.sompiFromUserText("0.00000001"))
+        assertEquals(0L, KaspaUnit.sompiFromUserText("0"))
     }
 
     @Test
     fun refusesAnythingElse() {
-        assertNull(KaspaUnit.parseSompi(""))
-        assertNull(KaspaUnit.parseSompi("1.2.3"))
-        assertNull(KaspaUnit.parseSompi("0.000000001"))
-        assertNull(KaspaUnit.parseSompi("-1"))
-        assertNull(KaspaUnit.parseSompi("+1"))
-        assertNull(KaspaUnit.parseSompi("1e3"))
-        assertNull(KaspaUnit.parseSompi("abc"))
-        assertNull(KaspaUnit.parseSompi("999999999999999999"))
+        assertNull(KaspaUnit.sompiFromUserText(""))
+        assertNull(KaspaUnit.sompiFromUserText("1.2.3"))
+        assertNull(KaspaUnit.sompiFromUserText("0.000000001"))
+        assertNull(KaspaUnit.sompiFromUserText("-1"))
+        assertNull(KaspaUnit.sompiFromUserText("+1"))
+        assertNull(KaspaUnit.sompiFromUserText("1e3"))
+        assertNull(KaspaUnit.sompiFromUserText("abc"))
+        assertNull(KaspaUnit.sompiFromUserText("999999999999999999"))
     }
 }

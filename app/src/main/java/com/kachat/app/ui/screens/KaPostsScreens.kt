@@ -5555,7 +5555,8 @@ fun KaPostTipDialog(
                 Text("AMOUNT", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 com.kachat.app.ui.theme.IosTextField(
                     value = amountText,
-                    onValueChange = { amountText = it; errorText = null },
+                    // Digits and one decimal point ("," read as "."), at most 8 decimals (iOS 16b64bc).
+                    onValueChange = { amountText = KaspaUnit.sanitizeAmountInput(it); errorText = null },
                     label = { Text("Amount (${KaspaUnit.symbol})") },
                     singleLine = true,
                     leadingIcon = {
@@ -5624,7 +5625,7 @@ fun KaPostTipDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = !isSending && (amountText.toDoubleOrNull() ?: 0.0) > 0.0,
+                enabled = !isSending && (KaspaUnit.sompiFromUserText(amountText) ?: 0L) > 0L,
                 onClick = {
                     isSending = true
                     errorText = null
@@ -5635,7 +5636,7 @@ fun KaPostTipDialog(
                     chatViewModel.addContact(address, null)
                     // Re-apply the tier right before the send (sendPayment consumes the override).
                     chatViewModel.setFeeTierMultiplier(feeTier)
-                    val tipSompi = Math.round((amountText.trim().toDoubleOrNull() ?: 0.0) * 100_000_000)
+                    val tipSompi = KaspaUnit.sompiFromUserText(amountText) ?: 0L
                     chatViewModel.sendPayment(address, amountText.trim()) { ok, error, txId ->
                         if (ok) {
                             chatViewModel.setPaymentAmount("")
@@ -6251,9 +6252,9 @@ fun KaPostsSettingsOverlay(
     var tipText by remember { mutableStateOf(defaultTipSompi?.let { kasAmountText(it) } ?: "") }
 
     fun commitTip(text: String) {
-        val kas = text.replace(',', '.').trim().toDoubleOrNull() ?: return
-        if (kas <= 0) return
-        settingsViewModel.setKaPostsDefaultTipSompi(Math.round(kas * 100_000_000))
+        val sompi = KaspaUnit.sompiFromUserText(text) ?: return
+        if (sompi <= 0) return
+        settingsViewModel.setKaPostsDefaultTipSompi(sompi)
     }
 
     KaPostsOverlayScaffold(title = "KaPosts Settings", onClose = onClose) {

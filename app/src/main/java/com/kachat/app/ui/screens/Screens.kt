@@ -1774,11 +1774,11 @@ fun ChatThreadScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val kas = feeEditorInput.toDoubleOrNull()
+                    // The one exact parser for typed KAS (iOS 16b64bc): "1,5" or "1.5", never a crash.
+                    val desiredFeeSompi = KaspaUnit.sompiFromUserText(feeEditorInput)
                     val currentFeeSompi = estimatedFee ?: 0L
-                    if (kas != null && kas > 0 && currentFeeSompi > 0 && effectiveRate > 0) {
+                    if (desiredFeeSompi != null && desiredFeeSompi > 0 && currentFeeSompi > 0 && effectiveRate > 0) {
                         val impliedMass = currentFeeSompi / effectiveRate
-                        val desiredFeeSompi = Math.round(kas * 100_000_000.0)
                         chatViewModel.setFeeRateOverride(kotlin.math.ceil(desiredFeeSompi / impliedMass).toLong())
                     } else {
                         chatViewModel.setFeeRateOverride(null)
@@ -1838,7 +1838,8 @@ fun ChatThreadScreen(
     if (showPaymentSheet) {
         // The memo rides in the payload, so the fee preview prices it (iOS 8d208b2).
         LaunchedEffect(paymentNote) { chatViewModel.setPaymentNote(paymentNote) }
-        val amountSompi = ((paymentAmount.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong()
+        // Exact (iOS 16b64bc): "2.3" is 230,000,000 sompi, never 229,999,999.
+        val amountSompi = KaspaUnit.sompiFromUserText(paymentAmount) ?: 0L
         // The extra over the base fee: a custom fee, else what the speed adds (Fast 2x, Priority
         // 5x). Nothing while the base is unknown, as on iOS.
         val paymentBaseFeeSompi = estimatedFee
@@ -1901,9 +1902,9 @@ fun ChatThreadScreen(
                         // A typed total fee below the base is raised to it (a transaction can't
                         // go out under it).
                         val base = paymentBaseFeeSompi
-                        val kas = paymentCustomFeeText.replace(',', '.').trim().toDoubleOrNull()
-                        if (base != null && kas != null && kas >= 0) {
-                            paymentCustomExtraFeeSompi = (Math.round(kas * 100_000_000.0) - base).coerceAtLeast(0L)
+                        val totalSompi = KaspaUnit.sompiFromUserText(paymentCustomFeeText)
+                        if (base != null && totalSompi != null) {
+                            paymentCustomExtraFeeSompi = (totalSompi - base).coerceAtLeast(0L)
                         }
                         isEditingPaymentFee = false
                     },
@@ -5140,8 +5141,8 @@ fun KnsDomainSendScreen(
                                 )
                             )
                             IconButton(onClick = {
-                                customFeeText.toDoubleOrNull()?.let { kas ->
-                                    customFeeSompi = (kas * 100_000_000).toLong().coerceAtLeast(0)
+                                KaspaUnit.sompiFromUserText(customFeeText)?.let { sompi ->
+                                    customFeeSompi = sompi
                                 }
                                 isEditingFee = false
                             }) {
@@ -6193,7 +6194,8 @@ fun SpendingAddressSendFlow(
     // The amount Max last wrote, and the fee choice it left room for: changing the fee while the
     // field still holds that amount works Max out again (see setMaxAmount).
     var maxFill by remember { mutableStateOf<Triple<String, ColdFeeTier, Long?>?>(null) }
-    val previewAmountSompi = amountInput.toDoubleOrNull()?.let { Math.round(it * 100_000_000.0) }
+    // The one exact parser for typed KAS (iOS 16b64bc): comma or dot, at most 8 decimals.
+    val previewAmountSompi = KaspaUnit.sompiFromUserText(amountInput)
     // Base fee on the real inputs: coin control's exact set, else the automatic-selection preview,
     // else (no amount yet) one input.
     // The recipient's real script length when it is known (a P2SH or ECDSA address is a byte
@@ -6318,7 +6320,7 @@ fun SpendingAddressSendFlow(
             result.getOrNull()?.let { txId ->
                 sentTransaction = SentTransaction(
                     txId = txId,
-                    amountSompi = ((amountInput.toDoubleOrNull() ?: 0.0) * 100_000_000).toLong().takeIf { it > 0 },
+                    amountSompi = KaspaUnit.sompiFromUserText(amountInput)?.takeIf { it > 0 },
                     // A compound is a self-send: naming the address it just came from reads as a
                     // mistake, so it just says how much moved.
                     recipient = recipientInput.takeIf { !isCompoundMode },
@@ -6364,7 +6366,7 @@ fun SpendingAddressSendFlow(
         return
     }
 
-    val amountSompi = amountInput.toDoubleOrNull()?.let { Math.round(it * 100_000_000.0) }
+    val amountSompi = KaspaUnit.sompiFromUserText(amountInput)
     val isValidAddress = remember(recipientInput) { KaspaAddress.isValid(recipientInput) }
     val effectiveAddress = knsResolvedAddress ?: recipientInput
     val hasValidRecipient = if (knsResolvedAddress != null) true else (isValidAddress && !isResolvingKns)
@@ -6547,9 +6549,7 @@ fun SpendingAddressSendFlow(
                 onCommit = {
                     // The typed total fee; below the computed one it clamps up to it rather than
                     // being refused (iOS commitCustomFee).
-                    val kas = customFeeText.replace(',', '.').trim().toDoubleOrNull()
-                    if (kas != null && kas >= 0) {
-                        val totalSompi = Math.round(kas * 100_000_000.0)
+                    KaspaUnit.sompiFromUserText(customFeeText)?.let { totalSompi ->
                         customExtraFeeSompi = (totalSompi - defaultFeeSompi).coerceAtLeast(0L)
                     }
                     isEditingFee = false

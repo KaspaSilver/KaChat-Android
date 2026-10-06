@@ -186,17 +186,6 @@ fun SendKasSheet(
                 fiatAmountState = fiatAmountState,
                 priceInCurrency = priceInCurrency,
                 currencyCode = currencyCode,
-                // Digits and one decimal separator, as iOS's sanitizedAmount keeps.
-                sanitize = { raw ->
-                    val normalized = raw.replace(',', '.')
-                    buildString {
-                        var seenDot = false
-                        for (c in normalized) {
-                            if (c.isDigit()) append(c)
-                            else if (c == '.' && !seenDot) { append(c); seenDot = true }
-                        }
-                    }
-                },
                 focusOnAppear = true,
                 onMax = applyMax,
             )

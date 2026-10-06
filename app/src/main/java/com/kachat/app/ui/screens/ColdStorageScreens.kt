@@ -1252,7 +1252,8 @@ private fun ColdSendFlow(
         ColdStorageViewModel.ColdSendStep.BUILDING,
         ColdStorageViewModel.ColdSendStep.BROADCASTING
     )
-    val amountSompi = amountText.toDoubleOrNull()?.let { Math.round(it * 100_000_000.0) }
+    // The one exact parser for typed KAS (iOS 16b64bc): comma or dot, at most 8 decimals.
+    val amountSompi = KaspaUnit.sompiFromUserText(amountText)
     val isValidRecipient = remember(toAddress) { KaspaAddress.isValid(toAddress) }
 
     // Debounced live preview of what automatic selection would pick for the current amount/fee —
@@ -1498,9 +1499,7 @@ private fun ColdSendFlow(
                                 isEditingFee = true
                             },
                             onCommit = {
-                                val kas = feeEditorInput.replace(',', '.').trim().toDoubleOrNull()
-                                if (kas != null && kas >= 0) {
-                                    val totalSompi = Math.round(kas * 100_000_000.0)
+                                KaspaUnit.sompiFromUserText(feeEditorInput)?.let { totalSompi ->
                                     customExtraFeeSompi = (totalSompi - defaultFeeSompi).coerceAtLeast(0L)
                                 }
                                 isEditingFee = false

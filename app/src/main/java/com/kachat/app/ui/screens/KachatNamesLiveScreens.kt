@@ -110,38 +110,8 @@ import javax.inject.Inject
 /** "35 TKAS", "0.2 TKAS", "1.99831 TKAS": exact, trailing zeros dropped (iOS `KaspaUnit.amount`). */
 fun KaspaUnit.amount(sompi: Long): String = "${plain(sompi)} $symbol"
 
-fun KaspaUnit.plain(sompi: Long): String {
-    val whole = sompi / 100_000_000L
-    val frac = sompi % 100_000_000L
-    if (frac == 0L) return "$whole"
-    // Locale.US: an amount keeps ASCII digits in every language, as iOS's String(format:) does.
-    return "$whole." + String.format(Locale.US, "%08d", frac).trimEnd('0')
-}
-
 /** "+1.99 TKAS" / "-36.002 TKAS". */
 fun KaspaUnit.signed(delta: Long): String = if (delta >= 0) "+${amount(delta)}" else "-${amount(-delta)}"
-
-/** "12.5" or "12,5" (KAS) -> sompi; null for anything else or more than 8 decimals. */
-fun KaspaUnit.parseSompi(text: String): Long? {
-    val t = text.trim().replace(',', '.')
-    if (t.isEmpty()) return null
-    val parts = t.split('.')
-    if (parts.size > 2) return null
-    val w = parts[0]
-    if (!w.all { it in '0'..'9' }) return null
-    val whole = if (w.isEmpty()) 0L else w.toLongOrNull() ?: return null
-    var frac = 0L
-    if (parts.size == 2) {
-        val f = parts[1]
-        if (f.length > 8 || !f.all { it in '0'..'9' }) return null
-        frac = f.padEnd(8, '0').toLong()
-    }
-    return try {
-        Math.addExact(Math.multiplyExact(whole, 100_000_000L), frac)
-    } catch (_: ArithmeticException) {
-        null
-    }
-}
 
 // MARK: - Shared pieces
 
@@ -2282,7 +2252,7 @@ fun KachatLiveOfferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveView
     var virtualDaa by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(Unit) { virtualDaa = runCatching { vm.service.currentVirtualDaaScore() }.getOrNull() }
 
-    val amount = KaspaUnit.parseSompi(amountText)?.takeIf { it > 0 }
+    val amount = KaspaUnit.sompiFromUserText(amountText)?.takeIf { it > 0 }
     val refundAfter = virtualDaa?.let { it + days.toLong() * 86_400L * KachatLive.DAA_PER_SECOND }
     val operation = if (amount != null && refundAfter != null) KachatNamesActions.Operation.Offer(info, amount, refundAfter) else null
     val belowListing = info.isListed && amount != null && info.price < amount
@@ -2395,7 +2365,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
 @Composable
 fun KachatListSheet(info: NameInfo, onClose: () -> Unit) {
     var priceText by remember { mutableStateOf("") }
-    val price = KaspaUnit.parseSompi(priceText)?.takeIf { it > 0 }
+    val price = KaspaUnit.sompiFromUserText(priceText)?.takeIf { it > 0 }
     KachatTxSheet(
         title = stringResource(if (info.isListed) R.string.kn_change_price else R.string.kn_list_for_sale),
         confirmTitle = stringResource(if (info.isListed) R.string.kn_change_price else R.string.km_list),

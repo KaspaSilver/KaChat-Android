@@ -1074,11 +1074,7 @@ class ChatViewModel @Inject constructor(
         if (amount.isEmpty() && textPayloadSize == 0) return@combine null
 
         val isPayment = amount.isNotEmpty()
-        val sompiNeeded = if (isPayment) {
-            (amount.toDoubleOrNull() ?: 0.0) * 100_000_000
-        } else {
-            0.0
-        }.toLong()
+        val sompiNeeded = if (isPayment) KaspaUnit.sompiFromUserText(amount) ?: 0L else 0L
 
         var total = 0L
         var count = 0
@@ -3163,12 +3159,15 @@ class ChatViewModel @Inject constructor(
         manualUtxos: List<com.kachat.app.services.UtxoEntry>? = null,
         onResult: ((Boolean, String?, String?) -> Unit)? = null,
     ) {
-        val amountKas = amount.toDoubleOrNull() ?: run { onResult?.invoke(false, "Enter a valid amount.", null); return }
-        val sompi = (amountKas * 100_000_000).toLong()
+        // Exact (iOS 16b64bc, AND-013): "2.3" pays 230,000,000 sompi - a Double multiply and
+        // toLong() paid 229,999,999. Comma or dot, at most 8 decimals, nothing above the supply.
+        val sompi = KaspaUnit.sompiFromUserText(amount)?.takeIf { it > 0 }
+            ?: run { onResult?.invoke(false, "Enter a valid amount.", null); return }
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
         val memo = note.trim()
-        val bubbleText = "Sent $amount ${KaspaUnit.symbol}" + if (memo.isEmpty()) "" else " — $memo"
+        // The amount as sent, not as typed ("1,5" or "01.50" both read "1.5").
+        val bubbleText = "Sent ${KaspaUnit.plain(sompi)} ${KaspaUnit.symbol}" + if (memo.isEmpty()) "" else " — $memo"
         viewModelScope.launch {
             // Paying someone is reaching out to them, like writing to them.
             if (!contactId.equals(walletManager.getAddress(), ignoreCase = true)) chatRepository.acceptChat(contactId)

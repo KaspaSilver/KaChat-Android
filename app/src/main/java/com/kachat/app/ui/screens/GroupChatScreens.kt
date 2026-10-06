@@ -1144,11 +1144,11 @@ fun GroupChatThreadScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val kas = feeEditorInput.toDoubleOrNull()
+                    // The one exact parser for typed KAS (iOS 16b64bc): "1,5" or "1.5", never a crash.
+                    val desiredFeeSompi = KaspaUnit.sompiFromUserText(feeEditorInput)
                     val currentFeeSompi = estimatedFeeRaw ?: 0L
-                    if (kas != null && kas > 0 && currentFeeSompi > 0 && effectiveRate > 0) {
+                    if (desiredFeeSompi != null && desiredFeeSompi > 0 && currentFeeSompi > 0 && effectiveRate > 0) {
                         val impliedMass = currentFeeSompi / effectiveRate
-                        val desiredFeeSompi = Math.round(kas * 100_000_000.0)
                         chatViewModel.setFeeRateOverride(kotlin.math.ceil(desiredFeeSompi / impliedMass).toLong())
                     } else {
                         chatViewModel.setFeeRateOverride(null)

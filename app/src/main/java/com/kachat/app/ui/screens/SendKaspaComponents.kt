@@ -287,8 +287,9 @@ private fun SendRecipientStatusLine(
 /**
  * The big centred amount and its unit, with the KAS / your-currency switch (showing the converted
  * value) and Max under it. [fiatAmountState] hands the screen the KAS amount text after every edit
- * (its own `onKasTextChange`). [sanitize] cleans what was typed before it's used (the chat sheet
- * drops stray characters); [focusOnAppear] puts the cursor in the amount when the screen appears.
+ * (its own `onKasTextChange`). [sanitize] cleans what was typed before it's used: by default
+ * digits and one decimal point ("," read as "." for comma-decimal keyboards), at most 8 decimals
+ * (iOS 16b64bc); [focusOnAppear] puts the cursor in the amount when the screen appears.
  */
 @Composable
 fun KaspaAmountEntry(
@@ -297,7 +298,7 @@ fun KaspaAmountEntry(
     currencyCode: String,
     onMax: () -> Unit,
     modifier: Modifier = Modifier,
-    sanitize: (String) -> String = { it },
+    sanitize: (String) -> String = KaspaUnit::sanitizeAmountInput,
     isEstimatingMax: Boolean = false,
     maxEnabled: Boolean = true,
     focusOnAppear: Boolean = false,
