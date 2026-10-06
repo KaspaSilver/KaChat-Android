@@ -2304,22 +2304,54 @@ fun KachatLiveNameDetailScreen(
         )
     }
 
+    // "Register it again?" as a half sheet; the claim sheet opens once it has gone down (iOS 0c022e6).
     if (askOwnAgain) {
-        IosAlertDialog(
-            onDismissRequest = { askOwnAgain = false; reclaimedTxId = null; reclaimSpan = null },
-            title = { Text(stringResource(R.string.kn_register_again_q, info.display)) },
-            text = { Text(stringResource(R.string.kn_register_again_body)) },
-            confirmButton = {
-                TextButton(onClick = { askOwnAgain = false; registerAgain() }) {
-                    Text(stringResource(R.string.kn_register_again), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { askOwnAgain = false; reclaimedTxId = null; reclaimSpan = null }) {
-                    Text(stringResource(R.string.not_now), color = KaspaTeal)
-                }
+        KachatOwnAgainSheet(info.display) { yes ->
+            askOwnAgain = false
+            if (yes) {
+                registerAgain()
+            } else {
+                reclaimedTxId = null
+                reclaimSpan = null
             }
-        )
+        }
+    }
+}
+
+/**
+ * The half sheet after a Reclaim to Own went out: register the freed name again, or not now (iOS
+ * 0c022e6 `KachatOwnAgainSheet`). [choose] runs once the sheet has gone down; swiping it away is
+ * Not Now.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KachatOwnAgainSheet(name: String, choose: (Boolean) -> Unit) {
+    val colors = LocalAppColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    fun pick(yes: Boolean) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { choose(yes) }
+    }
+    ModalBottomSheet(onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
+            Text(
+                stringResource(R.string.kn_register_again_q, name),
+                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center
+            )
+            Text(
+                stringResource(R.string.kn_register_again_body),
+                color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center
+            )
+            Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                KachatButton(stringResource(R.string.kn_register_again), Modifier.fillMaxWidth(), prominent = true, large = true) { pick(true) }
+                KachatButton(stringResource(R.string.not_now), Modifier.fillMaxWidth(), large = true) { pick(false) }
+            }
+        }
     }
 }
 
