@@ -32,7 +32,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import retrofit2.HttpException
 import java.math.BigInteger
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -214,13 +213,19 @@ class PushRegistrationManager @Inject constructor(
         val token = FirebaseMessaging.getInstance().token.await().trim()
         if (token.isEmpty()) throw IllegalStateException("no FCM token")
         val material = signingMaterial()
+        // The service checks a ring in its legacy shape (PUSH_EXTENSIONS.md §5, push.rs ring_call
+        // -> LegacyV1): no watched_group_ids_hash line, and the caller's own wallet address as
+        // primary_address - the same preimage iOS signs since 7182b4a/82eb7f7 (audit XP-010).
         val auth = buildAuth(
             material,
             method = "POST",
-            path = "/v1/push/ring",
+            path = PushAuthPreimage.RING_PATH,
             deviceToken = token,
             watchedAddresses = emptyList(),
+            aliases = emptyList(),
+            watchedGroupIds = emptyList(),
             primaryAddress = material.walletAddress,
+            includeWatchedGroupIds = false,
         )
         api.ring(
             PushRingRequest(
@@ -652,6 +657,9 @@ class PushRegistrationManager @Inject constructor(
         aliases: List<String> = emptyList(),
         watchedGroupIds: List<String> = emptyList(),
         primaryAddress: String,
+        /** The group line rides only when group ids are registered (TransitionalGroups); the
+         *  ring passes false explicitly - see [PushAuthPreimage.build]. */
+        includeWatchedGroupIds: Boolean = watchedGroupIds.isNotEmpty(),
     ): PushAuthRequest {
         val api = pushApiOrNull()
             ?: throw IllegalStateException("push API unavailable")
@@ -660,7 +668,7 @@ class PushRegistrationManager @Inject constructor(
         // The signed request's validity window must sit inside [issued_at_ms, expires_at_ms].
         val timestampMs = System.currentTimeMillis()
             .coerceIn(challenge.issuedAtMs, challenge.expiresAtMs)
-        val preimage = buildAuthPreimage(
+        val preimage = PushAuthPreimage.build(
             method = method,
             path = path,
             deviceToken = deviceToken,
@@ -673,6 +681,7 @@ class PushRegistrationManager @Inject constructor(
             nonce = challenge.nonce,
             timestampMs = timestampMs,
             expiresAtMs = challenge.expiresAtMs,
+            includeWatchedGroupIds = includeWatchedGroupIds,
         )
         val signature = KaspaMessageSigner.sign(
             preimage,
@@ -690,64 +699,11 @@ class PushRegistrationManager @Inject constructor(
         )
     }
 
-    /**
-     * Byte-for-byte match of the server's `build_auth_preimage` for the LegacyV1 format:
-     * newline-joined `key=value` lines, SHA-256-hex sub-hashes over canonicalized (trimmed,
-     * deduped, sorted) sets. `watched_group_ids_hash`, `capabilities_hash`, and `auth_version`
-     * lines are intentionally absent — those belong to the TransitionalGroups/V2 shapes.
-     */
-    private fun buildAuthPreimage(
-        method: String,
-        path: String,
-        deviceToken: String,
-        watchedAddresses: List<String>,
-        watchedGroupIds: List<String>,
-        primaryAddress: String,
-        aliases: List<String>,
-        walletPubkey: String,
-        walletAddress: String,
-        nonce: String,
-        timestampMs: Long,
-        expiresAtMs: Long,
-    ): String {
-        val lines = mutableListOf(
-            "domain=$AUTH_DOMAIN_V1",
-            "nonce=${nonce.trim()}",
-            "method=$method",
-            "path=$path",
-            // The server hashes the *normalized* device token; for FCM the normalized form is the
-            // token verbatim (see push.rs normalize_device_token), so hash it as-is.
-            "device_token_hash=${sha256Hex(deviceToken.trim())}",
-            "watched_addresses_hash=${sha256Hex(canonicalizeAddresses(watchedAddresses).joinToString("\n"))}",
-        )
-        // TransitionalGroups: when watched_group_ids is present the server inserts this line right
-        // after watched_addresses_hash (build_auth_preimage) and forces the group_v1 capability.
-        // Group ids are lowercase hex, canonicalized like addresses (trim/lowercase/dedupe/sort).
-        if (watchedGroupIds.isNotEmpty()) {
-            lines += "watched_group_ids_hash=${sha256Hex(canonicalizeAddresses(watchedGroupIds).joinToString("\n"))}"
-        }
-        lines += listOf(
-            "primary_address=$primaryAddress",
-            "aliases_hash=${sha256Hex(canonicalizeAliases(aliases).joinToString("\n"))}",
-            "wallet_pubkey=$walletPubkey",
-            "wallet_address=$walletAddress",
-            "timestamp_ms=$timestampMs",
-            "expires_at_ms=$expiresAtMs",
-        )
-        return lines.joinToString("\n")
-    }
+    private fun sha256Hex(value: String): String = PushAuthPreimage.sha256Hex(value)
 
-    private fun sha256Hex(value: String): String =
-        MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).toHex()
+    private fun canonicalizeAddresses(values: List<String>): List<String> = PushAuthPreimage.canonicalizeAddresses(values)
 
-    // Addresses: trim, drop empty, lowercase, dedupe, sort ascending (matches canonicalize_set).
-    private fun canonicalizeAddresses(values: List<String>): List<String> =
-        values.map { it.trim() }.filter { it.isNotEmpty() }.map { it.lowercase() }
-            .toSet().sorted()
-
-    // Aliases: trim, drop empty, case-preserved, dedupe, sort ascending.
-    private fun canonicalizeAliases(values: List<String>): List<String> =
-        values.map { it.trim() }.filter { it.isNotEmpty() }.toSet().sorted()
+    private fun canonicalizeAliases(values: List<String>): List<String> = PushAuthPreimage.canonicalizeAliases(values)
 
     /** 66-hex compressed secp256k1 pubkey — the KaPosts "K" identity (same as KaPostsService). */
     private fun compressedPubkeyHex(privateKey: ByteArray): String {
@@ -764,6 +720,5 @@ class PushRegistrationManager @Inject constructor(
         // whole story: registration attempts, their outcomes, token rotations, and every
         // received push.
         internal const val TAG = "KaChatPush"
-        private const val AUTH_DOMAIN_V1 = "kchat-push-auth:v1"
     }
 }
