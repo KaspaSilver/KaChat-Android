@@ -139,8 +139,10 @@ class Manifest(
      * `priceValue`, and `priceCovenantId == covenant_id(price genesis outpoint, [(i, shard_i)])`;
      * the genesis output is the genesis gap `(00..00, ff..ff)` worth `gapValue`; and
      * `registryCovenantId == covenant_id(genesis outpoint, [(0, genesis gap)])`.
+     *
+     * [pinned] is the app's [PINNED_TEMPLATE_HASHES]; tests pass their own.
      */
-    fun verify(source: Source = Source.BUNDLE) {
+    fun verify(source: Source = Source.BUNDLE, pinned: Map<String, String> = PINNED_TEMPLATE_HASHES) {
         if (network != SUPPORTED_NETWORK) {
             throw Failure("manifest is for $network; only $SUPPORTED_NETWORK is enabled (mainnet waits for an audit)")
         }
@@ -148,10 +150,12 @@ class Manifest(
             if (!Codec.templateHash(t.prefix, t.suffix).contentEquals(t.templateHash)) {
                 throw Failure("manifest: ${t.contract} template hash does not match its prefix and suffix")
             }
-            val pinned = PINNED_TEMPLATE_HASHES[t.contract]
-            if (pinned != null) {
-                if (hex(t.templateHash) != pinned) throw Failure("manifest: ${t.contract} is not the pinned build")
-            } else if (source == Source.INDEXER && t.contract != "KachatOffer") {
+            val pin = pinned[t.contract]
+            if (pin != null) {
+                if (hex(t.templateHash) != pin) throw Failure("manifest: ${t.contract} is not the pinned build")
+            } else if (source == Source.INDEXER) {
+                // the offer too: an unpinned offer template could hold buyers' funds in a script
+                // the indexer controls (iOS 1d81a1a, IOS-059)
                 throw Failure("manifest: ${t.contract} is not pinned in this app; only a bundled manifest is trusted")
             }
             for (e in ENTRIES[t.contract].orEmpty()) {
@@ -213,9 +217,11 @@ class Manifest(
          * Template hashes of the pinned build - registry v3 (silverc v1.0.0 @ 3ed9733, iOS
          * e1e3455). The price template bakes no covenant id, so it is the same everywhere. The gap
          * and the name bake the price covenant id, so their hashes exist only once the price
-         * genesis does: the deployment adds them here with the bundled manifest. Until they are
-         * pinned only a bundled manifest is trusted (`verify(Source.BUNDLE)`), never one an
-         * indexer serves.
+         * genesis does, and the offer bakes the registry id, so its hash exists once the registry
+         * genesis does: the deployment adds all three here with the bundled manifest. Until every
+         * template is pinned only a bundled manifest is trusted (`verify(Source.BUNDLE)`), never
+         * one an indexer serves - an unpinned offer template could hold buyers' funds in a script
+         * the indexer controls (iOS 1d81a1a, IOS-059).
          */
         val PINNED_TEMPLATE_HASHES: Map<String, String> = mapOf(
             "KachatPrice" to "d225c3a302b91866a8a7cb09d513b3375715794adf4f1e05eec872b32cb781d3"

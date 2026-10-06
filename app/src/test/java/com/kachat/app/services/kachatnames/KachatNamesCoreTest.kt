@@ -218,6 +218,32 @@ class KachatNamesCoreTest {
     }
 
     /**
+     * An indexer-served manifest needs every template pinned, the offer's too: an unpinned offer
+     * template could hold buyers' funds in a script the indexer controls (iOS 1d81a1a, IOS-059).
+     * A bundled one is trusted with the offer unpinned.
+     */
+    @Test
+    fun indexerManifestMustPinTheOfferTemplate() {
+        val m = manifest()
+        val pins = listOf(m.price, m.gap, m.name, m.offer).associate { it.contract to hex(it.templateHash) }
+        assertEquals(setOf("KachatPrice", "KachatGap", "KachatName", "KachatOffer"), pins.keys)
+        val withoutOffer = pins - "KachatOffer"
+        // price, gap and name pinned, the offer not: refused from an indexer
+        val refused = runCatching { m.verify(Manifest.Source.INDEXER, withoutOffer) }.exceptionOrNull()
+        assertTrue("an indexer-served manifest with an unpinned offer template verified", refused is KachatNames.Failure)
+        assertTrue("refused for the offer: $refused", refused?.message?.contains("KachatOffer is not pinned") == true)
+        // every template pinned: trusted from an indexer
+        m.verify(Manifest.Source.INDEXER, pins)
+        // bundled: trusted with the offer unpinned
+        m.verify(Manifest.Source.BUNDLE, withoutOffer)
+        // an offer pinned to another build is refused, bundled or not
+        val otherOffer = pins + ("KachatOffer" to "00".repeat(32))
+        for (source in Manifest.Source.values()) {
+            assertFalse("an offer template other than the pinned build verified ($source)", runCatching { m.verify(source, otherOffer) }.isSuccess)
+        }
+    }
+
+    /**
      * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json): either a verified
      * registry v3 one, or an earlier one (today the v2 genesis e20325f7...a426, registry id
      * 82f4315c...0f89) that the app shows as "setting up" until the v3 genesis manifest is bundled
