@@ -89,6 +89,43 @@ object KaPostsProtocol {
     fun pollOptionsFromCsv(csv: String): List<String> =
         csv.split(",").filter { it.isNotEmpty() }.map { decodeB64(it) ?: "" }
 
+    /** The indexer counts a poll option in Unicode scalars and drops the WHOLE poll when one is
+     *  over 40 (KAPOSTS_INDEXER.md section 5.9) - an emoji is one character on screen but up to
+     *  seven scalars. Counted the same way here (iOS 7842c18, audit XP-007). */
+    const val POLL_OPTION_MAX_SCALARS = 40
+
+    /** Unicode scalars (code points) in [text] - the indexer's `text.chars().count()`. */
+    fun pollOptionScalarCount(text: String): Int = text.codePointCount(0, text.length)
+
+    /** [text] cut to at most [max] Unicode scalars, at a character boundary (never half an emoji
+     *  or a lone surrogate) - iOS `prefixScalars`. */
+    fun prefixPollOptionScalars(text: String, max: Int = POLL_OPTION_MAX_SCALARS): String {
+        val iterator = java.text.BreakIterator.getCharacterInstance()
+        iterator.setText(text)
+        var start = iterator.first()
+        var used = 0
+        var end = 0
+        while (true) {
+            val next = iterator.next()
+            if (next == java.text.BreakIterator.DONE) break
+            val n = text.codePointCount(start, next)
+            if (used + n > max) break
+            used += n
+            end = next
+            start = next
+        }
+        return text.substring(0, end)
+    }
+
+    /** The indexer accepts a poll closing at most block time + 7 days (section 5.9). A phone clock
+     *  a few seconds fast would push a "7 days" poll past it and the poll would be dropped, so
+     *  the longest poll closes 5 minutes early (iOS 7842c18, audit XP-008). */
+    const val POLL_MAX_LENGTH_MS = 7 * 86_400_000L - 300_000L
+
+    /** When a poll of [durationHours] posted at [nowMs] closes. */
+    fun pollClosesAtMs(nowMs: Long, durationHours: Int): Long =
+        nowMs + minOf(durationHours * 3_600_000L, POLL_MAX_LENGTH_MS)
+
     /**
      * The on-chain record behind one post id, read straight off the transaction payload.
      *

@@ -111,4 +111,45 @@ class KaPostsProtocolTest {
         assertEquals("schedule:TXID:1790300000000", KaPostsProtocol.scheduleSigningString("TXID", 1_790_300_000_000L))
         assertEquals("cancel-schedule:TXID", KaPostsProtocol.cancelScheduleSigningString("TXID"))
     }
+
+    // Poll limits counted the way the indexer counts them (iOS 7842c18, audits XP-007/XP-008).
+
+    @Test
+    fun `poll options are counted in unicode scalars like the indexer`() {
+        val family = "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66" // 7 scalars, 1 character
+        assertEquals(7, KaPostsProtocol.pollOptionScalarCount(family))
+        assertEquals(2, KaPostsProtocol.pollOptionScalarCount("\uD83C\uDDFA\uD83C\uDDF8")) // flag
+        assertEquals(2, KaPostsProtocol.pollOptionScalarCount("e\u0301")) // decomposed é
+        assertEquals(40, KaPostsProtocol.POLL_OPTION_MAX_SCALARS)
+        // Six family emoji look like six characters but are 42 scalars: over the limit.
+        assertTrue(KaPostsProtocol.pollOptionScalarCount(family.repeat(6)) > KaPostsProtocol.POLL_OPTION_MAX_SCALARS)
+    }
+
+    @Test
+    fun `poll option is cut to 40 scalars at a character boundary`() {
+        assertEquals("a".repeat(40), KaPostsProtocol.prefixPollOptionScalars("a".repeat(45)))
+        assertEquals("short", KaPostsProtocol.prefixPollOptionScalars("short"))
+        // 39 + a two-scalar flag = 41: the flag is dropped whole, never halved.
+        val flag = "\uD83C\uDDFA\uD83C\uDDF8"
+        assertEquals("a".repeat(39), KaPostsProtocol.prefixPollOptionScalars("a".repeat(39) + flag))
+        assertEquals("a".repeat(38) + flag, KaPostsProtocol.prefixPollOptionScalars("a".repeat(38) + flag + "b"))
+        // A family emoji (7 scalars) after 34 letters would make 41: it is dropped whole.
+        val family = "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66"
+        assertEquals("a".repeat(34), KaPostsProtocol.prefixPollOptionScalars("a".repeat(34) + family))
+        // Every surrogate stays paired.
+        val cut = KaPostsProtocol.prefixPollOptionScalars("\uD83D\uDE00".repeat(50))
+        assertEquals(40, KaPostsProtocol.pollOptionScalarCount(cut))
+        assertEquals(80, cut.length)
+    }
+
+    @Test
+    fun `the longest poll closes five minutes inside the indexer's seven day bound`() {
+        val now = 1_790_300_000_000L
+        val sevenDays = 7 * 86_400_000L
+        assertEquals(now + 3_600_000L, KaPostsProtocol.pollClosesAtMs(now, 1))
+        assertEquals(now + 72 * 3_600_000L, KaPostsProtocol.pollClosesAtMs(now, 72))
+        assertEquals(now + sevenDays - 300_000L, KaPostsProtocol.pollClosesAtMs(now, 168))
+        // A clock up to 5 minutes fast still lands inside block time + 7 days.
+        assertTrue(KaPostsProtocol.pollClosesAtMs(now + 299_000L, 168) <= now + sevenDays)
+    }
 }

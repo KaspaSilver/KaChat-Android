@@ -3078,7 +3078,7 @@ fun KaPostComposerDialog(
     val validPollOptions = pollOptions.map { it.trim() }.filter { it.isNotEmpty() }
     val pollIsValid = validPollOptions.size in com.kachat.app.services.KaPostsService.POLL_MIN_OPTIONS..com.kachat.app.services.KaPostsService.POLL_MAX_OPTIONS &&
         validPollOptions.toSet().size == validPollOptions.size &&
-        validPollOptions.all { it.length <= com.kachat.app.services.KaPostsService.POLL_OPTION_MAX_LENGTH }
+        validPollOptions.all { com.kachat.app.util.KaPostsProtocol.pollOptionScalarCount(it) <= com.kachat.app.util.KaPostsProtocol.POLL_OPTION_MAX_SCALARS }
     val canPost = if (pollEnabled) {
         text.text.isNotBlank() && charCount <= limit && pollIsValid
     } else {
@@ -3228,7 +3228,7 @@ fun KaPostComposerDialog(
                                 onSubmitPoll(
                                     trimmed,
                                     validPollOptions,
-                                    System.currentTimeMillis() + pollDurationHours * 60L * 60L * 1000L,
+                                    com.kachat.app.util.KaPostsProtocol.pollClosesAtMs(System.currentTimeMillis(), pollDurationHours),
                                 )
                                 return@clickable
                             }
@@ -3499,7 +3499,7 @@ fun KaPostComposerDialog(
                                 value = option,
                                 onValueChange = { fresh ->
                                     pollOptions = pollOptions.toMutableList().also {
-                                        it[index] = fresh.take(com.kachat.app.services.KaPostsService.POLL_OPTION_MAX_LENGTH)
+                                        it[index] = com.kachat.app.util.KaPostsProtocol.prefixPollOptionScalars(fresh)
                                     }
                                 },
                                 textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp),

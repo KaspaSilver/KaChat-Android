@@ -336,10 +336,13 @@ class KaPostsService @Inject constructor(
         const val POLL_MIN_OPTIONS = 2
         const val POLL_MAX_OPTIONS = 4
 
-        /** Each option is 1-40 characters, and no two may be the same. */
-        const val POLL_OPTION_MAX_LENGTH = 40
+        /** Each option is 1-40 Unicode scalars, and no two may be the same - counted and cut by
+         *  [com.kachat.app.util.KaPostsProtocol.POLL_OPTION_MAX_SCALARS] the way the indexer counts. */
+        const val POLL_OPTION_MAX_LENGTH = com.kachat.app.util.KaPostsProtocol.POLL_OPTION_MAX_SCALARS
 
-        /** Voting closes at most seven days out; the indexer rejects anything further. */
+        /** Voting closes at most seven days out of BLOCK time; the indexer rejects anything
+         *  further, so the composer's longest poll uses
+         *  [com.kachat.app.util.KaPostsProtocol.POLL_MAX_LENGTH_MS] (5 minutes short). */
         const val POLL_MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000L
 
         /**
