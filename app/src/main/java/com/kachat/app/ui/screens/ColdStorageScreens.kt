@@ -1375,7 +1375,9 @@ private fun ColdSendFlow(
             fetchUtxos = { addr -> viewModel.fetchUtxosForCoinControl(addr) },
             initialSelection = manualUtxos,
             onDone = { selection -> manualUtxos = selection; showCoinControl = false },
-            onCancel = { showCoinControl = false }
+            onCancel = { showCoinControl = false },
+            // KasSigner signs at most this many inputs per transaction.
+            maxSelection = com.kachat.app.util.KsptCodec.MAX_INPUTS
         )
         return
     }
@@ -1659,7 +1661,11 @@ fun CoinControlScreen(
     fetchUtxos: suspend (String) -> List<UtxoEntry>,
     initialSelection: List<UtxoEntry>?,
     onDone: (List<UtxoEntry>?) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    /** The most coins one transaction from here may spend: the hot wallet's input cap, or
+     *  KasSigner's ([com.kachat.app.util.KsptCodec.MAX_INPUTS]) for Cold Storage. A pick never
+     *  grows past it (see [com.kachat.app.util.CoinControlSelection]). */
+    maxSelection: Int = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
 ) {
     var utxos by remember { mutableStateOf<List<UtxoEntry>>(emptyList()) }
     var selectedKeys by remember { mutableStateOf<Set<com.kachat.app.services.Outpoint>>(emptySet()) }
@@ -1669,10 +1675,13 @@ fun CoinControlScreen(
         isLoading = true
         utxos = fetchUtxos(fromAddress)
         if (!initialSelection.isNullOrEmpty()) {
-            selectedKeys = initialSelection.map { it.outpoint }.toSet()
+            selectedKeys = com.kachat.app.util.CoinControlSelection
+                .resolve(utxos, initialSelection.map { it.outpoint }.toSet(), maxSelection)
+                .map { it.outpoint }.toSet()
         }
         isLoading = false
     }
+    val atCap = com.kachat.app.util.CoinControlSelection.isAtCap(selectedKeys.size, utxos.size, maxSelection)
 
     val selectedTotalSompi = utxos.filter { selectedKeys.contains(it.outpoint) }.sumOf { it.utxoEntry.amount }
 
@@ -1694,7 +1703,7 @@ fun CoinControlScreen(
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.select_all)) },
-                            onClick = { selectedKeys = utxos.map { it.outpoint }.toSet(); showMenu = false }
+                            onClick = { selectedKeys = com.kachat.app.util.CoinControlSelection.selectAll(utxos, maxSelection); showMenu = false }
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.automatic_clear_selection)) },
@@ -1708,7 +1717,7 @@ fun CoinControlScreen(
         bottomBar = {
             Button(
                 onClick = {
-                    val selected = utxos.filter { selectedKeys.contains(it.outpoint) }
+                    val selected = com.kachat.app.util.CoinControlSelection.resolve(utxos, selectedKeys, maxSelection)
                     onDone(selected.ifEmpty { null })
                 },
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
@@ -1753,6 +1762,15 @@ fun CoinControlScreen(
                             )
                         }
                     }
+                    if (atCap) {
+                        item {
+                            Text(
+                                stringResource(R.string.coin_control_max_selection, maxSelection),
+                                color = LocalAppColors.current.textSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                     items(utxos, key = { "${it.outpoint.transactionId}:${it.outpoint.index}" }) { utxo ->
                         val isSelected = selectedKeys.contains(utxo.outpoint)
                         Row(
@@ -1761,8 +1779,12 @@ fun CoinControlScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(LocalAppColors.current.surface)
                                 .clickable {
-                                    selectedKeys = if (isSelected) selectedKeys - utxo.outpoint else selectedKeys + utxo.outpoint
+                                    // Past the cap the tap is refused; the note above says why.
+                                    com.kachat.app.util.CoinControlSelection
+                                        .toggle(selectedKeys, utxo.outpoint, maxSelection)
+                                        ?.let { selectedKeys = it }
                                 }
+                                .alpha(if (!isSelected && atCap) 0.5f else 1f)
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

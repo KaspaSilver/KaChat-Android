@@ -1014,4 +1014,6 @@
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">هذا عنوان على Testnet. يعمل KaChat على Mainnet.</string>
     <string name="address_other_network_mainnet">هذا عنوان على Mainnet. يعمل KaChat على Testnet.</string>
+    <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
+    <string name="coin_control_max_selection">يمكن لمعاملة واحدة أن تنفق %1$d من UTXOs كحد أقصى، لذا لا يمكن تحديد المزيد.</string>
 </resources>

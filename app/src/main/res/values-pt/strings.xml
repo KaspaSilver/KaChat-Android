@@ -1014,4 +1014,6 @@
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">Este é um endereço da Testnet. O KaChat está na Mainnet.</string>
     <string name="address_other_network_mainnet">Este é um endereço da Mainnet. O KaChat está na Testnet.</string>
+    <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
+    <string name="coin_control_max_selection">Uma transação pode gastar no máximo %1$d UTXOs, por isso não é possível selecionar mais.</string>
 </resources>

@@ -1045,4 +1045,6 @@
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">این یک آدرس Testnet است. KaChat روی Mainnet است.</string>
     <string name="address_other_network_mainnet">این یک آدرس Mainnet است. KaChat روی Testnet است.</string>
+    <!-- Coin Control: the most coins one transaction may spend (AND-012 follow-up) -->
+    <string name="coin_control_max_selection">یک تراکنش حداکثر می‌تواند %1$d UTXO را خرج کند، بنابراین نمی‌توان موارد بیشتری انتخاب کرد.</string>
 </resources>
