@@ -1025,4 +1025,9 @@
     <string name="contacts_call_confirm_title">%1$s को कॉल करें?</string>
     <string name="contacts_call_confirm_voice">वॉइस</string>
     <string name="contacts_call_confirm_video">वीडियो</string>
+    <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
+    <string name="dm_notif_new_message">नया संदेश</string>
+    <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
+    <string name="dm_notif_sent_video">एक वीडियो भेजा</string>
+    <string name="dm_notif_sent_file">एक फ़ाइल भेजी</string>
 </resources>

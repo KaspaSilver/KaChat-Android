@@ -1025,4 +1025,9 @@
     <string name="contacts_call_confirm_title">%1$sに発信しますか？</string>
     <string name="contacts_call_confirm_voice">音声</string>
     <string name="contacts_call_confirm_video">ビデオ</string>
+    <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
+    <string name="dm_notif_new_message">新しいメッセージ</string>
+    <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
+    <string name="dm_notif_sent_video">動画を送信しました</string>
+    <string name="dm_notif_sent_file">ファイルを送信しました</string>
 </resources>

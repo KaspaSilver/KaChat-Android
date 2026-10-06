@@ -33,6 +33,10 @@ class NotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settings: AppSettingsRepository
 ) {
+    /** The localized words a 1:1 banner body uses (dmNotificationText), in the app's language. */
+    fun dmNotificationLabels(): com.kachat.app.util.DmNotificationLabels =
+        com.kachat.app.util.DmNotificationLabels.from(context)
+
     // Suppresses a notification for whichever contact's thread is currently on screen —
     // set by ChatViewModel as ChatThreadScreen opens/closes.
     private val activeContactId = MutableStateFlow<String?>(null)

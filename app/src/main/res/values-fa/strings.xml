@@ -1056,4 +1056,9 @@
     <string name="contacts_call_confirm_title">تماس با %1$s؟</string>
     <string name="contacts_call_confirm_voice">صوتی</string>
     <string name="contacts_call_confirm_video">تصویری</string>
+    <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
+    <string name="dm_notif_new_message">پیام جدید</string>
+    <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
+    <string name="dm_notif_sent_video">یک ویدیو فرستاد</string>
+    <string name="dm_notif_sent_file">یک فایل فرستاد</string>
 </resources>

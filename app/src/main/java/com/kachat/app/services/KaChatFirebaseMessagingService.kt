@@ -5,14 +5,9 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.kachat.app.models.ContactNotificationMode
 import com.kachat.app.repository.ChatRepository
-import com.kachat.app.util.ChessMessage
-import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.KasiaCipher
-import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.MessageReaction
-import com.kachat.app.util.MessageReply
-import com.kachat.app.util.VoiceMessage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 import java.util.Base64
@@ -438,21 +433,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    /** Same preview mapping the in-app poller uses (ChatRepository) so text matches iOS wording. */
-    private fun notificationPreview(plaintext: String): String {
-        // A payment made to a fresh address reads like a payment, not like its JSON envelope
-        // (iOS paymentNoticePreviewText).
-        (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext) as? com.kachat.app.util.PaymentPoolProtocol.Envelope.Notice)?.let { notice ->
-            val sompi = notice.content.amountSompi
-            return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f %s", sompi / 100_000_000.0, KaspaUnit.symbol) else "Received payment"
-        }
-        com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { return com.kachat.app.util.CallCodec.notificationPreview(it) }
-        MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
-        if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"
-        if (ImageMessage.parseOrNull(plaintext) != null) return "Sent a photo"
-        if (ChessMessage.parseOrNull(plaintext) != null) return "♟️ Chess game"
-        return plaintext
-    }
+    /** The banner body for a decrypted 1:1 message - the same rule the in-app poller uses
+     *  (ChatRepository), so both paths word one message alike (audit AND-007). */
+    private fun notificationPreview(plaintext: String): String =
+        com.kachat.app.util.dmNotificationText(plaintext, notificationHelper.dmNotificationLabels())
 
     private suspend fun contactTitle(senderId: String, default: String): String {
         val contact = runCatching { chatRepository.getContact(senderId) }.getOrNull()

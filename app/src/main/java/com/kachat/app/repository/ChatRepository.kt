@@ -23,14 +23,12 @@ import com.kachat.app.services.PushState
 import com.kachat.app.services.TransactionResponse
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.database.KaChatDatabase
-import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KasiaCipher
 import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.MessageReaction
 import com.kachat.app.util.MessageReply
-import com.kachat.app.util.VoiceMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -1853,16 +1851,10 @@ class ChatRepository @Inject constructor(
         if (replyContent != null && replyContent.replyToId.isNotEmpty()) {
             recoverMissingReplyOriginal(contact.id, replyContent.replyToId, message.blockTime, force = false)
         }
-        // Title above is already the contact's name, so these don't repeat it - matches iOS's
-        // ChatService.formatNotificationBody wording exactly.
-        val notificationText = when {
-            replyContent != null -> "Replied to \"${replyContent.replyToPreview}\""
-            VoiceMessage.parseOrNull(plaintext) != null -> "Sent a voice message"
-            ImageMessage.parseOrNull(plaintext) != null -> "Sent a photo"
-            com.kachat.app.util.ChessMessage.parseOrNull(plaintext) != null -> "♟️ Chess game"
-            com.kachat.app.util.CallCodec.parseOrNull(plaintext) != null -> com.kachat.app.util.CallCodec.notificationPreview(com.kachat.app.util.CallCodec.parseOrNull(plaintext)!!)
-            else -> plaintext
-        }
+        // Title above is already the contact's name, so the body doesn't repeat it. One rule with
+        // the FCM handler (dmNotificationText): a video or other file is "Sent a video" / "Sent a
+        // file", never its JSON (audit AND-007).
+        val notificationText = com.kachat.app.util.dmNotificationText(plaintext, notificationHelper.dmNotificationLabels())
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. Only a device with no push at all banners from here.
         if (!backfill && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, message.txId)) {

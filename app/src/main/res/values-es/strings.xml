@@ -1025,4 +1025,9 @@
     <string name="contacts_call_confirm_title">¿Llamar a %1$s?</string>
     <string name="contacts_call_confirm_voice">Voz</string>
     <string name="contacts_call_confirm_video">Vídeo</string>
+    <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
+    <string name="dm_notif_new_message">Nuevo mensaje</string>
+    <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
+    <string name="dm_notif_sent_video">Envió un vídeo</string>
+    <string name="dm_notif_sent_file">Envió un archivo</string>
 </resources>

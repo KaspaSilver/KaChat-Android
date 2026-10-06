@@ -1025,4 +1025,9 @@
     <string name="contacts_call_confirm_title">%1$s에게 전화할까요?</string>
     <string name="contacts_call_confirm_voice">음성</string>
     <string name="contacts_call_confirm_video">영상</string>
+    <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
+    <string name="dm_notif_new_message">새 메시지</string>
+    <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
+    <string name="dm_notif_sent_video">동영상을 보냈습니다</string>
+    <string name="dm_notif_sent_file">파일을 보냈습니다</string>
 </resources>
