@@ -327,10 +327,14 @@ class ColdStorageSendEngine @Inject constructor(
                 val sigBytes = sigHex.hexToBytesLocal()
                 require(sigBytes.size == 64) { "Unexpected signature length for input $index" }
 
+                // Only SIGHASH_ALL: a NONE / ANYONECANPAY signature doesn't commit to the outputs,
+                // so anyone seeing it in the mempool could redirect the funds (audit IOS-019).
+                val sighashType = requireSighashAll(index, decodedInput.sighashType)
+
                 val sigScript = ByteArray(66)
                 sigScript[0] = 0x41
                 sigBytes.copyInto(sigScript, 1)
-                sigScript[65] = (decodedInput.sighashType ?: 0x01).toByte()
+                sigScript[65] = sighashType.toByte()
                 input.copy(signatureScript = sigScript.toHexStringLocal())
             }
 
@@ -358,6 +362,25 @@ class ColdStorageSendEngine @Inject constructor(
     )
 
     internal companion object {
+        /** SIGHASH_ALL - the only signature type a Cold Storage send broadcasts. */
+        const val SIGHASH_ALL = 0x01
+
+        /**
+         * The sighash type input [index] was signed with, which must be SIGHASH_ALL (an absent
+         * byte means the signer's default, SIGHASH_ALL). Anything else - NONE, SINGLE,
+         * ANYONECANPAY - does not commit to the whole transaction, so a buggy or tampered signer's
+         * signature is refused before broadcast (iOS 5096466, audit IOS-019).
+         */
+        fun requireSighashAll(index: Int, sighashType: Int?): Int {
+            val type = sighashType ?: SIGHASH_ALL
+            if (type != SIGHASH_ALL) {
+                throw IllegalStateException(
+                    "Input $index was signed with a signature type that doesn't cover the whole transaction, so it won't be broadcast"
+                )
+            }
+            return type
+        }
+
         /**
          * The recipient output, plus the change whenever this transaction's KIP-9 storage mass
          * lets it stand (the hot wallet's rule, and KasSigner's own dust test). Only a remainder

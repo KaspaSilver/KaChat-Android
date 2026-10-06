@@ -84,4 +84,25 @@ class ColdStorageSendEngineTest {
             assertEquals(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE, e.message)
         }
     }
+
+    // MARK: SIGHASH_ALL only (iOS 5096466, audit IOS-019)
+
+    @Test
+    fun `SIGHASH_ALL and an absent sighash byte are accepted`() {
+        assertEquals(0x01, ColdStorageSendEngine.requireSighashAll(0, 0x01))
+        assertEquals(0x01, ColdStorageSendEngine.requireSighashAll(0, null))
+    }
+
+    @Test
+    fun `every other sighash type is refused before broadcast`() {
+        // NONE, SINGLE, and each with ANYONECANPAY (0x80), plus ALL|ANYONECANPAY and junk.
+        for (type in listOf(0x00, 0x02, 0x03, 0x04, 0x80, 0x81, 0x82, 0x83, 0xff)) {
+            try {
+                ColdStorageSendEngine.requireSighashAll(3, type)
+                fail("sighash 0x%02x must be refused".format(type))
+            } catch (e: IllegalStateException) {
+                assertTrue(e.message!!.startsWith("Input 3 "))
+            }
+        }
+    }
 }
