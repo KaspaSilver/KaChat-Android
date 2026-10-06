@@ -118,9 +118,12 @@ class KachatNamesService @Inject constructor(
 
     // Gate
 
-    fun requireTestnet() {
-        // On [isLaunched], not [isEnabled]: since iOS 7227d69 isEnabled is true everywhere, so
-        // gating on it would no longer stop anything. Only a launched registry is transacted with.
+    /**
+     * The gate on every registry read and write: the network the app runs on has a live registry
+     * ([isLaunched], testnet-10 for now). [isEnabled] only turns the UI on (iOS d657ee3,
+     * `requireLaunched`).
+     */
+    fun requireLaunched() {
         if (!isLaunched) throw ServiceError.TestnetOnly()
     }
 
@@ -131,7 +134,7 @@ class KachatNamesService @Inject constructor(
      * ships one, else the indexer's `GET /names/manifest`. Cached once verified.
      */
     suspend fun loadManifest(allowDryRun: Boolean = false): Manifest = manifestMutex.withLock {
-        requireTestnet()
+        requireLaunched()
         _manifest.value?.let { if (allowDryRun || !it.isDryRun) return@withLock it }
         bundleFailure?.let { throw it }
         val (data, source) = manifestData()
@@ -231,7 +234,7 @@ class KachatNamesService @Inject constructor(
      * testnet-10 node, the wall clock, the signer's key.
      */
     suspend fun environment(privateKey: ByteArray, feerate: Double = KachatNames.MIN_FEERATE): Env {
-        requireTestnet()
+        requireLaunched()
         val dag = currentDagPoint()
         if (!dag.networkName.endsWith("testnet-10")) throw ServiceError.WrongNodeNetwork(dag.networkName)
         return Env(
@@ -289,7 +292,7 @@ class KachatNamesService @Inject constructor(
      * it: the P2SH address commits to the whole state, and the covenant id to the registry lineage.
      */
     suspend fun liveUtxo(script: ByteArray, outpoint: Outpoint): Utxo {
-        requireTestnet()
+        requireLaunched()
         val address = p2shAddress(script) ?: throw ServiceError.NotOnChain("a non-P2SH script")
         val utxos = utxosByAddresses(listOf(address))
         val txidHex = hex(outpoint.txid)
@@ -320,7 +323,7 @@ class KachatNamesService @Inject constructor(
     /** Submits a signed version-1 transaction; returns its id. Register and renew carry the price
      *  (35-8,000 TKAS) as fee on purpose - there is no high-fee guard on this path. */
     suspend fun submit(tx: Tx): String {
-        requireTestnet()
+        requireLaunched()
         val expected = tx.idHex
         val txId = withContext(Dispatchers.IO) {
             nodePoolManager.getBroadcastConnection().submitRpcTransaction(rpcTransaction(tx))
@@ -332,7 +335,7 @@ class KachatNamesService @Inject constructor(
 
     /** Sign with the wallet key and submit. */
     suspend fun signAndSubmit(plan: Plan, privateKey: ByteArray, env: Env): String {
-        requireTestnet()
+        requireLaunched()
         val tx = sign(plan, privateKey, env.me)
         return submit(tx)
     }
@@ -364,7 +367,7 @@ class KachatNamesService @Inject constructor(
 
     /**
      * The profile record's gate (iOS d36fc42 `buildProfileRecord`): profiles are not registry
-     * data, so it is [profilesEnabled] - every network - rather than [requireTestnet]; the record
+     * data, so it is [profilesEnabled] - every network - rather than [requireLaunched]; the record
      * is written from the wallet's address on the network the app runs on.
      */
     private fun requireProfileAddress(address: String) {

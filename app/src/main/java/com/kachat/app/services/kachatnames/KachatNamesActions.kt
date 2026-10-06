@@ -82,7 +82,7 @@ data class PendingRegistration(
  * The `.kachat` actions: every operation the screens offer, built with the pure builders over
  * UTXOs re-read from a node, signed with the wallet key and submitted ([KachatNamesService]), plus
  * the registration driver (commit, wait, register - resumable). Testnet-10 only: each entry goes
- * through [KachatNamesService.requireTestnet]. Every action returns its txid and refreshes the
+ * through [KachatNamesService.requireLaunched] (on `isLaunched`, iOS d657ee3). Every action returns its txid and refreshes the
  * registry once the transaction is accepted. A port of iOS
  * KaChat/Services/KachatNames/KachatNamesActions.swift (KaChat 1ed6e57, 5df42b4; registry v2 extend and
  * the renewal window from 5766c00; expired offers going back from ba07975; registry v3 - prices from
@@ -171,7 +171,7 @@ class KachatNamesActions @Inject constructor(
 
     /** The current wallet's testnet address, key and x-only key (they must agree). */
     fun signer(): Signer {
-        service.requireTestnet()
+        service.requireLaunched()
         val address = walletManager.getActiveAccount()?.address?.lowercase()
         if (address == null || !address.startsWith("kaspatest:")) throw ActionError.NoWallet()
         val key = try { walletManager.getPrivateKeyBytes() } catch (_: Exception) { throw ActionError.NoWallet() }
@@ -258,11 +258,16 @@ class KachatNamesActions @Inject constructor(
         }
         val spending = heldBy?.let { ownAddress(it) } as? OwnAddress.Spending
         if (heldBy != null && spending != null) {
-            service.requireTestnet()
+            service.requireLaunched()
+            // the spending address must be a testnet one on the network the app runs on (iOS d657ee3)
+            val address = spending.address.lowercase()
+            if (!address.startsWith("kaspatest:") || !KaspaNetwork.isOnActiveNetwork(address)) {
+                throw KachatNamesService.ServiceError.WrongAddressNetwork()
+            }
             val key = try { walletManager.getSpendingPrivateKeyBytes(spending.index) } catch (_: Exception) { throw ActionError.NoWallet() }
             val me = KachatNamesService.xonlyKey(key)
             if (!me.contentEquals(heldBy)) throw ActionError.KeyMismatch()
-            return Signer(spending.address.lowercase(), key, me)
+            return Signer(address, key, me)
         }
         return signer()
     }
