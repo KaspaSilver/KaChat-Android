@@ -2827,7 +2827,7 @@ fun KachatLiveDomainsTab(
         // A lapsed name is no longer yours: it moves to the marketplace's Reclaimable tab (and the
         // bell says so, KachatNamesNotifier). Expired names in grace stay, to be renewed (iOS e26562e).
         names = try {
-            KachatNamesRegistry.held(vm.registry.names(key, includeInactive = true), vm.graceMs)
+            vm.registry.heldNames(key)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -2847,6 +2847,8 @@ fun KachatLiveDomainsTab(
             vm.actions.withdrawDeclinedOffers(myOffers)
         }
         loaded = true
+        // a name that lapses while this is open leaves right then (iOS aa36d2a)
+        vm.registry.dropLapsed(names) { names = it }
     }
 
     LaunchedEffect(refreshRequested) {

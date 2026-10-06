@@ -39,4 +39,16 @@ class KachatNamesHeldTest {
         assertEquals(emptySet<String>(), held intersect reclaimable)
         assertEquals(all.map { it.name }.toSet(), held + reclaimable)
     }
+
+    /** iOS aa36d2a `dropLapsed`: the next lapse to wait for, among the names still held. */
+    @Test
+    fun theNextLapseIsTheEarliestStillAhead() {
+        // active: lapses at expiry + grace; in grace: at expiry + grace too; lapsed: never again
+        assertEquals(inGrace.expiresAt + grace, KachatNamesRegistry.nextLapse(listOf(active, inGrace, lapsedOld), grace, now))
+        assertEquals(active.expiresAt + grace, KachatNamesRegistry.nextLapse(listOf(active, lapsedOld), grace, now))
+        assertEquals(null, KachatNamesRegistry.nextLapse(listOf(lapsedOld, lapsedNew), grace, now))
+        assertEquals(null, KachatNamesRegistry.nextLapse(emptyList(), grace, now))
+        // once that moment passes, the name is off the held set
+        assertEquals(listOf("active"), KachatNamesRegistry.held(listOf(active, inGrace), grace, inGrace.expiresAt + grace).map { it.name })
+    }
 }

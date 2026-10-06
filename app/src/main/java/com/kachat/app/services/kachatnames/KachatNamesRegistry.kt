@@ -351,8 +351,8 @@ class KachatNamesRegistry @Inject constructor(
     }
 
     /**
-     * Which of [addresses] own at least one .kachat name (active, in grace or lapsed - the same set
-     * Your Domains lists). Drives the "Contains domain" tag (and the funded-first sort) on Manage
+     * Which of [addresses] hold at least one .kachat name (active or in grace - the same set Your
+     * Domains lists, [heldNames]; iOS aa36d2a). Drives the "Contains domain" tag (and the funded-first sort) on Manage
      * Addresses and KasSigner. Empty where the registry isn't launched; an address whose lookup
      * fails just isn't tagged (iOS 881ada6 `ownersOfNames(among:)`, gated by 7227d69).
      */
@@ -363,7 +363,7 @@ class KachatNamesRegistry @Inject constructor(
         for (address in addresses) {
             val key = keyOf(address) ?: continue
             val owned = try {
-                names(key, includeInactive = true)
+                heldNames(key)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -372,6 +372,29 @@ class KachatNamesRegistry @Inject constructor(
             if (owned.isNotEmpty()) owners.add(address)
         }
         return owners
+    }
+
+    /**
+     * The names an owner still holds, oldest first: active ones and expired ones in grace (still
+     * renewable). A lapsed name is no longer theirs - it's in the marketplace's Reclaimable tab.
+     * Your Domains, its count on Profile and the "Contains domain" tag all show this set (iOS aa36d2a).
+     */
+    suspend fun heldNames(owner: ByteArray): List<NameInfo> = held(names(owner, includeInactive = true), graceMs)
+
+    /**
+     * Keeps a [heldNames] answer true as time passes: waits until the next of [names] lapses, then
+     * hands back the ones still held, until none is left to lapse (or the caller is cancelled). A
+     * lapse is just the clock running out, so no registry change announces it (iOS aa36d2a).
+     */
+    suspend fun dropLapsed(names: List<NameInfo>, update: (List<NameInfo>) -> Unit) {
+        var still = names
+        while (true) {
+            val now = KachatNames.nowMs()
+            val next = nextLapse(still, graceMs, now) ?: return
+            delay(next - now + 500)
+            still = held(still, graceMs)
+            update(still)
+        }
     }
 
     /** The names an owner holds, oldest first; [includeInactive] adds grace and lapsed ones. */
@@ -737,6 +760,10 @@ class KachatNamesRegistry @Inject constructor(
          *  A lapsed name is no longer theirs - it's in the marketplace's Reclaimable tab (iOS e26562e). */
         fun held(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
             names.filter { it.status(graceMs, nowMs) != Status.LAPSED }
+
+        /** When the next of [names] lapses (unix ms), null when none is left to lapse ([dropLapsed]). */
+        fun nextLapse(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Long? =
+            names.map { it.expiresAt + graceMs }.filter { it > nowMs }.minOrNull()
 
         /** Lapsed names anyone may reclaim, oldest expiry first (the Reclaimable tab). */
         fun reclaimable(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =

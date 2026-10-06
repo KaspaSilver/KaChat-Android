@@ -4342,7 +4342,7 @@ fun ProfileScreen(
             // Reloads whenever the registry moves (a registration, sale or transfer lands).
             LaunchedEffect(address, kachatRevision) {
                 val owner = address ?: return@LaunchedEffect
-                viewModel.kachatOwnedCount(owner)?.let { kachatOwnedCount = it }
+                viewModel.watchKachatOwnedCount(owner) { kachatOwnedCount = it }
             }
             val domainsCount = kachatOwnedCount + ownedKnsDomains.size + ownedServiceNames.values.sumOf { it.size }
             SettingsSection(title = null) {

@@ -1797,21 +1797,28 @@ class WalletViewModel @Inject constructor(
         if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) kachatRegistry.get().revision
         else MutableStateFlow(0)
 
-    /** The account's .kachat names for Profile's Your Domains count - the same set its .kachat
-     *  tab lists (grace and lapsed included). 0 where the registry isn't launched; null when the
-     *  lookup failed, so the caller keeps what it had (iOS 10e4a1a, loadKachatOwnedCount). */
-    suspend fun kachatOwnedCount(address: String): Int? {
-        if (!com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) return 0
-        val key = com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(address) ?: return 0
-        return try {
-            val registry = kachatRegistry.get()
+    /**
+     * The account's .kachat names for Profile's Your Domains count - the same set its .kachat tab
+     * lists (active and in grace, registry heldNames; a lapsed one isn't yours any more). [update]
+     * gets the count, then again whenever one of them lapses while Profile is open. 0 where the
+     * registry isn't launched; nothing when the lookup failed, so the caller keeps what it had
+     * (iOS 10e4a1a, aa36d2a loadKachatOwnedCount).
+     */
+    suspend fun watchKachatOwnedCount(address: String, update: (Int) -> Unit) {
+        if (!com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) { update(0); return }
+        val key = com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(address) ?: run { update(0); return }
+        val registry = kachatRegistry.get()
+        val names = try {
             registry.refreshIfStale(maxAgeMs = 300_000)
-            registry.names(key, includeInactive = true).size
+            registry.heldNames(key)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            null
+            return
         }
+        update(names.size)
+        // and one that lapses while Profile is open comes off the count right then
+        registry.dropLapsed(names) { update(it.size) }
     }
 
     private val _domainOwningAddresses = MutableStateFlow<Set<String>>(emptySet())
