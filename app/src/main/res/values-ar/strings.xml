@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">فشل الإرسال</string>
     <string name="send_failure_network_hint">يرجى التحقق من اتصال الشبكة والمحاولة مرة أخرى.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">مسح مجموعة الاتصالات؟</string>
+    <string name="clear_connection_pool_confirm_message">يؤدي هذا إلى إزالة العقد المكتشفة وفصل الجلسات الحالية وإعادة بدء الاكتشاف.</string>
+    <string name="tap_a_node_to_copy_host_port">اضغط على عقدة لنسخ host:port.</string>
+    <string name="node_endpoint_copied">تم نسخ نقطة اتصال العقدة.</string>
+    <string name="clear">مسح</string>
 </resources>

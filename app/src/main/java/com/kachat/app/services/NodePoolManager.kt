@@ -821,12 +821,11 @@ class NodePoolManager @Inject constructor(
     }
 
     /** Triggers an immediate out-of-cycle probe pass — "Refresh Pool". */
-    fun refreshNow() {
-        scope.launch { probeCycle() }
-    }
+    /** The returned job ends when the probe pass does - Connection Status spins until then. */
+    fun refreshNow(): Job = scope.launch { probeCycle() }
 
     /** Drops discovered/DNS-resolved/manual nodes and all connections, resets to just the seed list — "Clear Connection Pool". */
-    fun clearPool() {
+    fun clearPool(): Job {
         manualEndpoints.clear()
         discoveredEndpoints.clear()
         dnsResolvedEndpoints.clear()
@@ -835,14 +834,14 @@ class NodePoolManager @Inject constructor(
         connections.clear()
         registry.resetTo(seeds, "Seed")
         publish()
-        refreshNow()
+        return refreshNow()
     }
 
     /** Drops all persistent connections so the next probe cycle opens fresh ones — "Reconnect". */
-    fun reconnect() {
+    fun reconnect(): Job {
         connections.values.forEach { it.close() }
         connections.clear()
-        refreshNow()
+        return refreshNow()
     }
 
     /**

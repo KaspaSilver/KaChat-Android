@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Не удалось отправить</string>
     <string name="send_failure_network_hint">Пожалуйста, проверьте подключение к сети и попробуйте снова.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Очистить пул соединений?</string>
+    <string name="clear_connection_pool_confirm_message">Это удалит обнаруженные узлы, отключит текущие сессии и перезапустит обнаружение.</string>
+    <string name="tap_a_node_to_copy_host_port">Нажмите на узел, чтобы скопировать host:port.</string>
+    <string name="node_endpoint_copied">Эндпоинт узла скопирован.</string>
+    <string name="clear">Очистить</string>
 </resources>

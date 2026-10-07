@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">השליחה נכשלה</string>
     <string name="send_failure_network_hint">אנא בדוק את חיבור הרשת שלך ונסה שוב.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">לנקות מאגר חיבורים?</string>
+    <string name="clear_connection_pool_confirm_message">פעולה זו מסירה צמתים שנמצאו, מנתקת חיבורים נוכחיים ומפעילה גילוי מחדש.</string>
+    <string name="tap_a_node_to_copy_host_port">לחץ על צומת להעתקת host:port.</string>
+    <string name="node_endpoint_copied">נקודת קצה של צומת הועתקה.</string>
+    <string name="clear">נקה</string>
 </resources>

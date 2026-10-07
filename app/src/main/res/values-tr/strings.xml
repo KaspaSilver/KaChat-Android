@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Gönderilemedi</string>
     <string name="send_failure_network_hint">Lütfen ağ bağlantınızı kontrol edin ve tekrar deneyin.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Bağlantı havuzu temizlensin mi?</string>
+    <string name="clear_connection_pool_confirm_message">Bu, keşfedilen düğümleri kaldırır, mevcut oturumları keser ve keşfi yeniden başlatır.</string>
+    <string name="tap_a_node_to_copy_host_port">host:port kopyalamak için bir düğüme dokunun.</string>
+    <string name="node_endpoint_copied">Düğüm uç noktası kopyalandı.</string>
+    <string name="clear">Temizle</string>
 </resources>

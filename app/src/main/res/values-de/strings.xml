@@ -1084,4 +1084,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Senden fehlgeschlagen</string>
     <string name="send_failure_network_hint">Bitte prüfe deine Netzwerkverbindung und versuche es erneut.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Verbindungspool leeren?</string>
+    <string name="clear_connection_pool_confirm_message">Dies entfernt entdeckte Nodes, trennt aktuelle Sitzungen und startet die Erkennung neu.</string>
+    <string name="tap_a_node_to_copy_host_port">Tippe auf einen Node, um host:port zu kopieren.</string>
+    <string name="node_endpoint_copied">Node-Endpunkt kopiert.</string>
+    <string name="clear">Leeren</string>
 </resources>

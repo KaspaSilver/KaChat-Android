@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">전송 실패</string>
     <string name="send_failure_network_hint">네트워크 연결을 확인하고 다시 시도해 주세요.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">연결 풀을 초기화하시겠습니까?</string>
+    <string name="clear_connection_pool_confirm_message">발견된 노드를 삭제하고, 현재 세션을 끊고, 탐색을 다시 시작합니다.</string>
+    <string name="tap_a_node_to_copy_host_port">노드를 탭하여 host:port를 복사하세요.</string>
+    <string name="node_endpoint_copied">노드 엔드포인트가 복사되었습니다.</string>
+    <string name="clear">지우기</string>
 </resources>

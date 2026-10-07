@@ -1306,4 +1306,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Failed to Send</string>
     <string name="send_failure_network_hint">Please check your network connection and try again.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Clear connection pool?</string>
+    <string name="clear_connection_pool_confirm_message">This removes discovered nodes, disconnects current sessions, and restarts discovery.</string>
+    <string name="tap_a_node_to_copy_host_port">Tap a node to copy host:port.</string>
+    <string name="node_endpoint_copied">Node endpoint copied.</string>
+    <string name="clear">Clear</string>
 </resources>

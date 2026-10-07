@@ -10192,8 +10192,19 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
     val lastSyncAt by viewModel.lastSyncAt.collectAsState()
     val nodeConnectionsBlocked by viewModel.nodeConnectionsBlocked.collectAsState()
     val scrollState = rememberScrollState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
+    val isRefreshingPool by viewModel.isRefreshingPool.collectAsState()
+    val isReconnecting by viewModel.isReconnecting.collectAsState()
+    val poolActionsEnabled = !isRefreshingPool && !isReconnecting
+    var showClearPoolConfirm by remember { mutableStateOf(false) }
+    val connectionClipboard = LocalClipboardManager.current
+    val connectionHaptic = com.kachat.app.util.rememberHaptics()
+    val connectionContext = LocalContext.current
+    // iOS: tapping an active node copies its host:port.
+    val copyNodeEndpoint: (NodeInfo) -> Unit = { node ->
+        connectionClipboard.setText(AnnotatedString(node.ip))
+        connectionHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+        IosToasts.show(connectionContext.getString(R.string.node_endpoint_copied))
+    }
 
     // status is derived from the exact same latency threshold as dotColorHex, so
     // the text here can never contradict the dot's color: green only says
@@ -10217,9 +10228,27 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
     // the whole pool look "Verified" before a single probe had actually completed.
     val verifiedCount = remember(allNodes) { allNodes.count { (it.status == "Active" || it.status == "Suspect") && it.latency != "—" } }
 
+    if (showClearPoolConfirm) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showClearPoolConfirm = false },
+            title = { Text(stringResource(R.string.clear_connection_pool_confirm_title), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.clear_connection_pool_confirm_message), color = LocalAppColors.current.textPrimary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showClearPoolConfirm = false
+                    viewModel.clearPool()
+                }) { Text(stringResource(R.string.clear), color = LocalAppColors.current.danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearPoolConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+                }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.connection_status), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -10293,37 +10322,48 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                 }
             }
 
-            SettingsSection(title = stringResource(R.string.actions)) {
-                // Refresh/Clear operate on pool discovery, which is off while pinned to a
-                // specific node - only Reconnect still means something there.
-                if (showPoolSections) {
-                    SettingsActionItem(stringResource(R.string.refresh_pool), Icons.Default.Refresh, KaspaTeal, onClick = {
-                        viewModel.refreshPool()
-                        coroutineScope.launch { snackbarHostState.showSnackbar("Refreshing pool…") }
-                    })
-                    SettingsDivider()
-                    SettingsActionItem(stringResource(R.string.clear_connection_pool), Icons.Default.DeleteSweep, Color.Red, onClick = {
-                        viewModel.clearPool()
-                        coroutineScope.launch { snackbarHostState.showSnackbar("Pool cleared, reconnecting to seed nodes") }
-                    })
-                    SettingsDivider()
+            // iOS's Actions section: plain text buttons, a spinner in the row while it runs, no
+            // toast; Clear asks first. The primary node is the section's footer.
+            Column {
+                SettingsSection(title = stringResource(R.string.actions)) {
+                    // Refresh/Clear operate on pool discovery, which is off while pinned to a
+                    // specific node - only Reconnect still means something there.
+                    if (showPoolSections) {
+                        ConnectionActionRow(
+                            stringResource(R.string.refresh_pool),
+                            color = KaspaTeal,
+                            busy = isRefreshingPool,
+                            enabled = poolActionsEnabled,
+                        ) { viewModel.refreshPool() }
+                        SettingsDivider()
+                        ConnectionActionRow(
+                            stringResource(R.string.clear_connection_pool),
+                            color = LocalAppColors.current.danger,
+                            busy = false,
+                            enabled = poolActionsEnabled,
+                        ) { showClearPoolConfirm = true }
+                        SettingsDivider()
+                    }
+                    ConnectionActionRow(
+                        stringResource(R.string.reconnect),
+                        color = KaspaTeal,
+                        busy = isReconnecting,
+                        enabled = poolActionsEnabled,
+                    ) { viewModel.reconnect() }
                 }
-                SettingsActionItem(stringResource(R.string.reconnect), Icons.Default.Replay, KaspaTeal, onClick = {
-                    viewModel.reconnect()
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Reconnecting…") }
-                })
+                activeNodes.firstOrNull()?.ip?.let { primary ->
+                    Text(
+                        text = "Primary: $primary",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp)
+                    )
+                }
             }
 
             KaspaNodeQuickAccessSection(viewModel)
 
             if (showPoolSections) {
-                Text(
-                    text = "Primary: ${activeNodes.firstOrNull()?.ip ?: "None"}",
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -10340,10 +10380,16 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
                 ) {
                     activeNodes.forEachIndexed { index, node ->
-                        ActiveNodeRow(node)
+                        Box(Modifier.clickable { copyNodeEndpoint(node) }) { ActiveNodeRow(node) }
                         if (index < activeNodes.size - 1) SettingsDivider()
                     }
                 }
+                Text(
+                    text = stringResource(R.string.tap_a_node_to_copy_host_port),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -10377,6 +10423,28 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
             Spacer(modifier = Modifier.height(100.dp))
         }
+    }
+}
+
+/** A row of iOS ConnectionStatusDetailView's Actions section: the label as a plain text button,
+ *  and while [busy], the activity indicator at the trailing edge. Greyed out while disabled. */
+@Composable
+private fun ConnectionActionRow(label: String, color: Color, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = if (enabled) color else LocalAppColors.current.textSecondary.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        if (busy) com.kachat.app.ui.theme.IosActivityIndicator(Modifier.size(20.dp))
     }
 }
 

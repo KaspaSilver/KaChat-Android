@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">送信に失敗しました</string>
     <string name="send_failure_network_hint">ネットワーク接続を確認して、もう一度お試しください。</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">接続プールをクリアしますか？</string>
+    <string name="clear_connection_pool_confirm_message">検出されたノードを削除し、現在のセッションを切断して、探索を再開します。</string>
+    <string name="tap_a_node_to_copy_host_port">ノードをタップしてhost:portをコピー。</string>
+    <string name="node_endpoint_copied">ノードエンドポイントをコピーしました。</string>
+    <string name="clear">クリア</string>
 </resources>

@@ -965,4 +965,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Gagal Mengirim</string>
     <string name="send_failure_network_hint">Silakan periksa koneksi jaringan Anda dan coba lagi.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Kosongkan kumpulan koneksi?</string>
+    <string name="clear_connection_pool_confirm_message">Ini menghapus node yang ditemukan, memutuskan sesi saat ini, dan mengulang pencarian.</string>
+    <string name="tap_a_node_to_copy_host_port">Ketuk node untuk menyalin host:port.</string>
+    <string name="node_endpoint_copied">Endpoint node disalin.</string>
+    <string name="clear">Hapus</string>
 </resources>

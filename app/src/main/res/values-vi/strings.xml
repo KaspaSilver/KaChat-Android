@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Gửi thất bại</string>
     <string name="send_failure_network_hint">Vui lòng kiểm tra kết nối mạng và thử lại.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Xóa nhóm kết nối?</string>
+    <string name="clear_connection_pool_confirm_message">Thao tác này xóa các nút đã phát hiện, ngắt kết nối phiên hiện tại và khởi động lại khám phá.</string>
+    <string name="tap_a_node_to_copy_host_port">Nhấn vào nút để sao chép host:port.</string>
+    <string name="node_endpoint_copied">Đã sao chép điểm cuối nút.</string>
+    <string name="clear">Xóa</string>
 </resources>

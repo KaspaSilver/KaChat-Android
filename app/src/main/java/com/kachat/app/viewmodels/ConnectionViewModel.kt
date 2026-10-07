@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -233,8 +234,39 @@ class ConnectionViewModel @Inject constructor(
     }
     fun removeSavedNodeAddress(id: String) { viewModelScope.launch { settings.removeSavedNodeAddress(id) } }
 
-    fun refreshPool() { nodePoolManager.refreshNow() }
-    fun clearPool() { nodePoolManager.clearPool() }
-    fun reconnect() { nodePoolManager.reconnect() }
+    // iOS ConnectionStatusDetailView: Refresh Pool and Reconnect each spin in their row while
+    // they run, and every pool action is disabled until both are done.
+    private val _isRefreshingPool = MutableStateFlow(false)
+    val isRefreshingPool: StateFlow<Boolean> = _isRefreshingPool.asStateFlow()
+    private val _isReconnecting = MutableStateFlow(false)
+    val isReconnecting: StateFlow<Boolean> = _isReconnecting.asStateFlow()
+
+    private fun poolBusy() = _isRefreshingPool.value || _isReconnecting.value
+
+    fun refreshPool() {
+        if (poolBusy()) return
+        _isRefreshingPool.value = true
+        viewModelScope.launch {
+            try { nodePoolManager.refreshNow().join() } finally { _isRefreshingPool.value = false }
+        }
+    }
+
+    /** "Clear" in the confirmation: the pool is emptied, then the app reconnects (iOS clears, then
+     *  runs its Reconnect, whose spinner shows meanwhile). */
+    fun clearPool() {
+        if (poolBusy()) return
+        _isReconnecting.value = true
+        viewModelScope.launch {
+            try { nodePoolManager.clearPool().join() } finally { _isReconnecting.value = false }
+        }
+    }
+
+    fun reconnect() {
+        if (poolBusy()) return
+        _isReconnecting.value = true
+        viewModelScope.launch {
+            try { nodePoolManager.reconnect().join() } finally { _isReconnecting.value = false }
+        }
+    }
     fun addManualEndpoint(address: String) { nodePoolManager.addManualEndpoint(address) }
 }

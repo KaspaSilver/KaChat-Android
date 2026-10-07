@@ -1118,4 +1118,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">ارسال ناموفق</string>
     <string name="send_failure_network_hint">لطفا اتصال شبکه خود را بررسی کرده و دوباره تلاش کنید.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">مجموعه اتصالات پاک شود؟</string>
+    <string name="clear_connection_pool_confirm_message">این کار گره‌های کشف‌شده را حذف، جلسات فعلی را قطع و کشف را دوباره شروع می‌کند.</string>
+    <string name="tap_a_node_to_copy_host_port">روی یک گره بزنید تا host:port کپی شود.</string>
+    <string name="node_endpoint_copied">نقطه اتصال گره کپی شد.</string>
+    <string name="clear">پاک کردن</string>
 </resources>

@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">发送失败</string>
     <string name="send_failure_network_hint">请检查网络连接并重试。</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">清除连接池？</string>
+    <string name="clear_connection_pool_confirm_message">这将删除已发现的节点、断开当前会话并重新开始发现。</string>
+    <string name="tap_a_node_to_copy_host_port">点击节点复制 host:port。</string>
+    <string name="node_endpoint_copied">节点端点已复制。</string>
+    <string name="clear">清除</string>
 </resources>

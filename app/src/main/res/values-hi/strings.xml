@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">भेजने में विफल</string>
     <string name="send_failure_network_hint">कृपया अपना नेटवर्क कनेक्शन जांचें और पुनः प्रयास करें।</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">कनेक्शन पूल साफ़ करें?</string>
+    <string name="clear_connection_pool_confirm_message">यह खोजे गए नोड हटाता है, वर्तमान सत्र डिस्कनेक्ट करता है, और खोज पुनः आरंभ करता है।</string>
+    <string name="tap_a_node_to_copy_host_port">host:port कॉपी करने के लिए नोड पर टैप करें।</string>
+    <string name="node_endpoint_copied">नोड एंडपॉइंट कॉपी किया गया।</string>
+    <string name="clear">साफ़ करें</string>
 </resources>

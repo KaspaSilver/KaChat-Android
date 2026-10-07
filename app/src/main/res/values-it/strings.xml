@@ -1087,4 +1087,10 @@
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Invio fallito</string>
     <string name="send_failure_network_hint">Controlla la tua connessione di rete e riprova.</string>
+    <!-- Connection Status (iOS ConnectionStatusDetailView) -->
+    <string name="clear_connection_pool_confirm_title">Svuotare il pool di connessioni?</string>
+    <string name="clear_connection_pool_confirm_message">Questo rimuove i nodi scoperti, disconnette le sessioni correnti e riavvia la scoperta.</string>
+    <string name="tap_a_node_to_copy_host_port">Tocca un nodo per copiare host:port.</string>
+    <string name="node_endpoint_copied">Endpoint del nodo copiato.</string>
+    <string name="clear">Cancella</string>
 </resources>
