@@ -207,7 +207,7 @@ class KachatNamesRegistryTest {
         val alphaRegister = e2e[3].o("args")
         r.eq(alpha?.periodStart, alphaRegister.l("now"), "alpha-tn: periodStart = register's now, kept by extend, transfer, list and buy")
         r.eq(alpha?.expiresAt, alphaRegister.l("now") + 2 * m.params.periodMs, "alpha-tn: registered for 1 period, extended by 1")
-        r.eq(m.params.periodMs, 600_000L, "testnet vectors run the 10-minute clock")
+        r.eq(m.params.periodMs, 86_400_000L, "testnet vectors run the 24-hour clock")
         // applying again changes nothing
         val snapshot = state.copy()
         for ((i, st) in e2e.withIndex()) runCatching { state.apply(view(st, 1_000L + i), m) }

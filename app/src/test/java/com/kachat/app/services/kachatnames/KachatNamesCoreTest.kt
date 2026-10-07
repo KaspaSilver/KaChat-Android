@@ -250,8 +250,8 @@ class KachatNamesCoreTest {
 
     /**
      * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json) is the live
-     * testnet-10 registry v4 of 2026-10-07 (genesis b1f28a5f...85a1, registry bff18554...0e2f,
-     * iOS d82dfb2): it verifies both as bundled and as an indexer would serve it (the gap and name
+     * testnet-10 registry v4 on the day clock of 2026-10-07 (genesis 5ffdd006...a777, registry
+     * e6b72448...7f0d, iOS 08107e1): it verifies both as bundled and as an indexer would serve it (the gap and name
      * pinned in the app, the offer for this deployment), it is not a dry run, it carries the
      * pinned price tables, and a tampered offer pin or a changed price is refused.
      */
@@ -262,10 +262,10 @@ class KachatNamesCoreTest {
         m.verify(Manifest.Source.BUNDLE)
         m.verify(Manifest.Source.INDEXER)
         assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
-        assertEquals("bff185546af1940ec70d74143e23b5f018fdb864bd02e15ca9b4c8d8ede40e2f", KachatNames.hex(m.registryCovenantId))
-        assertEquals("b1f28a5f", KachatNames.hex(m.genesisTxid).take(8))
-        assertEquals("85a1", KachatNames.hex(m.genesisTxid).takeLast(4))
-        assertEquals("226def4b7fea21b21957c55fd47331b1d2f510fa2a63f8e7543bafaed4898e7d", KachatNames.hex(m.offer.templateHash))
+        assertEquals("e6b7244831004e1db928458bce570347317b50ff124c010d342d73a6c2017f0d", KachatNames.hex(m.registryCovenantId))
+        assertEquals("5ffdd006", KachatNames.hex(m.genesisTxid).take(8))
+        assertEquals("a777", KachatNames.hex(m.genesisTxid).takeLast(4))
+        assertEquals("5a7e22af319bac406769563b6b4b39b05c3aac145375ccaaada4095960372a7a", KachatNames.hex(m.offer.templateHash))
         assertEquals(Manifest.PINNED_REGISTER_PRICES, m.params.registerPrices)
         assertEquals(Manifest.PINNED_RENEW_PRICES, m.params.renewPrices)
         Builder(m)
@@ -292,8 +292,8 @@ class KachatNamesCoreTest {
 
     /**
      * The period rules on their own (KACHAT_NAMES.md 4.1, ops.rs; the Swift script's
-     * `runPeriodRules`, iOS 3ef2ec2, e1e3455) on the testnet-10 short clock (registry v3:
-     * periodMs = renewWindowMs = graceMs = 10 minutes): what extend may add, when renew opens, its
+     * `runPeriodRules`, iOS 3ef2ec2, e1e3455, 08107e1) on the testnet-10 day clock (registry v4:
+     * periodMs 24 hours, renewWindowMs 2 hours, graceMs 6 hours): what extend may add, when renew opens, its
      * lock time, the refusals, the fixed budget table, and an earlier manifest recognised as
      * outdated.
      */
@@ -303,8 +303,9 @@ class KachatNamesCoreTest {
         val m = manifest()
         val p = m.params
         val y = p.periodMs
-        r.eq(y, 600_000L, "periodMs from the manifest (10 minutes)")
-        r.eq(p.renewWindowMs, 600_000L, "renewWindowMs from the manifest")
+        r.eq(y, 86_400_000L, "periodMs from the manifest (24 hours)")
+        r.eq(p.renewWindowMs, 7_200_000L, "renewWindowMs from the manifest (2 hours)")
+        r.eq(p.graceMs, 21_600_000L, "graceMs from the manifest (6 hours)")
         r.eq(vectors.l("renewWindowMs"), p.renewWindowMs, "renewWindowMs matches the vectors")
         val start = 2_000_000_000_000L
         r.eq(p.extendableYears(start, start + y), 1L, "1-period registration: extend by 1")
@@ -321,10 +322,10 @@ class KachatNamesCoreTest {
         r.eq(f.withPrice(5).periodStart, start, "list keeps periodStart")
         r.eq(runCatching { Codec.decodeNameState(f.encoded) }.getOrNull(), f, "126-byte state round trip")
         r.check(runCatching { Codec.decodeNameState(f.encoded.copyOfRange(0, 117)) }.isFailure) { "a 117-byte (v1) state is refused" }
-        // a 2-period name, so the window (one period before expiry) opens a period in
+        // a 2-period name: the window opens 2 hours before its expiry
         val f2 = NameFields("alice", ByteArray(32) { 7 }, 0, start, start + 2 * y)
         val opens = p.renewOpens(f2.expiresAt)
-        r.eq(opens, f2.expiresAt - 600_000L, "renew opens one period before expiry")
+        r.eq(opens, f2.expiresAt - 7_200_000L, "renew opens 2 hours before expiry")
         val before = Env(me = f.owner, blockDaa = 1, blockTimeMs = opens - 60_000, wallMs = opens + 60_000)
         r.check(!Builder.renewWindowOpen(before, p, f2.expiresAt)) { "window closed while the median time is before the opening" }
         r.eq(Builder.renewLockTime(before, p, f2.expiresAt), opens, "lock time never before the opening")
@@ -457,7 +458,7 @@ class KachatNamesCoreTest {
             val args = st.o("args")
             val plan: Plan = try {
                 if (st.s("op") == "register") {
-                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 65L * 60_000L else 0L), "$label: registerNow")
+                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 55L * 3_600_000L else 0L), "$label: registerNow")
                 }
                 val built = build(b, st, env)
                 when (st.s("op")) {

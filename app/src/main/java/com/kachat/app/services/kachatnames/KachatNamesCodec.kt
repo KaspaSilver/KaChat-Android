@@ -54,7 +54,7 @@ object KachatNames {
     const val SOMPI_PER_KAS: Long = 100_000_000L
     /**
      * A mainnet period. Registry v3 reads the period from the manifest ([Params.periodMs]):
-     * testnet-10 runs a 10-minute clock (iOS e1e3455).
+     * testnet-10 runs a 24-hour clock (iOS e1e3455, 08107e1).
      */
     const val YEAR_MS: Long = 31_536_000_000L
     /** rusty-kaspa `LOCK_TIME_THRESHOLD`: lock times below it are DAA scores, above unix ms. */

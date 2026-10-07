@@ -190,7 +190,7 @@ object KachatLive {
 
     /**
      * A unix-ms day as a row value ("Oct 12, 2027"), with the time when it is within two days
-     * (testnet's 10-minute periods, or a renewal that opens tomorrow): iOS 49c0baa `KachatLive.day`
+     * (testnet's 24-hour periods, or a renewal that opens tomorrow): iOS 49c0baa `KachatLive.day`
      * and `KachatNamesActions.dayString`.
      */
     fun day(ms: Long): String =
@@ -203,7 +203,7 @@ object KachatLive {
     /** The registry parameters, once the manifest is verified (iOS `KachatLive.params`, bd2c54a). */
     fun params(service: KachatNamesService): Params? = service.manifest.value?.params
 
-    /** Whether a period is a year (mainnet), not a short test clock (testnet's 10 minutes; iOS 49c0baa). */
+    /** Whether a period is a year (mainnet), not a short test clock (testnet's 24 hours; iOS 49c0baa). */
     fun yearlyPeriods(p: Params?): Boolean = (p?.periodMs ?: KachatNames.YEAR_MS) == KachatNames.YEAR_MS
 
     /**
@@ -1556,7 +1556,7 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
         } else {
             val colors = LocalAppColors.current
             val manifest by vm.service.manifest.collectAsState()
-            // 30 days on mainnet's yearly clock, the renewal window on testnet's 10-minute one (iOS ad184c3)
+            // 30 days on mainnet's yearly clock, the renewal window on testnet's 24-hour one (iOS ad184c3)
             val soonMs = manifest?.params?.expiresSoonMs ?: (30L * 86_400_000L)
             KachatNameGrid(vm.listings) { n ->
                 KachatNameTile(n.name, onClick = { onOpen(n) }) {
@@ -2859,7 +2859,7 @@ private fun KachatManageNameSheet(
 fun KachatLiveBuySheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val manifest by vm.service.manifest.collectAsState()
-    // 30 days on mainnet's yearly clock, the renewal window on testnet's 10-minute one (iOS 24d673a)
+    // 30 days on mainnet's yearly clock, the renewal window on testnet's 24-hour one (iOS 24d673a)
     val soonMs = manifest?.params?.expiresSoonMs ?: (30L * 86_400_000L)
     val soon = info.expiresAt - soonMs < KachatNames.nowMs()
     KachatTxSheet(
