@@ -357,7 +357,7 @@ class ColdStorageSendEngine @Inject constructor(
             // A submit error is checked against the network before it counts: a signed Cold
             // Storage send reported failed would be signed and sent again (audit IOS-014).
             val txId = nodePoolManager.submitConfirmingKnown(signedTx, networkService.kaspaRestApi.value) {
-                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx)
+                nodePoolManager.submitWaitingForParent(signedTx)
             }
             // Spent: a send built before the index catches up must not pick these again (AND-015).
             recordSpent(unsignedTx)

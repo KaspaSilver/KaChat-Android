@@ -328,8 +328,9 @@ class KaspaWalletEngine @Inject constructor(
             // back-to-back). allowOrphan=true parks it in the node's orphan pool until the
             // parent propagates (sub-second), matching what iOS's broadcast/1:1 send does.
             // And even with confirmed-only inputs, the submit node can briefly lag the node
-            // that served the UTXO snapshot — retry that rejection once tolerating orphan
-            // (same recovery KnsInscriptionEngine's reveal step uses) instead of failing.
+            // that served the UTXO snapshot: that rejection waits 1.5 s for the parent, submits
+            // once more, then lets the node hold it as an orphan (iOS 4eb492f,
+            // NodePoolManager.submitWaitingForParent) instead of failing.
             val usesUnconfirmedInputs = selectionResult.selectedUtxos.any { it.utxoEntry.blockDaaScore == 0L }
             // EVERY send goes to a node over gRPC first, plain payments included - as iOS does.
             // Plain payments used to POST to the REST gateway alone, and api.kaspa.org
@@ -345,9 +346,8 @@ class KaspaWalletEngine @Inject constructor(
             // pays twice. The id is computed locally, before anything is sent.
             val transactionId = nodePoolManager.submitConfirmingKnown(signedTx, api) { try {
                 try {
-                    nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                    nodePoolManager.submitWaitingForParent(signedTx, allowOrphan = usesUnconfirmedInputs)
                 } catch (e: Exception) {
-                    val isOrphanRejection = e.message?.contains("orphan", ignoreCase = true) == true
                     // Transport-shaped failure (timeout / dead gRPC stream) — NOT a node verdict.
                     // The cached connection can die silently and only gets reaped by the 30s probe
                     // cycle; every send in that window failed after the full timeout while the app
@@ -356,15 +356,11 @@ class KaspaWalletEngine @Inject constructor(
                     val isTransportFailure = e is kotlinx.coroutines.TimeoutCancellationException ||
                         e is io.grpc.StatusException || e is io.grpc.StatusRuntimeException
                     when {
-                        !usesUnconfirmedInputs && isOrphanRejection -> {
-                            Log.w("KaspaWalletEngine", "Submit rejected as orphan (node behind), retrying with allowOrphan=true", e)
-                            nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = true)
-                        }
                         isTransportFailure -> {
                             Log.w("KaspaWalletEngine", "Submit transport failure, reconnecting and retrying once", e)
                             nodePoolManager.refreshBroadcastConnection()
                             try {
-                                nodePoolManager.getBroadcastConnection().submitTransaction(signedTx, allowOrphan = usesUnconfirmedInputs)
+                                nodePoolManager.submitWaitingForParent(signedTx, allowOrphan = usesUnconfirmedInputs)
                             } catch (e2: Exception) {
                                 // Payload-carrying sends have no REST fallback (the REST gateway
                                 // rejects them, see the broadcast comment above), so when the pool
@@ -769,7 +765,7 @@ class KaspaWalletEngine @Inject constructor(
     suspend fun submitSignedTransaction(transaction: RawTransaction): String {
         // A submit error is checked against the network before it counts (audit IOS-014).
         val txId = nodePoolManager.submitConfirmingKnown(transaction, networkService.kaspaRestApi.value) {
-            nodePoolManager.getBroadcastConnection().submitTransaction(transaction, allowOrphan = false)
+            nodePoolManager.submitWaitingForParent(transaction, allowOrphan = false)
         }
         try { refreshAfterSubmit(transaction) } catch (_: Exception) {}
         return txId

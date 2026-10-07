@@ -23,6 +23,54 @@ object SubmitConfirmation {
     /** Between the two lookups: a just-accepted transaction may not have propagated yet. */
     const val RECHECK_DELAY_MS = 1_500L
 
+    /** How long a send rejected as an orphan gives its parent to reach the node (iOS 4eb492f). */
+    const val PARENT_WAIT_MS = 1_500L
+
+    /** Whether a submit error is the node's "orphan where orphan is disallowed" (iOS
+     *  `NodePoolService.isOrphanRejection`). */
+    fun isOrphanRejection(e: Throwable): Boolean = (e.message ?: e.toString()).lowercase().contains("orphan")
+
+    /**
+     * Runs [submit] with [allowOrphan] (iOS 4eb492f, NodePoolService.submitTransaction). A
+     * rejection as an orphan "where orphan is disallowed" means the transaction's inputs came from
+     * a node that already has their parent transaction (the UTXO query), but the node this submit
+     * reached hasn't caught up yet - a reaction or message sent right after the previous one. Then
+     * the parent gets [delayMs] to propagate and the submit runs once more; if that is refused too,
+     * the node is asked to hold it as an orphan until the parent arrives ([onHeldAsOrphan] is told
+     * the id). When neither goes through, the first rejection is what is thrown, as before. Any
+     * other error, or a submit that already allowed orphans, is thrown at once. A cancelled send
+     * stays cancelled (a timeout is not a cancellation of the send).
+     */
+    suspend fun submitWaitingForParent(
+        allowOrphan: Boolean,
+        delayMs: Long = PARENT_WAIT_MS,
+        onHeldAsOrphan: (String) -> Unit = {},
+        submit: suspend (allowOrphan: Boolean) -> String,
+    ): String {
+        try {
+            return submit(allowOrphan)
+        } catch (e: Exception) {
+            if (e is CancellationException && e !is TimeoutCancellationException) throw e
+            if (allowOrphan || !isOrphanRejection(e)) throw e
+            delay(delayMs)
+            attempt { submit(false) }?.let { return it }
+            attempt { submit(true) }?.let { id ->
+                onHeldAsOrphan(id)
+                return id
+            }
+            throw e
+        }
+    }
+
+    /** [block]'s id, or null when it failed (iOS `try?`); a cancelled send stays cancelled. */
+    private suspend fun attempt(block: suspend () -> String): String? = try {
+        block()
+    } catch (e: Exception) {
+        if (e is CancellationException && e !is TimeoutCancellationException) throw e
+        currentCoroutineContext().ensureActive()
+        null
+    }
+
     /**
      * Runs [submit]. On any error, [txId] is looked up with [isKnown]; if the network has it,
      * [txId] is returned as the sent transaction's id and [onRecovered] is told why, otherwise

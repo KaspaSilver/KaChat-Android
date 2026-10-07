@@ -772,6 +772,20 @@ class NodePoolManager @Inject constructor(
         )
     }
 
+    /**
+     * Submits [transaction] through the broadcast connection. An "orphan where orphan is
+     * disallowed" rejection waits for the parent and tries again, then lets the node hold it as an
+     * orphan - see [SubmitConfirmation.submitWaitingForParent] (iOS 4eb492f, which does this in
+     * NodePoolService.submitTransaction for messages, payments and reactions alike).
+     */
+    suspend fun submitWaitingForParent(transaction: RawTransaction, allowOrphan: Boolean = false): String =
+        SubmitConfirmation.submitWaitingForParent(
+            allowOrphan = allowOrphan,
+            onHeldAsOrphan = { id ->
+                Log.i("NodePoolManager", "${id.take(12)} submitted as an orphan: its parent hadn't reached that node yet")
+            },
+        ) { orphan -> getBroadcastConnection().submitTransaction(transaction, allowOrphan = orphan) }
+
     /** Whether the network already has [txId]: in a mempool (up to three nodes), or accepted
      *  (REST API) - asked twice, 1.5 s apart (iOS NodePoolService.isTransactionKnown). */
     suspend fun isTransactionKnown(txId: String, rest: KaspaRestApi?): Boolean =
