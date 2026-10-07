@@ -1265,4 +1265,9 @@
     <string name="kaposts_scheduled_for_toast">Scheduled for %1$s</string>
     <string name="kaposts_scheduled_for_on_phone_toast">Scheduled for %1$s - sends from this phone</string>
     <string name="kaposts_couldnt_schedule_toast">Couldn\'t schedule: %1$s</string>
+    <!-- Swap portfolio picker (iOS SwapView showPortfolioConfirm) -->
+    <string name="swap_portfolio_pick_note">%1$s %2$s KAS at %3$s%4$s - choose which portfolio to add it to.</string>
+    <string name="swap_portfolio_already_holds">Already holds this swap - adding it again double-counts it.</string>
+    <string name="swap_portfolio_lands_here">The swap lands in this portfolio.</string>
+    <string name="swap_added_to_portfolio">Added to %1$s</string>
 </resources>

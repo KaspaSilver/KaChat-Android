@@ -27,7 +27,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.DonutLarge
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -99,11 +102,10 @@ fun SwapScreen(
     swapViewModel: SwapViewModel = hiltViewModel(),
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
-    // "Add to Portfolio" first asks WHICH portfolio (4.0, matches iOS) - the chosen one
-    // becomes active, then the prefilled add-transaction screen (which writes to the active
-    // portfolio) opens as before.
+    // "Add to Portfolio" asks WHICH portfolio, and the swap goes straight into the one picked
+    // (iOS SwapView's showPortfolioConfirm sheet and SwapService.confirmAddToPortfolio).
     val allPortfolios by portfolioViewModel.portfolios.collectAsState()
-    var portfolioPickerAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingPortfolioPrefill by remember { mutableStateOf<SwapPortfolioPrefill?>(null) }
     val kasIsSendSide by swapViewModel.kasIsSendSide.collectAsState()
     val otherCoin by swapViewModel.otherCoin.collectAsState()
     val amountText by swapViewModel.amountText.collectAsState()
@@ -486,49 +488,45 @@ fun SwapScreen(
                 if (amountKas == null || fiatValue == null) {
                     Toast.makeText(context, context.getString(R.string.couldn_t_read_this_swap_s), Toast.LENGTH_SHORT).show()
                 } else {
-                    val notes = android.net.Uri.encode("ChangeNOW swap ${swap.id}")
-                    val navigate = {
-                        selectedSwapId = null
-                        navController?.navigate(
-                            "portfolio_transactions?prefillType=${if (isKasReceived) "buy" else "sell"}" +
-                                "&prefillAmountKas=$amountKas&prefillFiatValue=$fiatValue" +
-                                "&prefillTimestamp=${swap.createdAtMillis}&prefillNotes=$notes&prefillSwapId=${swap.id}"
-                        )
-                        Unit
-                    }
-                    if (allPortfolios.size > 1) portfolioPickerAction = navigate else navigate()
+                    pendingPortfolioPrefill = SwapPortfolioPrefill(
+                        isBuy = isKasReceived,
+                        amountKas = amountKas,
+                        fiatValue = fiatValue,
+                        timestampMillis = swap.createdAtMillis,
+                        notes = "ChangeNOW swap ${swap.id}",
+                        swapId = swap.id,
+                    )
+                    selectedSwapId = null
                 }
             }
         )
     }
 
-    portfolioPickerAction?.let { pendingNavigate ->
-        // A half sheet, like every other chooser in the app: each portfolio gets a row with room
-        // to say when this swap is already in it (iOS 9df2847).
-        val duplicateIds = selectedSwap?.let {
-            portfolioViewModel.portfolioIdsContaining(
-                com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(it.id)
-            )
-        } ?: emptySet()
-        ActionSheetContainer(
-            title = stringResource(R.string.add_to_portfolio),
-            subtitle = "Which portfolio should this swap go into?",
-            onDismiss = { portfolioPickerAction = null },
-        ) {
-            allPortfolios.forEach { portfolio ->
-                val isDuplicate = portfolio.id in duplicateIds
-                ActionSheetRow(
-                    icon = Icons.Default.DonutLarge,
-                    title = portfolio.name,
-                    subtitle = if (isDuplicate) "Already added to this one" else "Add the swap here",
-                    tint = if (isDuplicate) LocalAppColors.current.textSecondary else KaspaTeal,
-                ) {
-                    portfolioViewModel.setActivePortfolio(portfolio.id)
-                    portfolioPickerAction = null
-                    pendingNavigate()
-                }
-            }
-        }
+    pendingPortfolioPrefill?.let { prefill ->
+        val currencyCode by portfolioViewModel.currency.collectAsState()
+        val duplicateIds = portfolioViewModel.portfolioIdsContaining(
+            com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(prefill.swapId)
+        )
+        SwapPortfolioPickerSheet(
+            prefill = prefill,
+            portfolios = allPortfolios.map { it.id to it.name },
+            duplicateIds = duplicateIds,
+            currencySymbol = com.kachat.app.util.currencySymbolFor(currencyCode),
+            onDismiss = { pendingPortfolioPrefill = null },
+            onPick = { id, name ->
+                portfolioViewModel.addTransaction(
+                    type = if (prefill.isBuy) "buy" else "sell",
+                    amountKas = prefill.amountKas,
+                    fiatValue = prefill.fiatValue,
+                    timestampMillis = prefill.timestampMillis,
+                    notes = prefill.notes,
+                    portfolioId = id,
+                    sourceTxId = com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(prefill.swapId),
+                )
+                swapViewModel.markSwapAddedToPortfolio(prefill.swapId)
+                Toast.makeText(context, context.getString(R.string.swap_added_to_portfolio, name), Toast.LENGTH_SHORT).show()
+            },
+        )
     }
 
     if (showCoinPicker) {
@@ -1124,6 +1122,105 @@ private fun SwapCoinPickerDialog(currentCoin: SwapCoin, onDismiss: () -> Unit, o
                         }
                         HorizontalDivider(color = LocalAppColors.current.divider)
                     }
+                }
+            }
+        }
+    }
+}
+
+/** A finished swap's KAS leg, as the portfolio ledger records it (iOS `SwapService.PortfolioPrefill`). */
+data class SwapPortfolioPrefill(
+    val isBuy: Boolean,
+    val amountKas: Double,
+    val fiatValue: Double,
+    val timestampMillis: Long,
+    val notes: String,
+    val swapId: String,
+)
+
+/**
+ * Which portfolio a swap goes into - iOS SwapView's half sheet: "Add to Portfolio", the swap in
+ * one line, then a row per portfolio, a warning on one that already holds it. Fitted to four rows
+ * (150 + 78 a row) and draggable to full height (`[.height(...), .large]`), with the grabber.
+ * Picking a row adds the swap there and closes the sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwapPortfolioPickerSheet(
+    prefill: SwapPortfolioPrefill,
+    portfolios: List<Pair<String, String>>,
+    duplicateIds: Set<String>,
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onPick: (id: String, name: String) -> Unit,
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        androidx.compose.material3.ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(androidx.compose.ui.Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = (150 + minOf(portfolios.size, 4) * 78).dp, largeDetent = true) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            stringResource(R.string.add_to_portfolio),
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            modifier = Modifier.padding(top = 22.dp),
+                        )
+                        val sompi = Math.round(prefill.amountKas * 100_000_000.0)
+                        Text(
+                            stringResource(
+                                R.string.swap_portfolio_pick_note,
+                                if (prefill.isBuy) "Buy" else "Sell",
+                                String.format(java.util.Locale.US, "%.8f", sompi / 100_000_000.0),
+                                currencySymbol,
+                                String.format(java.util.Locale.US, "%.2f", prefill.fiatValue),
+                            ),
+                            color = colors.textSecondary,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+                        Column(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            portfolios.forEach { (id, name) ->
+                                val duplicate = id in duplicateIds
+                                ActionSheetRow(
+                                    icon = if (duplicate) Icons.Default.WarningAmber else Icons.Default.PieChart,
+                                    title = name,
+                                    subtitle = stringResource(
+                                        if (duplicate) R.string.swap_portfolio_already_holds else R.string.swap_portfolio_lands_here
+                                    ),
+                                    tint = if (duplicate) colors.warning else KaspaTeal,
+                                ) {
+                                    onPick(id, name)
+                                    scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                                }
+                            }
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
             }
         }
