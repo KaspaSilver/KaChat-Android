@@ -519,14 +519,20 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     // inflating the balance you actually think of as available.
     val totalBalanceKas = visibleAddresses.sumOf { it.balanceSompi } / 100_000_000.0
 
+    // A sheet over the list with Cancel leading its bar, as iOS presents ColdSendFlowView.
     sendFromRow?.let { row ->
-        ColdSendFlow(
-            fromAddress = row.address,
-            availableBalanceSompi = row.balanceSompi,
-            viewModel = viewModel,
-            onDone = { sendFromRow = null; viewModel.refreshAddressesSoonAfterSend(accountId) }
-        )
-        return
+        IosFullSheet(
+            onDismissed = { sendFromRow = null; viewModel.refreshAddressesSoonAfterSend(accountId) },
+            swipeToDismiss = true,
+        ) { close ->
+            ColdSendFlow(
+                fromAddress = row.address,
+                availableBalanceSompi = row.balanceSompi,
+                viewModel = viewModel,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     Scaffold(
@@ -1187,6 +1193,9 @@ private fun ColdSendFlow(
     // recipient field instead of just pre-filling it, since editing it away from fromAddress
     // would defeat the point of a compound send.
     isCompoundMode: Boolean = false,
+    /** Inside an [IosFullSheet], as iOS presents it: "Cancel" leads the bar, and the bars take no
+     *  system insets of their own. */
+    presentedAsSheet: Boolean = false,
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
     val sendState by viewModel.sendState.collectAsState()
@@ -1384,12 +1393,31 @@ private fun ColdSendFlow(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        contentWindowInsets = if (presentedAsSheet) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.send_from_cold_storage), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                windowInsets = if (presentedAsSheet) WindowInsets(0, 0, 0, 0) else TopAppBarDefaults.windowInsets,
+                // iOS: "Compound UTXOs" for a compound, else "Send from Cold Storage".
+                title = {
+                    Text(
+                        stringResource(if (isCompoundMode) R.string.compound_utxos else R.string.send_from_cold_storage),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = { if (!inFlight) onDone() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = if (inFlight) LocalAppColors.current.textSecondary else KaspaTeal)
+                    if (presentedAsSheet) {
+                        TextButton(onClick = { if (!inFlight) onDone() }) {
+                            Text(
+                                stringResource(R.string.cancel),
+                                color = if (inFlight) LocalAppColors.current.textSecondary else KaspaTeal,
+                                fontSize = 17.sp,
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { if (!inFlight) onDone() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = if (inFlight) LocalAppColors.current.textSecondary else KaspaTeal)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -1891,33 +1919,45 @@ fun ColdStorageTxHistoryScreen(
         return
     }
 
+    // Send and Compound are sheets over this screen with Cancel leading their bar, as iOS
+    // presents ColdSendFlowView (which a swipe down also closes).
     if (showSendFlow) {
-        ColdSendFlow(
-            fromAddress = address,
-            availableBalanceSompi = addressBalanceSompi,
-            viewModel = viewModel,
-            onDone = {
+        IosFullSheet(
+            onDismissed = {
                 showSendFlow = false
                 viewModel.loadTxHistory(address)
                 viewModel.loadUtxos(address)
-            }
-        )
-        return
+            },
+            swipeToDismiss = true,
+        ) { close ->
+            ColdSendFlow(
+                fromAddress = address,
+                availableBalanceSompi = addressBalanceSompi,
+                viewModel = viewModel,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     if (showCompoundFlow) {
-        ColdSendFlow(
-            fromAddress = address,
-            availableBalanceSompi = addressBalanceSompi,
-            viewModel = viewModel,
-            isCompoundMode = true,
-            onDone = {
+        IosFullSheet(
+            onDismissed = {
                 showCompoundFlow = false
                 viewModel.loadTxHistory(address)
                 viewModel.loadUtxos(address)
-            }
-        )
-        return
+            },
+            swipeToDismiss = true,
+        ) { close ->
+            ColdSendFlow(
+                fromAddress = address,
+                availableBalanceSompi = addressBalanceSompi,
+                viewModel = viewModel,
+                isCompoundMode = true,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     Scaffold(

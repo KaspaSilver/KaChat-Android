@@ -3813,34 +3813,37 @@ fun ProfileScreen(
         }
     }
 
-    // In-place full-screen swap - not a nav route, not a dialog popup - mirroring
-    // SpendingAddressTxHistoryScreen's own `if (showSendFlow) { ...; return }` idiom, so both of
-    // Profile's quick-send entry points (Chatting Address, Spending Address) open the exact same
-    // full-featured send screen (coin control, fee tier, KNS resolution) as everywhere else,
-    // rather than the old bare-bones AlertDialog each used to show.
+    // Both of Profile's quick sends (Chatting Address, Spending Address) open the same
+    // full-featured send screen (coin control, fee tier, KNS resolution) as everywhere else, as a
+    // sheet of its own with Cancel leading its bar, which only Cancel closes - iOS's
+    // WithdrawKaspaView / SpendingAddressWithdrawView sheets (.interactiveDismissDisabled()).
     if (showWithdrawDialog) {
-        SpendingAddressSendFlow(
-            fromAddress = address ?: "",
-            balanceSompi = identityBalanceSompi,
-            title = "Send Kaspa",
-            viewModel = viewModel,
-            portfolioViewModel = portfolioViewModel,
-            onDone = { showWithdrawDialog = false }
-        )
-        return
+        IosFullSheet(onDismissed = { showWithdrawDialog = false }, swipeToDismiss = false) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = address ?: "",
+                balanceSompi = identityBalanceSompi,
+                title = "Send Kaspa",
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     if (showSpendingWithdrawDialog && primarySpendingEntry != null) {
-        SpendingAddressSendFlow(
-            fromAddress = primarySpendingEntry.address,
-            balanceSompi = primarySpendingEntry.balanceSompi,
-            title = "Send Kaspa",
-            spendingIndex = primarySpendingEntry.index,
-            viewModel = viewModel,
-            portfolioViewModel = portfolioViewModel,
-            onDone = { showSpendingWithdrawDialog = false }
-        )
-        return
+        IosFullSheet(onDismissed = { showSpendingWithdrawDialog = false }, swipeToDismiss = false) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = primarySpendingEntry.address,
+                balanceSompi = primarySpendingEntry.balanceSompi,
+                title = "Send Kaspa",
+                spendingIndex = primarySpendingEntry.index,
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     Scaffold(
@@ -6047,9 +6050,9 @@ fun SpendingAddressSendFlow(
     // a compound send.
     isCompoundMode: Boolean = false,
     /**
-     * Shown inside a sheet (the Chats New sheet's Send Kaspa, iOS f81e8d6): the bar's leading
-     * control is "Cancel", as iOS's SpendingAddressWithdrawView has it, and the bars take no
-     * system insets of their own - the sheet already sits clear of them.
+     * Shown inside a sheet ([IosFullSheet] - every send entry, as iOS presents them): the bar's
+     * leading control is "Cancel", as iOS's SpendingAddressWithdrawView and WithdrawKaspaView have
+     * it, and the bars take no system insets of their own - the sheet already sits clear of them.
      */
     presentedAsSheet: Boolean = false,
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
@@ -6598,39 +6601,51 @@ fun SpendingAddressTxHistoryScreen(
         return
     }
 
+    // Send and Compound are sheets over this screen that only Cancel closes, as iOS presents
+    // SpendingAddressWithdrawView (.interactiveDismissDisabled()).
     if (showWithdraw && entry != null) {
-        SpendingAddressSendFlow(
-            fromAddress = entry.address,
-            balanceSompi = entry.balanceSompi,
-            title = "Send from Address #${entry.index}",
-            spendingIndex = entry.index,
-            viewModel = viewModel,
-            portfolioViewModel = portfolioViewModel,
-            onDone = {
+        IosFullSheet(
+            onDismissed = {
                 showWithdraw = false
                 viewModel.loadSpendingAddressTxHistory(address)
                 viewModel.loadSpendingAddressUtxos(address)
-            }
-        )
-        return
+            },
+            swipeToDismiss = false,
+        ) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = entry.address,
+                balanceSompi = entry.balanceSompi,
+                title = "Send from Address #${entry.index}",
+                spendingIndex = entry.index,
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     if (showCompoundFlow && entry != null) {
-        SpendingAddressSendFlow(
-            fromAddress = entry.address,
-            balanceSompi = entry.balanceSompi,
-            title = "Send from Address #${entry.index}",
-            spendingIndex = entry.index,
-            viewModel = viewModel,
-            portfolioViewModel = portfolioViewModel,
-            isCompoundMode = true,
-            onDone = {
+        IosFullSheet(
+            onDismissed = {
                 showCompoundFlow = false
                 viewModel.loadSpendingAddressTxHistory(address)
                 viewModel.loadSpendingAddressUtxos(address)
-            }
-        )
-        return
+            },
+            swipeToDismiss = false,
+        ) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = entry.address,
+                balanceSompi = entry.balanceSompi,
+                title = "Send from Address #${entry.index}",
+                spendingIndex = entry.index,
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                isCompoundMode = true,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     val displayName = entry?.label?.takeIf { it.isNotBlank() } ?: "Address #$index"
@@ -6991,37 +7006,49 @@ fun IdentityAddressDetailScreen(
     }
 
     val flowAddress = address
+    // Send and Compound are sheets over this screen that only Cancel closes, as iOS presents
+    // WithdrawKaspaView (.interactiveDismissDisabled()).
     if (showWithdraw && flowAddress != null) {
-        SpendingAddressSendFlow(
-            fromAddress = flowAddress,
-            balanceSompi = balanceSompi,
-            title = "Send Kaspa",
-            viewModel = viewModel,
-            portfolioViewModel = portfolioViewModel,
-            onDone = {
+        IosFullSheet(
+            onDismissed = {
                 showWithdraw = false
                 viewModel.loadSpendingAddressTxHistory(flowAddress)
                 viewModel.loadSpendingAddressUtxos(flowAddress)
-            }
-        )
-        return
+            },
+            swipeToDismiss = false,
+        ) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = flowAddress,
+                balanceSompi = balanceSompi,
+                title = "Send Kaspa",
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     if (showCompoundFlow && flowAddress != null) {
-        SpendingAddressSendFlow(
-            fromAddress = flowAddress,
-            balanceSompi = balanceSompi,
-            title = "Send Kaspa",
-            viewModel = viewModel,
-            portfolioViewModel = portfolioViewModel,
-            isCompoundMode = true,
-            onDone = {
+        IosFullSheet(
+            onDismissed = {
                 showCompoundFlow = false
                 viewModel.loadSpendingAddressTxHistory(flowAddress)
                 viewModel.loadSpendingAddressUtxos(flowAddress)
-            }
-        )
-        return
+            },
+            swipeToDismiss = false,
+        ) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = flowAddress,
+                balanceSompi = balanceSompi,
+                title = "Send Kaspa",
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                isCompoundMode = true,
+                onDone = close,
+                presentedAsSheet = true,
+            )
+        }
     }
 
     Scaffold(

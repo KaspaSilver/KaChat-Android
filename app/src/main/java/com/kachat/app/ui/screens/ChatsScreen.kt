@@ -1963,21 +1963,20 @@ private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: 
     val from = address
     val spendingIndex = index
     val balance = balanceSompi
-    ModalBottomSheet(
-        onDismissRequest = onDone,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = LocalAppColors.current.background,
-        dragHandle = null,
-    ) {
+    val ready = from != null && spendingIndex != null && balance != null
+    // Only Cancel closes the send itself (iOS's SpendingAddressWithdrawView is
+    // .interactiveDismissDisabled()); the spinner and the "unlocking" line before it swipe away.
+    IosFullSheet(onDismissed = onDone, swipeToDismiss = !ready) { close ->
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (!ready) androidx.activity.compose.BackHandler(onBack = close)
             when {
-                from != null && spendingIndex != null && balance != null -> SpendingAddressSendFlow(
-                    fromAddress = from,
-                    balanceSompi = balance,
+                ready -> SpendingAddressSendFlow(
+                    fromAddress = from!!,
+                    balanceSompi = balance!!,
                     title = stringResource(R.string.chats_send_kaspa),
                     spendingIndex = spendingIndex,
                     viewModel = walletViewModel,
-                    onDone = onDone,
+                    onDone = close,
                     presentedAsSheet = true,
                 )
                 // Loaded, and still no spending address to send from.
