@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
@@ -205,51 +209,59 @@ fun TileActionSheet(
     content: @Composable () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background,
-        dragHandle = null,
-    ) {
-        IosSheetDetents(height = height, largeDetent = largeDetent) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = bottomPadding),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Column(
-                    modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        title,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (!subtitle.isNullOrBlank()) {
-                        Text(
-                            subtitle,
-                            color = colors.textSecondary,
-                            fontSize = subtitleFontSize,
-                            textAlign = TextAlign.Center,
-                            maxLines = subtitleMaxLines,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = height, largeDetent = largeDetent) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = bottomPadding),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                title,
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (!subtitle.isNullOrBlank()) {
+                                Text(
+                                    subtitle,
+                                    color = colors.textSecondary,
+                                    fontSize = subtitleFontSize,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = subtitleMaxLines,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                            ActionSheetTiles(content, onTileCount)
+                        }
                     }
-                }
-                Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-                    ActionSheetTiles(content, onTileCount)
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
             }
-            IosSheetGrabber(Modifier.align(Alignment.TopCenter))
         }
     }
 }
@@ -384,51 +396,59 @@ fun ActionSheetContainer(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                // For the rare sheet taller than the screen itself - expanded tops out at full
-                // height, and without this the overflow would be unreachable rather than merely
-                // below the fold.
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background,
         ) {
-            Text(
-                title,
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                textAlign = TextAlign.Center,
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    subtitle,
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // For the rare sheet taller than the screen itself - expanded tops out at full
+                        // height, and without this the overflow would be unreachable rather than merely
+                        // below the fold.
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        title,
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            subtitle,
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (!detail.isNullOrBlank()) {
+                        Text(
+                            detail,
+                            color = colors.textSecondary,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    content()
+                }
             }
-            if (!detail.isNullOrBlank()) {
-                Text(
-                    detail,
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            content()
         }
     }
 }
@@ -1021,79 +1041,87 @@ fun SentConfirmationSheet(
     val colors = LocalAppColors.current
     val uriHandler = LocalUriHandler.current
 
-    ModalBottomSheet(
-        onDismissRequest = onDone,
-        // Expanded, not half-height: partial expansion cuts the Done button off.
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDone,
+            // Expanded, not half-height: partial expansion cuts the Done button off.
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
         ) {
-            Icon(
-                Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = LocalAppColors.current.success,
-                modifier = Modifier.size(52.dp),
-            )
-            Spacer(Modifier.height(12.dp))
-            Text("Sent", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = LocalAppColors.current.success,
+                        modifier = Modifier.size(52.dp),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("Sent", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
 
-            transaction.amountSompi?.let { sompi ->
-                Spacer(Modifier.height(2.dp))
-                Text(trimmedKasAmount(sompi), color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            }
-
-            transaction.recipient?.takeIf { it.isNotBlank() }?.let { recipient ->
-                Spacer(Modifier.height(2.dp))
-                MiddleEllipsisText(
-                    "to $recipient",
-                    color = colors.textSecondary,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // The txid, as the link. Middle-truncated because both ends identify it and the
-            // middle does not.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.surface)
-                    .let { base ->
-                        if (explorerUrl != null) base.clickable { uriHandler.openUri(explorerUrl) } else base
+                    transaction.amountSompi?.let { sompi ->
+                        Spacer(Modifier.height(2.dp))
+                        Text(trimmedKasAmount(sompi), color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     }
-                    .padding(16.dp),
-            ) {
-                Text(
-                    if (explorerUrl != null) "Transaction ID · tap to view in $explorerName" else "Transaction ID",
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
-                Spacer(Modifier.height(4.dp))
-                MiddleEllipsisText(
-                    transaction.txId,
-                    color = if (explorerUrl != null) KaspaTeal else colors.textPrimary,
-                    fontSize = 13.sp,
-                )
-            }
 
-            Spacer(Modifier.height(20.dp))
+                    transaction.recipient?.takeIf { it.isNotBlank() }?.let { recipient ->
+                        Spacer(Modifier.height(2.dp))
+                        MiddleEllipsisText(
+                            "to $recipient",
+                            color = colors.textSecondary,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
 
-            Button(
-                onClick = onDone,
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) {
-                Text("Done", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(20.dp))
+
+                    // The txid, as the link. Middle-truncated because both ends identify it and the
+                    // middle does not.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(colors.surface)
+                            .let { base ->
+                                if (explorerUrl != null) base.clickable { uriHandler.openUri(explorerUrl) } else base
+                            }
+                            .padding(16.dp),
+                    ) {
+                        Text(
+                            if (explorerUrl != null) "Transaction ID · tap to view in $explorerName" else "Transaction ID",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        MiddleEllipsisText(
+                            transaction.txId,
+                            color = if (explorerUrl != null) KaspaTeal else colors.textPrimary,
+                            fontSize = 13.sp,
+                        )
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Button(
+                        onClick = onDone,
+                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                    ) {
+                        Text("Done", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

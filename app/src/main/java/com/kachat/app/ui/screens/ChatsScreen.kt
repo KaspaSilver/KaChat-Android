@@ -1796,118 +1796,126 @@ private fun ChatsNewSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background,
-        // iOS's grabber is drawn over the sheet, not in a row above it: the menu is iOS's 380
-        // tall in all (createSheetHeight), with "New" 20 below the top edge.
-        dragHandle = null,
-    ) {
-        Box {
-        when (page) {
-            // Below the grabber, as iOS's navigation bar sits in a sheet.
-            ChatsNewPage.NEW_CHAT, ChatsNewPage.NEW_GROUP -> Box(Modifier.fillMaxHeight().padding(top = 10.dp)) {
-                CreateChatScreen(
-                    onBack = { close() },
-                    onCancel = { page = ChatsNewPage.MENU },
-                    onChatCreated = { address -> close { onChatCreated(address) } },
-                    onGroupCreated = { groupId -> close { onGroupCreated(groupId) } },
-                    startInGroupMode = page == ChatsNewPage.NEW_GROUP,
-                    chatViewModel = chatViewModel,
-                )
-            }
-            ChatsNewPage.JOIN_ROOM -> ChatsNewJoinRoom(
-                name = roomName,
-                onNameChange = {
-                    roomName = it
-                    if (joinState.status != com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.IDLE) {
-                        broadcastViewModel.resetJoinChannelState()
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background,
+            // iOS's grabber is drawn over the sheet, not in a row above it: the menu is iOS's 380
+            // tall in all (createSheetHeight), with "New" 20 below the top edge.
+            dragHandle = null,
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Box {
+                when (page) {
+                    // Below the grabber, as iOS's navigation bar sits in a sheet.
+                    ChatsNewPage.NEW_CHAT, ChatsNewPage.NEW_GROUP -> Box(Modifier.fillMaxHeight().padding(top = 10.dp)) {
+                        CreateChatScreen(
+                            onBack = { close() },
+                            onCancel = { page = ChatsNewPage.MENU },
+                            onChatCreated = { address -> close { onChatCreated(address) } },
+                            onGroupCreated = { groupId -> close { onGroupCreated(groupId) } },
+                            startInGroupMode = page == ChatsNewPage.NEW_GROUP,
+                            chatViewModel = chatViewModel,
+                        )
                     }
-                },
-                error = joinState.message?.takeIf { joinState.status == com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED },
-                onBack = { page = ChatsNewPage.MENU },
-                onJoin = {
-                    if (roomName.isNotBlank()) {
-                        joining = com.kachat.app.util.MessageProtocol.normalizeChannelName(roomName)
-                        broadcastViewModel.joinChannel(roomName)
-                    }
-                },
-            )
-            // The New options as square tiles, three to a row (iOS f81e8d6): New Chat, New Group
-            // Chat, New Public Chat / Send Kaspa, Receive Kaspa, Fund Chatting Address. Each keeps
-            // its old line as the TalkBack hint.
-            ChatsNewPage.MENU -> Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(ChatsNewSheetHeight)
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    stringResource(R.string.chats_new),
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
-                    modifier = Modifier.padding(top = 20.dp),
-                )
-                // 104 dp tiles as on iOS, smaller only where three of them do not fit across.
-                BoxWithConstraints(contentAlignment = Alignment.Center) {
-                    val tileSize = minOf(ChatsNewTileSize, (maxWidth - ChatsNewTileSpacing * 2) / 3)
-                    Column(verticalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                            ChatsNewTile(
-                                size = tileSize,
-                                icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
-                                title = stringResource(R.string.chats_new_chat),
-                                hint = stringResource(R.string.chats_new_chat_subtitle),
-                            ) { page = ChatsNewPage.NEW_CHAT }
-                            ChatsNewTile(
-                                size = tileSize,
-                                icon = Icons.Default.Groups,
-                                title = stringResource(R.string.chats_new_group_chat),
-                                hint = stringResource(R.string.chats_new_group_subtitle),
-                            ) { page = ChatsNewPage.NEW_GROUP }
-                            ChatsNewTile(
-                                size = tileSize,
-                                icon = Icons.Default.Tag,
-                                title = stringResource(R.string.chats_new_public_chat),
-                                hint = stringResource(R.string.chats_new_public_subtitle),
-                            ) {
-                                roomName = ""
-                                joining = null
+                    ChatsNewPage.JOIN_ROOM -> ChatsNewJoinRoom(
+                        name = roomName,
+                        onNameChange = {
+                            roomName = it
+                            if (joinState.status != com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.IDLE) {
                                 broadcastViewModel.resetJoinChannelState()
-                                page = ChatsNewPage.JOIN_ROOM
+                            }
+                        },
+                        error = joinState.message?.takeIf { joinState.status == com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED },
+                        onBack = { page = ChatsNewPage.MENU },
+                        onJoin = {
+                            if (roomName.isNotBlank()) {
+                                joining = com.kachat.app.util.MessageProtocol.normalizeChannelName(roomName)
+                                broadcastViewModel.joinChannel(roomName)
+                            }
+                        },
+                    )
+                    // The New options as square tiles, three to a row (iOS f81e8d6): New Chat, New Group
+                    // Chat, New Public Chat / Send Kaspa, Receive Kaspa, Fund Chatting Address. Each keeps
+                    // its old line as the TalkBack hint.
+                    ChatsNewPage.MENU -> Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(ChatsNewSheetHeight)
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            stringResource(R.string.chats_new),
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            modifier = Modifier.padding(top = 20.dp),
+                        )
+                        // 104 dp tiles as on iOS, smaller only where three of them do not fit across.
+                        BoxWithConstraints(contentAlignment = Alignment.Center) {
+                            val tileSize = minOf(ChatsNewTileSize, (maxWidth - ChatsNewTileSpacing * 2) / 3)
+                            Column(verticalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
+                                        title = stringResource(R.string.chats_new_chat),
+                                        hint = stringResource(R.string.chats_new_chat_subtitle),
+                                    ) { page = ChatsNewPage.NEW_CHAT }
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = Icons.Default.Groups,
+                                        title = stringResource(R.string.chats_new_group_chat),
+                                        hint = stringResource(R.string.chats_new_group_subtitle),
+                                    ) { page = ChatsNewPage.NEW_GROUP }
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = Icons.Default.Tag,
+                                        title = stringResource(R.string.chats_new_public_chat),
+                                        hint = stringResource(R.string.chats_new_public_subtitle),
+                                    ) {
+                                        roomName = ""
+                                        joining = null
+                                        broadcastViewModel.resetJoinChannelState()
+                                        page = ChatsNewPage.JOIN_ROOM
+                                    }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = Icons.Outlined.ArrowCircleUp,
+                                        title = stringResource(R.string.chats_send_kaspa),
+                                        hint = stringResource(R.string.chats_send_kaspa_hint),
+                                    ) { close { onSendKaspa() } }
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = Icons.Outlined.ArrowCircleDown,
+                                        title = stringResource(R.string.receive_kaspa),
+                                        hint = stringResource(R.string.chats_receive_subtitle),
+                                    ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = Icons.Default.QrCode,
+                                        title = stringResource(R.string.chats_fund_chatting_address),
+                                        hint = stringResource(R.string.chats_fund_subtitle),
+                                    ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
+                                }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                            ChatsNewTile(
-                                size = tileSize,
-                                icon = Icons.Outlined.ArrowCircleUp,
-                                title = stringResource(R.string.chats_send_kaspa),
-                                hint = stringResource(R.string.chats_send_kaspa_hint),
-                            ) { close { onSendKaspa() } }
-                            ChatsNewTile(
-                                size = tileSize,
-                                icon = Icons.Outlined.ArrowCircleDown,
-                                title = stringResource(R.string.receive_kaspa),
-                                hint = stringResource(R.string.chats_receive_subtitle),
-                            ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
-                            ChatsNewTile(
-                                size = tileSize,
-                                icon = Icons.Default.QrCode,
-                                title = stringResource(R.string.chats_fund_chatting_address),
-                                hint = stringResource(R.string.chats_fund_subtitle),
-                            ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
-                        }
+                        Spacer(Modifier.weight(1f))
                     }
                 }
-                Spacer(Modifier.weight(1f))
+                IosSheetGrabber(Modifier.align(Alignment.TopCenter))
+                }
             }
-        }
-        IosSheetGrabber(Modifier.align(Alignment.TopCenter))
         }
     }
 }

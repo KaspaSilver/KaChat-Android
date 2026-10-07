@@ -1980,55 +1980,60 @@ private fun OwnAddressHistorySheet(
     }
     com.kachat.app.ui.theme.IosSheetColors {
         ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = LocalAppColors.current.background,
             dragHandle = null,
         ) {
-            Box(Modifier.fillMaxSize()) {
-                when (val target = resolved) {
-                    OwnAddressResolution.Chatting -> IdentityAddressDetailScreen(
-                        onBack = onDismiss,
-                        viewModel = walletViewModel,
-                        onOpenChat = onOpenChat,
-                        closesWithDone = true,
-                    )
-                    is OwnAddressResolution.Spending -> SpendingAddressTxHistoryScreen(
-                        index = target.entry.index,
-                        onBack = onDismiss,
-                        viewModel = walletViewModel,
-                        onOpenChat = onOpenChat,
-                        fallbackEntry = target.entry,
-                        closesWithDone = true,
-                    )
-                    is OwnAddressResolution.Cold -> ColdStorageTxHistoryScreen(
-                        address = target.row.address,
-                        onBack = onDismiss,
-                        viewModel = coldViewModel,
-                        onOpenChat = onOpenChat,
-                        resolvedRow = target.row,
-                        closesWithDone = true,
-                    )
-                    OwnAddressResolution.Unknown, null -> Column(Modifier.fillMaxSize()) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-                            TextButton(onClick = onDismiss) {
-                                Text(
-                                    androidx.compose.ui.res.stringResource(com.kachat.app.R.string.done),
-                                    color = KaspaTeal,
-                                )
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Box(Modifier.fillMaxSize()) {
+                    when (val target = resolved) {
+                        OwnAddressResolution.Chatting -> IdentityAddressDetailScreen(
+                            onBack = onDismiss,
+                            viewModel = walletViewModel,
+                            onOpenChat = onOpenChat,
+                            closesWithDone = true,
+                        )
+                        is OwnAddressResolution.Spending -> SpendingAddressTxHistoryScreen(
+                            index = target.entry.index,
+                            onBack = onDismiss,
+                            viewModel = walletViewModel,
+                            onOpenChat = onOpenChat,
+                            fallbackEntry = target.entry,
+                            closesWithDone = true,
+                        )
+                        is OwnAddressResolution.Cold -> ColdStorageTxHistoryScreen(
+                            address = target.row.address,
+                            onBack = onDismiss,
+                            viewModel = coldViewModel,
+                            onOpenChat = onOpenChat,
+                            resolvedRow = target.row,
+                            closesWithDone = true,
+                        )
+                        OwnAddressResolution.Unknown, null -> Column(Modifier.fillMaxSize()) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                TextButton(onClick = onDismiss) {
+                                    Text(
+                                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.done),
+                                        color = KaspaTeal,
+                                    )
+                                }
                             }
-                        }
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            if (target == null) {
-                                CircularProgressIndicator(color = KaspaTeal)
-                            } else {
-                                Text(
-                                    androidx.compose.ui.res.stringResource(com.kachat.app.R.string.own_address_not_in_wallet),
-                                    color = LocalAppColors.current.textSecondary,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(16.dp),
-                                )
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                if (target == null) {
+                                    CircularProgressIndicator(color = KaspaTeal)
+                                } else {
+                                    Text(
+                                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.own_address_not_in_wallet),
+                                        color = LocalAppColors.current.textSecondary,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(16.dp),
+                                    )
+                                }
                             }
                         }
                     }

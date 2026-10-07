@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -622,96 +626,104 @@ fun SpendingSourcePicker(
         all.filter { !it.hidden || it.balanceSompi > 0 || it.index == currentIndex }
             .sortedWith(compareBy({ if (it.balanceSompi > 0) 0 else 1 }, { it.index }))
     }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-        containerColor = colors.background,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = colors.background,
         ) {
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
-                Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-            }
-            Text(
-                stringResource(R.string.send_from),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 17.sp,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-        if (entries.isEmpty()) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)) {
-                if (loaded) {
-                    Text("—", color = colors.textSecondary)
-                } else {
-                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = colors.textSecondary, strokeWidth = 2.dp)
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
+                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
+                    }
+                    Text(
+                        stringResource(R.string.send_from),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp, bottom = 24.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(colors.surface),
-            ) {
-                itemsIndexed(entries, key = { _, entry -> entry.index }) { position, entry ->
-                    if (position > 0) HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 16.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                if (entries.isEmpty()) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)) {
+                        if (loaded) {
+                            Text("—", color = colors.textSecondary)
+                        } else {
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = colors.textSecondary, strokeWidth = 2.dp)
+                        }
+                    }
+                } else {
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                onPick(entry)
-                                onDismiss()
-                            }
-                            .padding(horizontal = 16.dp, vertical = 11.dp),
+                            .padding(horizontal = 16.dp)
+                            .padding(top = 8.dp, bottom = 24.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.surface),
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    spendingAddressDisplayLabel(entry.index, entry.label),
-                                    color = colors.textPrimary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                if (entry.isCurrent) {
+                        itemsIndexed(entries, key = { _, entry -> entry.index }) { position, entry ->
+                            if (position > 0) HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 16.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onPick(entry)
+                                        onDismiss()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            spendingAddressDisplayLabel(entry.index, entry.label),
+                                            color = colors.textPrimary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 15.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        if (entry.isCurrent) {
+                                            Text(
+                                                stringResource(R.string.primary),
+                                                color = KaspaTeal,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp,
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(KaspaTeal.copy(alpha = 0.15f))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                            )
+                                        }
+                                    }
                                     Text(
-                                        stringResource(R.string.primary),
-                                        color = KaspaTeal,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .background(KaspaTeal.copy(alpha = 0.15f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                                        color = colors.textSecondary,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
                                     )
                                 }
+                                Text(
+                                    "${ChatRepository.formatKas(entry.balanceSompi)} ${KaspaUnit.symbol}",
+                                    color = if (entry.balanceSompi > 0) colors.textPrimary else colors.textSecondary,
+                                    fontSize = 15.sp,
+                                    style = TextStyle(fontFeatureSettings = "tnum"),
+                                )
+                                if (entry.index == currentIndex) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                                }
                             }
-                            Text(
-                                "${entry.address.take(14)}...${entry.address.takeLast(6)}",
-                                color = colors.textSecondary,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                            )
-                        }
-                        Text(
-                            "${ChatRepository.formatKas(entry.balanceSompi)} ${KaspaUnit.symbol}",
-                            color = if (entry.balanceSompi > 0) colors.textPrimary else colors.textSecondary,
-                            fontSize = 15.sp,
-                            style = TextStyle(fontFeatureSettings = "tnum"),
-                        )
-                        if (entry.index == currentIndex) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
                         }
                     }
                 }

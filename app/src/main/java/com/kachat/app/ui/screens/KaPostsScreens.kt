@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import com.kachat.app.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.filled.Forum
@@ -1900,73 +1904,81 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
 
     // A full-height sheet with the grabber, as iOS presents it (.large, drag indicator visible):
     // swiping it down is how it is left - iOS has no Cancel here.
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.background,
-        dragHandle = null,
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    stringResource(R.string.kaposts_schedule_post),
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
-                    modifier = Modifier.padding(top = 20.dp),
-                )
-                Text(
-                    stringResource(R.string.kaposts_schedule_post_note),
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-                Column(Modifier.padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    DatePicker(
-                        state = dateState,
-                        title = null,
-                        headline = null,
-                        showModeToggle = false,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    // iOS's graphical picker carries the time under the month; Material's calendar
-                    // has no time, so the compact clock input sits under it - one sheet still.
-                    TimeInput(state = timeState)
-                    // iOS's picker cannot leave its five-minutes-to-thirty-days range at all;
-                    // Material's time input can, so this says when it has.
-                    if (tooSoon || tooFar) {
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Box(Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
                         Text(
-                            if (tooSoon) "Pick a time at least five minutes from now." else "A post can be scheduled up to thirty days ahead.",
-                            color = colors.danger,
+                            stringResource(R.string.kaposts_schedule_post),
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            modifier = Modifier.padding(top = 20.dp),
+                        )
+                        Text(
+                            stringResource(R.string.kaposts_schedule_post_note),
+                            color = colors.textSecondary,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp),
                         )
+                        Column(Modifier.padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            DatePicker(
+                                state = dateState,
+                                title = null,
+                                headline = null,
+                                showModeToggle = false,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            // iOS's graphical picker carries the time under the month; Material's calendar
+                            // has no time, so the compact clock input sits under it - one sheet still.
+                            TimeInput(state = timeState)
+                            // iOS's picker cannot leave its five-minutes-to-thirty-days range at all;
+                            // Material's time input can, so this says when it has.
+                            if (tooSoon || tooFar) {
+                                Text(
+                                    if (tooSoon) "Pick a time at least five minutes from now." else "A post can be scheduled up to thirty days ahead.",
+                                    color = colors.danger,
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                        Text(
+                            "Schedule for ${formatScheduledTime(chosenMs)}",
+                            color = if (tooSoon || tooFar) colors.textSecondary else Color.Black,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (tooSoon || tooFar) colors.surfaceVariant else KaspaTeal)
+                                .clickable(enabled = !tooSoon && !tooFar) { onPicked(chosenMs) }
+                                .padding(vertical = 12.dp),
+                        )
+                        Spacer(Modifier.height(24.dp))
                     }
+                    com.kachat.app.ui.screens.IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
-                Text(
-                    "Schedule for ${formatScheduledTime(chosenMs)}",
-                    color = if (tooSoon || tooFar) colors.textSecondary else Color.Black,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (tooSoon || tooFar) colors.surfaceVariant else KaspaTeal)
-                        .clickable(enabled = !tooSoon && !tooFar) { onPicked(chosenMs) }
-                        .padding(vertical = 12.dp),
-                )
-                Spacer(Modifier.height(24.dp))
             }
-            com.kachat.app.ui.screens.IosSheetGrabber(Modifier.align(Alignment.TopCenter))
         }
     }
 }
@@ -5686,24 +5698,32 @@ fun KaPostTipSheet(
     if (showCoinControl) {
         val coinControlAddress = if (fundsFromSpending) spendingAddress else chattingAddress
         if (coinControlAddress != null) {
-            ModalBottomSheet(
-                onDismissRequest = { showCoinControl = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = colors.background,
-                dragHandle = null,
-            ) {
-                Box(Modifier.fillMaxSize()) {
-                    CoinControlScreen(
-                        fromAddress = coinControlAddress,
-                        fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
-                        initialSelection = manualUtxos,
-                        onDone = { selection ->
-                            manualUtxos = selection?.takeIf { it.isNotEmpty() }
-                            chatViewModel.setPaymentManualUtxos(manualUtxos)
-                            showCoinControl = false
-                        },
-                        onCancel = { showCoinControl = false },
-                    )
+            com.kachat.app.ui.theme.IosSheetColors {
+                val colors = LocalAppColors.current
+                ModalBottomSheet(
+                    windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+                    onDismissRequest = { showCoinControl = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = colors.background,
+                    dragHandle = null,
+                ) {
+                    // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+                    // its content stays above it.
+                    Column(Modifier.navigationBarsPadding()) {
+                        Box(Modifier.fillMaxSize()) {
+                            CoinControlScreen(
+                                fromAddress = coinControlAddress,
+                                fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
+                                initialSelection = manualUtxos,
+                                onDone = { selection ->
+                                    manualUtxos = selection?.takeIf { it.isNotEmpty() }
+                                    chatViewModel.setPaymentManualUtxos(manualUtxos)
+                                    showCoinControl = false
+                                },
+                                onCancel = { showCoinControl = false },
+                            )
+                        }
+                    }
                 }
             }
         } else {
@@ -6933,20 +6953,28 @@ private fun ExpandableBioText(bio: String) {
     }
 
     if (showFullBio) {
-        ModalBottomSheet(
-            onDismissRequest = { showFullBio = false },
-            containerColor = colors.background,
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                Text(stringResource(R.string.bio), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    bio,
-                    color = colors.textPrimary,
-                    fontSize = 15.sp,
-                    modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 420.dp),
-                )
-                Spacer(Modifier.height(24.dp))
+        com.kachat.app.ui.theme.IosSheetColors {
+            val colors = LocalAppColors.current
+            ModalBottomSheet(
+                windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+                onDismissRequest = { showFullBio = false },
+                containerColor = colors.background,
+            ) {
+                // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+                // its content stays above it.
+                Column(Modifier.navigationBarsPadding()) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                        Text(stringResource(R.string.bio), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            bio,
+                            color = colors.textPrimary,
+                            fontSize = 15.sp,
+                            modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 420.dp),
+                        )
+                        Spacer(Modifier.height(24.dp))
+                    }
+                }
             }
         }
     }

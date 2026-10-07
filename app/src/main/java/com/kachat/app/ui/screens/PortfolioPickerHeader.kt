@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.Spring
@@ -335,125 +339,133 @@ private fun PortfolioActionsSheet(
     // to reorder with only one card.
     val hasOthers = portfolios.size > 1
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-            SheetHeader(
-                title = when (mode) {
-                    SheetMode.MENU -> target.name
-                    SheetMode.RENAME -> "Rename"
-                    SheetMode.REORDER -> "Reorder"
-                    SheetMode.CONFIRM_DELETE -> "Delete Portfolio"
-                },
-                // From a sub-mode this steps back to the menu rather than closing outright, so a
-                // mis-tap costs one tap instead of the whole long press.
-                leadingLabel = if (mode == SheetMode.MENU) "Cancel" else "Back",
-                onLeading = { if (mode == SheetMode.MENU) onDismiss() else mode = SheetMode.MENU },
-                trailingLabel = when (mode) {
-                    SheetMode.RENAME -> "Save"
-                    SheetMode.REORDER -> "Done"
-                    else -> null
-                },
-                trailingEnabled = mode != SheetMode.RENAME || renameText.trim().isNotEmpty(),
-                onTrailing = {
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+                    SheetHeader(
+                        title = when (mode) {
+                            SheetMode.MENU -> target.name
+                            SheetMode.RENAME -> "Rename"
+                            SheetMode.REORDER -> "Reorder"
+                            SheetMode.CONFIRM_DELETE -> "Delete Portfolio"
+                        },
+                        // From a sub-mode this steps back to the menu rather than closing outright, so a
+                        // mis-tap costs one tap instead of the whole long press.
+                        leadingLabel = if (mode == SheetMode.MENU) "Cancel" else "Back",
+                        onLeading = { if (mode == SheetMode.MENU) onDismiss() else mode = SheetMode.MENU },
+                        trailingLabel = when (mode) {
+                            SheetMode.RENAME -> "Save"
+                            SheetMode.REORDER -> "Done"
+                            else -> null
+                        },
+                        trailingEnabled = mode != SheetMode.RENAME || renameText.trim().isNotEmpty(),
+                        onTrailing = {
+                            when (mode) {
+                                SheetMode.RENAME -> onRename(target.id, renameText.trim())
+                                SheetMode.REORDER -> onReorder(reorderDraft.map { it.id })
+                                else -> Unit
+                            }
+                            onDismiss()
+                        }
+                    )
+
                     when (mode) {
-                        SheetMode.RENAME -> onRename(target.id, renameText.trim())
-                        SheetMode.REORDER -> onReorder(reorderDraft.map { it.id })
-                        else -> Unit
-                    }
-                    onDismiss()
-                }
-            )
-
-            when (mode) {
-                SheetMode.MENU -> {
-                    SheetActionRow("Rename", Icons.Default.Edit) {
-                        renameText = target.name
-                        mode = SheetMode.RENAME
-                    }
-                    if (hasOthers) {
-                        SheetActionRow("Reorder Portfolios", Icons.Default.SwapVert) {
-                            reorderDraft = portfolios
-                            mode = SheetMode.REORDER
+                        SheetMode.MENU -> {
+                            SheetActionRow("Rename", Icons.Default.Edit) {
+                                renameText = target.name
+                                mode = SheetMode.RENAME
+                            }
+                            if (hasOthers) {
+                                SheetActionRow("Reorder Portfolios", Icons.Default.SwapVert) {
+                                    reorderDraft = portfolios
+                                    mode = SheetMode.REORDER
+                                }
+                                SheetActionRow("Delete '${target.name}'", Icons.Default.Delete, destructive = true) {
+                                    mode = SheetMode.CONFIRM_DELETE
+                                }
+                            } else {
+                                Text(
+                                    "This is your only portfolio, so it can't be deleted or reordered.",
+                                    color = colors.textSecondary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                )
+                            }
                         }
-                        SheetActionRow("Delete '${target.name}'", Icons.Default.Delete, destructive = true) {
-                            mode = SheetMode.CONFIRM_DELETE
+
+                        SheetMode.RENAME -> {
+                            com.kachat.app.ui.theme.IosTextField(
+                                value = renameText,
+                                onValueChange = { renameText = it },
+                                label = { Text("Portfolio Name") },
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = colors.textPrimary,
+                                    unfocusedTextColor = colors.textPrimary,
+                                    focusedBorderColor = KaspaTeal,
+                                    unfocusedBorderColor = colors.textSecondary,
+                                    focusedLabelColor = KaspaTeal,
+                                    unfocusedLabelColor = colors.textSecondary
+                                ),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                            )
+                            Text(
+                                "Only the name changes. Transactions stay where they are.",
+                                color = colors.textSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
                         }
-                    } else {
-                        Text(
-                            "This is your only portfolio, so it can't be deleted or reordered.",
-                            color = colors.textSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                        )
-                    }
-                }
 
-                SheetMode.RENAME -> {
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = renameText,
-                        onValueChange = { renameText = it },
-                        label = { Text("Portfolio Name") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = colors.textPrimary,
-                            unfocusedTextColor = colors.textPrimary,
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = colors.textSecondary,
-                            focusedLabelColor = KaspaTeal,
-                            unfocusedLabelColor = colors.textSecondary
-                        ),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
-                    )
-                    Text(
-                        "Only the name changes. Transactions stay where they are.",
-                        color = colors.textSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                }
+                        SheetMode.REORDER -> {
+                            // Up/down controls rather than a drag: Compose has no equivalent of the
+                            // native reorderable list iOS gets for free, and a hand-rolled drag was
+                            // removed from the cards on iOS for being unreliable. With at most five
+                            // portfolios these are quicker anyway, and they work with TalkBack.
+                            reorderDraft.forEachIndexed { index, portfolio ->
+                                ReorderRow(
+                                    name = portfolio.name,
+                                    value = formatFiatAmount(
+                                        cardSummaries[portfolio.id]?.currentValue ?: 0.0,
+                                        currencyCode
+                                    ),
+                                    isTarget = portfolio.id == target.id,
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < reorderDraft.lastIndex,
+                                    onMoveUp = { reorderDraft = reorderDraft.swapped(index, index - 1) },
+                                    onMoveDown = { reorderDraft = reorderDraft.swapped(index, index + 1) }
+                                )
+                            }
+                            Text(
+                                "Move a portfolio to change the order its card appears in.",
+                                color = colors.textSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                        }
 
-                SheetMode.REORDER -> {
-                    // Up/down controls rather than a drag: Compose has no equivalent of the
-                    // native reorderable list iOS gets for free, and a hand-rolled drag was
-                    // removed from the cards on iOS for being unreliable. With at most five
-                    // portfolios these are quicker anyway, and they work with TalkBack.
-                    reorderDraft.forEachIndexed { index, portfolio ->
-                        ReorderRow(
-                            name = portfolio.name,
-                            value = formatFiatAmount(
-                                cardSummaries[portfolio.id]?.currentValue ?: 0.0,
-                                currencyCode
-                            ),
-                            isTarget = portfolio.id == target.id,
-                            canMoveUp = index > 0,
-                            canMoveDown = index < reorderDraft.lastIndex,
-                            onMoveUp = { reorderDraft = reorderDraft.swapped(index, index - 1) },
-                            onMoveDown = { reorderDraft = reorderDraft.swapped(index, index + 1) }
-                        )
+                        SheetMode.CONFIRM_DELETE -> {
+                            SheetActionRow("Delete '${target.name}'", Icons.Default.Delete, destructive = true) {
+                                onDelete(target.id)
+                                onDismiss()
+                            }
+                            Text(
+                                "'${target.name}' and its transactions will be deleted. This can't be undone.",
+                                color = colors.textSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                        }
                     }
-                    Text(
-                        "Move a portfolio to change the order its card appears in.",
-                        color = colors.textSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                }
-
-                SheetMode.CONFIRM_DELETE -> {
-                    SheetActionRow("Delete '${target.name}'", Icons.Default.Delete, destructive = true) {
-                        onDelete(target.id)
-                        onDismiss()
-                    }
-                    Text(
-                        "'${target.name}' and its transactions will be deleted. This can't be undone.",
-                        color = colors.textSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
                 }
             }
         }

@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -141,74 +145,79 @@ fun GlobalNotificationSheet(
         // A plain list: the sheet's own background (white in light mode, the raised sheet grey in dark).
         val background = if (colors.isDark) colors.background else colors.surface
         ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = background,
             dragHandle = null,
         ) {
-            Column(Modifier.fillMaxSize()) {
-                // The inline navigation bar: Done (cancellation, left), the title, Clear All (right).
-                Box(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp)) {
-                    TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp)
-                    }
-                    Text(
-                        stringResource(R.string.notifications),
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                    TextButton(
-                        onClick = { store.clearAll() },
-                        enabled = entries.isNotEmpty(),
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                    ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(Modifier.fillMaxSize()) {
+                    // The inline navigation bar: Done (cancellation, left), the title, Clear All (right).
+                    Box(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp)) {
+                        TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                            Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp)
+                        }
                         Text(
-                            stringResource(R.string.notification_center_clear_all),
-                            color = if (entries.isNotEmpty()) KaspaTeal else colors.textTertiary,
-                            fontSize = 17.sp,
-                        )
-                    }
-                }
-                if (entries.isEmpty()) {
-                    Column(
-                        Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-                    ) {
-                        Icon(
-                            Icons.Outlined.Notifications,
-                            contentDescription = null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(44.dp),
-                        )
-                        Text(
-                            stringResource(R.string.notification_center_empty_title),
+                            stringResource(R.string.notifications),
                             color = colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.align(Alignment.Center),
                         )
-                        Text(
-                            stringResource(R.string.notification_center_empty),
-                            color = colors.textSecondary,
-                            fontSize = 15.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 40.dp),
-                        )
-                    }
-                } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(entries, key = { it.id }) { entry ->
-                            GlobalNotificationRow(entry, onClick = { open(entry) })
-                            // Plain-list separator: from where the text starts to the trailing edge.
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = 50.dp),
-                                color = colors.divider,
-                                thickness = 0.5.dp,
+                        TextButton(
+                            onClick = { store.clearAll() },
+                            enabled = entries.isNotEmpty(),
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                        ) {
+                            Text(
+                                stringResource(R.string.notification_center_clear_all),
+                                color = if (entries.isNotEmpty()) KaspaTeal else colors.textTertiary,
+                                fontSize = 17.sp,
                             )
+                        }
+                    }
+                    if (entries.isEmpty()) {
+                        Column(
+                            Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Notifications,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(44.dp),
+                            )
+                            Text(
+                                stringResource(R.string.notification_center_empty_title),
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp,
+                            )
+                            Text(
+                                stringResource(R.string.notification_center_empty),
+                                color = colors.textSecondary,
+                                fontSize = 15.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 40.dp),
+                            )
+                        }
+                    } else {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(entries, key = { it.id }) { entry ->
+                                GlobalNotificationRow(entry, onClick = { open(entry) })
+                                // Plain-list separator: from where the text starts to the trailing edge.
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 50.dp),
+                                    color = colors.divider,
+                                    thickness = 0.5.dp,
+                                )
+                            }
                         }
                     }
                 }

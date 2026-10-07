@@ -1,5 +1,11 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.Column
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import android.os.Build
 import android.view.KeyEvent
 import android.view.View
@@ -66,25 +72,32 @@ fun IosFullSheet(
     val close: () -> Unit = remember(sheetState) {
         { scope.launch { sheetState.hide() }.invokeOnCompletion { latestDismissed() } }
     }
-    ModalBottomSheet(
-        onDismissRequest = { latestDismissed() },
-        sheetState = sheetState,
-        containerColor = LocalAppColors.current.background,
-        dragHandle = null,
-        properties = ModalBottomSheetProperties(securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit, isFocusable = true, shouldDismissOnBackPress = false),
-    ) {
-        val dispatcher = remember { OnBackPressedDispatcher() }
-        val lifecycleOwner = LocalLifecycleOwner.current
-        val owner = remember(lifecycleOwner) {
-            object : OnBackPressedDispatcherOwner {
-                override val onBackPressedDispatcher: OnBackPressedDispatcher = dispatcher
-                override val lifecycle: Lifecycle get() = lifecycleOwner.lifecycle
-            }
-        }
-        SheetWindowBack { if (dispatcher.hasEnabledCallbacks()) dispatcher.onBackPressed() }
-        CompositionLocalProvider(LocalOnBackPressedDispatcherOwner provides owner) {
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                Box(Modifier.fillMaxWidth().height(maxHeight - 10.dp)) { content(close) }
+    com.kachat.app.ui.theme.IosSheetColors {
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = { latestDismissed() },
+            sheetState = sheetState,
+            containerColor = LocalAppColors.current.background,
+            dragHandle = null,
+            properties = ModalBottomSheetProperties(securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit, isFocusable = true, shouldDismissOnBackPress = false),
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                val dispatcher = remember { OnBackPressedDispatcher() }
+                val lifecycleOwner = LocalLifecycleOwner.current
+                val owner = remember(lifecycleOwner) {
+                    object : OnBackPressedDispatcherOwner {
+                        override val onBackPressedDispatcher: OnBackPressedDispatcher = dispatcher
+                        override val lifecycle: Lifecycle get() = lifecycleOwner.lifecycle
+                    }
+                }
+                SheetWindowBack { if (dispatcher.hasEnabledCallbacks()) dispatcher.onBackPressed() }
+                CompositionLocalProvider(LocalOnBackPressedDispatcherOwner provides owner) {
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        Box(Modifier.fillMaxWidth().height(maxHeight - 10.dp)) { content(close) }
+                    }
+                }
             }
         }
     }

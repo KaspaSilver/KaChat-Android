@@ -392,70 +392,78 @@ fun ColdStorageListScreen(
         val colors = LocalAppColors.current
         // A half sheet rather than a dialog box, matching every other menu on this screen. This
         // was the one step in a sheet-shaped flow that still popped a dialog.
-        ModalBottomSheet(
-            onDismissRequest = { pendingKpub = null; viewModel.resetImportState() },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = colors.background,
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+        com.kachat.app.ui.theme.IosSheetColors {
+            val colors = LocalAppColors.current
+            ModalBottomSheet(
+                windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+                onDismissRequest = { pendingKpub = null; viewModel.resetImportState() },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = colors.background,
             ) {
-                Text(
-                    stringResource(R.string.import_cold_storage_account),
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                )
-                Text(
-                    "Give this account a name so you can recognize it.",
-                    color = colors.textSecondary,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    "kpub: ${kpub.take(24)}\u2026",
-                    color = colors.textSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                com.kachat.app.ui.theme.IosTextField(
-                    value = nameInput,
-                    onValueChange = { nameInput = it },
-                    label = { Text(stringResource(R.string.name)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary,
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = colors.textSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (isInvalid) {
-                    Text(
-                        importState.errorMessage ?: "Not a valid kpub",
-                        color = LocalAppColors.current.danger,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    TextButton(
-                        onClick = { pendingKpub = null; viewModel.resetImportState() },
-                        modifier = Modifier.weight(1f),
+                // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+                // its content stays above it.
+                Column(Modifier.navigationBarsPadding()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text(stringResource(R.string.cancel), color = colors.textSecondary)
-                    }
-                    Button(
-                        enabled = nameInput.isNotBlank(),
-                        onClick = { viewModel.importKpub(kpub, nameInput) },
-                        colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.import_action), color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.import_cold_storage_account),
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                        )
+                        Text(
+                            "Give this account a name so you can recognize it.",
+                            color = colors.textSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            "kpub: ${kpub.take(24)}\u2026",
+                            color = colors.textSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        com.kachat.app.ui.theme.IosTextField(
+                            value = nameInput,
+                            onValueChange = { nameInput = it },
+                            label = { Text(stringResource(R.string.name)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary,
+                                focusedBorderColor = KaspaTeal,
+                                unfocusedBorderColor = colors.textSecondary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (isInvalid) {
+                            Text(
+                                importState.errorMessage ?: "Not a valid kpub",
+                                color = LocalAppColors.current.danger,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            TextButton(
+                                onClick = { pendingKpub = null; viewModel.resetImportState() },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.cancel), color = colors.textSecondary)
+                            }
+                            Button(
+                                enabled = nameInput.isNotBlank(),
+                                onClick = { viewModel.importKpub(kpub, nameInput) },
+                                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.import_action), color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -2329,84 +2337,92 @@ private fun ColdStorageAddressActionsSheet(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
-        // either way - so the sheet holds until it is done.
-        // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
-        // belongs to the ViewModel rather than to the sheet, so closing it abandons nothing - the
-        // Address Actions button keeps its spinner and the result still arrives. Holding the
-        // sheet open was only ever protecting a progress readout.
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
+            // either way - so the sheet holds until it is done.
+            // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
+            // belongs to the ViewModel rather than to the sheet, so closing it abandons nothing - the
+            // Address Actions button keeps its spinner and the result still arrives. Holding the
+            // sheet open was only ever protecting a progress readout.
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+            containerColor = colors.background,
         ) {
-            Text(
-                stringResource(R.string.address_actions),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-            )
-
-            if (isDiscovering) {
-                Spacer(Modifier.height(8.dp))
-                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
-                Text(
-                    "Checking address #${progress?.checkingIndex ?: 0}",
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                )
-                Text(
-                    if ((progress?.foundCount ?: 0) == 0) "No used addresses yet"
-                    else "${progress?.foundCount} found so far",
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
-                Text(
-                    "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(12.dp))
-                // The scan runs in the ViewModel's own scope, not the sheet's, so closing the
-                // sheet does not stop it - it keeps running and reports what it found. Holding
-                // the sheet open for the length of a thousand-address sweep was the only reason
-                // to sit and watch it.
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(28.dp),
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Close and Keep Scanning", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.height(8.dp))
-            } else {
-                ActionSheetRow(
-                    icon = Icons.Default.AddCircleOutline,
-                    title = stringResource(R.string.generate_more_addresses),
-                    subtitle = "Reveals the next unused address in this account.",
-                    onClick = onGenerate,
-                )
-                ActionSheetRow(
-                    icon = Icons.Default.Search,
-                    title = stringResource(R.string.discover_addresses),
-                    subtitle = "Finds addresses holding a balance or a KNS domain.",
-                    onClick = onDiscover,
-                )
-                ActionSheetRow(
-                    icon = Icons.Default.Checklist,
-                    title = "Address Visibility",
-                    subtitle = "Check off every address you want on the list, in one sitting.",
-                    onClick = onVisibility,
-                )
-                if (summary != null) {
-                    Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.address_actions),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                    )
+
+                    if (isDiscovering) {
+                        Spacer(Modifier.height(8.dp))
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+                        Text(
+                            "Checking address #${progress?.checkingIndex ?: 0}",
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                        Text(
+                            if ((progress?.foundCount ?: 0) == 0) "No used addresses yet"
+                            else "${progress?.foundCount} found so far",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
+                        Text(
+                            "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
+                            color = colors.textSecondary,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        // The scan runs in the ViewModel's own scope, not the sheet's, so closing the
+                        // sheet does not stop it - it keeps running and reports what it found. Holding
+                        // the sheet open for the length of a thousand-address sweep was the only reason
+                        // to sit and watch it.
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(28.dp),
+                        ) {
+                            Text("Close and Keep Scanning", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    } else {
+                        ActionSheetRow(
+                            icon = Icons.Default.AddCircleOutline,
+                            title = stringResource(R.string.generate_more_addresses),
+                            subtitle = "Reveals the next unused address in this account.",
+                            onClick = onGenerate,
+                        )
+                        ActionSheetRow(
+                            icon = Icons.Default.Search,
+                            title = stringResource(R.string.discover_addresses),
+                            subtitle = "Finds addresses holding a balance or a KNS domain.",
+                            onClick = onDiscover,
+                        )
+                        ActionSheetRow(
+                            icon = Icons.Default.Checklist,
+                            title = "Address Visibility",
+                            subtitle = "Check off every address you want on the list, in one sitting.",
+                            onClick = onVisibility,
+                        )
+                        if (summary != null) {
+                            Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }

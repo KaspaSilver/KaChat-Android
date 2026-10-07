@@ -1950,24 +1950,31 @@ fun ChatThreadScreen(
             myAddress
         }
         if (coinControlAddress != null) {
-            ModalBottomSheet(
-                onDismissRequest = { showPaymentCoinControl = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = LocalAppColors.current.background,
-                dragHandle = null,
-            ) {
-                Box(Modifier.fillMaxSize()) {
-                    CoinControlScreen(
-                        fromAddress = coinControlAddress,
-                        fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
-                        initialSelection = paymentManualUtxos,
-                        onDone = { selection ->
-                            paymentManualUtxos = selection?.takeIf { it.isNotEmpty() }
-                            chatViewModel.setPaymentManualUtxos(paymentManualUtxos)
-                            showPaymentCoinControl = false
-                        },
-                        onCancel = { showPaymentCoinControl = false },
-                    )
+            com.kachat.app.ui.theme.IosSheetColors {
+                ModalBottomSheet(
+                    windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+                    onDismissRequest = { showPaymentCoinControl = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = LocalAppColors.current.background,
+                    dragHandle = null,
+                ) {
+                    // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+                    // its content stays above it.
+                    Column(Modifier.navigationBarsPadding()) {
+                        Box(Modifier.fillMaxSize()) {
+                            CoinControlScreen(
+                                fromAddress = coinControlAddress,
+                                fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
+                                initialSelection = paymentManualUtxos,
+                                onDone = { selection ->
+                                    paymentManualUtxos = selection?.takeIf { it.isNotEmpty() }
+                                    chatViewModel.setPaymentManualUtxos(paymentManualUtxos)
+                                    showPaymentCoinControl = false
+                                },
+                                onCancel = { showPaymentCoinControl = false },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -7384,41 +7391,49 @@ private fun IdentityAddressActionsSheet(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        // Expanded, not half-height: a partially-expanded sheet cuts the last row off.
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            // Expanded, not half-height: a partially-expanded sheet cuts the last row off.
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
         ) {
-            Text(
-                stringResource(R.string.address_actions),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-            )
-            ActionSheetRow(
-                icon = Icons.Default.Key,
-                title = "View Private Key",
-                subtitle = "The key that spends this address. Never share it.",
-                onClick = onPrivateKey,
-            )
-            ActionSheetRow(
-                icon = Icons.Default.Numbers,
-                title = "View Public Key",
-                subtitle = "The public half of this address, for anyone who asks for it.",
-                onClick = onPublicKey,
-            )
-            ActionSheetRow(
-                icon = Icons.Default.Public,
-                title = stringResource(R.string.view_in_explorer),
-                subtitle = "Opens this address on your chosen block explorer.",
-                onClick = onExplorer,
-            )
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        stringResource(R.string.address_actions),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                    )
+                    ActionSheetRow(
+                        icon = Icons.Default.Key,
+                        title = "View Private Key",
+                        subtitle = "The key that spends this address. Never share it.",
+                        onClick = onPrivateKey,
+                    )
+                    ActionSheetRow(
+                        icon = Icons.Default.Numbers,
+                        title = "View Public Key",
+                        subtitle = "The public half of this address, for anyone who asks for it.",
+                        onClick = onPublicKey,
+                    )
+                    ActionSheetRow(
+                        icon = Icons.Default.Public,
+                        title = stringResource(R.string.view_in_explorer),
+                        subtitle = "Opens this address on your chosen block explorer.",
+                        onClick = onExplorer,
+                    )
+                }
+            }
         }
     }
 }
@@ -7941,26 +7956,34 @@ private fun ManageAddressActionsSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+            containerColor = colors.background,
         ) {
-            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Text(
-                subtitle,
-                color = colors.textSecondary,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            content()
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text(
+                        subtitle,
+                        color = colors.textSecondary,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    content()
+                }
+            }
         }
     }
 }
@@ -11729,13 +11752,20 @@ fun ReceiveKaspaQrPage(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = if (white) Color.White else LocalAppColors.current.background,
-        dragHandle = null,
-    ) {
-        Box(Modifier.fillMaxSize()) { content() }
+    com.kachat.app.ui.theme.IosSheetColors {
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = if (white) Color.White else LocalAppColors.current.background,
+            dragHandle = null,
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Box(Modifier.fillMaxSize()) { content() }
+            }
+        }
     }
 }
 
@@ -14473,88 +14503,96 @@ private fun ManageAddressesActionsSheet(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
-        // belongs to the ViewModel rather than to the sheet, so closing it abandons nothing - the
-        // Address Actions button keeps its spinner and the result still arrives. Holding the
-        // sheet open was only ever protecting a progress readout.
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
+            // belongs to the ViewModel rather than to the sheet, so closing it abandons nothing - the
+            // Address Actions button keeps its spinner and the result still arrives. Holding the
+            // sheet open was only ever protecting a progress readout.
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+            containerColor = colors.background,
         ) {
-            Text(
-                stringResource(R.string.address_actions),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-            )
-
-            if (isDiscovering) {
-                Spacer(Modifier.height(8.dp))
-                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
-                Text(
-                    "Checking address #${progress?.checkingIndex ?: 0}",
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                )
-                Text(
-                    if ((progress?.foundCount ?: 0) == 0) "No addresses with a balance or domain yet"
-                    else "${progress?.foundCount} found so far",
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
-                Text(
-                    "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
-                    color = colors.textSecondary,
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(12.dp))
-                // The scan runs in the ViewModel's own scope, not the sheet's, so closing the
-                // sheet does not stop it - it keeps running and reports what it found. Holding
-                // the sheet open for the length of a thousand-address sweep was the only reason
-                // to sit and watch it.
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(28.dp),
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Close and Keep Scanning", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.height(8.dp))
-            } else {
-                ActionSheetRow(
-                    icon = Icons.Default.AddCircleOutline,
-                    title = stringResource(R.string.generate_new_spending_address),
-                    subtitle = "Reveals the next unused address in this wallet.",
-                    onClick = onGenerate,
-                )
-                ActionSheetRow(
-                    icon = Icons.Default.Search,
-                    title = stringResource(R.string.discover_addresses),
-                    subtitle = "Finds addresses holding a balance or a KNS domain.",
-                    onClick = onDiscover,
-                )
-                ActionSheetRow(
-                    icon = Icons.Default.Checklist,
-                    title = "Address Visibility",
-                    subtitle = "Check off every address you want on the list, in one sitting.",
-                    onClick = onVisibility,
-                )
-                ActionSheetRow(
-                    icon = Icons.AutoMirrored.Filled.CallMerge,
-                    title = stringResource(R.string.send_all_kaspa_to_primary_spend),
-                    subtitle = "Sweeps every other address into your primary spending address.",
-                    onClick = onConsolidate,
-                )
-                if (summary != null) {
-                    Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.address_actions),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                    )
+
+                    if (isDiscovering) {
+                        Spacer(Modifier.height(8.dp))
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
+                        Text(
+                            "Checking address #${progress?.checkingIndex ?: 0}",
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                        Text(
+                            if ((progress?.foundCount ?: 0) == 0) "No addresses with a balance or domain yet"
+                            else "${progress?.foundCount} found so far",
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
+                        Text(
+                            "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
+                            color = colors.textSecondary,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        // The scan runs in the ViewModel's own scope, not the sheet's, so closing the
+                        // sheet does not stop it - it keeps running and reports what it found. Holding
+                        // the sheet open for the length of a thousand-address sweep was the only reason
+                        // to sit and watch it.
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(28.dp),
+                        ) {
+                            Text("Close and Keep Scanning", color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    } else {
+                        ActionSheetRow(
+                            icon = Icons.Default.AddCircleOutline,
+                            title = stringResource(R.string.generate_new_spending_address),
+                            subtitle = "Reveals the next unused address in this wallet.",
+                            onClick = onGenerate,
+                        )
+                        ActionSheetRow(
+                            icon = Icons.Default.Search,
+                            title = stringResource(R.string.discover_addresses),
+                            subtitle = "Finds addresses holding a balance or a KNS domain.",
+                            onClick = onDiscover,
+                        )
+                        ActionSheetRow(
+                            icon = Icons.Default.Checklist,
+                            title = "Address Visibility",
+                            subtitle = "Check off every address you want on the list, in one sitting.",
+                            onClick = onVisibility,
+                        )
+                        ActionSheetRow(
+                            icon = Icons.AutoMirrored.Filled.CallMerge,
+                            title = stringResource(R.string.send_all_kaspa_to_primary_spend),
+                            subtitle = "Sweeps every other address into your primary spending address.",
+                            onClick = onConsolidate,
+                        )
+                        if (summary != null) {
+                            Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }
@@ -14636,39 +14674,47 @@ private fun DomainTransferProgressSheet(
         else -> "Working" to 0.1f
     }
 
-    ModalBottomSheet(
-        // Held open for the duration: the work keeps running either way, and a dismissed sheet
-        // would leave an on-chain transfer with nothing reporting on it.
-        onDismissRequest = {},
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.background,
-        dragHandle = null,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp, top = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            // Held open for the duration: the work keeps running either way, and a dismissed sheet
+            // would leave an on-chain transfer with nothing reporting on it.
+            onDismissRequest = {},
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
         ) {
-            Text(
-                "Sending $domainName",
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                textAlign = TextAlign.Center,
-            )
-            LinearProgressIndicator(
-                progress = { fraction },
-                color = KaspaTeal,
-                trackColor = colors.surfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-            Text(
-                "A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes.",
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-            )
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp, top = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Text(
+                        "Sending $domainName",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                    LinearProgressIndicator(
+                        progress = { fraction },
+                        color = KaspaTeal,
+                        trackColor = colors.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Text(
+                        "A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes.",
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
         }
     }
 }

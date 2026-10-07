@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -129,217 +133,224 @@ fun AddToPortfolioSheet(
     val price = priceText.replace(',', '.').toDoubleOrNull()
     val total = if (amount != null && price != null) amount * price else null
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.background) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            if (selectedId == null) {
-                Text("Add to Portfolio", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(
-                    "${if (tx.sent) "Sent" else "Received"} ${formatKasAmount(amountKas)} on " +
-                        SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(timestamp)),
-                    color = colors.textSecondary,
-                    fontSize = 13.sp
-                )
-                // Which portfolios already hold this transaction, so the duplicate is visible
-                // while the choice is being made rather than only after it - same as iOS, and the
-                // same question the swap chooser asks.
-                val duplicateIds = viewModel.portfolioIdsContaining(tx.txId)
-                portfolios.forEach { portfolio ->
-                    val isDuplicate = portfolio.id in duplicateIds
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(colors.surface)
-                            .clickable {
-                                selectedId = portfolio.id
-                                selectedName = portfolio.name
-                                alreadyAdded = isDuplicate
-                            }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(portfolio.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
-                            when {
-                                isDuplicate -> Text(
-                                    "Already added",
-                                    color = Color_Warning,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                portfolio.id == activePortfolioId -> Text(
-                                    "Current",
-                                    color = KaspaTeal,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                        Icon(Icons.Default.KeyboardArrowRight, null, tint = colors.textSecondary)
-                    }
-                }
-            } else {
-                // Back / title / Confirm on one row, the way iOS's navigation bar carries them -
-                // rather than a full-width button the form has to be scrolled past to reach.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { selectedId = null }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                    Text(
-                        selectedName,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(
-                        onClick = {
-                            val finalAmount = amount ?: return@TextButton
-                            viewModel.addTransaction(
-                                type = type,
-                                amountKas = finalAmount,
-                                fiatValue = total ?: 0.0,
-                                timestampMillis = timestamp,
-                                notes = notes.trim().ifBlank { null },
-                                portfolioId = selectedId,
-                                sourceAddress = address,
-                                sourceTxId = tx.txId,
-                            )
-                            onAdded(selectedName)
-                            onDismiss()
-                        },
-                        enabled = amount != null && amount > 0,
-                    ) {
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.background) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    if (selectedId == null) {
+                        Text("Add to Portfolio", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text(
-                            "Confirm",
-                            color = if (amount != null && amount > 0) KaspaTeal else colors.textSecondary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                if (alreadyAdded) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color_Warning.copy(alpha = 0.12f))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Warning, null, tint = Color_Warning, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "This transaction is already in $selectedName. Adding it again will double-count it.",
+                            "${if (tx.sent) "Sent" else "Received"} ${formatKasAmount(amountKas)} on " +
+                                SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(timestamp)),
                             color = colors.textSecondary,
-                            fontSize = 12.sp
+                            fontSize = 13.sp
                         )
-                    }
-                }
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("buy" to "Buy", "sell" to "Sell", "transfer" to stringResource(com.kachat.app.R.string.portfolio_type_transfer)).forEach { (value, label) ->
-                        val active = type == value
-                        Text(
-                            text = label,
-                            color = if (active) KaspaTeal else colors.textSecondary,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (active) KaspaTeal.copy(alpha = 0.15f) else colors.surface)
-                                .clickable { type = value }
-                                .padding(vertical = 10.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                }
-
-                com.kachat.app.ui.theme.IosTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text("Amount (${KaspaUnit.symbol})", color = colors.textSecondary) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                com.kachat.app.ui.theme.IosTextField(
-                    value = priceText,
-                    onValueChange = { priceText = it },
-                    label = { Text("Price per KAS", color = colors.textSecondary) },
-                    trailingIcon = {
-                        if (isLookingUpPrice) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 1.5.dp, modifier = Modifier.size(16.dp), color = colors.textSecondary)
+                        // Which portfolios already hold this transaction, so the duplicate is visible
+                        // while the choice is being made rather than only after it - same as iOS, and the
+                        // same question the swap chooser asks.
+                        val duplicateIds = viewModel.portfolioIdsContaining(tx.txId)
+                        portfolios.forEach { portfolio ->
+                            val isDuplicate = portfolio.id in duplicateIds
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(colors.surface)
+                                    .clickable {
+                                        selectedId = portfolio.id
+                                        selectedName = portfolio.name
+                                        alreadyAdded = isDuplicate
+                                    }
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(portfolio.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
+                                    when {
+                                        isDuplicate -> Text(
+                                            "Already added",
+                                            color = Color_Warning,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        portfolio.id == activePortfolioId -> Text(
+                                            "Current",
+                                            color = KaspaTeal,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                                Icon(Icons.Default.KeyboardArrowRight, null, tint = colors.textSecondary)
+                            }
                         }
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (total != null) {
-                    Text("Total ${formatFiatAmount(total, currencyCode)}", color = colors.textSecondary, fontSize = 13.sp)
-                }
-                com.kachat.app.ui.theme.IosTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Note (optional)", color = colors.textSecondary) },
-                    singleLine = false,
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text("Date", color = colors.textSecondary, fontSize = 12.sp)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { showDatePicker = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Text(
-                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp)),
-                            color = colors.textPrimary,
-                            fontSize = 13.sp
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { showTimePicker = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        Text(
-                            SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp)),
-                            color = colors.textPrimary,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
+                    } else {
+                        // Back / title / Confirm on one row, the way iOS's navigation bar carries them -
+                        // rather than a full-width button the form has to be scrolled past to reach.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { selectedId = null }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                            }
+                            Text(
+                                selectedName,
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = {
+                                    val finalAmount = amount ?: return@TextButton
+                                    viewModel.addTransaction(
+                                        type = type,
+                                        amountKas = finalAmount,
+                                        fiatValue = total ?: 0.0,
+                                        timestampMillis = timestamp,
+                                        notes = notes.trim().ifBlank { null },
+                                        portfolioId = selectedId,
+                                        sourceAddress = address,
+                                        sourceTxId = tx.txId,
+                                    )
+                                    onAdded(selectedName)
+                                    onDismiss()
+                                },
+                                enabled = amount != null && amount > 0,
+                            ) {
+                                Text(
+                                    "Confirm",
+                                    color = if (amount != null && amount > 0) KaspaTeal else colors.textSecondary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
 
-                Text("Transaction", color = colors.textSecondary, fontSize = 12.sp)
-                Text(
-                    tx.txId,
-                    color = colors.textPrimary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    // Recording the txid is what lets a later add of the same transaction warn
-                    // instead of silently double-counting it.
-                    "Recorded with the row, so this transaction is recognised if you add it again.",
-                    color = colors.textSecondary,
-                    fontSize = 11.sp
-                )
-                Spacer(Modifier.height(4.dp))
+                        if (alreadyAdded) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color_Warning.copy(alpha = 0.12f))
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, null, tint = Color_Warning, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "This transaction is already in $selectedName. Adding it again will double-count it.",
+                                    color = colors.textSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("buy" to "Buy", "sell" to "Sell", "transfer" to stringResource(com.kachat.app.R.string.portfolio_type_transfer)).forEach { (value, label) ->
+                                val active = type == value
+                                Text(
+                                    text = label,
+                                    color = if (active) KaspaTeal else colors.textSecondary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (active) KaspaTeal.copy(alpha = 0.15f) else colors.surface)
+                                        .clickable { type = value }
+                                        .padding(vertical = 10.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+
+                        com.kachat.app.ui.theme.IosTextField(
+                            value = amountText,
+                            onValueChange = { amountText = it },
+                            label = { Text("Amount (${KaspaUnit.symbol})", color = colors.textSecondary) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        com.kachat.app.ui.theme.IosTextField(
+                            value = priceText,
+                            onValueChange = { priceText = it },
+                            label = { Text("Price per KAS", color = colors.textSecondary) },
+                            trailingIcon = {
+                                if (isLookingUpPrice) {
+                                    com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 1.5.dp, modifier = Modifier.size(16.dp), color = colors.textSecondary)
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (total != null) {
+                            Text("Total ${formatFiatAmount(total, currencyCode)}", color = colors.textSecondary, fontSize = 13.sp)
+                        }
+                        com.kachat.app.ui.theme.IosTextField(
+                            value = notes,
+                            onValueChange = { notes = it },
+                            label = { Text("Note (optional)", color = colors.textSecondary) },
+                            singleLine = false,
+                            maxLines = 3,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Date", color = colors.textSecondary, fontSize = 12.sp)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { showDatePicker = true },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Text(
+                                    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp)),
+                                    color = colors.textPrimary,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = { showTimePicker = true },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Text(
+                                    SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp)),
+                                    color = colors.textPrimary,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+
+                        Text("Transaction", color = colors.textSecondary, fontSize = 12.sp)
+                        Text(
+                            tx.txId,
+                            color = colors.textPrimary,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            // Recording the txid is what lets a later add of the same transaction warn
+                            // instead of silently double-counting it.
+                            "Recorded with the row, so this transaction is recognised if you add it again.",
+                            color = colors.textSecondary,
+                            fontSize = 11.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                }
             }
         }
     }

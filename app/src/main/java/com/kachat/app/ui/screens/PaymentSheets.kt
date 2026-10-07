@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -155,145 +159,153 @@ fun SendKasSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = { if (!isSending) onDismiss() },
-        sheetState = sheetState,
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = { if (!isSending) onDismiss() },
+            sheetState = sheetState,
+            containerColor = colors.background,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    title,
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                )
-                // iOS truncates the line in the middle, so a long address-like name keeps its end.
-                MiddleEllipsisText(
-                    stringResource(R.string.payment_to_name, recipientName),
-                    color = colors.textSecondary,
-                    fontSize = 15.sp,
-                )
-            }
-
-            // The big centred amount, the KAS/fiat switch and Max - the shared Send Kaspa piece
-            // (iOS 4d0324f).
-            KaspaAmountEntry(
-                fiatAmountState = fiatAmountState,
-                priceInCurrency = priceInCurrency,
-                currencyCode = currencyCode,
-                focusOnAppear = true,
-                onMax = applyMax,
-            )
-
-            // The memo, encrypted to the recipient with the payment and shown in its bubble.
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(colors.surface)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            ) {
-                Icon(Icons.Default.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
-                BasicTextField(
-                    value = note,
-                    onValueChange = { onNoteChange(it.take(MAX_PAYMENT_MEMO_LENGTH)) },
-                    maxLines = 3,
-                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp),
-                    cursorBrush = SolidColor(KaspaTeal),
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { inner ->
-                        Box {
-                            if (note.isEmpty()) {
-                                Text(stringResource(R.string.payment_memo_placeholder), color = colors.textTertiary, fontSize = 16.sp)
-                            }
-                            inner()
-                        }
-                    },
-                )
-            }
-
-            destinationLine?.invoke()
-
-            // The available pill, then the fee card (iOS 62c2773).
-            val sourcePickerHint = stringResource(R.string.send_from_hint)
-            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
                     modifier = Modifier
-                        .weight(1f, fill = false)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.surface)
-                        .then(
-                            if (availableTappable) {
-                                Modifier.clickable(onClickLabel = sourcePickerHint, role = androidx.compose.ui.semantics.Role.Button) { onAvailableClick() }
-                            } else Modifier
-                        )
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        availableText,
-                        color = colors.textSecondary,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textDecoration = if (availableTappable) TextDecoration.Underline else null,
-                        // The balance gives way first on a narrow screen, so the address shows.
-                        modifier = Modifier.weight(1f, fill = false),
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            title,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                        )
+                        // iOS truncates the line in the middle, so a long address-like name keeps its end.
+                        MiddleEllipsisText(
+                            stringResource(R.string.payment_to_name, recipientName),
+                            color = colors.textSecondary,
+                            fontSize = 15.sp,
+                        )
+                    }
+
+                    // The big centred amount, the KAS/fiat switch and Max - the shared Send Kaspa piece
+                    // (iOS 4d0324f).
+                    KaspaAmountEntry(
+                        fiatAmountState = fiatAmountState,
+                        priceInCurrency = priceInCurrency,
+                        currencyCode = currencyCode,
+                        focusOnAppear = true,
+                        onMax = applyMax,
                     )
-                    if (availableTappable && availableSourceLabel != null) {
-                        // Which spending address pays: the primary unless another was picked.
-                        Text("·", color = colors.textSecondary, fontSize = 11.sp)
-                        Text(availableSourceLabel, color = colors.textSecondary, fontSize = 11.sp, maxLines = 1)
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(12.dp),
+
+                    // The memo, encrypted to the recipient with the payment and shown in its bubble.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(colors.surface)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+                        BasicTextField(
+                            value = note,
+                            onValueChange = { onNoteChange(it.take(MAX_PAYMENT_MEMO_LENGTH)) },
+                            maxLines = 3,
+                            textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp),
+                            cursorBrush = SolidColor(KaspaTeal),
+                            modifier = Modifier.fillMaxWidth(),
+                            decorationBox = { inner ->
+                                Box {
+                                    if (note.isEmpty()) {
+                                        Text(stringResource(R.string.payment_memo_placeholder), color = colors.textTertiary, fontSize = 16.sp)
+                                    }
+                                    inner()
+                                }
+                            },
                         )
                     }
-                    if (availableTappable && paysToFreshAddress) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
-                            tint = KaspaTeal,
-                            modifier = Modifier.size(12.dp),
+
+                    destinationLine?.invoke()
+
+                    // The available pill, then the fee card (iOS 62c2773).
+                    val sourcePickerHint = stringResource(R.string.send_from_hint)
+                    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(colors.surface)
+                                .then(
+                                    if (availableTappable) {
+                                        Modifier.clickable(onClickLabel = sourcePickerHint, role = androidx.compose.ui.semantics.Role.Button) { onAvailableClick() }
+                                    } else Modifier
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                availableText,
+                                color = colors.textSecondary,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textDecoration = if (availableTappable) TextDecoration.Underline else null,
+                                // The balance gives way first on a narrow screen, so the address shows.
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (availableTappable && availableSourceLabel != null) {
+                                // Which spending address pays: the primary unless another was picked.
+                                Text("·", color = colors.textSecondary, fontSize = 11.sp)
+                                Text(availableSourceLabel, color = colors.textSecondary, fontSize = 11.sp, maxLines = 1)
+                                Icon(
+                                    Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                            }
+                            if (availableTappable && paysToFreshAddress) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
+                                    tint = KaspaTeal,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    feeControls()
+
+                    if (error != null) {
+                        Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    } else if (amountSompi in 1 until DUST_LIMIT_SOMPI) {
+                        Text(
+                            KaspaUnit.label(stringResource(R.string.payment_dust_warning)),
+                            color = colors.warning,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
                         )
                     }
+
+                    // The button gives its own haptics as the knob moves and reaches the end.
+                    SendActionButton(
+                        title = stringResource(R.string.slide_to_send),
+                        isBusy = isSending,
+                        isEnabled = amountSompi > 0 && !isSending,
+                        onSend = { submit() },
+                    )
                 }
             }
-
-            feeControls()
-
-            if (error != null) {
-                Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
-            } else if (amountSompi in 1 until DUST_LIMIT_SOMPI) {
-                Text(
-                    KaspaUnit.label(stringResource(R.string.payment_dust_warning)),
-                    color = colors.warning,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            // The button gives its own haptics as the knob moves and reaches the end.
-            SendActionButton(
-                title = stringResource(R.string.slide_to_send),
-                isBusy = isSending,
-                isEnabled = amountSompi > 0 && !isSending,
-                onSend = { submit() },
-            )
         }
     }
 
@@ -340,81 +352,89 @@ fun PaymentDetailSheet(
     val isOnChain = !message.id.startsWith("pending_") &&
         message.deliveryStatus != "pending" && message.deliveryStatus != "failed"
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(
-                    painterResource(R.drawable.ic_kaspa_logo),
-                    contentDescription = null,
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(40.dp),
-                )
-                Text(
-                    stringResource(if (isSent) R.string.sent else R.string.payment_received),
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                )
-                if (parts != null) {
-                    Text(
-                        "${parts.first} ${KaspaUnit.symbol}",
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 34.sp,
-                        maxLines = 1,
-                    )
-                    parts.second?.let { note ->
-                        Text(note, color = colors.textPrimary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(
+                            painterResource(R.drawable.ic_kaspa_logo),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(40.dp),
+                        )
+                        Text(
+                            stringResource(if (isSent) R.string.sent else R.string.payment_received),
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                        )
+                        if (parts != null) {
+                            Text(
+                                "${parts.first} ${KaspaUnit.symbol}",
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 34.sp,
+                                maxLines = 1,
+                            )
+                            parts.second?.let { note ->
+                                Text(note, color = colors.textPrimary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                            }
+                        } else {
+                            Text(
+                                message.plaintextBody.orEmpty(),
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        Text(
+                            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(message.blockTimestamp)),
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
                     }
-                } else {
-                    Text(
-                        message.plaintextBody.orEmpty(),
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-                Text(
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(message.blockTimestamp)),
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
-            }
 
-            if (isOnChain) {
-                ActionSheetRow(
-                    icon = Icons.Default.Public,
-                    title = stringResource(R.string.view_in_explorer),
-                    subtitle = stringResource(R.string.payment_explorer_subtitle),
-                ) {
-                    onDismiss()
-                    uriHandler.openUri(explorer.txUrl(message.id))
+                    if (isOnChain) {
+                        ActionSheetRow(
+                            icon = Icons.Default.Public,
+                            title = stringResource(R.string.view_in_explorer),
+                            subtitle = stringResource(R.string.payment_explorer_subtitle),
+                        ) {
+                            onDismiss()
+                            uriHandler.openUri(explorer.txUrl(message.id))
+                        }
+                        val copiedText = stringResource(R.string.transaction_id_copied)
+                        ActionSheetRow(
+                            icon = Icons.Default.ContentCopy,
+                            title = stringResource(R.string.copy_transaction_id),
+                            subtitle = stringResource(R.string.payment_copy_txid_subtitle),
+                        ) {
+                            clipboard.setText(AnnotatedString(message.id))
+                            onDismiss()
+                            Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Text(stringResource(R.string.payment_not_on_chain_yet), color = colors.textSecondary, fontSize = 13.sp)
+                    }
                 }
-                val copiedText = stringResource(R.string.transaction_id_copied)
-                ActionSheetRow(
-                    icon = Icons.Default.ContentCopy,
-                    title = stringResource(R.string.copy_transaction_id),
-                    subtitle = stringResource(R.string.payment_copy_txid_subtitle),
-                ) {
-                    clipboard.setText(AnnotatedString(message.id))
-                    onDismiss()
-                    Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                Text(stringResource(R.string.payment_not_on_chain_yet), color = colors.textSecondary, fontSize = 13.sp)
             }
         }
     }

@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -114,88 +118,96 @@ fun EmojiReactionPickerSheet(
     var recents by remember { mutableStateOf(EmojiRecents.load(context)) }
     var query by remember { mutableStateOf("") }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.background,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-            Text(
-                "React",
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-            )
-            TextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                placeholder = { Text("Search emoji", color = colors.textSecondary) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(12.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colors.surface,
-                    unfocusedContainerColor = colors.surface,
-                    focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary,
-                    cursorColor = KaspaTeal,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-            )
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(8),
-                modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                val trimmed = query.trim().lowercase()
-                val sections = buildList {
-                    if (trimmed.isEmpty()) {
-                        if (recents.isNotEmpty()) add("Recents" to recents)
-                        addAll(EmojiSections)
-                    } else {
-                        EmojiSections.forEach { (title, emojis) ->
-                            val matches = emojis.filter { it.contains(trimmed) || emojiName(it).contains(trimmed) }
-                            if (matches.isNotEmpty()) add(title to matches)
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background,
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                    Text(
+                        "React",
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                    )
+                    TextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        placeholder = { Text("Search emoji", color = colors.textSecondary) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(12.dp)),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            cursorColor = KaspaTeal,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                    )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(8),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        val trimmed = query.trim().lowercase()
+                        val sections = buildList {
+                            if (trimmed.isEmpty()) {
+                                if (recents.isNotEmpty()) add("Recents" to recents)
+                                addAll(EmojiSections)
+                            } else {
+                                EmojiSections.forEach { (title, emojis) ->
+                                    val matches = emojis.filter { it.contains(trimmed) || emojiName(it).contains(trimmed) }
+                                    if (matches.isNotEmpty()) add(title to matches)
+                                }
+                            }
                         }
-                    }
-                }
-                if (sections.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(
-                            "No emoji match that.",
-                            color = colors.textSecondary,
-                            fontSize = 13.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                        )
-                    }
-                }
-                sections.forEach { (title, emojis) ->
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(
-                            title,
-                            color = colors.textSecondary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(top = 10.dp, bottom = 2.dp, start = 4.dp),
-                        )
-                    }
-                    items(emojis) { emoji ->
-                        Box(
-                            modifier = Modifier
-                                .heightIn(min = 40.dp)
-                                .clickable {
-                                    EmojiRecents.record(context, emoji)
-                                    recents = EmojiRecents.load(context)
-                                    onPick(emoji)
-                                    onDismiss()
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(emoji, fontSize = 26.sp)
+                        if (sections.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Text(
+                                    "No emoji match that.",
+                                    color = colors.textSecondary,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                )
+                            }
+                        }
+                        sections.forEach { (title, emojis) ->
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Text(
+                                    title,
+                                    color = colors.textSecondary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(top = 10.dp, bottom = 2.dp, start = 4.dp),
+                                )
+                            }
+                            items(emojis) { emoji ->
+                                Box(
+                                    modifier = Modifier
+                                        .heightIn(min = 40.dp)
+                                        .clickable {
+                                            EmojiRecents.record(context, emoji)
+                                            recents = EmojiRecents.load(context)
+                                            onPick(emoji)
+                                            onDismiss()
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(emoji, fontSize = 26.sp)
+                                }
+                            }
                         }
                     }
                 }

@@ -1063,47 +1063,55 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
     var copied by remember(done.txId) { mutableStateOf(false) }
     var browserUrl by remember { mutableStateOf<String?>(null) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.background,
-    ) {
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
         ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.padding(top = 8.dp).size(48.dp))
-            Text(stringResource(done.title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = TextAlign.Center)
-            Text(stringResource(R.string.kn_sent_note), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
-            Row(
-                Modifier.clip(RoundedCornerShape(50)).background(colors.surface)
-                    .clickable {
-                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(done.txId))
-                        copied = true
-                        view.successHaptic()
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.padding(top = 8.dp).size(48.dp))
+                    Text(stringResource(done.title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.kn_sent_note), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50)).background(colors.surface)
+                            .clickable {
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(done.txId))
+                                copied = true
+                                view.successHaptic()
+                            }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // iOS truncates in the middle: the start and the end of a txid are what people compare.
+                        val id = done.txId
+                        Text(
+                            if (id.length > 28) "${id.take(13)}...${id.takeLast(13)}" else id,
+                            color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
                     }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // iOS truncates in the middle: the start and the end of a txid are what people compare.
-                val id = done.txId
-                Text(
-                    if (id.length > 28) "${id.take(13)}...${id.takeLast(13)}" else id,
-                    color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1
-                )
-                Spacer(Modifier.width(6.dp))
-                Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
-            }
-            KachatButton(
-                stringResource(R.string.view_in_explorer),
-                modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Outlined.Explore,
-                prominent = true,
-                large = true
-            ) { browserUrl = explorerUrl }
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                    KachatButton(
+                        stringResource(R.string.view_in_explorer),
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Outlined.Explore,
+                        prominent = true,
+                        large = true
+                    ) { browserUrl = explorerUrl }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                    }
+                }
             }
         }
     }
@@ -1182,6 +1190,7 @@ fun KachatRegistrationPresenter() {
     key(open.id) {
         com.kachat.app.ui.theme.IosSheetColors {
             ModalBottomSheet(
+                windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = {},
                 sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden }),
                 containerColor = LocalAppColors.current.background,
@@ -1192,7 +1201,11 @@ fun KachatRegistrationPresenter() {
                     shouldDismissOnBackPress = false,
                 ),
             ) {
-                KachatRegistrationProgressContent(open, vm)
+                // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+                // its content stays above it.
+                Column(Modifier.navigationBarsPadding()) {
+                    KachatRegistrationProgressContent(open, vm)
+                }
             }
         }
     }
@@ -1894,6 +1907,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // A swipe, a tap outside or Back closes the form; the progress stays put (Back on it
             // brings it straight back up).
             onDismissRequest = { if (locked) scope.launch { sheetState.show() } else close() },
@@ -1901,84 +1915,88 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
             containerColor = colors.background,
             dragHandle = { KachatSheetGrabber() },
         ) {
-            val shown = registration
-            if (progressId != null && shown != null) {
-                KachatRegistrationProgressContent(shown, vm)
-            } else {
-                Column(Modifier.fillMaxSize()) {
-                    // The inline navigation bar: Cancel (left) and "Claim Name".
-                    Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
-                        TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                            Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                        }
-                        Text(
-                            stringResource(R.string.kn_claim_name_title),
-                            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-                    Column(
-                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp)
-                    ) {
-                        FormSection {
-                            LabeledRow(stringResource(R.string.kl_name), "${target.name}.kachat", bold = false)
-                            SettingsDivider()
-                            val count = maxOf(1, maxYears.toInt())
-                            KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
-                        }
-
-                        FormSection(
-                            header = stringResource(R.string.kn_cost),
-                            footer = {
-                                val q = quote
-                                if (q != null && !q.affordable) FormFooter(KaspaUnit.label(stringResource(R.string.kn_not_enough)), colors.danger)
-                                else FormFooter(stringResource(R.string.kn_claim_footer))
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                val shown = registration
+                if (progressId != null && shown != null) {
+                    KachatRegistrationProgressContent(shown, vm)
+                } else {
+                    Column(Modifier.fillMaxSize()) {
+                        // The inline navigation bar: Cancel (left) and "Claim Name".
+                        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
+                            TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                                Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
                             }
+                            Text(
+                                stringResource(R.string.kn_claim_name_title),
+                                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        Column(
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp)
                         ) {
-                            val q = quote
-                            val qe = quoteError
-                            when {
-                                q != null -> {
-                                    LabeledRow(stringResource(R.string.kn_price_to_miners), "${KaspaUnit.amount(q.price / maxOf(q.years, 1L))} × ${q.years}"); SettingsDivider()
-                                    LabeledRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond)); SettingsDivider()
-                                    LabeledRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit)); SettingsDivider()
-                                    LabeledRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit)); SettingsDivider()
-                                    LabeledRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee)); SettingsDivider()
-                                    LabeledRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true); SettingsDivider()
-                                    LabeledRow(stringResource(R.string.kn_available), KaspaUnit.amount(q.spendable))
-                                }
-                                qe != null -> Text(qe, color = colors.danger, modifier = Modifier.padding(16.dp))
-                                else -> LoadingRow(stringResource(R.string.kl_total))
+                            FormSection {
+                                LabeledRow(stringResource(R.string.kl_name), "${target.name}.kachat", bold = false)
+                                SettingsDivider()
+                                val count = maxOf(1, maxYears.toInt())
+                                KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
                             }
-                        }
 
-                        FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
-                            val params = manifest?.params
-                            val step3 = if (KachatLive.yearlyPeriods(params)) {
-                                stringResource(R.string.kn_claim_step3_cap)
-                            } else {
-                                stringResource(R.string.kn_claim_step3_time, yearsText(maxYears.toInt(), params), KachatLive.duration(params?.renewWindowMs ?: 0L, context))
-                            }
-                            listOf(stringResource(R.string.kn_claim_step1), stringResource(R.string.kn_claim_step2), step3).forEachIndexed { index, text ->
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
-                                    Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                                        Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    }
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(text, color = colors.textPrimary, fontSize = 15.sp)
+                            FormSection(
+                                header = stringResource(R.string.kn_cost),
+                                footer = {
+                                    val q = quote
+                                    if (q != null && !q.affordable) FormFooter(KaspaUnit.label(stringResource(R.string.kn_not_enough)), colors.danger)
+                                    else FormFooter(stringResource(R.string.kn_claim_footer))
                                 }
-                                if (index < 2) SettingsDivider(50.dp)
-                            }
-                        }
-
-                        FormSection(footer = { startError?.let { FormFooter(it, colors.danger) } }) {
-                            FormButtonRow(
-                                stringResource(R.string.kn_claim_name_button, target.name),
-                                enabled = quote?.affordable == true && !starting,
-                                busy = starting
                             ) {
-                                context.kachatAuthorize { start() }
+                                val q = quote
+                                val qe = quoteError
+                                when {
+                                    q != null -> {
+                                        LabeledRow(stringResource(R.string.kn_price_to_miners), "${KaspaUnit.amount(q.price / maxOf(q.years, 1L))} × ${q.years}"); SettingsDivider()
+                                        LabeledRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond)); SettingsDivider()
+                                        LabeledRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit)); SettingsDivider()
+                                        LabeledRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit)); SettingsDivider()
+                                        LabeledRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee)); SettingsDivider()
+                                        LabeledRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true); SettingsDivider()
+                                        LabeledRow(stringResource(R.string.kn_available), KaspaUnit.amount(q.spendable))
+                                    }
+                                    qe != null -> Text(qe, color = colors.danger, modifier = Modifier.padding(16.dp))
+                                    else -> LoadingRow(stringResource(R.string.kl_total))
+                                }
+                            }
+
+                            FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
+                                val params = manifest?.params
+                                val step3 = if (KachatLive.yearlyPeriods(params)) {
+                                    stringResource(R.string.kn_claim_step3_cap)
+                                } else {
+                                    stringResource(R.string.kn_claim_step3_time, yearsText(maxYears.toInt(), params), KachatLive.duration(params?.renewWindowMs ?: 0L, context))
+                                }
+                                listOf(stringResource(R.string.kn_claim_step1), stringResource(R.string.kn_claim_step2), step3).forEachIndexed { index, text ->
+                                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                                        Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+                                            Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(text, color = colors.textPrimary, fontSize = 15.sp)
+                                    }
+                                    if (index < 2) SettingsDivider(50.dp)
+                                }
+                            }
+
+                            FormSection(footer = { startError?.let { FormFooter(it, colors.danger) } }) {
+                                FormButtonRow(
+                                    stringResource(R.string.kn_claim_name_button, target.name),
+                                    enabled = quote?.affordable == true && !starting,
+                                    busy = starting
+                                ) {
+                                    context.kachatAuthorize { start() }
+                                }
                             }
                         }
                     }
@@ -2498,24 +2516,31 @@ fun KachatOwnAgainSheet(name: String, choose: (Boolean) -> Unit) {
     fun pick(yes: Boolean) {
         scope.launch { sheetState.hide() }.invokeOnCompletion { choose(yes) }
     }
-    ModalBottomSheet(onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Icon(KachatSymbols.AtBadgePlus, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
-            Text(
-                stringResource(R.string.kn_register_again_q, name),
-                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center
-            )
-            Text(
-                stringResource(R.string.kn_register_again_body),
-                color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center
-            )
-            Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                KachatButton(stringResource(R.string.kn_register_again), Modifier.fillMaxWidth(), prominent = true, large = true) { pick(true) }
-                KachatButton(stringResource(R.string.not_now), Modifier.fillMaxWidth(), large = true) { pick(false) }
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Icon(KachatSymbols.AtBadgePlus, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
+                    Text(
+                        stringResource(R.string.kn_register_again_q, name),
+                        color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center
+                    )
+                    Text(
+                        stringResource(R.string.kn_register_again_body),
+                        color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center
+                    )
+                    Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        KachatButton(stringResource(R.string.kn_register_again), Modifier.fillMaxWidth(), prominent = true, large = true) { pick(true) }
+                        KachatButton(stringResource(R.string.not_now), Modifier.fillMaxWidth(), large = true) { pick(false) }
+                    }
+                }
             }
         }
     }

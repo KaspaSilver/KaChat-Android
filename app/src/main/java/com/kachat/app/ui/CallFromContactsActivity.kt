@@ -1,5 +1,7 @@
 package com.kachat.app.ui
 
+import androidx.compose.foundation.layout.statusBars
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -205,48 +207,56 @@ private fun ConfirmCallSheet(
 ) {
     val colors = LocalAppColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onCancel,
-        sheetState = sheetState,
-        containerColor = colors.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .navigationBarsPadding()
-                .padding(bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onCancel,
+            sheetState = sheetState,
+            containerColor = colors.background,
         ) {
-            Text(
-                stringResource(R.string.contacts_call_confirm_title, name),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                CallChoice(
-                    label = stringResource(R.string.contacts_call_confirm_voice),
-                    icon = Icons.Filled.Call,
-                    primary = !suggestVideo,
-                    onClick = { onCall(false) },
-                    modifier = Modifier.weight(1f),
-                )
-                CallChoice(
-                    label = stringResource(R.string.contacts_call_confirm_video),
-                    icon = Icons.Filled.Videocam,
-                    primary = suggestVideo,
-                    onClick = { onCall(true) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.cancel), color = colors.textSecondary)
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .navigationBarsPadding()
+                        .padding(bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        stringResource(R.string.contacts_call_confirm_title, name),
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        CallChoice(
+                            label = stringResource(R.string.contacts_call_confirm_voice),
+                            icon = Icons.Filled.Call,
+                            primary = !suggestVideo,
+                            onClick = { onCall(false) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        CallChoice(
+                            label = stringResource(R.string.contacts_call_confirm_video),
+                            icon = Icons.Filled.Videocam,
+                            primary = suggestVideo,
+                            onClick = { onCall(true) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.cancel), color = colors.textSecondary)
+                    }
+                }
             }
         }
     }

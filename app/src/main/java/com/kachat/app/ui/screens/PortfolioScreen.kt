@@ -1,5 +1,9 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.layout.statusBars
+
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.UserFacingError
 import android.content.ActivityNotFoundException
@@ -1750,54 +1754,62 @@ internal fun ChartPairSheet(
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colors.background,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            containerColor = colors.background,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
         ) {
-            Text("Compare Against", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Text(
-                "Tap the price or your value to see it in the pair you pick here. One at a time.",
-                color = colors.textSecondary,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.surface),
-            ) {
-                com.kachat.app.services.ChartPair.entries.forEachIndexed { index, pair ->
-                    if (index > 0) {
-                        HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 56.dp))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Text("Compare Against", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text(
+                        "Tap the price or your value to see it in the pair you pick here. One at a time.",
+                        color = colors.textSecondary,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(colors.surface),
                     ) {
-                        Icon(
-                            chartPairIcon(pair),
-                            contentDescription = null,
-                            tint = chartPairTint(pair),
-                            modifier = Modifier.size(32.dp).padding(end = 6.dp),
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text(pair.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                            Text(pair.subtitle, color = colors.textSecondary, fontSize = 12.sp)
+                        com.kachat.app.services.ChartPair.entries.forEachIndexed { index, pair ->
+                            if (index > 0) {
+                                HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 56.dp))
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(
+                                    chartPairIcon(pair),
+                                    contentDescription = null,
+                                    tint = chartPairTint(pair),
+                                    modifier = Modifier.size(32.dp).padding(end = 6.dp),
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(pair.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                                    Text(pair.subtitle, color = colors.textSecondary, fontSize = 12.sp)
+                                }
+                                com.kachat.app.ui.theme.IosSwitch(
+                                    checked = selected == pair,
+                                    onCheckedChange = { on -> onSelect(if (on) pair else null) }
+                                )
+                            }
                         }
-                        com.kachat.app.ui.theme.IosSwitch(
-                            checked = selected == pair,
-                            onCheckedChange = { on -> onSelect(if (on) pair else null) }
-                        )
                     }
                 }
             }
