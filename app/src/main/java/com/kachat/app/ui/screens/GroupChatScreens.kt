@@ -966,6 +966,7 @@ fun GroupChatThreadScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .closesQuickReactionBar()
                     .padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -1385,8 +1386,7 @@ private fun GroupMessageBubble(
     var showMenu by remember { mutableStateOf(false) }
     // Who reacted to this message, when asked from the long-press menu.
     var showReactions by remember { mutableStateOf(false) }
-    var showQuickReactionBar by remember { mutableStateOf(false) }
-    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+        var menuAnchor by remember { mutableStateOf(Offset.Zero) }
     val canRetry = isSent && message.deliveryStatus == "failed"
     val highlightColor by animateColorAsState(
         if (isHighlighted) KaspaTeal.copy(alpha = 0.18f) else Color.Transparent,
@@ -1420,6 +1420,8 @@ private fun GroupMessageBubble(
                 menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
             }
         ) {
+            // The double-tap bar sits directly above the message, as iOS's does.
+            InlineQuickReactionBar(messageId = message.txId, onReact = onReact, onReply = onReply)
             // Always shown now (own messages say "You"), matching broadcast rooms - previously
             // only incoming messages got a name label at all, so an outgoing message had no
             // sender indicator next to its avatar.
@@ -1460,8 +1462,8 @@ private fun GroupMessageBubble(
 
             Box {
             when {
-                voiceContent != null -> AudioBubble(voiceContent = voiceContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { showQuickReactionBar = true })
-                imageContent != null -> ImageBubble(imageContent = imageContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { showQuickReactionBar = true }, senderDisplayName = senderName)
+                voiceContent != null -> AudioBubble(voiceContent = voiceContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { QuickReactionBarState.activeId = message.txId })
+                imageContent != null -> ImageBubble(imageContent = imageContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { QuickReactionBarState.activeId = message.txId }, senderDisplayName = senderName)
                 else -> {
                     var groupTextLayoutResult by remember(displayContent) { mutableStateOf<TextLayoutResult?>(null) }
                     // Sent bubbles are teal with black text/links for contrast - matches 1:1 chat's
@@ -1505,7 +1507,7 @@ private fun GroupMessageBubble(
                             url = groupInternalLink.raw,
                             txId = message.txId,
                             onSelect = onSelect,
-                            onDoubleTap = { showQuickReactionBar = true }
+                            onDoubleTap = { QuickReactionBarState.activeId = message.txId }
                         )
                     } else if (groupInternalLink == null && isEntirelyLinkGroup) {
                         // Bare-link message: the preview card replaces the text bubble (matches the
@@ -1516,7 +1518,7 @@ private fun GroupMessageBubble(
                             txId = message.txId,
                             fallbackText = displayContent,
                             onSelect = onSelect,
-                            onDoubleTap = { showQuickReactionBar = true },
+                            onDoubleTap = { QuickReactionBarState.activeId = message.txId },
                             isOutgoing = isSent,
                             autoFetch = isSent || linkPreviewAutoFetch
                         )
@@ -1534,7 +1536,7 @@ private fun GroupMessageBubble(
                                     .pointerInput(annotatedGroupBody) {
                                         detectTapGestures(
                                             onLongPress = { showMenu = true },
-                                            onDoubleTap = { showQuickReactionBar = true },
+                                            onDoubleTap = { QuickReactionBarState.activeId = message.txId },
                                             onTap = { offset ->
                                                 val layout = groupTextLayoutResult ?: return@detectTapGestures
                                                 val charOffset = layout.getOffsetForPosition(offset)
@@ -1563,7 +1565,7 @@ private fun GroupMessageBubble(
                         // An internal link is always claimed above as the message itself, so
                         // only an external link can still want a card down here.
                         TextLinkify.findUrls(displayContent).firstOrNull()?.let { match ->
-                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent, autoFetch = isSent || linkPreviewAutoFetch)
+                            LinkPreviewCard(url = match.uri, txId = message.txId, onSelect = onSelect, onDoubleTap = { QuickReactionBarState.activeId = message.txId }, isOutgoing = isSent, autoFetch = isSent || linkPreviewAutoFetch)
                         }
                     }
                 }
@@ -1694,17 +1696,6 @@ private fun GroupMessageBubble(
                 }
             }
 
-            if (showQuickReactionBar) {
-                val settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel()
-                val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
-                QuickReactionBar(
-                    onDismissRequest = { showQuickReactionBar = false },
-                    anchor = menuAnchor,
-                    onReact = onReact,
-                    onReply = onReply,
-                    emojis = quickReactionEmojis
-                )
-            }
 
             // The pill (anchored to the bubble's inner-bottom corner above) is offset ~10dp down,
             // and offset reserves no layout space, so reserve it here - otherwise it overlaps the

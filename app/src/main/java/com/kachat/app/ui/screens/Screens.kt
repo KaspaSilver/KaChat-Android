@@ -43,6 +43,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import com.kachat.app.ui.theme.iosGlass
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -100,6 +103,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.composed
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -431,7 +435,7 @@ fun ChatThreadScreen(
     }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
-    // casual untimed game (the pre-timer behavior). Same CenteredOptionsMenu style, same anchor.
+    // casual untimed game (the pre-timer behavior).
     var showChessTimeControlMenu by remember { mutableStateOf(false) }
     // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
     // Storage > Nextcloud). Picking a file sends its public share link as a normal text message,
@@ -1511,6 +1515,7 @@ fun ChatThreadScreen(
                 state = scrollState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .closesQuickReactionBar()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
@@ -2311,7 +2316,7 @@ fun MessageBubble(
     var showMenu by remember { mutableStateOf(false) }
     // Who reacted to this message, when asked from the long-press menu.
     var showReactions by remember { mutableStateOf(false) }
-    var showQuickReactionBar by remember { mutableStateOf(false) }
+    
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
     val clipboardManager = LocalClipboardManager.current
     val uriHandler = LocalUriHandler.current
@@ -2456,6 +2461,8 @@ fun MessageBubble(
                 menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
             }
         ) {
+        // The double-tap bar sits directly above the bubble, as iOS's does.
+        InlineQuickReactionBar(messageId = message.id, onReact = onReact, onReply = onReply)
         if (replyContent != null) {
             Surface(
                 color = LocalAppColors.current.surfaceVariant,
@@ -2504,7 +2511,7 @@ fun MessageBubble(
                         // One tap opens its details, two still react (iOS PaymentCardTaps).
                         onClick = onOpenPayment,
                         onLongPress = { showMenu = true },
-                        onDoubleClick = { showQuickReactionBar = true }
+                        onDoubleClick = { QuickReactionBarState.activeId = message.id }
                     )
                 } else {
                     Column(horizontalAlignment = if (isSent) Alignment.End else Alignment.Start) {
@@ -2587,14 +2594,14 @@ fun MessageBubble(
                     voiceContent = voiceContent,
                     isSent = isSent,
                     onLongPress = { showMenu = true },
-                    onDoubleClick = { showQuickReactionBar = true }
+                    onDoubleClick = { QuickReactionBarState.activeId = message.id }
                 )
             } else if (imageContent != null) {
                 ImageBubble(
                     imageContent = imageContent,
                     isSent = isSent,
                     onLongPress = { showMenu = true },
-                    onDoubleClick = { showQuickReactionBar = true },
+                    onDoubleClick = { QuickReactionBarState.activeId = message.id },
                     photosBlocked = !isSent && photosBlocked,
                     senderDisplayName = contactAvatarFallback,
                     isRevealed = isPhotoRevealed,
@@ -2617,7 +2624,7 @@ fun MessageBubble(
                             .combinedClickable(
                                 onClick = { showFullText = true },
                                 onLongClick = { showMenu = true },
-                                onDoubleClick = { showQuickReactionBar = true }
+                                onDoubleClick = { QuickReactionBarState.activeId = message.id }
                             )
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -2649,7 +2656,7 @@ fun MessageBubble(
                         txId = message.id,
                         kaspaExplorer = kaspaExplorer,
                         onSelect = onSelect,
-                        onDoubleTap = { showQuickReactionBar = true }
+                        onDoubleTap = { QuickReactionBarState.activeId = message.id }
                     )
                 } else if (isEntirelyLinkMessage) {
                     // Message is nothing but a link - the preview card replaces the plain-text
@@ -2662,7 +2669,7 @@ fun MessageBubble(
                         kaspaExplorer = kaspaExplorer,
                         fallbackText = bodyText,
                         onSelect = onSelect,
-                        onDoubleTap = { showQuickReactionBar = true },
+                        onDoubleTap = { QuickReactionBarState.activeId = message.id },
                         isOutgoing = isSent,
                         autoFetch = linkPreviewAutoFetch
                     )
@@ -2702,7 +2709,7 @@ fun MessageBubble(
                                 .pointerInput(annotatedBody) {
                                     detectTapGestures(
                                         onLongPress = { showMenu = true },
-                                        onDoubleTap = { showQuickReactionBar = true },
+                                        onDoubleTap = { QuickReactionBarState.activeId = message.id },
                                         onTap = { offset ->
                                             val layout = textLayoutResult ?: return@detectTapGestures
                                             val charOffset = layout.getOffsetForPosition(offset)
@@ -2828,17 +2835,6 @@ fun MessageBubble(
                 }
             }
 
-            if (showQuickReactionBar) {
-                val settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel()
-                val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
-                QuickReactionBar(
-                    onDismissRequest = { showQuickReactionBar = false },
-                    anchor = menuAnchor,
-                    onReact = onReact,
-                    onReply = onReply,
-                    emojis = quickReactionEmojis
-                )
-            }
 
             if (reactions.isNotEmpty()) {
                 ReactionPill(
@@ -2864,7 +2860,7 @@ fun MessageBubble(
         // An internal link is always claimed above as the message itself, so only an external
         // link can still want a card down here.
         separateLinkPreviewUrl?.takeIf { internalLinkMatch == null }?.let { url ->
-            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isSent, autoFetch = linkPreviewAutoFetch)
+            LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onSelect = onSelect, onDoubleTap = { QuickReactionBarState.activeId = message.id }, isOutgoing = isSent, autoFetch = linkPreviewAutoFetch)
         }
 
         // The time under every message, and for your own the delivery status after it (iOS
@@ -7765,7 +7761,7 @@ private fun SpendingAddressUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo
  * [WalletViewModel.setManageAddressHidden], which enforces the same rule as a backstop.
  *
  * Everything besides hide/unhide (copy, QR, set primary, rename) lives behind a single overflow
- * button's [CenteredOptionsMenu] rather than a row of icons, so the address itself has room to sit
+ * button's actions sheet rather than a row of icons, so the address itself has room to sit
  * on its own line instead of being squeezed by four icon buttons. Send/receive for a specific
  * address live in [SpendingAddressTxHistoryScreen] instead (reached via `onClick`).
  */
@@ -8064,83 +8060,136 @@ private fun ChatPrivacyAddressRow(
 val QUICK_REACTION_EMOJIS = listOf("👍", "❤️", "😂", "😮", "😢", "🙏")
 
 /**
- * The popup shown when a message bubble is double-tapped: a row of common emoji to react with,
- * plus a reply shortcut in the bottom-right corner - replaces the old behavior where double-tap
- * jumped straight into reply mode, giving an explicit choice between reacting and replying
- * instead. Reuses [CenteredOptionsMenu]'s anchor-positioned card shell with custom content rather
- * than [PopupMenuRow]s.
+ * Which message's quick-reaction bar is open, if any - iOS's screen-level
+ * `activeQuickReactionMessageId`: one bar at a time, and a tap anywhere in the message list
+ * ([closesQuickReactionBar]) closes it.
+ */
+object QuickReactionBarState {
+    var activeId by mutableStateOf<String?>(null)
+}
+
+/**
+ * On a message list: a tap anywhere in it closes the open quick-reaction bar, alongside whatever
+ * else the tap does (iOS's `simultaneousGesture(TapGesture())` on the list). Scrolls don't count.
+ */
+fun Modifier.closesQuickReactionBar(): Modifier = composed {
+    // Leaving the chat closes it too: iOS's bar is the screen's state and goes with it.
+    DisposableEffect(Unit) { onDispose { QuickReactionBarState.activeId = null } }
+    this
+}.pointerInput(Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+        var moved = false
+        while (true) {
+            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
+            if (!change.pressed) {
+                if (!moved && QuickReactionBarState.activeId != null) QuickReactionBarState.activeId = null
+                break
+            }
+        }
+    }
+}
+
+/**
+ * The bar a double-tapped message shows - iOS's `QuickReactionBarView`, laid out directly above
+ * the bubble in the list rather than floating over it: "+" (the full picker, [onMore]) and the
+ * quick emoji in a row, the reply arrow under them at the trailing edge, on the app's frosted
+ * card (18 corners, 14 by 10 inside).
  */
 @Composable
 fun QuickReactionBar(
-    onDismissRequest: () -> Unit,
-    anchor: Offset,
     onReact: (String) -> Unit,
     onReply: () -> Unit,
-    emojis: List<String> = QUICK_REACTION_EMOJIS
+    onMore: () -> Unit,
+    emojis: List<String> = QUICK_REACTION_EMOJIS,
+    modifier: Modifier = Modifier,
 ) {
     val pickerContext = LocalContext.current
-    var showFullPicker by remember { mutableStateOf(false) }
-
-    if (showFullPicker) {
-        EmojiReactionPickerSheet(
-            onDismiss = { showFullPicker = false; onDismissRequest() },
-            onPick = { onReact(it) },
-        )
-        return
-    }
-
-    CenteredOptionsMenu(onDismissRequest = onDismissRequest, anchor = anchor) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(
-                // Six emoji at 26sp plus the picker button run past a 320dp screen once the
-                // reader's font scale is up, and a popup clips rather than shrinks - so the row
-                // scrolls sideways instead of losing its last emoji.
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .iosGlass(18.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(
+            // Six emoji at 26sp plus the picker button run past a 320dp screen once the
+            // reader's font scale is up - the row scrolls sideways rather than losing one.
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Leads the row: the six quick emoji cover the common cases, and this is the way
+            // to any of the others without going to Settings to change which six they are.
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
+                    .clickable(onClick = onMore),
+                contentAlignment = Alignment.Center,
             ) {
-                // Leads the row: the six quick emoji cover the common cases, and this is the way
-                // to any of the others without going to Settings to change which six they are.
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                        .clickable { showFullPicker = true },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "More reactions",
-                        tint = LocalAppColors.current.textSecondary,
-                        modifier = Modifier.size(15.dp),
-                    )
-                }
-                emojis.forEach { emoji ->
-                    Text(
-                        emoji,
-                        fontSize = 26.sp,
-                        modifier = Modifier.clickable {
-                            EmojiRecents.record(pickerContext, emoji)
-                            onReact(emoji)
-                            onDismissRequest()
-                        }
-                    )
-                }
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "More reactions",
+                    tint = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.size(15.dp),
+                )
             }
-            Spacer(Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                IconButton(
-                    onClick = {
-                        onReply()
-                        onDismissRequest()
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = stringResource(R.string.reply), tint = KaspaTeal)
-                }
+            emojis.forEach { emoji ->
+                Text(
+                    emoji,
+                    fontSize = 26.sp,
+                    modifier = Modifier.clickable {
+                        EmojiRecents.record(pickerContext, emoji)
+                        onReact(emoji)
+                    }
+                )
             }
         }
+        Box(
+            Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onReply),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = stringResource(R.string.reply), tint = KaspaTeal, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/**
+ * [QuickReactionBar] for the message [messageId], when its bar is the open one: closes the bar
+ * on any choice and keeps the full picker with the bubble (the bar goes away under it, as iOS's
+ * screen owns its picker). Place it first in the bubble's column, aligned to the bubble's side.
+ */
+@Composable
+fun InlineQuickReactionBar(
+    messageId: String,
+    onReact: (String) -> Unit,
+    onReply: () -> Unit,
+    /** The quick set; the Settings > Chats > Quick Reactions one when the caller has none. */
+    emojis: List<String>? = null,
+) {
+    var showFullPicker by remember { mutableStateOf(false) }
+    if (showFullPicker) {
+        EmojiReactionPickerSheet(
+            onDismiss = { showFullPicker = false },
+            onPick = { onReact(it) },
+        )
+    }
+    if (QuickReactionBarState.activeId == messageId) {
+        val quickSet = emojis ?: run {
+            val settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel()
+            settingsViewModel.quickReactionEmojis.collectAsState().value
+        }
+        QuickReactionBar(
+            onReact = { emoji -> onReact(emoji); QuickReactionBarState.activeId = null },
+            onReply = { onReply(); QuickReactionBarState.activeId = null },
+            onMore = { QuickReactionBarState.activeId = null; showFullPicker = true },
+            emojis = quickSet,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
     }
 }
 
@@ -8200,160 +8249,6 @@ fun ReactionPill(reactions: List<ReactionEntity>, modifier: Modifier = Modifier,
                 }
             }
         }
-    }
-}
-
-/**
- * A small options card, positioned via a real [Dialog] rather than an anchored
- * `DropdownMenu`/`Popup` — see [ManageAddressesScreen]'s Address Actions menu for why: a floating
- * anchored Popup can dismiss itself on the very touch that opened it, since it shares the same
- * composition/touch pass as the button that triggered it. A Dialog is backed by its own Android
- * window, added only once that opening gesture has fully finished, so it doesn't race. It's also
- * how [ChatsScreen]/broadcast rooms' message and avatar context menus avoid a second, unrelated
- * bug: Material3's stock `DropdownMenu` clips its content to its own fixed small internal shape
- * token no matter what shape you pass it, which is what made those menus render with visibly
- * square corners.
- *
- * [anchor], if given, is the window-relative pixel position (`LayoutCoordinates.positionInWindow()`)
- * to hug a corner of instead of centering — e.g. just below a tapped avatar or message, or just
- * above the composer's "+" button. Which corner is picked (and therefore which direction the card
- * grows in) flips per axis based on which half of the screen [anchor] falls in, so it never grows
- * off-screen; since the card's own size isn't known until it's laid out, that placement happens in
- * a second pass, via [Modifier.onSizeChanged], once the real size is measured — the on-screen jump
- * from the first frame's guess is a single frame and not noticeable. With no anchor, the card is
- * centered at the bottom of the screen instead, for a FAB-triggered menu like Address Actions
- * where there's no single on-screen element to sit next to.
- *
- * [content] should be one or more [PopupMenuRow]s, optionally separated by [HorizontalDivider]s.
- */
-@Composable
-fun CenteredOptionsMenu(
-    onDismissRequest: () -> Unit,
-    anchor: Offset? = null,
-    centerHorizontally: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val view = LocalView.current
-        val density = LocalDensity.current
-        val cardWidthDp = 280.dp
-        SideEffect {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
-            // A Dialog's window normally takes input focus when it appears, which dismisses the
-            // soft keyboard if the composer's TextField had it up — these flags are the standard
-            // "popup that doesn't steal focus" combo, so the keyboard (and whatever layout shift
-            // it caused, which [anchor] was captured after) stays exactly as it was.
-            window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
-            // FLAG_NOT_FOCUSABLE (needed above so the keyboard doesn't close) also breaks the
-            // Dialog's own built-in dismissOnClickOutside — it stops delivering ACTION_OUTSIDE once
-            // the window can't take focus. Every branch below rolls its own tap-anywhere-outside
-            // dismiss instead (a full-size scrim behind the card), so every branch's window needs
-            // to actually span the full screen for there to be anything for that scrim to cover.
-            window.setGravity(Gravity.TOP or Gravity.START)
-            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-        }
-        if (anchor != null) {
-            val metrics = view.context.resources.displayMetrics
-            val marginPx = with(density) { 8.dp.toPx() }
-            val horizontalEnd = anchor.x > metrics.widthPixels / 2f
-            val verticalBottom = anchor.y > metrics.heightPixels / 2f
-            var cardSize by remember { mutableStateOf(IntSize.Zero) }
-            val offsetX = if (centerHorizontally) {
-                ((metrics.widthPixels - cardSize.width) / 2f).coerceAtLeast(marginPx)
-            } else {
-                (if (horizontalEnd) anchor.x - cardSize.width else anchor.x).coerceAtLeast(marginPx)
-            }
-            val offsetY = (if (verticalBottom) anchor.y - cardSize.height - marginPx else anchor.y + marginPx).coerceAtLeast(marginPx)
-            // This window now spans the full screen (so the card can be offset to hug whichever
-            // corner it needs to), which leaves no genuine "outside the window" area for the
-            // Dialog's own dismissOnClickOutside to detect — same underlying reason as the
-            // FAB-triggered branch needing none of this. A manual full-size scrim stands in for
-            // it instead; each [PopupMenuRow]'s own clickable consumes its tap before it can reach
-            // this one, so only taps on the blank area around the card actually dismiss it.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = onDismissRequest
-                    )
-            ) {
-                Surface(
-                    color = LocalAppColors.current.surfaceVariant,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier
-                        .widthIn(min = 160.dp, max = cardWidthDp)
-                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                        .onSizeChanged { cardSize = it }
-                ) {
-                    Column(modifier = Modifier.width(IntrinsicSize.Max), content = content)
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = onDismissRequest
-                    )
-                    .padding(bottom = 80.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Surface(
-                    color = LocalAppColors.current.surfaceVariant,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.widthIn(min = 160.dp, max = cardWidthDp)
-                ) {
-                    Column(modifier = Modifier.width(IntrinsicSize.Max), content = content)
-                }
-            }
-        }
-    }
-}
-
-/** One row of a [CenteredOptionsMenu] — icon fixed at a consistent left offset so it lines up the same across every row regardless of label length. */
-@Composable
-fun PopupMenuRow(
-    icon: ImageVector,
-    label: String,
-    labelColor: Color = LocalAppColors.current.textPrimary,
-    iconTint: Color = KaspaTeal,
-    onClick: () -> Unit
-) {
-    PopupMenuRowContent(label, labelColor, onClick) {
-        Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-    }
-}
-
-/** [PopupMenuRow] overload for a custom drawable (e.g. the Kaspa "K" mark) instead of a Material [ImageVector]. */
-@Composable
-fun PopupMenuRow(
-    icon: Painter,
-    label: String,
-    labelColor: Color = LocalAppColors.current.textPrimary,
-    iconTint: Color = KaspaTeal,
-    onClick: () -> Unit
-) {
-    PopupMenuRowContent(label, labelColor, onClick) {
-        Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-    }
-}
-
-@Composable
-private fun PopupMenuRowContent(label: String, labelColor: Color, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        icon()
-        Spacer(Modifier.width(16.dp))
-        Text(label, color = labelColor, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

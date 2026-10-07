@@ -3,6 +3,7 @@ package com.kachat.app.ui.screens
 import com.kachat.app.R
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -793,7 +794,7 @@ private fun ChessChatHistory(messages: List<MessageEntity>, onRetry: (MessageEnt
     LazyColumn(
         state = listState,
         modifier = modifier,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         items(messages, key = { it.id }) { message ->
@@ -802,90 +803,70 @@ private fun ChessChatHistory(messages: List<MessageEntity>, onRetry: (MessageEnt
     }
 }
 
-/** Same green-check/pending/red-error delivery status as the main chat's [MessageBubble], plus
- *  the same long-press "Retry Send" for a failed message - this mini history is otherwise a much
- *  lighter rendering, but a failed send shouldn't be any less recoverable here than in the full
- *  chat it mirrors. */
+/**
+ * One line of the mini history - iOS ChessGameView's `compactMessageRow`: the bubble (footnote,
+ * 10 by 6 inside, 14 corners; the accent with white text for yours, the incoming grey for
+ * theirs) and, for yours, the delivery icon beside it - with a tappable red "Retry" next to it
+ * when the send failed. A long press on a failed message retries it at once (a medium haptic);
+ * there is no menu.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChessChatRow(message: MessageEntity, onRetry: () -> Unit) {
     val isSent = message.direction == "sent"
-    var showMenu by remember { mutableStateOf(false) }
-    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onGloballyPositioned { coords -> menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat()) },
-        horizontalAlignment = if (isSent) Alignment.End else Alignment.Start
+    val canRetry = isSent && ChatViewModel.shouldShowRetryOption(message)
+    val haptic = com.kachat.app.util.rememberHaptics()
+    val retry = {
+        haptic(com.kachat.app.util.IosHaptic.IMPACT_MEDIUM)
+        onRetry()
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, if (isSent) Alignment.End else Alignment.Start),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isSent) Arrangement.End else Arrangement.Start) {
-            Surface(
-                color = if (isSent) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .widthIn(max = 260.dp)
-                    .combinedClickable(
-                        onClick = {},
-                        onLongClick = { if (ChatViewModel.shouldShowRetryOption(message)) showMenu = true }
-                    )
-            ) {
-                Text(
-                    chessChatPreviewText(message),
-                    color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
-        }
         if (isSent) {
-            Row(
-                modifier = Modifier.padding(top = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                when (message.deliveryStatus) {
-                    "failed" -> {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = stringResource(R.string.failed_to_send),
-                            tint = LocalAppColors.current.danger,
-                            modifier = Modifier.size(11.dp)
-                        )
-                        // Tappable "Retry" next to the red error icon, matching the full-screen
-                        // move-status row's Retry affordance.
-                        if (ChatViewModel.shouldShowRetryOption(message)) {
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.retry),
-                                color = LocalAppColors.current.danger,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.clickable { onRetry() }
-                            )
-                        }
-                    }
-                    "pending" -> Icon(
-                        imageVector = Icons.Default.Schedule,
-                        contentDescription = stringResource(R.string.sending),
-                        tint = LocalAppColors.current.textSecondary,
-                        modifier = Modifier.size(11.dp)
-                    )
-                    else -> Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = LocalAppColors.current.success,
-                        modifier = Modifier.size(11.dp)
+            if (canRetry) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.clickable(onClick = retry),
+                ) {
+                    ChessDeliveryIcon(message.deliveryStatus)
+                    Text(
+                        text = stringResource(R.string.retry),
+                        color = LocalAppColors.current.danger,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
+            } else {
+                ChessDeliveryIcon(message.deliveryStatus)
             }
         }
+        Text(
+            chessChatPreviewText(message),
+            color = if (isSent) Color.White else LocalAppColors.current.textPrimary,
+            fontSize = 13.sp,
+            modifier = Modifier
+                // Room for the other side, as iOS's Spacer(minLength: 40).
+                .widthIn(max = 280.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (isSent) KaspaTeal else LocalAppColors.current.incomingBubble)
+                .combinedClickable(onClick = {}, onLongClick = { if (canRetry) retry() })
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        )
     }
-    if (showMenu) {
-        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.Refresh, stringResource(R.string.retry_send)) {
-                onRetry()
-                showMenu = false
-            }
-        }
+}
+
+/** iOS's `statusIcon(for:)` at caption2: green check, grey clock, red or orange exclamation. */
+@Composable
+private fun ChessDeliveryIcon(status: String) {
+    when (status) {
+        "failed" -> Icon(Icons.Default.Error, contentDescription = stringResource(R.string.failed_to_send), tint = LocalAppColors.current.danger, modifier = Modifier.size(11.dp))
+        "pending" -> Icon(Icons.Default.Schedule, contentDescription = stringResource(R.string.sending), tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(11.dp))
+        "warning" -> Icon(Icons.Default.Error, contentDescription = null, tint = LocalAppColors.current.warning, modifier = Modifier.size(11.dp))
+        else -> Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(11.dp))
     }
 }
 

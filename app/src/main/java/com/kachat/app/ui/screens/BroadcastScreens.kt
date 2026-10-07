@@ -1236,7 +1236,7 @@ fun BroadcastChannelScreen(
             }
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize().closesQuickReactionBar().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
@@ -1335,8 +1335,7 @@ fun BroadcastChannelScreen(
                     var showMenu by remember { mutableStateOf(false) }
                     // Who reacted to this message, when the reader asks from the long-press menu.
                     var showReactions by remember { mutableStateOf(false) }
-                    var showQuickReactionBar by remember { mutableStateOf(false) }
-                    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
+                                        var menuAnchor by remember { mutableStateOf(Offset.Zero) }
                     val clipboardManager = LocalClipboardManager.current
                     val menuContext = LocalContext.current
 
@@ -1383,6 +1382,19 @@ fun BroadcastChannelScreen(
                                 menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
                             }
                         ) {
+                            // The double-tap bar sits directly above the message, as iOS's does.
+                            InlineQuickReactionBar(
+                                messageId = message.id,
+                                onReact = { emoji ->
+                                    // Tapping your active emoji removes it; any other emoji
+                                    // adds/replaces — same toggle rule as 1:1/group chats.
+                                    val existing = messageReactions.firstOrNull { it.reactorAddress == myAddress }
+                                    val action = if (existing?.emoji == emoji) "remove" else "add"
+                                    broadcastViewModel.sendReaction(channelName, message.id, emoji, action)
+                                },
+                                onReply = { broadcastViewModel.startReplyTo(message) },
+                                emojis = quickReactionEmojis,
+                            )
                             Text(
                                 addressDisplayName(message.senderAddress, contactAliases[message.senderAddress], senderKnsNames[message.senderAddress], message.senderAddress.takeLast(10)),
                                 color = KaspaTeal,
@@ -1426,7 +1438,7 @@ fun BroadcastChannelScreen(
                                         voiceContent,
                                         isSent = isMine,
                                         onLongPress = { showMenu = true },
-                                        onDoubleClick = { showQuickReactionBar = true }
+                                        onDoubleClick = { QuickReactionBarState.activeId = message.id }
                                     )
                                 } else if (displayContent.length > MESSAGE_TEXT_TRUNCATION_THRESHOLD) {
                                     // See MESSAGE_TEXT_TRUNCATION_THRESHOLD's doc comment in Screens.kt -
@@ -1443,7 +1455,7 @@ fun BroadcastChannelScreen(
                                             .combinedClickable(
                                                 onClick = { showFullText = true },
                                                 onLongClick = { showMenu = true },
-                                                onDoubleClick = { showQuickReactionBar = true }
+                                                onDoubleClick = { QuickReactionBarState.activeId = message.id }
                                             )
                                             .padding(horizontal = 12.dp, vertical = 8.dp)
                                             .widthIn(max = 280.dp)
@@ -1475,7 +1487,7 @@ fun BroadcastChannelScreen(
                                         url = internalLinkMatch.raw,
                                         txId = message.id,
                                         kaspaExplorer = kaspaExplorer,
-                                        onDoubleTap = { showQuickReactionBar = true }
+                                        onDoubleTap = { QuickReactionBarState.activeId = message.id }
                                     )
                                 } else if (isEntirelyLinkMessage) {
                                     // Message is nothing but a link — the shared preview card
@@ -1492,7 +1504,7 @@ fun BroadcastChannelScreen(
                                         txId = message.id,
                                         kaspaExplorer = kaspaExplorer,
                                         fallbackText = displayContent,
-                                        onDoubleTap = { showQuickReactionBar = true },
+                                        onDoubleTap = { QuickReactionBarState.activeId = message.id },
                                         isOutgoing = isMine,
                                         autoFetch = false
                                     )
@@ -1552,7 +1564,7 @@ fun BroadcastChannelScreen(
                                                 .pointerInput(annotatedBody) {
                                                     detectTapGestures(
                                                         onLongPress = { showMenu = true },
-                                                        onDoubleTap = { showQuickReactionBar = true },
+                                                        onDoubleTap = { QuickReactionBarState.activeId = message.id },
                                                         onTap = { offset ->
                                                             val layout = textLayoutResult ?: return@detectTapGestures
                                                             val charOffset = layout.getOffsetForPosition(offset)
@@ -1756,24 +1768,9 @@ fun BroadcastChannelScreen(
                             separateLinkPreviewUrl?.takeIf { internalLinkMatch == null }?.let { url ->
                                 // Tap-to-load for all broadcast previews - see the entire-link
                                 // branch above for why.
-                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { showQuickReactionBar = true }, isOutgoing = isMine, autoFetch = false)
+                                LinkPreviewCard(url = url, txId = message.id, kaspaExplorer = kaspaExplorer, onDoubleTap = { QuickReactionBarState.activeId = message.id }, isOutgoing = isMine, autoFetch = false)
                             }
 
-                            if (showQuickReactionBar) {
-                                QuickReactionBar(
-                                    onDismissRequest = { showQuickReactionBar = false },
-                                    anchor = menuAnchor,
-                                    onReact = { emoji ->
-                                        // Tapping your active emoji removes it; any other emoji
-                                        // adds/replaces — same toggle rule as 1:1/group chats.
-                                        val existing = messageReactions.firstOrNull { it.reactorAddress == myAddress }
-                                        val action = if (existing?.emoji == emoji) "remove" else "add"
-                                        broadcastViewModel.sendReaction(channelName, message.id, emoji, action)
-                                    },
-                                    onReply = { broadcastViewModel.startReplyTo(message) },
-                                    emojis = quickReactionEmojis
-                                )
-                            }
 
                             // The time under every message, exactly as in a 1:1 chat, and under your own
                             // the status after it: "Sending", "Sent" with the green check, "Failed · Tap

@@ -99,8 +99,7 @@ private object CommonEmojis {
 }
 
 /**
- * A native-feeling in-app emoji grid (categorized tabs + scrollable grid), shown as a [Dialog] -
- * matches [CenteredOptionsMenu]'s existing Dialog-based popup convention elsewhere in this file.
+ * A native-feeling in-app emoji grid (categorized tabs + scrollable grid), shown as a [Dialog].
  * Exists so picking a reaction/quick-reaction emoji never has to bring up the full system
  * keyboard just to reach its emoji tab (which also varies by which keyboard app the user has
  * installed) - mirrors iOS's `DesktopEmojiPickerView`, just without a matching full Unicode-scan
