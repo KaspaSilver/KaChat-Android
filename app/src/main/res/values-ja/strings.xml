@@ -147,7 +147,6 @@
     <string name="name_this_address">このアドレスに名前を付ける</string>
     <string name="next">次へ</string>
     <string name="no_conversations_yet">まだ会話がありません</string>
-    <string name="no_matching_chats">一致するチャットがありません</string>
     <string name="no_cold_storage_accounts_yet_scan">まだコールドストレージアカウントがありません。残高を監視してそこから送金するには、KasSignerデバイスからエクスポートされたkpubをスキャンしてください。</string>
     <string name="no_domains_yet">まだドメインがありません。</string>
     <string name="no_hidden_addresses">非表示のアドレスはありません。</string>

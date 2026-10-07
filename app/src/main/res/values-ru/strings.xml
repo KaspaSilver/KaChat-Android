@@ -147,7 +147,6 @@
     <string name="name_this_address">Назвать этот адрес</string>
     <string name="next">Далее</string>
     <string name="no_conversations_yet">Пока нет чатов</string>
-    <string name="no_matching_chats">Нет подходящих чатов</string>
     <string name="no_cold_storage_accounts_yet_scan">Пока нет аккаунтов холодного хранилища. Отсканируйте kpub, экспортированный с вашего устройства KasSigner, чтобы отслеживать его баланс и отправлять с него.</string>
     <string name="no_domains_yet">Доменов пока нет.</string>
     <string name="no_hidden_addresses">Нет скрытых адресов.</string>

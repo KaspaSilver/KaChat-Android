@@ -147,7 +147,6 @@
     <string name="name_this_address">Nomear este endereco</string>
     <string name="next">Proximo</string>
     <string name="no_conversations_yet">Ainda não há conversas</string>
-    <string name="no_matching_chats">Nenhum chat correspondente</string>
     <string name="no_cold_storage_accounts_yet_scan">Ainda nenhuma conta de armazenamento a frio. Escaneie uma kpub exportada do seu dispositivo KasSigner para observar seu saldo e enviar a partir dela.</string>
     <string name="no_domains_yet">Ainda não há domínios.</string>
     <string name="no_hidden_addresses">Nenhum endereco oculto.</string>

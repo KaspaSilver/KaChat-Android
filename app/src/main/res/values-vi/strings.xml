@@ -147,7 +147,6 @@
     <string name="name_this_address">Đặt tên cho địa chỉ này</string>
     <string name="next">Tiếp theo</string>
     <string name="no_conversations_yet">Chưa có cuộc trò chuyện nào</string>
-    <string name="no_matching_chats">Không có trò chuyện phù hợp</string>
     <string name="no_cold_storage_accounts_yet_scan">Chưa có tài khoản lưu trữ lạnh nào. Quét kpub được xuất từ thiết bị KasSigner của bạn để theo dõi số dư và gửi từ đó.</string>
     <string name="no_domains_yet">Chưa có tên miền nào.</string>
     <string name="no_hidden_addresses">Không có địa chỉ ẩn.</string>

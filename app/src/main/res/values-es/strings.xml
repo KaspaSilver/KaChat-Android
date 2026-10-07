@@ -147,7 +147,6 @@
     <string name="name_this_address">Nombrar esta direccion</string>
     <string name="next">Siguiente</string>
     <string name="no_conversations_yet">Aún no hay conversaciones</string>
-    <string name="no_matching_chats">Sin chats coincidentes</string>
     <string name="no_cold_storage_accounts_yet_scan">Aun no hay cuentas de almacenamiento en frio. Escanea una kpub exportada desde tu dispositivo KasSigner para vigilar su saldo y enviar desde ella.</string>
     <string name="no_domains_yet">Aún no hay dominios.</string>
     <string name="no_hidden_addresses">No hay direcciones ocultas.</string>

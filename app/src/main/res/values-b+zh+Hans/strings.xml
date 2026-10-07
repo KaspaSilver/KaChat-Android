@@ -147,7 +147,6 @@
     <string name="name_this_address">为此地址命名</string>
     <string name="next">下一步</string>
     <string name="no_conversations_yet">暂无会话</string>
-    <string name="no_matching_chats">没有匹配的聊天</string>
     <string name="no_cold_storage_accounts_yet_scan">尚无冷存储账户。扫描从您的 KasSigner 设备导出的 kpub 以监控其余额并从中发送。</string>
     <string name="no_domains_yet">还没有域名。</string>
     <string name="no_hidden_addresses">没有隐藏的地址。</string>

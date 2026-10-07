@@ -147,7 +147,6 @@
     <string name="name_this_address">Bu Adresi Adlandir</string>
     <string name="next">Ileri</string>
     <string name="no_conversations_yet">Henüz konuşma yok</string>
-    <string name="no_matching_chats">Eslesen sohbet yok</string>
     <string name="no_cold_storage_accounts_yet_scan">Henuz soguk depolama hesabi yok. Bakiyesini izlemek ve ondan gondermek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin.</string>
     <string name="no_domains_yet">Henüz alan adı yok.</string>
     <string name="no_hidden_addresses">Gizli adres yok.</string>

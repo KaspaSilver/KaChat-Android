@@ -147,7 +147,6 @@
     <string name="name_this_address">تسمية هذا العنوان</string>
     <string name="next">التالي</string>
     <string name="no_conversations_yet">مفيش محادثات لسه</string>
-    <string name="no_matching_chats">لا توجد دردشات مطابقة</string>
     <string name="no_cold_storage_accounts_yet_scan">لا توجد حسابات تخزين بارد بعد. امسح ضوئيًا kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده والإرسال منه.</string>
     <string name="no_domains_yet">لا توجد مجالات حتى الآن.</string>
     <string name="no_hidden_addresses">لا توجد عناوين مخفية.</string>

@@ -147,7 +147,6 @@
     <string name="name_this_address">इस पते को नाम दें</string>
     <string name="next">अगला</string>
     <string name="no_conversations_yet">अभी कोई बातचीत नहीं</string>
-    <string name="no_matching_chats">कोई मेल खाता चैट नहीं</string>
     <string name="no_cold_storage_accounts_yet_scan">अभी तक कोई कोल्ड स्टोरेज खाता नहीं है। इसके बैलेंस पर नज़र रखने और उससे भेजने के लिए अपने KasSigner डिवाइस से निर्यात किया गया kpub स्कैन करें।</string>
     <string name="no_domains_yet">अभी तक कोई डोमेन नहीं.</string>
     <string name="no_hidden_addresses">कोई छिपा हुआ पता नहीं।</string>

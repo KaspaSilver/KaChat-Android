@@ -75,11 +75,11 @@ import com.kachat.app.util.VoiceMessage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.filled.Search
@@ -539,81 +539,7 @@ fun ChatsScreen(
                         }
                     }
                 }
-                if (conversations.isEmpty()) {
-                    // Below the circles row rather than instead of it: only when there are no
-                    // chats at all (iOS a062577).
-                    item(key = "empty_state") {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 100.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_kachat_logo),
-                                contentDescription = null,
-                                modifier = Modifier.size(120.dp),
-                                alpha = 0.5f // Dimmed logo like in screenshot
-                            )
-                            Spacer(Modifier.height(24.dp))
-                            Text(
-                                text = stringResource(R.string.no_conversations_yet),
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = LocalAppColors.current.textPrimary
-                                )
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = stringResource(R.string.start_a_new_chat_by_adding),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = LocalAppColors.current.textSecondary,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(32.dp))
-                            Button(
-                                onClick = { navController.navigate("create_chat") },
-                                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.height(48.dp).padding(horizontal = 24.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.PersonAddAlt1,
-                                        contentDescription = null,
-                                        tint = Color.Black
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text = stringResource(R.string.add_contact),
-                                        color = Color.Black,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else if (filteredConversations.isEmpty()) {
-                    item(key = "no_matching_chats") {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth().padding(top = 48.dp, bottom = 100.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.no_matching_chats),
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = LocalAppColors.current.textPrimary
-                                )
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "No chats match \"$searchQuery\"",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = LocalAppColors.current.textSecondary,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                } else {
+                if (filteredConversations.isNotEmpty()) {
                     // 4.0: the Broadcasts entry card is gone - Broadcasts is a dock tab now,
                     // riding the Chats-slot cycle when the dock is full (matches iOS).
                     items(filteredConversations, key = { it.contact.id }) { convo ->
@@ -722,7 +648,8 @@ fun ChatsScreen(
                         }
                     }
                     item {
-                        val chatCount = conversations.size
+                        // The chats listed - while searching, the ones that match (iOS totalCount).
+                        val chatCount = filteredConversations.size
                         Text(
                             text = "$chatCount ${if (chatCount == 1) "chat" else "chats"}",
                             color = LocalAppColors.current.textSecondary,
@@ -731,6 +658,41 @@ fun ChatsScreen(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                         )
                     }
+                }
+            }
+
+            // Below the circles row rather than over it, and only when there are no chats at all:
+            // a search that matches nothing leaves the list empty, as iOS does (ChatListView
+            // emptyStateView, centred in the list and 120 lower).
+            if (filteredConversations.isEmpty() && searchQuery.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(top = 120.dp)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        Icons.Outlined.Forum,
+                        contentDescription = null,
+                        tint = LocalAppColors.current.textSecondary,
+                        modifier = Modifier.size(60.dp),
+                    )
+                    Text(
+                        stringResource(R.string.no_conversations_yet),
+                        color = LocalAppColors.current.textPrimary,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        stringResource(R.string.start_a_new_chat_by_adding),
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
                 }
             }
 

@@ -249,7 +249,6 @@
     <string name="nextcloud">Nextcloud</string>
     <string name="next">Next</string>
     <string name="no_conversations_yet">No Conversations Yet</string>
-    <string name="no_matching_chats">No Matching Chats</string>
     <string name="no_cold_storage_accounts_yet_scan">No cold storage accounts yet. Scan a kpub exported from your KasSigner device to watch its balance and send from it.</string>
     <string name="no_domains_yet">No domains yet.</string>
     <string name="send_domain">Send Domain</string>

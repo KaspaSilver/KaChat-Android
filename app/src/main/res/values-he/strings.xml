@@ -147,7 +147,6 @@
     <string name="name_this_address">תן שם לכתובת זו</string>
     <string name="next">הבא</string>
     <string name="no_conversations_yet">עדיין אין שיחות</string>
-    <string name="no_matching_chats">אין צ\'אטים תואמים</string>
     <string name="no_cold_storage_accounts_yet_scan">אין עדיין חשבונות אחסון קר. סרוק kpub שיוצא מהמכשיר KasSigner שלך כדי לעקוב אחר היתרה שלו ולשלוח ממנו.</string>
     <string name="no_domains_yet">עדיין אין דומיינים.</string>
     <string name="no_hidden_addresses">אין כתובות מוסתרות.</string>

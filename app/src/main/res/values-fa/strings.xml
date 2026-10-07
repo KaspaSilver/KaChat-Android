@@ -170,7 +170,6 @@
     <string name="network_fee">کارمزد شبکه</string>
     <string name="next">بعدی</string>
     <string name="no_conversations_yet">هنوز گفتگویی وجود ندارد</string>
-    <string name="no_matching_chats">هیچ گفتگوی منطبقی یافت نشد</string>
     <string name="no_cold_storage_accounts_yet_scan">هنوز هیچ حساب ذخیره سردی وجود ندارد. یک kpub صادرشده از دستگاه KasSigner خود را اسکن کنید تا موجودی آن را زیر نظر بگیرید و از آن ارسال کنید.</string>
     <string name="no_domains_yet">هنوز دامنه‌ای وجود ندارد.</string>
     <string name="send_domain">ارسال دامنه</string>
