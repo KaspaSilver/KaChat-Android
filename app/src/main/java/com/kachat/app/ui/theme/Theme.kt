@@ -167,11 +167,12 @@ val IosSheetShape = androidx.compose.foundation.shape.RoundedCornerShape(topStar
 /**
  * The tonal elevation every sheet passes to ModalBottomSheet. Material tints a sheet whose colour
  * is the scheme's surface by its elevation, and with this app's transparent surfaceTint that tint
- * is 5% black: light mode's white sheet ([LightPlainSheetAppColors]) would read #F2F2F2. iOS's is
- * white, so light mode takes none. Dark mode keeps Material's default, as it has rendered so far.
+ * is 5% black: light mode's white sheet ([LightPlainSheetAppColors]) would read #F2F2F2 and dark
+ * mode's #1C1C1E ([DarkSheetAppColors]) #1A1A1C. iOS's are exactly white and #1C1C1E, so neither
+ * theme takes any.
  */
 val IosSheetTonalElevation: androidx.compose.ui.unit.Dp
-    @Composable get() = if (LocalAppColors.current.isDark) 1.dp else 0.dp // 1 = BottomSheetDefaults.Elevation
+    @Composable get() = 0.dp
 
 /**
  * iOS's `.regularMaterial` as it reads on a white sheet in light mode: a faint neutral grey. iOS
