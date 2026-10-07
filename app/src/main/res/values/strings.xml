@@ -1261,4 +1261,8 @@
     <!-- KaPosts schedule sheet (iOS KaPostComposer) -->
     <string name="kaposts_schedule_post">Schedule post</string>
     <string name="kaposts_schedule_post_note">Signed now, posted then - by the indexer, or by this phone if the indexer can\'t be reached.</string>
+    <!-- KaPosts scheduled toast (iOS KaPostsView.scheduleDelayedPost) -->
+    <string name="kaposts_scheduled_for_toast">Scheduled for %1$s</string>
+    <string name="kaposts_scheduled_for_on_phone_toast">Scheduled for %1$s - sends from this phone</string>
+    <string name="kaposts_couldnt_schedule_toast">Couldn\'t schedule: %1$s</string>
 </resources>

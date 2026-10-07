@@ -1198,6 +1198,8 @@ private fun KaPostsFeedScreen(
     }
 
     if (showComposer) {
+        val context = LocalContext.current
+        val is24Hour = com.kachat.app.util.is24HourClock()
         KaPostComposerDialog(
             title = "New Post",
             quoted = null,
@@ -1231,7 +1233,14 @@ private fun KaPostsFeedScreen(
                 showComposer = false
                 restoredComposerText = ""
                 restoredComposerSegments = emptyList()
-                viewModel.schedulePostForLater(text, notBeforeMs)
+                val whenText = formatScheduledTime(notBeforeMs, is24Hour)
+                viewModel.schedulePostForLater(
+                    text,
+                    notBeforeMs,
+                    scheduled = context.getString(R.string.kaposts_scheduled_for_toast, whenText),
+                    scheduledOnPhone = context.getString(R.string.kaposts_scheduled_for_on_phone_toast, whenText),
+                    couldNotSchedule = context.getString(R.string.kaposts_couldnt_schedule_toast),
+                )
             },
             onSaveDraft = { draftText, segments ->
                 KaPostDraftStore.save(draftContext, myAddressForDrafts.orEmpty(), null, draftText, segments)
@@ -6789,15 +6798,18 @@ fun KaPostsToastOverlay(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(toast.message, color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "View",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                        modifier = Modifier.clickable { onViewTx(toast.txId) },
-                    )
+                    // No transaction yet (a scheduled post), no View - as iOS's toast.
+                    if (toast.txId.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "View",
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                            modifier = Modifier.clickable { onViewTx(toast.txId) },
+                        )
+                    }
                 }
             }
         }

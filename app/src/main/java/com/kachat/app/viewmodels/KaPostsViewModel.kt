@@ -71,30 +71,33 @@ class KaPostsViewModel @Inject constructor(
     val scheduledPosts: kotlinx.coroutines.flow.StateFlow<List<com.kachat.app.services.KaPostScheduledEntry>> =
         scheduledStore.entries
 
-    private val _schedulingError = MutableStateFlow<String?>(null)
-    val schedulingError: StateFlow<String?> = _schedulingError.asStateFlow()
-
-    fun clearSchedulingError() { _schedulingError.value = null }
-
     /**
      * Signs [text] now and hands it to the indexer to post at [notBeforeMs]. The coins it spends
      * are reserved until it goes out; if the indexer cannot be reached, this phone sends it the
      * next time KaPosts opens after that time.
+     *
+     * The outcome shows in the action toast, as iOS's scheduleDelayedPost shows it: [scheduled]
+     * ("Scheduled for Sep 24, 2026, 2:30 PM") or [scheduledOnPhone] when the indexer could not
+     * take it, with no View link (nothing is on chain until its time comes), or [couldNotSchedule]
+     * (a "%1$s" format) with what went wrong.
      */
-    fun schedulePostForLater(text: String, notBeforeMs: Long) {
+    fun schedulePostForLater(
+        text: String,
+        notBeforeMs: Long,
+        scheduled: String,
+        scheduledOnPhone: String,
+        couldNotSchedule: String,
+    ) {
         val clean = text.trim()
         if (clean.isEmpty()) return
         viewModelScope.launch {
             try {
                 val built = kaPostsService.buildScheduledPost(clean, mentionedPubkeys(clean))
                 val entry = scheduledStore.add(built, clean, notBeforeMs)
-                _actionToast.value = ActionToast(
-                    message = if (entry.onServer) "Scheduled" else "Scheduled on this phone",
-                    txId = entry.txId,
-                )
+                showActionToast(if (entry.onServer) scheduled else scheduledOnPhone, txId = "")
             } catch (e: Exception) {
                 Log.w(TAG, "Could not schedule a post", e)
-                _schedulingError.value = UserFacingError.message(e, "Could not schedule this post")
+                showActionToast(couldNotSchedule.format(UserFacingError.message(e, "Could not schedule this post")), txId = "")
             }
         }
     }
