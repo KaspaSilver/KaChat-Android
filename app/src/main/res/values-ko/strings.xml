@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">기간은?</string>
     <string name="kn_renew_starts_at_expiry">갱신하면 다음 기간이 오늘이 아니라 현재 만료 시점부터 시작됩니다.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">해제까지</string>
+    <string name="kn_no_names_in_grace">지금은 유예 기간인 이름이 없습니다.</string>
+    <string name="km_grace_appear">.kachat 이름이 출시되면 유예 기간인 이름이 여기에 표시됩니다.</string>
 </resources>

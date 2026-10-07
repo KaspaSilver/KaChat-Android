@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">কতদিনের জন্য?</string>
     <string name="kn_renew_starts_at_expiry">নবায়ন পরের মেয়াদ বর্তমান মেয়াদ শেষ হওয়ার সময় থেকে শুরু করে, আজ থেকে নয়।</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">মুক্ত হবে</string>
+    <string name="kn_no_names_in_grace">এখন কোনো নাম গ্রেস পিরিয়ডে নেই।</string>
+    <string name="km_grace_appear">.kachat নাম চালু হলে গ্রেস পিরিয়ডের নামগুলো এখানে দেখা যাবে।</string>
 </resources>

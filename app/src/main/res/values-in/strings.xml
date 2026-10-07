@@ -985,4 +985,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">Berapa lama?</string>
     <string name="kn_renew_starts_at_expiry">Perpanjangan memulai periode berikutnya pada masa berakhir saat ini, bukan dari hari ini.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">Dilepas dalam</string>
+    <string name="kn_no_names_in_grace">Belum ada nama dalam masa tenggang saat ini.</string>
+    <string name="km_grace_appear">Nama dalam masa tenggang akan muncul di sini setelah nama .kachat diluncurkan.</string>
 </resources>

@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">期間は?</string>
     <string name="kn_renew_starts_at_expiry">更新は次の期間を今日からではなく、現在の有効期限から開始します。</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">解放まで</string>
+    <string name="kn_no_names_in_grace">現在、猶予期間中の名前はありません。</string>
+    <string name="km_grace_appear">.kachat の名前が開始されると、猶予期間中の名前がここに表示されます。</string>
 </resources>

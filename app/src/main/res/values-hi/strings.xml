@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">कितने समय के लिए?</string>
     <string name="kn_renew_starts_at_expiry">नवीनीकरण अगली अवधि मौजूदा समाप्ति से शुरू करता है, आज से नहीं।</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">मुक्त होगा</string>
+    <string name="kn_no_names_in_grace">अभी कोई नाम ग्रेस अवधि में नहीं है।</string>
+    <string name="km_grace_appear">.kachat नाम लॉन्च होने पर ग्रेस अवधि वाले नाम यहाँ दिखेंगे।</string>
 </resources>

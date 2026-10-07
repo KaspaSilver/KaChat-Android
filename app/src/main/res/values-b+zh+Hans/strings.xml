@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">多长时间?</string>
     <string name="kn_renew_starts_at_expiry">续期会从当前到期时间开始下一个周期，而不是从今天开始。</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">释放倒计时</string>
+    <string name="kn_no_names_in_grace">目前没有处于宽限期的名称。</string>
+    <string name="km_grace_appear">.kachat 名称上线后，处于宽限期的名称会显示在这里。</string>
 </resources>

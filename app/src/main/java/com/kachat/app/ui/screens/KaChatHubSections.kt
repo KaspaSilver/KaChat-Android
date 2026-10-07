@@ -290,10 +290,14 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             }
             // Registrations in flight: the claims button in the top bar (KachatClaimsButton, iOS b219bb0).
             UnderlineTabBar(
-                // Names for sale, expired names anyone may claim, and everything that happens in
-                // the registry. Your own names (and the offers you made) live in Profile > Your
-                // Domains (iOS 0765ce0, eea52b2).
-                titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.kn_available), stringResource(R.string.km_activity)),
+                // Names for sale, names in their grace period (counting down to release), expired
+                // names anyone may claim, and everything that happens in the registry. Your own
+                // names (and the offers you made) live in Profile > Your Domains (iOS 0765ce0,
+                // eea52b2, cb3c27d).
+                titles = listOf(
+                    stringResource(R.string.km_marketplace), stringResource(R.string.kn_status_expired),
+                    stringResource(R.string.kn_available), stringResource(R.string.km_activity)
+                ),
                 selectedIndex = page,
                 onSelect = { page = it },
             )
@@ -303,7 +307,8 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             if (isLive || !com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                 when (page) {
                     0 -> KachatLiveMarketPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
-                    1 -> KachatLiveAvailablePage(
+                    1 -> KachatLiveExpiredPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
+                    2 -> KachatLiveAvailablePage(
                         live,
                         onOpen = { liveSheet = KachatHubSheet.Detail(it) },
                         onClaim = { liveSheet = KachatHubSheet.Claim(it) },
@@ -313,7 +318,8 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             } else {
                 when (page) {
                     0 -> MarketPage(onOpenListing = { openListing = true })
-                    1 -> AvailablePage()
+                    1 -> ExpiredPage()
+                    2 -> AvailablePage()
                     else -> ActivityPage()
                 }
             }
@@ -461,6 +467,24 @@ private fun MarketPage(onOpenListing: () -> Unit) {
 private fun TilePlaceholder(onClick: (() -> Unit)? = null) {
     KachatNameTile(name = null, onClick = onClick) {
         Redacted(60, 15)
+    }
+}
+
+@Composable
+private fun ExpiredPage() {
+    val colors = LocalAppColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
+        SectionHeader(stringResource(R.string.kn_status_expired), null)
+        KachatNameGrid(List(2) { it }) {
+            TilePlaceholder()
+        }
+        Text(
+            stringResource(R.string.km_grace_appear),
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

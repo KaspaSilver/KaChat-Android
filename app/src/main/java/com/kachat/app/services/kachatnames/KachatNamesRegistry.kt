@@ -489,6 +489,29 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
+    /**
+     * Names that expired and are still in their grace period (only their owner can renew them),
+     * soonest release first: each is free to claim at `expiresAt + graceMs` (the Expired tab, iOS
+     * cb3c27d). The indexer serves `GET /names/grace` (kachat-indexer docs/KACHAT_NAMES_GRACE.md);
+     * an indexer without it yet is answered from this device's own chain walk when it has one.
+     */
+    suspend fun inGrace(): List<NameInfo> {
+        prepare()
+        val grace = graceMs
+        val fromChain = { (_chainState.value?.names ?: emptyList()).map { RegistryState.info(it) } }
+        val all = when (val src = _source.value) {
+            is Source.Indexer -> try {
+                IndexerApi.NameJson.parseNames(get(src.base, "/names/grace")).mapNotNull { it.info(::keyOf) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                fromChain()
+            }
+            else -> fromChain()
+        }
+        return inGracePeriod(all, grace)
+    }
+
     /** Open offers on a name. Without an indexer only the offers this device made are known. */
     suspend fun offers(name: String): List<OfferInfo> {
         prepare()
@@ -953,6 +976,10 @@ class KachatNamesRegistry @Inject constructor(
         /** When the next of [names] lapses (unix ms), null when none is left to lapse ([dropLapsed]). */
         fun nextLapse(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Long? =
             names.map { it.expiresAt + graceMs }.filter { it > nowMs }.minOrNull()
+
+        /** Expired names still in their grace period, soonest release first (iOS cb3c27d `inGrace`). */
+        fun inGracePeriod(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
+            names.filter { it.status(graceMs, nowMs) == Status.GRACE }.sortedBy { it.expiresAt }
 
         /** Lapsed names anyone may claim, oldest expiry first (the Available tab, iOS eea52b2). */
         fun reclaimable(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =

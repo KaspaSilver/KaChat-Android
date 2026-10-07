@@ -266,6 +266,24 @@ object KachatLive {
             .formatMeasures(*measures.toTypedArray())
     }
 
+    /**
+     * Time left until a moment, for a live countdown (iOS cb3c27d `KachatLive.countdown`): "2d 5h"
+     * while days remain, else "1:04:09" or "4:09" (hours, minutes, seconds).
+     */
+    fun countdown(ms: Long, context: Context): String {
+        val s = maxOf(ms, 0L) / 1000
+        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+        return when {
+            s >= 86_400 -> timeLeft(
+                listOf(KachatNamesActions.TimeLeftUnit.DAY to s / 86_400, KachatNamesActions.TimeLeftUnit.HOUR to (s % 86_400) / 3600)
+                    .filter { it.second > 0 },
+                context
+            )
+            s >= 3600 -> String.format(locale, "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+            else -> String.format(locale, "%d:%02d", s / 60, s % 60)
+        }
+    }
+
     /** iOS `.relative(presentation: .named)`: "2 hours ago", "yesterday". */
     fun relative(ms: Long): String =
         DateUtils.getRelativeTimeSpanString(ms, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
@@ -394,6 +412,8 @@ class KachatLiveViewModel @Inject constructor(
     var search by mutableStateOf<Search>(Search.Idle); private set
     var listings by mutableStateOf<List<NameInfo>>(emptyList()); private set
     var lapsed by mutableStateOf<List<NameInfo>>(emptyList()); private set
+    /** Expired and still in grace: the Expired tab, with a countdown to each release (iOS cb3c27d). */
+    var grace by mutableStateOf<List<NameInfo>>(emptyList()); private set
     var mine by mutableStateOf<List<NameInfo>>(emptyList()); private set
     var myOffers by mutableStateOf<List<OfferInfo>>(emptyList()); private set
     var activity by mutableStateOf<List<Event>>(emptyList()); private set
@@ -452,6 +472,13 @@ class KachatLiveViewModel @Inject constructor(
         try {
             listings = registry.listings()
             lapsed = registry.lapsed()
+            grace = try {
+                registry.inGrace()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
             val me = myKey
             if (me != null) {
                 mine = registry.names(me, includeInactive = true)
@@ -1546,6 +1573,57 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
                             modifier = Modifier.clip(RoundedCornerShape(50)).background(colors.warning.copy(alpha = 0.15f))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Expired: names that expired and are still in their grace period. Only their owner can renew
+ * them, and each counts down to the moment it is released to Available - for anyone waiting to
+ * claim a name they want (iOS cb3c27d `KachatLiveExpiredPage`). [vm] null: mainnet, empty.
+ */
+@Composable
+fun KachatLiveExpiredPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // names whose release already reloaded the hub (once each)
+    val reloadedFor = remember { mutableSetOf<String>() }
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
+        KachatLiveSectionHeader(stringResource(R.string.kn_status_expired), null)
+        if (vm == null || vm.grace.isEmpty()) {
+            KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_names_in_grace) else null)
+        } else {
+            val colors = LocalAppColors.current
+            val manifest by vm.service.manifest.collectAsState()
+            val graceMs = manifest?.params?.graceMs ?: 0L
+            // ticks every second for the countdowns
+            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(1_000)
+                    now = System.currentTimeMillis()
+                }
+            }
+            KachatNameGrid(vm.grace) { n ->
+                val left = n.expiresAt + graceMs - now
+                // released: it moves to Available
+                LaunchedEffect(left <= 0) {
+                    if (left <= 0 && reloadedFor.add(n.name)) scope.launch { vm.reload() }
+                }
+                KachatNameTile(n.name, onClick = { onOpen(n) }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(R.string.kn_released_in), color = colors.textSecondary, fontSize = 11.sp)
+                        Text(
+                            KachatLive.countdown(left, context),
+                            color = colors.warning, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum")
+                        )
+                    }
+                    KachatLive.price(vm.registry, n.name)?.let { price ->
+                        KachatFitText(KaspaUnit.amount(price), color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Normal)
                     }
                 }
             }

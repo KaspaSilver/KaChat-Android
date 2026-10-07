@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">Per quanto tempo?</string>
     <string name="kn_renew_starts_at_expiry">Un rinnovo fa partire il periodo successivo dalla scadenza attuale, non da oggi.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">Libero tra</string>
+    <string name="kn_no_names_in_grace">Al momento nessun nome è nel periodo di tolleranza.</string>
+    <string name="km_grace_appear">I nomi nel periodo di tolleranza appariranno qui al lancio dei nomi .kachat.</string>
 </resources>

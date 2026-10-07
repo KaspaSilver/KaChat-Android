@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">На какой срок?</string>
     <string name="kn_renew_starts_at_expiry">Продление начинает следующий период с текущей даты окончания, а не с сегодняшнего дня.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">Освободится через</string>
+    <string name="kn_no_names_in_grace">Сейчас нет имён в льготном периоде.</string>
+    <string name="km_grace_appear">Имена в льготном периоде появятся здесь после запуска имён .kachat.</string>
 </resources>

@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">Trong bao lâu?</string>
     <string name="kn_renew_starts_at_expiry">Gia hạn bắt đầu kỳ tiếp theo từ lúc hết hạn hiện tại, không phải từ hôm nay.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">Mở lại sau</string>
+    <string name="kn_no_names_in_grace">Hiện không có tên nào trong thời gian ân hạn.</string>
+    <string name="km_grace_appear">Các tên trong thời gian ân hạn sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
 </resources>

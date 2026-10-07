@@ -1115,4 +1115,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">Wie lange?</string>
     <string name="kn_renew_starts_at_expiry">Eine Verlängerung beginnt den nächsten Zeitraum beim aktuellen Ablauf, nicht ab heute.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">Frei in</string>
+    <string name="kn_no_names_in_grace">Gerade ist kein Name in der Nachfrist.</string>
+    <string name="km_grace_appear">Namen in der Nachfrist erscheinen hier, sobald .kachat-Namen starten.</string>
 </resources>

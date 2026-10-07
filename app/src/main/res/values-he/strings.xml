@@ -1118,4 +1118,8 @@
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
     <string name="kn_how_long">לכמה זמן?</string>
     <string name="kn_renew_starts_at_expiry">חידוש מתחיל את התקופה הבאה במועד התפוגה הנוכחי, לא מהיום.</string>
+    <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
+    <string name="kn_released_in">משתחרר בעוד</string>
+    <string name="kn_no_names_in_grace">אין כרגע שמות בתקופת החסד.</string>
+    <string name="km_grace_appear">שמות בתקופת החסד יופיעו כאן כששמות ‎.kachat יושקו.</string>
 </resources>
