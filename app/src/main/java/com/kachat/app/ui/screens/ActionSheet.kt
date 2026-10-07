@@ -1200,6 +1200,68 @@ fun SentConfirmationSheet(
 }
 
 /**
+ * A sheet that iOS draws as a `NavigationStack` holding a `List` or `Form` with an inline title
+ * (chat info's ".kachat Names" and "KNS Domains"): the grouped palette, the title centred in the
+ * bar, then one 26pt-cornered section of rows - [content] draws the rows, [IosListRowDivider]
+ * between them. Opens at half height and drags up to full (`[.medium, .large]`), with the grabber.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun IosInlineListSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                    Column(Modifier.fillMaxSize()) {
+                        IosSheetNavBar(title = title)
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp)
+                        ) {
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(26.dp))
+                                    .background(colors.surface),
+                                content = content,
+                            )
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
+                }
+            }
+        }
+    }
+}
+
+/** The hairline between two rows of an [IosInlineListSheet], inset from the leading edge as
+ *  iOS's separator is (past the icon, when the row has one). */
+@Composable
+fun IosListRowDivider(start: Dp = 16.dp) {
+    HorizontalDivider(
+        color = LocalAppColors.current.divider,
+        thickness = 0.5.dp,
+        modifier = Modifier.padding(start = start),
+    )
+}
+
+/**
  * iOS ManageAddressesView's ConsolidateSuccessCard: after "Send All Kaspa To Primary Spend
  * Address", a half sheet - min(420, 220 + 44 per transaction) tall, with the grabber - holding a
  * 300-wide card: the green checkmark, "Sent", every transaction the sweep submitted (one per

@@ -13805,34 +13805,37 @@ fun ChatInfoScreen(
                 }
             }
 
-            // The address's .kachat names (testnet), its primary one marked (iOS e52357d).
+            // The address's .kachat names (testnet), its primary one marked (iOS e52357d): iOS's
+            // List under the inline title ".kachat Names"; a long press copies a name.
             if (infoSheet == "kachatNames") {
-                ActionSheetContainer(
+                IosInlineListSheet(
                     title = stringResource(R.string.kn_kachat_names),
-                    subtitle = null,
                     onDismiss = { infoSheet = null },
                 ) {
-                    kachatNames.forEach { name ->
+                    kachatNames.forEachIndexed { index, name ->
                         val full = "$name.kachat"
+                        if (index > 0) IosListRowDivider()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(LocalAppColors.current.surface)
-                                .clickable {
-                                    clipboardManager.setText(AnnotatedString(full))
-                                    infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                    IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
-                                }
-                                .padding(horizontal = 14.dp, vertical = 13.dp),
+                                .heightIn(min = 44.dp)
+                                .combinedClickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {},
+                                    onLongClick = {
+                                        clipboardManager.setText(AnnotatedString(full))
+                                        infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                        IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
+                                    },
+                                )
+                                .padding(horizontal = 16.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 full,
                                 color = LocalAppColors.current.textPrimary,
-                                fontSize = 15.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                fontSize = 17.sp,
                                 modifier = Modifier.weight(1f),
                             )
                             if (name == kachatLabel) {
@@ -13848,59 +13851,58 @@ fun ChatInfoScreen(
                 }
             }
 
+            // iOS ContactDomainsView under the inline title "KNS Domains": a Form section of the
+            // domains, primary first; a tap copies one. Reads the already-populated knsProfiles
+            // cache, so opening this costs no fetch.
             if (infoSheet == "domains") {
-                ActionSheetContainer(
+                IosInlineListSheet(
                     title = stringResource(R.string.contact_kns_domains),
-                    subtitle = null,
                     onDismiss = { infoSheet = null },
                 ) {
-                    // The list itself, not a row that opens it somewhere else. Reads the
-                    // already-populated knsProfiles cache, so opening this costs no fetch.
                     val primary = knsProfile?.explicitPrimaryDomain
                     val sorted = ownedDomains.sortedWith(
                         compareBy({ it != primary }, { it.lowercase() })
                     )
-                    when {
-                        knsProfile == null -> Text(
-                            "Loading...",
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 13.sp,
-                        )
-                        sorted.isEmpty() -> Text(
-                            stringResource(R.string.no_domains_yet),
-                            color = LocalAppColors.current.textSecondary,
-                            fontSize = 13.sp,
-                        )
-                        else -> sorted.forEach { domain ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(LocalAppColors.current.surface)
-                                    .clickable {
-                                        clipboardManager.setText(AnnotatedString(domain))
-                                        infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                        IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 13.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    domain,
-                                    color = LocalAppColors.current.textPrimary,
-                                    fontSize = 15.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (domain == primary) {
-                                    Text(
-                                        "PRIMARY",
-                                        color = KaspaTeal,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                    )
+                    sorted.forEachIndexed { index, domain ->
+                        val isPrimary = domain == primary
+                        if (index > 0) IosListRowDivider(start = 42.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 44.dp)
+                                .clickable {
+                                    clipboardManager.setText(AnnotatedString(domain))
+                                    infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                    IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
                                 }
+                                .padding(horizontal = 16.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    if (isPrimary) Icons.Default.Star else Icons.Default.AlternateEmail,
+                                    contentDescription = null,
+                                    tint = if (isPrimary) KaspaTeal else LocalAppColors.current.textSecondary,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                            }
+                            MiddleEllipsisText(
+                                domain,
+                                color = LocalAppColors.current.textPrimary,
+                                fontSize = 17.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (isPrimary) {
+                                Text(
+                                    "PRIMARY",
+                                    color = KaspaTeal,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier
+                                        .background(KaspaTeal.copy(alpha = 0.15f), CircleShape)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                )
                             }
                         }
                     }
