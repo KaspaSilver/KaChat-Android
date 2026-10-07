@@ -1078,4 +1078,7 @@
     <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
     <string name="write_down_your_seed_phrase">Anote sua seed phrase</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Guarde isso em um lugar seguro. Qualquer pessoa com essas palavras pode acessar sua conta.</string>
+    <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
+    <string name="kaposts_retry">Tentar de novo</string>
+    <string name="kaposts_profile">Perfil</string>
 </resources>

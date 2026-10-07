@@ -1014,7 +1014,7 @@ private fun KaPostsFeedScreen(
                                     FeedEmptyState(
                                         title = "Couldn't load the feed",
                                         body = feedError ?: "",
-                                        actionLabel = "Retry",
+                                        actionLabel = stringResource(R.string.kaposts_retry),
                                         onAction = { viewModel.refresh() },
                                     )
                                 }
@@ -1248,7 +1248,7 @@ private fun KaPostsFeedScreen(
             quotedDisplayName = source?.let { viewModel.posterDisplayName(it.posterAddress) } ?: "",
             quotedAvatarUrl = source?.let { viewModel.senderProfiles.value[it.posterAddress] },
             isReply = isReplyDraft,
-            submitLabel = if (isReplyDraft) "Reply" else null,
+            submitLabel = if (isReplyDraft) stringResource(R.string.reply) else null,
             onDismiss = { editingDraft = null; draftSourcePost = null },
             onSubmit = { text ->
                 KaPostDraftStore.delete(draftContext, myAddressForDrafts.orEmpty(), draft.id)
@@ -1365,7 +1365,7 @@ private fun KaPostsFeedScreen(
             quotedDisplayName = viewModel.posterDisplayName(target.posterAddress),
             quotedAvatarUrl = viewModel.senderProfiles.value[target.posterAddress],
             isReply = true,
-            submitLabel = "Reply",
+            submitLabel = stringResource(R.string.reply),
             initialText = restoredComposerText,
             onDismiss = { replyComposerTarget = null; restoredComposerText = "" },
             onSubmit = { text ->
@@ -1794,7 +1794,7 @@ private fun KaPostsScheduledOverlay(viewModel: KaPostsViewModel, onClose: () -> 
                         )
                         if (entry.status == com.kachat.app.services.KaPostScheduledEntry.STATUS_SCHEDULED) {
                             Text(
-                                "Cancel",
+                                stringResource(R.string.cancel),
                                 color = colors.danger,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
@@ -1802,7 +1802,7 @@ private fun KaPostsScheduledOverlay(viewModel: KaPostsViewModel, onClose: () -> 
                             )
                         } else {
                             Text(
-                                "Clear",
+                                stringResource(R.string.remove),
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
@@ -1949,7 +1949,7 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
                         .padding(vertical = 13.dp),
                 )
                 Spacer(Modifier.height(4.dp))
-                TextButton(onClick = onDismiss) { Text("Cancel", color = colors.textSecondary) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = colors.textSecondary) }
             }
         }
     }
@@ -2262,7 +2262,7 @@ fun KaPostCell(
                         KaPostComposerDialog(
                             title = "Edit Post",
                             quoted = null,
-                            submitLabel = "Save",
+                            submitLabel = stringResource(R.string.save),
                             onDismiss = { editing = false },
                             onSubmit = { newText ->
                                 editing = false
@@ -2799,7 +2799,7 @@ private fun EngagementRow(
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(modifier = Modifier.width(3.dp))
-                Text("Tip", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
             }
         }
             }
@@ -2863,7 +2863,7 @@ private fun DeliveryState(post: KaPostDraft, onRetry: (() -> Unit)?) {
                 .padding(2.dp),
         ) {
             Icon(Icons.Default.Error, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(14.dp))
-            Text("Retry", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(stringResource(R.string.kaposts_retry), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
     }
 }
@@ -3199,7 +3199,7 @@ fun KaPostComposerDialog(
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Cancel",
+                        contentDescription = stringResource(R.string.cancel),
                         tint = colors.textPrimary,
                         modifier = Modifier.size(18.dp),
                     )
@@ -4383,7 +4383,7 @@ private fun ThreadReplyComposer(
                 KaPostCharacterMeter(count = charCount)
                 Icon(
                     Icons.Default.ArrowCircleUp,
-                    contentDescription = "Reply",
+                    contentDescription = stringResource(R.string.reply),
                     tint = if (canSend) KaspaTeal else colors.textSecondary,
                     modifier = Modifier
                         .size(28.dp)
@@ -4481,7 +4481,7 @@ private fun ThreadCommentNode(
                                     page.error != null -> {
                                         Text(page.error, color = colors.textSecondary, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                                         Text(
-                                            "Retry",
+                                            stringResource(R.string.kaposts_retry),
                                             color = KaspaTeal,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 12.sp,
@@ -4646,7 +4646,7 @@ fun KaPostsProfileOverlay(
         ) {
             KaPostsOverlayStatusBar()
             // Inline "Profile" title with a trailing Back, the banner starting BELOW the bar (iOS).
-            KaPostsOverlayHeader(title = "Profile")
+            KaPostsOverlayHeader(title = stringResource(R.string.kaposts_profile))
             val repliesPage = selectedTab == 1
             val pageItems = if (repliesPage) repliesList else myPostsList
             val pagePaging = pagingStateOf(
@@ -5245,7 +5245,7 @@ fun KaPostsNotificationsOverlay(
         }
     }
 
-    KaPostsOverlayScaffold(title = "Notifications", onClose = onClose) {
+    KaPostsOverlayScaffold(title = stringResource(R.string.notifications), onClose = onClose) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -6324,7 +6324,7 @@ fun KaPostsSettingsOverlay(
                 )
             }
 
-            SettingsSection(title = "Notifications") {
+            SettingsSection(title = stringResource(R.string.notifications)) {
                 SettingsSwitchItem("Likes", likes) { settingsViewModel.setKaPostsNotifyLikes(it) }
                 SettingsDivider()
                 SettingsSwitchItem("Reposts", reposts) { settingsViewModel.setKaPostsNotifyReposts(it) }
@@ -6891,7 +6891,7 @@ private fun ExpandableBioText(bio: String) {
             containerColor = colors.background,
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                Text("Bio", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(stringResource(R.string.bio), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(Modifier.height(10.dp))
                 Text(
                     bio,
