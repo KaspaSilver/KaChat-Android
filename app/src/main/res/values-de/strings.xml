@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Dieser Name wurde freigegeben oder zurückgeholt. Er ist wieder frei.</string>
     <string name="kn_not_for_sale">Nicht zu verkaufen</string>
     <string name="kn_expires_on">Läuft ab am %1$s</string>
-    <string name="kn_detail_grace_mine">Abgelaufen - verlängere ihn, um ihn zu behalten. Bis die Schonfrist endet, kann ihn niemand sonst nehmen.</string>
-    <string name="kn_detail_grace">Abgelaufen. Er wird nicht mehr aufgelöst; der Inhaber kann ihn noch verlängern.</string>
     <string name="kn_renew">Verlängern</string>
     <string name="kn_change_price">Preis ändern</string>
     <string name="kn_list_for_sale">Zum Verkauf anbieten</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Keine Testnet-Schnorr-Adresse.</string>
     <string name="kn_err_address_key">Der Schlüssel dieser Adresse ist ungültig.</string>
     <string name="kn_err_enter_address">Gib eine Adresse oder einen .kachat-Namen ein.</string>
-    <string name="kn_err_no_active_name">Kein aktiver .kachat-Name mit diesem Namen.</string>
     <string name="kn_err_lookup">Der Name konnte nicht nachgeschlagen werden.</string>
     <string name="kn_profile_belongs">Dein Profil gehört zu deiner Adresse, nicht zu einem Namen: Es bleibt gleich, wenn du einen Namen kaufst, verkaufst oder aufgibst.</string>
     <string name="kn_links">Links</string>
@@ -1121,4 +1118,8 @@
     <string name="km_grace_appear">Namen in der Nachfrist erscheinen hier, sobald .kachat-Namen starten.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Nachfrist endet am %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Kein .kachat-Name mit diesem Namen.</string>
+    <string name="kn_detail_grace_resolves">Abgelaufen. Bis zum Ende der Kulanzfrist wird er weiterhin zum Inhaber aufgelöst, und der Inhaber kann ihn noch verlängern.</string>
+    <string name="kn_detail_grace_mine_resolves">Abgelaufen - verlängere ihn, um ihn zu behalten. Bis zum Ende der Kulanzfrist wird er weiterhin zu dir aufgelöst, und niemand sonst kann ihn nehmen.</string>
 </resources>

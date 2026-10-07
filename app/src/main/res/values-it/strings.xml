@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Questo nome è stato rilasciato o recuperato. È di nuovo libero.</string>
     <string name="kn_not_for_sale">Non in vendita</string>
     <string name="kn_expires_on">Scade il %1$s</string>
-    <string name="kn_detail_grace_mine">Scaduto: rinnovalo per tenerlo. Fino alla fine del periodo di grazia nessun altro può prenderlo.</string>
-    <string name="kn_detail_grace">Scaduto. Non viene più risolto; il proprietario può ancora rinnovarlo.</string>
     <string name="kn_renew">Rinnova</string>
     <string name="kn_change_price">Cambia prezzo</string>
     <string name="kn_list_for_sale">Metti in vendita</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Non è un indirizzo Schnorr testnet.</string>
     <string name="kn_err_address_key">La chiave di quell’indirizzo non è valida.</string>
     <string name="kn_err_enter_address">Inserisci un indirizzo o un nome .kachat.</string>
-    <string name="kn_err_no_active_name">Nessun nome .kachat attivo con quel nome.</string>
     <string name="kn_err_lookup">Impossibile cercare quel nome.</string>
     <string name="kn_profile_belongs">Il tuo profilo appartiene al tuo indirizzo, non a un nome: resta uguale quando compri, vendi o lasci un nome.</string>
     <string name="kn_links">Link</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">I nomi nel periodo di tolleranza appariranno qui al lancio dei nomi .kachat.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Il periodo di tolleranza termina il %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Nessun nome .kachat con questo nome.</string>
+    <string name="kn_detail_grace_resolves">Scaduto. Continua a risolversi al suo proprietario fino alla fine del periodo di grazia, e il proprietario può ancora rinnovarlo.</string>
+    <string name="kn_detail_grace_mine_resolves">Scaduto - rinnovalo per tenerlo. Fino alla fine del periodo di grazia continua a risolversi a te e nessun altro può prenderlo.</string>
 </resources>

@@ -692,8 +692,6 @@
     <string name="kn_name_gone">这个名称已被释放或回收，可以重新注册。</string>
     <string name="kn_not_for_sale">非卖品</string>
     <string name="kn_expires_on">%1$s 到期</string>
-    <string name="kn_detail_grace_mine">已过期 - 续期即可保留。宽限期结束前，别人无法取得。</string>
-    <string name="kn_detail_grace">已过期。它不再解析到地址；所有者仍可续期。</string>
     <string name="kn_renew">续期</string>
     <string name="kn_change_price">修改价格</string>
     <string name="kn_list_for_sale">挂牌出售</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">不是测试网 Schnorr 地址。</string>
     <string name="kn_err_address_key">该地址的密钥无效。</string>
     <string name="kn_err_enter_address">请输入地址或 .kachat 名称。</string>
-    <string name="kn_err_no_active_name">没有这个名字的有效 .kachat 名称。</string>
     <string name="kn_err_lookup">无法查询该名称。</string>
     <string name="kn_profile_belongs">你的个人资料属于你的地址，而不是某个名称：买入、卖出或放弃名称时都不会改变。</string>
     <string name="kn_links">链接</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">.kachat 名称上线后，处于宽限期的名称会显示在这里。</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">宽限期结束于 %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">没有这个名称的 .kachat 名称。</string>
+    <string name="kn_detail_grace_resolves">已过期。在宽限期结束前，它仍解析到其所有者，所有者仍可续期。</string>
+    <string name="kn_detail_grace_mine_resolves">已过期 - 续期以保留它。在宽限期结束前，它仍解析到你，其他人无法获取。</string>
 </resources>

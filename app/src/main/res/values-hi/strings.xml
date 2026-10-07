@@ -692,8 +692,6 @@
     <string name="kn_name_gone">यह नाम छोड़ दिया गया या वापस लिया गया। इसे फिर से लिया जा सकता है।</string>
     <string name="kn_not_for_sale">बिक्री के लिए नहीं</string>
     <string name="kn_expires_on">%1$s को समाप्त</string>
-    <string name="kn_detail_grace_mine">समाप्त - रखने के लिए नवीनीकरण करें। ग्रेस अवधि खत्म होने तक कोई और इसे नहीं ले सकता।</string>
-    <string name="kn_detail_grace">समाप्त। अब यह पते में नहीं बदलता; मालिक अब भी नवीनीकरण कर सकता है।</string>
     <string name="kn_renew">नवीनीकरण</string>
     <string name="kn_change_price">कीमत बदलें</string>
     <string name="kn_list_for_sale">बिक्री पर रखें</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">यह टेस्टनेट Schnorr पता नहीं है।</string>
     <string name="kn_err_address_key">इस पते की कुंजी मान्य नहीं है।</string>
     <string name="kn_err_enter_address">कोई पता या .kachat नाम डालें।</string>
-    <string name="kn_err_no_active_name">इस नाम से कोई सक्रिय .kachat नाम नहीं।</string>
     <string name="kn_err_lookup">यह नाम खोजा नहीं जा सका।</string>
     <string name="kn_profile_belongs">आपकी प्रोफ़ाइल आपके पते की है, किसी नाम की नहीं: नाम खरीदने, बेचने या छोड़ने पर भी यह वही रहती है।</string>
     <string name="kn_links">लिंक</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">.kachat नाम लॉन्च होने पर ग्रेस अवधि वाले नाम यहाँ दिखेंगे।</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">ग्रेस अवधि %1$s को समाप्त होगी</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">इस नाम का कोई .kachat नाम नहीं है।</string>
+    <string name="kn_detail_grace_resolves">समाप्त हो गया। ग्रेस अवधि समाप्त होने तक यह अभी भी अपने मालिक के पते पर रिज़ॉल्व होता है, और मालिक अभी भी इसे नवीनीकृत कर सकता है।</string>
+    <string name="kn_detail_grace_mine_resolves">समाप्त हो गया - इसे रखने के लिए नवीनीकृत करें। ग्रेस अवधि समाप्त होने तक यह अभी भी आपके पते पर रिज़ॉल्व होता है और कोई और इसे नहीं ले सकता।</string>
 </resources>

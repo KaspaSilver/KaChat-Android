@@ -582,8 +582,6 @@
     <string name="kn_name_gone">Nama ini telah dilepas atau diklaim ulang. Bisa diklaim lagi.</string>
     <string name="kn_not_for_sale">Tidak dijual</string>
     <string name="kn_expires_on">Kedaluwarsa %1$s</string>
-    <string name="kn_detail_grace_mine">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, tidak ada orang lain yang bisa mengambilnya.</string>
-    <string name="kn_detail_grace">Kedaluwarsa. Tidak lagi diarahkan ke alamat; pemilik masih bisa memperpanjang.</string>
     <string name="kn_renew">Perpanjang</string>
     <string name="kn_change_price">Ubah Harga</string>
     <string name="kn_list_for_sale">Jual</string>
@@ -607,7 +605,6 @@
     <string name="kn_err_not_testnet_address">Bukan alamat Schnorr testnet.</string>
     <string name="kn_err_address_key">Kunci alamat itu tidak valid.</string>
     <string name="kn_err_enter_address">Masukkan alamat atau nama .kachat.</string>
-    <string name="kn_err_no_active_name">Tidak ada nama .kachat aktif dengan nama itu.</string>
     <string name="kn_err_lookup">Tidak dapat mencari nama itu.</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
     <string name="kn_links">Tautan</string>
@@ -991,4 +988,8 @@
     <string name="km_grace_appear">Nama dalam masa tenggang akan muncul di sini setelah nama .kachat diluncurkan.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Masa tenggang berakhir %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Tidak ada nama .kachat dengan nama itu.</string>
+    <string name="kn_detail_grace_resolves">Kedaluwarsa. Nama ini masih mengarah ke pemiliknya sampai masa tenggang berakhir, dan pemilik masih bisa memperpanjangnya.</string>
+    <string name="kn_detail_grace_mine_resolves">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, nama ini masih mengarah ke Anda dan tidak ada orang lain yang bisa mengambilnya.</string>
 </resources>

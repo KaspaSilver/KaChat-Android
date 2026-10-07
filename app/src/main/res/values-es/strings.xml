@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Este nombre se liberó o se reclamó. Vuelve a estar libre.</string>
     <string name="kn_not_for_sale">No está en venta</string>
     <string name="kn_expires_on">Vence el %1$s</string>
-    <string name="kn_detail_grace_mine">Vencido: renuévalo para conservarlo. Hasta que termine el periodo de gracia, nadie más puede quedárselo.</string>
-    <string name="kn_detail_grace">Vencido. Ya no se resuelve; el dueño aún puede renovarlo.</string>
     <string name="kn_renew">Renovar</string>
     <string name="kn_change_price">Cambiar precio</string>
     <string name="kn_list_for_sale">Poner a la venta</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">No es una dirección Schnorr de testnet.</string>
     <string name="kn_err_address_key">La clave de esa dirección no es válida.</string>
     <string name="kn_err_enter_address">Escribe una dirección o un nombre .kachat.</string>
-    <string name="kn_err_no_active_name">No hay ningún nombre .kachat activo con ese nombre.</string>
     <string name="kn_err_lookup">No se pudo buscar ese nombre.</string>
     <string name="kn_profile_belongs">Tu perfil pertenece a tu dirección, no a un nombre: sigue igual cuando compras, vendes o dejas un nombre.</string>
     <string name="kn_links">Enlaces</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">Los nombres en periodo de gracia aparecerán aquí cuando se lancen los nombres .kachat.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">El periodo de gracia termina el %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">No hay ningún nombre .kachat con ese nombre.</string>
+    <string name="kn_detail_grace_resolves">Caducado. Sigue resolviendo a su propietario hasta que termine el periodo de gracia, y el propietario aún puede renovarlo.</string>
+    <string name="kn_detail_grace_mine_resolves">Caducado: renuévalo para conservarlo. Hasta que termine el periodo de gracia sigue resolviendo a ti y nadie más puede quedárselo.</string>
 </resources>

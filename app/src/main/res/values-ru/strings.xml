@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Это имя освобождено или возвращено. Его снова можно зарегистрировать.</string>
     <string name="kn_not_for_sale">Не продаётся</string>
     <string name="kn_expires_on">Истекает %1$s</string>
-    <string name="kn_detail_grace_mine">Истекло — продлите, чтобы сохранить. До конца льготного периода никто другой не может его забрать.</string>
-    <string name="kn_detail_grace">Истекло. Больше не разрешается в адрес; владелец ещё может продлить.</string>
     <string name="kn_renew">Продлить</string>
     <string name="kn_change_price">Изменить цену</string>
     <string name="kn_list_for_sale">Выставить на продажу</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Это не адрес Schnorr в тестнете.</string>
     <string name="kn_err_address_key">Ключ этого адреса недействителен.</string>
     <string name="kn_err_enter_address">Введите адрес или имя .kachat.</string>
-    <string name="kn_err_no_active_name">Нет активного имени .kachat с таким названием.</string>
     <string name="kn_err_lookup">Не удалось найти это имя.</string>
     <string name="kn_profile_belongs">Профиль принадлежит вашему адресу, а не имени: он не меняется, когда вы покупаете, продаёте или отпускаете имя.</string>
     <string name="kn_links">Ссылки</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">Имена в льготном периоде появятся здесь после запуска имён .kachat.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Льготный период заканчивается %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Нет имени .kachat с таким названием.</string>
+    <string name="kn_detail_grace_resolves">Истекло. До конца льготного периода имя по-прежнему указывает на владельца, и владелец ещё может его продлить.</string>
+    <string name="kn_detail_grace_mine_resolves">Истекло - продлите, чтобы сохранить. До конца льготного периода имя по-прежнему указывает на вас, и никто другой не может его занять.</string>
 </resources>

@@ -729,8 +729,6 @@
     <string name="kn_name_gone">این نام رها یا بازپس گرفته شد. دوباره آزاد است.</string>
     <string name="kn_not_for_sale">برای فروش نیست</string>
     <string name="kn_expires_on">انقضا: %1$s</string>
-    <string name="kn_detail_grace_mine">منقضی شده - برای نگه داشتنش تمدید کنید. تا پایان مهلت، کس دیگری نمی‌تواند آن را بگیرد.</string>
-    <string name="kn_detail_grace">منقضی شده. دیگر به نشانی تبدیل نمی‌شود؛ مالک هنوز می‌تواند تمدیدش کند.</string>
     <string name="kn_renew">تمدید</string>
     <string name="kn_change_price">تغییر قیمت</string>
     <string name="kn_list_for_sale">گذاشتن برای فروش</string>
@@ -754,7 +752,6 @@
     <string name="kn_err_not_testnet_address">نشانی Schnorr تست‌نت نیست.</string>
     <string name="kn_err_address_key">کلید این نشانی معتبر نیست.</string>
     <string name="kn_err_enter_address">یک نشانی یا نام .kachat وارد کنید.</string>
-    <string name="kn_err_no_active_name">نام .kachat فعالی با این نام نیست.</string>
     <string name="kn_err_lookup">جستجوی این نام ممکن نشد.</string>
     <string name="kn_profile_belongs">پروفایل شما متعلق به نشانی شماست، نه یک نام: وقتی نامی را می‌خرید، می‌فروشید یا رها می‌کنید، تغییری نمی‌کند.</string>
     <string name="kn_links">پیوندها</string>
@@ -1155,4 +1152,8 @@
     <string name="km_grace_appear">نام‌های در دوره مهلت پس از راه‌اندازی نام‌های ‎.kachat اینجا نمایش داده می‌شوند.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">دوره مهلت در %1$s پایان می‌یابد</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">هیچ نام ‎.kachat‎ با این نام وجود ندارد.</string>
+    <string name="kn_detail_grace_resolves">منقضی شده. تا پایان دوره مهلت همچنان به مالک خود اشاره می‌کند و مالک هنوز می‌تواند آن را تمدید کند.</string>
+    <string name="kn_detail_grace_mine_resolves">منقضی شده - برای نگه داشتن آن را تمدید کنید. تا پایان دوره مهلت همچنان به شما اشاره می‌کند و هیچ‌کس دیگری نمی‌تواند آن را بگیرد.</string>
 </resources>

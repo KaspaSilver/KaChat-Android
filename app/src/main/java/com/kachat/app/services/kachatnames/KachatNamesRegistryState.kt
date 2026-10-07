@@ -187,24 +187,26 @@ data class Event(
 // Label rule (KACHAT_NAMES.md section 7)
 
 /**
- * The label an address is shown with: its `primaryName` if it owns that name and it is active;
- * otherwise its oldest active name; otherwise null (the caller shows the address).
+ * The label an address is shown with: its `primaryName` if it still holds that name (active or in
+ * grace); otherwise its oldest held name; otherwise null (the caller shows the address). A name in
+ * grace keeps labelling its owner until it lapses and is back on the market (iOS f7c371a).
  */
 fun KachatNames.label(owned: List<NameInfo>, primaryName: String?, graceMs: Long, nowMs: Long = nowMs()): String? {
-    val active = owned.filter { it.status(graceMs, nowMs) == Status.ACTIVE }
+    val held = owned.filter { it.status(graceMs, nowMs) != Status.LAPSED }
     val p = primaryName?.let { Codec.normalize(it) }
-    if (p != null && active.any { it.name == p }) return p
-    val oldest = active.sortedWith(compareBy<NameInfo>({ it.registeredAt ?: Long.MAX_VALUE }, { it.name }))
+    if (p != null && held.any { it.name == p }) return p
+    val oldest = held.sortedWith(compareBy<NameInfo>({ it.registeredAt ?: Long.MAX_VALUE }, { it.name }))
     return oldest.firstOrNull()?.name
 }
 
 /**
- * Where a typed `.kachat` name points: its owner when it is registered and ACTIVE - a name in
- * grace or lapsed does not resolve (KACHAT_NAMES.md section 4; iOS NameServices.resolveKachat,
- * KaChat 25cc2c9). Null otherwise.
+ * Where a typed `.kachat` name points: its owner when it is registered and active or in its grace
+ * period - an owner stays reachable until the name is back on the market; only a lapsed name
+ * doesn't resolve (KACHAT_NAMES.md section 4; iOS NameServices.resolveKachat, KaChat f7c371a).
+ * Null otherwise.
  */
 fun KachatNames.resolvedOwner(lookup: Lookup, graceMs: Long, nowMs: Long = nowMs()): ByteArray? =
-    (lookup as? Lookup.Registered)?.info?.takeIf { it.status(graceMs, nowMs).resolves }?.owner
+    (lookup as? Lookup.Registered)?.info?.takeIf { it.status(graceMs, nowMs) != Status.LAPSED }?.owner
 
 // Profile record (KACHAT_NAMES.md section 7, KACHAT_NAMES_INDEXER.md Part C)
 

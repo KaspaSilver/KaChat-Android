@@ -2589,8 +2589,8 @@ fun KachatLiveNameDetailScreen(
                             }
                         }
                         when {
-                            status == Status.GRACE && ownedByWallet -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
-                            status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace), color = colors.warning, fontSize = 13.sp)
+                            status == Status.GRACE && ownedByWallet -> Text(stringResource(R.string.kn_detail_grace_mine_resolves), color = colors.warning, fontSize = 13.sp)
+                            status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace_resolves), color = colors.warning, fontSize = 13.sp)
                         }
                     }
                 }
@@ -3186,11 +3186,12 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         resolving = true
         try {
             val l = vm.registry.lookup(name)
-            val active = (l as? Lookup.Registered)?.info?.takeIf { it.status(vm.graceMs) == Status.ACTIVE }
-            if (active != null) {
-                KachatNamesRegistry.address(active.owner)?.let { resolved = it to active.owner }
+            // a name in grace still points to its owner, like everywhere else it resolves (iOS f7c371a)
+            val held = (l as? Lookup.Registered)?.info?.takeIf { it.status(vm.graceMs) != Status.LAPSED }
+            if (held != null) {
+                KachatNamesRegistry.address(held.owner)?.let { resolved = it to held.owner }
             } else {
-                resolveError = R.string.kn_err_no_active_name
+                resolveError = R.string.kn_err_no_name
             }
         } catch (e: CancellationException) {
             resolving = false

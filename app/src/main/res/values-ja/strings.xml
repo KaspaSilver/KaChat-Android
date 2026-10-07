@@ -692,8 +692,6 @@
     <string name="kn_name_gone">この名前は解放または回収されました。再び取得できます。</string>
     <string name="kn_not_for_sale">非売品</string>
     <string name="kn_expires_on">有効期限 %1$s</string>
-    <string name="kn_detail_grace_mine">期限切れです。保持するには更新してください。猶予期間が終わるまで他の人は取得できません。</string>
-    <string name="kn_detail_grace">期限切れ。アドレスへの解決は止まっていますが、所有者はまだ更新できます。</string>
     <string name="kn_renew">更新</string>
     <string name="kn_change_price">価格を変更</string>
     <string name="kn_list_for_sale">出品する</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">テストネットの Schnorr アドレスではありません。</string>
     <string name="kn_err_address_key">そのアドレスの鍵は無効です。</string>
     <string name="kn_err_enter_address">アドレスか .kachat の名前を入力してください。</string>
-    <string name="kn_err_no_active_name">その名前の有効な .kachat はありません。</string>
     <string name="kn_err_lookup">その名前を検索できませんでした。</string>
     <string name="kn_profile_belongs">プロフィールは名前ではなくアドレスに属します。名前を買っても、売っても、手放しても変わりません。</string>
     <string name="kn_links">リンク</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">.kachat の名前が開始されると、猶予期間中の名前がここに表示されます。</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">猶予期間の終了: %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">その名前の.kachatネームはありません。</string>
+    <string name="kn_detail_grace_resolves">期限切れです。猶予期間が終わるまでは引き続き所有者のアドレスに解決され、所有者はまだ更新できます。</string>
+    <string name="kn_detail_grace_mine_resolves">期限切れです - 保持するには更新してください。猶予期間が終わるまでは引き続きあなたのアドレスに解決され、他の人は取得できません。</string>
 </resources>

@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Tên này đã được nhả hoặc thu hồi. Có thể nhận lại.</string>
     <string name="kn_not_for_sale">Không bán</string>
     <string name="kn_expires_on">Hết hạn %1$s</string>
-    <string name="kn_detail_grace_mine">Đã hết hạn - gia hạn để giữ tên. Cho đến hết thời gian ân hạn, không ai khác lấy được.</string>
-    <string name="kn_detail_grace">Đã hết hạn. Tên không còn trỏ tới địa chỉ; chủ vẫn có thể gia hạn.</string>
     <string name="kn_renew">Gia hạn</string>
     <string name="kn_change_price">Đổi giá</string>
     <string name="kn_list_for_sale">Rao bán</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Không phải địa chỉ Schnorr testnet.</string>
     <string name="kn_err_address_key">Khóa của địa chỉ đó không hợp lệ.</string>
     <string name="kn_err_enter_address">Nhập địa chỉ hoặc tên .kachat.</string>
-    <string name="kn_err_no_active_name">Không có tên .kachat đang hoạt động nào như vậy.</string>
     <string name="kn_err_lookup">Không tra cứu được tên đó.</string>
     <string name="kn_profile_belongs">Hồ sơ thuộc về địa chỉ của bạn, không thuộc về tên: vẫn giữ nguyên khi bạn mua, bán hay bỏ một tên.</string>
     <string name="kn_links">Liên kết</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">Các tên trong thời gian ân hạn sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Thời gian ân hạn kết thúc %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Không có tên .kachat nào như vậy.</string>
+    <string name="kn_detail_grace_resolves">Đã hết hạn. Tên vẫn trỏ đến chủ sở hữu cho đến khi hết thời gian ân hạn, và chủ sở hữu vẫn có thể gia hạn.</string>
+    <string name="kn_detail_grace_mine_resolves">Đã hết hạn - hãy gia hạn để giữ. Cho đến khi hết thời gian ân hạn, tên vẫn trỏ đến bạn và không ai khác có thể lấy.</string>
 </resources>

@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Bu ad bırakıldı veya geri alındı. Yeniden alınabilir.</string>
     <string name="kn_not_for_sale">Satılık değil</string>
     <string name="kn_expires_on">%1$s tarihinde sona erer</string>
-    <string name="kn_detail_grace_mine">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar başkası alamaz.</string>
-    <string name="kn_detail_grace">Süresi doldu. Artık adrese çözümlenmiyor; sahibi hâlâ yenileyebilir.</string>
     <string name="kn_renew">Yenile</string>
     <string name="kn_change_price">Fiyatı Değiştir</string>
     <string name="kn_list_for_sale">Satışa Koy</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Testnet Schnorr adresi değil.</string>
     <string name="kn_err_address_key">Bu adresin anahtarı geçerli değil.</string>
     <string name="kn_err_enter_address">Bir adres veya .kachat adı girin.</string>
-    <string name="kn_err_no_active_name">Bu adda etkin bir .kachat adı yok.</string>
     <string name="kn_err_lookup">Bu ad aranamadı.</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
     <string name="kn_links">Bağlantılar</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">.kachat adları başlatıldığında ek süredeki adlar burada görünecek.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Ek süre %1$s tarihinde bitiyor</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Bu adla bir .kachat adı yok.</string>
+    <string name="kn_detail_grace_resolves">Süresi doldu. Ek süre bitene kadar hâlâ sahibine çözümlenir ve sahibi hâlâ yenileyebilir.</string>
+    <string name="kn_detail_grace_mine_resolves">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar hâlâ size çözümlenir ve başka kimse alamaz.</string>
 </resources>

@@ -644,16 +644,18 @@ class KachatNamesRegistryTest {
         r.assertClean()
     }
 
-    /** `.kachat` resolves to the owner of an ACTIVE name only (KACHAT_NAMES.md section 4). */
+    /** `.kachat` resolves to the owner of a name that is active or in grace; a lapsed name doesn't
+     *  (KACHAT_NAMES.md section 4, iOS f7c371a). */
     @Test
-    fun kachatResolutionIsActiveOnly() {
+    fun kachatResolutionStopsOnlyWhenLapsed() {
         val g = 864_000_000L
         val owner = ByteArray(32) { 9 }
         val now = 2_000_000_000_000L
         fun registered(exp: Long) = Lookup.Registered(NameInfo("alice", Codec.key("alice"), owner, 0, exp, Outpoint(KachatNames.ZERO32, 0)))
         assertEquals(hex(owner), KachatNames.resolvedOwner(registered(now + 1), g, now)?.let { hex(it) })
-        assertNull("a name at its expiry no longer resolves", KachatNames.resolvedOwner(registered(now), g, now))
-        assertNull("a name in grace does not resolve", KachatNames.resolvedOwner(registered(now - 1), g, now))
+        assertEquals("a name at its expiry still resolves (grace)", hex(owner), KachatNames.resolvedOwner(registered(now), g, now)?.let { hex(it) })
+        assertEquals("a name in grace still resolves to its owner", hex(owner), KachatNames.resolvedOwner(registered(now - g + 1), g, now)?.let { hex(it) })
+        assertNull("a name at the end of grace has lapsed", KachatNames.resolvedOwner(registered(now - g), g, now))
         assertNull("a lapsed name does not resolve", KachatNames.resolvedOwner(registered(now - g - 1), g, now))
         assertNull("a free name does not resolve", KachatNames.resolvedOwner(Lookup.Free("alice", null), g, now))
         // and the owner key comes back as its kaspatest: address, and back again

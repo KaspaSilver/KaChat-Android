@@ -364,9 +364,10 @@ class NameServicesClient @Inject constructor(
     suspend fun resolvePrimary(input: String): NameResolution? =
         primary(resolveEverywhere(input), input)?.takeIf { it.address != null }
 
-    /** `.kachat` (testnet only): the registry's owner of an ACTIVE name - a name in grace or
-     *  lapsed does not resolve (KACHAT_NAMES.md section 4, [KachatNames.resolvedOwner]). Same
-     *  rules as the gap: a-z, 0-9, hyphen. iOS 25cc2c9. */
+    /** `.kachat`: the registry's owner of a name that is active or in its grace period - an owner
+     *  stays reachable until the name is back on the market; only a lapsed name doesn't resolve
+     *  (KACHAT_NAMES.md section 4, [KachatNames.resolvedOwner]). Same rules as the gap: a-z, 0-9,
+     *  hyphen. iOS 25cc2c9, f7c371a. */
     private suspend fun resolveKachat(label: String): NameResolution? {
         if (!NameServiceTLD.KACHAT.isLive) return null
         val canonical = KachatNames.Codec.normalize(label)

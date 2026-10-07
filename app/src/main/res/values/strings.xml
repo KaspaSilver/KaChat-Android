@@ -874,8 +874,6 @@
     <string name="kn_name_gone">This name was released or reclaimed. It\'s free to claim again.</string>
     <string name="kn_not_for_sale">Not for sale</string>
     <string name="kn_expires_on">Expires %1$s</string>
-    <string name="kn_detail_grace_mine">Expired - renew to keep it. Until the grace period ends nobody else can take it.</string>
-    <string name="kn_detail_grace">Expired. It no longer resolves; the owner can still renew it.</string>
     <string name="kn_renew">Renew</string>
     <string name="kn_change_price">Change Price</string>
     <string name="kn_list_for_sale">List for Sale</string>
@@ -899,7 +897,6 @@
     <string name="kn_err_not_testnet_address">Not a testnet Schnorr address.</string>
     <string name="kn_err_address_key">That address\'s key is not valid.</string>
     <string name="kn_err_enter_address">Enter an address or a .kachat name.</string>
-    <string name="kn_err_no_active_name">No active .kachat name by that name.</string>
     <string name="kn_err_lookup">Couldn\'t look that name up.</string>
     <string name="kn_profile_belongs">Your profile belongs to your address, not to a name: it stays the same when you buy, sell or let a name go.</string>
     <string name="kn_links">Links</string>
@@ -1333,4 +1330,8 @@
     <string name="km_grace_appear">Names in their grace period appear here once .kachat names launch.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Grace period ends %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">No .kachat name by that name.</string>
+    <string name="kn_detail_grace_resolves">Expired. It still resolves to its owner until the grace period ends, and the owner can still renew it.</string>
+    <string name="kn_detail_grace_mine_resolves">Expired - renew to keep it. Until the grace period ends it still resolves to you and nobody else can take it.</string>
 </resources>

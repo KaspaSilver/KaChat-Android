@@ -692,8 +692,6 @@
     <string name="kn_name_gone">تم التخلي عن هذا الاسم أو استرداده. يمكن الحصول عليه من جديد.</string>
     <string name="kn_not_for_sale">ليس للبيع</string>
     <string name="kn_expires_on">ينتهي في %1$s</string>
-    <string name="kn_detail_grace_mine">منتهي - جدّده لتحتفظ به. حتى انتهاء فترة السماح لا يمكن لأحد غيرك أخذه.</string>
-    <string name="kn_detail_grace">منتهي. لم يعد يُحلّ إلى عنوان؛ لا يزال بإمكان المالك تجديده.</string>
     <string name="kn_renew">تجديد</string>
     <string name="kn_change_price">تغيير السعر</string>
     <string name="kn_list_for_sale">عرض للبيع</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">ليس عنوان Schnorr على الشبكة التجريبية.</string>
     <string name="kn_err_address_key">مفتاح هذا العنوان غير صالح.</string>
     <string name="kn_err_enter_address">أدخل عنوانًا أو اسم .kachat.</string>
-    <string name="kn_err_no_active_name">لا يوجد اسم .kachat نشط بهذا الاسم.</string>
     <string name="kn_err_lookup">تعذر البحث عن هذا الاسم.</string>
     <string name="kn_profile_belongs">ملفك الشخصي مرتبط بعنوانك، لا باسم: يبقى كما هو عندما تشتري اسمًا أو تبيعه أو تتركه.</string>
     <string name="kn_links">الروابط</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">ستظهر هنا الأسماء في فترة السماح عند إطلاق أسماء ‎.kachat.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">تنتهي فترة السماح في %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">لا يوجد اسم ‎.kachat‎ بهذا الاسم.</string>
+    <string name="kn_detail_grace_resolves">منتهي الصلاحية. لا يزال يشير إلى مالكه حتى تنتهي فترة السماح، ولا يزال بإمكان المالك تجديده.</string>
+    <string name="kn_detail_grace_mine_resolves">منتهي الصلاحية - جدّده للاحتفاظ به. حتى تنتهي فترة السماح، لا يزال يشير إليك ولا يمكن لأي شخص آخر أخذه.</string>
 </resources>

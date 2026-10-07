@@ -692,8 +692,6 @@
     <string name="kn_name_gone">השם שוחרר או נדרש מחדש. אפשר לרשום אותו שוב.</string>
     <string name="kn_not_for_sale">לא למכירה</string>
     <string name="kn_expires_on">פג ב-%1$s</string>
-    <string name="kn_detail_grace_mine">פג תוקף - חדשו כדי לשמור עליו. עד סוף תקופת החסד אף אחד אחר לא יכול לקחת אותו.</string>
-    <string name="kn_detail_grace">פג תוקף. הוא כבר לא מתורגם לכתובת; הבעלים עדיין יכול לחדש אותו.</string>
     <string name="kn_renew">חידוש</string>
     <string name="kn_change_price">שינוי מחיר</string>
     <string name="kn_list_for_sale">הצעה למכירה</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">זו לא כתובת Schnorr של Testnet.</string>
     <string name="kn_err_address_key">המפתח של הכתובת הזו אינו תקין.</string>
     <string name="kn_err_enter_address">הזינו כתובת או שם .kachat.</string>
-    <string name="kn_err_no_active_name">אין שם .kachat פעיל בשם הזה.</string>
     <string name="kn_err_lookup">לא ניתן היה לחפש את השם.</string>
     <string name="kn_profile_belongs">הפרופיל שלך שייך לכתובת שלך, לא לשם: הוא נשאר זהה כשקונים, מוכרים או מוותרים על שם.</string>
     <string name="kn_links">קישורים</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">שמות בתקופת החסד יופיעו כאן כששמות ‎.kachat יושקו.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">תקופת החסד מסתיימת ב-%1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">אין שם ‎.kachat‎ בשם הזה.</string>
+    <string name="kn_detail_grace_resolves">פג תוקף. השם עדיין מפנה לבעלים עד שתקופת החסד מסתיימת, והבעלים עדיין יכול לחדש אותו.</string>
+    <string name="kn_detail_grace_mine_resolves">פג תוקף - חדש כדי לשמור עליו. עד שתקופת החסד מסתיימת הוא עדיין מפנה אליך ואף אחד אחר לא יכול לקחת אותו.</string>
 </resources>

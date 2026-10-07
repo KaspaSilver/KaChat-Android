@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Este nome foi liberado ou recuperado. Está livre de novo.</string>
     <string name="kn_not_for_sale">Não está à venda</string>
     <string name="kn_expires_on">Expira em %1$s</string>
-    <string name="kn_detail_grace_mine">Expirado - renove para mantê-lo. Até o fim do período de carência, ninguém mais pode pegá-lo.</string>
-    <string name="kn_detail_grace">Expirado. Não é mais resolvido; o dono ainda pode renovar.</string>
     <string name="kn_renew">Renovar</string>
     <string name="kn_change_price">Alterar preço</string>
     <string name="kn_list_for_sale">Colocar à venda</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Não é um endereço Schnorr da testnet.</string>
     <string name="kn_err_address_key">A chave desse endereço não é válida.</string>
     <string name="kn_err_enter_address">Digite um endereço ou um nome .kachat.</string>
-    <string name="kn_err_no_active_name">Nenhum nome .kachat ativo com esse nome.</string>
     <string name="kn_err_lookup">Não foi possível procurar esse nome.</string>
     <string name="kn_profile_belongs">Seu perfil pertence ao seu endereço, não a um nome: continua igual quando você compra, vende ou abre mão de um nome.</string>
     <string name="kn_links">Links</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">Nomes no período de carência aparecerão aqui quando os nomes .kachat forem lançados.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">O período de carência termina em %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Nenhum nome .kachat com esse nome.</string>
+    <string name="kn_detail_grace_resolves">Expirado. Continua a apontar para o proprietário até o fim do período de carência, e o proprietário ainda pode renová-lo.</string>
+    <string name="kn_detail_grace_mine_resolves">Expirado - renove para mantê-lo. Até o fim do período de carência ele continua apontando para você e ninguém mais pode pegá-lo.</string>
 </resources>

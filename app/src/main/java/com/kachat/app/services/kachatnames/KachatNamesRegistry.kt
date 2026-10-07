@@ -648,7 +648,8 @@ class KachatNamesRegistry @Inject constructor(
             is Source.Indexer -> IndexerApi.IdentityJson.parse(get(src.base, "/identity/$a")).identity
             else -> {
                 val key = keyOf(a) ?: return Identity(a, null, emptyList(), null)
-                val owned = names(key, includeInactive = false)
+                // held names: a name in grace still labels and resolves to its owner (iOS f7c371a)
+                val owned = heldNames(key)
                 val profile = ownProfile(a)?.profile
                 val label = KachatNames.label(owned, profile?.primaryName, graceMs)
                 Identity(a, label, owned.map { it.name }, profile)

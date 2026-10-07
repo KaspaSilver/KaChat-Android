@@ -692,8 +692,6 @@
     <string name="kn_name_gone">Ce nom a été libéré ou récupéré. Il est de nouveau libre.</string>
     <string name="kn_not_for_sale">Pas à vendre</string>
     <string name="kn_expires_on">Expire le %1$s</string>
-    <string name="kn_detail_grace_mine">Expiré - renouvelez-le pour le garder. Jusqu’à la fin du délai de grâce, personne d’autre ne peut le prendre.</string>
-    <string name="kn_detail_grace">Expiré. Il ne se résout plus ; le propriétaire peut encore le renouveler.</string>
     <string name="kn_renew">Renouveler</string>
     <string name="kn_change_price">Modifier le prix</string>
     <string name="kn_list_for_sale">Mettre en vente</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">Ce n’est pas une adresse Schnorr testnet.</string>
     <string name="kn_err_address_key">La clé de cette adresse n’est pas valide.</string>
     <string name="kn_err_enter_address">Saisissez une adresse ou un nom .kachat.</string>
-    <string name="kn_err_no_active_name">Aucun nom .kachat actif de ce nom.</string>
     <string name="kn_err_lookup">Impossible de rechercher ce nom.</string>
     <string name="kn_profile_belongs">Votre profil appartient à votre adresse, pas à un nom : il reste le même quand vous achetez, vendez ou abandonnez un nom.</string>
     <string name="kn_links">Liens</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">Les noms en période de grâce apparaîtront ici au lancement des noms .kachat.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Fin de la période de grâce : %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">Aucun nom .kachat de ce nom.</string>
+    <string name="kn_detail_grace_resolves">Expiré. Il pointe toujours vers son propriétaire jusqu\'à la fin de la période de grâce, et le propriétaire peut encore le renouveler.</string>
+    <string name="kn_detail_grace_mine_resolves">Expiré - renouvelez-le pour le garder. Jusqu\'à la fin de la période de grâce, il pointe toujours vers vous et personne d\'autre ne peut le prendre.</string>
 </resources>

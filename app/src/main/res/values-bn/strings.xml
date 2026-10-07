@@ -692,8 +692,6 @@
     <string name="kn_name_gone">এই নামটি ছেড়ে দেওয়া বা পুনরুদ্ধার করা হয়েছে। আবার নেওয়া যাবে।</string>
     <string name="kn_not_for_sale">বিক্রির জন্য নয়</string>
     <string name="kn_expires_on">মেয়াদ শেষ %1$s</string>
-    <string name="kn_detail_grace_mine">মেয়াদ শেষ - রাখতে নবায়ন করুন। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত অন্য কেউ নিতে পারবে না।</string>
-    <string name="kn_detail_grace">মেয়াদ শেষ। এটি আর ঠিকানায় রিজলভ হয় না; মালিক এখনও নবায়ন করতে পারেন।</string>
     <string name="kn_renew">নবায়ন</string>
     <string name="kn_change_price">দাম বদলান</string>
     <string name="kn_list_for_sale">বিক্রির তালিকায় দিন</string>
@@ -717,7 +715,6 @@
     <string name="kn_err_not_testnet_address">এটি টেস্টনেট Schnorr ঠিকানা নয়।</string>
     <string name="kn_err_address_key">এই ঠিকানার কী বৈধ নয়।</string>
     <string name="kn_err_enter_address">একটি ঠিকানা বা .kachat নাম লিখুন।</string>
-    <string name="kn_err_no_active_name">এই নামে কোনো সক্রিয় .kachat নাম নেই।</string>
     <string name="kn_err_lookup">নামটি খুঁজে দেখা যায়নি।</string>
     <string name="kn_profile_belongs">আপনার প্রোফাইল আপনার ঠিকানার, কোনো নামের নয়: নাম কিনলে, বেচলে বা ছেড়ে দিলেও এটি একই থাকে।</string>
     <string name="kn_links">লিংক</string>
@@ -1124,4 +1121,8 @@
     <string name="km_grace_appear">.kachat নাম চালু হলে গ্রেস পিরিয়ডের নামগুলো এখানে দেখা যাবে।</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">গ্রেস পিরিয়ড শেষ হবে %1$s</string>
+    <!-- .kachat: names in grace keep resolving to their owner -->
+    <string name="kn_err_no_name">এই নামে কোনো .kachat নাম নেই।</string>
+    <string name="kn_detail_grace_resolves">মেয়াদ শেষ। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত এটি এখনও মালিকের ঠিকানায় রিজলভ হয়, এবং মালিক এখনও এটি নবায়ন করতে পারেন।</string>
+    <string name="kn_detail_grace_mine_resolves">মেয়াদ শেষ - রাখতে নবায়ন করুন। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত এটি এখনও আপনার ঠিকানায় রিজলভ হয় এবং অন্য কেউ এটি নিতে পারবে না।</string>
 </resources>
