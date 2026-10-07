@@ -1209,7 +1209,8 @@ fun ImportWalletScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = IosGray),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                val contentColor = if (canImport) Color.Black else Color.White
+                // white on the accent and on gray alike (iOS `.foregroundColor(.white)`)
+                val contentColor = Color.White
                 Icon(Icons.Default.ArrowCircleRight, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
