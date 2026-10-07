@@ -1095,4 +1095,15 @@
     <string name="clear">クリア</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">問題が発生しました</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="choose_coin">コインを選択</string>
+    <string name="couldn_t_read_this_swap_s">このスワップの金額を読み取れませんでした</string>
+    <string name="deposit_address">入金アドレス</string>
+    <string name="exchange_id_copied">交換IDをコピーしました</string>
+    <string name="original_message_not_available">元のメッセージは利用できません</string>
+    <string name="search_coins">コインを検索</string>
+    <string name="swap_history">スワップ履歴</string>
+    <string name="swap_started">スワップを開始しました</string>
+    <string name="view_on_changenow">ChangeNOWで表示</string>
+    <string name="swap_failed">スワップに失敗しました</string>
 </resources>

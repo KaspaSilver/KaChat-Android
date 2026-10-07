@@ -1095,4 +1095,15 @@
     <string name="clear">Temizle</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">Bir Seyler Ters Gitti</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="choose_coin">Coin Sec</string>
+    <string name="couldn_t_read_this_swap_s">Bu takasin tutarlari okunamadi</string>
+    <string name="deposit_address">Yatirma Adresi</string>
+    <string name="exchange_id_copied">Takas Kimligi kopyalandi</string>
+    <string name="original_message_not_available">Orijinal mesaj kullanilamiyor</string>
+    <string name="search_coins">Coin ara</string>
+    <string name="swap_history">Takas Gecmisi</string>
+    <string name="swap_started">Takas basladi</string>
+    <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
+    <string name="swap_failed">Takas basarisiz</string>
 </resources>

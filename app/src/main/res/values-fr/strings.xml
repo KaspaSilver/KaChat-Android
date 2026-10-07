@@ -1095,4 +1095,15 @@
     <string name="clear">Effacer</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">Un probleme est survenu</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="choose_coin">Choisir la piece</string>
+    <string name="couldn_t_read_this_swap_s">Impossible de lire les montants de cet echange</string>
+    <string name="deposit_address">Adresse de depot</string>
+    <string name="exchange_id_copied">ID d\'echange copie</string>
+    <string name="original_message_not_available">Message original non disponible</string>
+    <string name="search_coins">Rechercher des pieces</string>
+    <string name="swap_history">Historique des echanges</string>
+    <string name="swap_started">Echange demarre</string>
+    <string name="view_on_changenow">Voir sur ChangeNOW</string>
+    <string name="swap_failed">Echec de l\'echange</string>
 </resources>

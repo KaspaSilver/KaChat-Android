@@ -1126,4 +1126,15 @@
     <string name="clear">پاک کردن</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">مشکلی پیش آمد</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="swap_failed">تبدیل ناموفق بود</string>
+    <string name="choose_coin">انتخاب سکه</string>
+    <string name="couldn_t_read_this_swap_s">مبالغ این تبادل خوانده نشد</string>
+    <string name="deposit_address">آدرس واریز</string>
+    <string name="exchange_id_copied">شناسه تبادل کپی شد</string>
+    <string name="original_message_not_available">پیام اصلی در دسترس نیست</string>
+    <string name="search_coins">جستجوی سکه‌ها</string>
+    <string name="swap_history">تاریخچه تبدیل‌ها</string>
+    <string name="swap_started">تبدیل شروع شد</string>
+    <string name="view_on_changenow">مشاهده در ChangeNOW</string>
 </resources>

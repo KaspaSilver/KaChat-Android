@@ -1095,4 +1095,15 @@
     <string name="clear">Xóa</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">Đã xảy ra lỗi</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="choose_coin">Chon dong tien</string>
+    <string name="couldn_t_read_this_swap_s">Không thể đọc số tiền của giao dịch hoán đổi này</string>
+    <string name="deposit_address">Địa chỉ nạp tiền</string>
+    <string name="exchange_id_copied">Đã sao chép ID trao đổi</string>
+    <string name="original_message_not_available">Tin nhắn gốc không có sẵn</string>
+    <string name="search_coins">Tim kiem dong tien</string>
+    <string name="swap_history">Lịch sử hoán đổi</string>
+    <string name="swap_started">Hoán đổi đã bắt đầu</string>
+    <string name="view_on_changenow">Xem trên ChangeNOW</string>
+    <string name="swap_failed">Hoán đổi không thành công</string>
 </resources>

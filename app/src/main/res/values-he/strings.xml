@@ -1095,4 +1095,15 @@
     <string name="clear">נקה</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">משהו השתבש</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="choose_coin">בחר מטבע</string>
+    <string name="couldn_t_read_this_swap_s">לא ניתן היה לקרוא את הסכומים של החלפה זו</string>
+    <string name="deposit_address">כתובת הפקדה</string>
+    <string name="exchange_id_copied">מזהה ההחלפה הועתק</string>
+    <string name="original_message_not_available">ההודעה המקורית אינה זמינה</string>
+    <string name="search_coins">חפש מטבעות</string>
+    <string name="swap_history">היסטוריית החלפות</string>
+    <string name="swap_started">ההחלפה החלה</string>
+    <string name="view_on_changenow">צפה ב-ChangeNOW</string>
+    <string name="swap_failed">ההחלפה נכשלה</string>
 </resources>

@@ -1095,4 +1095,15 @@
     <string name="clear">清除</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">出错了</string>
+    <!-- Swap / chat strings: Android keeps its translations (restored) -->
+    <string name="choose_coin">选择币种</string>
+    <string name="couldn_t_read_this_swap_s">无法读取此次兑换的金额</string>
+    <string name="deposit_address">存款地址</string>
+    <string name="exchange_id_copied">已复制交易 ID</string>
+    <string name="original_message_not_available">原始消息不可用</string>
+    <string name="search_coins">搜索币种</string>
+    <string name="swap_history">兑换历史</string>
+    <string name="swap_started">兑换已开始</string>
+    <string name="view_on_changenow">在 ChangeNOW 上查看</string>
+    <string name="swap_failed">兑换失败</string>
 </resources>
