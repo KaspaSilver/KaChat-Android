@@ -1134,6 +1134,8 @@ fun ChatThreadScreen(
                                             tiles = 5 + (if (nextcloudAccount != null) 1 else 0) +
                                                 (if (contactId != myAddress && !inboxSupported) 1 else 0)
                                         ),
+                                        // iOS: [.height(composerPlusSheetHeight), .large].
+                                        largeDetent = true,
                                     ) {
                                             // Pay first: the Kaspa logo left the input bubble, so this
                                             // is the way into a payment (iOS 8b13460) - it opens the

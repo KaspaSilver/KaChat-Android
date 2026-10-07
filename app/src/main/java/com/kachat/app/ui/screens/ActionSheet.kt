@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
@@ -166,6 +167,8 @@ fun TileActionSheet(
     bottomPadding: Dp = 24.dp,
     /** Told how many tiles the grid holds, for a sheet whose height follows its tile count. */
     onTileCount: ((Int) -> Unit)? = null,
+    /** iOS's second `.large` detent: the sheet opens at [height] and drags up to full height. */
+    largeDetent: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     TileActionSheet(
@@ -178,6 +181,7 @@ fun TileActionSheet(
         subtitleMaxLines = subtitleMaxLines,
         bottomPadding = bottomPadding,
         onTileCount = onTileCount,
+        largeDetent = largeDetent,
         content = content,
     )
 }
@@ -197,6 +201,7 @@ fun TileActionSheet(
     subtitleMaxLines: Int = Int.MAX_VALUE,
     bottomPadding: Dp = 24.dp,
     onTileCount: ((Int) -> Unit)? = null,
+    largeDetent: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -206,7 +211,7 @@ fun TileActionSheet(
         containerColor = colors.background,
         dragHandle = null,
     ) {
-        Box(Modifier.fillMaxWidth().height(height)) {
+        IosSheetDetents(height = height, largeDetent = largeDetent) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -246,6 +251,79 @@ fun TileActionSheet(
             }
             IosSheetGrabber(Modifier.align(Alignment.TopCenter))
         }
+    }
+}
+
+/**
+ * A sheet's height on iOS's detents: exactly [height] (`.height(...)`), or with [largeDetent]
+ * (`[.height(...), .large]`) that height plus the full one - drag up and the sheet grows to the
+ * top, following the finger; let go and it settles on whichever detent the drag was heading for
+ * (a flick decides it). Dragging down from full height brings it back to [height]; from [height]
+ * the drag goes on to the sheet itself, which closes it as before.
+ *
+ * The drag reaches the enclosing ModalBottomSheet through nested scrolling, so the sheet's own
+ * drag-to-dismiss and its scroll-aware settling keep working underneath.
+ */
+@Composable
+fun IosSheetDetents(height: Dp, largeDetent: Boolean, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
+    if (!largeDetent) {
+        Box(Modifier.fillMaxWidth().height(height)) { content() }
+        return
+    }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        // iOS's .large stops 10 below the status bar, the screen behind showing as a sliver.
+        val fullPx = constraints.maxHeight.toFloat() - with(density) { 10.dp.toPx() }
+        val fixedPx = with(density) { height.toPx() }.coerceAtMost(fullPx)
+        val rangePx = (fullPx - fixedPx).coerceAtLeast(0f)
+        // How far above the fixed detent the sheet is drawn: 0 at [height], rangePx at full.
+        var extraPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+        val extra = extraPx.coerceIn(0f, rangePx)
+        val latestRange by rememberUpdatedState(rangePx)
+        val flickPx = with(density) { 125.dp.toPx() }
+        val scrollState = androidx.compose.foundation.gestures.rememberScrollableState { delta ->
+            // Down is positive: dragging up grows the sheet, dragging down shrinks it to the
+            // fixed detent; what is left over goes on to the sheet (and closes it).
+            val old = extraPx.coerceIn(0f, latestRange)
+            val new = (old - delta).coerceIn(0f, latestRange)
+            extraPx = new
+            old - new
+        }
+        val settle = remember(flickPx) {
+            object : androidx.compose.foundation.gestures.FlingBehavior {
+                override suspend fun androidx.compose.foundation.gestures.ScrollScope.performFling(initialVelocity: Float): Float {
+                    val range = latestRange
+                    val from = extraPx.coerceIn(0f, range)
+                    // At the fixed detent and not heading up: the sheet itself settles (or closes).
+                    if (range <= 0f || (from <= 0f && initialVelocity >= 0f)) return initialVelocity
+                    val target = when {
+                        initialVelocity < -flickPx -> range
+                        initialVelocity > flickPx -> 0f
+                        else -> if (from > range / 2f) range else 0f
+                    }
+                    androidx.compose.animation.core.animate(
+                        initialValue = from,
+                        targetValue = target,
+                        initialVelocity = -initialVelocity,
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                        ),
+                    ) { value, _ -> extraPx = value }
+                    return 0f
+                }
+            }
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(with(density) { (fixedPx + extra).toDp() })
+                .scrollable(
+                    state = scrollState,
+                    orientation = androidx.compose.foundation.gestures.Orientation.Vertical,
+                    flingBehavior = settle,
+                ),
+        ) { content() }
     }
 }
 
