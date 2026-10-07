@@ -2600,12 +2600,16 @@ private fun KachatManageNameSheet(
     }
     // When the renewal window opens, while it hasn't yet - under the sheet's title.
     val note = params?.takeIf { !info.renewOpen(it) }?.let { stringResource(R.string.kn_renewal_opens_on, KachatLive.date(info.renewOpens(it))) }
-    ActionSheetContainer(title = info.display, subtitle = note, onDismiss = onDismiss, sheetState = sheetState) {
-        ActionSheetTiles {
+    TileActionSheet(
+        title = info.display,
+        subtitle = note,
+        onDismiss = onDismiss,
+        sheetState = sheetState,
+        height = ActionSheetTileMetrics.sheetHeight(tiles = items.size, header = if (note == null) 70.dp else 90.dp),
+    ) {
             items.forEach { item ->
                 ActionSheetRow(item.icon, item.title, item.subtitle, tint = item.tint ?: KaspaTeal, enabled = item.enabled, onClick = item.run)
             }
-        }
     }
 }
 

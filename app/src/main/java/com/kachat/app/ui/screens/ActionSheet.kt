@@ -17,6 +17,10 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Schedule
@@ -126,13 +130,142 @@ fun MessageActionsSheet(
     // iOS plays a medium impact as the long press brings the menu up.
     val haptic = com.kachat.app.util.rememberHaptics()
     LaunchedEffect(Unit) { haptic(com.kachat.app.util.IosHaptic.IMPACT_MEDIUM) }
-    ActionSheetContainer(
+    val shownPreview = preview?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("{") }
+    // iOS MessageActionsSheet.height: the header (taller with the preview), the grid and 40,
+    // never more than 85% of the screen. It counts the tiles; so does this, by laying them out.
+    val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+    var tileCount by remember { mutableIntStateOf(0) }
+    val header = if (shownPreview == null) 76.dp else 116.dp
+    TileActionSheet(
         title = title,
-        subtitle = preview?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("{") },
+        subtitle = shownPreview,
+        subtitleFontSize = 13.sp,
+        subtitleMaxLines = 2,
         onDismiss = onDismiss,
+        height = minOf(screenHeight * 0.85f, header + ActionSheetTileMetrics.gridHeight(tileCount) + 40.dp),
+        bottomPadding = 20.dp,
+        onTileCount = { tileCount = it },
+        content = content,
+    )
+}
+
+/**
+ * The half sheet behind every long-press menu and the composer's "+": a title (and an optional
+ * line under it), then the [ActionSheetRow]s as square tiles, three to a row. Exactly [height]
+ * tall, the way iOS fixes each of these sheets' detent with `ActionSheetTileMetrics.sheetHeight`
+ * rather than letting it grow to its content: the title 20 below the top edge, the grabber drawn
+ * over the top rather than taking a row of its own, the tiles under the title, room to spare
+ * below them.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TileActionSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    height: Dp,
+    subtitle: String? = null,
+    subtitleFontSize: TextUnit = 12.sp,
+    subtitleMaxLines: Int = Int.MAX_VALUE,
+    bottomPadding: Dp = 24.dp,
+    /** Told how many tiles the grid holds, for a sheet whose height follows its tile count. */
+    onTileCount: ((Int) -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    TileActionSheet(
+        title = title,
+        onDismiss = onDismiss,
+        height = height,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        subtitle = subtitle,
+        subtitleFontSize = subtitleFontSize,
+        subtitleMaxLines = subtitleMaxLines,
+        bottomPadding = bottomPadding,
+        onTileCount = onTileCount,
+        content = content,
+    )
+}
+
+/** The same sheet on a [sheetState] the caller holds (the .kachat Manage Name sheet hides it
+ *  itself before acting) - a separate overload so the experimental [SheetState] stays out of
+ *  every other caller's signature, as [ActionSheetContainer] does. */
+@ExperimentalMaterial3Api
+@Composable
+fun TileActionSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    height: Dp,
+    sheetState: SheetState,
+    subtitle: String? = null,
+    subtitleFontSize: TextUnit = 12.sp,
+    subtitleMaxLines: Int = Int.MAX_VALUE,
+    bottomPadding: Dp = 24.dp,
+    onTileCount: ((Int) -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.background,
+        dragHandle = null,
     ) {
-        ActionSheetTiles(content)
+        Box(Modifier.fillMaxWidth().height(height)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = bottomPadding),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        title,
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            subtitle,
+                            color = colors.textSecondary,
+                            fontSize = subtitleFontSize,
+                            textAlign = TextAlign.Center,
+                            maxLines = subtitleMaxLines,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    ActionSheetTiles(content, onTileCount)
+                }
+            }
+            IosSheetGrabber(Modifier.align(Alignment.TopCenter))
+        }
     }
+}
+
+/**
+ * iOS's sheet drag indicator (`.presentationDragIndicator(.visible)`): a 36 x 5 rounded bar 5
+ * below the sheet's top edge, drawn over the content rather than above it, so a sheet's height
+ * and its title's place match iOS's.
+ */
+@Composable
+fun IosSheetGrabber(modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .padding(top = 5.dp)
+            .size(width = 36.dp, height = 5.dp)
+            .clip(CircleShape)
+            .background(LocalAppColors.current.textSecondary.copy(alpha = 0.5f)),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -342,14 +475,14 @@ private val LocalActionSheetTiles = staticCompositionLocalOf { false }
  * half sheets (confirmations, account menus) keep the row form.
  *
  * Each child is one tile: the columns share the width evenly, and a short last row keeps the
- * column width rather than stretching. The sheet needs no height of its own - an
- * [ActionSheetContainer] wraps whatever the grid measures, which is what iOS's
- * `ActionSheetTileMetrics.sheetHeight` computes by hand for its detent.
+ * column width rather than stretching. A [TileActionSheet] holds them at the height iOS gives its
+ * detent ([ActionSheetTileMetrics.sheetHeight]).
  */
 @Composable
-fun ActionSheetTiles(content: @Composable () -> Unit) {
+fun ActionSheetTiles(content: @Composable () -> Unit, onTileCount: ((Int) -> Unit)? = null) {
     CompositionLocalProvider(LocalActionSheetTiles provides true) {
         Layout(content = content, modifier = Modifier.fillMaxWidth()) { measurables, constraints ->
+            onTileCount?.invoke(measurables.size)
             val spacing = ActionSheetTileMetrics.spacing.roundToPx()
             val tileHeight = ActionSheetTileMetrics.tileHeight.roundToPx()
             val width = constraints.maxWidth
@@ -366,10 +499,19 @@ fun ActionSheetTiles(content: @Composable () -> Unit) {
     }
 }
 
-/** Sizes for [ActionSheetTiles] (iOS cdac6d0 `ActionSheetTileMetrics`). */
+/** Sizes for [ActionSheetTiles], and a sheet height to fit them (iOS `ActionSheetTileMetrics`). */
 object ActionSheetTileMetrics {
     val tileHeight = 96.dp
     val spacing = 12.dp
+
+    /** The grid's height for [count] tiles (one row at least). */
+    fun gridHeight(count: Int): Dp {
+        val rows = maxOf(1, (count + 2) / 3)
+        return tileHeight * rows + spacing * (rows - 1)
+    }
+
+    /** A [TileActionSheet]'s height: its title area, the grid, and the bottom padding. */
+    fun sheetHeight(tiles: Int, header: Dp = 70.dp): Dp = header + gridHeight(tiles) + 44.dp
 }
 
 /**

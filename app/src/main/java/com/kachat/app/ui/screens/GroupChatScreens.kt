@@ -819,12 +819,12 @@ fun GroupChatThreadScreen(
                                     // minus Pay in Kaspa and chess (a group has no single
                                     // recipient for either).
                                     // Square tiles, three to a row, as in 1:1 (iOS d645d78).
-                                    ActionSheetContainer(
+                                    TileActionSheet(
                                         title = stringResource(R.string.send),
-                                        subtitle = null,
                                         onDismiss = { showComposerMenu = false },
+                                        // iOS: camera, photo, voice, plus file with Nextcloud.
+                                        height = ActionSheetTileMetrics.sheetHeight(tiles = if (nextcloudAccount != null) 4 else 3),
                                     ) {
-                                        ActionSheetTiles {
                                             // Camera, Photo and Voice Message each ask on chain or via
                                             // Nextcloud when a server is connected (that choice
                                             // replaced the "Send Media via Nextcloud" setting), and go
@@ -854,7 +854,6 @@ fun GroupChatThreadScreen(
                                                     showNextcloudPicker = true
                                                 }
                                             }
-                                        }
                                     }
                                 }
                                 composerMediaStep?.let { kind ->

@@ -331,8 +331,8 @@ fun BroadcastListScreen(
         val summaries by broadcastViewModel.roomSummaries.collectAsState()
         val hasUnread = (summaries[name]?.unreadCount ?: 0) > 0
         fun say(text: String) { coroutineScope.launch { snackbarHostState.showSnackbar(text) } }
-        ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = { roomActionTarget = null }) {
-            ActionSheetTiles {
+        // iOS sizes this sheet for five tiles (two rows).
+        TileActionSheet(title = "#$name", onDismiss = { roomActionTarget = null }, height = ActionSheetTileMetrics.sheetHeight(tiles = 5)) {
                 if (hasUnread) {
                     ActionSheetRow(icon = Icons.Default.Drafts, title = stringResource(R.string.mark_as_read), subtitle = "Clears the unread badge on this room.") {
                         roomActionTarget = null
@@ -393,7 +393,6 @@ fun BroadcastListScreen(
                         say(offText)
                     }
                 }
-            }
         }
     }
 

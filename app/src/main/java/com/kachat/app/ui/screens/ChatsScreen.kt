@@ -671,12 +671,12 @@ fun ChatsScreen(
                                 val isSilent = com.kachat.app.models.ContactNotificationMode
                                     .fromName(convo.contact.notificationOverride) ==
                                     com.kachat.app.models.ContactNotificationMode.OFF
-                                ActionSheetContainer(
+                                // Two rows of tiles tall, as iOS sizes it (sheetHeight(tiles: 4)).
+                                TileActionSheet(
                                     title = convo.contact.displayName,
-                                    subtitle = null,
                                     onDismiss = { menuContactId = null },
+                                    height = ActionSheetTileMetrics.sheetHeight(tiles = 4),
                                 ) {
-                                    ActionSheetTiles {
                                         if (convo.unreadCount > 0) {
                                             ActionSheetRow(
                                                 icon = Icons.Default.MarkEmailRead,
@@ -722,7 +722,6 @@ fun ChatsScreen(
                                             menuContactId = null
                                             contactToDelete = convo.contact.id
                                         }
-                                    }
                                 }
                             }
                         }
@@ -1158,8 +1157,8 @@ private fun ChatCircleActionSheet(
         val convo = groupConversations.firstOrNull { "g:${it.group.groupId}" == id } ?: return
         val groupId = convo.group.groupId
         val isSilent = groupId in silentGroups
-        ActionSheetContainer(title = convo.group.name, subtitle = null, onDismiss = onDismiss) {
-            ActionSheetTiles {
+        // Fixed at two rows of tiles, as iOS sizes a circle's sheet (sheetHeight(tiles: 6)).
+        TileActionSheet(title = convo.group.name, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
                 if (convo.unreadCount > 0) {
                     ActionSheetRow(
                         icon = Icons.Default.MarkEmailRead,
@@ -1201,15 +1200,13 @@ private fun ChatCircleActionSheet(
                     onDismiss()
                     onDeleteGroup(groupId)
                 }
-            }
         }
     } else if (id.startsWith("r:")) {
         val name = id.removePrefix("r:")
         val channel = listedRooms.firstOrNull { it.channelName == name }
         val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
         val notifyOn = channel?.notifyEnabled == true
-        ActionSheetContainer(title = "#$name", subtitle = null, onDismiss = onDismiss) {
-            ActionSheetTiles {
+        TileActionSheet(title = "#$name", onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
                 if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
                     ActionSheetRow(
                         icon = Icons.Default.MarkEmailRead,
@@ -1279,7 +1276,6 @@ private fun ChatCircleActionSheet(
                         onDeleteRoom(name)
                     }
                 }
-            }
         }
     }
 }
@@ -1818,9 +1814,14 @@ private fun ChatsNewSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.background,
+        // iOS's grabber is drawn over the sheet, not in a row above it: the menu is iOS's 380
+        // tall in all (createSheetHeight), with "New" 20 below the top edge.
+        dragHandle = null,
     ) {
+        Box {
         when (page) {
-            ChatsNewPage.NEW_CHAT, ChatsNewPage.NEW_GROUP -> Box(Modifier.fillMaxHeight()) {
+            // Below the grabber, as iOS's navigation bar sits in a sheet.
+            ChatsNewPage.NEW_CHAT, ChatsNewPage.NEW_GROUP -> Box(Modifier.fillMaxHeight().padding(top = 10.dp)) {
                 CreateChatScreen(
                     onBack = { close() },
                     onCancel = { page = ChatsNewPage.MENU },
@@ -1864,7 +1865,7 @@ private fun ChatsNewSheet(
                     color = colors.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = 20.dp),
                 )
                 // 104 dp tiles as on iOS, smaller only where three of them do not fit across.
                 BoxWithConstraints(contentAlignment = Alignment.Center) {
@@ -1919,6 +1920,8 @@ private fun ChatsNewSheet(
                 }
                 Spacer(Modifier.weight(1f))
             }
+        }
+        IosSheetGrabber(Modifier.align(Alignment.TopCenter))
         }
     }
 }

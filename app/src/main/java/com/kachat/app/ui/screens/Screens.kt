@@ -1155,12 +1155,16 @@ fun ChatThreadScreen(
                                     // TalkBack hint (iOS d645d78). ActionSheetContainer opens
                                     // expanded and wraps the grid, so the "Send" title always shows
                                     // (iOS sizes its detent with ActionSheetTileMetrics for that).
-                                    ActionSheetContainer(
+                                    TileActionSheet(
                                         title = stringResource(R.string.send),
-                                        subtitle = null,
                                         onDismiss = { showComposerMenu = false },
+                                        // iOS composerPlusSheetHeight: pay, camera, photo, voice and
+                                        // chess, plus file and a handshake when they apply.
+                                        height = ActionSheetTileMetrics.sheetHeight(
+                                            tiles = 5 + (if (nextcloudAccount != null) 1 else 0) +
+                                                (if (contactId != myAddress && !inboxSupported) 1 else 0)
+                                        ),
                                     ) {
-                                        ActionSheetTiles {
                                             // Pay first: the Kaspa logo left the input bubble, so this
                                             // is the way into a payment (iOS 8b13460) - it opens the
                                             // Send KAS sheet (8d208b2).
@@ -1236,7 +1240,6 @@ fun ChatThreadScreen(
                                                     chatViewModel.sendHandshake(contactId)
                                                 }
                                             }
-                                        }
                                     }
                                 }
                                 composerMediaStep?.let { kind ->
