@@ -1625,6 +1625,26 @@ class ChatViewModel @Inject constructor(
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
+     * The groups a chat-list search matches, as iOS's Select All counts them
+     * (ChatListView.displayedGroups): the group's name, any member's name you gave them or their
+     * address, or any of its messages (up to 4 KB each). Broader than the circles row, which
+     * matches the name alone - so Select All while searching picks the same groups on both.
+     */
+    suspend fun groupIdsMatchingSearch(groups: List<com.kachat.app.models.GroupEntity>, query: String): Set<String> {
+        val q = query.trim()
+        if (q.isEmpty()) return groups.map { it.groupId }.toSet()
+        val aliases = chatRepository.getContacts().first().associate { it.id to it.alias }
+        return groups.filter { group ->
+            group.name.contains(q, ignoreCase = true) ||
+                groupRepository.membersOf(group).any { member ->
+                    aliases[member.address]?.contains(q, ignoreCase = true) == true ||
+                        member.address.contains(q, ignoreCase = true)
+                } ||
+                groupRepository.anyMessageContains(group.groupId, q)
+        }.map { it.groupId }.toSet()
+    }
+
+    /**
      * One-shot KNS resolve for a single group-member address row - unlike
      * [onCreateChatAddressChanged]/[knsResolvedAddress] (single shared StateFlow, fine for the
      * one-address Create Chat flow), the group member list can have up to 10 rows resolving

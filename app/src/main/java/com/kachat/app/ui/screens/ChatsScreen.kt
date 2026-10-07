@@ -213,8 +213,17 @@ fun ChatsScreen(
     val circleItems = remember(groupConversations, listedRooms, roomSummaries, searchQuery, circlePins) {
         chatCircleItems(groupConversations, listedRooms, roomSummaries, searchQuery, circlePins)
     }
-    val visibleGroupIds = circleItems.mapNotNull { (it as? ChatCircle.Group)?.convo?.group?.groupId }
-    val visibleRoomNames = circleItems.mapNotNull { (it as? ChatCircle.Room)?.name }
+    // What Select All and "everything selected" count while searching are iOS's displayedGroups
+    // and displayedRooms - not the circles row, which matches a title alone. A group matches by
+    // its name, a member's name or address, or a message; a room by its name.
+    val searchedGroupIds by produceState<Set<String>?>(initialValue = null, groupConversations, searchQuery) {
+        value = chatViewModel.groupIdsMatchingSearch(groupConversations.map { it.group }, searchQuery)
+    }
+    val visibleGroupIds = searchedGroupIds?.toList()
+        ?: circleItems.mapNotNull { (it as? ChatCircle.Group)?.convo?.group?.groupId }
+    val visibleRoomNames = searchQuery.trim().let { query ->
+        listedRooms.map { it.channelName }.filter { query.isEmpty() || it.contains(query, ignoreCase = true) }
+    }
     val selectionCount = selectedContactIds.size + selectedGroupIds.size + selectedRooms.size
     val isEverythingSelected = run {
         val total = filteredConversations.size + visibleGroupIds.size + visibleRoomNames.size

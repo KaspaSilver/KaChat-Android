@@ -372,6 +372,23 @@ class GroupRepository @Inject constructor(
     }
 
     /**
+     * Whether any of this group's messages contains [query] (case-insensitive) - the message half
+     * of the chat list's group search (iOS ChatListView.displayedGroups). Messages over 4 KB are
+     * skipped, as iOS skips them: a photo's or voice note's content is a long base64 blob nobody
+     * searches for, and scanning those is what made the search slow.
+     */
+    suspend fun anyMessageContains(groupId: String, query: String): Boolean = kotlinx.coroutines.withContext(Dispatchers.Default) {
+        val walletAddress = walletManager.getAddress()
+        if (walletAddress.isEmpty() || query.isEmpty()) return@withContext false
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: return@withContext false
+        val groupIdBytes = runCatching { groupId.hexToByteArray() }.getOrNull() ?: return@withContext false
+        database.groupDao().getMessagesOnce(groupId, walletAddress).any { entity ->
+            val content = decryptCached(entity, bag, groupIdBytes)?.content ?: return@any false
+            content.toByteArray(Charsets.UTF_8).size <= 4096 && content.contains(query, ignoreCase = true)
+        }
+    }
+
+    /**
      * Just what the Group Chats list row needs: the newest message and an unread count.
      *
      * This exists because the list used to subscribe to [getMessages] per group, which decrypts
