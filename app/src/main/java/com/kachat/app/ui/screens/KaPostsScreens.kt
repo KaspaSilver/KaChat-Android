@@ -1802,7 +1802,7 @@ private fun KaPostsScheduledOverlay(viewModel: KaPostsViewModel, onClose: () -> 
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            scheduledStatusLine(entry),
+                            scheduledStatusLine(entry, com.kachat.app.util.is24HourClock()),
                             color = colors.textSecondary,
                             fontSize = 12.sp,
                             modifier = Modifier.weight(1f),
@@ -1837,22 +1837,23 @@ private fun KaPostsScheduledOverlay(viewModel: KaPostsViewModel, onClose: () -> 
 }
 
 /** "Goes out Sep 24, 2026, 2:30 PM" and the outcomes that follow - iOS's scheduledLine. */
-private fun scheduledStatusLine(entry: com.kachat.app.services.KaPostScheduledEntry): String = when (entry.status) {
+private fun scheduledStatusLine(entry: com.kachat.app.services.KaPostScheduledEntry, is24Hour: Boolean): String = when (entry.status) {
     com.kachat.app.services.KaPostScheduledEntry.STATUS_SUBMITTED ->
-        "Posted ${formatScheduledTime(entry.submittedAtMs ?: entry.notBeforeMs)}"
+        "Posted ${formatScheduledTime(entry.submittedAtMs ?: entry.notBeforeMs, is24Hour)}"
     com.kachat.app.services.KaPostScheduledEntry.STATUS_FAILED ->
-        "Failed to post at ${formatScheduledTime(entry.notBeforeMs)}"
+        "Failed to post at ${formatScheduledTime(entry.notBeforeMs, is24Hour)}"
     com.kachat.app.services.KaPostScheduledEntry.STATUS_CANCELLED -> "Cancelled"
     else -> {
-        val whenText = formatScheduledTime(entry.notBeforeMs)
+        val whenText = formatScheduledTime(entry.notBeforeMs, is24Hour)
         if (entry.onServer) "Goes out $whenText" else "Goes out $whenText - from this phone, so open KaChat around then"
     }
 }
 
 
 /** How a scheduled time reads wherever one is shown: iOS's `.medium` date and `.short` time in
- *  the app's locale - "Sep 24, 2026, 2:30 PM" in English (US). */
-internal fun formatScheduledTime(ms: Long): String = com.kachat.app.util.IosDateStyle.mediumDateShortTime(ms)
+ *  the app's locale and the device's clock - "Sep 24, 2026, 2:30 PM" in English (US). */
+internal fun formatScheduledTime(ms: Long, is24Hour: Boolean): String =
+    com.kachat.app.util.IosDateStyle.mediumDateShortTime(ms, is24Hour)
 
 /**
  * Picks when a post goes out: one sheet with the date and the time together, and one button that
@@ -1962,7 +1963,7 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
                             }
                         }
                         Text(
-                            "Schedule for ${formatScheduledTime(chosenMs)}",
+                            "Schedule for ${formatScheduledTime(chosenMs, com.kachat.app.util.is24HourClock())}",
                             color = if (tooSoon || tooFar) colors.textSecondary else Color.Black,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp,
@@ -3497,7 +3498,7 @@ fun KaPostComposerDialog(
                     Icon(Icons.Default.Schedule, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "Scheduled for ${formatScheduledTime(whenMs)}",
+                        "Scheduled for ${formatScheduledTime(whenMs, com.kachat.app.util.is24HourClock())}",
                         color = colors.textPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,

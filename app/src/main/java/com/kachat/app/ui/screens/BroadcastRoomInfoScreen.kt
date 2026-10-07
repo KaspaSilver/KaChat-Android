@@ -152,6 +152,7 @@ fun BroadcastRoomInfoScreen(
                 fontSize = 12.sp,
             )
 
+            val is24Hour = com.kachat.app.util.is24HourClock()
             InfoCard(title = "On this device") {
                 FeaturedBroadcastChannels.languageDisplayName(normalized)?.let { InfoRow("Language", it) }
                 InfoRow("Kind", if (isCurated) "Popular" else "Added by you")
@@ -159,10 +160,10 @@ fun BroadcastRoomInfoScreen(
                 InfoRow("Messages", messages.size.toString())
                 InfoRow("People who posted", participants.toString())
                 messages.maxOfOrNull { it.blockTimestamp }?.let {
-                    InfoRow("Latest", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it))
+                    InfoRow("Latest", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it, is24Hour))
                 }
                 messages.minOfOrNull { it.blockTimestamp }?.let {
-                    InfoRow("Oldest held", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it))
+                    InfoRow("Oldest held", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it, is24Hour))
                 }
                 // Only the curated rooms have history worth a number: the indexer keeps theirs. A
                 // room you made holds nothing for anyone who was not there (see its info button).

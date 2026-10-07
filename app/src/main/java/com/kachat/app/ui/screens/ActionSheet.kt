@@ -777,7 +777,7 @@ fun TransactionActionsSheet(
 ) {
     ActionSheetContainer(
         title = "Transaction",
-        subtitle = summary(tx),
+        subtitle = summary(tx, com.kachat.app.util.is24HourClock()),
         detail = AddressActivityNotifier.shortAddress(tx.txId),
         onDismiss = onDismiss,
     ) {
@@ -797,11 +797,11 @@ fun TransactionActionsSheet(
 }
 
 /** "Sent 12.5 KAS on Sep 3, 2026, 2:02 PM" - what is about to be acted on, in one line. */
-private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction): String {
+private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction, is24Hour: Boolean): String {
     val direction = if (tx.sent) "Sent" else "Received"
     val amount = AddressActivityNotifier.formatKas(tx.amountSompi)
     val time = tx.blockTimeMillis?.let {
-        com.kachat.app.util.IosDateStyle.mediumDateShortTime(it)
+        com.kachat.app.util.IosDateStyle.mediumDateShortTime(it, is24Hour)
     }
     return if (time == null) "$direction $amount ${KaspaUnit.symbol}" else "$direction $amount ${KaspaUnit.symbol} on $time"
 }
