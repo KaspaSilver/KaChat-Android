@@ -156,7 +156,12 @@ class KachatNamesRegistry @Inject constructor(
         prepareMutex.withLock {
             val m = service.loadManifest()
             if (_source.value == null || forceSourceCheck) {
-                _source.value = chooseSource(m)
+                val chosen = chooseSource(m)
+                val was = _source.value
+                if (was != null && was != chosen) {
+                    Log.i(TAG, "registry source: " + if (chosen == Source.Chain) "the chain (the indexer is behind or elsewhere)" else "the indexer")
+                }
+                _source.value = chosen
             }
             if (_source.value == Source.Chain && (_chainState.value == null || cacheNetwork != m.network)) {
                 _chainState.value = loadCache(m) ?: RegistryState.atGenesis(m)
@@ -188,11 +193,23 @@ class KachatNamesRegistry @Inject constructor(
         val base = indexerBase() ?: return Source.Chain
         val status = try {
             IndexerApi.StatusJson.parse(get(base, "/names/status"))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             return Source.Chain
         }
-        // the indexer must follow this manifest's registry (registry v4 has no price covenant; iOS c8f1086)
-        return if (status.registryCovenantId?.lowercase() == hex(m.registryCovenantId)) Source.Indexer(base) else Source.Chain
+        // the indexer must follow this manifest's registry (registry v4 has no price covenant; iOS
+        // c8f1086) and say it is synced (iOS 7aa6c6d)
+        if (status.registryCovenantId?.lowercase() != hex(m.registryCovenantId) || status.synced == false) {
+            return Source.Chain
+        }
+        // Without a network position to compare with, the indexer's own "synced" is trusted.
+        val indexed = status.indexedDaa
+        if (indexed != null) {
+            val virtualDaa = service.currentVirtualDaaScore()
+            if (virtualDaa != null && virtualDaa > indexed + MAX_INDEXER_LAG_DAA) return Source.Chain
+        }
+        return Source.Indexer(base)
     }
 
     private suspend fun indexerBase(): String? {
@@ -203,14 +220,18 @@ class KachatNamesRegistry @Inject constructor(
 
     // Refresh
 
-    /** Walks the chain forward (no indexer) or just marks fresh data (indexer). Safe to call often. */
-    suspend fun refresh(forceSourceCheck: Boolean = false) {
+    /**
+     * Walks the chain forward (no indexer) or just marks fresh data (indexer). Safe to call often.
+     * Every refresh re-checks the source, so an indexer that fell behind is dropped and one that
+     * caught up is used again (iOS 7aa6c6d).
+     */
+    suspend fun refresh() {
         // Launched networks only (iOS 7227d69): mainnet never reads a registry.
         if (!KachatNamesService.isLaunched) return
         if (!_isRefreshing.compareAndSet(expect = false, update = true)) return
         val previousError = _lastError.value
         try {
-            val m = prepare(forceSourceCheck)
+            val m = prepare(forceSourceCheck = true)
             if (_source.value == Source.Chain) walk(m)
             _lastError.value = null
             _refreshedAt.value = System.currentTimeMillis()
@@ -762,6 +783,14 @@ class KachatNamesRegistry @Inject constructor(
     companion object {
         private const val TAG = "KachatNames"
         private const val CACHE_FILE = "registry.json"
+
+        /**
+         * An indexer further behind the network than this (DAA scores, about a minute) isn't
+         * used: its names would be stale - a name just claimed or sold missing, a registration
+         * waiting on it - so the app walks the chain itself until the indexer catches up (its node
+         * can lag on slow hardware; iOS 7aa6c6d).
+         */
+        const val MAX_INDEXER_LAG_DAA: Long = 600
 
         @Volatile private var instance: KachatNamesRegistry? = null
 
