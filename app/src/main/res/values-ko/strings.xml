@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">받는 중인 이름</string>
     <string name="kn_commit_waiting_busy">네트워크가 혼잡합니다. 커밋이 블록을 기다리고 있습니다.</string>
     <string name="kn_commit_sent_again">네트워크가 혼잡해 커밋을 다시 보냈습니다.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">가져오는 seed phrase는 몇 단어인가요?</string>
+    <string name="what_is_this">이게 뭔가요?</string>
+    <string name="what_is_a_seed_phrase">seed phrase란?</string>
+    <string name="seed_phrase_explainer_master_key">seed phrase는 계정의 마스터 키 역할을 하는 12개 또는 24개의 평범한 단어 목록입니다. 지갑, 채팅 주소, 메시지가 모두 여기에서 만들어집니다.</string>
+    <string name="seed_phrase_explainer_anyone">이 단어를 가진 사람은 누구나 계정의 모든 것을 가져갈 수 있습니다. 단어를 잃어버리고 이 기기도 잃어버리면 아무도 계정을 되찾을 수 없습니다. KaChat도 마찬가지입니다.</string>
+    <string name="seed_phrase_explainer_paper">단어를 순서대로 종이에 적어 안전하고 남이 볼 수 없는 곳에 보관하세요. 웹사이트에 입력하거나, 채팅으로 보내거나, 스크린샷이나 클라우드 메모에 저장하지 마세요.</string>
+    <string name="seed_phrase_explainer_lengths">12개 단어도 이미 매우 안전합니다. 24개 단어는 더 강한 보호를 더해 줍니다.</string>
 </resources>

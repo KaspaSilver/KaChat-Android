@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">Các tên đang được nhận</string>
     <string name="kn_commit_waiting_busy">Mạng đang bận. Cam kết của bạn đang chờ một khối.</string>
     <string name="kn_commit_sent_again">Mạng đang bận nên cam kết đã được gửi lại.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">Seed phrase bạn đang nhập có bao nhiêu từ?</string>
+    <string name="what_is_this">Đây là gì?</string>
+    <string name="what_is_a_seed_phrase">Seed phrase là gì?</string>
+    <string name="seed_phrase_explainer_master_key">Seed phrase là danh sách 12 hoặc 24 từ thông thường, đóng vai trò chìa khóa chính cho tài khoản của bạn. Ví, địa chỉ trò chuyện và tin nhắn của bạn đều đến từ nó.</string>
+    <string name="seed_phrase_explainer_anyone">Bất kỳ ai có các từ này đều có thể lấy hết mọi thứ trong tài khoản của bạn. Nếu bạn làm mất chúng và cũng mất thiết bị này, không ai có thể khôi phục tài khoản cho bạn, kể cả KaChat.</string>
+    <string name="seed_phrase_explainer_paper">Hãy viết các từ ra giấy theo đúng thứ tự và cất ở nơi an toàn, riêng tư. Đừng bao giờ gõ chúng vào trang web, gửi qua tin nhắn, hay lưu trong ảnh chụp màn hình hoặc ghi chú trên đám mây.</string>
+    <string name="seed_phrase_explainer_lengths">12 từ đã rất an toàn. 24 từ còn bảo vệ tốt hơn nữa.</string>
 </resources>

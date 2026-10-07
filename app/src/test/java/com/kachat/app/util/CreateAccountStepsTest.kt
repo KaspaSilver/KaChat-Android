@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Create Account's three steps (iOS acd879b / c6bd716). */
+/** Create Account's three steps (iOS acd879b / c6bd716) and Import Account's length step (iOS dd0aab1). */
 class CreateAccountStepsTest {
 
     @Test
@@ -42,5 +42,20 @@ class CreateAccountStepsTest {
     @Test
     fun `generate runs once`() {
         assertFalse(CreateAccountSteps.canGenerate(12, isCreating = true))
+    }
+
+    @Test
+    fun `import's length step waits for a length to be chosen`() {
+        assertFalse(CreateAccountSteps.canChooseImportLength(null))
+        assertTrue(CreateAccountSteps.canChooseImportLength(12))
+        assertTrue(CreateAccountSteps.canChooseImportLength(24))
+        assertFalse(CreateAccountSteps.canChooseImportLength(18))
+    }
+
+    @Test
+    fun `the words screen starts at the chosen length`() {
+        assertEquals(12, CreateAccountSteps.importWordCount(12))
+        assertEquals(24, CreateAccountSteps.importWordCount(24))
+        assertEquals(24, CreateAccountSteps.importWordCount(0))
     }
 }

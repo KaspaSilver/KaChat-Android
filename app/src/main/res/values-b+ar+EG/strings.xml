@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">الأسماء قيد المطالبة</string>
     <string name="kn_commit_waiting_busy">الشبكة مزدحمة. التزامك ينتظر كتلة.</string>
     <string name="kn_commit_sent_again">الشبكة مزدحمة، لذلك أُرسل الالتزام مرة أخرى.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">كم عدد كلمات seed phrase التي تستوردها؟</string>
+    <string name="what_is_this">ما هذا؟</string>
+    <string name="what_is_a_seed_phrase">ما هي seed phrase؟</string>
+    <string name="seed_phrase_explainer_master_key">seed phrase هي قائمة من 12 أو 24 كلمة عادية تعمل كمفتاح رئيسي لحسابك. محفظتك وعنوان الدردشة ورسائلك كلها تأتي منها.</string>
+    <string name="seed_phrase_explainer_anyone">أي شخص يملك هذه الكلمات يمكنه أخذ كل ما في حسابك. إذا فقدتها وفقدت هذا الجهاز، فلن يتمكن أحد من استعادة حسابك، ولا حتى KaChat.</string>
+    <string name="seed_phrase_explainer_paper">اكتب الكلمات على ورقة بالترتيب واحفظها في مكان آمن وخاص. لا تكتبها أبدًا في موقع ويب، ولا ترسلها في محادثة، ولا تحفظها في لقطة شاشة أو ملاحظات سحابية.</string>
+    <string name="seed_phrase_explainer_lengths">12 كلمة آمنة جدًا بالفعل. 24 كلمة تضيف حماية أكبر.</string>
 </resources>

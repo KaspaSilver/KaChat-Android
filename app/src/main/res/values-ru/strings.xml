@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">Имена в процессе получения</string>
     <string name="kn_commit_waiting_busy">Сеть загружена. Ваш коммит ждёт блока.</string>
     <string name="kn_commit_sent_again">Сеть загружена, поэтому коммит отправлен повторно.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">Сколько слов в seed phrase, которую вы импортируете?</string>
+    <string name="what_is_this">Что это?</string>
+    <string name="what_is_a_seed_phrase">Что такое seed phrase?</string>
+    <string name="seed_phrase_explainer_master_key">Seed phrase это список из 12 или 24 обычных слов, который служит главным ключом к вашему аккаунту. Из него получаются ваш кошелёк, адрес для чатов и сообщения.</string>
+    <string name="seed_phrase_explainer_anyone">Любой, у кого есть эти слова, может забрать всё из вашего аккаунта. Если вы потеряете их и потеряете это устройство, никто не сможет вернуть ваш аккаунт, даже KaChat.</string>
+    <string name="seed_phrase_explainer_paper">Запишите слова на бумаге по порядку и храните их в надёжном и укромном месте. Никогда не вводите их на сайтах, не отправляйте в чатах и не храните в скриншотах или облачных заметках.</string>
+    <string name="seed_phrase_explainer_lengths">12 слов уже очень надёжны. 24 слова дают ещё больше защиты.</string>
 </resources>

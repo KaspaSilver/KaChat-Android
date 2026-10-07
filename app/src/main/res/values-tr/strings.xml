@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">Alınmakta olan adlar</string>
     <string name="kn_commit_waiting_busy">Ağ yoğun. Taahhüdünüz bir blok bekliyor.</string>
     <string name="kn_commit_sent_again">Ağ yoğun, bu yüzden taahhüt yeniden gönderildi.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">İçe aktardığınız seed phrase kaç kelime?</string>
+    <string name="what_is_this">Bu nedir?</string>
+    <string name="what_is_a_seed_phrase">Seed phrase nedir?</string>
+    <string name="seed_phrase_explainer_master_key">Seed phrase, hesabınızın ana anahtarı olarak çalışan 12 ya da 24 sıradan kelimeden oluşan bir listedir. Cüzdanınız, sohbet adresiniz ve mesajlarınız hep ondan gelir.</string>
+    <string name="seed_phrase_explainer_anyone">Bu kelimelere sahip olan herkes hesabınızdaki her şeyi alabilir. Onları kaybeder ve bu cihazı da kaybederseniz, hesabınızı kimse geri getiremez, KaChat bile.</string>
+    <string name="seed_phrase_explainer_paper">Kelimeleri sırasıyla kağıda yazın ve güvenli, özel bir yerde saklayın. Onları asla bir web sitesine yazmayın, sohbette göndermeyin ve ekran görüntüsünde ya da bulut notlarında tutmayın.</string>
+    <string name="seed_phrase_explainer_lengths">12 kelime zaten çok güvenlidir. 24 kelime daha da fazla koruma ekler.</string>
 </resources>

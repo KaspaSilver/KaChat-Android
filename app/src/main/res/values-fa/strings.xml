@@ -1124,4 +1124,12 @@
     <string name="kn_names_being_claimed">نام‌های در حال دریافت</string>
     <string name="kn_commit_waiting_busy">شبکه شلوغ است. تعهد شما منتظر یک بلاک است.</string>
     <string name="kn_commit_sent_again">شبکه شلوغ است، بنابراین تعهد دوباره ارسال شد.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">عبارت بازیابی که وارد می‌کنید چند کلمه دارد؟</string>
+    <string name="what_is_this">این چیست؟</string>
+    <string name="what_is_a_seed_phrase">عبارت بازیابی چیست؟</string>
+    <string name="seed_phrase_explainer_master_key">عبارت بازیابی فهرستی از ۱۲ یا ۲۴ کلمه معمولی است که مانند کلید اصلی حساب شما عمل می‌کند. کیف پول، آدرس گفتگو و پیام‌های شما همه از آن می‌آیند.</string>
+    <string name="seed_phrase_explainer_anyone">هر کسی این کلمات را داشته باشد می‌تواند همه‌چیز حساب شما را بردارد. اگر آن‌ها را گم کنید و این دستگاه را هم از دست بدهید، هیچ‌کس نمی‌تواند حسابتان را برگرداند، حتی KaChat.</string>
+    <string name="seed_phrase_explainer_paper">کلمات را به ترتیب روی کاغذ بنویسید و در جایی امن و خصوصی نگه دارید. هرگز آن‌ها را در وب‌سایتی تایپ نکنید، در گفتگو نفرستید و در اسکرین‌شات یا یادداشت ابری نگه ندارید.</string>
+    <string name="seed_phrase_explainer_lengths">۱۲ کلمه همین حالا هم بسیار امن است. ۲۴ کلمه امنیت بیشتری اضافه می‌کند.</string>
 </resources>

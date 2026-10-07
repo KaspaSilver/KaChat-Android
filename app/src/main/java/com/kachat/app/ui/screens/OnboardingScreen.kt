@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,6 +60,7 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.CreateAccountSteps
 import com.kachat.app.util.authenticateWithDeviceCredential
 import com.kachat.app.viewmodels.WalletViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Main entry point for the onboarding flow.
@@ -115,13 +117,39 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 onBack = { navController.popBackStack() },
                 onContinue = { family ->
                     viewModel.setPendingSourceFamily(family)
-                    navController.navigate("import_wallet")
+                    navController.navigate("import_name")
                 }
             )
         }
-        composable("import_wallet") {
+        // Import Account after the source wallet (iOS dd0aab1): the name (the same screen as
+        // Create Account's first step), the seed length, the words, then the passphrase.
+        composable("import_name") {
+            ImportNameScreen(
+                onBack = { navController.popBackStack() },
+                onNext = { name -> navController.navigate("import_length?name=${android.net.Uri.encode(name)}") }
+            )
+        }
+        composable(
+            "import_length?name={name}",
+            arguments = listOf(androidx.navigation.navArgument("name") { defaultValue = "" })
+        ) { backStackEntry ->
+            val name = backStackEntry.arguments?.getString("name").orEmpty()
+            ImportLengthScreen(
+                onBack = { navController.popBackStack() },
+                onNext = { count -> navController.navigate("import_wallet?name=${android.net.Uri.encode(name)}&count=$count") }
+            )
+        }
+        composable(
+            "import_wallet?name={name}&count={count}",
+            arguments = listOf(
+                androidx.navigation.navArgument("name") { defaultValue = "Imported Account" },
+                androidx.navigation.navArgument("count") { type = androidx.navigation.NavType.IntType; defaultValue = 24 }
+            )
+        ) { backStackEntry ->
             ImportWalletScreen(
                 viewModel,
+                accountName = backStackEntry.arguments?.getString("name") ?: "Imported Account",
+                initialWordCount = backStackEntry.arguments?.getInt("count") ?: 24,
                 onBack = { navController.popBackStack() },
                 // Seed validated + stashed by prepareImport(); the actual import happens on the
                 // passphrase screen (which arms the Welcome Guide + logs in on success).
@@ -602,6 +630,26 @@ fun SavedAccountCard(
  */
 @Composable
 fun CreateAccountScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
+    AccountNameForm(title = stringResource(R.string.create_account), onBack = onBack, onNext = onNext)
+}
+
+/**
+ * Import Account, after the source wallet ([ImportSourceWalletScreen]; iOS dd0aab1
+ * `ImportNameStep`): the account's name, local to this device - the same screen as Create
+ * Account's first step. Then the seed length ([ImportLengthScreen]), the words
+ * ([ImportWalletScreen]), and the optional passphrase.
+ */
+@Composable
+fun ImportNameScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
+    AccountNameForm(title = stringResource(R.string.import_account), onBack = onBack, onNext = onNext)
+}
+
+/**
+ * The account name step of Create Account and Import Account (iOS dd0aab1 `AccountNameForm`): a
+ * name local to this device. Next stays off until there is a name; [onNext] gets it trimmed.
+ */
+@Composable
+private fun AccountNameForm(title: String, onBack: () -> Unit, onNext: (String) -> Unit) {
     val colors = LocalAppColors.current
     // Starts empty on purpose: the name is the user's choice. Kept across the trip to the next
     // step and back, as iOS keeps it.
@@ -617,7 +665,7 @@ fun CreateAccountScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
         }
     }
 
-    CreateAccountStepScaffold(onBack = onBack) {
+    CreateAccountStepScaffold(title = title, onBack = onBack) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = stringResource(R.string.create_wallet_name_title),
@@ -653,7 +701,7 @@ fun CreateAccountScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
             singleLine = true
         )
 
-        CreateAccountNextButton(title = stringResource(R.string.next), enabled = canContinue, onClick = next)
+        CreateWalletNextButton(title = stringResource(R.string.next), enabled = canContinue, onClick = next)
     }
 }
 
@@ -668,6 +716,8 @@ fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, o
     var wordCount by rememberSaveable { mutableStateOf<Int?>(null) }
     // Until the seed phrase screen takes over (OnboardingScreen navigates on the new phrase).
     var isCreating by remember { mutableStateOf(false) }
+    var showExplainer by remember { mutableStateOf(false) }
+    if (showExplainer) SeedPhraseExplainerSheet(onDismiss = { showExplainer = false })
 
     CreateAccountStepScaffold(onBack = onBack) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -678,7 +728,7 @@ fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, o
             )
             // 12 first, and no "(recommended)" on 24: both lengths are secure.
             CreateAccountSteps.WORD_COUNTS.forEach { count ->
-                CreateAccountLengthButton(
+                SeedLengthButton(
                     title = stringResource(if (count == 12) R.string.n_12_words else R.string.n_24_words),
                     chosen = wordCount == count,
                     enabled = !isCreating,
@@ -716,7 +766,7 @@ fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, o
             )
         }
 
-        CreateAccountNextButton(
+        CreateWalletNextButton(
             title = stringResource(R.string.generate_account),
             enabled = CreateAccountSteps.canGenerate(wordCount, isCreating),
             busy = isCreating,
@@ -729,13 +779,146 @@ fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, o
                 viewModel.createWallet(accountName, count)
             }
         }
+
+        // What a seed phrase is, in a half sheet (iOS dd0aab1).
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Button,
+                    onClick = { showExplainer = true }
+                )
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.what_is_this),
+                color = KaspaTeal,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            )
+        }
     }
 }
 
-/** The Create Account steps' frame: Back, the large "Create Account" title, then the step's
- *  content 24dp apart, scrolling above the keyboard. */
+/**
+ * Import Account: how many words the seed phrase being imported has (iOS dd0aab1
+ * `ImportLengthStep`) - the same 12 / 24 buttons as Create Account, nothing chosen until the
+ * user taps one. Next goes to the words ([ImportWalletScreen]).
+ */
 @Composable
-private fun CreateAccountStepScaffold(onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun ImportLengthScreen(onBack: () -> Unit, onNext: (Int) -> Unit) {
+    val colors = LocalAppColors.current
+    var wordCount by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    CreateAccountStepScaffold(title = stringResource(R.string.import_account), onBack = onBack) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(R.string.choose_seed_phrase_length),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            Text(
+                text = stringResource(R.string.import_seed_length_detail),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary
+            )
+            CreateAccountSteps.WORD_COUNTS.forEach { count ->
+                SeedLengthButton(
+                    title = stringResource(if (count == 12) R.string.n_12_words else R.string.n_24_words),
+                    chosen = wordCount == count,
+                    enabled = true,
+                    onClick = { wordCount = count },
+                )
+            }
+        }
+
+        CreateWalletNextButton(
+            title = stringResource(R.string.next),
+            enabled = CreateAccountSteps.canChooseImportLength(wordCount),
+        ) {
+            val count = wordCount
+            if (count != null && CreateAccountSteps.canChooseImportLength(count)) onNext(count)
+        }
+    }
+}
+
+/**
+ * What a seed phrase is, in plain words (iOS dd0aab1 `SeedPhraseExplainerSheet`): the half sheet
+ * behind "What is this?" on the seed length step. Opens at half height and drags up to full
+ * (`[.medium, .large]`), with the grabber; Done closes it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SeedPhraseExplainerSheet(onDismiss: () -> Unit) {
+    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                    Column(Modifier.fillMaxSize()) {
+                        IosSheetNavBar(
+                            title = stringResource(R.string.what_is_a_seed_phrase),
+                            trailing = {
+                                IosBarTextButton(
+                                    text = stringResource(R.string.done),
+                                    bold = true,
+                                    onClick = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() } }
+                                )
+                            }
+                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp)
+                        ) {
+                            listOf(
+                                R.string.seed_phrase_explainer_master_key,
+                                R.string.seed_phrase_explainer_anyone,
+                                R.string.seed_phrase_explainer_paper,
+                                R.string.seed_phrase_explainer_lengths,
+                            ).forEach { res ->
+                                Text(text = stringResource(res), color = colors.textSecondary, fontSize = 15.sp)
+                            }
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
+                }
+            }
+        }
+    }
+}
+
+/** The Create Account and Import Account steps' frame: Back, the large title ("Create Account"
+ *  or "Import Account"), then the step's content 24dp apart, scrolling above the keyboard. */
+@Composable
+private fun CreateAccountStepScaffold(
+    title: String = stringResource(R.string.create_account),
+    onBack: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
     val colors = LocalAppColors.current
     Surface(color = colors.background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -762,7 +945,7 @@ private fun CreateAccountStepScaffold(onBack: () -> Unit, content: @Composable C
             }
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = stringResource(R.string.create_account),
+                text = title,
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 color = colors.textPrimary
             )
@@ -773,10 +956,10 @@ private fun CreateAccountStepScaffold(onBack: () -> Unit, content: @Composable C
     }
 }
 
-/** The accent-filled continue button of the Create Account steps, dimmed while disabled (iOS
- *  `CreateWalletNextButton`). */
+/** The accent-filled continue button of the Create Account and Import Account steps, dimmed while
+ *  disabled (iOS `CreateWalletNextButton`). */
 @Composable
-private fun CreateAccountNextButton(title: String, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
+private fun CreateWalletNextButton(title: String, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         enabled = enabled,
@@ -804,10 +987,11 @@ private fun CreateAccountNextButton(title: String, enabled: Boolean, busy: Boole
     }
 }
 
-/** One seed length: full width, filled with the accent when chosen, outlined otherwise (iOS
- *  c6bd716 `lengthButton`). */
+/** One of the two seed length choices (12 or 24 words): full width, filled with the accent when
+ *  chosen, outlined otherwise (iOS dd0aab1 `SeedLengthButton`, shared by Create Account and
+ *  Import Account). */
 @Composable
-private fun CreateAccountLengthButton(title: String, chosen: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun SeedLengthButton(title: String, chosen: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -836,11 +1020,21 @@ private fun CreateAccountLengthButton(title: String, chosen: Boolean, enabled: B
     }
 }
 
+/**
+ * Import Account: the seed phrase's words (in-app keyboard, or Paste), then the passphrase step
+ * (iOS `ImportWalletView`). The name ([ImportNameScreen]) and the length ([ImportLengthScreen])
+ * come before it (iOS dd0aab1); a pasted phrase of the other length switches the length.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed: () -> Unit) {
-    var accountName by remember { mutableStateOf("Imported Account") }
-    var wordCount by remember { mutableIntStateOf(24) }
+fun ImportWalletScreen(
+    viewModel: WalletViewModel,
+    accountName: String,
+    initialWordCount: Int,
+    onBack: () -> Unit,
+    onProceed: () -> Unit
+) {
+    var wordCount by remember { mutableIntStateOf(CreateAccountSteps.importWordCount(initialWordCount)) }
     // Fixed-capacity backing store; only the first [wordCount] entries are used.
     var words by remember { mutableStateOf(List(24) { "" }) }
     var activeSlot by remember { mutableIntStateOf(0) }
@@ -895,65 +1089,6 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Account name — the only field that uses the OS keyboard; it isn't sensitive.
-            Text(
-                text = stringResource(R.string.account_name),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleSmall
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TextField(
-                value = accountName,
-                onValueChange = { accountName = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = LocalAppColors.current.surface,
-                    unfocusedContainerColor = LocalAppColors.current.surface,
-                    focusedTextColor = LocalAppColors.current.textPrimary,
-                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                    cursorColor = KaspaTeal,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Word-count selector
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                // 12 first, matching the create screen. No "(recommended)" either: on import
-                // the length is whatever your existing seed already is, so there is nothing to
-                // recommend.
-                SegmentedButton(
-                    selected = wordCount == 12,
-                    onClick = { wordCount = 12; if (activeSlot >= 12) activeSlot = 11 },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                        activeContentColor = LocalAppColors.current.textPrimary,
-                        inactiveContainerColor = LocalAppColors.current.surface,
-                        inactiveContentColor = LocalAppColors.current.textSecondary
-                    )
-                ) { Text(stringResource(R.string.n_12_words), fontSize = 12.sp) }
-                SegmentedButton(
-                    selected = wordCount == 24,
-                    onClick = { wordCount = 24 },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                        activeContentColor = LocalAppColors.current.textPrimary,
-                        inactiveContainerColor = LocalAppColors.current.surface,
-                        inactiveContentColor = LocalAppColors.current.textSecondary
-                    )
-                ) { Text(stringResource(R.string.n_24_words), fontSize = 12.sp) }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -964,8 +1099,8 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                     color = LocalAppColors.current.textSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                // A phrase on the clipboard fills the slots in one tap, and the word-count
-                // follows whatever was pasted (iOS f9beba1).
+                // A phrase on the clipboard fills the slots in one tap, and the word count
+                // follows whichever length was pasted (iOS f9beba1).
                 val pasteContext = LocalContext.current
                 val pasteHaptic = com.kachat.app.util.rememberHaptics()
                 var pasteError by remember { mutableStateOf<String?>(null) }

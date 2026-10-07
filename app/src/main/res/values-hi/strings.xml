@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">जिन नामों का दावा हो रहा है</string>
     <string name="kn_commit_waiting_busy">नेटवर्क व्यस्त है। आपका कमिट एक ब्लॉक का इंतज़ार कर रहा है।</string>
     <string name="kn_commit_sent_again">नेटवर्क व्यस्त है, इसलिए कमिट फिर से भेजा गया।</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">आप जो seed phrase इम्पोर्ट कर रहे हैं उसमें कितने शब्द हैं?</string>
+    <string name="what_is_this">यह क्या है?</string>
+    <string name="what_is_a_seed_phrase">seed phrase क्या है?</string>
+    <string name="seed_phrase_explainer_master_key">seed phrase 12 या 24 साधारण शब्दों की एक सूची है जो आपके खाते की मास्टर चाबी की तरह काम करती है। आपका वॉलेट, चैटिंग पता और संदेश सब इसी से बनते हैं।</string>
+    <string name="seed_phrase_explainer_anyone">जिसके पास ये शब्द हैं वह आपके खाते का सब कुछ ले सकता है। अगर आप इन्हें खो दें और यह डिवाइस भी खो दें, तो कोई भी आपका खाता वापस नहीं ला सकता, KaChat भी नहीं।</string>
+    <string name="seed_phrase_explainer_paper">शब्दों को क्रम से कागज़ पर लिखें और किसी सुरक्षित, निजी जगह पर रखें। इन्हें कभी किसी वेबसाइट पर टाइप न करें, चैट में न भेजें, और स्क्रीनशॉट या क्लाउड नोट्स में न रखें।</string>
+    <string name="seed_phrase_explainer_lengths">12 शब्द पहले से ही बहुत सुरक्षित हैं। 24 शब्द और भी ज़्यादा सुरक्षा देते हैं।</string>
 </resources>

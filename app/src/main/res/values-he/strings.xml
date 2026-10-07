@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">שמות בתהליך תביעה</string>
     <string name="kn_commit_waiting_busy">הרשת עמוסה. ההתחייבות שלך ממתינה לבלוק.</string>
     <string name="kn_commit_sent_again">הרשת עמוסה, ולכן ההתחייבות נשלחה שוב.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">כמה מילים יש ב-seed phrase שאתה מייבא?</string>
+    <string name="what_is_this">מה זה?</string>
+    <string name="what_is_a_seed_phrase">מה זה seed phrase?</string>
+    <string name="seed_phrase_explainer_master_key">seed phrase היא רשימה של 12 או 24 מילים רגילות שמשמשת כמפתח הראשי לחשבון שלך. הארנק, כתובת הצ\'אט וההודעות שלך כולם נובעים ממנה.</string>
+    <string name="seed_phrase_explainer_anyone">כל מי שיש לו את המילים האלה יכול לקחת את כל מה שבחשבון שלך. אם תאבד אותן וגם את המכשיר הזה, אף אחד לא יוכל לשחזר את החשבון שלך, אפילו לא KaChat.</string>
+    <string name="seed_phrase_explainer_paper">כתוב את המילים על נייר, לפי הסדר, ושמור אותן במקום בטוח ופרטי. לעולם אל תקליד אותן באתר, אל תשלח אותן בצ\'אט ואל תשמור אותן בצילום מסך או בפתקים בענן.</string>
+    <string name="seed_phrase_explainer_lengths">12 מילים כבר בטוחות מאוד. 24 מילים מוסיפות הגנה נוספת.</string>
 </resources>

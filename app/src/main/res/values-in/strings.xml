@@ -960,4 +960,12 @@
     <string name="kn_names_being_claimed">Nama yang sedang diklaim</string>
     <string name="kn_commit_waiting_busy">Jaringan sedang sibuk. Komitmen Anda menunggu blok.</string>
     <string name="kn_commit_sent_again">Jaringan sedang sibuk, jadi komitmen dikirim ulang.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">Berapa jumlah kata frasa pemulihan yang Anda impor?</string>
+    <string name="what_is_this">Apa ini?</string>
+    <string name="what_is_a_seed_phrase">Apa itu frasa pemulihan?</string>
+    <string name="seed_phrase_explainer_master_key">Frasa pemulihan adalah daftar 12 atau 24 kata biasa yang berfungsi sebagai kunci utama akun Anda. Dompet, alamat chat, dan pesan Anda semuanya berasal darinya.</string>
+    <string name="seed_phrase_explainer_anyone">Siapa pun yang memiliki kata-kata ini dapat mengambil semua isi akun Anda. Jika Anda kehilangannya dan juga kehilangan perangkat ini, tidak ada yang bisa mengembalikan akun Anda, bahkan KaChat.</string>
+    <string name="seed_phrase_explainer_paper">Tulis kata-katanya di kertas secara berurutan dan simpan di tempat yang aman dan pribadi. Jangan pernah mengetiknya di situs web, mengirimnya lewat chat, atau menyimpannya di tangkapan layar atau catatan cloud.</string>
+    <string name="seed_phrase_explainer_lengths">12 kata sudah sangat aman. 24 kata menambah perlindungan lebih lagi.</string>
 </resources>

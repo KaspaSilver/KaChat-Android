@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">正在认领的名称</string>
     <string name="kn_commit_waiting_busy">网络繁忙，你的承诺正在等待区块。</string>
     <string name="kn_commit_sent_again">网络繁忙，承诺已重新发送。</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">你要导入的 seed phrase 有几个词?</string>
+    <string name="what_is_this">这是什么?</string>
+    <string name="what_is_a_seed_phrase">什么是 seed phrase?</string>
+    <string name="seed_phrase_explainer_master_key">seed phrase 是由 12 个或 24 个普通单词组成的列表，相当于你账户的总钥匙。你的钱包、聊天地址和消息都来自它。</string>
+    <string name="seed_phrase_explainer_anyone">任何拿到这些单词的人都能拿走你账户里的一切。如果你丢了这些单词，又丢了这台设备，没有人能找回你的账户，KaChat 也不行。</string>
+    <string name="seed_phrase_explainer_paper">把这些单词按顺序写在纸上，放在安全、私密的地方。永远不要在网站上输入它们，不要在聊天里发送，也不要存在截图或云笔记里。</string>
+    <string name="seed_phrase_explainer_lengths">12 个单词已经非常安全。24 个单词能提供更多保护。</string>
 </resources>

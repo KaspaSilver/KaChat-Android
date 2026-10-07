@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">取得中の名前</string>
     <string name="kn_commit_waiting_busy">ネットワークが混雑しています。コミットはブロックを待っています。</string>
     <string name="kn_commit_sent_again">ネットワークが混雑しているため、コミットを再送しました。</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">インポートする seed phrase は何語ですか?</string>
+    <string name="what_is_this">これは何ですか?</string>
+    <string name="what_is_a_seed_phrase">seed phrase とは?</string>
+    <string name="seed_phrase_explainer_master_key">seed phrase は、アカウントのマスターキーとして機能する 12 語または 24 語の普通の単語のリストです。ウォレット、チャット用アドレス、メッセージはすべてここから生まれます。</string>
+    <string name="seed_phrase_explainer_anyone">これらの単語を持っている人は、アカウントのすべてを持ち出せます。単語をなくし、さらにこの端末もなくすと、誰もアカウントを取り戻せません。KaChat でも無理です。</string>
+    <string name="seed_phrase_explainer_paper">単語は順番どおりに紙に書き、安全で人目につかない場所に保管してください。ウェブサイトに入力したり、チャットで送ったり、スクリーンショットやクラウドのメモに残したりしないでください。</string>
+    <string name="seed_phrase_explainer_lengths">12 語でも十分に安全です。24 語にするとさらに保護が強くなります。</string>
 </resources>

@@ -1093,4 +1093,12 @@
     <string name="kn_names_being_claimed">Nombres que se están reclamando</string>
     <string name="kn_commit_waiting_busy">La red está saturada. Tu compromiso espera un bloque.</string>
     <string name="kn_commit_sent_again">La red está saturada, así que el compromiso se envió de nuevo.</string>
+    <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
+    <string name="import_seed_length_detail">¿Cuántas palabras tiene la seed phrase que vas a importar?</string>
+    <string name="what_is_this">¿Qué es esto?</string>
+    <string name="what_is_a_seed_phrase">¿Qué es una seed phrase?</string>
+    <string name="seed_phrase_explainer_master_key">Una seed phrase es una lista de 12 o 24 palabras comunes que funciona como la llave maestra de tu cuenta. Tu billetera, tu dirección de chat y tus mensajes salen de ella.</string>
+    <string name="seed_phrase_explainer_anyone">Cualquiera que tenga estas palabras puede llevarse todo lo de tu cuenta. Si las pierdes y también pierdes este dispositivo, nadie podrá recuperar tu cuenta, ni siquiera KaChat.</string>
+    <string name="seed_phrase_explainer_paper">Escribe las palabras en papel, en orden, y guárdalas en un lugar seguro y privado. Nunca las escribas en un sitio web, no las envíes por chat y no las guardes en una captura de pantalla ni en notas en la nube.</string>
+    <string name="seed_phrase_explainer_lengths">12 palabras ya son muy seguras. 24 palabras añaden todavía más protección.</string>
 </resources>
