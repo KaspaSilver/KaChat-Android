@@ -91,9 +91,6 @@ import com.kachat.app.services.AddressActivityNotifier
 import com.kachat.app.services.ColdStorageAddressDiscovery
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.Reply
@@ -699,12 +696,12 @@ fun TransactionActionsSheet(
     }
 }
 
-/** "Sent 12.5 KAS on 3 Sep 2026, 14:02" - what is about to be acted on, in one line. */
+/** "Sent 12.5 KAS on Sep 3, 2026, 2:02 PM" - what is about to be acted on, in one line. */
 private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction): String {
     val direction = if (tx.sent) "Sent" else "Received"
     val amount = AddressActivityNotifier.formatKas(tx.amountSompi)
     val time = tx.blockTimeMillis?.let {
-        SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(it))
+        com.kachat.app.util.IosDateStyle.mediumDateShortTime(it)
     }
     return if (time == null) "$direction $amount ${KaspaUnit.symbol}" else "$direction $amount ${KaspaUnit.symbol} on $time"
 }

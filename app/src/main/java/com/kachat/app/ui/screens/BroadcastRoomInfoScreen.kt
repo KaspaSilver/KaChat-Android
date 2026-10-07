@@ -61,9 +61,6 @@ import com.kachat.app.models.FeaturedBroadcastChannels
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.BroadcastViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Everything about one broadcast room that is not the messages: what it is, what is in it, how to
@@ -110,7 +107,6 @@ fun BroadcastRoomInfoScreen(
     val hiddenHere = remember(hiddenSenders, normalized) {
         com.kachat.app.repository.BroadcastRepository.hiddenAddressesIn(normalized, hiddenSenders).size
     }
-    val dateFormat = remember { SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()) }
 
     Scaffold(
         containerColor = colors.background,
@@ -159,14 +155,14 @@ fun BroadcastRoomInfoScreen(
             InfoCard(title = "On this device") {
                 FeaturedBroadcastChannels.languageDisplayName(normalized)?.let { InfoRow("Language", it) }
                 InfoRow("Kind", if (isCurated) "Popular" else "Added by you")
-                channel?.joinedAt?.let { InfoRow("Joined", dateFormat.format(Date(it))) }
+                channel?.joinedAt?.let { InfoRow("Joined", com.kachat.app.util.IosDateStyle.mediumDate(it)) }
                 InfoRow("Messages", messages.size.toString())
                 InfoRow("People who posted", participants.toString())
                 messages.maxOfOrNull { it.blockTimestamp }?.let {
-                    InfoRow("Latest", dateFormat.format(Date(it)))
+                    InfoRow("Latest", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it))
                 }
                 messages.minOfOrNull { it.blockTimestamp }?.let {
-                    InfoRow("Oldest held", dateFormat.format(Date(it)))
+                    InfoRow("Oldest held", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it))
                 }
                 // Only the curated rooms have history worth a number: the indexer keeps theirs. A
                 // room you made holds nothing for anyone who was not there (see its info button).

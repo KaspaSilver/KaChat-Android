@@ -1832,23 +1832,23 @@ private fun KaPostsScheduledOverlay(viewModel: KaPostsViewModel, onClose: () -> 
     }
 }
 
-/** "Goes out 24 Sep 2026, 14:30 · from this phone" and the outcomes that follow. */
+/** "Goes out Sep 24, 2026, 2:30 PM" and the outcomes that follow - iOS's scheduledLine. */
 private fun scheduledStatusLine(entry: com.kachat.app.services.KaPostScheduledEntry): String = when (entry.status) {
     com.kachat.app.services.KaPostScheduledEntry.STATUS_SUBMITTED ->
         "Posted ${formatScheduledTime(entry.submittedAtMs ?: entry.notBeforeMs)}"
     com.kachat.app.services.KaPostScheduledEntry.STATUS_FAILED ->
-        "Failed ${formatScheduledTime(entry.notBeforeMs)}"
+        "Failed to post at ${formatScheduledTime(entry.notBeforeMs)}"
     com.kachat.app.services.KaPostScheduledEntry.STATUS_CANCELLED -> "Cancelled"
     else -> {
-        val where = if (entry.onServer) "the indexer sends it" else "from this phone"
-        "Goes out ${formatScheduledTime(entry.notBeforeMs)} · $where"
+        val whenText = formatScheduledTime(entry.notBeforeMs)
+        if (entry.onServer) "Goes out $whenText" else "Goes out $whenText - from this phone, so open KaChat around then"
     }
 }
 
 
-/** "24 Sep 2026, 14:30" - how a scheduled time reads wherever one is shown. */
-internal fun formatScheduledTime(ms: Long): String =
-    java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ms))
+/** How a scheduled time reads wherever one is shown: iOS's `.medium` date and `.short` time in
+ *  the app's locale - "Sep 24, 2026, 2:30 PM" in English (US). */
+internal fun formatScheduledTime(ms: Long): String = com.kachat.app.util.IosDateStyle.mediumDateShortTime(ms)
 
 /**
  * Picks when a post goes out: one sheet with the date and the time together, and one button that
