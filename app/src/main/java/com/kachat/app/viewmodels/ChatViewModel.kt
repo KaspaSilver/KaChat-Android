@@ -747,6 +747,25 @@ class ChatViewModel @Inject constructor(
         _handshakeAcceptError.value = _handshakeAcceptError.value - contactId
     }
 
+    /**
+     * iOS ChatDetailView's "Failed to Send" alert, per chat: why a send, an edit, a retry, a
+     * handshake or a photo/voice/video send failed. Kept here, not in the screen, because the
+     * send finishes in the background and the reason must still be waiting when it does.
+     */
+    private val _sendFailureAlert = MutableStateFlow<Map<String, String>>(emptyMap())
+    val sendFailureAlert: StateFlow<Map<String, String>> = _sendFailureAlert.asStateFlow()
+
+    fun reportSendFailure(contactId: String, message: String) {
+        _sendFailureAlert.value = _sendFailureAlert.value + (contactId to message)
+    }
+
+    fun clearSendFailure(contactId: String) {
+        _sendFailureAlert.value = _sendFailureAlert.value - contactId
+    }
+
+    /** The reporter a 1:1 send path hands its failure to - the chat's "Failed to Send" alert. */
+    private fun sendFailureAlert(contactId: String): (String) -> Unit = { reportSendFailure(contactId, it) }
+
     /** Sends a real reciprocal handshake and activates the conversation. */
     fun acceptHandshake(contactId: String) {
         if (contactId in _handshakeAcceptInFlight.value) return
@@ -788,6 +807,7 @@ class ChatViewModel @Inject constructor(
                 walletService.sendHandshakeToNewContact(contactId)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending handshake", e)
+                reportSendFailure(contactId, UserFacingError.message(e, "Failed to send"))
             } finally {
                 _handshakeSendInFlight.value = _handshakeSendInFlight.value - contactId
             }
@@ -2552,17 +2572,22 @@ class ChatViewModel @Inject constructor(
         sendEdit(contactId, target, text, onError)
     }
 
-    fun sendMessage(contactId: String, text: String) {
+    /** [onError] gets the failure's reason - the chat passes its "Failed to Send" alert, as
+     *  iOS's composer does; chess moves keep their own failed-move handling. */
+    fun sendMessage(contactId: String, text: String, onError: ((String) -> Unit)? = null) {
         if (text.isEmpty()) return
-        viewModelScope.launch { sendMessageAwait(contactId, text) }
+        viewModelScope.launch { sendMessageAwait(contactId, text, onError) }
     }
+
+    /** The composer's send: a failure raises the chat's "Failed to Send" alert, as on iOS. */
+    fun sendComposerMessage(contactId: String, text: String) = sendMessage(contactId, text, sendFailureAlert(contactId))
 
     /**
      * The actual 1:1 send, awaitable and reporting success — [sendMessage] is the fire-and-forget
      * wrapper every composer uses, while the share-sheet compose sheet needs the outcome so it can
      * show progress/success and fall back to staging a draft when the send fails.
      */
-    suspend fun sendMessageAwait(contactId: String, text: String): Boolean {
+    suspend fun sendMessageAwait(contactId: String, text: String, onError: ((String) -> Unit)? = null): Boolean {
         if (text.isEmpty()) return false
         // Sending bumps this conversation to the top of the recency order the system share sheet
         // mirrors — promote it explicitly since the conversations flow only reorders after the
@@ -2628,6 +2653,7 @@ class ChatViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)
                 chatRepository.updateMessageStatus(pendingId, "failed")
+                onError?.invoke(UserFacingError.message(e, "Failed to send"))
                 return false
             }
         }
@@ -2799,6 +2825,7 @@ class ChatViewModel @Inject constructor(
             voiceRecorderService.startRecording()
         } catch (e: Exception) {
             Log.e("ChatViewModel", "Could not start voice recording", e)
+            reportSendFailure(contactId, "Failed to start recording: ${UserFacingError.message(e, "Recording failed. Please try again.")}")
             return
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
@@ -3021,7 +3048,7 @@ class ChatViewModel @Inject constructor(
                         val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
                         nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
                     }
-                    sendMessage(contactId, url)
+                    sendMessage(contactId, url, sendFailureAlert(contactId))
                     return@launch
                 } catch (e: Exception) {
                     Log.w("ChatViewModel", "Nextcloud photo upload failed, falling back to on-chain send", e)
@@ -3032,9 +3059,10 @@ class ChatViewModel @Inject constructor(
                 val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri) }
                 val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
                 val json = ImageMessage.encode(fileName = prepared.fileName, sizeBytes = prepared.bytes.size.toLong(), base64Image = base64, mimeType = prepared.mimeType)
-                sendMessage(contactId, json)
+                sendMessage(contactId, json, sendFailureAlert(contactId))
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error preparing photo message", e)
+                reportSendFailure(contactId, "Couldn't load that photo. Please try another.")
             }
         }
     }
@@ -3045,7 +3073,7 @@ class ChatViewModel @Inject constructor(
      * link preview renders as a video. There is no on-chain path that fits a video, so a failure
      * says so instead of falling back. [send] delivers the link - a 1:1 or a group message.
      */
-    private fun sendNextcloudVideo(uri: Uri, send: suspend (String) -> Unit) {
+    private fun sendNextcloudVideo(uri: Uri, onError: (String) -> Unit, send: suspend (String) -> Unit) {
         viewModelScope.launch {
             val url = try {
                 val resolver = appContext.contentResolver
@@ -3068,9 +3096,7 @@ class ChatViewModel @Inject constructor(
                 nextcloudService.uploadMediaAndShare(body, "video_${System.currentTimeMillis() / 1000}.$extension")
             } catch (e: Exception) {
                 Log.w("ChatViewModel", "Nextcloud video upload failed", e)
-                com.kachat.app.ui.screens.IosToasts.error(
-                    e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed)
-                )
+                onError(e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed))
                 return@launch
             }
             // Warm the preview cache so the sender's own bubble shows the video card at once.
@@ -3079,15 +3105,18 @@ class ChatViewModel @Inject constructor(
                 send(url)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending Nextcloud video link", e)
+                onError(UserFacingError.message(e, "Failed to send"))
             }
         }
     }
 
     /** 1:1 entry to [sendNextcloudVideo]. */
-    fun sendNextcloudVideo(contactId: String, uri: Uri) = sendNextcloudVideo(uri) { url -> sendMessage(contactId, url) }
+    fun sendNextcloudVideo(contactId: String, uri: Uri) =
+        sendNextcloudVideo(uri, sendFailureAlert(contactId)) { url -> sendMessage(contactId, url, sendFailureAlert(contactId)) }
 
     /** Group entry to [sendNextcloudVideo] - the link goes out as a normal group text message. */
-    fun sendGroupNextcloudVideo(groupId: String, uri: Uri) = sendNextcloudVideo(uri) { url -> groupRepository.sendGroupMessage(url, groupId) }
+    fun sendGroupNextcloudVideo(groupId: String, uri: Uri, onError: (String) -> Unit) =
+        sendNextcloudVideo(uri, onError) { url -> groupRepository.sendGroupMessage(url, groupId) }
 
     /** Recorded "via Nextcloud", the recorded file (Opus-in-WebM, exactly as captured — no
      *  duration cap pressure from on-chain payload size) uploads to the server and the message
@@ -3108,7 +3137,7 @@ class ChatViewModel @Inject constructor(
                         }
                         // The recorder already names files voice_<timestamp>.webm — keep that name.
                         val url = nextcloudService.uploadMediaAndShare(bytes, file.name, mimeType)
-                        sendMessage(contactId, url)
+                        sendMessage(contactId, url, sendFailureAlert(contactId))
                         return@launch
                     } catch (e: Exception) {
                         Log.w("ChatViewModel", "Nextcloud voice upload failed, falling back to on-chain send", e)
@@ -3117,9 +3146,10 @@ class ChatViewModel @Inject constructor(
                 }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                 val json = VoiceMessage.encode(fileName = file.name, sizeBytes = bytes.size.toLong(), base64Audio = base64)
-                sendMessage(contactId, json)
+                sendMessage(contactId, json, sendFailureAlert(contactId))
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error preparing voice message", e)
+                reportSendFailure(contactId, "Failed to prepare audio: ${UserFacingError.message(e, "Recording failed. Please try again.")}")
             } finally {
                 file.delete()
             }
@@ -3127,7 +3157,7 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Re-attempts a failed message, reusing its same id/content — the same placeholder resurrected, not a new message. */
-    fun retrySendMessage(message: MessageEntity) {
+    fun retrySendMessage(message: MessageEntity, onError: ((String) -> Unit)? = null) {
         val text = message.plaintextBody ?: return
         viewModelScope.launch {
             try {
@@ -3151,6 +3181,7 @@ class ChatViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error retrying message", e)
                 chatRepository.updateMessageStatus(message.id, "failed")
+                onError?.invoke(UserFacingError.message(e, "Failed to send"))
             }
         }
     }

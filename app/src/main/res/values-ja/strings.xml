@@ -1084,4 +1084,7 @@
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s がクリップボードにコピーされました。</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
+    <!-- Failed to Send alert (iOS ChatDetailView) -->
+    <string name="failed_to_send_title">送信に失敗しました</string>
+    <string name="send_failure_network_hint">ネットワーク接続を確認して、もう一度お試しください。</string>
 </resources>

@@ -1303,4 +1303,7 @@
     <string name="reactions_you">You</string>
     <!-- Coin control load failure (iOS ActionSheet.swift UtxoLoadFailureRow) -->
     <string name="coins_couldnt_load">Couldn\'t load the coins at this address</string>
+    <!-- Failed to Send alert (iOS ChatDetailView) -->
+    <string name="failed_to_send_title">Failed to Send</string>
+    <string name="send_failure_network_hint">Please check your network connection and try again.</string>
 </resources>

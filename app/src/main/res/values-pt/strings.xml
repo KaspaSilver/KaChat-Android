@@ -1084,4 +1084,7 @@
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s copiado para a área de transferência.</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
+    <!-- Failed to Send alert (iOS ChatDetailView) -->
+    <string name="failed_to_send_title">Falha ao enviar</string>
+    <string name="send_failure_network_hint">Verifique sua conexão de rede e tente novamente.</string>
 </resources>

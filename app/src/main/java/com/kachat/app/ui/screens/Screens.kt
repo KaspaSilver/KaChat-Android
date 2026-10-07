@@ -275,6 +275,11 @@ fun ChatThreadScreen(
             chatViewModel.clearHandshakeAcceptError(contactId)
         }
     }
+    // iOS's "Failed to Send" alert: a send, edit, retry, handshake or media send that failed.
+    val sendFailures by chatViewModel.sendFailureAlert.collectAsState()
+    sendFailures[contactId]?.let { reason ->
+        FailedToSendAlert(reason) { chatViewModel.clearSendFailure(contactId) }
+    }
     val paymentAmount by chatViewModel.paymentAmount.collectAsState()
     val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
     val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
@@ -1293,10 +1298,10 @@ fun ChatThreadScreen(
                                         val messageText = messageTextState.value
                                         if (editing != null) {
                                             chatViewModel.sendEdit(contactId, editing, messageText) { reason ->
-                                                IosToasts.error(reason)
+                                                chatViewModel.reportSendFailure(contactId, reason)
                                             }
                                         } else {
-                                            chatViewModel.sendMessage(contactId, messageText)
+                                            chatViewModel.sendComposerMessage(contactId, messageText)
                                         }
                                         chatViewModel.setMessageText("")
                                     },
@@ -1615,7 +1620,7 @@ fun ChatThreadScreen(
                                 // rejected from its bar (iOS f7ca401).
                                 isPendingRequest = false,
                                 isHandshakeComplete = conversation?.contact?.conversationStatus == "active",
-                                onRetry = { chatViewModel.retrySendMessage(msg) },
+                                onRetry = { chatViewModel.retrySendMessage(msg) { chatViewModel.reportSendFailure(contactId, it) } },
                                 onReply = { chatViewModel.startReplyTo(msg) },
                                 isEdited = editForRow != null,
                                 // Offered on your own delivered text messages only - never on a

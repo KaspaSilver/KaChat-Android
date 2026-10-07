@@ -424,7 +424,9 @@ fun GroupChatThreadScreen(
     val nextcloudMediaPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         if (micContext.contentResolver.getType(uri)?.startsWith("video/") == true) {
-            chatViewModel.sendGroupNextcloudVideo(groupId, uri)
+            // A failure shows above the composer, as iOS's group chat shows it (not a toast).
+            errorMessage = null
+            chatViewModel.sendGroupNextcloudVideo(groupId, uri) { errorMessage = it }
         } else {
             chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = true)
         }

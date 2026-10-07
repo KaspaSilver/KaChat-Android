@@ -1081,4 +1081,7 @@
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s in die Zwischenablage kopiert.</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
+    <!-- Failed to Send alert (iOS ChatDetailView) -->
+    <string name="failed_to_send_title">Senden fehlgeschlagen</string>
+    <string name="send_failure_network_hint">Bitte prüfe deine Netzwerkverbindung und versuche es erneut.</string>
 </resources>

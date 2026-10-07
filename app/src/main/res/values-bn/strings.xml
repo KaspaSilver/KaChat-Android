@@ -1084,4 +1084,7 @@
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s ক্লিপবোর্ডে কপি করা হয়েছে।</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
+    <!-- Failed to Send alert (iOS ChatDetailView) -->
+    <string name="failed_to_send_title">পাঠাতে ব্যর্থ</string>
+    <string name="send_failure_network_hint">অনুগ্রহ করে আপনার নেটওয়ার্ক সংযোগ পরীক্ষা করুন এবং আবার চেষ্টা করুন।</string>
 </resources>

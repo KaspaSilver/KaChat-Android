@@ -1084,4 +1084,7 @@
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s이 클립보드에 복사되었습니다.</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
+    <!-- Failed to Send alert (iOS ChatDetailView) -->
+    <string name="failed_to_send_title">전송 실패</string>
+    <string name="send_failure_network_hint">네트워크 연결을 확인하고 다시 시도해 주세요.</string>
 </resources>
