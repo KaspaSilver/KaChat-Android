@@ -335,6 +335,147 @@ class KachatNamesRegistryTest {
         r.assertClean()
     }
 
+    /**
+     * The walk must reach the same registry whatever order the REST API hands transactions back
+     * in, with or without times, in one walk or several. A reclaim is found through its
+     * long-tracked gaps in the same round as the renewal that precedes it: walked in the wrong
+     * order, the old code merged the gaps, kept the reclaimed name and re-added it (report from the
+     * desktop port, 2026-10-07; iOS 28aa1d4 `runWalkOrders`).
+     */
+    @Test
+    fun walksInAnyOrder() = runBlocking {
+        val r = Report()
+        val m = manifest()
+        val e2e = steps.take(e2eCount)
+        val timed = e2e.mapIndexed { i, st -> view(st, 1_000L + i) }
+        val created = HashMap<String, ByteArray>()
+        val spentBy = HashMap<String, String>()
+        for (t in timed) {
+            for ((k, o) in t.outputs.withIndex()) created["${t.idHex}:$k"] = o.script
+            for (i in t.inputs) spentBy["${hex(i.outpoint.txid)}:${i.outpoint.index}"] = t.idHex
+        }
+        created["${hex(m.genesisTxid)}:0"] = m.genesisOutput.script
+        val reference = RegistryState.atGenesis(m)
+        for (t in timed) runCatching { reference.apply(t, m) }
+
+        suspend fun walk(state: RegistryState, upTo: Int, order: (List<TxView>) -> List<TxView>, times: Boolean): RegistryState.WalkReport {
+            val visible = timed.take(upTo).map { if (times) it else it.copy(at = null) }
+            val visibleIds = visible.map { it.idHex }.toSet()
+            return state.walk(
+                manifest = m,
+                address = ::addr,
+                live = { addresses ->
+                    created.filter { (op, script) ->
+                        addresses.contains(addr(script) ?: "") &&
+                            (op.startsWith(hex(m.genesisTxid)) || visibleIds.contains(op.take(64))) &&
+                            spentBy[op]?.let { visibleIds.contains(it) } != true
+                    }.keys
+                },
+                transactions = { a ->
+                    order(visible.filter { t ->
+                        t.outputs.any { addr(it.script) == a } ||
+                            t.inputs.any { i -> created["${hex(i.outpoint.txid)}:${i.outpoint.index}"]?.let { addr(it) } == a }
+                    })
+                }
+            )
+        }
+        fun same(s: RegistryState, label: String) {
+            r.eq(s.gaps.map { "${it.txid}:${it.index}" }.toSet(), reference.gaps.map { "${it.txid}:${it.index}" }.toSet(), "$label: gaps")
+            r.eq(s.names.map { "${it.name}@${it.txid}:${it.index}" }.toSet(), reference.names.map { "${it.name}@${it.txid}:${it.index}" }.toSet(), "$label: names")
+            r.eq(s.offers.map { "${it.txid}:${it.index}" }.toSet(), reference.offers.map { "${it.txid}:${it.index}" }.toSet(), "$label: offers")
+            // a walk can't discover offers (no registry UTXO marks them), so their events are left out
+            fun nameEvents(e: List<Event>): List<String> =
+                e.map { it.op }.filter { it == "offer_accepted" || !it.startsWith("offer") }.sorted()
+            r.eq(nameEvents(s.events), nameEvents(reference.events), "$label: events")
+            r.check(runCatching { s.checkInvariants() }.isSuccess) { "$label: invariants" }
+        }
+        // a fixed shuffle, so a failure reproduces
+        var seed = 0x9E3779B97F4A7C15uL.toLong()
+        fun shuffled(a: List<TxView>): List<TxView> {
+            val out = a.toMutableList()
+            for (i in out.size - 1 downTo 1) {
+                seed = seed * 6364136223846793005L + 1442695040888963407L
+                val j = (seed ushr 33).toInt() % (i + 1)
+                val tmp = out[i]; out[i] = out[j]; out[j] = tmp
+            }
+            return out
+        }
+        val orders: List<Pair<String, (List<TxView>) -> List<TxView>>> = listOf(
+            "newest first" to { a -> a.reversed() },
+            "oldest first" to { a -> a },
+            "shuffled" to { a -> shuffled(a) },
+            "by id" to { a -> a.sortedBy { it.idHex } }
+        )
+        for ((name, order) in orders) {
+            for (times in listOf(true, false)) {
+                val label = "walk $name${if (times) "" else ", no times"}"
+                val s = RegistryState.atGenesis(m)
+                try {
+                    val report = walk(s, e2eCount, order, times)
+                    r.check(!report.stale) { "$label: stale" }
+                    r.check(report.rounds < 30) { "$label: ${report.rounds} rounds" }
+                    same(s, label)
+                } catch (e: Exception) {
+                    r.check(false) { "$label threw $e" }
+                }
+                // and incrementally, a few transactions visible at a time
+                val inc = RegistryState.atGenesis(m)
+                try {
+                    for (upTo in listOf(4, 7, 9, 13, 18, e2eCount)) walk(inc, upTo, order, times)
+                    same(inc, "$label, incremental")
+                } catch (e: Exception) {
+                    r.check(false) { "$label, incremental threw $e" }
+                }
+            }
+        }
+        // The live case: the gaps a reclaim spends are tracked, but the name only at an earlier
+        // version (its renewal hasn't been walked yet). The reclaim must wait, changing nothing -
+        // applied, it would merge the gaps and keep the name, which the renewal later re-adds.
+        val reclaimIdx = e2e.indexOfFirst { it.optS("op") == "reclaim" }
+        val renewIdx = e2e.indexOfFirst { it.optS("op") == "renew" }
+        if (reclaimIdx >= 0 && renewIdx >= 0) {
+            val st = RegistryState.atGenesis(m)
+            for (t in timed.take(reclaimIdx)) runCatching { st.apply(t, m) }
+            val renew = timed[renewIdx]
+            val oldName = e2e[renewIdx].o("records").o("name")
+            val k = st.names.indexOfFirst { it.name == oldName.s("name") }
+            val prev = renew.inputs.firstOrNull()?.outpoint
+            if (k < 0 || prev == null) {
+                r.check(false) { "no renewed name to roll back" }
+            } else {
+                st.names = st.names.mapIndexed { i, n ->
+                    if (i == k) n.copy(txid = hex(prev.txid), index = prev.index, periodStart = oldName.l("periodStart"), expiresAt = oldName.l("expiresAt")) else n
+                }
+                val before = st.copy()
+                try {
+                    st.apply(timed[reclaimIdx], m)
+                    r.check(false) { "a reclaim of an untracked name version was applied" }
+                } catch (e: Exception) {
+                    r.eq(e as? KachatNames.Failure, KachatNames.Failure.WAITS_FOR_EARLIER_TRANSACTION, "the early reclaim waits")
+                }
+                r.eq(st, before, "the waiting reclaim changed nothing")
+                r.check(st.names.any { it.name == oldName.s("name") }) { "the name is still there to be renewed, then reclaimed" }
+            }
+        } else {
+            r.check(false) { "no reclaim / renew in the vectors" }
+        }
+        // a stale UTXO (a tracked output whose spender was already applied) is reported, not looped
+        // on (the genesis gap, put back although the first registration - already applied - spent it)
+        val stale = reference.copy()
+        RegistryState.atGenesis(m).gaps.firstOrNull()?.let { g ->
+            stale.gaps = stale.gaps + g
+            try {
+                val report = walk(stale, e2eCount, { it }, true)
+                r.check(report.stale) { "a stale tracked UTXO is reported" }
+                r.check(report.rounds <= 2) { "stale: ${report.rounds} rounds" }
+            } catch (e: Exception) {
+                r.check(false) { "stale walk threw $e" }
+            }
+        }
+        println("walksInAnyOrder: ${r.pass} checks pass, ${r.fail} fail")
+        r.assertClean()
+    }
+
     // The rules
 
     @Test

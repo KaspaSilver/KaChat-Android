@@ -247,9 +247,31 @@ class KachatNamesRegistry @Inject constructor(
 
     private suspend fun walk(m: Manifest) = withContext(Dispatchers.IO) { stateMutex.withLock {
         // a copy: the walk only replaces the published state once it succeeded
-        val state = (_chainState.value ?: RegistryState.atGenesis(m)).copy()
+        var state = (_chainState.value ?: RegistryState.atGenesis(m)).copy()
+        var report = walkOnce(state, m)
+        // An inconsistent result (a stale UTXO, or gaps and names that don't tile the key space)
+        // is walked again once from the genesis rather than kept (iOS 28aa1d4).
+        if (report.stale || runCatching { state.checkInvariants() }.isFailure) {
+            Log.i(TAG, "the walked registry is inconsistent; walking again from the genesis")
+            state = RegistryState.atGenesis(m)
+            report = walkOnce(state, m)
+            state.checkInvariants()
+        }
+        state.verifiedAt = System.currentTimeMillis()
+        if (report.applied.isNotEmpty()) {
+            Log.i(TAG, "walked ${report.applied.size} registry transaction(s) in ${report.rounds} round(s)")
+        }
+        if (report.unresolved.isNotEmpty()) {
+            Log.i(TAG, "${report.unresolved.size} spent registry UTXO(s) wait for the REST API to index their spend")
+        }
+        _chainState.value = state
+        saveCache(state)
+    } }
+
+    private suspend fun walkOnce(state: RegistryState, m: Manifest): RegistryState.WalkReport {
+        // the registry's gaps and names (registry v4 has no price record)
         val registryId = hex(m.registryCovenantId)
-        val report = state.walk(
+        return state.walk(
             manifest = m,
             address = { KachatNamesService.p2shAddress(it) },
             live = { addresses ->
@@ -268,16 +290,7 @@ class KachatNamesRegistry @Inject constructor(
             },
             transactions = { address -> restTransactions(address) }
         )
-        state.verifiedAt = System.currentTimeMillis()
-        if (report.applied.isNotEmpty()) {
-            Log.i(TAG, "walked ${report.applied.size} registry transaction(s) in ${report.rounds} round(s)")
-        }
-        if (report.unresolved.isNotEmpty()) {
-            Log.i(TAG, "${report.unresolved.size} spent registry UTXO(s) wait for the REST API to index their spend")
-        }
-        _chainState.value = state
-        saveCache(state)
-    } }
+    }
 
     private suspend fun restBase(): String = settings.kaspaRestUrl.first().trim().removeSuffix("/")
 

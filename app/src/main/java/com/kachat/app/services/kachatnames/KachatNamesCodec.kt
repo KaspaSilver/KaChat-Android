@@ -39,6 +39,13 @@ object KachatNames {
              * 0ed15e9).
              */
             val OUTDATED_REGISTRY = Failure("manifest: an earlier registry; this app needs the registry v4 manifest (new genesis pending)")
+
+            /**
+             * A registry transaction that spends a gap or name not tracked yet: it applies once the
+             * walk has reached the transaction that created that UTXO ([RegistryState.apply];
+             * iOS 28aa1d4).
+             */
+            val WAITS_FOR_EARLIER_TRANSACTION = Failure("a registry input is not tracked yet: an earlier registry transaction comes first")
         }
     }
 

@@ -839,7 +839,10 @@ data class RegistryState(
         val events: MutableList<Event> = mutableListOf(),
         /** tracked UTXOs the node no longer has but whose spending transaction was not found yet
          *  (an indexing delay of the REST API); the next refresh retries */
-        var unresolved: List<String> = emptyList()
+        var unresolved: List<String> = emptyList(),
+        /** a tracked UTXO was spent by a transaction this state already applied: the state is
+         *  inconsistent (the caller walks again from the genesis) */
+        var stale: Boolean = false
     )
 
     /** Whether this cache belongs to [m]'s registry. */
@@ -937,6 +940,18 @@ data class RegistryState(
         val offerIns = tx.inputs.withIndex().mapNotNull { (i, input) ->
             val (t, x) = key(input.outpoint)
             offers.firstOrNull { it.txid == t && it.index == x }?.let { i to it }
+        }
+        // A spend of a gap or name this state doesn't track yet: its creating transaction is still
+        // ahead in the walk (a reclaim is found through its long-tracked gaps before the name's
+        // latest renewal or listing is). Applying it now would merge the gaps and leave the name
+        // alive, so it waits, changing nothing.
+        val trackedInputs = (gapIns.map { it.first } + nameIns.map { it.first }).toSet()
+        for ((i, input) in tx.inputs.withIndex()) {
+            if (i in trackedInputs) continue
+            val redeem = runCatching { Codec.parsePushes(input.signatureScript) }.getOrNull()?.lastOrNull() ?: continue
+            if (runCatching { m.gap.stateOfRedeem(redeem) }.isSuccess || runCatching { m.name.stateOfRedeem(redeem) }.isSuccess) {
+                throw Failure.WAITS_FOR_EARLIER_TRANSACTION
+            }
         }
         val newOffer = offerFromMarker(tx, m)
         if (regOuts.isEmpty() && gapIns.isEmpty() && nameIns.isEmpty() && offerIns.isEmpty() && newOffer == null) {
@@ -1158,6 +1173,12 @@ data class RegistryState(
             }
             report.unresolved = spent.map { it.second }.filter { it !in found }.sorted()
             if (candidates.isEmpty()) return report
+            // a still-tracked UTXO spent by a transaction already applied: re-applying changes
+            // nothing, so no round could ever move past it
+            if (candidates.keys.any { applied.contains(it) }) {
+                report.stale = true
+                return report
+            }
             var pending = candidates.values.sortedWith(compareBy<TxView>({ it.at ?: 0L }, { it.idHex }))
             var lastError: Exception? = null
             var progressed = true
@@ -1182,10 +1203,27 @@ data class RegistryState(
                 }
                 pending = rest
             }
-            // nothing applied: the same spends would fail again next round
-            if (appliedThisRound == 0) lastError?.let { throw it }
+            // nothing applied: the same spends would fail again next round. Transactions that
+            // only wait for an earlier one the REST API hasn't indexed yet end the walk quietly;
+            // the next refresh picks them up.
+            if (appliedThisRound == 0) lastError?.let {
+                if (it == Failure.WAITS_FOR_EARLIER_TRANSACTION) return report
+                throw it
+            }
+            sortEventsByTime()
         }
         return report
+    }
+
+    /**
+     * Events in the order they happened: a walk applies a round's transactions in dependency
+     * order, which is not always the time order. Events without a time keep their place relative
+     * to each other, after the timed ones.
+     */
+    fun sortEventsByTime() {
+        events = events.withIndex()
+            .sortedWith(compareBy<IndexedValue<Event>>({ it.value.at ?: Long.MAX_VALUE }, { it.index }))
+            .map { it.value }
     }
 
     companion object {
