@@ -10,10 +10,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Reclaim to Own and the lapsed name (iOS ba1a734): a lapsed name's Manage sheet offers only
- * Reclaim to Own; a registration may start over a lapsed record, and its driver waits ("waiting
- * for the old name to be cleared") instead of counting the old record as already yours; an
- * expired name's old listing is not for sale.
+ * The lapsed name (iOS ba1a734, eea52b2): an expired name past grace is available to anyone - a
+ * lookup shows it free to claim, in the gap its reclaim reopens; a registration may start over the
+ * lapsed record, and its driver frees the old record first (a reclaim) instead of counting it as
+ * already yours; an expired name's old listing is not for sale.
  */
 class KachatNamesReclaimTest {
     private val grace = 864_000_000L
@@ -29,9 +29,31 @@ class KachatNamesReclaimTest {
     private val lapsed = name(now - grace - 1)
 
     @Test
-    fun aLapsedNamesManageSheetOffersOnlyReclaimToOwn() {
-        assertEquals(listOf(KachatManageMenu.Action.RECLAIM_TO_OWN), KachatManageMenu.actions(lapsed, Status.LAPSED, null, mine = true))
-        assertEquals(listOf(KachatManageMenu.Action.RECLAIM_TO_OWN), KachatManageMenu.actions(name(now - grace - 1, price = 5), Status.LAPSED, null, mine = false))
+    fun anExpiredNamePastGraceIsAvailableToClaim() {
+        // only a lapsed record counts as free to claim: active and in-grace names stay registered
+        assertSame(lapsed, KachatNamesRegistry.lapsedRecord(Lookup.Registered(lapsed), grace, now))
+        assertNull(KachatNamesRegistry.lapsedRecord(Lookup.Registered(active), grace, now))
+        assertNull(KachatNamesRegistry.lapsedRecord(Lookup.Registered(inGrace), grace, now))
+        assertNull(KachatNamesRegistry.lapsedRecord(Lookup.Free("alice", null), grace, now))
+        // the grace period's last moment is still the owner's; the next one it is available
+        assertNull(KachatNamesRegistry.lapsedRecord(Lookup.Registered(name(now - grace + 1)), grace, now))
+        assertTrue(KachatNamesRegistry.lapsedRecord(Lookup.Registered(name(now - grace)), grace, now) != null)
+        // and its status pill / badge reads Available, not "lapsed"
+        assertEquals(Status.LAPSED, lapsed.status(grace, now))
+    }
+
+    @Test
+    fun claimingReopensTheGapAroundTheName() {
+        val lo = ByteArray(32) { 0 }
+        val hi = ByteArray(32) { -1 }
+        val key = Codec.key("alice")
+        val below = GapInfo(lo, key, Outpoint(ByteArray(32) { 4 }, 0))
+        val above = GapInfo(key, hi, Outpoint(ByteArray(32) { 5 }, 1))
+        val merged = KachatNamesRegistry.mergedGap(below, above)
+        assertTrue(merged.lo.contentEquals(lo))
+        assertTrue(merged.hi.contentEquals(hi))
+        assertEquals(below.outpoint, merged.outpoint)
+        assertTrue(merged.contains(key))
     }
 
     @Test
@@ -45,8 +67,11 @@ class KachatNamesReclaimTest {
             listOf(KachatManageMenu.Action.CHANGE_PRICE, KachatManageMenu.Action.DELIST, KachatManageMenu.Action.TRANSFER, KachatManageMenu.Action.RELEASE),
             KachatManageMenu.actions(name(now + 1, price = 5), Status.ACTIVE, null, mine = false)
         )
-        // in grace: still the owner's to manage, never Reclaim to Own
-        assertFalse(KachatManageMenu.actions(inGrace, Status.GRACE, null, mine = true).contains(KachatManageMenu.Action.RECLAIM_TO_OWN))
+        // in grace: still the owner's to manage
+        assertEquals(
+            listOf(KachatManageMenu.Action.LIST, KachatManageMenu.Action.TRANSFER, KachatManageMenu.Action.PRIMARY, KachatManageMenu.Action.RELEASE),
+            KachatManageMenu.actions(inGrace, Status.GRACE, null, mine = true)
+        )
     }
 
     @Test
@@ -58,18 +83,23 @@ class KachatNamesReclaimTest {
     }
 
     @Test
-    fun theDriverWaitsForTheOldNameToBeCleared() {
-        // the old record, lapsed - yours or anyone's - is not a finished registration nor a taken name
-        assertSame(KachatNamesActions.RegisterStep.WaitForOldName, KachatNamesActions.registerStep(Lookup.Registered(lapsed), me, grace, now))
-        assertSame(KachatNamesActions.RegisterStep.WaitForOldName,
-            KachatNamesActions.registerStep(Lookup.Registered(name(now - grace - 1, owner = other)), me, grace, now))
+    fun theDriverFreesTheExpiredOldRecordFirst() {
+        // the old record, lapsed - yours or anyone's - is not a finished registration nor a taken
+        // name: the driver frees it (a reclaim of that record), then registers
+        val mineLapsed = KachatNamesActions.registerStep(Lookup.Registered(lapsed), me, grace, now)
+        assertTrue(mineLapsed is KachatNamesActions.RegisterStep.FreeOldName)
+        assertSame(lapsed, (mineLapsed as KachatNamesActions.RegisterStep.FreeOldName).name)
+        val othersLapsed = name(now - grace - 1, owner = other)
+        val step = KachatNamesActions.registerStep(Lookup.Registered(othersLapsed), me, grace, now)
+        assertTrue(step is KachatNamesActions.RegisterStep.FreeOldName)
+        assertSame(othersLapsed, (step as KachatNamesActions.RegisterStep.FreeOldName).name)
         assertSame(KachatNamesActions.RegisterStep.Mine, KachatNamesActions.registerStep(Lookup.Registered(active), me, grace, now))
         assertSame(KachatNamesActions.RegisterStep.Taken,
             KachatNamesActions.registerStep(Lookup.Registered(name(now + 1, owner = other)), me, grace, now))
         val free = KachatNamesActions.registerStep(Lookup.Free("alice", null), me, grace, now)
         assertTrue(free is KachatNamesActions.RegisterStep.Claim)
         assertNull((free as KachatNamesActions.RegisterStep.Claim).gap)
-        assertEquals("Waiting for the old alice.kachat to be cleared from the registry.", KachatNamesActions.waitingForOldName("alice"))
+        assertEquals("Freeing alice.kachat for you...", KachatNamesActions.freeingName("alice"))
     }
 
     @Test

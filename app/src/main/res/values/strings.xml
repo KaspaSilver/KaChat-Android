@@ -821,14 +821,12 @@
     <string name="kn_invalid_chars">Use a-z, 0-9 and hyphens only.</string>
     <string name="kn_invalid_hyphen">A name can\'t start or end with a hyphen.</string>
     <string name="kn_status_expired">Expired</string>
-    <string name="kn_status_lapsed">Lapsed</string>
     <string name="kn_yours">Yours</string>
     <string name="kn_available_per_year">Available · %1$s a year</string>
     <string name="kn_not_valid_name">Not a valid name.</string>
     <string name="kn_taken_for_sale">Taken · for sale at %1$s</string>
     <string name="kn_taken">Taken</string>
     <string name="kn_search_grace">Expired - the owner can still renew it</string>
-    <string name="kn_search_lapsed">Lapsed - reclaim it, then claim it</string>
     <string name="kn_seconds_to_go">About %1$d s to go</string>
     <string name="kn_cancel_commit_title">Cancel the commit?</string>
     <string name="kn_cancel_commit">Cancel Commit</string>
@@ -846,10 +844,6 @@
     <string name="kn_auth_reason">Confirm this .kachat transaction</string>
     <string name="kn_for_sale">For sale</string>
     <string name="kn_no_listings">No names are listed right now.</string>
-    <string name="kn_reclaimable">Reclaimable</string>
-    <string name="kn_reclaimable_detail">Names whose owners let them lapse. Anyone may reclaim one: the bond goes back to its last owner, you keep the freed deposit as a bounty, and the name is free to claim.</string>
-    <string name="kn_nothing_to_reclaim">Nothing to reclaim.</string>
-    <string name="kn_reclaim">Reclaim</string>
     <string name="kn_my_offers">My Offers</string>
     <string name="kn_no_open_offers">No open offers.</string>
     <string name="kn_offers_need_indexer">Offers from others appear once a names indexer is connected.</string>
@@ -882,7 +876,6 @@
     <string name="kn_expires_on">Expires %1$s</string>
     <string name="kn_detail_grace_mine">Expired - renew to keep it. Until the grace period ends nobody else can take it.</string>
     <string name="kn_detail_grace">Expired. It no longer resolves; the owner can still renew it.</string>
-    <string name="kn_detail_lapsed">Lapsed: anyone may reclaim it, and then claim it again.</string>
     <string name="kn_renew">Renew</string>
     <string name="kn_change_price">Change Price</string>
     <string name="kn_list_for_sale">List for Sale</string>
@@ -908,8 +901,6 @@
     <string name="kn_err_enter_address">Enter an address or a .kachat name.</string>
     <string name="kn_err_no_active_name">No active .kachat name by that name.</string>
     <string name="kn_err_lookup">Couldn\'t look that name up.</string>
-    <string name="kn_reclaim_footer">The name\'s bond goes back to its last owner, you keep the freed registry deposit (less the fee) as a bounty, and the name is free. To own it, claim it afterwards.</string>
-    <string name="kn_bond_to_last_owner">Bond to the last owner</string>
     <string name="kn_profile_belongs">Your profile belongs to your address, not to a name: it stays the same when you buy, sell or let a name go.</string>
     <string name="kn_links">Links</string>
     <string name="kn_primary_name">Primary name</string>
@@ -963,7 +954,6 @@
     <string name="kn_done_price_changed">Price changed</string>
     <string name="kn_done_listed">Listed for sale</string>
     <string name="kn_done_transferred">Name transferred</string>
-    <string name="kn_done_reclaimed">Name reclaimed</string>
     <string name="kn_done_profile_saved">Profile saved</string>
     <string name="kn_done_primary_set">Primary name set</string>
     <string name="kn_done_registered">Name registered</string>
@@ -1180,13 +1170,10 @@
     <string name="kn_bell_renewal_open">Renewal is open: renew it before %1$s to keep it.</string>
     <string name="kn_bell_expired_title">%1$s has expired</string>
     <string name="kn_bell_expired_body">Renew it before %1$s or anyone can claim it.</string>
-    <string name="kn_bell_lapsed_title">%1$s has lapsed</string>
     <string name="kn_bell_sold_title">%1$s sold</string>
     <string name="kn_bell_paid">%1$s KAS was paid to you.</string>
     <string name="kn_bell_listing_bought">Your listing was bought.</string>
     <string name="kn_bell_accepted_offer">You accepted an offer for it.</string>
-    <string name="kn_bell_reclaimed_title">%1$s was reclaimed</string>
-    <string name="kn_bell_reclaimed_body">It lapsed and someone reclaimed it. It\'s free to register again.</string>
     <string name="kn_bell_new_offer_title">New offer on %1$s</string>
     <string name="kn_bell_offered">%1$s KAS offered for it.</string>
     <string name="kn_bell_yours_now">%1$s is yours now.</string>
@@ -1200,25 +1187,13 @@
     <string name="kn_push_renew_soon">Renew it soon to keep it.</string>
     <string name="kn_push_grace_soon">Renew it soon or anyone can claim it.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">Reclaimable names appear here once .kachat names launch.</string>
     <string name="kn_activity_all_detail">Every claim, renewal, listing, sale, offer, transfer and reclaim across the registry.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Reclaim to Own</string>
-    <string name="kn_reclaim_to_own_hint">Clear the lapsed name and get your bond back, then register it again.</string>
-    <string name="kn_register_again_q">Register %1$s again?</string>
-    <string name="kn_register_again">Register Again</string>
-    <string name="kn_register_again_body">It\'s free now. Pick how long to hold it, like any new name: the hidden commit goes first and the name is registered about a minute later.</string>
-    <string name="kn_reclaim_to_own_footer">Your name lapsed, so it can\'t be renewed any more. Reclaiming clears it from the registry: your bond comes back to you, and you also keep the freed registry deposit, less the network fee. Then you can register it again.</string>
-    <string name="kn_bond_back_to_you">Bond back to you</string>
-    <string name="kn_err_waiting_old_name">Waiting for the old %1$s to be cleared from the registry.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Free to claim</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Claiming %1$s</string>
     <string name="kn_keep_open_claiming">Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.</string>
     <string name="kn_err_finish_claiming_first">Finish the name you\'re claiming first.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">It\'s no longer yours and has moved to Reclaimable in the marketplace. Reclaim it yourself to get your bond back.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tip</string>
     <string name="tip_goes_to_fresh_address">Goes to a fresh private address they shared</string>
@@ -1316,4 +1291,13 @@
     <string name="something_went_wrong_title">Something Went Wrong</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Expires soon</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">Freeing %1$s for you...</string>
+    <string name="kn_name_expired_free">This name expired and wasn\'t renewed, so anyone can claim it at the normal price. The old owner\'s bond goes back to them.</string>
+    <string name="kn_no_expired_names">No expired names right now.</string>
+    <string name="km_expired_appear">Expired names appear here once .kachat names launch.</string>
+    <string name="kn_bell_freed_title">%1$s was freed</string>
+    <string name="kn_bell_freed_body">It expired and was cleared from the registry. Your bond is back with you.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s is no longer yours</string>
+    <string name="kn_bell_lapsed_available_body">It expired and wasn\'t renewed, so it\'s now available to anyone in the marketplace. Your bond comes back to you when someone claims it.</string>
 </resources>

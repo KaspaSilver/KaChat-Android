@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">Chỉ dùng a-z, 0-9 và dấu gạch ngang.</string>
     <string name="kn_invalid_hyphen">Tên không được bắt đầu hoặc kết thúc bằng dấu gạch ngang.</string>
     <string name="kn_status_expired">Đã hết hạn</string>
-    <string name="kn_status_lapsed">Đã mất hiệu lực</string>
     <string name="kn_yours">Của bạn</string>
     <string name="kn_available_per_year">Còn trống · %1$s mỗi năm</string>
     <string name="kn_not_valid_name">Tên không hợp lệ.</string>
     <string name="kn_taken_for_sale">Đã có chủ · đang bán với giá %1$s</string>
     <string name="kn_taken">Đã có chủ</string>
     <string name="kn_search_grace">Đã hết hạn - chủ sở hữu vẫn có thể gia hạn</string>
-    <string name="kn_search_lapsed">Đã mất hiệu lực - thu hồi rồi nhận lại</string>
     <string name="kn_seconds_to_go">Còn khoảng %1$d giây</string>
     <string name="kn_cancel_commit_title">Hủy cam kết?</string>
     <string name="kn_cancel_commit">Hủy cam kết</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">Xác nhận giao dịch .kachat này</string>
     <string name="kn_for_sale">Đang bán</string>
     <string name="kn_no_listings">Hiện chưa có tên nào được rao bán.</string>
-    <string name="kn_reclaimable">Có thể thu hồi</string>
-    <string name="kn_reclaimable_detail">Những tên mà chủ để mất hiệu lực. Ai cũng có thể thu hồi: tiền bảo đảm trả về chủ cuối, bạn giữ khoản ký quỹ được giải phóng làm thưởng, và tên trở nên trống.</string>
-    <string name="kn_nothing_to_reclaim">Không có gì để thu hồi.</string>
-    <string name="kn_reclaim">Thu hồi</string>
     <string name="kn_my_offers">Đề nghị của tôi</string>
     <string name="kn_no_open_offers">Không có đề nghị đang mở.</string>
     <string name="kn_offers_need_indexer">Đề nghị từ người khác sẽ hiện khi có kết nối trình lập chỉ mục tên.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">Hết hạn %1$s</string>
     <string name="kn_detail_grace_mine">Đã hết hạn - gia hạn để giữ tên. Cho đến hết thời gian ân hạn, không ai khác lấy được.</string>
     <string name="kn_detail_grace">Đã hết hạn. Tên không còn trỏ tới địa chỉ; chủ vẫn có thể gia hạn.</string>
-    <string name="kn_detail_lapsed">Đã mất hiệu lực: ai cũng có thể thu hồi rồi nhận lại.</string>
     <string name="kn_renew">Gia hạn</string>
     <string name="kn_change_price">Đổi giá</string>
     <string name="kn_list_for_sale">Rao bán</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">Nhập địa chỉ hoặc tên .kachat.</string>
     <string name="kn_err_no_active_name">Không có tên .kachat đang hoạt động nào như vậy.</string>
     <string name="kn_err_lookup">Không tra cứu được tên đó.</string>
-    <string name="kn_reclaim_footer">Tiền bảo đảm của tên trả về chủ cuối, bạn giữ khoản ký quỹ sổ đăng ký được giải phóng (trừ phí) làm thưởng, và tên trở nên trống. Để sở hữu, hãy nhận tên sau đó.</string>
-    <string name="kn_bond_to_last_owner">Tiền bảo đảm về chủ cuối</string>
     <string name="kn_profile_belongs">Hồ sơ thuộc về địa chỉ của bạn, không thuộc về tên: vẫn giữ nguyên khi bạn mua, bán hay bỏ một tên.</string>
     <string name="kn_links">Liên kết</string>
     <string name="kn_primary_name">Tên chính</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">Đã đổi giá</string>
     <string name="kn_done_listed">Đã đăng bán</string>
     <string name="kn_done_transferred">Đã chuyển tên</string>
-    <string name="kn_done_reclaimed">Đã thu hồi tên</string>
     <string name="kn_done_profile_saved">Đã lưu hồ sơ</string>
     <string name="kn_done_primary_set">Đã đặt tên chính</string>
     <string name="kn_done_registered">Đã đăng ký tên</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">Đã mở gia hạn: gia hạn trước %1$s để giữ tên.</string>
     <string name="kn_bell_expired_title">%1$s đã hết hạn</string>
     <string name="kn_bell_expired_body">Gia hạn trước %1$s nếu không ai cũng có thể lấy.</string>
-    <string name="kn_bell_lapsed_title">%1$s đã mất hiệu lực</string>
     <string name="kn_bell_sold_title">%1$s đã bán</string>
     <string name="kn_bell_paid">Bạn đã nhận %1$s KAS.</string>
     <string name="kn_bell_listing_bought">Tên bạn rao bán đã được mua.</string>
     <string name="kn_bell_accepted_offer">Bạn đã chấp nhận một đề nghị cho tên này.</string>
-    <string name="kn_bell_reclaimed_title">%1$s đã bị thu hồi</string>
-    <string name="kn_bell_reclaimed_body">Tên mất hiệu lực và người khác đã thu hồi. Có thể đăng ký lại.</string>
     <string name="kn_bell_new_offer_title">Đề nghị mới cho %1$s</string>
     <string name="kn_bell_offered">Có người đề nghị %1$s KAS cho tên này.</string>
     <string name="kn_bell_yours_now">%1$s giờ là của bạn.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">Hãy sớm gia hạn để giữ tên.</string>
     <string name="kn_push_grace_soon">Hãy sớm gia hạn nếu không ai cũng có thể lấy.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">Các tên có thể thu hồi sẽ hiện ở đây khi tên .kachat ra mắt.</string>
     <string name="kn_activity_all_detail">Mọi lần đăng ký, gia hạn, rao bán, bán, đề nghị, chuyển nhượng và thu hồi trong sổ đăng ký.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Thu hồi để sở hữu lại</string>
-    <string name="kn_reclaim_to_own_hint">Dọn tên đã mất hiệu lực và nhận lại tiền ký quỹ, rồi đăng ký lại.</string>
-    <string name="kn_register_again_q">Đăng ký lại %1$s?</string>
-    <string name="kn_register_again">Đăng ký lại</string>
-    <string name="kn_register_again_body">Giờ tên đã trống. Chọn thời gian giữ như mọi tên mới: cam kết ẩn được gửi trước và tên được đăng ký khoảng một phút sau.</string>
-    <string name="kn_reclaim_to_own_footer">Tên của bạn đã mất hiệu lực nên không thể gia hạn nữa. Thu hồi sẽ xóa nó khỏi sổ đăng ký: tiền ký quỹ trở về với bạn, và bạn cũng giữ khoản đặt cọc sổ đăng ký được giải phóng, trừ phí mạng. Sau đó bạn có thể đăng ký lại.</string>
-    <string name="kn_bond_back_to_you">Tiền ký quỹ trở về bạn</string>
-    <string name="kn_err_waiting_old_name">Đang chờ %1$s cũ được xóa khỏi sổ đăng ký.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Có thể đăng ký</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Đang nhận %1$s</string>
     <string name="kn_keep_open_claiming">Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.</string>
     <string name="kn_err_finish_claiming_first">Hãy hoàn tất tên bạn đang nhận trước.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">Tên này không còn là của bạn và đã chuyển sang mục “Có thể thu hồi” trong chợ. Hãy tự thu hồi để lấy lại tiền đặt cọc.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tiền tip</string>
     <string name="tip_goes_to_fresh_address">Gửi tới một địa chỉ riêng mới mà họ đã chia sẻ</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">Hoán đổi không thành công</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Sắp hết hạn</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">Đang giải phóng %1$s cho bạn...</string>
+    <string name="kn_name_expired_free">Tên này đã hết hạn và không được gia hạn, nên ai cũng có thể nhận với giá thông thường. Tiền đặt cọc của chủ cũ được trả lại cho họ.</string>
+    <string name="kn_no_expired_names">Hiện không có tên nào hết hạn.</string>
+    <string name="km_expired_appear">Các tên hết hạn sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
+    <string name="kn_bell_freed_title">%1$s đã được giải phóng</string>
+    <string name="kn_bell_freed_body">Tên đã hết hạn và được xóa khỏi sổ đăng ký. Tiền đặt cọc đã trở lại với bạn.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s không còn là của bạn</string>
+    <string name="kn_bell_lapsed_available_body">Tên đã hết hạn và không được gia hạn, nên giờ ai cũng có thể nhận trong chợ. Tiền đặt cọc sẽ trở lại với bạn khi có người nhận tên.</string>
 </resources>

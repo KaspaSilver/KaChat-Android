@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">Только a-z, 0-9 и дефисы.</string>
     <string name="kn_invalid_hyphen">Имя не может начинаться или заканчиваться дефисом.</string>
     <string name="kn_status_expired">Истекло</string>
-    <string name="kn_status_lapsed">Утрачено</string>
     <string name="kn_yours">Ваше</string>
     <string name="kn_available_per_year">Свободно · %1$s в год</string>
     <string name="kn_not_valid_name">Недопустимое имя.</string>
     <string name="kn_taken_for_sale">Занято · продаётся за %1$s</string>
     <string name="kn_taken">Занято</string>
     <string name="kn_search_grace">Истекло — владелец ещё может продлить</string>
-    <string name="kn_search_lapsed">Утрачено — верните его, затем зарегистрируйте</string>
     <string name="kn_seconds_to_go">Осталось около %1$d с</string>
     <string name="kn_cancel_commit_title">Отменить коммит?</string>
     <string name="kn_cancel_commit">Отменить коммит</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">Подтвердите эту транзакцию .kachat</string>
     <string name="kn_for_sale">Продаются</string>
     <string name="kn_no_listings">Сейчас нет имён на продаже.</string>
-    <string name="kn_reclaimable">Можно вернуть</string>
-    <string name="kn_reclaimable_detail">Имена, которые владельцы не продлили. Любой может их вернуть: залог уходит последнему владельцу, освободившийся депозит вы забираете как награду, и имя становится свободным.</string>
-    <string name="kn_nothing_to_reclaim">Возвращать нечего.</string>
-    <string name="kn_reclaim">Вернуть</string>
     <string name="kn_my_offers">Мои предложения</string>
     <string name="kn_no_open_offers">Нет открытых предложений.</string>
     <string name="kn_offers_need_indexer">Предложения других появятся после подключения индексатора имён.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">Истекает %1$s</string>
     <string name="kn_detail_grace_mine">Истекло — продлите, чтобы сохранить. До конца льготного периода никто другой не может его забрать.</string>
     <string name="kn_detail_grace">Истекло. Больше не разрешается в адрес; владелец ещё может продлить.</string>
-    <string name="kn_detail_lapsed">Утрачено: любой может вернуть его, а затем зарегистрировать снова.</string>
     <string name="kn_renew">Продлить</string>
     <string name="kn_change_price">Изменить цену</string>
     <string name="kn_list_for_sale">Выставить на продажу</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">Введите адрес или имя .kachat.</string>
     <string name="kn_err_no_active_name">Нет активного имени .kachat с таким названием.</string>
     <string name="kn_err_lookup">Не удалось найти это имя.</string>
-    <string name="kn_reclaim_footer">Залог имени уходит последнему владельцу, освободившийся депозит реестра (за вычетом комиссии) вы забираете как награду, и имя становится свободным. Чтобы владеть им, зарегистрируйте его после.</string>
-    <string name="kn_bond_to_last_owner">Залог последнему владельцу</string>
     <string name="kn_profile_belongs">Профиль принадлежит вашему адресу, а не имени: он не меняется, когда вы покупаете, продаёте или отпускаете имя.</string>
     <string name="kn_links">Ссылки</string>
     <string name="kn_primary_name">Основное имя</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">Цена изменена</string>
     <string name="kn_done_listed">Выставлено на продажу</string>
     <string name="kn_done_transferred">Имя передано</string>
-    <string name="kn_done_reclaimed">Имя возвращено</string>
     <string name="kn_done_profile_saved">Профиль сохранён</string>
     <string name="kn_done_primary_set">Основное имя задано</string>
     <string name="kn_done_registered">Имя зарегистрировано</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">Продление открыто: продлите до %1$s, чтобы сохранить имя.</string>
     <string name="kn_bell_expired_title">Срок %1$s истёк</string>
     <string name="kn_bell_expired_body">Продлите до %1$s, иначе его сможет забрать кто угодно.</string>
-    <string name="kn_bell_lapsed_title">%1$s освободилось</string>
     <string name="kn_bell_sold_title">%1$s продано</string>
     <string name="kn_bell_paid">Вам выплачено %1$s KAS.</string>
     <string name="kn_bell_listing_bought">Ваш лот купили.</string>
     <string name="kn_bell_accepted_offer">Вы приняли предложение за него.</string>
-    <string name="kn_bell_reclaimed_title">%1$s возвращено в реестр</string>
-    <string name="kn_bell_reclaimed_body">Имя освободилось, и его вернул кто-то другой. Его можно зарегистрировать снова.</string>
     <string name="kn_bell_new_offer_title">Новое предложение за %1$s</string>
     <string name="kn_bell_offered">За него предложили %1$s KAS.</string>
     <string name="kn_bell_yours_now">%1$s теперь ваше.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">Продлите его в ближайшее время, чтобы сохранить.</string>
     <string name="kn_push_grace_soon">Продлите его в ближайшее время, иначе его сможет забрать кто угодно.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">Имена, которые можно вернуть, появятся здесь после запуска имён .kachat.</string>
     <string name="kn_activity_all_detail">Все регистрации, продления, выставления, продажи, предложения, передачи и возвраты в реестре.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Вернуть и забрать себе</string>
-    <string name="kn_reclaim_to_own_hint">Освободите истёкшее имя и верните залог, затем зарегистрируйте его снова.</string>
-    <string name="kn_register_again_q">Зарегистрировать %1$s снова?</string>
-    <string name="kn_register_again">Зарегистрировать снова</string>
-    <string name="kn_register_again_body">Теперь оно свободно. Выберите срок, как для любого нового имени: сначала уходит скрытый коммит, а примерно через минуту имя регистрируется.</string>
-    <string name="kn_reclaim_to_own_footer">Имя освободилось, и его больше нельзя продлить. Возврат удаляет его из реестра: ваш залог возвращается к вам, и вы также получаете освободившийся депозит реестра за вычетом комиссии сети. Затем его можно зарегистрировать снова.</string>
-    <string name="kn_bond_back_to_you">Залог вернётся к вам</string>
-    <string name="kn_err_waiting_old_name">Ждём, пока старое %1$s уберут из реестра.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Свободно для регистрации</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Получение %1$s</string>
     <string name="kn_keep_open_claiming">Не закрывайте KaChat: имя регистрируется примерно через минуту после подтверждения скрытого обязательства. Если вы выйдете, процесс продолжится с того же места, когда вы вернётесь.</string>
     <string name="kn_err_finish_claiming_first">Сначала завершите получение текущего имени.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">Оно больше не ваше и перешло в раздел «Можно вернуть» на маркетплейсе. Верните его сами, чтобы получить залог обратно.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Чаевые</string>
     <string name="tip_goes_to_fresh_address">Уйдут на новый приватный адрес, которым он поделился</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">Обмен не удался</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Скоро истекает</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">Освобождаем %1$s для вас...</string>
+    <string name="kn_name_expired_free">Срок этого имени истёк, и его не продлили, поэтому любой может получить его по обычной цене. Залог прежнего владельца возвращается ему.</string>
+    <string name="kn_no_expired_names">Сейчас нет имён с истёкшим сроком.</string>
+    <string name="km_expired_appear">Имена с истёкшим сроком появятся здесь после запуска имён .kachat.</string>
+    <string name="kn_bell_freed_title">%1$s освобождено</string>
+    <string name="kn_bell_freed_body">Срок истёк, и имя удалено из реестра. Ваш залог вернулся к вам.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s больше не ваше</string>
+    <string name="kn_bell_lapsed_available_body">Срок истёк, и имя не продлили, поэтому теперь оно доступно всем на маркетплейсе. Залог вернётся к вам, когда кто-нибудь его получит.</string>
 </resources>

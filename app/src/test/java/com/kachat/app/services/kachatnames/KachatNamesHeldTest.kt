@@ -5,8 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Your Domains and Reclaimable (iOS e26562e): a lapsed name is no longer yours - it leaves Your
- * Domains for the marketplace's Reclaimable tab; an expired name still in grace stays, to be renewed.
+ * Your Domains and Available (iOS e26562e, eea52b2): a lapsed name is no longer yours - it leaves Your
+ * Domains for the marketplace's Available tab; an expired name still in grace stays, to be renewed.
  */
 class KachatNamesHeldTest {
     private val grace = 864_000_000L

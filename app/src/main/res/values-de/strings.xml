@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">Nur a-z, 0-9 und Bindestriche.</string>
     <string name="kn_invalid_hyphen">Ein Name darf nicht mit einem Bindestrich beginnen oder enden.</string>
     <string name="kn_status_expired">Abgelaufen</string>
-    <string name="kn_status_lapsed">Verfallen</string>
     <string name="kn_yours">Deiner</string>
     <string name="kn_available_per_year">Verfügbar · %1$s pro Jahr</string>
     <string name="kn_not_valid_name">Kein gültiger Name.</string>
     <string name="kn_taken_for_sale">Vergeben · zu verkaufen für %1$s</string>
     <string name="kn_taken">Vergeben</string>
     <string name="kn_search_grace">Abgelaufen - der Inhaber kann ihn noch verlängern</string>
-    <string name="kn_search_lapsed">Verfallen - zurückholen, dann registrieren</string>
     <string name="kn_seconds_to_go">Noch etwa %1$d s</string>
     <string name="kn_cancel_commit_title">Commit abbrechen?</string>
     <string name="kn_cancel_commit">Commit abbrechen</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">Diese .kachat-Transaktion bestätigen</string>
     <string name="kn_for_sale">Zu verkaufen</string>
     <string name="kn_no_listings">Gerade werden keine Namen angeboten.</string>
-    <string name="kn_reclaimable">Zurückholbar</string>
-    <string name="kn_reclaimable_detail">Namen, die ihre Inhaber verfallen ließen. Jeder darf einen zurückholen: Die Kaution geht an den letzten Inhaber, du behältst die freigewordene Einlage als Prämie, und der Name ist frei.</string>
-    <string name="kn_nothing_to_reclaim">Nichts zum Zurückholen.</string>
-    <string name="kn_reclaim">Zurückholen</string>
     <string name="kn_my_offers">Meine Angebote</string>
     <string name="kn_no_open_offers">Keine offenen Angebote.</string>
     <string name="kn_offers_need_indexer">Angebote anderer erscheinen, sobald ein Namens-Indexer verbunden ist.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">Läuft ab am %1$s</string>
     <string name="kn_detail_grace_mine">Abgelaufen - verlängere ihn, um ihn zu behalten. Bis die Schonfrist endet, kann ihn niemand sonst nehmen.</string>
     <string name="kn_detail_grace">Abgelaufen. Er wird nicht mehr aufgelöst; der Inhaber kann ihn noch verlängern.</string>
-    <string name="kn_detail_lapsed">Verfallen: Jeder darf ihn zurückholen und dann neu registrieren.</string>
     <string name="kn_renew">Verlängern</string>
     <string name="kn_change_price">Preis ändern</string>
     <string name="kn_list_for_sale">Zum Verkauf anbieten</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">Gib eine Adresse oder einen .kachat-Namen ein.</string>
     <string name="kn_err_no_active_name">Kein aktiver .kachat-Name mit diesem Namen.</string>
     <string name="kn_err_lookup">Der Name konnte nicht nachgeschlagen werden.</string>
-    <string name="kn_reclaim_footer">Die Kaution des Namens geht an den letzten Inhaber, du behältst die freigewordene Registry-Einlage (abzüglich Gebühr) als Prämie, und der Name ist frei. Um ihn zu besitzen, registriere ihn danach.</string>
-    <string name="kn_bond_to_last_owner">Kaution an den letzten Inhaber</string>
     <string name="kn_profile_belongs">Dein Profil gehört zu deiner Adresse, nicht zu einem Namen: Es bleibt gleich, wenn du einen Namen kaufst, verkaufst oder aufgibst.</string>
     <string name="kn_links">Links</string>
     <string name="kn_primary_name">Hauptname</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">Preis geändert</string>
     <string name="kn_done_listed">Zum Verkauf angeboten</string>
     <string name="kn_done_transferred">Name übertragen</string>
-    <string name="kn_done_reclaimed">Name zurückgeholt</string>
     <string name="kn_done_profile_saved">Profil gespeichert</string>
     <string name="kn_done_primary_set">Hauptname festgelegt</string>
     <string name="kn_done_registered">Name registriert</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">Verlängerung möglich: verlängere vor %1$s, um ihn zu behalten.</string>
     <string name="kn_bell_expired_title">%1$s ist abgelaufen</string>
     <string name="kn_bell_expired_body">Verlängere vor %1$s, sonst kann ihn jeder beanspruchen.</string>
-    <string name="kn_bell_lapsed_title">%1$s ist verfallen</string>
     <string name="kn_bell_sold_title">%1$s verkauft</string>
     <string name="kn_bell_paid">%1$s KAS wurden an dich gezahlt.</string>
     <string name="kn_bell_listing_bought">Dein Angebot wurde gekauft.</string>
     <string name="kn_bell_accepted_offer">Du hast ein Angebot dafür angenommen.</string>
-    <string name="kn_bell_reclaimed_title">%1$s wurde zurückgefordert</string>
-    <string name="kn_bell_reclaimed_body">Er ist verfallen und jemand hat ihn zurückgefordert. Er kann neu registriert werden.</string>
     <string name="kn_bell_new_offer_title">Neues Angebot für %1$s</string>
     <string name="kn_bell_offered">%1$s KAS dafür geboten.</string>
     <string name="kn_bell_yours_now">%1$s gehört jetzt dir.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">Verlängere ihn bald, um ihn zu behalten.</string>
     <string name="kn_push_grace_soon">Verlängere ihn bald, sonst kann ihn jeder beanspruchen.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">Zurückforderbare Namen erscheinen hier, sobald .kachat-Namen starten.</string>
     <string name="kn_activity_all_detail">Jede Registrierung, Verlängerung, Listung, jeder Verkauf, jedes Angebot, jede Übertragung und Rückforderung im Register.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Zurückfordern und behalten</string>
-    <string name="kn_reclaim_to_own_hint">Den verfallenen Namen räumen und die Kaution zurückbekommen, dann neu registrieren.</string>
-    <string name="kn_register_again_q">%1$s erneut registrieren?</string>
-    <string name="kn_register_again">Erneut registrieren</string>
-    <string name="kn_register_again_body">Er ist jetzt frei. Wähle wie bei jedem neuen Namen, wie lange du ihn hältst: zuerst geht der verdeckte Commit raus, etwa eine Minute später wird der Name registriert.</string>
-    <string name="kn_reclaim_to_own_footer">Dein Name ist verfallen und kann nicht mehr verlängert werden. Zurückfordern entfernt ihn aus dem Register: Deine Kaution kommt zurück, und du behältst auch die freigewordene Registereinlage abzüglich der Netzwerkgebühr. Danach kannst du ihn neu registrieren.</string>
-    <string name="kn_bond_back_to_you">Kaution zurück an dich</string>
-    <string name="kn_err_waiting_old_name">Warte, bis der alte %1$s aus dem Register entfernt ist.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Frei zum Registrieren</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s wird beansprucht</string>
     <string name="kn_keep_open_claiming">Lass KaChat geöffnet: Der Name wird etwa eine Minute nach der Bestätigung des verdeckten Commits registriert. Wenn du die App verlässt, geht es bei deiner Rückkehr dort weiter.</string>
     <string name="kn_err_finish_claiming_first">Schließe zuerst den Namen ab, den du gerade beanspruchst.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">Er gehört dir nicht mehr und steht jetzt unter „Zurückholbar“ im Marktplatz. Fordere ihn selbst zurück, um deine Kaution zurückzubekommen.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Trinkgeld</string>
     <string name="tip_goes_to_fresh_address">Geht an eine neue private Adresse, die sie geteilt haben</string>
@@ -1105,4 +1080,13 @@
     <string name="swap_failed">Tausch fehlgeschlagen</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Läuft bald ab</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">%1$s wird für dich freigegeben...</string>
+    <string name="kn_name_expired_free">Dieser Name ist abgelaufen und wurde nicht verlängert, daher kann ihn jeder zum normalen Preis beanspruchen. Die Kaution des bisherigen Inhabers geht an ihn zurück.</string>
+    <string name="kn_no_expired_names">Gerade keine abgelaufenen Namen.</string>
+    <string name="km_expired_appear">Abgelaufene Namen erscheinen hier, sobald .kachat-Namen starten.</string>
+    <string name="kn_bell_freed_title">%1$s wurde freigegeben</string>
+    <string name="kn_bell_freed_body">Er ist abgelaufen und wurde aus dem Register entfernt. Deine Kaution ist wieder bei dir.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s gehört dir nicht mehr</string>
+    <string name="kn_bell_lapsed_available_body">Er ist abgelaufen und wurde nicht verlängert, daher steht er jetzt im Marktplatz für alle bereit. Deine Kaution kommt zu dir zurück, sobald ihn jemand beansprucht.</string>
 </resources>

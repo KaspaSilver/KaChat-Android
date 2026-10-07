@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">השתמשו רק ב-a-z, 0-9 ומקפים.</string>
     <string name="kn_invalid_hyphen">שם לא יכול להתחיל או להסתיים במקף.</string>
     <string name="kn_status_expired">פג תוקף</string>
-    <string name="kn_status_lapsed">פקע</string>
     <string name="kn_yours">שלך</string>
     <string name="kn_available_per_year">פנוי · %1$s לשנה</string>
     <string name="kn_not_valid_name">זה לא שם תקין.</string>
     <string name="kn_taken_for_sale">תפוס · למכירה ב-%1$s</string>
     <string name="kn_taken">תפוס</string>
     <string name="kn_search_grace">פג תוקף - הבעלים עדיין יכול לחדש</string>
-    <string name="kn_search_lapsed">פקע - דרשו אותו מחדש, ואז רשמו אותו</string>
     <string name="kn_seconds_to_go">עוד כ-%1$d שניות</string>
     <string name="kn_cancel_commit_title">לבטל את ההתחייבות?</string>
     <string name="kn_cancel_commit">ביטול ההתחייבות</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">אישור עסקת .kachat זו</string>
     <string name="kn_for_sale">למכירה</string>
     <string name="kn_no_listings">אין כרגע שמות למכירה.</string>
-    <string name="kn_reclaimable">ניתנים לדרישה מחדש</string>
-    <string name="kn_reclaimable_detail">שמות שבעליהם הניחו להם לפקוע. כל אחד יכול לדרוש אותם מחדש: הערבון חוזר לבעלים האחרון, את הפיקדון שהשתחרר תשמרו כפרס, והשם מתפנה לרישום.</string>
-    <string name="kn_nothing_to_reclaim">אין מה לדרוש מחדש.</string>
-    <string name="kn_reclaim">דרישה מחדש</string>
     <string name="kn_my_offers">ההצעות שלי</string>
     <string name="kn_no_open_offers">אין הצעות פתוחות.</string>
     <string name="kn_offers_need_indexer">הצעות של אחרים יופיעו אחרי חיבור אינדקסר שמות.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">פג ב-%1$s</string>
     <string name="kn_detail_grace_mine">פג תוקף - חדשו כדי לשמור עליו. עד סוף תקופת החסד אף אחד אחר לא יכול לקחת אותו.</string>
     <string name="kn_detail_grace">פג תוקף. הוא כבר לא מתורגם לכתובת; הבעלים עדיין יכול לחדש אותו.</string>
-    <string name="kn_detail_lapsed">פקע: כל אחד יכול לדרוש אותו מחדש ואז לרשום אותו שוב.</string>
     <string name="kn_renew">חידוש</string>
     <string name="kn_change_price">שינוי מחיר</string>
     <string name="kn_list_for_sale">הצעה למכירה</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">הזינו כתובת או שם .kachat.</string>
     <string name="kn_err_no_active_name">אין שם .kachat פעיל בשם הזה.</string>
     <string name="kn_err_lookup">לא ניתן היה לחפש את השם.</string>
-    <string name="kn_reclaim_footer">הערבון של השם חוזר לבעלים האחרון, את פיקדון הרישום שהשתחרר (פחות העמלה) תשמרו כפרס, והשם מתפנה. כדי שיהיה שלכם, רשמו אותו אחר כך.</string>
-    <string name="kn_bond_to_last_owner">ערבון לבעלים האחרון</string>
     <string name="kn_profile_belongs">הפרופיל שלך שייך לכתובת שלך, לא לשם: הוא נשאר זהה כשקונים, מוכרים או מוותרים על שם.</string>
     <string name="kn_links">קישורים</string>
     <string name="kn_primary_name">שם ראשי</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">המחיר שונה</string>
     <string name="kn_done_listed">הוצע למכירה</string>
     <string name="kn_done_transferred">השם הועבר</string>
-    <string name="kn_done_reclaimed">השם נדרש מחדש</string>
     <string name="kn_done_profile_saved">הפרופיל נשמר</string>
     <string name="kn_done_primary_set">השם הראשי הוגדר</string>
     <string name="kn_done_registered">השם נרשם</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">החידוש פתוח: חדשו לפני %1$s כדי לשמור עליו.</string>
     <string name="kn_bell_expired_title">%1$s פג</string>
     <string name="kn_bell_expired_body">חדשו לפני %1$s, אחרת כל אחד יוכל לדרוש אותו.</string>
-    <string name="kn_bell_lapsed_title">%1$s פקע</string>
     <string name="kn_bell_sold_title">%1$s נמכר</string>
     <string name="kn_bell_paid">שולמו לך %1$s KAS.</string>
     <string name="kn_bell_listing_bought">הרישום שלך נקנה.</string>
     <string name="kn_bell_accepted_offer">קיבלת הצעה עבורו.</string>
-    <string name="kn_bell_reclaimed_title">%1$s נדרש בחזרה</string>
-    <string name="kn_bell_reclaimed_body">הוא פקע ומישהו דרש אותו. אפשר לרשום אותו מחדש.</string>
     <string name="kn_bell_new_offer_title">הצעה חדשה על %1$s</string>
     <string name="kn_bell_offered">הוצעו עבורו %1$s KAS.</string>
     <string name="kn_bell_yours_now">%1$s שלך עכשיו.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">חדשו אותו בקרוב כדי לשמור עליו.</string>
     <string name="kn_push_grace_soon">חדשו אותו בקרוב, אחרת כל אחד יוכל לדרוש אותו.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">שמות שאפשר לדרוש בחזרה יופיעו כאן כשהשמות של .kachat יושקו.</string>
     <string name="kn_activity_all_detail">כל רישום, חידוש, הצעה למכירה, מכירה, הצעה, העברה ודרישה חוזרת במרשם.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">דרישה חוזרת לבעלות</string>
-    <string name="kn_reclaim_to_own_hint">פנו את השם שפקע וקבלו את הפיקדון בחזרה, ואז רשמו אותו מחדש.</string>
-    <string name="kn_register_again_q">לרשום את %1$s שוב?</string>
-    <string name="kn_register_again">לרשום שוב</string>
-    <string name="kn_register_again_body">הוא פנוי עכשיו. בחרו לכמה זמן להחזיק בו, כמו כל שם חדש: קודם נשלחת ההתחייבות המוסתרת, והשם נרשם כעבור כדקה.</string>
-    <string name="kn_reclaim_to_own_footer">השם שלך פקע ולכן אי אפשר לחדש אותו יותר. דרישה חוזרת מוחקת אותו מהמרשם: הפיקדון שלך חוזר אליך, ואת גם שומר/ת את פיקדון המרשם שהשתחרר, פחות עמלת הרשת. אחר כך אפשר לרשום אותו מחדש.</string>
-    <string name="kn_bond_back_to_you">הפיקדון חוזר אליך</string>
-    <string name="kn_err_waiting_old_name">ממתינים שה-%1$s הישן יוסר מהמרשם.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">פנוי לתביעה</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">תובע את %1$s</string>
     <string name="kn_keep_open_claiming">השאירו את KaChat פתוחה: השם נרשם כדקה אחרי שההתחייבות המוסתרת מאושרת. אם תצאו, התהליך ימשיך מהמקום שבו נעצר כשתחזרו.</string>
     <string name="kn_err_finish_claiming_first">סיימו קודם את השם שאתם תובעים.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">הוא כבר לא שלך ועבר ל״ניתנים לדרישה מחדש״ בשוק. השב אותו בעצמך כדי לקבל את הפיקדון שלך בחזרה.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">טיפ</string>
     <string name="tip_goes_to_fresh_address">נשלח לכתובת פרטית חדשה ששיתפו</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">ההחלפה נכשלה</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">פג תוקף בקרוב</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">משחרר את %1$s עבורך...</string>
+    <string name="kn_name_expired_free">תוקף השם פג והוא לא חודש, כך שכל אחד יכול לתבוע אותו במחיר הרגיל. הפיקדון של הבעלים הקודם חוזר אליו.</string>
+    <string name="kn_no_expired_names">אין שמות שפג תוקפם כרגע.</string>
+    <string name="km_expired_appear">שמות שפג תוקפם יופיעו כאן כששמות ‎.kachat יושקו.</string>
+    <string name="kn_bell_freed_title">%1$s שוחרר</string>
+    <string name="kn_bell_freed_body">תוקפו פג והוא הוסר מהרישום. הפיקדון שלך חזר אליך.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s כבר לא שלך</string>
+    <string name="kn_bell_lapsed_available_body">תוקפו פג והוא לא חודש, כך שעכשיו הוא זמין לכל אחד בשוק. הפיקדון שלך יחזור אליך כשמישהו יתבע אותו.</string>
 </resources>

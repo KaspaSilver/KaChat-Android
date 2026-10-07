@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">Usa solo a-z, 0-9 e trattini.</string>
     <string name="kn_invalid_hyphen">Un nome non può iniziare o finire con un trattino.</string>
     <string name="kn_status_expired">Scaduto</string>
-    <string name="kn_status_lapsed">Decaduto</string>
     <string name="kn_yours">Tuo</string>
     <string name="kn_available_per_year">Disponibile · %1$s all’anno</string>
     <string name="kn_not_valid_name">Non è un nome valido.</string>
     <string name="kn_taken_for_sale">Occupato · in vendita a %1$s</string>
     <string name="kn_taken">Occupato</string>
     <string name="kn_search_grace">Scaduto - il proprietario può ancora rinnovarlo</string>
-    <string name="kn_search_lapsed">Decaduto - recuperalo, poi registralo</string>
     <string name="kn_seconds_to_go">Mancano circa %1$d s</string>
     <string name="kn_cancel_commit_title">Annullare l’impegno?</string>
     <string name="kn_cancel_commit">Annulla impegno</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">Conferma questa transazione .kachat</string>
     <string name="kn_for_sale">In vendita</string>
     <string name="kn_no_listings">Al momento non ci sono nomi in vendita.</string>
-    <string name="kn_reclaimable">Recuperabili</string>
-    <string name="kn_reclaimable_detail">Nomi che i proprietari hanno lasciato decadere. Chiunque può recuperarli: la cauzione torna all’ultimo proprietario, tu tieni il deposito liberato come ricompensa e il nome torna libero.</string>
-    <string name="kn_nothing_to_reclaim">Niente da recuperare.</string>
-    <string name="kn_reclaim">Recupera</string>
     <string name="kn_my_offers">Le mie offerte</string>
     <string name="kn_no_open_offers">Nessuna offerta aperta.</string>
     <string name="kn_offers_need_indexer">Le offerte degli altri compaiono quando è collegato un indicizzatore dei nomi.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">Scade il %1$s</string>
     <string name="kn_detail_grace_mine">Scaduto: rinnovalo per tenerlo. Fino alla fine del periodo di grazia nessun altro può prenderlo.</string>
     <string name="kn_detail_grace">Scaduto. Non viene più risolto; il proprietario può ancora rinnovarlo.</string>
-    <string name="kn_detail_lapsed">Decaduto: chiunque può recuperarlo e poi registrarlo di nuovo.</string>
     <string name="kn_renew">Rinnova</string>
     <string name="kn_change_price">Cambia prezzo</string>
     <string name="kn_list_for_sale">Metti in vendita</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">Inserisci un indirizzo o un nome .kachat.</string>
     <string name="kn_err_no_active_name">Nessun nome .kachat attivo con quel nome.</string>
     <string name="kn_err_lookup">Impossibile cercare quel nome.</string>
-    <string name="kn_reclaim_footer">La cauzione del nome torna all’ultimo proprietario, tu tieni il deposito del registro liberato (meno la commissione) come ricompensa e il nome è libero. Per averlo, registralo dopo.</string>
-    <string name="kn_bond_to_last_owner">Cauzione all’ultimo proprietario</string>
     <string name="kn_profile_belongs">Il tuo profilo appartiene al tuo indirizzo, non a un nome: resta uguale quando compri, vendi o lasci un nome.</string>
     <string name="kn_links">Link</string>
     <string name="kn_primary_name">Nome principale</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">Prezzo cambiato</string>
     <string name="kn_done_listed">Messo in vendita</string>
     <string name="kn_done_transferred">Nome trasferito</string>
-    <string name="kn_done_reclaimed">Nome recuperato</string>
     <string name="kn_done_profile_saved">Profilo salvato</string>
     <string name="kn_done_primary_set">Nome principale impostato</string>
     <string name="kn_done_registered">Nome registrato</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">Il rinnovo è aperto: rinnovalo prima del %1$s per tenerlo.</string>
     <string name="kn_bell_expired_title">%1$s è scaduto</string>
     <string name="kn_bell_expired_body">Rinnovalo prima del %1$s o chiunque potrà reclamarlo.</string>
-    <string name="kn_bell_lapsed_title">%1$s è decaduto</string>
     <string name="kn_bell_sold_title">%1$s venduto</string>
     <string name="kn_bell_paid">Ti sono stati pagati %1$s KAS.</string>
     <string name="kn_bell_listing_bought">Il tuo annuncio è stato acquistato.</string>
     <string name="kn_bell_accepted_offer">Hai accettato un’offerta per esso.</string>
-    <string name="kn_bell_reclaimed_title">%1$s è stato reclamato</string>
-    <string name="kn_bell_reclaimed_body">È decaduto e qualcuno l’ha reclamato. Si può registrare di nuovo.</string>
     <string name="kn_bell_new_offer_title">Nuova offerta su %1$s</string>
     <string name="kn_bell_offered">Offerti %1$s KAS per esso.</string>
     <string name="kn_bell_yours_now">%1$s ora è tuo.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">Rinnovalo presto per tenerlo.</string>
     <string name="kn_push_grace_soon">Rinnovalo presto o chiunque potrà reclamarlo.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">I nomi reclamabili compariranno qui al lancio dei nomi .kachat.</string>
     <string name="kn_activity_all_detail">Ogni registrazione, rinnovo, annuncio, vendita, offerta, trasferimento e recupero nel registro.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Recupera per riaverlo</string>
-    <string name="kn_reclaim_to_own_hint">Libera il nome decaduto e riprendi la cauzione, poi registralo di nuovo.</string>
-    <string name="kn_register_again_q">Registrare di nuovo %1$s?</string>
-    <string name="kn_register_again">Registra di nuovo</string>
-    <string name="kn_register_again_body">Ora è libero. Scegli per quanto tenerlo, come per ogni nuovo nome: prima parte l’impegno nascosto e il nome viene registrato circa un minuto dopo.</string>
-    <string name="kn_reclaim_to_own_footer">Il tuo nome è decaduto, quindi non si può più rinnovare. Recuperarlo lo toglie dal registro: la cauzione torna a te e tieni anche il deposito del registro liberato, meno la commissione di rete. Poi puoi registrarlo di nuovo.</string>
-    <string name="kn_bond_back_to_you">Cauzione restituita a te</string>
-    <string name="kn_err_waiting_old_name">In attesa che il vecchio %1$s venga rimosso dal registro.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Libero da registrare</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Rivendicazione di %1$s</string>
     <string name="kn_keep_open_claiming">Tieni KaChat aperta: il nome viene registrato circa un minuto dopo la conferma dell\'impegno nascosto. Se esci, riprende da dove si era fermato quando torni.</string>
     <string name="kn_err_finish_claiming_first">Completa prima il nome che stai rivendicando.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">Non è più tuo ed è passato tra i Recuperabili nel marketplace. Recuperalo tu per riavere la tua cauzione.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Mancia</string>
     <string name="tip_goes_to_fresh_address">Va a un nuovo indirizzo privato che ha condiviso</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">Scambio non riuscito</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Scade presto</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">Liberazione di %1$s per te...</string>
+    <string name="kn_name_expired_free">Questo nome è scaduto e non è stato rinnovato, quindi chiunque può rivendicarlo al prezzo normale. La cauzione del vecchio proprietario torna a lui.</string>
+    <string name="kn_no_expired_names">Nessun nome scaduto al momento.</string>
+    <string name="km_expired_appear">I nomi scaduti appariranno qui al lancio dei nomi .kachat.</string>
+    <string name="kn_bell_freed_title">%1$s è stato liberato</string>
+    <string name="kn_bell_freed_body">È scaduto ed è stato rimosso dal registro. La tua cauzione è tornata a te.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s non è più tuo</string>
+    <string name="kn_bell_lapsed_available_body">È scaduto e non è stato rinnovato, quindi ora è disponibile per chiunque nel marketplace. La tua cauzione torna a te quando qualcuno lo rivendica.</string>
 </resources>

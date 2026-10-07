@@ -676,14 +676,12 @@
     <string name="kn_invalid_chars">فقط از a-z، 0-9 و خط تیره استفاده کنید.</string>
     <string name="kn_invalid_hyphen">نام نمی‌تواند با خط تیره شروع یا تمام شود.</string>
     <string name="kn_status_expired">منقضی</string>
-    <string name="kn_status_lapsed">ساقط‌شده</string>
     <string name="kn_yours">مال شما</string>
     <string name="kn_available_per_year">آزاد · سالانه %1$s</string>
     <string name="kn_not_valid_name">نام معتبری نیست.</string>
     <string name="kn_taken_for_sale">گرفته شده · برای فروش به %1$s</string>
     <string name="kn_taken">گرفته شده</string>
     <string name="kn_search_grace">منقضی - مالک هنوز می‌تواند تمدیدش کند</string>
-    <string name="kn_search_lapsed">ساقط شده - بازپس بگیرید، سپس ثبتش کنید</string>
     <string name="kn_seconds_to_go">حدود %1$d ثانیه مانده</string>
     <string name="kn_cancel_commit_title">کامیت لغو شود؟</string>
     <string name="kn_cancel_commit">لغو کامیت</string>
@@ -701,10 +699,6 @@
     <string name="kn_auth_reason">تأیید این تراکنش .kachat</string>
     <string name="kn_for_sale">برای فروش</string>
     <string name="kn_no_listings">در حال حاضر نامی برای فروش نیست.</string>
-    <string name="kn_reclaimable">قابل بازپس‌گیری</string>
-    <string name="kn_reclaimable_detail">نام‌هایی که مالکانشان گذاشتند ساقط شوند. هر کسی می‌تواند بازپسشان بگیرد: وثیقه به آخرین مالک برمی‌گردد، سپردهٔ آزادشده به‌عنوان پاداش به شما می‌رسد و نام آزاد می‌شود.</string>
-    <string name="kn_nothing_to_reclaim">چیزی برای بازپس‌گیری نیست.</string>
-    <string name="kn_reclaim">بازپس‌گیری</string>
     <string name="kn_my_offers">پیشنهادهای من</string>
     <string name="kn_no_open_offers">پیشنهاد بازی نیست.</string>
     <string name="kn_offers_need_indexer">پیشنهادهای دیگران پس از اتصال یک ایندکسر نام نمایش داده می‌شوند.</string>
@@ -737,7 +731,6 @@
     <string name="kn_expires_on">انقضا: %1$s</string>
     <string name="kn_detail_grace_mine">منقضی شده - برای نگه داشتنش تمدید کنید. تا پایان مهلت، کس دیگری نمی‌تواند آن را بگیرد.</string>
     <string name="kn_detail_grace">منقضی شده. دیگر به نشانی تبدیل نمی‌شود؛ مالک هنوز می‌تواند تمدیدش کند.</string>
-    <string name="kn_detail_lapsed">ساقط شده: هر کسی می‌تواند آن را بازپس بگیرد و سپس دوباره ثبت کند.</string>
     <string name="kn_renew">تمدید</string>
     <string name="kn_change_price">تغییر قیمت</string>
     <string name="kn_list_for_sale">گذاشتن برای فروش</string>
@@ -763,8 +756,6 @@
     <string name="kn_err_enter_address">یک نشانی یا نام .kachat وارد کنید.</string>
     <string name="kn_err_no_active_name">نام .kachat فعالی با این نام نیست.</string>
     <string name="kn_err_lookup">جستجوی این نام ممکن نشد.</string>
-    <string name="kn_reclaim_footer">وثیقهٔ نام به آخرین مالک برمی‌گردد، سپردهٔ آزادشدهٔ رجیستری (منهای کارمزد) به‌عنوان پاداش به شما می‌رسد و نام آزاد می‌شود. برای مالکیت، بعد از آن ثبتش کنید.</string>
-    <string name="kn_bond_to_last_owner">وثیقه به آخرین مالک</string>
     <string name="kn_profile_belongs">پروفایل شما متعلق به نشانی شماست، نه یک نام: وقتی نامی را می‌خرید، می‌فروشید یا رها می‌کنید، تغییری نمی‌کند.</string>
     <string name="kn_links">پیوندها</string>
     <string name="kn_primary_name">نام اصلی</string>
@@ -818,7 +809,6 @@
     <string name="kn_done_price_changed">قیمت تغییر کرد</string>
     <string name="kn_done_listed">برای فروش گذاشته شد</string>
     <string name="kn_done_transferred">نام منتقل شد</string>
-    <string name="kn_done_reclaimed">نام بازپس گرفته شد</string>
     <string name="kn_done_profile_saved">نمایه ذخیره شد</string>
     <string name="kn_done_primary_set">نام اصلی تنظیم شد</string>
     <string name="kn_done_registered">نام ثبت شد</string>
@@ -1035,13 +1025,10 @@
     <string name="kn_bell_renewal_open">تمدید باز است: پیش از %1$s تمدیدش کنید تا بماند.</string>
     <string name="kn_bell_expired_title">%1$s منقضی شد</string>
     <string name="kn_bell_expired_body">پیش از %1$s تمدیدش کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
-    <string name="kn_bell_lapsed_title">%1$s از دست رفت</string>
     <string name="kn_bell_sold_title">%1$s فروخته شد</string>
     <string name="kn_bell_paid">%1$s KAS به شما پرداخت شد.</string>
     <string name="kn_bell_listing_bought">آگهی شما خریده شد.</string>
     <string name="kn_bell_accepted_offer">یک پیشنهاد برای آن را پذیرفتید.</string>
-    <string name="kn_bell_reclaimed_title">%1$s بازپس گرفته شد</string>
-    <string name="kn_bell_reclaimed_body">از دست رفت و کسی آن را بازپس گرفت. دوباره قابل ثبت است.</string>
     <string name="kn_bell_new_offer_title">پیشنهاد تازه برای %1$s</string>
     <string name="kn_bell_offered">%1$s KAS برای آن پیشنهاد شد.</string>
     <string name="kn_bell_yours_now">%1$s اکنون مال شماست.</string>
@@ -1055,25 +1042,13 @@
     <string name="kn_push_renew_soon">به‌زودی تمدیدش کنید تا بماند.</string>
     <string name="kn_push_grace_soon">به‌زودی تمدیدش کنید وگرنه هر کسی می‌تواند آن را بگیرد.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">نام‌های قابل بازپس‌گیری پس از راه‌اندازی نام‌های .kachat اینجا نمایش داده می‌شوند.</string>
     <string name="kn_activity_all_detail">هر ثبت، تمدید، آگهی، فروش، پیشنهاد، انتقال و بازپس‌گیری در رجیستری.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">بازپس‌گیری برای مالکیت</string>
-    <string name="kn_reclaim_to_own_hint">نام از دست رفته را پاک کنید و ودیعه را پس بگیرید، سپس دوباره ثبتش کنید.</string>
-    <string name="kn_register_again_q">%1$s دوباره ثبت شود؟</string>
-    <string name="kn_register_again">ثبت دوباره</string>
-    <string name="kn_register_again_body">اکنون آزاد است. مانند هر نام تازه، مدت نگهداری را انتخاب کنید: ابتدا تعهد پنهان ارسال می‌شود و حدود یک دقیقه بعد نام ثبت می‌شود.</string>
-    <string name="kn_reclaim_to_own_footer">نام شما از دست رفته و دیگر قابل تمدید نیست. بازپس‌گیری آن را از رجیستری پاک می‌کند: ودیعه‌تان برمی‌گردد و سپرده آزادشده رجیستری را هم منهای کارمزد شبکه نگه می‌دارید. سپس می‌توانید دوباره ثبتش کنید.</string>
-    <string name="kn_bond_back_to_you">ودیعه به شما برمی‌گردد</string>
-    <string name="kn_err_waiting_old_name">در انتظار پاک شدن %1$s قدیمی از رجیستری.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">آزاد برای ثبت</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">در حال دریافت %1$s</string>
     <string name="kn_keep_open_claiming">KaChat را باز نگه دارید: نام حدود یک دقیقه پس از تأیید تعهد پنهان ثبت می‌شود. اگر خارج شوید، هنگام بازگشت از همان‌جا ادامه می‌یابد.</string>
     <string name="kn_err_finish_claiming_first">ابتدا نامی را که در حال دریافت آن هستید تمام کنید.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">دیگر متعلق به شما نیست و به بخش «قابل بازپس‌گیری» در بازار منتقل شده است. خودتان آن را بازپس بگیرید تا وثیقه‌تان برگردد.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">انعام</string>
     <string name="tip_goes_to_fresh_address">به یک آدرس خصوصی تازه که به اشتراک گذاشته‌اند می‌رود</string>
@@ -1139,4 +1114,13 @@
     <string name="view_on_changenow">مشاهده در ChangeNOW</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">به‌زودی منقضی می‌شود</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">در حال آزادسازی %1$s برای شما...</string>
+    <string name="kn_name_expired_free">این نام منقضی شده و تمدید نشده است، بنابراین هر کسی می‌تواند آن را با قیمت عادی دریافت کند. وثیقه مالک قبلی به او برمی‌گردد.</string>
+    <string name="kn_no_expired_names">در حال حاضر نام منقضی‌شده‌ای وجود ندارد.</string>
+    <string name="km_expired_appear">نام‌های منقضی‌شده پس از راه‌اندازی نام‌های ‎.kachat اینجا نمایش داده می‌شوند.</string>
+    <string name="kn_bell_freed_title">%1$s آزاد شد</string>
+    <string name="kn_bell_freed_body">منقضی شد و از رجیستری پاک شد. وثیقه شما به شما برگشت.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s دیگر متعلق به شما نیست</string>
+    <string name="kn_bell_lapsed_available_body">منقضی شده و تمدید نشده است، بنابراین اکنون در بازار برای همه در دسترس است. وقتی کسی آن را دریافت کند، وثیقه شما برمی‌گردد.</string>
 </resources>

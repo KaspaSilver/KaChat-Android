@@ -376,7 +376,7 @@ class KachatNamesRegistry @Inject constructor(
 
     /**
      * The names an owner still holds, oldest first: active ones and expired ones in grace (still
-     * renewable). A lapsed name is no longer theirs - it's in the marketplace's Reclaimable tab.
+     * renewable). A lapsed name is no longer theirs - it's in the marketplace's Available tab.
      * Your Domains, its count on Profile and the "Contains domain" tag all show this set (iOS aa36d2a).
      */
     suspend fun heldNames(owner: ByteArray): List<NameInfo> = held(names(owner, includeInactive = true), graceMs)
@@ -433,7 +433,7 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
-    /** Lapsed names anyone may reclaim, oldest expiry first. */
+    /** Lapsed names anyone may claim, oldest expiry first (the Available tab, iOS eea52b2). */
     suspend fun lapsed(): List<NameInfo> {
         prepare()
         return when (val src = _source.value) {
@@ -533,6 +533,34 @@ class KachatNamesRegistry @Inject constructor(
      */
     val cachedPrices: List<Long>?
         get() = (_pricesCache.value ?: _chainState.value?.currentPrices)?.prices ?: service.manifest.value?.params?.genesisPrices
+
+    /**
+     * The free gap a lapsed name's reclaim reopens - the two gaps around it, merged: where a claim
+     * of it registers. The claim sheet prices with it; the registration driver reclaims the old
+     * record first and then looks the gap up again (iOS eea52b2).
+     */
+    suspend fun claimGap(n: NameInfo): GapInfo {
+        val (below, above) = exitGaps(n)
+        return mergedGap(below, above)
+    }
+
+    /**
+     * [lookup] as the app shows a name to someone who wants it: a lapsed name is free to claim
+     * (claiming it frees the old record and registers it in one go - see the registration driver),
+     * in the gap its reclaim reopens (iOS eea52b2).
+     */
+    suspend fun claimLookup(raw: String): Lookup {
+        val found = lookup(raw)
+        val lapsed = lapsedRecord(found, graceMs) ?: return found
+        val gap = try {
+            claimGap(lapsed)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        return Lookup.Free(lapsed.name, gap)
+    }
 
     /** The two gaps around a registered name (what release and reclaim spend): below, above. */
     suspend fun exitGaps(n: NameInfo): Pair<GapInfo, GapInfo> {
@@ -757,15 +785,24 @@ class KachatNamesRegistry @Inject constructor(
         val shared: KachatNamesRegistry? get() = instance
 
         /** The names an owner still holds: active ones and expired ones in grace (still renewable).
-         *  A lapsed name is no longer theirs - it's in the marketplace's Reclaimable tab (iOS e26562e). */
+         *  A lapsed name is no longer theirs - it's in the marketplace's Available tab (iOS e26562e, eea52b2). */
         fun held(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
             names.filter { it.status(graceMs, nowMs) != Status.LAPSED }
+
+        /** The gap a reclaim of the name between [below] and [above] reopens: the two merged,
+         *  at the lower one's outpoint (iOS eea52b2 `claimGap`). */
+        fun mergedGap(below: GapInfo, above: GapInfo): GapInfo = GapInfo(below.lo, above.hi, below.outpoint)
+
+        /** The registered record [l] holds when it has lapsed (expired past grace): that name is
+         *  free to claim (iOS eea52b2 `claimLookup`); null for a live record or a free name. */
+        fun lapsedRecord(l: Lookup, graceMs: Long, nowMs: Long = KachatNames.nowMs()): NameInfo? =
+            (l as? Lookup.Registered)?.info?.takeIf { it.status(graceMs, nowMs) == Status.LAPSED }
 
         /** When the next of [names] lapses (unix ms), null when none is left to lapse ([dropLapsed]). */
         fun nextLapse(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Long? =
             names.map { it.expiresAt + graceMs }.filter { it > nowMs }.minOrNull()
 
-        /** Lapsed names anyone may reclaim, oldest expiry first (the Reclaimable tab). */
+        /** Lapsed names anyone may claim, oldest expiry first (the Available tab, iOS eea52b2). */
         fun reclaimable(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =
             names.filter { it.status(graceMs, nowMs) == Status.LAPSED }.sortedBy { it.expiresAt }
 

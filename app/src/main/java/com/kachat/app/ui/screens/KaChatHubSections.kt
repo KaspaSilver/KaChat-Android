@@ -152,10 +152,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             }
             // a sheet over the market (iOS .sheet), not a full-screen swap
             is KachatHubSheet.Claim -> KachatClaimSheet(sheet.target, onClose = { liveSheet = null }, vm = live)
-            is KachatHubSheet.Reclaim -> {
-                KachatReclaimSheet(sheet.info, onClose = { liveSheet = null }, vm = live)
-                return
-            }
             null -> Unit
         }
     }
@@ -293,10 +289,10 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             }
             // A registration in flight shows as its own half sheet (KachatRegistrationPresenter, iOS 61fb0fc).
             UnderlineTabBar(
-                // Names for sale, names anyone may reclaim, and everything that happens in the
-                // registry. Your own names (and the offers you made) live in Profile > Your Domains
-                // (iOS 0765ce0).
-                titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.kn_reclaimable), stringResource(R.string.km_activity)),
+                // Names for sale, expired names anyone may claim, and everything that happens in
+                // the registry. Your own names (and the offers you made) live in Profile > Your
+                // Domains (iOS 0765ce0, eea52b2).
+                titles = listOf(stringResource(R.string.km_marketplace), stringResource(R.string.kn_available), stringResource(R.string.km_activity)),
                 selectedIndex = page,
                 onSelect = { page = it },
             )
@@ -306,17 +302,17 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             if (isLive || !com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                 when (page) {
                     0 -> KachatLiveMarketPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
-                    1 -> KachatLiveReclaimablePage(
+                    1 -> KachatLiveAvailablePage(
                         live,
                         onOpen = { liveSheet = KachatHubSheet.Detail(it) },
-                        onReclaim = { liveSheet = KachatHubSheet.Reclaim(it) },
+                        onClaim = { liveSheet = KachatHubSheet.Claim(it) },
                     )
                     else -> KachatLiveActivityPage(live)
                 }
             } else {
                 when (page) {
                     0 -> MarketPage(onOpenListing = { openListing = true })
-                    1 -> ReclaimablePage()
+                    1 -> AvailablePage()
                     else -> ActivityPage()
                 }
             }
@@ -351,18 +347,17 @@ object KachatDeepLink {
     val pendingName = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }
 
-/** What the live hub shows over itself (iOS NavigationLink / .sheet): a name's detail, the claim
- *  sheet, or a reclaim. */
+/** What the live hub shows over itself (iOS NavigationLink / .sheet): a name's detail, or the
+ *  claim sheet. */
 private sealed class KachatHubSheet {
     class Detail(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
     class Claim(val target: KachatClaimTarget) : KachatHubSheet()
-    class Reclaim(val info: com.kachat.app.services.kachatnames.NameInfo) : KachatHubSheet()
 }
 
 /**
  * The name a notification pointed at (iOS KachatNameRouteView, b799091): its live detail once
- * looked up, or - when it was released or reclaimed since - the name as free to claim, with its
- * price and Claim. A failed lookup offers Try Again.
+ * looked up, or - when it was released, reclaimed or expired past grace since - the name as free
+ * to claim, with its price and Claim (iOS eea52b2 `claimLookup`). A failed lookup offers Try Again.
  */
 @Composable
 private fun KachatNameRouteScreen(name: String, onBack: () -> Unit, onOpenChat: (String) -> Unit, vm: KachatLiveViewModel) {
@@ -372,7 +367,7 @@ private fun KachatNameRouteScreen(name: String, onBack: () -> Unit, onOpenChat: 
     LaunchedEffect(name, attempt) {
         found = null
         found = try {
-            when (val l = vm.registry.lookup(name)) {
+            when (val l = vm.registry.claimLookup(name)) {
                 is com.kachat.app.services.kachatnames.Lookup.Registered -> KachatRouteFound.Registered(l.info)
                 is com.kachat.app.services.kachatnames.Lookup.Free -> KachatRouteFound.Free(l.gap)
             }
@@ -469,15 +464,15 @@ private fun TilePlaceholder(onClick: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun ReclaimablePage() {
+private fun AvailablePage() {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(top = 4.dp)) {
-        SectionHeader(stringResource(R.string.kn_reclaimable), stringResource(R.string.kn_reclaimable_detail))
+        SectionHeader(stringResource(R.string.kn_available), null)
         KachatNameGrid(List(2) { it }) {
             TilePlaceholder()
         }
         Text(
-            stringResource(R.string.km_reclaimable_appear),
+            stringResource(R.string.km_expired_appear),
             color = colors.textSecondary,
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
@@ -1308,8 +1303,9 @@ fun KachatAddressLiveNamesList(
         val key = com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(address)
         if (vm == null || key == null) { loaded = true; return@LaunchedEffect }
         if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
+        // an expired name past grace isn't theirs any more: it's available to anyone (iOS eea52b2)
         names = try {
-            vm.registry.names(key, includeInactive = true)
+            vm.registry.heldNames(key)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {

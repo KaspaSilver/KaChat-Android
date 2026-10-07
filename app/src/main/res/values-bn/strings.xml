@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">শুধু a-z, 0-9 ও হাইফেন ব্যবহার করুন।</string>
     <string name="kn_invalid_hyphen">নাম হাইফেন দিয়ে শুরু বা শেষ হতে পারে না।</string>
     <string name="kn_status_expired">মেয়াদ শেষ</string>
-    <string name="kn_status_lapsed">বাতিল হয়েছে</string>
     <string name="kn_yours">আপনার</string>
     <string name="kn_available_per_year">পাওয়া যাচ্ছে · বছরে %1$s</string>
     <string name="kn_not_valid_name">বৈধ নাম নয়।</string>
     <string name="kn_taken_for_sale">নেওয়া হয়েছে · %1$s-এ বিক্রি হচ্ছে</string>
     <string name="kn_taken">নেওয়া হয়েছে</string>
     <string name="kn_search_grace">মেয়াদ শেষ - মালিক এখনও নবায়ন করতে পারেন</string>
-    <string name="kn_search_lapsed">বাতিল - পুনরুদ্ধার করুন, তারপর নিন</string>
     <string name="kn_seconds_to_go">আর প্রায় %1$d সেকেন্ড</string>
     <string name="kn_cancel_commit_title">কমিট বাতিল করবেন?</string>
     <string name="kn_cancel_commit">কমিট বাতিল</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">এই .kachat লেনদেন নিশ্চিত করুন</string>
     <string name="kn_for_sale">বিক্রির জন্য</string>
     <string name="kn_no_listings">এখন কোনো নাম তালিকাভুক্ত নেই।</string>
-    <string name="kn_reclaimable">পুনরুদ্ধারযোগ্য</string>
-    <string name="kn_reclaimable_detail">যেসব নামের মালিক মেয়াদ পেরোতে দিয়েছেন। যে কেউ পুনরুদ্ধার করতে পারেন: বন্ড শেষ মালিকের কাছে ফেরে, মুক্ত হওয়া জমা পুরস্কার হিসেবে আপনি রাখেন, আর নামটি নেওয়ার জন্য খালি হয়।</string>
-    <string name="kn_nothing_to_reclaim">পুনরুদ্ধার করার কিছু নেই।</string>
-    <string name="kn_reclaim">পুনরুদ্ধার</string>
     <string name="kn_my_offers">আমার প্রস্তাব</string>
     <string name="kn_no_open_offers">কোনো খোলা প্রস্তাব নেই।</string>
     <string name="kn_offers_need_indexer">নেম ইনডেক্সার যুক্ত হলে অন্যদের প্রস্তাব দেখা যাবে।</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">মেয়াদ শেষ %1$s</string>
     <string name="kn_detail_grace_mine">মেয়াদ শেষ - রাখতে নবায়ন করুন। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত অন্য কেউ নিতে পারবে না।</string>
     <string name="kn_detail_grace">মেয়াদ শেষ। এটি আর ঠিকানায় রিজলভ হয় না; মালিক এখনও নবায়ন করতে পারেন।</string>
-    <string name="kn_detail_lapsed">বাতিল: যে কেউ পুনরুদ্ধার করে আবার নিতে পারে।</string>
     <string name="kn_renew">নবায়ন</string>
     <string name="kn_change_price">দাম বদলান</string>
     <string name="kn_list_for_sale">বিক্রির তালিকায় দিন</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">একটি ঠিকানা বা .kachat নাম লিখুন।</string>
     <string name="kn_err_no_active_name">এই নামে কোনো সক্রিয় .kachat নাম নেই।</string>
     <string name="kn_err_lookup">নামটি খুঁজে দেখা যায়নি।</string>
-    <string name="kn_reclaim_footer">নামের বন্ড শেষ মালিকের কাছে ফেরে, মুক্ত রেজিস্ট্রি জমা (ফি বাদে) পুরস্কার হিসেবে আপনি রাখেন, আর নামটি খালি হয়। নিজের করতে, পরে নামটি নিন।</string>
-    <string name="kn_bond_to_last_owner">বন্ড শেষ মালিকের কাছে</string>
     <string name="kn_profile_belongs">আপনার প্রোফাইল আপনার ঠিকানার, কোনো নামের নয়: নাম কিনলে, বেচলে বা ছেড়ে দিলেও এটি একই থাকে।</string>
     <string name="kn_links">লিংক</string>
     <string name="kn_primary_name">প্রধান নাম</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">দাম বদলানো হয়েছে</string>
     <string name="kn_done_listed">বিক্রির জন্য তালিকাভুক্ত</string>
     <string name="kn_done_transferred">নাম হস্তান্তর হয়েছে</string>
-    <string name="kn_done_reclaimed">নাম পুনরুদ্ধার হয়েছে</string>
     <string name="kn_done_profile_saved">প্রোফাইল সংরক্ষিত</string>
     <string name="kn_done_primary_set">প্রাথমিক নাম সেট হয়েছে</string>
     <string name="kn_done_registered">নাম নিবন্ধিত হয়েছে</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">নবায়ন খোলা: রাখতে %1$s-এর আগে নবায়ন করুন।</string>
     <string name="kn_bell_expired_title">%1$s-এর মেয়াদ শেষ</string>
     <string name="kn_bell_expired_body">%1$s-এর আগে নবায়ন করুন, নইলে যে কেউ এটি দাবি করতে পারবে।</string>
-    <string name="kn_bell_lapsed_title">%1$s বাতিল হয়েছে</string>
     <string name="kn_bell_sold_title">%1$s বিক্রি হয়েছে</string>
     <string name="kn_bell_paid">আপনাকে %1$s KAS দেওয়া হয়েছে।</string>
     <string name="kn_bell_listing_bought">আপনার তালিকাভুক্ত নাম কেনা হয়েছে।</string>
     <string name="kn_bell_accepted_offer">আপনি এর জন্য একটি প্রস্তাব গ্রহণ করেছেন।</string>
-    <string name="kn_bell_reclaimed_title">%1$s পুনরুদ্ধার করা হয়েছে</string>
-    <string name="kn_bell_reclaimed_body">মেয়াদ শেষে অন্য কেউ এটি পুনরুদ্ধার করেছে। এটি আবার নিবন্ধন করা যায়।</string>
     <string name="kn_bell_new_offer_title">%1$s-এ নতুন প্রস্তাব</string>
     <string name="kn_bell_offered">এর জন্য %1$s KAS প্রস্তাব করা হয়েছে।</string>
     <string name="kn_bell_yours_now">%1$s এখন আপনার।</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">রাখতে শীঘ্রই নবায়ন করুন।</string>
     <string name="kn_push_grace_soon">শীঘ্রই নবায়ন করুন, নইলে যে কেউ এটি দাবি করতে পারবে।</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">.kachat নাম চালু হলে পুনরুদ্ধারযোগ্য নামগুলো এখানে দেখা যাবে।</string>
     <string name="kn_activity_all_detail">রেজিস্ট্রির প্রতিটি দাবি, নবায়ন, তালিকাভুক্তি, বিক্রি, প্রস্তাব, স্থানান্তর আর পুনরুদ্ধার।</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">মালিকানার জন্য পুনরুদ্ধার</string>
-    <string name="kn_reclaim_to_own_hint">বাতিল হওয়া নামটি সরিয়ে বন্ড ফেরত নিন, তারপর আবার নিবন্ধন করুন।</string>
-    <string name="kn_register_again_q">%1$s আবার নিবন্ধন করবেন?</string>
-    <string name="kn_register_again">আবার নিবন্ধন করুন</string>
-    <string name="kn_register_again_body">এটি এখন খালি। যেকোনো নতুন নামের মতো কতদিন রাখবেন বেছে নিন: আগে গোপন কমিট যায়, প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়।</string>
-    <string name="kn_reclaim_to_own_footer">আপনার নামটি বাতিল হয়েছে, তাই আর নবায়ন করা যাবে না। পুনরুদ্ধার এটিকে রেজিস্ট্রি থেকে সরায়: আপনার বন্ড আপনার কাছে ফিরে আসে, আর নেটওয়ার্ক ফি বাদে মুক্ত হওয়া রেজিস্ট্রি জমাও আপনি রাখেন। তারপর আবার নিবন্ধন করতে পারবেন।</string>
-    <string name="kn_bond_back_to_you">বন্ড আপনার কাছে ফেরত</string>
-    <string name="kn_err_waiting_old_name">রেজিস্ট্রি থেকে পুরোনো %1$s সরানোর অপেক্ষা চলছে।</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">দাবি করার জন্য খালি</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s দাবি করা হচ্ছে</string>
     <string name="kn_keep_open_claiming">KaChat খোলা রাখুন: গোপন প্রতিশ্রুতি নিশ্চিত হওয়ার প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়। আপনি চলে গেলে, ফিরে এলে যেখানে থেমেছিল সেখান থেকে চলবে।</string>
     <string name="kn_err_finish_claiming_first">আগে যে নামটি দাবি করছেন সেটি শেষ করুন।</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">এটি আর আপনার নয় এবং মার্কেটপ্লেসের পুনরুদ্ধারযোগ্য অংশে চলে গেছে। আপনার জামানত ফেরত পেতে নিজেই এটি পুনরুদ্ধার করুন।</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">টিপ</string>
     <string name="tip_goes_to_fresh_address">তাদের শেয়ার করা একটি নতুন ব্যক্তিগত ঠিকানায় যায়</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">অদলবদল ব্যর্থ</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">শীঘ্রই মেয়াদ শেষ</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">আপনার জন্য %1$s মুক্ত করা হচ্ছে...</string>
+    <string name="kn_name_expired_free">এই নামের মেয়াদ শেষ হয়েছে এবং নবায়ন হয়নি, তাই যে কেউ সাধারণ দামে এটি দাবি করতে পারে। আগের মালিকের জামানত তাঁর কাছে ফিরে যায়।</string>
+    <string name="kn_no_expired_names">এখন কোনো মেয়াদোত্তীর্ণ নাম নেই।</string>
+    <string name="km_expired_appear">.kachat নাম চালু হলে মেয়াদোত্তীর্ণ নামগুলো এখানে দেখা যাবে।</string>
+    <string name="kn_bell_freed_title">%1$s মুক্ত হয়েছে</string>
+    <string name="kn_bell_freed_body">এর মেয়াদ শেষ হয়ে রেজিস্ট্রি থেকে সরানো হয়েছে। আপনার জামানত আপনার কাছে ফিরে এসেছে।</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s আর আপনার নয়</string>
+    <string name="kn_bell_lapsed_available_body">এর মেয়াদ শেষ হয়েছে এবং নবায়ন হয়নি, তাই এটি এখন মার্কেটপ্লেসে যে কারও জন্য উপলব্ধ। কেউ দাবি করলে আপনার জামানত আপনার কাছে ফিরে আসবে।</string>
 </resources>

@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">Yalnızca a-z, 0-9 ve tire kullanın.</string>
     <string name="kn_invalid_hyphen">Ad tire ile başlayamaz veya bitemez.</string>
     <string name="kn_status_expired">Süresi doldu</string>
-    <string name="kn_status_lapsed">Düştü</string>
     <string name="kn_yours">Sizin</string>
     <string name="kn_available_per_year">Müsait · yılda %1$s</string>
     <string name="kn_not_valid_name">Geçerli bir ad değil.</string>
     <string name="kn_taken_for_sale">Alınmış · %1$s fiyatla satışta</string>
     <string name="kn_taken">Alınmış</string>
     <string name="kn_search_grace">Süresi doldu - sahibi hâlâ yenileyebilir</string>
-    <string name="kn_search_lapsed">Düştü - geri alın, sonra kaydedin</string>
     <string name="kn_seconds_to_go">Yaklaşık %1$d sn kaldı</string>
     <string name="kn_cancel_commit_title">Taahhüt iptal edilsin mi?</string>
     <string name="kn_cancel_commit">Taahhüdü İptal Et</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">.kachat işlemini onaylayın</string>
     <string name="kn_for_sale">Satılık</string>
     <string name="kn_no_listings">Şu anda satışta ad yok.</string>
-    <string name="kn_reclaimable">Geri alınabilir</string>
-    <string name="kn_reclaimable_detail">Sahiplerinin düşmeye bıraktığı adlar. Herkes geri alabilir: teminat son sahibine döner, açığa çıkan depozito ödül olarak sizde kalır ve ad kayda açılır.</string>
-    <string name="kn_nothing_to_reclaim">Geri alınacak bir şey yok.</string>
-    <string name="kn_reclaim">Geri al</string>
     <string name="kn_my_offers">Tekliflerim</string>
     <string name="kn_no_open_offers">Açık teklif yok.</string>
     <string name="kn_offers_need_indexer">Başkalarının teklifleri bir ad dizinleyicisi bağlandığında görünür.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">%1$s tarihinde sona erer</string>
     <string name="kn_detail_grace_mine">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar başkası alamaz.</string>
     <string name="kn_detail_grace">Süresi doldu. Artık adrese çözümlenmiyor; sahibi hâlâ yenileyebilir.</string>
-    <string name="kn_detail_lapsed">Düştü: herkes geri alıp yeniden kaydedebilir.</string>
     <string name="kn_renew">Yenile</string>
     <string name="kn_change_price">Fiyatı Değiştir</string>
     <string name="kn_list_for_sale">Satışa Koy</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">Bir adres veya .kachat adı girin.</string>
     <string name="kn_err_no_active_name">Bu adda etkin bir .kachat adı yok.</string>
     <string name="kn_err_lookup">Bu ad aranamadı.</string>
-    <string name="kn_reclaim_footer">Adın teminatı son sahibine döner, açığa çıkan kayıt depozitosu (ücret düşülerek) ödül olarak sizde kalır ve ad boşa çıkar. Sahibi olmak için ardından kaydedin.</string>
-    <string name="kn_bond_to_last_owner">Teminat son sahibine</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
     <string name="kn_links">Bağlantılar</string>
     <string name="kn_primary_name">Ana ad</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">Fiyat değiştirildi</string>
     <string name="kn_done_listed">Satışa çıkarıldı</string>
     <string name="kn_done_transferred">Ad aktarıldı</string>
-    <string name="kn_done_reclaimed">Ad geri alındı</string>
     <string name="kn_done_profile_saved">Profil kaydedildi</string>
     <string name="kn_done_primary_set">Ana ad ayarlandı</string>
     <string name="kn_done_registered">Ad kaydedildi</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">Yenileme açık: korumak için %1$s tarihinden önce yenileyin.</string>
     <string name="kn_bell_expired_title">%1$s süresi doldu</string>
     <string name="kn_bell_expired_body">%1$s tarihinden önce yenileyin, yoksa herkes alabilir.</string>
-    <string name="kn_bell_lapsed_title">%1$s düştü</string>
     <string name="kn_bell_sold_title">%1$s satıldı</string>
     <string name="kn_bell_paid">Size %1$s KAS ödendi.</string>
     <string name="kn_bell_listing_bought">İlanınız satın alındı.</string>
     <string name="kn_bell_accepted_offer">Bunun için bir teklifi kabul ettiniz.</string>
-    <string name="kn_bell_reclaimed_title">%1$s geri alındı</string>
-    <string name="kn_bell_reclaimed_body">Süresi düştü ve biri geri aldı. Yeniden kaydedilebilir.</string>
     <string name="kn_bell_new_offer_title">%1$s için yeni teklif</string>
     <string name="kn_bell_offered">Bunun için %1$s KAS teklif edildi.</string>
     <string name="kn_bell_yours_now">%1$s artık sizin.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">Korumak için yakında yenileyin.</string>
     <string name="kn_push_grace_soon">Yakında yenileyin, yoksa herkes alabilir.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">.kachat adları başlayınca geri alınabilir adlar burada görünecek.</string>
     <string name="kn_activity_all_detail">Kayıttaki her talep, yenileme, ilan, satış, teklif, aktarım ve geri alma.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Sahiplenmek İçin Geri Al</string>
-    <string name="kn_reclaim_to_own_hint">Düşmüş adı temizleyip teminatınızı geri alın, sonra yeniden kaydedin.</string>
-    <string name="kn_register_again_q">%1$s yeniden kaydedilsin mi?</string>
-    <string name="kn_register_again">Yeniden Kaydet</string>
-    <string name="kn_register_again_body">Artık boşta. Her yeni ad gibi ne kadar tutacağınızı seçin: önce gizli taahhüt gönderilir, ad yaklaşık bir dakika sonra kaydedilir.</string>
-    <string name="kn_reclaim_to_own_footer">Adınızın süresi düştü, bu yüzden artık yenilenemez. Geri almak onu kayıttan temizler: teminatınız size döner ve ağ ücreti düşülmüş serbest kalan kayıt depozitosunu da alırsınız. Ardından yeniden kaydedebilirsiniz.</string>
-    <string name="kn_bond_back_to_you">Size dönen teminat</string>
-    <string name="kn_err_waiting_old_name">Eski %1$s adının kayıttan temizlenmesi bekleniyor.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Talep edilebilir</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s alınıyor</string>
     <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
     <string name="kn_err_finish_claiming_first">Önce almakta olduğunuz adı tamamlayın.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">Artık sizin değil ve pazar yerinde Geri alınabilir bölümüne taşındı. Teminatınızı geri almak için kendiniz geri alın.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Bahşiş</string>
     <string name="tip_goes_to_fresh_address">Paylaştığı yeni özel bir adrese gider</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">Takas basarisiz</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Yakında sona eriyor</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">%1$s sizin için serbest bırakılıyor...</string>
+    <string name="kn_name_expired_free">Bu adın süresi doldu ve yenilenmedi, bu yüzden herkes onu normal fiyattan alabilir. Önceki sahibin teminatı kendisine geri döner.</string>
+    <string name="kn_no_expired_names">Şu anda süresi dolmuş ad yok.</string>
+    <string name="km_expired_appear">.kachat adları başlatıldığında süresi dolmuş adlar burada görünecek.</string>
+    <string name="kn_bell_freed_title">%1$s serbest bırakıldı</string>
+    <string name="kn_bell_freed_body">Süresi doldu ve kayıttan kaldırıldı. Teminatınız size geri döndü.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s artık sizin değil</string>
+    <string name="kn_bell_lapsed_available_body">Süresi doldu ve yenilenmedi, bu yüzden artık pazar yerinde herkese açık. Biri onu aldığında teminatınız size geri döner.</string>
 </resources>

@@ -529,14 +529,12 @@
     <string name="kn_invalid_chars">Gunakan hanya a-z, 0-9, dan tanda hubung.</string>
     <string name="kn_invalid_hyphen">Nama tidak boleh diawali atau diakhiri tanda hubung.</string>
     <string name="kn_status_expired">Kedaluwarsa</string>
-    <string name="kn_status_lapsed">Hangus</string>
     <string name="kn_yours">Milik Anda</string>
     <string name="kn_available_per_year">Tersedia · %1$s per tahun</string>
     <string name="kn_not_valid_name">Bukan nama yang valid.</string>
     <string name="kn_taken_for_sale">Sudah dipakai · dijual seharga %1$s</string>
     <string name="kn_taken">Sudah dipakai</string>
     <string name="kn_search_grace">Kedaluwarsa - pemilik masih bisa memperpanjang</string>
-    <string name="kn_search_lapsed">Hangus - klaim ulang, lalu klaim</string>
     <string name="kn_seconds_to_go">Sekitar %1$d dtk lagi</string>
     <string name="kn_cancel_commit_title">Batalkan komitmen?</string>
     <string name="kn_cancel_commit">Batalkan Komitmen</string>
@@ -554,10 +552,6 @@
     <string name="kn_auth_reason">Konfirmasi transaksi .kachat ini</string>
     <string name="kn_for_sale">Dijual</string>
     <string name="kn_no_listings">Belum ada nama yang dijual saat ini.</string>
-    <string name="kn_reclaimable">Dapat diklaim ulang</string>
-    <string name="kn_reclaimable_detail">Nama yang dibiarkan hangus oleh pemiliknya. Siapa pun boleh mengklaim ulang: jaminan kembali ke pemilik terakhir, Anda menyimpan deposit yang terlepas sebagai hadiah, dan nama bebas diklaim.</string>
-    <string name="kn_nothing_to_reclaim">Tidak ada yang bisa diklaim ulang.</string>
-    <string name="kn_reclaim">Klaim ulang</string>
     <string name="kn_my_offers">Penawaran Saya</string>
     <string name="kn_no_open_offers">Tidak ada penawaran terbuka.</string>
     <string name="kn_offers_need_indexer">Penawaran dari orang lain muncul setelah indexer nama terhubung.</string>
@@ -590,7 +584,6 @@
     <string name="kn_expires_on">Kedaluwarsa %1$s</string>
     <string name="kn_detail_grace_mine">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, tidak ada orang lain yang bisa mengambilnya.</string>
     <string name="kn_detail_grace">Kedaluwarsa. Tidak lagi diarahkan ke alamat; pemilik masih bisa memperpanjang.</string>
-    <string name="kn_detail_lapsed">Hangus: siapa pun boleh mengklaim ulang, lalu mengklaimnya lagi.</string>
     <string name="kn_renew">Perpanjang</string>
     <string name="kn_change_price">Ubah Harga</string>
     <string name="kn_list_for_sale">Jual</string>
@@ -616,8 +609,6 @@
     <string name="kn_err_enter_address">Masukkan alamat atau nama .kachat.</string>
     <string name="kn_err_no_active_name">Tidak ada nama .kachat aktif dengan nama itu.</string>
     <string name="kn_err_lookup">Tidak dapat mencari nama itu.</string>
-    <string name="kn_reclaim_footer">Jaminan nama kembali ke pemilik terakhir, Anda menyimpan deposit registri yang terlepas (dikurangi biaya) sebagai hadiah, dan nama menjadi bebas. Untuk memilikinya, klaim setelahnya.</string>
-    <string name="kn_bond_to_last_owner">Jaminan untuk pemilik terakhir</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
     <string name="kn_links">Tautan</string>
     <string name="kn_primary_name">Nama utama</string>
@@ -673,7 +664,6 @@
     <string name="kn_done_price_changed">Harga diubah</string>
     <string name="kn_done_listed">Dijual</string>
     <string name="kn_done_transferred">Nama dipindahkan</string>
-    <string name="kn_done_reclaimed">Nama diklaim ulang</string>
     <string name="kn_done_profile_saved">Profil disimpan</string>
     <string name="kn_done_primary_set">Nama utama diatur</string>
     <string name="kn_done_registered">Nama terdaftar</string>
@@ -882,13 +872,10 @@
     <string name="kn_bell_renewal_open">Perpanjangan dibuka: perpanjang sebelum %1$s untuk mempertahankannya.</string>
     <string name="kn_bell_expired_title">%1$s sudah kedaluwarsa</string>
     <string name="kn_bell_expired_body">Perpanjang sebelum %1$s atau siapa pun bisa mengklaimnya.</string>
-    <string name="kn_bell_lapsed_title">%1$s sudah gugur</string>
     <string name="kn_bell_sold_title">%1$s terjual</string>
     <string name="kn_bell_paid">%1$s KAS dibayarkan kepada Anda.</string>
     <string name="kn_bell_listing_bought">Listing Anda dibeli.</string>
     <string name="kn_bell_accepted_offer">Anda menerima penawaran untuknya.</string>
-    <string name="kn_bell_reclaimed_title">%1$s diklaim ulang</string>
-    <string name="kn_bell_reclaimed_body">Nama ini gugur dan seseorang mengklaim ulang. Bisa didaftarkan lagi.</string>
     <string name="kn_bell_new_offer_title">Penawaran baru untuk %1$s</string>
     <string name="kn_bell_offered">%1$s KAS ditawarkan untuknya.</string>
     <string name="kn_bell_yours_now">%1$s sekarang milik Anda.</string>
@@ -902,25 +889,13 @@
     <string name="kn_push_renew_soon">Perpanjang segera untuk mempertahankannya.</string>
     <string name="kn_push_grace_soon">Perpanjang segera atau siapa pun bisa mengklaimnya.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">Nama yang bisa diklaim ulang muncul di sini setelah nama .kachat diluncurkan.</string>
     <string name="kn_activity_all_detail">Setiap klaim, perpanjangan, listing, penjualan, penawaran, transfer, dan klaim ulang di registri.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">Klaim Ulang untuk Dimiliki</string>
-    <string name="kn_reclaim_to_own_hint">Bersihkan nama yang gugur dan dapatkan jaminan Anda kembali, lalu daftarkan lagi.</string>
-    <string name="kn_register_again_q">Daftarkan %1$s lagi?</string>
-    <string name="kn_register_again">Daftarkan Lagi</string>
-    <string name="kn_register_again_body">Nama ini sekarang bebas. Pilih berapa lama memegangnya, seperti nama baru lainnya: komitmen tersembunyi dikirim dulu dan nama didaftarkan sekitar satu menit kemudian.</string>
-    <string name="kn_reclaim_to_own_footer">Nama Anda sudah gugur, jadi tidak bisa diperpanjang lagi. Klaim ulang menghapusnya dari registri: jaminan kembali kepada Anda, dan Anda juga menyimpan deposit registri yang dibebaskan, dikurangi biaya jaringan. Setelah itu Anda bisa mendaftarkannya lagi.</string>
-    <string name="kn_bond_back_to_you">Jaminan kembali ke Anda</string>
-    <string name="kn_err_waiting_old_name">Menunggu %1$s lama dihapus dari registri.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">Bebas untuk diklaim</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Mengklaim %1$s</string>
     <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
     <string name="kn_err_finish_claiming_first">Selesaikan dulu nama yang sedang Anda klaim.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">Nama ini bukan milik Anda lagi dan sudah pindah ke Dapat diklaim ulang di marketplace. Klaim ulang sendiri untuk mendapatkan kembali jaminan Anda.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tip</string>
     <string name="tip_goes_to_fresh_address">Dikirim ke alamat pribadi baru yang mereka bagikan</string>
@@ -975,4 +950,13 @@
     <string name="something_went_wrong_title">Terjadi Kesalahan</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Segera kedaluwarsa</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">Membebaskan %1$s untuk Anda...</string>
+    <string name="kn_name_expired_free">Nama ini kedaluwarsa dan tidak diperpanjang, jadi siapa pun dapat mengklaimnya dengan harga normal. Jaminan pemilik sebelumnya kembali kepadanya.</string>
+    <string name="kn_no_expired_names">Belum ada nama kedaluwarsa saat ini.</string>
+    <string name="km_expired_appear">Nama kedaluwarsa akan muncul di sini setelah nama .kachat diluncurkan.</string>
+    <string name="kn_bell_freed_title">%1$s telah dibebaskan</string>
+    <string name="kn_bell_freed_body">Nama ini kedaluwarsa dan dihapus dari registri. Jaminan Anda sudah kembali.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s bukan milik Anda lagi</string>
+    <string name="kn_bell_lapsed_available_body">Nama ini kedaluwarsa dan tidak diperpanjang, jadi sekarang tersedia untuk siapa pun di marketplace. Jaminan Anda kembali saat seseorang mengklaimnya.</string>
 </resources>

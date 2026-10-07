@@ -386,7 +386,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                 else -> getString(com.kachat.app.R.string.kn_push_renew_soon)
             }
             "name_grace" -> getString(com.kachat.app.R.string.kn_push_expired, name) to getString(com.kachat.app.R.string.kn_push_grace_soon)
-            "name_lapsed" -> getString(com.kachat.app.R.string.kn_bell_lapsed_title, name) to getString(com.kachat.app.R.string.kn_bell_lapsed_moved_body)
+            "name_lapsed" -> getString(com.kachat.app.R.string.kn_bell_no_longer_yours_title, name) to getString(com.kachat.app.R.string.kn_bell_lapsed_available_body)
             "name_offer_declined" -> getString(com.kachat.app.R.string.kn_bell_declined_title, name) to
                 com.kachat.app.util.KaspaUnit.label(getString(com.kachat.app.R.string.kn_bell_declined_body))
             "name_offer_refunded" -> getString(com.kachat.app.R.string.kn_bell_offer_expired_title, name) to

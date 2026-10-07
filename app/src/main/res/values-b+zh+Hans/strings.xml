@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">只能使用 a-z、0-9 和连字符。</string>
     <string name="kn_invalid_hyphen">名称不能以连字符开头或结尾。</string>
     <string name="kn_status_expired">已过期</string>
-    <string name="kn_status_lapsed">已失效</string>
     <string name="kn_yours">你的</string>
     <string name="kn_available_per_year">可注册 · 每年 %1$s</string>
     <string name="kn_not_valid_name">不是有效的名称。</string>
     <string name="kn_taken_for_sale">已被注册 · 售价 %1$s</string>
     <string name="kn_taken">已被注册</string>
     <string name="kn_search_grace">已过期 - 所有者仍可续期</string>
-    <string name="kn_search_lapsed">已失效 - 先回收，再注册</string>
     <string name="kn_seconds_to_go">约剩 %1$d 秒</string>
     <string name="kn_cancel_commit_title">取消承诺？</string>
     <string name="kn_cancel_commit">取消承诺</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">确认这笔 .kachat 交易</string>
     <string name="kn_for_sale">出售中</string>
     <string name="kn_no_listings">目前没有挂牌出售的名称。</string>
-    <string name="kn_reclaimable">可回收</string>
-    <string name="kn_reclaimable_detail">所有者任其失效的名称。任何人都可以回收：保证金退还给最后的所有者，释放出的押金作为奖励归你，名称重新可注册。</string>
-    <string name="kn_nothing_to_reclaim">没有可回收的名称。</string>
-    <string name="kn_reclaim">回收</string>
     <string name="kn_my_offers">我的报价</string>
     <string name="kn_no_open_offers">没有进行中的报价。</string>
     <string name="kn_offers_need_indexer">连接名称索引器后，才会显示他人的报价。</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">%1$s 到期</string>
     <string name="kn_detail_grace_mine">已过期 - 续期即可保留。宽限期结束前，别人无法取得。</string>
     <string name="kn_detail_grace">已过期。它不再解析到地址；所有者仍可续期。</string>
-    <string name="kn_detail_lapsed">已失效：任何人都可以回收它，然后重新注册。</string>
     <string name="kn_renew">续期</string>
     <string name="kn_change_price">修改价格</string>
     <string name="kn_list_for_sale">挂牌出售</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">请输入地址或 .kachat 名称。</string>
     <string name="kn_err_no_active_name">没有这个名字的有效 .kachat 名称。</string>
     <string name="kn_err_lookup">无法查询该名称。</string>
-    <string name="kn_reclaim_footer">名称的保证金退还给最后的所有者，释放出的注册表押金（扣除费用）作为奖励归你，名称变为可注册。想拥有它，之后再注册即可。</string>
-    <string name="kn_bond_to_last_owner">保证金退还最后所有者</string>
     <string name="kn_profile_belongs">你的个人资料属于你的地址，而不是某个名称：买入、卖出或放弃名称时都不会改变。</string>
     <string name="kn_links">链接</string>
     <string name="kn_primary_name">主名称</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">价格已更改</string>
     <string name="kn_done_listed">已上架出售</string>
     <string name="kn_done_transferred">名称已转让</string>
-    <string name="kn_done_reclaimed">名称已收回</string>
     <string name="kn_done_profile_saved">个人资料已保存</string>
     <string name="kn_done_primary_set">主名称已设置</string>
     <string name="kn_done_registered">名称已注册</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">续期已开放：在 %1$s 前续期以保留它。</string>
     <string name="kn_bell_expired_title">%1$s 已过期</string>
     <string name="kn_bell_expired_body">在 %1$s 前续期，否则任何人都可以认领。</string>
-    <string name="kn_bell_lapsed_title">%1$s 已失效</string>
     <string name="kn_bell_sold_title">%1$s 已售出</string>
     <string name="kn_bell_paid">已向你支付 %1$s KAS。</string>
     <string name="kn_bell_listing_bought">你挂牌的名称已被购买。</string>
     <string name="kn_bell_accepted_offer">你接受了对它的报价。</string>
-    <string name="kn_bell_reclaimed_title">%1$s 已被回收</string>
-    <string name="kn_bell_reclaimed_body">它已失效并被他人回收，可以重新注册。</string>
     <string name="kn_bell_new_offer_title">%1$s 收到新报价</string>
     <string name="kn_bell_offered">有人为它报价 %1$s KAS。</string>
     <string name="kn_bell_yours_now">%1$s 现在归你了。</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">请尽快续期以保留它。</string>
     <string name="kn_push_grace_soon">请尽快续期，否则任何人都可以认领。</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">.kachat 名称上线后，可回收的名称会显示在这里。</string>
     <string name="kn_activity_all_detail">注册表中的每一次注册、续期、挂牌、出售、报价、转让和回收。</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">回收并重新拥有</string>
-    <string name="kn_reclaim_to_own_hint">清除已失效的名称并取回保证金，然后重新注册。</string>
-    <string name="kn_register_again_q">要重新注册 %1$s 吗？</string>
-    <string name="kn_register_again">重新注册</string>
-    <string name="kn_register_again_body">它现在是空闲的。像注册任何新名称一样选择持有时长：先发送隐藏的承诺，约一分钟后完成注册。</string>
-    <string name="kn_reclaim_to_own_footer">你的名称已失效，无法再续期。回收会将其从注册表中清除：保证金退还给你，你还能拿到释放出的注册押金（扣除网络费）。之后你可以重新注册。</string>
-    <string name="kn_bond_back_to_you">退还给你的保证金</string>
-    <string name="kn_err_waiting_old_name">正在等待旧的 %1$s 从注册表中清除。</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">可认领</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">正在认领 %1$s</string>
     <string name="kn_keep_open_claiming">请保持 KaChat 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。</string>
     <string name="kn_err_finish_claiming_first">请先完成正在认领的名称。</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">它已不再属于你，已移至市场的“可回收”标签。自己回收即可取回你的押金。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">打赏</string>
     <string name="tip_goes_to_fresh_address">发送到对方分享的新私人地址</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">兑换失败</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">即将到期</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">正在为你释放 %1$s...</string>
+    <string name="kn_name_expired_free">该名称已过期且未续期，任何人都可以按正常价格认领。原所有者的押金会退还给他。</string>
+    <string name="kn_no_expired_names">目前没有过期的名称。</string>
+    <string name="km_expired_appear">.kachat 名称上线后，过期名称会显示在这里。</string>
+    <string name="kn_bell_freed_title">%1$s 已被释放</string>
+    <string name="kn_bell_freed_body">它已过期并从注册表中清除。你的押金已退还给你。</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s 已不再属于你</string>
+    <string name="kn_bell_lapsed_available_body">它已过期且未续期，现在市场上任何人都可以认领。有人认领时，你的押金会退还给你。</string>
 </resources>

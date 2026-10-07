@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">استخدم a-z و0-9 والشرطات فقط.</string>
     <string name="kn_invalid_hyphen">لا يمكن أن يبدأ الاسم أو ينتهي بشرطة.</string>
     <string name="kn_status_expired">منتهي</string>
-    <string name="kn_status_lapsed">سقط</string>
     <string name="kn_yours">لك</string>
     <string name="kn_available_per_year">متاح · %1$s سنويًا</string>
     <string name="kn_not_valid_name">ليس اسمًا صالحًا.</string>
     <string name="kn_taken_for_sale">محجوز · للبيع بسعر %1$s</string>
     <string name="kn_taken">محجوز</string>
     <string name="kn_search_grace">منتهي - لا يزال بإمكان المالك تجديده</string>
-    <string name="kn_search_lapsed">سقط - استرده ثم احصل عليه</string>
     <string name="kn_seconds_to_go">بقي نحو %1$d ث</string>
     <string name="kn_cancel_commit_title">إلغاء الالتزام؟</string>
     <string name="kn_cancel_commit">إلغاء الالتزام</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">تأكيد معاملة .kachat هذه</string>
     <string name="kn_for_sale">للبيع</string>
     <string name="kn_no_listings">لا توجد أسماء معروضة للبيع الآن.</string>
-    <string name="kn_reclaimable">قابلة للاسترداد</string>
-    <string name="kn_reclaimable_detail">أسماء تركها أصحابها تسقط. يمكن لأي شخص استردادها: يعود الضمان إلى آخر مالك، وتحتفظ أنت بالوديعة المحرَّرة كمكافأة، ويصبح الاسم متاحًا للتسجيل.</string>
-    <string name="kn_nothing_to_reclaim">لا يوجد ما يُسترد.</string>
-    <string name="kn_reclaim">استرداد</string>
     <string name="kn_my_offers">عروضي</string>
     <string name="kn_no_open_offers">لا توجد عروض مفتوحة.</string>
     <string name="kn_offers_need_indexer">تظهر عروض الآخرين بعد ربط مفهرس للأسماء.</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">ينتهي في %1$s</string>
     <string name="kn_detail_grace_mine">منتهي - جدّده لتحتفظ به. حتى انتهاء فترة السماح لا يمكن لأحد غيرك أخذه.</string>
     <string name="kn_detail_grace">منتهي. لم يعد يُحلّ إلى عنوان؛ لا يزال بإمكان المالك تجديده.</string>
-    <string name="kn_detail_lapsed">سقط: يمكن لأي شخص استرداده ثم الحصول عليه من جديد.</string>
     <string name="kn_renew">تجديد</string>
     <string name="kn_change_price">تغيير السعر</string>
     <string name="kn_list_for_sale">عرض للبيع</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">أدخل عنوانًا أو اسم .kachat.</string>
     <string name="kn_err_no_active_name">لا يوجد اسم .kachat نشط بهذا الاسم.</string>
     <string name="kn_err_lookup">تعذر البحث عن هذا الاسم.</string>
-    <string name="kn_reclaim_footer">يعود ضمان الاسم إلى آخر مالك، وتحتفظ أنت بوديعة السجل المحرَّرة (مطروحًا منها الرسوم) كمكافأة، ويصبح الاسم متاحًا. لامتلاكه، احصل عليه بعد ذلك.</string>
-    <string name="kn_bond_to_last_owner">الضمان لآخر مالك</string>
     <string name="kn_profile_belongs">ملفك الشخصي مرتبط بعنوانك، لا باسم: يبقى كما هو عندما تشتري اسمًا أو تبيعه أو تتركه.</string>
     <string name="kn_links">الروابط</string>
     <string name="kn_primary_name">الاسم الأساسي</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">السعر اتغير</string>
     <string name="kn_done_listed">معروض للبيع</string>
     <string name="kn_done_transferred">الاسم اتنقل</string>
-    <string name="kn_done_reclaimed">الاسم اترجع</string>
     <string name="kn_done_profile_saved">البروفايل اتحفظ</string>
     <string name="kn_done_primary_set">الاسم الأساسي اتحدد</string>
     <string name="kn_done_registered">الاسم اتسجل</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">التجديد متاح: جدّده قبل %1$s للاحتفاظ به.</string>
     <string name="kn_bell_expired_title">انتهت صلاحية %1$s</string>
     <string name="kn_bell_expired_body">جدّده قبل %1$s وإلا يمكن لأي شخص المطالبة به.</string>
-    <string name="kn_bell_lapsed_title">انقضى %1$s</string>
     <string name="kn_bell_sold_title">بيع %1$s</string>
     <string name="kn_bell_paid">دُفع لك %1$s KAS.</string>
     <string name="kn_bell_listing_bought">تم شراء إدراجك.</string>
     <string name="kn_bell_accepted_offer">قبلت عرضًا عليه.</string>
-    <string name="kn_bell_reclaimed_title">تم استرداد %1$s</string>
-    <string name="kn_bell_reclaimed_body">انقضى واسترده شخص آخر. يمكن تسجيله من جديد.</string>
     <string name="kn_bell_new_offer_title">عرض جديد على %1$s</string>
     <string name="kn_bell_offered">عُرض %1$s KAS مقابله.</string>
     <string name="kn_bell_yours_now">%1$s أصبح لك الآن.</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">جدّده قريبًا للاحتفاظ به.</string>
     <string name="kn_push_grace_soon">جدّده قريبًا وإلا يمكن لأي شخص المطالبة به.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">تظهر هنا الأسماء القابلة للاسترداد عند إطلاق أسماء .kachat.</string>
     <string name="kn_activity_all_detail">كل تسجيل وتجديد وإدراج وبيع وعرض ونقل واسترداد في السجل.</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">استرداد للتملّك</string>
-    <string name="kn_reclaim_to_own_hint">امسح الاسم المنقضي واستعد تأمينك، ثم سجّله من جديد.</string>
-    <string name="kn_register_again_q">تسجيل %1$s مرة أخرى؟</string>
-    <string name="kn_register_again">سجّله مرة أخرى</string>
-    <string name="kn_register_again_body">أصبح متاحًا الآن. اختر مدة الاحتفاظ به مثل أي اسم جديد: يُرسل الالتزام المخفي أولًا ثم يُسجَّل الاسم بعد نحو دقيقة.</string>
-    <string name="kn_reclaim_to_own_footer">انقضى اسمك، لذا لم يعد بالإمكان تجديده. الاسترداد يزيله من السجل: يعود إليك تأمينك، وتحتفظ أيضًا بإيداع السجل المُحرَّر ناقص رسوم الشبكة. بعدها يمكنك تسجيله من جديد.</string>
-    <string name="kn_bond_back_to_you">التأمين يعود إليك</string>
-    <string name="kn_err_waiting_old_name">بانتظار إزالة %1$s القديم من السجل.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">متاح للمطالبة</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">جارٍ المطالبة بـ %1$s</string>
     <string name="kn_keep_open_claiming">أبقِ KaChat مفتوحًا: يُسجَّل الاسم بعد نحو دقيقة من تأكيد الالتزام المخفي. إذا غادرت، فسيكمل من حيث توقف عند عودتك.</string>
     <string name="kn_err_finish_claiming_first">أكمل أولًا الاسم الذي تطالب به.</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">لم يعد ملكك وانتقل إلى «قابلة للاسترداد» في السوق. استرده بنفسك لتستعيد ضمانك.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">إكرامية</string>
     <string name="tip_goes_to_fresh_address">تذهب إلى عنوان خاص جديد شاركه</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">فشلت المبادلة</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">ينتهي قريبًا</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">جارٍ تحرير %1$s لك...</string>
+    <string name="kn_name_expired_free">انتهت صلاحية هذا الاسم ولم يُجدَّد، لذا يمكن لأي شخص المطالبة به بالسعر العادي. يعود ضمان المالك السابق إليه.</string>
+    <string name="kn_no_expired_names">لا توجد أسماء منتهية الآن.</string>
+    <string name="km_expired_appear">ستظهر الأسماء المنتهية هنا عند إطلاق أسماء ‎.kachat.</string>
+    <string name="kn_bell_freed_title">تم تحرير %1$s</string>
+    <string name="kn_bell_freed_body">انتهت صلاحيته وأُزيل من السجل. عاد ضمانك إليك.</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s لم يعد ملكك</string>
+    <string name="kn_bell_lapsed_available_body">انتهت صلاحيته ولم يُجدَّد، لذا أصبح متاحًا لأي شخص في السوق. يعود ضمانك إليك عندما يطالب به أحد.</string>
 </resources>

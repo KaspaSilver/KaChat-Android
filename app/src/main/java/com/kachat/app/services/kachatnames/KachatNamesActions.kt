@@ -50,6 +50,8 @@ data class PendingRegistration(
     /** the commit UTXO's DAA score once seen */
     val commitDaa: Long? = null,
     val registerTxId: String? = null,
+    /** The reclaim this registration sent to free a lapsed old record of the name first (iOS eea52b2). */
+    val reclaimTxId: String? = null,
     val cancelTxId: String? = null,
     val stage: Stage,
     val createdAt: Long,
@@ -223,10 +225,11 @@ class KachatNamesActions @Inject constructor(
 
     // Wallet
 
-    /** What the registration driver does with the registry's answer for its name (iOS ba1a734). */
+    /** What the registration driver does with the registry's answer for its name (iOS ba1a734, eea52b2). */
     sealed class RegisterStep {
-        /** The old record is still there, lapsed (its reclaim not seen yet): wait for it to clear. */
-        object WaitForOldName : RegisterStep()
+        /** The old record is still there, lapsed: an expired name is free to claim, so the
+         *  registration frees [name] first (a reclaim), then registers once the gap shows. */
+        class FreeOldName(val name: NameInfo) : RegisterStep()
         /** Registered to this wallet: done. */
         object Mine : RegisterStep()
         /** Someone else registered it first. */
@@ -828,8 +831,8 @@ class KachatNamesActions @Inject constructor(
         loadPending(s.address)
         if (blocksNewRegistration(_pending.value)) throw ActionError.NotRegisterable(FINISH_CLAIMING_FIRST)
         registry.refresh()
-        // Lapsed: being reclaimed (Reclaim to Own, or by anyone). The commit can go out now; the
-        // registration waits until the old name is cleared from the registry (iOS ba1a734).
+        // Expired past grace: free to claim. The commit goes out now; the driver frees the old
+        // record (a reclaim) and then registers (iOS eea52b2).
         if (!isRegisterable(registry.lookup(name), registry.graceMs)) {
             throw ActionError.NotRegisterable("$name.kachat is already registered.")
         }
@@ -1026,7 +1029,7 @@ class KachatNamesActions @Inject constructor(
     }
 
     /** This wallet holds [name] as a live registration (a lapsed old record of it doesn't count:
-     *  that is what a Reclaim to Own registers over, iOS ba1a734). */
+     *  that is what claiming an expired name registers over, iOS eea52b2). */
     private suspend fun ownsName(name: String): Boolean {
         val me = myKey ?: return false
         val l = try {
@@ -1047,9 +1050,22 @@ class KachatNamesActions @Inject constructor(
             registry.refresh()
             val m = registry.prepare()
             val gap = when (val step = registerStep(registry.lookup(p.name), s.me, registry.graceMs)) {
-                // the old, lapsed name is still there (its reclaim not seen yet): next tick (iOS ba1a734)
-                RegisterStep.WaitForOldName -> {
-                    set(p) { it.copy(lastError = waitingForOldName(p.name)) }
+                // An expired name is free to claim: this registration frees the old record first
+                // (anyone may; its bond goes back to the old owner and the freed deposit comes to
+                // you), then registers on a later tick once the registry shows the gap (iOS eea52b2).
+                is RegisterStep.FreeOldName -> {
+                    set(p) { it.copy(lastError = freeingName(p.name)) }
+                    val sent = p.reclaimTxId
+                    if (sent != null) {
+                        if (registry.isAccepted(sent)) {
+                            registry.refresh()
+                        } else if (System.currentTimeMillis() - p.updatedAt > RECLAIM_RETRY_MS) {
+                            set(p) { it.copy(reclaimTxId = null) } // never accepted: send it again
+                        }
+                        return
+                    }
+                    val txId = perform(Operation.Reclaim(step.name))
+                    set(p) { it.copy(reclaimTxId = txId) }
                     return
                 }
                 RegisterStep.Mine -> { finishRegistered(p); return }
@@ -1185,7 +1201,7 @@ class KachatNamesActions @Inject constructor(
 
         fun registerStep(lookup: Lookup, me: ByteArray, graceMs: Long, nowMs: Long = KachatNames.nowMs()): RegisterStep = when (lookup) {
             is Lookup.Registered -> when {
-                lookup.info.status(graceMs, nowMs) == Status.LAPSED -> RegisterStep.WaitForOldName
+                lookup.info.status(graceMs, nowMs) == Status.LAPSED -> RegisterStep.FreeOldName(lookup.info)
                 lookup.info.owner.contentEquals(me) -> RegisterStep.Mine
                 else -> RegisterStep.Taken
             }
@@ -1193,7 +1209,7 @@ class KachatNamesActions @Inject constructor(
         }
 
         /** A registration may start: the name is free, or only a lapsed record of it is left
-         *  (being reclaimed - Reclaim to Own, or by anyone; iOS ba1a734). */
+         *  (free to claim: the driver frees it first; iOS ba1a734, eea52b2). */
         fun isRegisterable(lookup: Lookup, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Boolean =
             lookup !is Lookup.Registered || lookup.info.status(graceMs, nowMs) == Status.LAPSED
 
@@ -1213,9 +1229,12 @@ class KachatNamesActions @Inject constructor(
         /** The registration whose progress half sheet is up: the first open one (iOS 61fb0fc). */
         fun openRegistration(pending: List<PendingRegistration>): PendingRegistration? = pending.firstOrNull { it.isOpen }
 
-        /** The driver's note while the old record waits to be cleared; English like the driver's
-         *  other messages, localized by the screens (`kachatPendingError`). */
-        fun waitingForOldName(name: String): String = "Waiting for the old $name.kachat to be cleared from the registry."
+        /** The driver's note while it frees an expired old record of the name; English like the
+         *  driver's other messages, localized by the screens (`kachatPendingError`, iOS eea52b2). */
+        fun freeingName(name: String): String = "Freeing $name.kachat for you..."
+
+        /** A reclaim the driver sent that isn't accepted after this long is sent again (iOS eea52b2). */
+        const val RECLAIM_RETRY_MS: Long = 120_000
 
         /** Longest an offer can run before its buyer may take it back (the app's cap, registry v3, iOS 49c0baa). */
         const val MAX_OFFER_DAYS: Long = 7

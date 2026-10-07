@@ -639,14 +639,12 @@
     <string name="kn_invalid_chars">a-z、0-9、ハイフンのみ使えます。</string>
     <string name="kn_invalid_hyphen">名前の先頭と末尾にハイフンは使えません。</string>
     <string name="kn_status_expired">期限切れ</string>
-    <string name="kn_status_lapsed">失効</string>
     <string name="kn_yours">あなたの名前</string>
     <string name="kn_available_per_year">取得可能 · 年 %1$s</string>
     <string name="kn_not_valid_name">有効な名前ではありません。</string>
     <string name="kn_taken_for_sale">取得済み · %1$s で販売中</string>
     <string name="kn_taken">取得済み</string>
     <string name="kn_search_grace">期限切れ - 所有者はまだ更新できます</string>
-    <string name="kn_search_lapsed">失効 - 回収してから取得できます</string>
     <string name="kn_seconds_to_go">残り約 %1$d 秒</string>
     <string name="kn_cancel_commit_title">コミットを取り消しますか？</string>
     <string name="kn_cancel_commit">コミットを取り消す</string>
@@ -664,10 +662,6 @@
     <string name="kn_auth_reason">この .kachat 取引を確認</string>
     <string name="kn_for_sale">販売中</string>
     <string name="kn_no_listings">現在出品中の名前はありません。</string>
-    <string name="kn_reclaimable">回収可能</string>
-    <string name="kn_reclaimable_detail">所有者が失効させた名前です。誰でも回収できます。保証金は最後の所有者に戻り、解放された預託金は報酬としてあなたのものになり、名前は取得可能になります。</string>
-    <string name="kn_nothing_to_reclaim">回収できる名前はありません。</string>
-    <string name="kn_reclaim">回収</string>
     <string name="kn_my_offers">自分のオファー</string>
     <string name="kn_no_open_offers">進行中のオファーはありません。</string>
     <string name="kn_offers_need_indexer">他の人からのオファーは、名前インデクサーに接続すると表示されます。</string>
@@ -700,7 +694,6 @@
     <string name="kn_expires_on">有効期限 %1$s</string>
     <string name="kn_detail_grace_mine">期限切れです。保持するには更新してください。猶予期間が終わるまで他の人は取得できません。</string>
     <string name="kn_detail_grace">期限切れ。アドレスへの解決は止まっていますが、所有者はまだ更新できます。</string>
-    <string name="kn_detail_lapsed">失効：誰でも回収して、改めて取得できます。</string>
     <string name="kn_renew">更新</string>
     <string name="kn_change_price">価格を変更</string>
     <string name="kn_list_for_sale">出品する</string>
@@ -726,8 +719,6 @@
     <string name="kn_err_enter_address">アドレスか .kachat の名前を入力してください。</string>
     <string name="kn_err_no_active_name">その名前の有効な .kachat はありません。</string>
     <string name="kn_err_lookup">その名前を検索できませんでした。</string>
-    <string name="kn_reclaim_footer">名前の保証金は最後の所有者に戻り、解放されたレジストリ預託金（手数料差引）は報酬としてあなたのものになり、名前は空きます。自分のものにするには、その後で取得してください。</string>
-    <string name="kn_bond_to_last_owner">保証金（最後の所有者へ）</string>
     <string name="kn_profile_belongs">プロフィールは名前ではなくアドレスに属します。名前を買っても、売っても、手放しても変わりません。</string>
     <string name="kn_links">リンク</string>
     <string name="kn_primary_name">メインの名前</string>
@@ -781,7 +772,6 @@
     <string name="kn_done_price_changed">価格を変更しました</string>
     <string name="kn_done_listed">出品しました</string>
     <string name="kn_done_transferred">名前を譲渡しました</string>
-    <string name="kn_done_reclaimed">名前を回収しました</string>
     <string name="kn_done_profile_saved">プロフィールを保存しました</string>
     <string name="kn_done_primary_set">メインの名前を設定しました</string>
     <string name="kn_done_registered">名前を登録しました</string>
@@ -1004,13 +994,10 @@
     <string name="kn_bell_renewal_open">更新できます: 保持するには %1$s までに更新してください。</string>
     <string name="kn_bell_expired_title">%1$s の期限が切れました</string>
     <string name="kn_bell_expired_body">%1$s までに更新しないと誰でも取得できるようになります。</string>
-    <string name="kn_bell_lapsed_title">%1$s が失効しました</string>
     <string name="kn_bell_sold_title">%1$s が売れました</string>
     <string name="kn_bell_paid">%1$s KAS が支払われました。</string>
     <string name="kn_bell_listing_bought">出品した名前が購入されました。</string>
     <string name="kn_bell_accepted_offer">この名前へのオファーを承諾しました。</string>
-    <string name="kn_bell_reclaimed_title">%1$s が回収されました</string>
-    <string name="kn_bell_reclaimed_body">失効し、他の人が回収しました。再登録できます。</string>
     <string name="kn_bell_new_offer_title">%1$s に新しいオファー</string>
     <string name="kn_bell_offered">%1$s KAS のオファーがありました。</string>
     <string name="kn_bell_yours_now">%1$s があなたのものになりました。</string>
@@ -1024,25 +1011,13 @@
     <string name="kn_push_renew_soon">保持するには早めに更新してください。</string>
     <string name="kn_push_grace_soon">早めに更新しないと誰でも取得できるようになります。</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="km_reclaimable_appear">.kachat 名の開始後、回収できる名前がここに表示されます。</string>
     <string name="kn_activity_all_detail">レジストリでのすべての登録、更新、出品、販売、オファー、譲渡、回収。</string>
-    <!-- .kachat: Reclaim to Own (iOS ba1a734) -->
-    <string name="kn_reclaim_to_own">回収して取り戻す</string>
-    <string name="kn_reclaim_to_own_hint">失効した名前を消してボンドを取り戻し、もう一度登録します。</string>
-    <string name="kn_register_again_q">%1$s を再登録しますか？</string>
-    <string name="kn_register_again">再登録</string>
-    <string name="kn_register_again_body">今は空いています。新しい名前と同じように保有期間を選んでください。先に非公開のコミットが送られ、約1分後に名前が登録されます。</string>
-    <string name="kn_reclaim_to_own_footer">名前が失効したため、もう更新できません。回収するとレジストリから消え、ボンドが戻り、解放されたレジストリの預かり金もネットワーク手数料を除いて受け取れます。その後、再登録できます。</string>
-    <string name="kn_bond_back_to_you">あなたに戻るボンド</string>
-    <string name="kn_err_waiting_old_name">古い %1$s がレジストリから消えるのを待っています。</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <string name="kn_free_to_claim">取得可能</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s を取得中</string>
     <string name="kn_keep_open_claiming">KaChat を開いたままにしてください。非公開のコミットが承認されてから約1分後に名前が登録されます。アプリを離れても、戻ったときに続きから再開します。</string>
     <string name="kn_err_finish_claiming_first">先に取得中の名前を完了してください。</string>
-    <!-- .kachat name lapsed: moved to Reclaimable (iOS e26562e) -->
-    <string name="kn_bell_lapsed_moved_body">この名前はもうあなたのものではなく、マーケットプレイスの「回収可能」に移りました。自分で取り戻すと保証金が返ってきます。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">チップ</string>
     <string name="tip_goes_to_fresh_address">相手が共有した新しいプライベートアドレスに送られます</string>
@@ -1108,4 +1083,13 @@
     <string name="swap_failed">スワップに失敗しました</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">まもなく期限切れ</string>
+    <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
+    <string name="kn_freeing_name">%1$s を解放しています...</string>
+    <string name="kn_name_expired_free">この名前は期限切れで更新されなかったため、誰でも通常価格で取得できます。以前の所有者の保証金は本人に返却されます。</string>
+    <string name="kn_no_expired_names">現在、期限切れの名前はありません。</string>
+    <string name="km_expired_appear">.kachat の名前が開始されると、期限切れの名前がここに表示されます。</string>
+    <string name="kn_bell_freed_title">%1$s が解放されました</string>
+    <string name="kn_bell_freed_body">期限が切れてレジストリから削除されました。保証金はあなたに返却されました。</string>
+    <string name="kn_bell_no_longer_yours_title">%1$s はあなたのものではなくなりました</string>
+    <string name="kn_bell_lapsed_available_body">期限切れで更新されなかったため、マーケットプレイスで誰でも取得できるようになりました。誰かが取得すると保証金があなたに返却されます。</string>
 </resources>
