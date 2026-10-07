@@ -1,9 +1,7 @@
 package com.kachat.app.ui.screens
 
 import android.content.Context
-import android.os.Build
 import android.text.format.DateUtils
-import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -334,9 +332,7 @@ fun Context.kachatPendingError(m: String): String {
 private val WAITING_FOR_OLD_NAME = Regex("Waiting for the old (.+) to be cleared from the registry\\.")
 
 /** iOS `Haptics.success()`. */
-private fun android.view.View.successHaptic() {
-    performHapticFeedback(if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
-}
+private fun android.view.View.successHaptic() = com.kachat.app.util.Haptics.perform(this, com.kachat.app.util.IosHaptic.SUCCESS)
 
 /** The device lock before any `.kachat` transaction is signed - the gate the seed phrase and
  *  private keys use (chat payments have none to copy), iOS `DeviceAuth.authenticate`. */

@@ -628,7 +628,7 @@ fun ChatThreadScreen(
     // this list.
     val scrollState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
+    val haptic = com.kachat.app.util.rememberHaptics()
 
     Scaffold(
         modifier = Modifier.imePadding(),
@@ -1931,9 +1931,10 @@ fun ChatThreadScreen(
                         if (ok) {
                             // No confirmation sheet: the payment bubble in the chat is the
                             // confirmation, and its transaction is a tap away (iOS 80a6aae).
-                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            haptic(com.kachat.app.util.IosHaptic.SUCCESS)
                             closePaymentSheet()
                         } else {
+                            haptic(com.kachat.app.util.IosHaptic.ERROR)
                             // A payment that never reached the network leaves no row in the
                             // thread, so the sheet - still up - says why.
                             paymentError = message ?: "The payment could not be sent."

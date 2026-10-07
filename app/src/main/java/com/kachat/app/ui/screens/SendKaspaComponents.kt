@@ -63,11 +63,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -748,7 +746,8 @@ fun SendActionButton(
     onSend: () -> Unit,
     requiresSlide: Boolean = true,
 ) {
-    val haptics = LocalHapticFeedback.current
+    // iOS: a light impact as the knob leaves the start, a medium one when it reaches the end.
+    val haptic = com.kachat.app.util.rememberHaptics()
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val currentOnSend by rememberUpdatedState(onSend)
@@ -854,11 +853,11 @@ fun SendActionButton(
                             if (!currentActive) return@detectHorizontalDragGestures
                             change.consume()
                             val next = (offset + dragAmount).coerceIn(0f, maxOffset)
-                            if (offset == 0f && next > 0f) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            if (offset == 0f && next > 0f) haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
                             offset = next
                             if (offset >= maxOffset && !reachedEnd) {
                                 reachedEnd = true
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                haptic(com.kachat.app.util.IosHaptic.IMPACT_MEDIUM)
                             } else if (offset < maxOffset) {
                                 reachedEnd = false
                             }

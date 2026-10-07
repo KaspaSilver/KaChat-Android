@@ -123,6 +123,9 @@ fun MessageActionsSheet(
     /** The [ActionSheetRow]s - drawn as tiles. */
     content: @Composable () -> Unit,
 ) {
+    // iOS plays a medium impact as the long press brings the menu up.
+    val haptic = com.kachat.app.util.rememberHaptics()
+    LaunchedEffect(Unit) { haptic(com.kachat.app.util.IosHaptic.IMPACT_MEDIUM) }
     ActionSheetContainer(
         title = title,
         subtitle = preview?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("{") },

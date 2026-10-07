@@ -149,6 +149,7 @@ fun ChatsScreen(
     var showPublicChatsSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val haptic = com.kachat.app.util.rememberHaptics()
     // The bottom-right + : one New sheet for the whole list (iOS 5da8ccf), and the QR page one of
     // its options leaves for, shown once the sheet has gone (iOS e6400d6).
     var showNewSheet by remember { mutableStateOf(false) }
@@ -423,10 +424,9 @@ fun ChatsScreen(
             // region is already reserved above it before this Scaffold is even composed.
             // One glass +, opening the New sheet (iOS 5da8ccf). Not while selecting.
             if (isSelectionMode) return@Scaffold
-            val fabView = androidx.compose.ui.platform.LocalView.current
             com.kachat.app.ui.theme.IosGlassFab(
                 onClick = {
-                    fabView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                    haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
                     showNewSheet = true
                 },
                 icon = Icons.Default.Add,
@@ -539,6 +539,7 @@ fun ChatsScreen(
                 if (searchQuery.isBlank() && !isSelectionMode) {
                     item(key = "message_requests_row") {
                         MessageRequestsRow(count = messageRequests.size) {
+                            haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
                             navController.navigate("message_requests")
                         }
                     }
@@ -639,7 +640,12 @@ fun ChatsScreen(
                                         convo,
                                         latestReactionByContact[convo.contact.id],
                                         myAddress,
-                                        onLongClick = { if (!isSelectionMode) menuContactId = convo.contact.id }
+                                        onLongClick = {
+                                            if (!isSelectionMode) {
+                                                haptic(com.kachat.app.util.IosHaptic.IMPACT_MEDIUM)
+                                                menuContactId = convo.contact.id
+                                            }
+                                        }
                                     ) {
                                         if (isSelectionMode) {
                                             selectedContactIds = if (convo.contact.id in selectedContactIds) {
@@ -994,7 +1000,7 @@ private fun ChatCirclesStrip(
         return
     }
     val colors = LocalAppColors.current
-    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptic = com.kachat.app.util.rememberHaptics()
     val holdHint = stringResource(R.string.chats_circle_hold_for_options)
     androidx.compose.foundation.lazy.LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
@@ -1014,7 +1020,7 @@ private fun ChatCirclesStrip(
                         indication = null,
                         onClick = { onTap(item) },
                         onLongClick = if (isSelectionMode) null else ({
-                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            haptic(com.kachat.app.util.IosHaptic.IMPACT_MEDIUM)
                             onLongPress(item)
                         }),
                     )
@@ -1785,6 +1791,7 @@ private fun ChatsNewSheet(
     /** A join this sheet asked for, so a success elsewhere (the rooms page) is not taken for it. */
     var joining by remember { mutableStateOf<String?>(null) }
     val joinState by broadcastViewModel.joinChannelState.collectAsState()
+    val haptic = com.kachat.app.util.rememberHaptics()
 
     /** Closes the sheet and runs [then] once it has gone (iOS `closeCreateSheet(then:)`). */
     fun close(then: () -> Unit = {}) {
@@ -1799,6 +1806,7 @@ private fun ChatsNewSheet(
         when (joinState.status) {
             com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.SUCCESS -> {
                 joining = null
+                haptic(com.kachat.app.util.IosHaptic.SUCCESS)
                 close { onRoomJoined(name) }
             }
             com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED -> joining = null
