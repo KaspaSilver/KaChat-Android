@@ -700,11 +700,41 @@ class KachatNamesRegistry @Inject constructor(
     }
 
     fun noteOwnProfile(profile: Profile, address: String, txId: String) {
-        val record = OwnProfile(address.lowercase(), profile.sanitized(), txId, System.currentTimeMillis())
+        storeOwnProfile(OwnProfile(address.lowercase(), profile.sanitized(), txId, System.currentTimeMillis()))
+    }
+
+    private fun storeOwnProfile(record: OwnProfile) {
         ownProfiles[record.address] = record
         ownProfileMisses.remove(record.address)
         writeFile(profileFile(record.address), gson.toJson(record).toByteArray(Charsets.UTF_8), profileNetwork(record.address))
         bump()
+    }
+
+    /**
+     * Brings this device's copy of its own profile up to date with the chain, so a profile saved
+     * on another device - KaChat for iPhone or Desktop, another Android phone - shows here too,
+     * and the editor starts from it instead of overwriting it with an older one (iOS 5d4ce87).
+     * The indexer's record (`GET /profiles/{address}`, every network) is adopted when this device
+     * has none (a fresh import) or when it is a different, newer record; the local copy stays
+     * when it is the same record or newer (the indexer hasn't seen this device's latest save
+     * yet) - see [adoptedOwnProfile]. Quiet when the indexer can't be asked.
+     */
+    suspend fun syncOwnProfile(address: String) {
+        if (!KachatNamesService.profilesEnabled) return
+        try {
+            val base = indexerBase() ?: return
+            val key = address.trim().lowercase()
+            if (!KaspaNetwork.isOnActiveNetwork(key)) return
+            val remote = IndexerApi.ProfileJson.parse(get(base, "/profiles/$key"))
+            val record = adoptedOwnProfile(ownProfile(key), key, remote) ?: return
+            Log.i(TAG, "own profile updated from the chain (saved on another device): ${record.txId.take(12)}")
+            storeOwnProfile(record)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // the indexer can't be asked (offline, or no profiles on this network yet): the
+            // local copy stays
+        }
     }
 
     /** An offer this wallet just created: tracked by the walker from now on. */
@@ -798,6 +828,27 @@ class KachatNamesRegistry @Inject constructor(
          *  profiles; see KaChatApplication), for
          *  screens outside the .kachat hub that show an address's identity (User Info). */
         val shared: KachatNamesRegistry? get() = instance
+
+        /**
+         * The indexer's record of this wallet's own profile ([remote], from `GET /profiles/`) as
+         * the record to keep, or null to keep [local] (iOS 5d4ce87 `syncOwnProfile`). Adopted when
+         * there is no local copy (a fresh import), or when it is a different record ([txId]) that
+         * is newer than the local save; the local copy stays when it is the same record or newer
+         * (the indexer hasn't seen this device's latest save yet). A record for another address,
+         * or without a profile or a txId, is never adopted.
+         */
+        fun adoptedOwnProfile(local: OwnProfile?, address: String, remote: IndexerApi.ProfileJson, nowMs: Long = System.currentTimeMillis()): OwnProfile? {
+            val key = address.lowercase()
+            if (remote.address.lowercase() != key) return null
+            val profile = remote.profile?.sanitized() ?: return null
+            val txId = remote.txId ?: return null
+            if (local != null) {
+                if (local.txId == txId) return null
+                val at = remote.updatedAt ?: return null
+                if (at <= local.at) return null
+            }
+            return OwnProfile(key, profile, txId, remote.updatedAt ?: nowMs)
+        }
 
         /** The names an owner still holds: active ones and expired ones in grace (still renewable).
          *  A lapsed name is no longer theirs - it's in the marketplace's Available tab (iOS e26562e, eea52b2). */

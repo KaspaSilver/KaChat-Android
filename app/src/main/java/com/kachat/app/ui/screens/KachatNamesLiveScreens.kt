@@ -510,6 +510,9 @@ class KachatLiveViewModel @Inject constructor(
     suspend fun hero(address: String): Hero? {
         if (!KachatNamesService.profilesEnabled) return null
         registry.refreshIfStale(300_000)
+        // a profile saved on another device since this one's last save replaces the local copy
+        // (iOS 5d4ce87)
+        registry.syncOwnProfile(address)
         val identity = try {
             registry.identity(address)
         } catch (e: CancellationException) {
@@ -3376,6 +3379,9 @@ fun KachatLiveProfileEditorScreen(
         val address = vm?.actions?.myAddress
         if (vm == null || address == null) { loaded = true; return@LaunchedEffect }
         vm.registry.refreshIfStale()
+        // start from the newest profile, wherever it was saved (another device included; iOS
+        // 5d4ce87) - never from an older copy that a save would write over it
+        vm.registry.syncOwnProfile(address)
         val p = vm.registry.ownProfile(address)?.profile
             ?: runCatching { vm.registry.identity(address).profile }.getOrNull()
         if (p != null) {

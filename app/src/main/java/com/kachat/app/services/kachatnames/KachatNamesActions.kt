@@ -828,11 +828,14 @@ class KachatNamesActions @Inject constructor(
     }
 
     /**
-     * Loads the current wallet's registrations and drives the open ones. Call when a screen
-     * appears and when the app comes to the foreground (KaChatApplication, iOS app-active).
+     * Brings this wallet's own profile up to date with the chain (every network), then loads its
+     * registrations and drives the open ones (testnet). Call when a screen appears and when the
+     * app comes to the foreground (KaChatApplication, iOS app-active).
      */
     fun resume() {
         val address = myAddress
+        // Every network: a profile saved on another device (iPhone, Desktop) shows here too (iOS 5d4ce87).
+        if (address != null) scope.launch { registry.syncOwnProfile(address) }
         // Launched networks only (iOS 7227d69): mainnet never drives a registration.
         if (!KachatNamesService.isLaunched || address == null) {
             driver?.cancel()

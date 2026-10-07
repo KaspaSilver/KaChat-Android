@@ -1429,6 +1429,22 @@ class WalletViewModel @Inject constructor(
                 markPendingWelcomeGuide()
                 login()
 
+                // The account's profile (avatar, banner, bio, Linktree), saved from any device,
+                // comes with it: the indexer's record is adopted at once (iOS 5d4ce87).
+                walletManager.getActiveAccount()?.address?.let { chatting ->
+                    if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) {
+                        launch {
+                            try {
+                                kachatRegistry.get().syncOwnProfile(chatting)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                android.util.Log.w("WalletViewModel", "own profile sync failed", e)
+                            }
+                        }
+                    }
+                }
+
                 // Recovers this mnemonic's real spending-address index if it was already used
                 // with this feature before (a different install, or after a wipe) — runs after
                 // reporting import success so it doesn't add scan latency to that UX; a fresh

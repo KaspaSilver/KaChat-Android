@@ -248,14 +248,18 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // suspended along with the rest of the app) - reconnect any that are dead right
                 // now instead of waiting for the next 5-30s probe cycle to notice and replace them.
                 nodePoolManager.reconnectStaleConnections()
-                // .kachat registrations in flight (testnet only; nothing on mainnet) resume after a
-                // relaunch: commit -> wait -> register continues by itself.
-                if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
+                // This wallet's own profile follows the chain on every network (a profile saved
+                // on another device shows here; iOS 5d4ce87), and .kachat registrations in flight
+                // (testnet only; nothing on mainnet) resume after a relaunch: commit -> wait ->
+                // register continues by itself.
+                if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) {
                     try {
                         kachatNamesActions.get().resume()
                     } catch (e: Exception) {
-                        android.util.Log.w("KaChatApplication", ".kachat registration resume failed", e)
+                        android.util.Log.w("KaChatApplication", ".kachat resume failed", e)
                     }
+                }
+                if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                     // .kachat news for the Profile bell (offers, sales, renewal, expiry): the
                     // refresh runs KachatNamesNotifier (iOS 86471dd). Testnet only until names
                     // launch on mainnet.
