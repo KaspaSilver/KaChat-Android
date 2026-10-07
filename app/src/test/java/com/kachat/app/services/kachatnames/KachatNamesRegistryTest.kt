@@ -470,10 +470,9 @@ class KachatNamesRegistryTest {
         r.check(offer.isDeclined(currentOwner = me)) { "an offer to an earlier owner is declined" }
         r.eq(hex(offer.fields.seller), hex(seller), "offer fields carry the seller")
 
-        // a cache written before registry v3 (format 1 or 2: no shards, offers without a seller) is
-        // dropped: Gson reads it (absent fields stay 0/null, unlike Swift's Decodable, which refuses
-        // it outright), but the registry keeps a cache only when it `matches` - the format version
-        // and the price covenant id included
+        // a cache written before registry v4 (format 1 - 3) is dropped: Gson reads it (absent
+        // fields stay 0/null, unknown ones are skipped), but the registry keeps a cache only when it
+        // `matches` - the format version included (iOS c8f1086)
         val m = manifest()
         val v1Cache = "{\"version\":1,\"network\":\"testnet-10\",\"registryCovenantId\":\"${hex(m.registryCovenantId)}\",\"gaps\":[]," +
             "\"names\":[{\"txid\":\"00\",\"index\":0,\"name\":\"a\",\"key\":\"00\",\"owner\":\"00\",\"price\":0,\"expiresAt\":1,\"value\":1}]," +
@@ -484,11 +483,15 @@ class KachatNamesRegistryTest {
             "\"names\":[],\"offers\":[],\"applied\":[],\"events\":[]}"
         val decoded2 = runCatching { Gson().fromJson(v2Cache, RegistryState::class.java) }.getOrNull()
         r.check(decoded2?.matches(m) != true) { "a registry v2 cache is kept" }
-        r.eq(RegistryState.FORMAT_VERSION, 3, "cache format 3 (registry v3)")
+        val v3Cache = "{\"version\":3,\"network\":\"testnet-10\",\"registryCovenantId\":\"${hex(m.registryCovenantId)}\",\"priceCovenantId\":\"00\"," +
+            "\"shards\":[],\"gaps\":[],\"names\":[],\"offers\":[],\"applied\":[],\"events\":[]}"
+        val decoded3 = runCatching { Gson().fromJson(v3Cache, RegistryState::class.java) }.getOrNull()
+        r.check(decoded3?.matches(m) != true) { "a registry v3 cache is kept" }
+        r.eq(RegistryState.FORMAT_VERSION, 4, "cache format 4 (registry v4)")
         // and a current cache round-trips through Gson and is kept
         val fresh = RegistryState.atGenesis(m)
         val back = Gson().fromJson(Gson().toJson(fresh), RegistryState::class.java)
-        r.check(back.matches(m)) { "a format 3 cache is kept" }
+        r.check(back.matches(m)) { "a format 4 cache is kept" }
         r.eq(back, fresh, "the state survives the cache")
 
         val k = ByteArray(31) { 0x10 } + byteArrayOf(0x00)
@@ -582,7 +585,7 @@ class KachatNamesRegistryTest {
             JsonParser.parseString("{\"network\":\"testnet-10\",\"registryCovenantId\":\"9444\",\"priceCovenantId\":\"7777\",\"indexedDaa\":5,\"synced\":true}")
         )
         r.eq(status.registryCovenantId, "9444", "indexer status")
-        r.eq(status.priceCovenantId, "7777", "indexer status: the price covenant (registry v3)")
+        r.eq(status.indexedDaa, 5L, "indexer status: indexed DAA")
 
         // registry v3: offers carry the seller; an indexer without it gives no offer
         val ab = "ab".repeat(32)

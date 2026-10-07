@@ -50,11 +50,7 @@ class KachatNamesDetailTest {
     }
 
     @Test
-    fun aSubmitThatLostItsShardIsASpentConflict() {
-        assertTrue(KachatNamesActions.isSpentConflict(Exception("transaction rejected: input already spent by another transaction")))
-        assertTrue(KachatNamesActions.isSpentConflict(Exception("Rejected: double spend in mempool")))
-        assertTrue(KachatNamesActions.isSpentConflict(Exception("transaction is an orphan")))
-        assertFalse(KachatNamesActions.isSpentConflict(Exception("insufficient funds")))
+    fun offersRunAWeekAtMost() {
         assertEquals(7L, KachatNamesActions.MAX_OFFER_DAYS)
     }
 

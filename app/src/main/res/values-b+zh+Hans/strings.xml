@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">此报价是在名称易主之前发出的，因此已被拒绝并正在退还给买家。</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">此名称已支付至最长期限。续期于 %1$s 开放。</string>
-    <string name="kn_err_price_busy">价格记录正忙。请稍后再试。</string>
     <string name="kn_err_offer_own_name">你不能对自己的名称报价。</string>
     <string name="kn_err_offer_max_days">报价最长可持续 7 天。</string>
     <string name="kn_price_per_period">每 %1$s 价格</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">此名称的挂牌价低于你的报价。不如直接购买。</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">自你确认后价格已变为 %1$s。未发送任何内容。请查看新价格并再次确认。</string>
-    <string name="kn_stage_price_changed">自你确认后价格已变为 %1$s，因此未发送任何内容。确认新价格以继续，或取消承诺。</string>
-    <string name="kn_confirm_new_price">确认新价格</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">续期会从当前到期时间开始下一个期限，而不是从今天开始，因此已过期一段时间的名称获得的时间会更少。费用归矿工。</string>
     <string name="kn_err_renew_expired_too_long">此名称过期太久，无法续期。只能回收后重新注册。</string>

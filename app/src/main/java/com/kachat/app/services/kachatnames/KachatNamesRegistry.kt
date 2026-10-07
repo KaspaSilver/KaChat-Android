@@ -492,10 +492,10 @@ class KachatNamesRegistry @Inject constructor(
                 } catch (_: Exception) {
                     null
                 }
-                all?.filterNot { it.op.startsWith("price") } ?: IndexerApi.EventJson.parseEvents(get(src.base, "/market/activity"))
+                all ?: IndexerApi.EventJson.parseEvents(get(src.base, "/market/activity"))
             }
-            // name activity only: price changes are the registry's, not a name's (iOS 49c0baa)
-            else -> (_chainState.value?.events ?: emptyList()).filterNot { it.op.startsWith("price") }.reversed().take(200)
+            // registry v4 has no price changes: every event is a name's (iOS c8f1086)
+            else -> (_chainState.value?.events ?: emptyList()).reversed().take(200)
         }
     }
 

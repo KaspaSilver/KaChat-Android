@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">Это предложение сделано до смены владельца имени, поэтому оно отклонено и возвращается покупателю.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Это имя уже оплачено на максимальный срок. Продление откроется %1$s.</string>
-    <string name="kn_err_price_busy">Запись цен сейчас занята. Попробуйте ещё раз через мгновение.</string>
     <string name="kn_err_offer_own_name">Нельзя сделать предложение на собственное имя.</string>
     <string name="kn_err_offer_max_days">Предложение может действовать до 7 дней.</string>
     <string name="kn_price_per_period">Цена за %1$s</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">Это имя выставлено дешевле вашего предложения. Возможно, лучше просто купить его.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Цена изменилась на %1$s после вашего подтверждения. Ничего не отправлено. Проверьте новую цену и подтвердите снова.</string>
-    <string name="kn_stage_price_changed">Цена изменилась на %1$s после вашего подтверждения, поэтому ничего не отправлено. Подтвердите новую цену, чтобы продолжить, или отмените коммит.</string>
-    <string name="kn_confirm_new_price">Подтвердить новую цену</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">Продление начинает следующий период с текущей даты истечения, а не с сегодняшнего дня, поэтому имя, истёкшее некоторое время назад, получает меньше времени. Плата уходит майнерам.</string>
     <string name="kn_err_renew_expired_too_long">Это имя истекло слишком давно, чтобы его продлить. Его можно только вернуть и зарегистрировать заново.</string>

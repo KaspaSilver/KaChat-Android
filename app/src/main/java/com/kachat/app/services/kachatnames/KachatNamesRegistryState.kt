@@ -168,7 +168,7 @@ data class Event(
     val txId: String,
     /**
      * register, transfer, list, delist, sale, extend, renew, release, reclaim, offer_accepted,
-     * offer, offer_<entry>; the walker's price changes are prices / price_authority (registry v3)
+     * offer, offer_<entry> (registry v4 has no price changes)
      */
     val op: String,
     val name: String? = null,
@@ -1190,10 +1190,10 @@ data class RegistryState(
 
     companion object {
         /**
-         * 3: registry v3 (price shards, offers with a seller; iOS c150042); an older cache is
-         * dropped and walked again.
+         * 4: registry v4 (fixed prices: no price shards; iOS c8f1086); an older cache is dropped
+         * and walked again.
          */
-        const val FORMAT_VERSION = 3
+        const val FORMAT_VERSION = 4
         const val APPLIED_KEEP = 4096
         const val EVENTS_KEEP = 1000
 
@@ -1526,8 +1526,6 @@ object IndexerApi {
     class StatusJson(
         val network: String?,
         val registryCovenantId: String?,
-        /** registry v3: the price covenant the indexer follows */
-        val priceCovenantId: String?,
         val genesisTxId: String?,
         val indexedDaa: Long?,
         val synced: Boolean?
@@ -1536,7 +1534,7 @@ object IndexerApi {
             fun parse(e: JsonElement): StatusJson {
                 val o = objectOf(e)
                 return StatusJson(
-                    o.str("network"), o.str("registryCovenantId"), o.str("priceCovenantId"), o.str("genesisTxId"), o.long("indexedDaa"),
+                    o.str("network"), o.str("registryCovenantId"), o.str("genesisTxId"), o.long("indexedDaa"),
                     o.bool("synced")
                 )
             }

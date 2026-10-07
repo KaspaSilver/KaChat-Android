@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">Đề nghị này được gửi trước khi tên đổi chủ, nên đã bị từ chối và đang hoàn lại cho người mua.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Tên này đã được trả đến kỳ dài nhất. Mở gia hạn vào %1$s.</string>
-    <string name="kn_err_price_busy">Bản ghi giá đang bận. Hãy thử lại sau giây lát.</string>
     <string name="kn_err_offer_own_name">Bạn không thể đưa đề nghị cho tên của chính mình.</string>
     <string name="kn_err_offer_max_days">Một đề nghị có thể kéo dài tối đa 7 ngày.</string>
     <string name="kn_price_per_period">Giá mỗi %1$s</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">Tên này đang được bán với giá thấp hơn đề nghị của bạn. Hãy cân nhắc mua luôn.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Giá đã đổi thành %1$s kể từ khi bạn xác nhận. Chưa có gì được gửi. Hãy xem giá mới và xác nhận lại.</string>
-    <string name="kn_stage_price_changed">Giá đã đổi thành %1$s kể từ khi bạn xác nhận, nên chưa có gì được gửi. Xác nhận giá mới để tiếp tục, hoặc hủy commit.</string>
-    <string name="kn_confirm_new_price">Xác nhận giá mới</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">Gia hạn bắt đầu kỳ tiếp theo tại ngày hết hạn hiện tại, không phải từ hôm nay, nên tên đã hết hạn một thời gian sẽ có ít thời gian hơn. Khoản phí được trả cho thợ đào.</string>
     <string name="kn_err_renew_expired_too_long">Tên này đã hết hạn quá lâu để gia hạn. Chỉ có thể thu hồi và đăng ký lại.</string>

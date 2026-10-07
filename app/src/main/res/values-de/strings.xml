@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">Dieses Angebot wurde gemacht, bevor der Name den Besitzer wechselte. Es ist abgelehnt und geht an den Käufer zurück.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Dieser Name ist bereits für den längsten Zeitraum bezahlt. Verlängerung möglich ab %1$s.</string>
-    <string name="kn_err_price_busy">Der Preiseintrag ist gerade belegt. Versuch es gleich noch einmal.</string>
     <string name="kn_err_offer_own_name">Du kannst kein Angebot für deinen eigenen Namen machen.</string>
     <string name="kn_err_offer_max_days">Ein Angebot kann bis zu 7 Tage laufen.</string>
     <string name="kn_price_per_period">Preis pro %1$s</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">Dieser Name ist günstiger gelistet als dein Angebot. Kauf ihn vielleicht lieber direkt.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Der Preis hat sich seit deiner Bestätigung auf %1$s geändert. Es wurde nichts gesendet. Prüfe den neuen Preis und bestätige erneut.</string>
-    <string name="kn_stage_price_changed">Der Preis hat sich seit deiner Bestätigung auf %1$s geändert, daher wurde nichts gesendet. Bestätige den neuen Preis, um fortzufahren, oder storniere den Commit.</string>
-    <string name="kn_confirm_new_price">Neuen Preis bestätigen</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">Eine Verlängerung beginnt den nächsten Zeitraum am aktuellen Ablauf, nicht ab heute. Ein Name, der vor einer Weile abgelaufen ist, bekommt also weniger Zeit. Der Preis geht an die Miner.</string>
     <string name="kn_err_renew_expired_too_long">Dieser Name ist zu lange abgelaufen, um ihn zu verlängern. Er kann nur zurückgefordert und neu registriert werden.</string>

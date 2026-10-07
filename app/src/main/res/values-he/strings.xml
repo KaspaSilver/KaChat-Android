@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">ההצעה הוגשה לפני שהשם עבר בעלות, ולכן נדחתה והיא חוזרת לקונה.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">השם הזה כבר משולם עד התקופה הארוכה ביותר. החידוש נפתח ב-%1$s.</string>
-    <string name="kn_err_price_busy">רשומת המחירים תפוסה כרגע. נסו שוב בעוד רגע.</string>
     <string name="kn_err_offer_own_name">אי אפשר להציע הצעה על השם שלך.</string>
     <string name="kn_err_offer_max_days">הצעה יכולה להימשך עד 7 ימים.</string>
     <string name="kn_price_per_period">מחיר ל-%1$s</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">השם הזה מוצע למכירה בפחות מההצעה שלך. כדאי לשקול לקנות אותו במקום.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">המחיר השתנה ל-%1$s מאז שאישרת. דבר לא נשלח. בדקו את המחיר החדש ואשרו שוב.</string>
-    <string name="kn_stage_price_changed">המחיר השתנה ל-%1$s מאז שאישרת, ולכן דבר לא נשלח. אשרו את המחיר החדש כדי להמשיך, או בטלו את ההתחייבות.</string>
-    <string name="kn_confirm_new_price">אישור המחיר החדש</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">חידוש מתחיל את התקופה הבאה במועד התפוגה הנוכחי, לא מהיום, ולכן שם שפג לפני זמן מה מקבל פחות זמן. המחיר עובר לכורים.</string>
     <string name="kn_err_renew_expired_too_long">השם הזה פג לפני יותר מדי זמן מכדי לחדש אותו. אפשר רק לדרוש אותו בחזרה ולרשום אותו מחדש.</string>

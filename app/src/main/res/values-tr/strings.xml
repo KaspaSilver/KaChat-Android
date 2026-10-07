@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">Bu teklif ad el değiştirmeden önce yapıldığı için reddedildi ve alıcıya geri dönüyor.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Bu ad zaten en uzun dönemine kadar ödenmiş. Yenileme %1$s tarihinde açılır.</string>
-    <string name="kn_err_price_busy">Fiyat kaydı şu anda meşgul. Birazdan tekrar deneyin.</string>
     <string name="kn_err_offer_own_name">Kendi adınıza teklif veremezsiniz.</string>
     <string name="kn_err_offer_max_days">Bir teklif en fazla 7 gün sürebilir.</string>
     <string name="kn_price_per_period">%1$s başına fiyat</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">Bu ad teklifinizden daha düşük bir fiyata listelenmiş. Bunun yerine satın almayı düşünün.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Onayladığınızdan beri fiyat %1$s oldu. Hiçbir şey gönderilmedi. Yeni fiyatı kontrol edip tekrar onaylayın.</string>
-    <string name="kn_stage_price_changed">Onayladığınızdan beri fiyat %1$s oldu, bu yüzden hiçbir şey gönderilmedi. Devam etmek için yeni fiyatı onaylayın veya taahhüdü iptal edin.</string>
-    <string name="kn_confirm_new_price">Yeni Fiyatı Onayla</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">Yenileme bir sonraki dönemi bugünden değil, mevcut bitiş tarihinden başlatır; bu yüzden bir süre önce süresi dolan bir ad daha az süre alır. Ücret madencilere gider.</string>
     <string name="kn_err_renew_expired_too_long">Bu adın süresi yenilenemeyecek kadar uzun zaman önce doldu. Yalnızca geri alınıp yeniden kaydedilebilir.</string>

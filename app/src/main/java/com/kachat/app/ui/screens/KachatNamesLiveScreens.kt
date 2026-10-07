@@ -221,10 +221,18 @@ object KachatLive {
 
     /**
      * What registering [name] costs for its first period (registry v4: fixed, baked into the
-     * pinned templates; iOS c8f1086 `KachatLive.price`).
+     * pinned templates; iOS c8f1086 `KachatLive.price`). Each further period costs [renewPrice].
      */
     fun price(registry: KachatNamesRegistry, name: String): Long? {
         val prices = registry.registerPrices ?: return null
+        if (prices.size != 5) return null
+        return prices[KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size)]
+    }
+
+    /** What one more period of [name] costs: extend, renew, and registering past the first period
+     *  (iOS c8f1086 `KachatLive.renewPrice`). */
+    fun renewPrice(registry: KachatNamesRegistry, name: String): Long? {
+        val prices = registry.renewPrices ?: return null
         if (prices.size != 5) return null
         return prices[KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size)]
     }
@@ -297,7 +305,6 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.OfferExpired -> getString(R.string.kn_err_offer_expired)
         is KachatNamesActions.ActionError.OfferDeclined -> getString(R.string.kn_err_offer_declined)
         // localized on iOS too (49c0baa)
-        is KachatNamesActions.ActionError.PriceBusy -> getString(R.string.kn_err_price_busy)
         is KachatNamesActions.ActionError.OwnName -> getString(R.string.kn_err_offer_own_name)
         is KachatNamesActions.ActionError.OfferTooLong -> getString(R.string.kn_err_offer_max_days)
         // localized on iOS too (4f5d95e)
@@ -486,7 +493,7 @@ class KachatLiveViewModel @Inject constructor(
         }
     }
 
-    /** The price per period for [name] from the price record (iOS 49c0baa `KachatLive.price`). */
+    /** What registering [name] costs for its first period (iOS c8f1086 `KachatLive.price`). */
     fun pricePerYear(name: String): Long? = KachatLive.price(registry, name)
 
     /** The profile hero's `.kachat` part: your label, your profile's avatar, banner and bio
@@ -1362,11 +1369,6 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
         }
     }
 
-    // Paying a higher price is a new approval: it goes through the device lock like any send (iOS 4f5d95e).
-    fun authorizeNewPrice() {
-        context.kachatAuthorize { vm.actions.acceptNewPrice(registration) }
-    }
-
     fun authorizeCancel() {
         context.kachatAuthorize {
             working = true
@@ -1404,8 +1406,6 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
             PendingRegistration.Stage.REGISTERED -> stringResource(R.string.kn_stage_registered)
             PendingRegistration.Stage.TAKEN -> KaspaUnit.label(stringResource(R.string.kn_stage_taken))
             PendingRegistration.Stage.FAILED -> stringResource(R.string.kn_stage_failed)
-            PendingRegistration.Stage.PRICE_CHANGED ->
-                stringResource(R.string.kn_stage_price_changed, KaspaUnit.amount(registration.priceChangedTo ?: 0L))
             PendingRegistration.Stage.CANCELLING -> stringResource(R.string.kn_stage_cancelling)
             PendingRegistration.Stage.CANCELLED -> stringResource(R.string.kn_stage_cancelled)
         }
@@ -1440,10 +1440,6 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
             }
             PendingRegistration.Stage.TAKEN ->
                 KachatButton(stringResource(R.string.kn_cancel_commit), destructive = true, enabled = !working) { confirmCancel = true }
-            PendingRegistration.Stage.PRICE_CHANGED -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KachatButton(stringResource(R.string.kn_confirm_new_price), prominent = true) { authorizeNewPrice() }
-                KachatButton(stringResource(R.string.kn_cancel_commit), destructive = true, enabled = !working) { confirmCancel = true }
-            }
             PendingRegistration.Stage.FAILED -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 KachatButton(stringResource(R.string.try_again), prominent = true) { vm.actions.retry(registration) }
                 KachatButton(stringResource(R.string.kn_cancel_commit), destructive = true, enabled = !working) { confirmCancel = true }
@@ -1851,7 +1847,7 @@ fun KachatTxSheet(
         sendError = null
         vm.launch {
             try {
-                // never pays more than the price shown (the price record can change at any time, iOS 4f5d95e)
+                // never pays more than the price shown (iOS 4f5d95e, c8f1086)
                 val id = vm.actions.perform(op, maxPrice = plan?.priceFee)
                 txId = id
                 view.successHaptic()
@@ -2097,7 +2093,8 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                                 val qe = quoteError
                                 when {
                                     q != null -> {
-                                        LabeledRow(stringResource(R.string.kn_price_to_miners), "${KaspaUnit.amount(q.price / maxOf(q.years, 1L))} × ${q.years}"); SettingsDivider()
+                                        // the first period at the registration price, any further one at the renewal price (iOS c8f1086)
+                                        LabeledRow(stringResource(R.string.kn_price_to_miners), KaspaUnit.amount(q.price)); SettingsDivider()
                                         LabeledRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond)); SettingsDivider()
                                         LabeledRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit)); SettingsDivider()
                                         LabeledRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit)); SettingsDivider()
@@ -2743,7 +2740,7 @@ fun KachatLiveOfferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveView
 /**
  * `extend` (iOS bd2c54a / 49c0baa `KachatExtendSheet`): periods added to the current paid period
  * (periodStart kept), up to `maxYears` periods past its start - in practice a 1-period name extended
- * to 2. Anyone may extend any name. The price per period comes from the price record.
+ * to 2. Anyone may extend any name. Each period costs the renewal price (registry v4, iOS c8f1086).
  */
 @Composable
 fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
@@ -2753,7 +2750,7 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
     val maxYears = params?.maxYears ?: 2L
     /** The years that still fit in the period (in practice 1). */
     val available = maxOf(1L, params?.let { info.extendableYears(it) } ?: 1L)
-    val perYear = KachatLive.price(vm.registry, info.name) ?: 0L
+    val perYear = KachatLive.renewPrice(vm.registry, info.name) ?: 0L
     val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
     val yearly = KachatLive.yearlyPeriods(params)
     val title = when {
@@ -2786,7 +2783,7 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
 /**
  * `renew`: the next period, from the current expiry, for 1 or 2 periods - only once the renewal
  * window is open (`renewWindowMs` before the expiry; the detail screen says when; iOS bd2c54a,
- * 49c0baa). The price per period comes from the price record.
+ * 49c0baa). Each period costs the renewal price (registry v4, iOS c8f1086).
  */
 @Composable
 fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
@@ -2794,7 +2791,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     var years by remember { mutableLongStateOf(1L) }
     val params = manifest?.params
     val maxYears = params?.maxYears ?: 2L
-    val perYear = KachatLive.price(vm.registry, info.name) ?: 0L
+    val perYear = KachatLive.renewPrice(vm.registry, info.name) ?: 0L
     val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
     KachatTxSheet(
         title = stringResource(R.string.kn_renew), confirmTitle = stringResource(R.string.kn_renew),

@@ -35,7 +35,7 @@ class KachatNamesSpendRulesTest {
         KachatNamesActions.checkPriceCap(priceFee = 5_000_00000000L, maxPrice = null)
     }
 
-    // The pending registration's price-changed stage (IOS-054)
+    // The pending registration (registry v4: no price-changed stage, iOS c8f1086)
 
     private fun pending(stage: PendingRegistration.Stage = PendingRegistration.Stage.WAITING, maxPrice: Long? = 700_00000000L) =
         PendingRegistration(
@@ -45,58 +45,28 @@ class KachatNamesSpendRulesTest {
         )
 
     @Test
-    fun aRegistrationStopsWhenThePriceRises() {
-        val stopped = pending().stoppedAtPrice(700_00000001L)
-        requireNotNull(stopped)
-        assertEquals(PendingRegistration.Stage.PRICE_CHANGED, stopped.stage)
-        assertEquals(700_00000001L, stopped.priceChangedTo)
-        // the cap is not raised until the person confirms the new price
-        assertEquals(700_00000000L, stopped.maxPrice)
-        assertNull(stopped.lastError)
-        // a stopped registration is not driven: nothing is sent
-        assertTrue(!stopped.needsDriving)
-        assertTrue(stopped.isOpen)
-    }
-
-    @Test
-    fun aRegistrationGoesOnAtTheConfirmedOrALowerPrice() {
-        assertNull(pending().stoppedAtPrice(700_00000000L))
-        assertNull(pending().stoppedAtPrice(350_00000000L))
-        // one started before the cap existed has none
-        assertNull(pending(maxPrice = null).stoppedAtPrice(8_000_00000000L))
-    }
-
-    @Test
-    fun confirmingTheNewPriceRaisesTheCapToIt() {
-        val stopped = requireNotNull(pending().stoppedAtPrice(900_00000000L))
-        val going = requireNotNull(stopped.acceptingNewPrice())
-        assertEquals(PendingRegistration.Stage.WAITING, going.stage)
-        assertEquals(900_00000000L, going.maxPrice)
-        assertNull(going.priceChangedTo)
-        assertTrue(going.needsDriving)
-        // and it stops again if the price goes up further
-        assertEquals(PendingRegistration.Stage.PRICE_CHANGED, going.stoppedAtPrice(900_00000001L)?.stage)
-        assertNull(going.stoppedAtPrice(900_00000000L))
-    }
-
-    @Test
-    fun onlyAStoppedRegistrationTakesANewPrice() {
-        assertNull(pending().acceptingNewPrice())
-        assertNull(pending(PendingRegistration.Stage.FAILED).acceptingNewPrice())
-        // stopped but without the price it stopped at: nothing to confirm
-        assertNull(pending(PendingRegistration.Stage.PRICE_CHANGED).acceptingNewPrice())
-    }
-
-    @Test
-    fun thePriceChangedStageSurvivesTheStore() {
+    fun theConfirmedPriceSurvivesTheStore() {
         val gson = com.google.gson.Gson()
-        val stopped = requireNotNull(pending().stoppedAtPrice(900_00000000L))
-        val json = gson.toJson(stopped)
-        assertTrue(json.contains("\"stage\":\"priceChanged\""))
+        val json = gson.toJson(pending())
         val back = gson.fromJson(json, PendingRegistration::class.java)
-        assertEquals(PendingRegistration.Stage.PRICE_CHANGED, back.stage)
-        assertEquals(900_00000000L, back.priceChangedTo)
+        assertEquals(PendingRegistration.Stage.WAITING, back.stage)
         assertEquals(700_00000000L, back.maxPrice)
+        assertTrue(json.contains("\"stage\":\"waiting\""))
+    }
+
+    /** A registration a registry v3 build stopped at "priceChanged" loads as failed, so its commit
+     *  can still be retried or cancelled (never dropped with the salt still stored). */
+    @Test
+    fun anOldPriceChangedRegistrationLoadsAsFailed() {
+        val gson = com.google.gson.Gson()
+        val json = gson.toJson(pending()).replace("\"stage\":\"waiting\"", "\"stage\":\"priceChanged\"") .replace("}", ",\"priceChangedTo\":900}")
+        val back = gson.fromJson(json, PendingRegistration::class.java)
+        assertEquals(PendingRegistration.Stage.FAILED, back.stage)
+        assertTrue(back.isOpen)
+        assertTrue(!back.needsDriving)
+        assertEquals(700_00000000L, back.maxPrice)
+        // and it is written back as failed
+        assertTrue(gson.toJson(back).contains("\"stage\":\"failed\""))
     }
 
     // Expired names: offers and renewals (IOS-055, IOS-056)

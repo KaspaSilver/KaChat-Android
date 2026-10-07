@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">このオファーは名前の所有者が変わる前に出されたため、辞退扱いとなり購入者に返却されます。</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">この名前はすでに最長の期間まで支払い済みです。更新は %1$s から可能です。</string>
-    <string name="kn_err_price_busy">価格レコードは現在使用中です。少し待ってからもう一度お試しください。</string>
     <string name="kn_err_offer_own_name">自分の名前にオファーすることはできません。</string>
     <string name="kn_err_offer_max_days">オファーの期間は最長 7 日です。</string>
     <string name="kn_price_per_period">%1$s あたりの価格</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">この名前はあなたのオファーより安く出品されています。代わりに購入することを検討してください。</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">確認後に価格が %1$s に変わりました。何も送信されていません。新しい価格を確認して、もう一度確定してください。</string>
-    <string name="kn_stage_price_changed">確認後に価格が %1$s に変わったため、何も送信されていません。続けるには新しい価格を確定するか、コミットをキャンセルしてください。</string>
-    <string name="kn_confirm_new_price">新しい価格を確定</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">更新は次の期間を今日からではなく現在の期限から開始します。そのため、しばらく前に期限切れになった名前は期間が短くなります。代金はマイナーに支払われます。</string>
     <string name="kn_err_renew_expired_too_long">この名前は期限切れから時間が経ちすぎているため更新できません。回収して再登録するしかありません。</string>

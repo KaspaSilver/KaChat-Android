@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">নামের মালিক বদলানোর আগে এই অফার দেওয়া হয়েছিল, তাই এটি প্রত্যাখ্যাত এবং ক্রেতার কাছে ফিরে যাচ্ছে।</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">এই নামটি ইতিমধ্যে সবচেয়ে দীর্ঘ মেয়াদ পর্যন্ত পরিশোধিত। নবায়ন খুলবে %1$s।</string>
-    <string name="kn_err_price_busy">মূল্য রেকর্ডটি এখন ব্যস্ত। একটু পরে আবার চেষ্টা করুন।</string>
     <string name="kn_err_offer_own_name">আপনি নিজের নামে প্রস্তাব দিতে পারবেন না।</string>
     <string name="kn_err_offer_max_days">একটি প্রস্তাব সর্বোচ্চ ৭ দিন চলতে পারে।</string>
     <string name="kn_price_per_period">প্রতি %1$s মূল্য</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">এই নামটি আপনার প্রস্তাবের চেয়ে কম দামে বিক্রির জন্য তালিকাভুক্ত। বরং এটি কিনে নেওয়ার কথা ভাবুন।</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">আপনি নিশ্চিত করার পর মূল্য বদলে %1$s হয়েছে। কিছুই পাঠানো হয়নি। নতুন মূল্য দেখে আবার নিশ্চিত করুন।</string>
-    <string name="kn_stage_price_changed">আপনি নিশ্চিত করার পর মূল্য বদলে %1$s হয়েছে, তাই কিছুই পাঠানো হয়নি। চালিয়ে যেতে নতুন মূল্য নিশ্চিত করুন, অথবা কমিট বাতিল করুন।</string>
-    <string name="kn_confirm_new_price">নতুন মূল্য নিশ্চিত করুন</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">নবায়ন পরের মেয়াদ বর্তমান মেয়াদ শেষের তারিখ থেকে শুরু করে, আজ থেকে নয়, তাই কিছুদিন আগে মেয়াদ শেষ হওয়া নাম কম সময় পায়। মূল্য মাইনারদের কাছে যায়।</string>
     <string name="kn_err_renew_expired_too_long">এই নামের মেয়াদ অনেক আগে শেষ হয়েছে, তাই নবায়ন করা যাবে না। এটি কেবল পুনরুদ্ধার করে আবার নিবন্ধন করা যায়।</string>

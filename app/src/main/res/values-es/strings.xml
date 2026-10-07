@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">Esta oferta se hizo antes de que el nombre cambiara de dueño, así que está rechazada y vuelve al comprador.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Este nombre ya está pagado hasta su período más largo. La renovación abre el %1$s.</string>
-    <string name="kn_err_price_busy">El registro de precios está ocupado ahora. Inténtalo de nuevo en un momento.</string>
     <string name="kn_err_offer_own_name">No puedes hacer una oferta por tu propio nombre.</string>
     <string name="kn_err_offer_max_days">Una oferta puede durar hasta 7 días.</string>
     <string name="kn_price_per_period">Precio por %1$s</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">Este nombre está a la venta por menos que tu oferta. Considera comprarlo directamente.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">El precio cambió a %1$s desde que confirmaste. No se envió nada. Revisa el nuevo precio y confirma de nuevo.</string>
-    <string name="kn_stage_price_changed">El precio cambió a %1$s desde que confirmaste, así que no se envió nada. Confirma el nuevo precio para continuar o cancela el commit.</string>
-    <string name="kn_confirm_new_price">Confirmar nuevo precio</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">Una renovación empieza el siguiente período en el vencimiento actual, no desde hoy, así que un nombre que venció hace tiempo recibe menos tiempo. El precio va a los mineros.</string>
     <string name="kn_err_renew_expired_too_long">Este nombre lleva vencido demasiado tiempo para renovarlo. Solo se puede reclamar y registrar de nuevo.</string>

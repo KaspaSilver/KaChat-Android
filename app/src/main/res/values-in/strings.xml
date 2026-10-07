@@ -821,7 +821,6 @@
     <string name="kn_err_offer_declined">Penawaran ini diajukan sebelum nama berganti pemilik, jadi ditolak dan dananya kembali ke pembeli.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Nama ini sudah dibayar hingga periode terpanjangnya. Perpanjangan dibuka %1$s.</string>
-    <string name="kn_err_price_busy">Catatan harga sedang sibuk. Coba lagi sebentar lagi.</string>
     <string name="kn_err_offer_own_name">Anda tidak bisa mengajukan penawaran untuk nama Anda sendiri.</string>
     <string name="kn_err_offer_max_days">Penawaran bisa berlaku hingga 7 hari.</string>
     <string name="kn_price_per_period">Harga per %1$s</string>
@@ -837,8 +836,6 @@
     <string name="kn_offer_below_listing_buy">Nama ini dijual lebih murah dari penawaran Anda. Pertimbangkan untuk membelinya saja.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa harga baru dan konfirmasi lagi.</string>
-    <string name="kn_stage_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi, jadi tidak ada yang dikirim. Konfirmasi harga baru untuk melanjutkan, atau batalkan commit.</string>
-    <string name="kn_confirm_new_price">Konfirmasi Harga Baru</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">Perpanjangan memulai periode berikutnya pada tanggal kedaluwarsa saat ini, bukan dari hari ini, jadi nama yang sudah lama kedaluwarsa mendapat waktu lebih sedikit. Harganya diberikan ke penambang.</string>
     <string name="kn_err_renew_expired_too_long">Nama ini sudah terlalu lama kedaluwarsa untuk diperpanjang. Nama ini hanya bisa diklaim ulang lalu didaftarkan lagi.</string>

@@ -943,7 +943,6 @@
     <string name="kn_err_offer_declined">이 제안은 이름의 소유자가 바뀌기 전에 이루어져 거절되었으며 구매자에게 반환됩니다.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">이 이름은 이미 최대 기간까지 결제되어 있어요. 갱신은 %1$s부터 가능해요.</string>
-    <string name="kn_err_price_busy">가격 기록이 지금 사용 중이에요. 잠시 후 다시 시도하세요.</string>
     <string name="kn_err_offer_own_name">내 이름에는 제안할 수 없어요.</string>
     <string name="kn_err_offer_max_days">제안은 최대 7일까지 유지돼요.</string>
     <string name="kn_price_per_period">%1$s당 가격</string>
@@ -959,8 +958,6 @@
     <string name="kn_offer_below_listing_buy">이 이름은 내 제안보다 낮은 가격에 판매 중이에요. 대신 바로 구매하는 것을 고려해 보세요.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">확인한 뒤 가격이 %1$s(으)로 바뀌었어요. 아무것도 전송되지 않았어요. 새 가격을 확인하고 다시 확인하세요.</string>
-    <string name="kn_stage_price_changed">확인한 뒤 가격이 %1$s(으)로 바뀌어서 아무것도 전송되지 않았어요. 계속하려면 새 가격을 확인하거나 커밋을 취소하세요.</string>
-    <string name="kn_confirm_new_price">새 가격 확인</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
     <string name="kn_renew_from_expiry_footer">갱신은 다음 기간을 오늘이 아니라 현재 만료일부터 시작해요. 그래서 만료된 지 좀 된 이름은 기간이 짧아져요. 가격은 채굴자에게 가요.</string>
     <string name="kn_err_renew_expired_too_long">이 이름은 만료된 지 너무 오래되어 갱신할 수 없어요. 회수한 뒤 다시 등록하는 수밖에 없어요.</string>
