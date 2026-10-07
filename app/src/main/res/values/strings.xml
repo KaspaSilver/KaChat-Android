@@ -1270,4 +1270,11 @@
     <string name="swap_portfolio_already_holds">Already holds this swap - adding it again double-counts it.</string>
     <string name="swap_portfolio_lands_here">The swap lands in this portfolio.</string>
     <string name="swap_added_to_portfolio">Added to %1$s</string>
+    <!-- Link preview message menu (iOS LinkPreviewCardView.menuActions) -->
+    <string name="link_menu_title">Link</string>
+    <string name="shared_file_menu_title">Shared File</string>
+    <string name="copy_link_subtitle">Copies the address to your clipboard.</string>
+    <string name="message_action_select">Select</string>
+    <string name="message_action_select_subtitle">Pick several messages at once.</string>
+    <string name="tap_to_load_preview">Tap to load preview</string>
 </resources>
