@@ -79,8 +79,13 @@ class WalletViewModel @Inject constructor(
     }
 
 
-    private val _sendResult = MutableStateFlow<Result<String>?>(null)
-    val sendResult: StateFlow<Result<String>?> = _sendResult.asStateFlow()
+    /**
+     * The send screens' sends ([onSendClicked], [withdrawFromSpendingAddress]), each kept to the
+     * presentation that started it - see [com.kachat.app.util.PresentationSends]. A send screen
+     * closed mid-send (iOS lets Cancel close it at any time) leaves its send running here, and
+     * its outcome never reaches the next send screen.
+     */
+    val sends = com.kachat.app.util.PresentationSends<String>()
 
     // Fires when the user taps a bottom tab that's already selected — lets that tab's screen
     // dismiss its own transient UI (e.g. a full-screen QR overlay) instead of the tap being a
@@ -103,9 +108,6 @@ class WalletViewModel @Inject constructor(
     fun setHideBottomBar(hide: Boolean) {
         _hideBottomBar.value = hide
     }
-
-    private val _isSending = MutableStateFlow(false)
-    val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
 
     private val _hasWallet = MutableStateFlow(walletManager.hasWallet())
     val hasWallet: StateFlow<Boolean> = _hasWallet
@@ -673,8 +675,7 @@ class WalletViewModel @Inject constructor(
      * Sends KAS out of one specific spending-chain address (not necessarily the currently
      * active one) to [toAddress] — unlike [WalletService.sendKaspa]/`onSendClicked` (identity)
      * or the "Pay in Kaspa" sweep-all-and-rotate flow, this targets a single address by
-     * [index]. Reuses [sendResult]/[isSending] — only one of these send dialogs can be open at
-     * a time, so sharing that state is fine.
+     * [index]. Its progress and outcome are [sends]' under [sendId], the send screen's own.
      *
      * For a NON-primary index the change stays on the same address: that is a scoped, explicit
      * single-address operation, and the row's own balance is what the user is managing. The
@@ -685,6 +686,7 @@ class WalletViewModel @Inject constructor(
      * listed in Manage Addresses like any other revealed slot.
      */
     fun withdrawFromSpendingAddress(
+        sendId: String,
         index: Int,
         toAddress: String,
         amountSompi: Long,
@@ -694,8 +696,8 @@ class WalletViewModel @Inject constructor(
          *  [com.kachat.app.util.SendFeeModel]. */
         extraFeeSompi: Long = 0L,
     ) {
+        sends.start(sendId)
         viewModelScope.launch {
-            _isSending.value = true
             val fromAddress = walletManager.deriveSpendingAddress(index)
             // Fresh change index for the primary only: past the all-time max, so it has never
             // been revealed, funded or offered (the rule KaspaWalletEngine.sendSpendingPayment
@@ -725,8 +727,7 @@ class WalletViewModel @Inject constructor(
                 // reloads below and moves its star.
                 walletManager.setSpendingAddressIndex(walletManager.getAddress(), fresh.first)
             }
-            _sendResult.value = result
-            _isSending.value = false
+            sends.finish(sendId, result)
             if (result.isSuccess) {
                 refreshSpendingAddress()
                 loadManageAddresses()
@@ -1538,6 +1539,7 @@ class WalletViewModel @Inject constructor(
      * addresses - see [SpendingAddressSendFlow]'s shared coin-control UI.
      */
     fun onSendClicked(
+        sendId: String,
         address: String,
         amountSompi: Long,
         feeRateOverride: Long? = null,
@@ -1545,11 +1547,10 @@ class WalletViewModel @Inject constructor(
         /** Flat extra over the base fee, as in [withdrawFromSpendingAddress]. */
         extraFeeSompi: Long = 0L,
     ) {
+        sends.start(sendId)
         viewModelScope.launch {
-            _isSending.value = true
             val result = walletEngine.sendKaspa(address, amountSompi, feeRateOverride = feeRateOverride, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
-            _sendResult.value = result
-            _isSending.value = false
+            sends.finish(sendId, result)
 
             if (result.isSuccess) {
                 refreshBalance()
@@ -1557,9 +1558,6 @@ class WalletViewModel @Inject constructor(
         }
     }
 
-    fun clearSendResult() {
-        _sendResult.value = null
-    }
 
     fun getActiveMnemonic(): String? = walletManager.getActiveMnemonic()
     fun getActivePassphrase(): String? = walletManager.getActivePassphrase()

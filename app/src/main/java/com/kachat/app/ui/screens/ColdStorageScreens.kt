@@ -1262,10 +1262,6 @@ private fun ColdSendFlow(
         onDispose { viewModel.resetColdSendState() }
     }
 
-    val inFlight = sendState.step in listOf(
-        ColdStorageViewModel.ColdSendStep.BUILDING,
-        ColdStorageViewModel.ColdSendStep.BROADCASTING
-    )
     // The one exact parser for typed KAS (iOS 16b64bc): comma or dot, at most 8 decimals.
     val amountSompi = KaspaUnit.sompiFromUserText(amountText)
     // Only an address of the network the app runs on (iOS ce20e87).
@@ -1371,7 +1367,10 @@ private fun ColdSendFlow(
     val effectiveAddress = knsResolvedAddress ?: toAddress
     val hasValidRecipient = if (knsResolvedAddress != null) true else (isValidRecipient && !isResolvingKns)
 
-    BackHandler(enabled = !inFlight) { onDone() }
+    // Back is Cancel, and Cancel closes the send at any time, as iOS's ColdSendFlowView does -
+    // mid-build or mid-broadcast too; that work finishes in the background (see
+    // ColdStorageViewModel.resetColdSendState).
+    BackHandler { onDone() }
 
     // The recipient scanner and coin control are sheets over the send, as iOS's ColdSendFlowView
     // presents its QRScannerView and CoinControlView.
@@ -1429,16 +1428,16 @@ private fun ColdSendFlow(
                 },
                 navigationIcon = {
                     if (presentedAsSheet) {
-                        TextButton(onClick = { if (!inFlight) onDone() }) {
+                        TextButton(onClick = onDone) {
                             Text(
                                 stringResource(R.string.cancel),
-                                color = if (inFlight) LocalAppColors.current.textSecondary else KaspaTeal,
+                                color = KaspaTeal,
                                 fontSize = 17.sp,
                             )
                         }
                     } else {
-                        IconButton(onClick = { if (!inFlight) onDone() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = if (inFlight) LocalAppColors.current.textSecondary else KaspaTeal)
+                        IconButton(onClick = onDone) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
                         }
                     }
                 },

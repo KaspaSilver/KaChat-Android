@@ -6066,8 +6066,16 @@ fun SpendingAddressSendFlow(
     var customFeeText by remember { mutableStateOf("") }
     /// The completed send, driving the sent-confirmation half sheet.
     var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
-    val isSending by viewModel.isSending.collectAsState()
-    val sendResult by viewModel.sendResult.collectAsState()
+    // This presentation's own sends (iOS's per-sheet isSending/sentTransaction): one closed
+    // mid-send leaves its send running in the view model, and its outcome is never shown here
+    // or on the next send screen.
+    val sendId = remember { java.util.UUID.randomUUID().toString() }
+    DisposableEffect(sendId) {
+        viewModel.sends.open(sendId)
+        onDispose { viewModel.sends.close(sendId) }
+    }
+    val isSending = sendId in viewModel.sends.inFlight.collectAsState().value
+    val sendResult = viewModel.sends.results.collectAsState().value[sendId]
     val coroutineScope = rememberCoroutineScope()
 
     // The spending address this send comes from: [spendingIndex] / [fromAddress] (the primary
@@ -6242,10 +6250,11 @@ fun SpendingAddressSendFlow(
         } else {
             Toast.makeText(context, result.exceptionOrNull()?.message ?: context.getString(R.string.withdrawal_failed), Toast.LENGTH_SHORT).show()
         }
-        viewModel.clearSendResult()
+        viewModel.sends.consume(sendId)
     }
 
-    BackHandler(enabled = !isSending) { onDone() }
+    // Back is Cancel, and Cancel closes the send at any time, as iOS's does - mid-send too.
+    BackHandler { onDone() }
 
     sentTransaction?.let { sent ->
         SentConfirmationSheet(
@@ -6347,9 +6356,9 @@ fun SpendingAddressSendFlow(
             // No rate override: the engine prices the base at the live quote, and the speed or
             // custom fee goes on top as the flat extra shown (SendFeeModel).
             if (sourceIndex != null) {
-                viewModel.withdrawFromSpendingAddress(sourceIndex, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
+                viewModel.withdrawFromSpendingAddress(sendId, sourceIndex, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             } else {
-                viewModel.onSendClicked(effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
+                viewModel.onSendClicked(sendId, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             }
         }
     }
@@ -6375,16 +6384,16 @@ fun SpendingAddressSendFlow(
                 },
                 navigationIcon = {
                     if (presentedAsSheet) {
-                        TextButton(onClick = { if (!isSending) onDone() }) {
+                        TextButton(onClick = onDone) {
                             Text(
                                 stringResource(R.string.cancel),
-                                color = if (isSending) LocalAppColors.current.textSecondary else KaspaTeal,
+                                color = KaspaTeal,
                                 fontSize = 17.sp,
                             )
                         }
                     } else {
-                        IconButton(onClick = { if (!isSending) onDone() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = if (isSending) LocalAppColors.current.textSecondary else KaspaTeal)
+                        IconButton(onClick = onDone) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
                         }
                     }
                 },

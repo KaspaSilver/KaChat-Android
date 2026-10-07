@@ -50,7 +50,7 @@ import kotlinx.coroutines.launch
  *
  * Android's system Back, which iOS has no counterpart for, goes to the content's own
  * [androidx.activity.compose.BackHandler]s, as it does on a screen: the send screens' Back acts as
- * their Cancel (and does nothing mid-send), and Back with the QR scanner or coin control open
+ * their Cancel (at any time, mid-send too, as iOS's Cancel), and Back with the QR scanner or coin control open
  * closes just that. A sheet's window would otherwise take Back for itself and close the whole
  * sheet.
  *

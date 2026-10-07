@@ -726,6 +726,20 @@ class ColdStorageViewModel @Inject constructor(
     // the original tx to verify the signed response's outputs/inputs weren't tampered with.
     private var pendingUnsignedTx: ColdStorageSendEngine.UnsignedColdTx? = null
 
+    /**
+     * Which send screen the shared [sendState] belongs to: [resetColdSendState] (the screen
+     * closing, or its scan given up) moves it on. A build or broadcast still running for an
+     * earlier one finishes in the background, as an iOS cold send does once its sheet is gone,
+     * but no longer writes here - its outcome would otherwise open the next send screen on
+     * someone else's QR or "Sent".
+     */
+    private var sendGeneration = 0
+
+    /** Sets [sendState] for [generation]'s screen, if that is still the one up. */
+    private fun publishSendState(generation: Int, state: (ColdSendUiState) -> ColdSendUiState) {
+        if (generation == sendGeneration) _sendState.value = state(_sendState.value)
+    }
+
     fun startColdSend(
         fromAddress: String,
         toAddress: String,
@@ -739,49 +753,57 @@ class ColdStorageViewModel @Inject constructor(
         if (step != ColdSendStep.IDLE && step != ColdSendStep.SUCCESS && step != ColdSendStep.FAILED) return
 
         _sendState.value = ColdSendUiState(step = ColdSendStep.BUILDING)
+        val generation = sendGeneration
         viewModelScope.launch {
             sendEngine.buildUnsignedTransaction(fromAddress, toAddress, amountSompi, feeRateOverride, manualUtxos, extraFeeSompi).fold(
                 onSuccess = { unsigned ->
+                    if (generation != sendGeneration) return@fold
                     pendingUnsignedTx = unsigned
                     val kspt = sendEngine.toKspt(unsigned)
-                    _sendState.value = ColdSendUiState(
-                        step = ColdSendStep.SHOWING_QR,
-                        qrFrames = QrFrameChunker.chunk(kspt),
-                        feeSompi = unsigned.feeSompi
-                    )
+                    publishSendState(generation) {
+                        ColdSendUiState(
+                            step = ColdSendStep.SHOWING_QR,
+                            qrFrames = QrFrameChunker.chunk(kspt),
+                            feeSompi = unsigned.feeSompi
+                        )
+                    }
                 },
                 onFailure = { e ->
-                    _sendState.value = ColdSendUiState(step = ColdSendStep.FAILED, errorMessage = UserFacingError.message(e, "Failed to build transaction"))
+                    publishSendState(generation) { ColdSendUiState(step = ColdSendStep.FAILED, errorMessage = UserFacingError.message(e, "Failed to build transaction")) }
                 }
             )
         }
     }
 
-    /** [scannedBytes] is the fully reassembled signed-KSPT payload from [com.kachat.app.ui.screens.MultiFrameQrScannerOverlay]. */
+    /** [scannedBytes] is the fully reassembled signed-KSPT payload from [com.kachat.app.ui.screens.MultiFrameQrScannerSheet]. */
     fun onSignedKsptScanned(scannedBytes: ByteArray) {
         val unsigned = pendingUnsignedTx ?: return
         _sendState.value = _sendState.value.copy(step = ColdSendStep.BROADCASTING)
+        val generation = sendGeneration
         viewModelScope.launch {
             val decoded = KsptCodec.decode(scannedBytes).getOrElse { e ->
-                _sendState.value = _sendState.value.copy(
-                    step = ColdSendStep.FAILED,
-                    errorMessage = UserFacingError.message(e, "Couldn't read the signed transaction")
-                )
+                publishSendState(generation) {
+                    it.copy(
+                        step = ColdSendStep.FAILED,
+                        errorMessage = UserFacingError.message(e, "Couldn't read the signed transaction")
+                    )
+                }
                 return@launch
             }
             sendEngine.broadcastSigned(unsigned, decoded).fold(
                 onSuccess = { txId ->
-                    pendingUnsignedTx = null
-                    _sendState.value = ColdSendUiState(step = ColdSendStep.SUCCESS, txId = txId)
+                    if (generation == sendGeneration) pendingUnsignedTx = null
+                    publishSendState(generation) { ColdSendUiState(step = ColdSendStep.SUCCESS, txId = txId) }
                 },
                 onFailure = { e ->
-                    _sendState.value = _sendState.value.copy(step = ColdSendStep.FAILED, errorMessage = UserFacingError.message(e, "Broadcast failed"))
+                    publishSendState(generation) { it.copy(step = ColdSendStep.FAILED, errorMessage = UserFacingError.message(e, "Broadcast failed")) }
                 }
             )
         }
     }
 
     fun resetColdSendState() {
+        sendGeneration++
         pendingUnsignedTx = null
         _sendState.value = ColdSendUiState()
     }
