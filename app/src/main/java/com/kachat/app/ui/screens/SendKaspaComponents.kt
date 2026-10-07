@@ -159,13 +159,11 @@ fun SendRecipientCard(
         if (lockedAddress != null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Filled.CallMerge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                Text(
+                MiddleEllipsisText(
                     lockedAddress,
                     color = colors.textPrimary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Text(stringResource(R.string.consolidating_this_address), color = colors.textSecondary, fontSize = 12.sp)
@@ -256,13 +254,11 @@ private fun SendRecipientStatusLine(
                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(14.dp))
                 Text(stringResource(R.string.resolved_name, resolvedName ?: ""), color = colors.success, fontSize = 12.sp)
             }
-            Text(
+            MiddleEllipsisText(
                 resolvedAddress,
                 color = colors.textSecondary,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

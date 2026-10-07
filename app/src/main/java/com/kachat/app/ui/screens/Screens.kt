@@ -12622,13 +12622,11 @@ fun OtherDomainsDropdown(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Text(
+                        MiddleEllipsisText(
                             address ?: stringResource(if (resolution.failed) R.string.couldnt_check else R.string.not_registered),
                             color = colors.textSecondary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     if (address != null) {

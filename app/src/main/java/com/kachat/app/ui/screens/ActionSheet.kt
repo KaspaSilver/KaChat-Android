@@ -655,12 +655,12 @@ fun LinkActionsSheet(
 ) {
     val colors = LocalAppColors.current
     ActionSheetContainer(title = "Link", subtitle = null, onDismiss = onDismiss) {
-        Text(
+        MiddleEllipsisText(
             url,
             color = colors.textSecondary,
             fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
         )
@@ -833,12 +833,10 @@ fun SentConfirmationSheet(
 
             transaction.recipient?.takeIf { it.isNotBlank() }?.let { recipient ->
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    "to ${middleTruncated(recipient)}",
+                MiddleEllipsisText(
+                    "to $recipient",
                     color = colors.textSecondary,
                     fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -863,12 +861,10 @@ fun SentConfirmationSheet(
                     fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    middleTruncated(transaction.txId),
+                MiddleEllipsisText(
+                    transaction.txId,
                     color = if (explorerUrl != null) KaspaTeal else colors.textPrimary,
                     fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -885,14 +881,6 @@ fun SentConfirmationSheet(
         }
     }
 }
-
-/**
- * Truncates the MIDDLE, not the end. Both ends of a transaction id identify it and the middle
- * does not, so an end-ellipsised hash is unrecognisable. (`TextOverflow.MiddleEllipsis` would do
- * this natively but is not in this Compose version.)
- */
-private fun middleTruncated(value: String, keep: Int = 12): String =
-    if (value.length <= keep * 2 + 1) value else "${value.take(keep)}…${value.takeLast(keep)}"
 
 /** Trailing zeros trimmed - "1.5 KAS", not "1.50000000 KAS". */
 private fun trimmedKasAmount(sompi: Long): String {

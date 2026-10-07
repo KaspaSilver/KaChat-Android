@@ -176,12 +176,11 @@ fun SendKasSheet(
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
                 )
-                Text(
+                // iOS truncates the line in the middle, so a long address-like name keeps its end.
+                MiddleEllipsisText(
                     stringResource(R.string.payment_to_name, recipientName),
                     color = colors.textSecondary,
                     fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
 

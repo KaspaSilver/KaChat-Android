@@ -111,13 +111,11 @@ fun AddressResolutionCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
+            MiddleEllipsisText(
                 shown,
                 color = colors.textSecondary,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         if (looking) {

@@ -1118,13 +1118,12 @@ fun KaChatInternalLinkCard(
         }
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(
+            // Truncated in the middle, as iOS does: a profile link's title can be an address.
+            MiddleEllipsisText(
                 title,
                 color = LocalAppColors.current.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
             )
             Text(
                 body,
