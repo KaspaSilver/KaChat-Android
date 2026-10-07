@@ -450,9 +450,8 @@ fun SendFeeControls(
             Spacer(Modifier.weight(1f))
             when {
                 isEditingFee -> {
-                    val feeFocus = remember { FocusRequester() }
-                    // Straight into the field, so the keyboard is up for the custom fee.
-                    LaunchedEffect(Unit) { runCatching { feeFocus.requestFocus() } }
+                    // Not focused on its own: as on iOS, the keyboard comes up when the field is
+                    // tapped, not the moment it appears.
                     BasicTextField(
                         value = customFeeText,
                         onValueChange = onCustomFeeTextChange,
@@ -461,9 +460,7 @@ fun SendFeeControls(
                         cursorBrush = SolidColor(KaspaTeal),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { onCommit() }),
-                        modifier = Modifier
-                            .widthIn(max = 110.dp)
-                            .focusRequester(feeFocus),
+                        modifier = Modifier.widthIn(max = 110.dp),
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterEnd) {
                                 if (customFeeText.isEmpty()) {
