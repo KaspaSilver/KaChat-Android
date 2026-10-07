@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">सिस्टम के नेटवर्क कैश में रखे लिंक प्रीव्यू और API प्रतिक्रियाएँ।</string>
     <string name="cache_temporary_files">अस्थायी फ़ाइलें</string>
     <string name="cache_temporary_files_detail">फ़ोटो और वॉइस नोट भेजने की अस्थायी फ़ाइलें। कभी भी हटाना सुरक्षित है।</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">जारी रखें</string>
 </resources>

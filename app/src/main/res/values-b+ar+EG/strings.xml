@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">معاينات الروابط وردود واجهات البرمجة المحفوظة في ذاكرة الشبكة المؤقتة للنظام.</string>
     <string name="cache_temporary_files">الملفات المؤقتة</string>
     <string name="cache_temporary_files_detail">ملفات مؤقتة من إرسال الصور والرسائل الصوتية. يمكن حذفها في أي وقت.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">متابعة</string>
 </resources>

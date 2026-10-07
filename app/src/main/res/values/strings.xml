@@ -1321,4 +1321,7 @@
     <string name="cache_web_responses_detail">Link previews and API responses held by the system\'s network cache.</string>
     <string name="cache_temporary_files">Temporary Files</string>
     <string name="cache_temporary_files_detail">Scratch files from sending photos and voice notes. Safe to remove at any time.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_enter_recovery_phrase">Enter your recovery phrase</string>
+    <string name="import_words_continue">Continue</string>
 </resources>

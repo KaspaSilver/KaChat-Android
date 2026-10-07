@@ -980,4 +980,6 @@
     <string name="cache_web_responses_detail">Pratinjau tautan dan respons API yang disimpan di cache jaringan sistem.</string>
     <string name="cache_temporary_files">File sementara</string>
     <string name="cache_temporary_files_detail">File sementara dari pengiriman foto dan pesan suara. Aman dihapus kapan saja.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">Lanjutkan</string>
 </resources>

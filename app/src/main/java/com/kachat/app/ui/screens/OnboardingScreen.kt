@@ -791,14 +791,18 @@ fun CreateAccountLengthScreen(
             }
         }
 
-        // What a seed phrase is, on a page of its own (iOS dd0aab1, 712bb4d).
+        // What a seed phrase is, on a page of its own (iOS dd0aab1, 712bb4d). It dims while held,
+        // as iOS's plain button style does.
+        val explainerInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        val explainerPressed by explainerInteraction.collectIsPressedAsState()
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
+                .graphicsLayer { alpha = if (explainerPressed) IOS_PLAIN_PRESSED_ALPHA else 1f }
                 .clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    interactionSource = explainerInteraction,
                     indication = null,
                     role = Role.Button,
                     onClick = onOpenExplainer
@@ -1073,46 +1077,38 @@ fun ImportWalletScreen(
         }
     }
 
-    Surface(color = LocalAppColors.current.background, modifier = Modifier.fillMaxSize()) {
+    // iOS ImportWalletView: "Import Account" as an inline title with Back, then the label, Paste
+    // and the count on one line, the keyboard, and Continue - 12 apart, 16 from the edges.
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.import_account), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), tint = KaspaTeal)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { scaffoldPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(scaffoldPadding)
+                .padding(16.dp)
                 .imePadding()
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(LocalAppColors.current.surface, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                    contentDescription = stringResource(R.string.back),
-                    tint = com.kachat.app.ui.theme.KaspaTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = stringResource(R.string.import_account),
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = LocalAppColors.current.textPrimary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.seed_phrase),
+                    text = stringResource(R.string.import_words_enter_recovery_phrase),
                     color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f)
                 )
                 // A phrase on the clipboard fills the slots in one tap, and the word count
                 // follows whichever length was pasted (iOS f9beba1).
@@ -1178,6 +1174,7 @@ fun ImportWalletScreen(
                     Spacer(Modifier.width(4.dp))
                     Text("Paste", color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = "$filled/$wordCount",
                     color = if (allValid) LocalAppColors.current.success else LocalAppColors.current.textSecondary,
@@ -1186,7 +1183,7 @@ fun ImportWalletScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Custom in-app keyboard + numbered slot grid + autocomplete (no OS keyboard, no paste)
             SeedPhraseKeyboard(
@@ -1201,20 +1198,24 @@ fun ImportWalletScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Continue to the passphrase step: the arrow and "Continue", gray until every word is
+            // in (iOS ImportWalletView).
             Button(
                 onClick = { if (viewModel.prepareImport(accountName, slots)) onProceed() },
                 enabled = canImport,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surface),
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = IosGray),
                 shape = RoundedCornerShape(12.dp)
             ) {
+                val contentColor = if (canImport) Color.Black else Color.White
+                Icon(Icons.Default.ArrowCircleRight, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.import_account),
-                    color = if (canImport) Color.Black else LocalAppColors.current.textSecondary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
+                    text = stringResource(R.string.import_words_continue),
+                    color = contentColor,
+                    fontSize = 17.sp
                 )
             }
         }

@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">Prévias de links e respostas de API guardadas no cache de rede do sistema.</string>
     <string name="cache_temporary_files">Arquivos temporários</string>
     <string name="cache_temporary_files_detail">Arquivos temporários do envio de fotos e mensagens de voz. Podem ser removidos a qualquer momento.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">Continuar</string>
 </resources>

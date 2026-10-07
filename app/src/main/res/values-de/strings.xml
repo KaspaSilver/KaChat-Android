@@ -1110,4 +1110,6 @@
     <string name="cache_web_responses_detail">Linkvorschauen und API-Antworten im Netzwerk-Cache des Systems.</string>
     <string name="cache_temporary_files">Temporäre Dateien</string>
     <string name="cache_temporary_files_detail">Zwischendateien vom Senden von Fotos und Sprachnachrichten. Können jederzeit entfernt werden.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">Weiter</string>
 </resources>

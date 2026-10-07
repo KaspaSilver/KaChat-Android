@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">시스템 네트워크 캐시에 보관된 링크 미리보기와 API 응답.</string>
     <string name="cache_temporary_files">임시 파일</string>
     <string name="cache_temporary_files_detail">사진과 음성 메모를 보낼 때 생긴 임시 파일. 언제든 삭제해도 안전합니다.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">계속</string>
 </resources>

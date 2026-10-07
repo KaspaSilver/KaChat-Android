@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">システムのネットワークキャッシュに保存されたリンクプレビューと API レスポンス。</string>
     <string name="cache_temporary_files">一時ファイル</string>
     <string name="cache_temporary_files_detail">写真やボイスメモの送信で作られた一時ファイル。いつ削除しても問題ありません。</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">続ける</string>
 </resources>

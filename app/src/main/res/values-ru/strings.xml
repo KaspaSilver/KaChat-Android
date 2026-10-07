@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">Предпросмотры ссылок и ответы API в сетевом кэше системы.</string>
     <string name="cache_temporary_files">Временные файлы</string>
     <string name="cache_temporary_files_detail">Временные файлы от отправки фото и голосовых сообщений. Их можно удалить в любой момент.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">Продолжить</string>
 </resources>

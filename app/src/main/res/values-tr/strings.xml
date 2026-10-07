@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">Sistemin ağ önbelleğinde tutulan bağlantı önizlemeleri ve API yanıtları.</string>
     <string name="cache_temporary_files">Geçici dosyalar</string>
     <string name="cache_temporary_files_detail">Fotoğraf ve sesli not gönderirken oluşan geçici dosyalar. Her zaman silinebilir.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">Devam</string>
 </resources>

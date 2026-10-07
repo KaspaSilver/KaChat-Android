@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">Vistas previas de enlaces y respuestas de API guardadas en la caché de red del sistema.</string>
     <string name="cache_temporary_files">Archivos temporales</string>
     <string name="cache_temporary_files_detail">Archivos temporales de enviar fotos y notas de voz. Se pueden borrar en cualquier momento.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">Continuar</string>
 </resources>

@@ -1113,4 +1113,6 @@
     <string name="cache_web_responses_detail">תצוגות מקדימות של קישורים ותגובות API שנשמרו במטמון הרשת של המערכת.</string>
     <string name="cache_temporary_files">קבצים זמניים</string>
     <string name="cache_temporary_files_detail">קבצי עבודה משליחת תמונות והודעות קוליות. בטוח למחוק אותם בכל עת.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">המשך</string>
 </resources>

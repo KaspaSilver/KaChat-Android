@@ -1144,4 +1144,6 @@
     <string name="cache_web_responses_detail">پیش‌نمایش پیوندها و پاسخ‌های API که در حافظه موقت شبکه سیستم نگه داشته شده‌اند.</string>
     <string name="cache_temporary_files">فایل‌های موقت</string>
     <string name="cache_temporary_files_detail">فایل‌های موقت ارسال عکس و پیام صوتی. حذف آن‌ها در هر زمان بی‌خطر است.</string>
+    <!-- Import Account, the words screen (iOS ImportWalletView) -->
+    <string name="import_words_continue">ادامه</string>
 </resources>
