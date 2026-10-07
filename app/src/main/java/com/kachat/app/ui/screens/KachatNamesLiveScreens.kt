@@ -632,6 +632,7 @@ private fun KachatRowDivider(start: Int) {
 }
 
 /** iOS `.bordered` / `.borderedProminent` buttons: a tinted capsule, or the filled accent one. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KachatButton(
     title: String,
@@ -641,19 +642,23 @@ private fun KachatButton(
     destructive: Boolean = false,
     enabled: Boolean = true,
     large: Boolean = false,
-    /** iOS `.controlSize(.small)`: a shorter capsule, smaller type. */
+    /** iOS `.controlSize(.small)`: a capsule exactly 28 tall, 10 either side of the title. */
     small: Boolean = false,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     val tint = if (destructive) colors.danger else KaspaTeal
+    // iOS's small control is 28 tall with 15pt type. Material holds every button to 40 dp
+    // (ButtonDefaults.MinHeight) inside a 48 dp touch box; both give way here, for this size only:
+    // a set minimum stops the 40 dp default applying, and the touch box isn't enforced.
+    CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides !small) {
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
+        modifier = if (small) modifier.defaultMinSize(minWidth = 1.dp, minHeight = 28.dp) else modifier,
         contentPadding = when {
             large -> PaddingValues(horizontal = 12.dp, vertical = 12.dp)
-            small -> PaddingValues(horizontal = 10.dp, vertical = 3.dp)
+            small -> PaddingValues(horizontal = 10.dp, vertical = 0.dp)
             else -> PaddingValues(horizontal = 14.dp, vertical = 6.dp)
         },
         colors = if (prominent) {
@@ -669,10 +674,11 @@ private fun KachatButton(
         Text(
             title,
             fontWeight = if (prominent) FontWeight.Bold else FontWeight.SemiBold,
-            fontSize = if (small) 13.sp else 15.sp,
+            fontSize = 15.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
     }
 }
 
