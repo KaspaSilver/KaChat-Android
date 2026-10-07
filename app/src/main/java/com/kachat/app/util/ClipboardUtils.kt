@@ -28,7 +28,14 @@ import com.kachat.app.R
  * miss when the user glances at the confirmation. Short or abnormal values (no prefix, tiny
  * payload - e.g. a foreign chain's swap deposit address) fall back to the plain string.
  */
-fun showAddressCopiedToast(context: Context, address: String) {
+fun showAddressCopiedToast(context: Context, address: String, haptic: Boolean = true) {
+    // iOS plays Haptics.success() with nearly every address copy; the few that don't (a group
+    // member's or a public room sender's address) pass false.
+    if (haptic) {
+        var c: Context? = context
+        while (c is android.content.ContextWrapper && c !is android.app.Activity) c = c.baseContext
+        (c as? android.app.Activity)?.window?.decorView?.playHaptic(IosHaptic.SUCCESS)
+    }
     com.kachat.app.ui.screens.IosToasts.show(context.getString(R.string.address_copied_short, addressCopiedDisplay(address)))
 }
 

@@ -328,6 +328,15 @@ private fun ChattingAddressDetailScreen(
     onSwitched: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
+    // iOS: copying flips the caption to "Copied to clipboard" for 1.5 s, with the haptic - no toast.
+    var addressCopied by remember { mutableStateOf(false) }
+    val copyHaptic = com.kachat.app.util.rememberHaptics()
+    LaunchedEffect(addressCopied) {
+        if (addressCopied) {
+            kotlinx.coroutines.delay(1_500)
+            addressCopied = false
+        }
+    }
     val context = LocalContext.current
     var isSwitching by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
@@ -384,7 +393,8 @@ private fun ChattingAddressDetailScreen(
                         .fillMaxWidth()
                         .clickable {
                             clipboard.setText(AnnotatedString(candidate.address))
-                            showAddressCopiedToast(context, candidate.address)
+                            copyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                            addressCopied = true
                         }
                 ) {
                     Text(
@@ -398,7 +408,7 @@ private fun ChattingAddressDetailScreen(
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    stringResource(R.string.tap_the_address_to_copy_it),
+                    if (addressCopied) "Copied to clipboard" else stringResource(R.string.tap_the_address_to_copy_it),
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center,

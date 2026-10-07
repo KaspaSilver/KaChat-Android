@@ -2647,10 +2647,16 @@ fun MessageBubble(
                         }
                     }
                     if (showFullText) {
+                        val fullTextCopyHaptic = com.kachat.app.util.rememberHaptics()
                         FullMessageTextDialog(
                             text = bodyText,
                             onDismiss = { showFullText = false },
-                            onCopy = { clipboardManager.setText(AnnotatedString(bodyText)) }
+                            // iOS MessageBubbleView.handleCopy: a haptic and the chat's toast.
+                            onCopy = {
+                                clipboardManager.setText(AnnotatedString(bodyText))
+                                fullTextCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                IosToasts.show("Message copied to clipboard.")
+                            }
                         )
                     }
                 } else if (isEntirelyInternalLinkMessage) {
@@ -7426,6 +7432,7 @@ private fun IdentityAddressActionsSheet(
  */
 @Composable
 private fun IdentityAddressPublicKeyOverlay(address: String, onDismiss: () -> Unit) {
+    val keyCopyHaptic = com.kachat.app.util.rememberHaptics()
     val colors = LocalAppColors.current
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -7499,6 +7506,7 @@ private fun IdentityAddressPublicKeyOverlay(address: String, onDismiss: () -> Un
                 Spacer(Modifier.height(16.dp))
                 TextButton(onClick = {
                     clipboard.setText(AnnotatedString(publicKeyHex))
+                    keyCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                     IosToasts.show("Public key copied")
                 }) {
                     Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
@@ -7526,6 +7534,7 @@ private fun IdentityAddressPublicKeyOverlay(address: String, onDismiss: () -> Un
  */
 @Composable
 private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: () -> Unit) {
+    val keyCopyHaptic = com.kachat.app.util.rememberHaptics()
     var revealed by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -7630,6 +7639,7 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
             if (revealed) {
                 TextButton(onClick = {
                     copyPrivateKeyWithAutoWipe(context, privateKeyHex)
+                    keyCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                     IosToasts.show("Private key copied. Clipboard will clear in 30s.")
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -8727,6 +8737,7 @@ private fun EditProfileTextField(label: String, value: String, onValueChange: (S
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
+    val secretCopyHaptic = com.kachat.app.util.rememberHaptics()
     var revealed by remember { mutableStateOf(false) }
     val mnemonic = remember { viewModel.getActiveMnemonic() ?: "" }
     // A passphrase (the "25th word") changes every key: the words alone restore a different,
@@ -8918,6 +8929,7 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     // it than a photograph of a notebook (iOS f9beba1).
                     TextButton(onClick = {
                         copyPrivateKeyWithAutoWipe(context, mnemonic, label = "recovery phrase")
+                        secretCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                         IosToasts.show("Seed phrase copied. Clipboard will clear in 30s.")
                     }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -8928,6 +8940,9 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     }
                     TextButton(onClick = {
                         copyPrivateKeyWithAutoWipe(context, privateKey)
+                        // iOS SettingsView: the haptic and the 30-second notice, as the phrase has.
+                        secretCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                        IosToasts.show("Private key hex copied. Clipboard will clear in 30s.")
                     }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Tag, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
@@ -9046,7 +9061,7 @@ fun SettingsScreen(
                 ) {
                     Box(Modifier.size(12.dp).background(Color(dotColorHex), CircleShape))
                 }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BalanceLabelRow(balance) }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BalanceLabelRow(balance, copyOnTap = true) }
                 if (sectionKey == null) {
                     Text(
                         stringResource(R.string.done),
@@ -10034,9 +10049,23 @@ fun DiagnosticsSettingsItems(chatViewModel: ChatViewModel = hiltViewModel()) {
  * Swap, Portfolio and KaPosts via BalanceTopBarLabel below).
  */
 @Composable
-fun BalanceLabelRow(balance: String, modifier: Modifier = Modifier) {
+fun BalanceLabelRow(
+    balance: String,
+    modifier: Modifier = Modifier,
+    /** Chats, Profile and Settings: a tap copies the exact figure (iOS's balance toolbar label,
+     *  "Balance copied to clipboard."). */
+    copyOnTap: Boolean = false,
+) {
+    val balanceClipboard = LocalClipboardManager.current
+    val balanceHaptic = com.kachat.app.util.rememberHaptics()
     Row(
-        modifier = modifier,
+        modifier = modifier.then(
+            if (copyOnTap) Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                balanceClipboard.setText(AnnotatedString(balance.substringBefore(' ')))
+                balanceHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                IosToasts.show("Balance copied to clipboard.")
+            } else Modifier
+        ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -10112,7 +10141,7 @@ fun TopStatusBar(
             )
         }
 
-        BalanceLabelRow(balance)
+        BalanceLabelRow(balance, copyOnTap = true)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (isEditing && selectAllLabel != null) {
@@ -10953,7 +10982,8 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
                         .fillMaxWidth()
                         .clickable {
                             clipboardManager.setText(AnnotatedString(entry.address))
-                            showAddressCopiedToast(context, entry.address)
+                            nodeBookHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                            IosToasts.show("Node address copied.")
                         }
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -11534,7 +11564,7 @@ fun AddressQrPage(
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 clipboardManager.setText(AnnotatedString(address))
                 haptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                com.kachat.app.util.showAddressCopiedToast(context, address)
+                com.kachat.app.util.showAddressCopiedToast(context, address, haptic = false)
             },
     ) {
         AddressQrPageBar(dismiss = dismiss, onDismiss = onDismiss) {
@@ -11765,9 +11795,13 @@ fun QrCodeOverlay(
     /** "Done" top right instead of "Close" top left - the Chats New sheet's QR pages, which iOS
      *  shows in a sheet of their own with a Done button (e6400d6). */
     dismissAsDone: Boolean = false,
+    /** The toast a tap shows, when [value] isn't an address - "kpub copied to clipboard." for
+     *  a kpub (iOS ColdStorageView's kpub QR). Null: the standard address toast. */
+    copiedToast: String? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val qrCopyHaptic = com.kachat.app.util.rememberHaptics()
 
     // Its own window, not a Box drawn into the current screen: as inline content, the app's
     // floating dock stayed on top of the code, which is both wrong to look at and something a
@@ -11788,7 +11822,10 @@ fun QrCodeOverlay(
             // dismissal stays on the arrow / system back only.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 clipboardManager.setText(AnnotatedString(value))
-                com.kachat.app.util.showAddressCopiedToast(context, value)
+                // iOS: every one of these full-screen QR copies plays the success haptic.
+                qrCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                if (copiedToast != null) IosToasts.show(copiedToast)
+                else com.kachat.app.util.showAddressCopiedToast(context, value, haptic = false)
             },
         contentAlignment = Alignment.Center
     ) {
@@ -13150,7 +13187,7 @@ data class GroupMemberCandidate(
     val avatarUrl: String?,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatInfoScreen(
     contactId: String,
@@ -13450,6 +13487,22 @@ fun ChatInfoScreen(
                                     }
                                 }
                                 val bio = knsFields?.bio?.takeIf { it.isNotBlank() }
+                                // iOS: the bio shows five lines and a tap opens the rest; a long
+                                // press copies it ("Bio copied to clipboard.").
+                                var isBioExpanded by remember(contactId) { mutableStateOf(false) }
+                                val bioInteraction = remember { MutableInteractionSource() }
+                                val bioModifier: (String) -> Modifier = { text ->
+                                    Modifier.combinedClickable(
+                                        interactionSource = bioInteraction,
+                                        indication = null,
+                                        onClick = { isBioExpanded = !isBioExpanded },
+                                        onLongClick = {
+                                            clipboardManager.setText(AnnotatedString(text))
+                                            infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                            IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Bio"))
+                                        },
+                                    )
+                                }
                                 when {
                                     // Testnet: the .kachat bio, and its Linktree link under it.
                                     kachatBio != null -> Column {
@@ -13457,7 +13510,8 @@ fun ChatInfoScreen(
                                             text = kachatBio,
                                             color = LocalAppColors.current.textPrimary,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.clickable { clipboardManager.setText(AnnotatedString(kachatBio)) }
+                                            maxLines = if (isBioExpanded) Int.MAX_VALUE else 5,
+                                            modifier = bioModifier(kachatBio)
                                         )
                                         kachatProfile?.linktree?.let { linktree ->
                                             Row(
@@ -13490,7 +13544,8 @@ fun ChatInfoScreen(
                                         text = bio,
                                         color = LocalAppColors.current.textPrimary,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.clickable { clipboardManager.setText(AnnotatedString(bio)) }
+                                        maxLines = if (isBioExpanded) Int.MAX_VALUE else 5,
+                                        modifier = bioModifier(bio)
                                     )
                                 }
                             }
@@ -13529,15 +13584,25 @@ fun ChatInfoScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clickable {
-                                                    // Someone else's profile: web and email only,
-                                                    // never another app's scheme (iOS 5090ad9).
-                                                    val url = com.kachat.app.util.SafeExternalLink.forProfileField(value)
-                                                        ?: return@clickable
-                                                    try {
-                                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                                    } catch (e: Exception) { /* no browser available */ }
-                                                }
+                                                .combinedClickable(
+                                                    onClick = {
+                                                        // Someone else's profile: web and email only,
+                                                        // never another app's scheme (iOS 5090ad9).
+                                                        val url = com.kachat.app.util.SafeExternalLink.forProfileField(value)
+                                                        if (url != null) {
+                                                            try {
+                                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                                            } catch (e: Exception) { /* no browser available */ }
+                                                        }
+                                                    },
+                                                    // iOS profileLinkView: a long press copies the
+                                                    // field ("Website copied to clipboard.").
+                                                    onLongClick = {
+                                                        clipboardManager.setText(AnnotatedString(value))
+                                                        infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                                        IosToasts.show(context.getString(R.string.field_copied_to_clipboard, label))
+                                                    },
+                                                )
                                                 .padding(vertical = 8.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {

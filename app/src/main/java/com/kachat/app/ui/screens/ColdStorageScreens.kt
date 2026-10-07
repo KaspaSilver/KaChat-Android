@@ -116,6 +116,7 @@ fun ColdStorageListScreen(
     var pendingKpub by remember { mutableStateOf<String?>(null) }
     var nameInput by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
+    val kpubHaptic = com.kachat.app.util.rememberHaptics()
     /** Account whose kpub QR is on screen. */
     var kpubQrAccount by remember { mutableStateOf<ColdStorageManager.ColdAccount?>(null) }
     var renameInput by remember { mutableStateOf("") }
@@ -268,6 +269,8 @@ fun ColdStorageListScreen(
                                 ) {
                                     showMenu = false
                                     clipboardManager.setText(AnnotatedString(account.kpub))
+                                    kpubHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                    IosToasts.show("kpub copied to clipboard.")
                                 }
                                 ActionSheetRow(
                                     icon = Icons.Default.QrCode,
@@ -321,7 +324,8 @@ fun ColdStorageListScreen(
             onDismiss = { kpubQrAccount = null },
             message = "Watch-only. This cannot spend, but it reveals every address in this account.",
             // A kpub is ~114 characters; the two-line default is for an address and would cut it.
-            valueMaxLines = 5
+            valueMaxLines = 5,
+            copiedToast = "kpub copied to clipboard.",
         )
     }
 
@@ -479,6 +483,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
     val discoveryProgress by viewModel.discoveryProgress.collectAsState()
     val isUserDiscovering by viewModel.isUserDiscovering.collectAsState()
     val clipboardManager = LocalClipboardManager.current
+    val kpubHaptic = com.kachat.app.util.rememberHaptics()
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var sendFromRow by remember { mutableStateOf<ColdStorageViewModel.AddressRow?>(null) }
@@ -611,7 +616,11 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     Spacer(Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.clickable {
-                            account?.kpub?.let { clipboardManager.setText(AnnotatedString(it)) }
+                            account?.kpub?.let {
+                                clipboardManager.setText(AnnotatedString(it))
+                                kpubHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                IosToasts.show("kpub copied to clipboard.")
+                            }
                         },
                         verticalAlignment = Alignment.CenterVertically
                     ) {

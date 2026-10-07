@@ -695,7 +695,7 @@ private fun SwapDetailSheet(
                     SwapFormRow(onClick = {
                         clipboardManager.setText(AnnotatedString(swap.payinAddress))
                         haptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                        showAddressCopiedToast(context, swap.payinAddress)
+                        showAddressCopiedToast(context, swap.payinAddress, haptic = false)
                     }) {
                         Text(swap.payinAddress, color = colors.textPrimary, fontSize = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                     }

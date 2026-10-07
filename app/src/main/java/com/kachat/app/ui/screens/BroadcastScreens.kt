@@ -1227,7 +1227,7 @@ fun BroadcastChannelScreen(
                     },
                     onCopyAddress = {
                         sheetClipboard.setText(AnnotatedString(address))
-                        com.kachat.app.util.showAddressCopiedToast(sheetContext, address)
+                        com.kachat.app.util.showAddressCopiedToast(sheetContext, address, haptic = false)
                     },
                     // Per-room since 4.0: hides this sender in THIS room only.
                     onHide = { broadcastViewModel.hideSender(address, channelName) },
@@ -1476,7 +1476,11 @@ fun BroadcastChannelScreen(
                                         FullMessageTextDialog(
                                             text = displayContent,
                                             onDismiss = { showFullText = false },
-                                            onCopy = { clipboardManager.setText(AnnotatedString(displayContent)) }
+                                            // iOS PublicChatChannelView's onCopyMessage: "Message copied." for 3 s.
+                                            onCopy = {
+                                                clipboardManager.setText(AnnotatedString(displayContent))
+                                                IosToasts.show("Message copied.", durationMs = IosToastDuration.LONG)
+                                            }
                                         )
                                     }
                                 } else if (isEntirelyInternalLinkMessage) {

@@ -953,7 +953,7 @@ fun GroupChatThreadScreen(
                     onPayInKaspa = { navController.navigate("chat/$address?paymentMode=true") },
                     onCopyAddress = {
                         sheetClipboard.setText(AnnotatedString(address))
-                        com.kachat.app.util.showAddressCopiedToast(sheetContext, address)
+                        com.kachat.app.util.showAddressCopiedToast(sheetContext, address, haptic = false)
                     },
                     muteState = chatViewModel.isGroupMemberMuted(groupId, address),
                     onToggleMute = {
@@ -1643,7 +1643,6 @@ private fun GroupMessageBubble(
                             showMenu = false
                         }
                     }
-                    val copyHaptic = com.kachat.app.util.rememberHaptics()
                     ActionSheetRow(
                         icon = Icons.Default.ContentCopy,
                         title = stringResource(R.string.copy_message),
@@ -1651,9 +1650,10 @@ private fun GroupMessageBubble(
                     ) {
                         clipboardManager.setText(AnnotatedString(displayContent))
                         showMenu = false
-                        // iOS MessageBubbleView.handleCopy, in the group's toast (3 s).
-                        copyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                        IosToasts.show("Message copied to clipboard.", durationMs = IosToastDuration.LONG)
+                        // iOS GroupMessageBubbleRow's Copy Message: onCopy(displayContent, .success)
+                        // into the group's showToast - the toast is the copied text itself, for
+                        // 3 s, with no haptic.
+                        IosToasts.show(displayContent, durationMs = IosToastDuration.LONG)
                     }
                     ActionSheetRow(
                         icon = Icons.Default.Public,
