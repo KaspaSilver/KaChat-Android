@@ -133,7 +133,6 @@ fun KaspaHubScreen(
         // opened from here reaches the detail and address screens with its addresses loaded.
         openSection == Screen.ColdStorage -> ColdStorageListScreen(
             navController = navController,
-            walletViewModel = walletViewModel,
             viewModel = androidx.hilt.navigation.compose.hiltViewModel(
                 remember(navController) { navController.getBackStackEntry(navController.graph.id) }
             )

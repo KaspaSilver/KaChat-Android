@@ -1265,47 +1265,8 @@ fun MainShell(
                 }
             }
 
-            composable(
-                "portfolio_transactions?prefillType={prefillType}&prefillAmountKas={prefillAmountKas}&prefillFiatValue={prefillFiatValue}&prefillTimestamp={prefillTimestamp}&prefillNotes={prefillNotes}&prefillSwapId={prefillSwapId}",
-                arguments = listOf(
-                    navArgument("prefillType") { type = NavType.StringType; nullable = true; defaultValue = null },
-                    navArgument("prefillAmountKas") { type = NavType.StringType; nullable = true; defaultValue = null },
-                    navArgument("prefillFiatValue") { type = NavType.StringType; nullable = true; defaultValue = null },
-                    navArgument("prefillTimestamp") { type = NavType.StringType; nullable = true; defaultValue = null },
-                    navArgument("prefillNotes") { type = NavType.StringType; nullable = true; defaultValue = null },
-                    navArgument("prefillSwapId") { type = NavType.StringType; nullable = true; defaultValue = null }
-                )
-            ) { backStackEntry ->
-                // Shares the Portfolio tab's own PortfolioViewModel instance rather than a fresh
-                // one, so adding/editing/deleting a transaction here is immediately reflected in
-                // the summary card and charts back on Portfolio — see PortfolioTransactionsScreen's
-                // doc comment. That only works if the Portfolio tab's own back stack entry already
-                // exists (getBackStackEntry throws otherwise) — true when reached from Portfolio's
-                // own "View All" button, but NOT when reached from Swap's "Add to Portfolio" if the
-                // user never opened the Portfolio tab this session, so fall back to a fresh instance.
-                val parentEntry = remember(backStackEntry) {
-                    try {
-                        navController.getBackStackEntry(Screen.Portfolio.route)
-                    } catch (e: IllegalArgumentException) {
-                        null
-                    }
-                }
-                val args = backStackEntry.arguments
-                PortfolioTransactionsScreen(
-                    onBack = { navController.popBackStack() },
-                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel(),
-                    prefillType = args?.getString("prefillType"),
-                    prefillAmountKas = args?.getString("prefillAmountKas")?.toDoubleOrNull(),
-                    prefillFiatValue = args?.getString("prefillFiatValue")?.toDoubleOrNull(),
-                    prefillTimestampMillis = args?.getString("prefillTimestamp")?.toLongOrNull(),
-                    prefillNotes = args?.getString("prefillNotes")?.let { android.net.Uri.decode(it) },
-                    prefillSwapId = args?.getString("prefillSwapId")
-                )
-            }
-
             // Full-screen KAS price / portfolio value charts, opened from the Portfolio squares.
-            // Both share the Portfolio tab's PortfolioViewModel instance (same rationale as
-            // portfolio_transactions above) so price history / selected range / summary are already
+            // Both share the Portfolio tab's PortfolioViewModel instance so price history / selected range / summary are already
             // loaded and stay consistent - the squares always push these from the Portfolio tab.
             composable("portfolio_price_chart") { backStackEntry ->
                 val parentEntry = remember(backStackEntry) {
@@ -1359,7 +1320,6 @@ fun MainShell(
                 Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                     ColdStorageListScreen(
                         navController = navController,
-                        walletViewModel = walletViewModel,
                         viewModel = sharedColdStorageViewModel(navController)
                     )
                 }

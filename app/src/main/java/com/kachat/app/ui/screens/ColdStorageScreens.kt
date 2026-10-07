@@ -107,7 +107,6 @@ import java.util.Locale
 fun ColdStorageListScreen(
     navController: NavController,
     viewModel: ColdStorageViewModel = hiltViewModel(),
-    walletViewModel: WalletViewModel = hiltViewModel()
 ) {
     val accounts by viewModel.accounts.collectAsState()
     val importState by viewModel.importState.collectAsState()

@@ -161,7 +161,6 @@ import com.kachat.app.util.formatKasAmount
 import com.kachat.app.util.formatKasAmountGrouped
 import com.kachat.app.viewmodels.PortfolioSummary
 import com.kachat.app.viewmodels.PortfolioViewModel
-import com.kachat.app.viewmodels.SwapViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -196,7 +195,6 @@ private fun priceRangeLabel(days: Int): String = when (days) {
 fun PortfolioScreen(
     navController: NavController,
     viewModel: PortfolioViewModel = hiltViewModel(),
-    swapViewModel: SwapViewModel = hiltViewModel()
 ) {
     val currentPriceUsd by viewModel.currentPriceUsd.collectAsState()
     val priceChange24h by viewModel.priceChange24h.collectAsState()
@@ -329,7 +327,6 @@ fun PortfolioScreen(
                     )
                     PortfolioTransactionsContent(
                         viewModel = viewModel,
-                        swapViewModel = swapViewModel,
                         modifier = Modifier.height(portfolioScreenHeight * 0.8f)
                     )
                 }
@@ -346,82 +343,22 @@ fun PortfolioScreen(
 
 
 /**
- * Full-screen wrapper around [PortfolioTransactionsContent] for the swap-originated deep link
- * (see KaChatApp.kt's "portfolio_transactions?..." route) — arriving here from a completed swap's
- * "Add to Portfolio" action needs its own top bar/back button since it's pushed as a separate
- * destination, unlike the Transactions tab embedded directly in PortfolioScreen.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PortfolioTransactionsScreen(
-    onBack: () -> Unit,
-    viewModel: PortfolioViewModel = hiltViewModel(),
-    swapViewModel: SwapViewModel = hiltViewModel(),
-    prefillType: String? = null,
-    prefillAmountKas: Double? = null,
-    prefillFiatValue: Double? = null,
-    prefillTimestampMillis: Long? = null,
-    prefillNotes: String? = null,
-    prefillSwapId: String? = null
-) {
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.transactions), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        PortfolioTransactionsContent(
-            viewModel = viewModel,
-            swapViewModel = swapViewModel,
-            // The Scaffold's top bar already says "Transactions" — keep just the action icons.
-            showTitle = false,
-            prefillType = prefillType,
-            prefillAmountKas = prefillAmountKas,
-            prefillFiatValue = prefillFiatValue,
-            prefillTimestampMillis = prefillTimestampMillis,
-            prefillNotes = prefillNotes,
-            prefillSwapId = prefillSwapId,
-            modifier = Modifier.padding(padding)
-        )
-    }
-}
-
-/**
  * The transaction ledger content — list, CSV import/export, and the add/edit/delete dialog — with
- * no Scaffold/top bar of its own, so it can be embedded either inside [PortfolioTransactionsScreen]
- * (full-screen, swap deep link) or directly as PortfolioScreen's Transactions tab. Shares whichever
+ * no Scaffold/top bar of its own, embedded as PortfolioScreen's Transactions tab. Shares whichever
  * PortfolioViewModel instance the caller passes in rather than creating its own, so a transaction
  * added/edited/deleted here is immediately reflected in the summary card and charts elsewhere.
  */
 @Composable
 private fun PortfolioTransactionsContent(
     viewModel: PortfolioViewModel,
-    swapViewModel: SwapViewModel,
     showTitle: Boolean = true,
-    prefillType: String? = null,
-    prefillAmountKas: Double? = null,
-    prefillFiatValue: Double? = null,
-    prefillTimestampMillis: Long? = null,
-    prefillNotes: String? = null,
-    prefillSwapId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val transactions by viewModel.transactions.collectAsState()
     val currentPriceUsd by viewModel.currentPriceUsd.collectAsState()
     val currencyCode by viewModel.currency.collectAsState()
     val context = LocalContext.current
-    var showAddDialog by remember { mutableStateOf(prefillType != null) }
-    // Only the auto-opened dialog (arriving from a swap) should be prefilled — cleared the moment
-    // it's dismissed or saved so a later manual "+" tap opens a genuinely blank form.
-    var pendingPrefillSwapId by remember { mutableStateOf(prefillSwapId) }
+    var showAddDialog by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<PortfolioTransactionEntity?>(null) }
     /** The transaction a long press is moving to another portfolio, while its sheet is up. */
     var movingTransaction by remember { mutableStateOf<PortfolioTransactionEntity?>(null) }
@@ -582,7 +519,6 @@ private fun PortfolioTransactionsContent(
                                 subtitle = "Record a buy or a sell by hand.",
                             ) {
                                 showAddMenu = false
-                                pendingPrefillSwapId = null
                                 showAddDialog = true
                             }
                             ActionSheetRow(
@@ -816,37 +752,22 @@ private fun PortfolioTransactionsContent(
 
     if (showAddDialog || editingTransaction != null) {
         val existing = editingTransaction
-        val swapIdForThisDialog = pendingPrefillSwapId
         TransactionDialog(
             existing = existing,
-            prefillType = if (existing == null) prefillType else null,
-            prefillAmountKas = if (existing == null) prefillAmountKas else null,
-            prefillFiatValue = if (existing == null) prefillFiatValue else null,
-            prefillTimestampMillis = if (existing == null) prefillTimestampMillis else null,
-            prefillNotes = if (existing == null) prefillNotes else null,
             currentPriceUsd = currentPriceUsd,
             currencyCode = currencyCode,
             onDismiss = {
                 showAddDialog = false
                 editingTransaction = null
-                pendingPrefillSwapId = null
             },
             onSave = { type, amountKas, fiatValue, timestampMillis, notes ->
                 if (existing != null) {
                     viewModel.updateTransaction(existing.id, type, amountKas, fiatValue, timestampMillis, notes)
                 } else {
-                    // A swap carries its own source key, so adding the same one again is
-                    // recognised. Without it swaps had no provenance at all and the ledger had
-                    // nothing to count them by.
-                    viewModel.addTransaction(
-                        type, amountKas, fiatValue, timestampMillis, notes,
-                        sourceTxId = swapIdForThisDialog?.let { PortfolioViewModel.swapSourceTxId(it) },
-                    )
-                    swapIdForThisDialog?.let { swapViewModel.markSwapAddedToPortfolio(it) }
+                    viewModel.addTransaction(type, amountKas, fiatValue, timestampMillis, notes)
                 }
                 showAddDialog = false
                 editingTransaction = null
-                pendingPrefillSwapId = null
             },
             onDelete = existing?.let { tx ->
                 {
@@ -2426,19 +2347,11 @@ private fun TransactionDialog(
     onDismiss: () -> Unit,
     onSave: (type: String, amountKas: Double, fiatValue: Double, timestampMillis: Long, notes: String?) -> Unit,
     onDelete: (() -> Unit)? = null,
-    // Pre-populates a brand-new (existing == null) form — e.g. arriving from a completed swap
-    // with its amounts already known — without switching the dialog into edit mode.
-    prefillType: String? = null,
-    prefillAmountKas: Double? = null,
-    prefillFiatValue: Double? = null,
-    prefillTimestampMillis: Long? = null,
-    prefillNotes: String? = null
 ) {
     // "buy" | "sell" | "transfer" (iOS 7423330 - the editor's Buy / Sell / Transfer).
     var type by remember {
         mutableStateOf(
             existing?.type?.takeIf { it == "buy" || it == "sell" || it == "transfer" }
-                ?: prefillType?.takeIf { it == "buy" || it == "sell" || it == "transfer" }
                 ?: "buy"
         )
     }
@@ -2446,7 +2359,6 @@ private fun TransactionDialog(
     var quantityText by remember {
         mutableStateOf(
             existing?.let { formatKasAmount(it.amountSompi / 100_000_000.0) }
-                ?: prefillAmountKas?.let { formatKasAmount(it) }
                 ?: ""
         )
     }
@@ -2454,23 +2366,18 @@ private fun TransactionDialog(
     // reopening an old entry shows what was actually paid, not today's price. Fee isn't stored
     // separately (see PortfolioRepository), so it isn't recoverable into its own field here —
     // the derived price-per-coin already nets it out, and the total still matches exactly
-    // unless the user changes quantity/price/fee themselves. Same math for a swap prefill, using
-    // its known KAS amount and USD total in place of a stored entity.
+    // unless the user changes quantity/price/fee themselves.
     var priceText by remember {
         mutableStateOf(
             existing?.let {
                 val kas = it.amountSompi / 100_000_000.0
                 if (kas > 0) String.format(Locale.US, "%.8f", it.fiatValue / kas).trimEnd('0').trimEnd('.') else ""
-            } ?: if (prefillAmountKas != null && prefillFiatValue != null && prefillAmountKas > 0) {
-                String.format(Locale.US, "%.8f", prefillFiatValue / prefillAmountKas).trimEnd('0').trimEnd('.')
-            } else {
-                currentPriceUsd?.let { String.format(Locale.US, "%.8f", it).trimEnd('0').trimEnd('.') } ?: ""
-            }
+            } ?: currentPriceUsd?.let { String.format(Locale.US, "%.8f", it).trimEnd('0').trimEnd('.') } ?: ""
         )
     }
     var feeText by remember { mutableStateOf("") }
-    var notesText by remember { mutableStateOf(existing?.notes ?: prefillNotes ?: "") }
-    var timestampMillis by remember { mutableStateOf(existing?.timestampMillis ?: prefillTimestampMillis ?: System.currentTimeMillis()) }
+    var notesText by remember { mutableStateOf(existing?.notes ?: "") }
+    var timestampMillis by remember { mutableStateOf(existing?.timestampMillis ?: System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     // Pasted amounts keep their commas and symbols - see parseAmount.
