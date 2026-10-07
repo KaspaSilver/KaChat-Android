@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">যার কাছে এটি থাকবে সে সবকিছু নিতে পারবে</string>
     <string name="seed_phrase_explainer_safe_title">কীভাবে নিরাপদে রাখবেন</string>
     <string name="seed_phrase_explainer_lengths_title">১২ নাকি ২৪টি শব্দ?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">প্রোফাইল</string>
+    <string name="cache_profiles_detail">আপনার প্রোফাইল এবং আপনি যাদের দেখেন তাদের অবতার, ব্যানার ও বায়ো। পরে দেখলে আবার লোড হবে।</string>
+    <string name="cache_web_responses">ওয়েব রেসপন্স</string>
+    <string name="cache_web_responses_detail">সিস্টেমের নেটওয়ার্ক ক্যাশে রাখা লিংক প্রিভিউ ও API রেসপন্স।</string>
+    <string name="cache_temporary_files">অস্থায়ী ফাইল</string>
+    <string name="cache_temporary_files_detail">ছবি ও ভয়েস নোট পাঠানোর অস্থায়ী ফাইল। যেকোনো সময় মুছে ফেলা নিরাপদ।</string>
 </resources>

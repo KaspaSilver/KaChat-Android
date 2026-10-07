@@ -123,8 +123,16 @@ class KachatNamesRegistry @Inject constructor(
      * banners, bios everywhere - see [cachedIdentity]; iOS e52357d). Compose snapshot state, so a
      * composable that read a name or avatar through it re-renders when an answer lands - iOS
      * publishes the cache and tells ContactsManager. Written under [identityLock].
+     *
+     * Kept on disk too ([KachatProfileCache], iOS 5e408f7), so people's avatars and bios show at
+     * once after a launch while a fresh copy is fetched; Settings > Storage > Cache > Profiles
+     * clears it ([clearProfileCache]).
      */
     private var identities by mutableStateOf<Map<String, Identity>>(emptyMap())
+    /** When each cached identity was stored (unix ms): the oldest go first past [IDENTITIES_KEEP]. */
+    private val identityStoredAt = ConcurrentHashMap<String, Long>()
+    /** The coalesced write of [identities] to disk (a contact sweep lands many in a row). */
+    private var identitiesPersistJob: kotlinx.coroutines.Job? = null
     /** When each identity was last asked: the registry revision and unix ms. Not state - a
      *  re-asked answer that is unchanged re-renders nothing. */
     private val identityAsked = ConcurrentHashMap<String, Pair<Int, Long>>()
@@ -147,6 +155,16 @@ class KachatNamesRegistry @Inject constructor(
         // the companion, from code Hilt does not inject (built at startup on testnet, see
         // KaChatApplication)
         instance = this
+        // The identities cached on the last run, off the main thread. None of them was asked in
+        // this run, so each is shown at once and re-fetched on first use (iOS 5e408f7).
+        scope.launch {
+            val stored = loadIdentities()
+            if (stored.isEmpty()) return@launch
+            synchronized(identityLock) {
+                stored.forEach { (k, v) -> identityStoredAt.putIfAbsent(k, v.second) }
+                identities = stored.mapValues { it.value.first } + identities
+            }
+        }
     }
 
     // Setup
@@ -668,7 +686,11 @@ class KachatNamesRegistry @Inject constructor(
                     val found = identity(key)
                     identityMisses.remove(key)
                     synchronized(identityLock) {
-                        if (identities[key] != found) identities = identities + (key to found)
+                        if (identities[key] != found) {
+                            identities = identities + (key to found)
+                            identityStoredAt[key] = System.currentTimeMillis()
+                            persistIdentitiesSoon()
+                        }
                     }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
@@ -683,6 +705,67 @@ class KachatNamesRegistry @Inject constructor(
         }
         val own = ownProfile(key)?.profile ?: return known
         return (known ?: Identity(key, null, emptyList(), null)).copy(profile = own)
+    }
+
+    // Profile cache on disk (iOS 5e408f7)
+
+    /** One cached identity as the file keeps it. */
+    private class StoredIdentity(val identity: Identity?, val at: Long?)
+
+    /** The identities cached on the last run, with when each was stored; empty when there are
+     *  none or the file can't be read. */
+    private fun loadIdentities(): Map<String, Pair<Identity, Long>> = runCatching {
+        val data = KachatProfileCache.read(context, IDENTITIES_FILE) ?: return emptyMap()
+        val type = object : com.google.gson.reflect.TypeToken<Map<String, StoredIdentity>>() {}.type
+        val stored: Map<String, StoredIdentity> = gson.fromJson(String(data, Charsets.UTF_8), type) ?: return emptyMap()
+        val out = HashMap<String, Pair<Identity, Long>>()
+        for ((k, v) in stored) {
+            val id = v.identity ?: continue
+            // Gson leaves absent fields null whatever their Kotlin type: a damaged entry is skipped
+            @Suppress("SENSELESS_COMPARISON")
+            if (id.address == null || id.names == null) continue
+            out[k] = id to (v.at ?: 0L)
+        }
+        out
+    }.getOrElse { emptyMap() }
+
+    private fun persistIdentitiesSoon() {
+        synchronized(identityLock) {
+            identitiesPersistJob?.cancel()
+            identitiesPersistJob = scope.launch {
+                delay(1_000)
+                persistIdentities()
+            }
+        }
+    }
+
+    private fun persistIdentities() {
+        var keep = synchronized(identityLock) { identities }
+        if (keep.size > IDENTITIES_KEEP) {
+            val oldest = keep.keys.sortedBy { identityStoredAt[it] ?: 0L }.take(keep.size - IDENTITIES_KEEP).toSet()
+            keep = keep - oldest
+        }
+        val stored = keep.mapValues { (k, v) -> StoredIdentity(v, identityStoredAt[k] ?: 0L) }
+        KachatProfileCache.write(context, IDENTITIES_FILE, gson.toJson(stored).toByteArray(Charsets.UTF_8))
+    }
+
+    /**
+     * Settings > Storage > Cache > Profiles: forgets every cached identity (on disk too). Screens
+     * fetch them again as they need them. This device's own saved profile record is not cache and
+     * stays (iOS 5e408f7 `clearProfileCache`).
+     */
+    fun clearProfileCache() {
+        synchronized(identityLock) {
+            identitiesPersistJob?.cancel()
+            identitiesPersistJob = null
+            identities = emptyMap()
+        }
+        identityStoredAt.clear()
+        identityAsked.clear()
+        identityMisses.clear()
+        identityLookups.clear()
+        KachatProfileCache.remove(context, IDENTITIES_FILE)
+        bump()
     }
 
     /** The profile record this device last wrote for [address]. */
@@ -813,6 +896,9 @@ class KachatNamesRegistry @Inject constructor(
     companion object {
         private const val TAG = "KachatNames"
         private const val CACHE_FILE = "registry.json"
+        /** The identities in [KachatProfileCache] (iOS 5e408f7), at most [IDENTITIES_KEEP] people. */
+        private const val IDENTITIES_FILE = "identities.json"
+        private const val IDENTITIES_KEEP = 1000
 
         /**
          * An indexer further behind the network than this (DAA scores, about a minute) isn't
@@ -932,6 +1018,38 @@ class KachatNamesRegistry @Inject constructor(
 // Social profile: avatar, banner and bio (looked up on the device)
 
 /**
+ * The profile cache folder (cacheDir/KachatProfiles; iOS 5e408f7 `KachatProfileCache`): what the
+ * app knows about people's profiles - their identity records and the avatars, banners and bios
+ * looked up from their social links. Rebuilt on demand, so it lives in the cache and is measured
+ * and cleared by Settings > Storage > Cache > Profiles (with the avatar and banner images).
+ */
+object KachatProfileCache {
+    private const val FOLDER = "KachatProfiles"
+
+    fun directory(context: Context): File = File(context.cacheDir, FOLDER)
+
+    fun read(context: Context, name: String): ByteArray? =
+        runCatching { File(directory(context), name).takeIf { it.isFile }?.readBytes() }.getOrNull()
+
+    /** Atomic: a temporary file renamed over the old one. */
+    fun write(context: Context, name: String, data: ByteArray) {
+        runCatching {
+            val dir = directory(context).apply { mkdirs() }
+            val tmp = File(dir, "$name.tmp")
+            tmp.writeBytes(data)
+            if (!tmp.renameTo(File(dir, name))) {
+                File(dir, name).writeBytes(data)
+                tmp.delete()
+            }
+        }.onFailure { Log.w("KachatProfileCache", "could not write $name: ${it.message}") }
+    }
+
+    fun remove(context: Context, name: String) {
+        runCatching { File(directory(context), name).delete() }
+    }
+}
+
+/**
  * Turns a profile's social link ([SocialSource]) into what that platform shows right now - avatar,
  * banner, bio - and caches the answer on this device; no indexer involved. iOS
  * `KachatSocialImageResolver` (KachatNamesRegistry.swift, ad32798 / 1322216).
@@ -941,12 +1059,14 @@ class KachatNamesRegistry @Inject constructor(
  * answers but no longer shows something (taken down, account gone), it is dropped at once, so the
  * platform's moderation carries over. When the platform can't be reached, the last answer stays.
  *
- * One cache for every network, as on iOS (UserDefaults `kachat_social_profile_cache`): it is keyed
- * by the normalized social link, which means the same thing on any network.
+ * One cache for every network, as on iOS: it is keyed by the normalized social link, which means
+ * the same thing on any network. It lives in the profile cache folder ([KachatProfileCache],
+ * `social.json`; in SharedPreferences before iOS 5e408f7), so Settings > Storage > Cache >
+ * Profiles measures and clears it.
  */
 @Singleton
 class KachatSocialImageResolver @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     okHttpClient: OkHttpClient
 ) {
     data class Entry(val profile: SocialProfile, val checkedAt: Long)
@@ -1036,8 +1156,31 @@ class KachatSocialImageResolver @Inject constructor(
         return deferred.await()
     }
 
-    private fun load(): Map<String, Entry> = runCatching {
-        val raw = prefs.getString(CACHE_KEY, null) ?: return emptyMap()
+    /** The cache file, or the SharedPreferences copy of earlier builds moved into it (once). */
+    private fun load(): Map<String, Entry> {
+        val file = KachatProfileCache.read(context, CACHE_FILE)?.let { String(it, Charsets.UTF_8) }
+        val entries = file?.let { parseEntries(it) } ?: prefs.getString(LEGACY_CACHE_KEY, null)?.let { legacy ->
+            // moved out of SharedPreferences into the measurable, clearable profile cache folder
+            parseEntries(legacy)?.also { KachatProfileCache.write(context, CACHE_FILE, legacy.toByteArray(Charsets.UTF_8)) }
+        }
+        prefs.edit().remove(LEGACY_CACHE_KEY).apply()
+        return entries ?: emptyMap()
+    }
+
+    /**
+     * Settings > Storage > Cache > Profiles: forgets every looked-up avatar, banner and bio; they
+     * are looked up again when next shown (iOS 5e408f7 `clearAll`). A lookup still in flight is
+     * forgotten too, so the next one starts afresh.
+     */
+    fun clearAll() {
+        synchronized(lock) {
+            inFlight.clear()
+            _entries.value = emptyMap()
+            KachatProfileCache.remove(context, CACHE_FILE)
+        }
+    }
+
+    private fun parseEntries(raw: String): Map<String, Entry>? = runCatching {
         val root = JsonParser.parseString(raw).asJsonObject
         val out = HashMap<String, Entry>()
         for ((k, v) in root.entrySet()) {
@@ -1048,7 +1191,7 @@ class KachatSocialImageResolver @Inject constructor(
             out[k] = Entry(SocialProfile(s("avatar"), s("banner"), s("bio")), at)
         }
         out
-    }.getOrElse { emptyMap() }
+    }.getOrNull()
 
     private fun persist() {
         synchronized(lock) {
@@ -1067,7 +1210,7 @@ class KachatSocialImageResolver @Inject constructor(
                 o.addProperty("checkedAt", e.checkedAt)
                 root.add(k, o)
             }
-            prefs.edit().putString(CACHE_KEY, root.toString()).apply()
+            KachatProfileCache.write(context, CACHE_FILE, root.toString().toByteArray(Charsets.UTF_8))
         }
     }
 
@@ -1200,7 +1343,10 @@ class KachatSocialImageResolver @Inject constructor(
 
         private const val TAG = "KachatSocial"
         private const val PREFS = "kachat_prefs"
-        private const val CACHE_KEY = "kachat_social_profile_cache"
+        /** The cache file in [KachatProfileCache] (iOS 5e408f7). */
+        private const val CACHE_FILE = "social.json"
+        /** Where the cache lived before (SharedPreferences): moved into [CACHE_FILE] once. */
+        private const val LEGACY_CACHE_KEY = "kachat_social_profile_cache"
         private const val FRESH_FOR_MS = 24L * 3600 * 1000
         private const val MAX_ENTRIES = 500
         private const val MAX_BODY_BYTES = 3_000_000L

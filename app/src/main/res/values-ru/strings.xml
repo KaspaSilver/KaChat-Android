@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">У кого она есть, тот может забрать всё</string>
     <string name="seed_phrase_explainer_safe_title">Как хранить её надёжно</string>
     <string name="seed_phrase_explainer_lengths_title">12 или 24 слова?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">Профили</string>
+    <string name="cache_profiles_detail">Аватары, баннеры и описания вашего профиля и людей, которых вы видите. Загружаются снова, когда вы их снова увидите.</string>
+    <string name="cache_web_responses">Веб-ответы</string>
+    <string name="cache_web_responses_detail">Предпросмотры ссылок и ответы API в сетевом кэше системы.</string>
+    <string name="cache_temporary_files">Временные файлы</string>
+    <string name="cache_temporary_files_detail">Временные файлы от отправки фото и голосовых сообщений. Их можно удалить в любой момент.</string>
 </resources>

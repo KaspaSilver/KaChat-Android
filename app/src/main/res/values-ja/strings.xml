@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">持っている人は何でも持ち出せます</string>
     <string name="seed_phrase_explainer_safe_title">安全に保管する方法</string>
     <string name="seed_phrase_explainer_lengths_title">12 語と 24 語どちら?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">プロフィール</string>
+    <string name="cache_profiles_detail">あなたのプロフィールと、表示した人のアバター、バナー、自己紹介。次に表示したときに再読み込みされます。</string>
+    <string name="cache_web_responses">Web レスポンス</string>
+    <string name="cache_web_responses_detail">システムのネットワークキャッシュに保存されたリンクプレビューと API レスポンス。</string>
+    <string name="cache_temporary_files">一時ファイル</string>
+    <string name="cache_temporary_files_detail">写真やボイスメモの送信で作られた一時ファイル。いつ削除しても問題ありません。</string>
 </resources>

@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">Ona sahip olan her şeyi alabilir</string>
     <string name="seed_phrase_explainer_safe_title">Nasıl güvende tutulur</string>
     <string name="seed_phrase_explainer_lengths_title">12 mi 24 kelime mi?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">Profiller</string>
+    <string name="cache_profiles_detail">Profilinizin ve gördüğünüz kişilerin avatarları, kapakları ve biyografileri. Bir sonraki görüşünüzde yeniden yüklenir.</string>
+    <string name="cache_web_responses">Web yanıtları</string>
+    <string name="cache_web_responses_detail">Sistemin ağ önbelleğinde tutulan bağlantı önizlemeleri ve API yanıtları.</string>
+    <string name="cache_temporary_files">Geçici dosyalar</string>
+    <string name="cache_temporary_files_detail">Fotoğraf ve sesli not gönderirken oluşan geçici dosyalar. Her zaman silinebilir.</string>
 </resources>

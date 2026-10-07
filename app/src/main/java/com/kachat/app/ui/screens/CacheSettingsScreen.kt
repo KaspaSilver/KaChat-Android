@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -136,9 +137,9 @@ fun CacheSettingsScreen(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(category.title, color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(category.title), color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge)
                             Spacer(Modifier.height(2.dp))
-                            Text(category.detail, color = colors.textSecondary, fontSize = 12.sp)
+                            Text(stringResource(category.detail), color = colors.textSecondary, fontSize = 12.sp)
                         }
                         Spacer(Modifier.width(12.dp))
                         Text(
@@ -166,9 +167,9 @@ fun CacheSettingsScreen(
 
     pendingClear?.let { category ->
         ConfirmActionSheet(
-            title = "Clear ${category.title}?",
+            title = "Clear ${stringResource(category.title)}?",
             confirmTitle = "Clear",
-            confirmSubtitle = "${CacheManager.formatted(sizes[category] ?: 0L)} freed. ${category.detail}",
+            confirmSubtitle = "${CacheManager.formatted(sizes[category] ?: 0L)} freed. ${stringResource(category.detail)}",
             confirmIcon = Icons.Default.DeleteSweep,
             onConfirm = { scope.launch { cacheManager.clear(category); refresh() } },
             onDismiss = { pendingClear = null },

@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">가진 사람은 모든 것을 가져갈 수 있습니다</string>
     <string name="seed_phrase_explainer_safe_title">안전하게 보관하는 방법</string>
     <string name="seed_phrase_explainer_lengths_title">12개 또는 24개 단어?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">프로필</string>
+    <string name="cache_profiles_detail">내 프로필과 내가 본 사람들의 아바타, 배너, 소개. 다음에 볼 때 다시 불러옵니다.</string>
+    <string name="cache_web_responses">웹 응답</string>
+    <string name="cache_web_responses_detail">시스템 네트워크 캐시에 보관된 링크 미리보기와 API 응답.</string>
+    <string name="cache_temporary_files">임시 파일</string>
+    <string name="cache_temporary_files_detail">사진과 음성 메모를 보낼 때 생긴 임시 파일. 언제든 삭제해도 안전합니다.</string>
 </resources>

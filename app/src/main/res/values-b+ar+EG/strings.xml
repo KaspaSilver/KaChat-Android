@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">من يملكها يستطيع أخذ كل شيء</string>
     <string name="seed_phrase_explainer_safe_title">كيف تحفظها بأمان</string>
     <string name="seed_phrase_explainer_lengths_title">12 أم 24 كلمة؟</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">الملفات الشخصية</string>
+    <string name="cache_profiles_detail">الصور الرمزية واللافتات والنبذات لملفك الشخصي وللأشخاص الذين تراهم. تُحمَّل مجددًا عندما تراها لاحقًا.</string>
+    <string name="cache_web_responses">ردود الويب</string>
+    <string name="cache_web_responses_detail">معاينات الروابط وردود واجهات البرمجة المحفوظة في ذاكرة الشبكة المؤقتة للنظام.</string>
+    <string name="cache_temporary_files">الملفات المؤقتة</string>
+    <string name="cache_temporary_files_detail">ملفات مؤقتة من إرسال الصور والرسائل الصوتية. يمكن حذفها في أي وقت.</string>
 </resources>

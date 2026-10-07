@@ -1103,4 +1103,11 @@
     <string name="seed_phrase_explainer_anyone_title">Wer sie hat, kann alles nehmen</string>
     <string name="seed_phrase_explainer_safe_title">So bewahrst du sie sicher auf</string>
     <string name="seed_phrase_explainer_lengths_title">12 oder 24 Wörter?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">Profile</string>
+    <string name="cache_profiles_detail">Avatare, Banner und Bios deines Profils und der Personen, die du siehst. Werden beim nächsten Anzeigen neu geladen.</string>
+    <string name="cache_web_responses">Web-Antworten</string>
+    <string name="cache_web_responses_detail">Linkvorschauen und API-Antworten im Netzwerk-Cache des Systems.</string>
+    <string name="cache_temporary_files">Temporäre Dateien</string>
+    <string name="cache_temporary_files_detail">Zwischendateien vom Senden von Fotos und Sprachnachrichten. Können jederzeit entfernt werden.</string>
 </resources>

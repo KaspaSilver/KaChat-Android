@@ -1106,4 +1106,11 @@
     <string name="seed_phrase_explainer_anyone_title">拿到它的人可以拿走一切</string>
     <string name="seed_phrase_explainer_safe_title">如何安全保管</string>
     <string name="seed_phrase_explainer_lengths_title">12 个还是 24 个单词?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">个人资料</string>
+    <string name="cache_profiles_detail">你的个人资料和你看到的人的头像、横幅和简介。下次看到时会重新加载。</string>
+    <string name="cache_web_responses">网页响应</string>
+    <string name="cache_web_responses_detail">系统网络缓存中的链接预览和 API 响应。</string>
+    <string name="cache_temporary_files">临时文件</string>
+    <string name="cache_temporary_files_detail">发送照片和语音消息时产生的临时文件。随时可以安全删除。</string>
 </resources>

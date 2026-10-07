@@ -973,4 +973,11 @@
     <string name="seed_phrase_explainer_anyone_title">Siapa pun yang memilikinya bisa mengambil semuanya</string>
     <string name="seed_phrase_explainer_safe_title">Cara menyimpannya dengan aman</string>
     <string name="seed_phrase_explainer_lengths_title">12 atau 24 kata?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">Profil</string>
+    <string name="cache_profiles_detail">Avatar, banner, dan bio profil Anda dan orang-orang yang Anda lihat. Dimuat lagi saat Anda melihatnya berikutnya.</string>
+    <string name="cache_web_responses">Respons web</string>
+    <string name="cache_web_responses_detail">Pratinjau tautan dan respons API yang disimpan di cache jaringan sistem.</string>
+    <string name="cache_temporary_files">File sementara</string>
+    <string name="cache_temporary_files_detail">File sementara dari pengiriman foto dan pesan suara. Aman dihapus kapan saja.</string>
 </resources>

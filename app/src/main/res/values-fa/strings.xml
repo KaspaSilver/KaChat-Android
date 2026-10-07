@@ -1137,4 +1137,11 @@
     <string name="seed_phrase_explainer_anyone_title">هر کس آن را داشته باشد همه‌چیز را می‌برد</string>
     <string name="seed_phrase_explainer_safe_title">چگونه آن را امن نگه داریم</string>
     <string name="seed_phrase_explainer_lengths_title">۱۲ یا ۲۴ کلمه؟</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">پروفایل‌ها</string>
+    <string name="cache_profiles_detail">آواتار، بنر و بیوی پروفایل شما و افرادی که می‌بینید. دفعه بعد که آن‌ها را ببینید دوباره بارگیری می‌شوند.</string>
+    <string name="cache_web_responses">پاسخ‌های وب</string>
+    <string name="cache_web_responses_detail">پیش‌نمایش پیوندها و پاسخ‌های API که در حافظه موقت شبکه سیستم نگه داشته شده‌اند.</string>
+    <string name="cache_temporary_files">فایل‌های موقت</string>
+    <string name="cache_temporary_files_detail">فایل‌های موقت ارسال عکس و پیام صوتی. حذف آن‌ها در هر زمان بی‌خطر است.</string>
 </resources>

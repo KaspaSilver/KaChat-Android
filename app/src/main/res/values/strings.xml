@@ -1314,4 +1314,11 @@
     <string name="seed_phrase_explainer_anyone_title">Anyone with it can take everything</string>
     <string name="seed_phrase_explainer_safe_title">How to keep it safe</string>
     <string name="seed_phrase_explainer_lengths_title">12 or 24 words?</string>
+    <!-- Settings > Storage > Cache: the rows (iOS 5e408f7) -->
+    <string name="cache_profiles">Profiles</string>
+    <string name="cache_profiles_detail">Avatars, banners and bios of your profile and of the people you see. Loaded again when you next see them.</string>
+    <string name="cache_web_responses">Web Responses</string>
+    <string name="cache_web_responses_detail">Link previews and API responses held by the system\'s network cache.</string>
+    <string name="cache_temporary_files">Temporary Files</string>
+    <string name="cache_temporary_files_detail">Scratch files from sending photos and voice notes. Safe to remove at any time.</string>
 </resources>
