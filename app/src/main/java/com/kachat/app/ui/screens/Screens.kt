@@ -11540,8 +11540,9 @@ fun AddressQrPage(
         AddressQrPageBar(dismiss = dismiss, onDismiss = onDismiss) {
             Text(
                 balanceSompi?.let { "%.8f %s".format(java.util.Locale.US, it / 100_000_000.0, KaspaUnit.symbol) } ?: "—",
-                // Black, not the theme's primary: the bar sits on the forced-white page.
-                color = Color.Black,
+                // iOS's `.primary`, as iOS draws it: the page forces no colour scheme, so in dark
+                // mode the balance is the theme's white over the white page, as on the iPhone.
+                color = LocalAppColors.current.textPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
@@ -11722,17 +11723,8 @@ fun PushedQrPage(visible: Boolean, white: Boolean, onBack: () -> Unit, content: 
         exit = androidx.compose.animation.slideOutHorizontally { it },
     ) {
         BackHandler(onBack = onBack)
-        // On the white page the status bar's clock and icons turn dark, as iOS's do over white.
-        if (white) {
-            val view = androidx.compose.ui.platform.LocalView.current
-            DisposableEffect(view) {
-                val window = (view.context as? android.app.Activity)?.window
-                val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
-                val wasLight = controller?.isAppearanceLightStatusBars
-                controller?.isAppearanceLightStatusBars = true
-                onDispose { if (wasLight != null) controller.isAppearanceLightStatusBars = wasLight }
-            }
-        }
+        // The status bar keeps the theme's icons over the white page: iOS's status bar follows
+        // the colour scheme (light in dark mode), not what is drawn under it.
         // The page's colour runs up under the status bar, as iOS's white page does.
         Box(Modifier.fillMaxSize().background(if (white) Color.White else LocalAppColors.current.background)) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) { content() }
