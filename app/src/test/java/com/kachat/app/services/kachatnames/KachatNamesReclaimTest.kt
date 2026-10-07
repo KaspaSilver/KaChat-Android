@@ -102,6 +102,22 @@ class KachatNamesReclaimTest {
         assertEquals("Freeing alice.kachat for you...", KachatNamesActions.freeingName("alice"))
     }
 
+    /** iOS 4f0bd33: the reclaim retry measures from when the reclaim was sent. */
+    @Test
+    fun theReclaimIsSentAgainTwoMinutesAfterItWentOut() {
+        val sentAt = now
+        val waiting = PendingRegistration(
+            id = "1", name = "alice", years = 1, owner = "00", commitTxId = "00", commitScript = "00",
+            stage = PendingRegistration.Stage.WAITING, createdAt = sentAt - 600_000, updatedAt = sentAt,
+            reclaimTxId = "ab", lastError = KachatNamesActions.freeingName("alice")
+        )
+        assertFalse(KachatNamesActions.reclaimRetryDue(waiting, sentAt + 5_000))
+        assertFalse(KachatNamesActions.reclaimRetryDue(waiting, sentAt + KachatNamesActions.RECLAIM_RETRY_MS))
+        assertTrue(KachatNamesActions.reclaimRetryDue(waiting, sentAt + KachatNamesActions.RECLAIM_RETRY_MS + 1))
+        // nothing sent yet: nothing to send again (the driver sends the first one)
+        assertFalse(KachatNamesActions.reclaimRetryDue(waiting.copy(reclaimTxId = null), sentAt + 10 * 60_000))
+    }
+
     @Test
     fun aLapsedRecordIsNotHeldLive() {
         assertTrue(KachatNamesActions.holdsLive(Lookup.Registered(active), me, grace, now))

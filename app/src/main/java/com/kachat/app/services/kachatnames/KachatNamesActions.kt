@@ -1054,18 +1054,19 @@ class KachatNamesActions @Inject constructor(
                 // (anyone may; its bond goes back to the old owner and the freed deposit comes to
                 // you), then registers on a later tick once the registry shows the gap (iOS eea52b2).
                 is RegisterStep.FreeOldName -> {
-                    set(p) { it.copy(lastError = freeingName(p.name)) }
+                    // (Only sending the reclaim touches the record, so `updatedAt` is when it went
+                    // out; iOS 4f0bd33.)
                     val sent = p.reclaimTxId
                     if (sent != null) {
                         if (registry.isAccepted(sent)) {
                             registry.refresh()
-                        } else if (System.currentTimeMillis() - p.updatedAt > RECLAIM_RETRY_MS) {
+                        } else if (reclaimRetryDue(p, System.currentTimeMillis())) {
                             set(p) { it.copy(reclaimTxId = null) } // never accepted: send it again
                         }
                         return
                     }
                     val txId = perform(Operation.Reclaim(step.name))
-                    set(p) { it.copy(reclaimTxId = txId) }
+                    set(p) { it.copy(reclaimTxId = txId, lastError = freeingName(p.name)) }
                     return
                 }
                 RegisterStep.Mine -> { finishRegistered(p); return }
@@ -1235,6 +1236,14 @@ class KachatNamesActions @Inject constructor(
 
         /** A reclaim the driver sent that isn't accepted after this long is sent again (iOS eea52b2). */
         const val RECLAIM_RETRY_MS: Long = 120_000
+
+        /**
+         * The reclaim [p] sent is due to go out again: it was sent more than [RECLAIM_RETRY_MS]
+         * ago and still isn't accepted (the caller asks). Measured from `updatedAt`, which only
+         * sending the reclaim touches while the driver waits for it (iOS 4f0bd33).
+         */
+        fun reclaimRetryDue(p: PendingRegistration, nowMs: Long): Boolean =
+            p.reclaimTxId != null && nowMs - p.updatedAt > RECLAIM_RETRY_MS
 
         /** Longest an offer can run before its buyer may take it back (the app's cap, registry v3, iOS 49c0baa). */
         const val MAX_OFFER_DAYS: Long = 7
