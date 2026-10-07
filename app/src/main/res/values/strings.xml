@@ -1295,4 +1295,10 @@
     <string name="node_removed_still_connected">Removed from address book. Still connected to this node.</string>
     <string name="node_address_removed">Address removed.</string>
     <string name="field_copied_to_clipboard">%1$s copied to clipboard.</string>
+    <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
+    <string name="reactions_one">1 Reaction</string>
+    <string name="reactions_count">%1$d Reactions</string>
+    <string name="reactions_one_person">1 person</string>
+    <string name="reactions_people">%1$d people</string>
+    <string name="reactions_you">You</string>
 </resources>

@@ -1083,4 +1083,5 @@
     <string name="swap_details">兑换详情</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s 已复制到剪贴板。</string>
+    <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
 </resources>

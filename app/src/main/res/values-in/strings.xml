@@ -961,4 +961,5 @@
     <string name="swap_details">Detail Swap</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s disalin ke papan klip.</string>
+    <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
 </resources>

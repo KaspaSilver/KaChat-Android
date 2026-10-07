@@ -93,6 +93,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.HorizontalDivider
 import com.kachat.app.services.AddressActivityNotifier
 import com.kachat.app.services.ColdStorageAddressDiscovery
 import com.kachat.app.ui.theme.KaspaTeal
@@ -817,11 +819,25 @@ private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction, is24Hour
 }
 
 /**
+ * The emoji on a message and who used each, most-used first - iOS ReactionsSheet's `grouped`.
+ * Equal counts keep the order the emoji first appear in (iOS's dictionary order is arbitrary
+ * there); within an emoji the reactors keep theirs.
+ */
+internal fun <T> reactionGroups(reactions: List<T>, emojiOf: (T) -> String): List<Pair<String, List<T>>> =
+    reactions.groupBy(emojiOf).entries
+        .sortedByDescending { it.value.size }
+        .map { it.key to it.value }
+
+/**
  * Who reacted to one message, and with what. Shared by 1:1, group and broadcast bubbles.
  *
  * The pill on a bubble shows which emoji are on it and nothing else - not how many of each, and
- * not from whom. Mirrors iOS's `ReactionsSheet`.
+ * not from whom. iOS's `ReactionsSheet`: "N Reactions" in an inline bar, then a grouped List - a
+ * section per emoji, most-used first, headed by the emoji and "N people", a row per reactor with
+ * their avatar and name. Opens at half height and drags up to full (`[.medium, .large]`), with
+ * the grabber.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatReactionsSheet(
     reactions: List<com.kachat.app.models.ReactionEntity>,
@@ -832,55 +848,94 @@ fun ChatReactionsSheet(
      *  list of names you may not have saved. */
     avatarFor: (String) -> String? = { null },
 ) {
-    val colors = LocalAppColors.current
-    // Grouped by emoji, most-reacted first, so "12 people" reads before the individual names.
-    val grouped = remember(reactions) {
-        reactions.groupBy { it.emoji }.entries.sortedByDescending { it.value.size }
-    }
-    ActionSheetContainer(
-        title = "Reactions",
-        subtitle = if (reactions.size == 1) "1 reaction" else "${reactions.size} reactions",
-        onDismiss = onDismiss,
-        // iOS's ReactionsSheet is a grouped List: white sections on the grouped grey.
-        grouped = true,
-    ) {
-        grouped.forEach { (emoji, rows) ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.surface)
-                    .padding(14.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(emoji, fontSize = 20.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        if (rows.size == 1) "1 person" else "${rows.size} people",
-                        color = colors.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                rows.forEach { row ->
-                    Spacer(Modifier.height(8.dp))
-                    val label = if (isMe(row.reactorAddress)) "You" else nameFor(row.reactorAddress)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ContactAvatar(
-                            imageUrl = avatarFor(row.reactorAddress),
-                            fallbackText = label,
-                            size = 28.dp,
-                            address = row.reactorAddress,
+    val grouped = remember(reactions) { reactionGroups(reactions) { it.emoji } }
+    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                    Column(Modifier.fillMaxSize()) {
+                        IosSheetNavBar(
+                            title = if (reactions.size == 1) stringResource(R.string.reactions_one)
+                            else stringResource(R.string.reactions_count, reactions.size),
                         )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            label,
-                            color = colors.textPrimary,
-                            fontSize = 14.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            grouped.forEach { (emoji, rows) ->
+                                item(key = emoji) {
+                                    Column {
+                                        // The section header: the emoji at title3, then the count in
+                                        // the grouped list's small upper-case caption.
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
+                                        ) {
+                                            Text(emoji, fontSize = 20.sp)
+                                            Text(
+                                                (if (rows.size == 1) stringResource(R.string.reactions_one_person)
+                                                else stringResource(R.string.reactions_people, rows.size)).uppercase(),
+                                                color = colors.textSecondary,
+                                                fontSize = 13.sp,
+                                            )
+                                        }
+                                        Column(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(26.dp))
+                                                .background(colors.surface)
+                                        ) {
+                                            rows.forEachIndexed { index, row ->
+                                                val label = if (isMe(row.reactorAddress)) stringResource(R.string.reactions_you) else nameFor(row.reactorAddress)
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(min = 44.dp)
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                ) {
+                                                    ContactAvatar(
+                                                        imageUrl = avatarFor(row.reactorAddress),
+                                                        fallbackText = label,
+                                                        size = 28.dp,
+                                                        address = row.reactorAddress,
+                                                    )
+                                                    MiddleEllipsisText(
+                                                        label,
+                                                        color = colors.textPrimary,
+                                                        fontSize = 17.sp,
+                                                        modifier = Modifier.weight(1f),
+                                                    )
+                                                }
+                                                if (index < rows.lastIndex) {
+                                                    HorizontalDivider(
+                                                        color = colors.divider,
+                                                        thickness = 0.5.dp,
+                                                        // Under the name, past the avatar, as iOS's separator.
+                                                        modifier = Modifier.padding(start = 54.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
             }
         }

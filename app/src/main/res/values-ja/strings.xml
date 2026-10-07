@@ -1083,4 +1083,5 @@
     <string name="swap_details">スワップの詳細</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s がクリップボードにコピーされました。</string>
+    <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
 </resources>
