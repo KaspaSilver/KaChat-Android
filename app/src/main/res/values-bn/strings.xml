@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">মুক্ত হবে</string>
     <string name="kn_no_names_in_grace">এখন কোনো নাম গ্রেস পিরিয়ডে নেই।</string>
     <string name="km_grace_appear">.kachat নাম চালু হলে গ্রেস পিরিয়ডের নামগুলো এখানে দেখা যাবে।</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">গ্রেস পিরিয়ড শেষ হবে %1$s</string>
 </resources>

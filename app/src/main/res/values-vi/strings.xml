@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">Mở lại sau</string>
     <string name="kn_no_names_in_grace">Hiện không có tên nào trong thời gian ân hạn.</string>
     <string name="km_grace_appear">Các tên trong thời gian ân hạn sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">Thời gian ân hạn kết thúc %1$s</string>
 </resources>

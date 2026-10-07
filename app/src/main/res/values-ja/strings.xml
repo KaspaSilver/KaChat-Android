@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">解放まで</string>
     <string name="kn_no_names_in_grace">現在、猶予期間中の名前はありません。</string>
     <string name="km_grace_appear">.kachat の名前が開始されると、猶予期間中の名前がここに表示されます。</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">猶予期間の終了: %1$s</string>
 </resources>

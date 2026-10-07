@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">释放倒计时</string>
     <string name="kn_no_names_in_grace">目前没有处于宽限期的名称。</string>
     <string name="km_grace_appear">.kachat 名称上线后，处于宽限期的名称会显示在这里。</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">宽限期结束于 %1$s</string>
 </resources>

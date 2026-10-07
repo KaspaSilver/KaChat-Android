@@ -290,13 +290,13 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             }
             // Registrations in flight: the claims button in the top bar (KachatClaimsButton, iOS b219bb0).
             UnderlineTabBar(
-                // Names for sale, names in their grace period (counting down to release), expired
-                // names anyone may claim, and everything that happens in the registry. Your own
+                // Names for sale, expired names anyone may claim, names in their grace period
+                // (counting down to release), and everything that happens in the registry. Your own
                 // names (and the offers you made) live in Profile > Your Domains (iOS 0765ce0,
-                // eea52b2, cb3c27d).
+                // eea52b2, cb3c27d; this order 73128b3).
                 titles = listOf(
-                    stringResource(R.string.km_marketplace), stringResource(R.string.kn_status_expired),
-                    stringResource(R.string.kn_available), stringResource(R.string.km_activity)
+                    stringResource(R.string.km_marketplace), stringResource(R.string.kn_available),
+                    stringResource(R.string.kn_status_expired), stringResource(R.string.km_activity)
                 ),
                 selectedIndex = page,
                 onSelect = { page = it },
@@ -307,19 +307,19 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             if (isLive || !com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                 when (page) {
                     0 -> KachatLiveMarketPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
-                    1 -> KachatLiveExpiredPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
-                    2 -> KachatLiveAvailablePage(
+                    1 -> KachatLiveAvailablePage(
                         live,
                         onOpen = { liveSheet = KachatHubSheet.Detail(it) },
                         onClaim = { liveSheet = KachatHubSheet.Claim(it) },
                     )
+                    2 -> KachatLiveExpiredPage(live, onOpen = { liveSheet = KachatHubSheet.Detail(it) })
                     else -> KachatLiveActivityPage(live)
                 }
             } else {
                 when (page) {
                     0 -> MarketPage(onOpenListing = { openListing = true })
-                    1 -> ExpiredPage()
-                    2 -> AvailablePage()
+                    1 -> AvailablePage()
+                    2 -> ExpiredPage()
                     else -> ActivityPage()
                 }
             }

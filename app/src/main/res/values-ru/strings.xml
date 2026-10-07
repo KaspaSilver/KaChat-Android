@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">Освободится через</string>
     <string name="kn_no_names_in_grace">Сейчас нет имён в льготном периоде.</string>
     <string name="km_grace_appear">Имена в льготном периоде появятся здесь после запуска имён .kachat.</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">Льготный период заканчивается %1$s</string>
 </resources>

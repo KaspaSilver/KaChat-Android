@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">해제까지</string>
     <string name="kn_no_names_in_grace">지금은 유예 기간인 이름이 없습니다.</string>
     <string name="km_grace_appear">.kachat 이름이 출시되면 유예 기간인 이름이 여기에 표시됩니다.</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">유예 기간 종료: %1$s</string>
 </resources>

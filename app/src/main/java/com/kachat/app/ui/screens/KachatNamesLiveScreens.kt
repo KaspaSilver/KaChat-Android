@@ -2557,6 +2557,37 @@ fun KachatLiveNameDetailScreen(
                                 )
                             }
                         }
+                        if (status == Status.GRACE) {
+                            // When the grace period ends: then anyone can claim it (Available), with
+                            // a live countdown (iOS fde757f).
+                            val ends = info.expiresAt + vm.graceMs
+                            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                            LaunchedEffect(ends) {
+                                while (true) {
+                                    delay(1_000)
+                                    now = System.currentTimeMillis()
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = colors.warning, modifier = Modifier.size(14.dp).padding(top = 1.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(stringResource(R.string.kn_grace_period_ends, KachatLive.day(ends)), color = colors.warning, fontSize = 12.sp)
+                                    val releasedIn = stringResource(R.string.kn_released_in)
+                                    val left = KachatLive.countdown(ends - now, androidx.compose.ui.platform.LocalContext.current)
+                                    Text(
+                                        androidx.compose.ui.text.buildAnnotatedString {
+                                            append(releasedIn)
+                                            append(" ")
+                                            pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"))
+                                            append(left)
+                                            pop()
+                                        },
+                                        color = colors.warning, fontSize = 12.sp,
+                                    )
+                                }
+                            }
+                        }
                         when {
                             status == Status.GRACE && ownedByWallet -> Text(stringResource(R.string.kn_detail_grace_mine), color = colors.warning, fontSize = 13.sp)
                             status == Status.GRACE -> Text(stringResource(R.string.kn_detail_grace), color = colors.warning, fontSize = 13.sp)

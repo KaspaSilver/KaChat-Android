@@ -1153,4 +1153,6 @@
     <string name="kn_released_in">آزاد شدن تا</string>
     <string name="kn_no_names_in_grace">در حال حاضر هیچ نامی در دوره مهلت نیست.</string>
     <string name="km_grace_appear">نام‌های در دوره مهلت پس از راه‌اندازی نام‌های ‎.kachat اینجا نمایش داده می‌شوند.</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">دوره مهلت در %1$s پایان می‌یابد</string>
 </resources>

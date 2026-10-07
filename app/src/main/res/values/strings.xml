@@ -1331,4 +1331,6 @@
     <string name="kn_released_in">Released in</string>
     <string name="kn_no_names_in_grace">No names are in their grace period right now.</string>
     <string name="km_grace_appear">Names in their grace period appear here once .kachat names launch.</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">Grace period ends %1$s</string>
 </resources>

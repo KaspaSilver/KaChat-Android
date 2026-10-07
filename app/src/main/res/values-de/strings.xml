@@ -1119,4 +1119,6 @@
     <string name="kn_released_in">Frei in</string>
     <string name="kn_no_names_in_grace">Gerade ist kein Name in der Nachfrist.</string>
     <string name="km_grace_appear">Namen in der Nachfrist erscheinen hier, sobald .kachat-Namen starten.</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">Nachfrist endet am %1$s</string>
 </resources>

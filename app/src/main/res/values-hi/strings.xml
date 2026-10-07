@@ -1122,4 +1122,6 @@
     <string name="kn_released_in">मुक्त होगा</string>
     <string name="kn_no_names_in_grace">अभी कोई नाम ग्रेस अवधि में नहीं है।</string>
     <string name="km_grace_appear">.kachat नाम लॉन्च होने पर ग्रेस अवधि वाले नाम यहाँ दिखेंगे।</string>
+    <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
+    <string name="kn_grace_period_ends">ग्रेस अवधि %1$s को समाप्त होगी</string>
 </resources>
