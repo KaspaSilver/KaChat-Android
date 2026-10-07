@@ -1250,4 +1250,6 @@
     <!-- Profile bell sheet (iOS GlobalNotificationListView) -->
     <string name="notification_center_empty_title">No notifications yet</string>
     <string name="notification_center_clear_all">Clear All</string>
+    <!-- Receive Kaspa QR page (iOS ReceiveKaspaQRView) -->
+    <string name="receive_preparing_fresh_address">Preparing a fresh address</string>
 </resources>

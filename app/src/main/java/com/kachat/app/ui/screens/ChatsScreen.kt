@@ -157,11 +157,17 @@ fun ChatsScreen(
     // Receive Kaspa's fresh address: decided as the sheet opens (the check is a network round
     // trip) and re-confirmed when the QR page comes up - the same two steps as Profile's.
     var receiveQrAddress by remember { mutableStateOf<String?>(null) }
+    var receiveQrResolving by remember { mutableStateOf(true) }
+    val chattingBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     /** "Send Kaspa" in the New sheet: Profile's send from the current spending address (iOS f81e8d6). */
     var showSpendingSend by remember { mutableStateOf(false) }
     LaunchedEffect(showNewSheet, newSheetQr) {
         if (showNewSheet || newSheetQr == ChatsNewQr.RECEIVE) {
-            walletViewModel.resolveFreshReceiveAddress { address -> if (address != null) receiveQrAddress = address }
+            if (receiveQrAddress == null) receiveQrResolving = true
+            walletViewModel.resolveFreshReceiveAddress { address ->
+                if (address != null) receiveQrAddress = address
+                receiveQrResolving = false
+            }
         }
     }
 
@@ -885,17 +891,27 @@ fun ChatsScreen(
     if (showSpendingSend) {
         ChatsSpendingSendLauncher(walletViewModel = walletViewModel, onDone = { showSpendingSend = false })
     }
+    // Each in a sheet of its own, Done at the top right, as iOS presents them once the New sheet
+    // has gone (e6400d6): the white QR page with the address's balance in its bar.
     when (newSheetQr) {
-        ChatsNewQr.FUND_CHATTING -> ChattingAddressQrOverlay(
-            address = myAddress ?: "",
-            onDismiss = { newSheetQr = null },
-            dismissAsDone = true,
-        )
-        ChatsNewQr.RECEIVE -> ReceiveKaspaQrOverlay(
-            address = receiveQrAddress,
-            onDismiss = { newSheetQr = null },
-            dismissAsDone = true,
-        )
+        ChatsNewQr.FUND_CHATTING -> QrPageSheet(onDismiss = { newSheetQr = null }, white = true) {
+            ChattingAddressQrPage(
+                address = myAddress ?: "",
+                balanceSompi = chattingBalanceSompi,
+                dismiss = QrPageDismiss.DONE,
+                onDismiss = { newSheetQr = null },
+            )
+        }
+        ChatsNewQr.RECEIVE -> QrPageSheet(onDismiss = { newSheetQr = null }, white = receiveQrAddress != null) {
+            ReceiveKaspaQrPage(
+                address = receiveQrAddress,
+                resolving = receiveQrResolving,
+                dismiss = QrPageDismiss.DONE,
+                onDismiss = { newSheetQr = null },
+                walletViewModel = walletViewModel,
+                title = stringResource(R.string.receive_kaspa),
+            )
+        }
         null -> Unit
     }
 }

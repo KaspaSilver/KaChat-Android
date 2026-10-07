@@ -3735,13 +3735,19 @@ fun ProfileScreen(
     // The address the Receive QR should draw: one that has never been used. Warmed when this
     // screen appears and re-confirmed when the overlay opens - see both effects below.
     var receiveQrAddress by remember { mutableStateOf<String?>(null) }
+    /** A lookup for [receiveQrAddress] is still out - the page says it is preparing one. */
+    var receiveQrResolving by remember { mutableStateOf(true) }
     // Re-confirmed on open, but NOT cleared first: the warm-up above has almost always settled
     // it already, so the overlay draws immediately and this only swaps the value if the warmed
     // answer went stale in between. A QR must not change under a pointed camera for any lesser
     // reason, and blanking it first would guarantee a spinner every time.
     LaunchedEffect(showAcceptPaymentQr) {
         if (showAcceptPaymentQr) {
-            viewModel.resolveFreshReceiveAddress { address -> receiveQrAddress = address }
+            if (receiveQrAddress == null) receiveQrResolving = true
+            viewModel.resolveFreshReceiveAddress { address ->
+                receiveQrAddress = address
+                receiveQrResolving = false
+            }
         }
     }
     var showWithdrawDialog by remember { mutableStateOf(false) }
@@ -3799,7 +3805,10 @@ fun ProfileScreen(
         // Decide the Receive QR's address NOW, not when the button is tapped. The freshness
         // check is a network round trip, so doing it on tap put a spinner between pressing
         // Receive Kaspa and seeing a code.
-        viewModel.resolveFreshReceiveAddress { address -> receiveQrAddress = address }
+        viewModel.resolveFreshReceiveAddress { address ->
+            receiveQrAddress = address
+            receiveQrResolving = false
+        }
     }
 
     // Funds landing used to show up here only on the next open or a pull-to-refresh - the screen
@@ -4352,14 +4361,28 @@ fun ProfileScreen(
             modifier = Modifier.align(Alignment.TopCenter)
         )
 
-        // The same two QR pages the Chats New sheet opens (iOS 5da8ccf / e6400d6).
-        if (showFundIdentityQr) {
-            ChattingAddressQrOverlay(address = address ?: "", onDismiss = { showFundIdentityQr = false })
         }
-        if (showAcceptPaymentQr) {
-            ReceiveKaspaQrOverlay(address = receiveQrAddress, onDismiss = { showAcceptPaymentQr = false })
-        }
-        }
+    }
+
+    // The same two QR pages the Chats New sheet opens (iOS ChattingAddressQRView /
+    // ReceiveKaspaQRView), pushed here as iOS's Profile pushes them: over the whole screen, bar
+    // included, the dock left in place, a back chevron to leave.
+    PushedQrPage(visible = showFundIdentityQr, white = true, onBack = { showFundIdentityQr = false }) {
+        ChattingAddressQrPage(
+            address = address ?: "",
+            balanceSompi = identityBalanceSompi,
+            dismiss = QrPageDismiss.BACK,
+            onDismiss = { showFundIdentityQr = false },
+        )
+    }
+    PushedQrPage(visible = showAcceptPaymentQr, white = receiveQrAddress != null, onBack = { showAcceptPaymentQr = false }) {
+        ReceiveKaspaQrPage(
+            address = receiveQrAddress,
+            resolving = receiveQrResolving,
+            dismiss = QrPageDismiss.BACK,
+            onDismiss = { showAcceptPaymentQr = false },
+            walletViewModel = viewModel,
+        )
     }
 
     // Half sheet rather than a dialog, matching every other chooser in the app - and it gives
@@ -7236,7 +7259,15 @@ fun IdentityAddressDetailScreen(
     if (showQr && !qrAddress.isNullOrEmpty()) {
         // iOS ChattingAddressManageView shows ChattingAddressQRView with its default caption -
         // the chatting caption Profile uses (since 492aa53: "for chatting and domains only").
-        ChattingAddressQrOverlay(address = qrAddress, onDismiss = { showQr = false })
+        // In a sheet with Close leading, as iOS's ChattingAddressManageView presents it.
+        QrPageSheet(onDismiss = { showQr = false }, white = true) {
+            ChattingAddressQrPage(
+                address = qrAddress,
+                balanceSompi = balanceSompi,
+                dismiss = QrPageDismiss.CLOSE,
+                onDismiss = { showQr = false },
+            )
+        }
     }
 
     if (showAddressActions) {
@@ -11497,60 +11528,234 @@ fun AnimatedQrDisplay(frames: List<ByteArray>, modifier: Modifier = Modifier, fr
     }
 }
 
+/** How an [AddressQrPage] is closed - iOS puts a different control in its bar for each way it
+ *  presents the page. */
+enum class QrPageDismiss {
+    /** Pushed (Profile): a back chevron, leading. */
+    BACK,
+    /** In a sheet with Close leading (Chatting Address details). */
+    CLOSE,
+    /** In a sheet with Done trailing (the Chats New sheet). */
+    DONE,
+}
+
 /**
- * The chatting address's QR page: the full white [QrCodeOverlay] with the chatting caption (iOS
- * `ChattingAddressQRView`). Profile's "Fund chatting address", and the Chats New sheet's "Fund
- * Chatting Address" (iOS 5da8ccf / e6400d6), which dismisses with Done.
+ * iOS's `ChattingAddressQRView`: the full white page with an address's QR code - the code in a
+ * 3pt accent frame, the whole address under it, what the address is for, and "Tap anywhere to
+ * copy" - placed a third of the way down. Its bar shows the address's balance in the title's
+ * place (iOS's principal toolbar item, which takes precedence over the navigation title), or "—"
+ * while it is unknown, with [dismiss]'s control. A tap anywhere copies the address.
  */
 @Composable
-fun ChattingAddressQrOverlay(address: String, onDismiss: () -> Unit, dismissAsDone: Boolean = false) {
-    QrCodeOverlay(
-        value = address,
+fun AddressQrPage(
+    address: String,
+    balanceSompi: Long?,
+    caption: String,
+    dismiss: QrPageDismiss,
+    onDismiss: () -> Unit,
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val haptic = com.kachat.app.util.rememberHaptics()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                clipboardManager.setText(AnnotatedString(address))
+                haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                com.kachat.app.util.showAddressCopiedToast(context, address)
+            },
+    ) {
+        AddressQrPageBar(dismiss = dismiss, onDismiss = onDismiss) {
+            Text(
+                balanceSompi?.let { "%.8f %s".format(java.util.Locale.US, it / 100_000_000.0, KaspaUnit.symbol) } ?: "—",
+                // Black, not the theme's primary: the bar sits on the forced-white page.
+                color = Color.Black,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
+            )
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(28.dp),
+        ) {
+            Spacer(Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    // iOS strokes 3pt on the edge and clips it to the shape: 1.5 shows.
+                    .border(1.5.dp, KaspaTeal, RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+            ) {
+                Image(
+                    painter = rememberQrBitmapPainter(address),
+                    contentDescription = stringResource(R.string.qr_code),
+                    modifier = Modifier.size(240.dp),
+                )
+            }
+            Text(
+                address,
+                color = Color.Black,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 28.dp),
+            )
+            Text(
+                caption,
+                color = Color.Black.copy(alpha = 0.6f),
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 40.dp),
+            )
+            Text(
+                stringResource(R.string.tap_anywhere_to_copy),
+                color = Color.Black.copy(alpha = 0.4f),
+                fontSize = 13.sp,
+            )
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+/** The page's navigation bar: [dismiss]'s control and [center] in the title's place. */
+@Composable
+private fun AddressQrPageBar(dismiss: QrPageDismiss, onDismiss: () -> Unit, center: @Composable () -> Unit) {
+    // A sheet's bar is 56 tall on iOS, a pushed page's 44.
+    Box(Modifier.fillMaxWidth().height(if (dismiss == QrPageDismiss.BACK) 44.dp else 56.dp).padding(horizontal = 8.dp)) {
+        when (dismiss) {
+            QrPageDismiss.BACK -> IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
+            }
+            QrPageDismiss.CLOSE -> TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
+                Text(stringResource(R.string.close), color = KaspaTeal, fontSize = 17.sp)
+            }
+            // iOS's confirmation action: bold.
+            QrPageDismiss.DONE -> TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
+                Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Box(Modifier.align(Alignment.Center)) { center() }
+    }
+}
+
+/**
+ * The chatting address's QR page ([AddressQrPage] with the chatting caption, iOS
+ * `ChattingAddressQRView`'s default).
+ */
+@Composable
+fun ChattingAddressQrPage(address: String, balanceSompi: Long?, dismiss: QrPageDismiss, onDismiss: () -> Unit) {
+    AddressQrPage(
+        address = address,
+        balanceSompi = balanceSompi,
+        caption = stringResource(R.string.qr_chatting_address_subtitle),
+        dismiss = dismiss,
         onDismiss = onDismiss,
-        message = stringResource(R.string.qr_chatting_address_subtitle),
-        borderColor = KaspaTeal,
-        borderWidth = 4.dp,
-        dismissAsDone = dismissAsDone,
     )
 }
 
 /**
- * Receive Kaspa's QR page: a fresh, never-used receive address ([address], resolved by the caller
- * with WalletViewModel.resolveFreshReceiveAddress) on the full white [QrCodeOverlay] (iOS
- * `ReceiveKaspaQRView`). Profile's "Receive Kaspa" and the Chats New sheet's (iOS 5da8ccf /
- * e6400d6). While [address] is null it says it is preparing one - showing an old address for a
- * frame and swapping it is worse, since a QR is scanned the instant it appears.
+ * Receive Kaspa's page (iOS `ProfileView.ReceiveKaspaQRView`): a fresh, never-used receive address
+ * ([address], resolved by the caller with WalletViewModel.resolveFreshReceiveAddress) on the white
+ * QR page, its balance looked up once it is known. Until then the same page says "Preparing a
+ * fresh address" under a spinner, on the app's own background - in place, not over everything -
+ * or, once the lookup has finished with nothing, that the spending address is still unlocking.
+ * Showing an old address for a frame and swapping it is worse, since a QR is scanned the instant
+ * it appears. [title] is the bar's title while there is no code (the Chats sheet names it).
  */
 @Composable
-fun ReceiveKaspaQrOverlay(address: String?, onDismiss: () -> Unit, dismissAsDone: Boolean = false) {
-    if (address == null) {
-        // Its own window, like the QR page it turns into, so nothing on the screen below (the
-        // floating dock) sits over it.
-        Dialog(
-            onDismissRequest = onDismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f))
-                    .clickable { onDismiss() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp)
-                    Spacer(Modifier.height(12.dp))
-                    Text("Preparing a fresh address", color = Color.White, fontSize = 14.sp)
+fun ReceiveKaspaQrPage(
+    address: String?,
+    resolving: Boolean,
+    dismiss: QrPageDismiss,
+    onDismiss: () -> Unit,
+    walletViewModel: WalletViewModel,
+    title: String? = null,
+) {
+    if (address != null) {
+        // A failed lookup leaves the balance unknown ("—") rather than 0 KAS.
+        val balanceSompi by produceState<Long?>(initialValue = null, address) {
+            value = runCatching {
+                val coins = walletViewModel.fetchUtxosForCoinControl(address)
+                com.kachat.app.util.UtxoMath.checkedTotal(coins.map { it.utxoEntry.amount })
+            }.getOrNull()
+        }
+        AddressQrPage(
+            address = address,
+            balanceSompi = balanceSompi,
+            caption = stringResource(R.string.qr_receive_address_subtitle),
+            dismiss = dismiss,
+            onDismiss = onDismiss,
+        )
+        return
+    }
+    val colors = LocalAppColors.current
+    Column(Modifier.fillMaxSize().background(colors.background)) {
+        AddressQrPageBar(dismiss = dismiss, onDismiss = onDismiss) {
+            if (title != null) Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        }
+        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            if (resolving) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(16.dp),
+                ) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
+                    Text(stringResource(R.string.receive_preparing_fresh_address), color = colors.textSecondary, fontSize = 15.sp)
                 }
+            } else {
+                Text(
+                    stringResource(R.string.spending_address_unlocking),
+                    color = colors.textSecondary,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(16.dp),
+                )
             }
         }
-    } else {
-        QrCodeOverlay(
-            value = address,
-            onDismiss = onDismiss,
-            message = stringResource(R.string.qr_receive_address_subtitle),
-            borderColor = KaspaTeal,
-            borderWidth = 4.dp,
-            dismissAsDone = dismissAsDone,
-        )
+    }
+}
+
+/**
+ * A QR page presented the way iOS presents it from a sheet: a full-height sheet of its own over
+ * the screen (the Chats New sheet's two, Chatting Address details' code). White while the code
+ * shows, so the page reaches the sheet's edges.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = if (white) Color.White else LocalAppColors.current.background,
+        dragHandle = null,
+    ) {
+        Box(Modifier.fillMaxSize()) { content() }
+    }
+}
+
+/**
+ * A QR page pushed onto a screen (Profile's two): it covers that screen's content in place and
+ * slides in from the right, the way iOS pushes it - the dock stays where it is, as iOS's tab bar
+ * does - and Back pops it.
+ */
+@Composable
+fun PushedQrPage(visible: Boolean, white: Boolean, onBack: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        enter = androidx.compose.animation.slideInHorizontally { it },
+        exit = androidx.compose.animation.slideOutHorizontally { it },
+    ) {
+        BackHandler(onBack = onBack)
+        // The page's colour runs up under the status bar, as iOS's white page does.
+        Box(Modifier.fillMaxSize().background(if (white) Color.White else LocalAppColors.current.background)) {
+            Box(Modifier.fillMaxSize().statusBarsPadding()) { content() }
+        }
     }
 }
 
