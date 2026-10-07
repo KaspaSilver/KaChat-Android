@@ -685,6 +685,9 @@ class ColdStorageViewModel @Inject constructor(
 
     private val _isLoadingUtxos = MutableStateFlow(false)
     val isLoadingUtxos: StateFlow<Boolean> = _isLoadingUtxos.asStateFlow()
+    /** iOS's utxoLoadError: why the last fetch could not ask the node, for the failure row. */
+    private val _utxosLoadError = MutableStateFlow<String?>(null)
+    val utxosLoadError: StateFlow<String?> = _utxosLoadError.asStateFlow()
 
     fun loadUtxos(address: String) {
         val cached = utxoCache[address]
@@ -693,10 +696,19 @@ class ColdStorageViewModel @Inject constructor(
         }
         viewModelScope.launch {
             if (cached == null) _isLoadingUtxos.value = true
+            // Another address's failure must not stand in for this one's (while this loads, the
+            // spinner shows anyway).
+            _utxosLoadError.value = null
             try {
-                val fresh = addressDiscovery.getUtxos(address)
+                val fresh = addressDiscovery.getUtxosOrThrow(address)
                 utxoCache[address] = fresh
                 _utxos.value = fresh
+                _utxosLoadError.value = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The list keeps what it had; an outage is not an empty address.
+                _utxosLoadError.value = com.kachat.app.util.UserFacingError.message(e, "Couldn't load the coins.")
             } finally {
                 _isLoadingUtxos.value = false
             }

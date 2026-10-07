@@ -1957,6 +1957,7 @@ fun ColdStorageTxHistoryScreen(
     val isLoading by viewModel.isLoadingTxHistory.collectAsState()
     val utxos by viewModel.utxos.collectAsState()
     val isLoadingUtxos by viewModel.isLoadingUtxos.collectAsState()
+    val utxosLoadError by viewModel.utxosLoadError.collectAsState()
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val addresses by viewModel.addresses.collectAsState()
     val uriHandler = LocalUriHandler.current
@@ -2177,11 +2178,10 @@ fun ColdStorageTxHistoryScreen(
                             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
-                    utxos.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.no_utxos), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
+                    utxos.isEmpty() -> UtxoListEmptyRow(
+                        loadError = utxosLoadError,
+                        retry = { viewModel.loadUtxos(address) },
+                    )
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -2542,6 +2542,29 @@ fun UtxoLoadFailureRow(detail: String, retry: () -> Unit, modifier: Modifier = M
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clickable(onClick = retry),
         )
+    }
+}
+
+/**
+ * An address's UTXO tab with no coins to list, as iOS's insetGrouped list shows it: the
+ * [UtxoLoadFailureRow] when the node could not be asked (its Try Again runs [retry]), otherwise
+ * the row "No UTXOs.".
+ */
+@Composable
+fun UtxoListEmptyRow(loadError: String?, retry: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        val card = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface)
+        if (loadError != null) {
+            UtxoLoadFailureRow(detail = loadError, retry = retry, modifier = card)
+        } else {
+            Text(
+                stringResource(R.string.no_utxos),
+                color = colors.textSecondary,
+                fontSize = 17.sp,
+                modifier = card.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
     }
 }
 

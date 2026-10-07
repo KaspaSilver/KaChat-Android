@@ -889,6 +889,10 @@ class WalletViewModel @Inject constructor(
     val spendingAddressUtxos: StateFlow<List<ColdStorageAddressDiscovery.AddressUtxo>> = _spendingAddressUtxos.asStateFlow()
     private val _loadingSpendingAddressUtxos = MutableStateFlow(false)
     val loadingSpendingAddressUtxos: StateFlow<Boolean> = _loadingSpendingAddressUtxos.asStateFlow()
+    /** Why the last UTXO fetch could not ask the node - iOS's utxoLoadError, shown as the
+     *  failure row in place of "No UTXOs.". Null after a fetch that answered. */
+    private val _spendingAddressUtxosError = MutableStateFlow<String?>(null)
+    val spendingAddressUtxosError: StateFlow<String?> = _spendingAddressUtxosError.asStateFlow()
 
     /** Transaction history for a single spending address - see `SpendingAddressTxHistoryScreen`.
      *  Reuses [ColdStorageAddressDiscovery]'s address-string-keyed REST fetch (no Cold Storage
@@ -907,8 +911,16 @@ class WalletViewModel @Inject constructor(
     fun loadSpendingAddressUtxos(address: String) {
         viewModelScope.launch {
             _loadingSpendingAddressUtxos.value = true
-            _spendingAddressUtxos.value = coldStorageAddressDiscovery.getUtxos(address)
-            _loadingSpendingAddressUtxos.value = false
+            _spendingAddressUtxosError.value = null
+            try {
+                _spendingAddressUtxos.value = coldStorageAddressDiscovery.getUtxosOrThrow(address)
+                _spendingAddressUtxosError.value = null
+            } catch (e: Exception) {
+                // The list keeps what it had; an outage is not an empty address.
+                _spendingAddressUtxosError.value = UserFacingError.message(e, "Couldn't load the coins.")
+            } finally {
+                _loadingSpendingAddressUtxos.value = false
+            }
         }
     }
 

@@ -6551,6 +6551,8 @@ fun SpendingAddressTxHistoryScreen(
     val txHistoryFailed by viewModel.spendingAddressTxHistoryFailed.collectAsState()
     val utxos by viewModel.spendingAddressUtxos.collectAsState()
     val isLoadingUtxos by viewModel.loadingSpendingAddressUtxos.collectAsState()
+    val utxosLoadError by viewModel.spendingAddressUtxosError.collectAsState()
+    val utxoListAddress: String? = (address as String?)?.takeIf { it.isNotEmpty() }
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val biometricSpendingKeyEnabled by viewModel.biometricSpendingKeyEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
@@ -6788,11 +6790,10 @@ fun SpendingAddressTxHistoryScreen(
                             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
-                    utxos.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.no_utxos), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
+                    utxos.isEmpty() -> UtxoListEmptyRow(
+                        loadError = utxosLoadError,
+                        retry = { utxoListAddress?.let { viewModel.loadSpendingAddressUtxos(it) } },
+                    )
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -6951,6 +6952,8 @@ fun IdentityAddressDetailScreen(
     val txHistoryFailed by viewModel.spendingAddressTxHistoryFailed.collectAsState()
     val utxos by viewModel.spendingAddressUtxos.collectAsState()
     val isLoadingUtxos by viewModel.loadingSpendingAddressUtxos.collectAsState()
+    val utxosLoadError by viewModel.spendingAddressUtxosError.collectAsState()
+    val utxoListAddress: String? = (address as String?)?.takeIf { it.isNotEmpty() }
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     // The identity key is at least as sensitive as the seed phrase itself (it IS the wallet's
     // main spending key) - gated behind the same biometric flag Settings > View Seed Phrase
@@ -7186,11 +7189,10 @@ fun IdentityAddressDetailScreen(
                             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
-                    utxos.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.no_utxos), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
+                    utxos.isEmpty() -> UtxoListEmptyRow(
+                        loadError = utxosLoadError,
+                        retry = { utxoListAddress?.let { viewModel.loadSpendingAddressUtxos(it) } },
+                    )
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),

@@ -454,15 +454,21 @@ class ColdStorageAddressDiscovery @Inject constructor(
 
     /** Unspent outputs currently sitting at a single address — backs the Cold Storage tx history
      *  screen's "UTXOs" tab. */
-    suspend fun getUtxos(address: String): List<AddressUtxo> {
-        val api = networkService.kaspaRestApi.value ?: return emptyList()
-        return try {
-            api.getUtxos(address).map {
-                AddressUtxo(it.outpoint.transactionId, it.outpoint.index, it.utxoEntry.amount, it.utxoEntry.isCoinbase)
-            }
-        } catch (e: Exception) {
-            Log.w("ColdStorageAddressDiscovery", "Failed to fetch UTXOs for ${address.redactedForLog()}", e)
-            emptyList()
+    suspend fun getUtxos(address: String): List<AddressUtxo> = try {
+        getUtxosOrThrow(address)
+    } catch (e: Exception) {
+        Log.w("ColdStorageAddressDiscovery", "Failed to fetch UTXOs for ${address.redactedForLog()}", e)
+        emptyList()
+    }
+
+    /** [getUtxos], but a node that could not be asked throws instead of reading as an empty
+     *  address - what a coin list needs to show iOS's "Couldn't load the coins at this address"
+     *  rather than "No UTXOs.". */
+    suspend fun getUtxosOrThrow(address: String): List<AddressUtxo> {
+        val api = networkService.kaspaRestApi.value
+            ?: throw IllegalStateException("Not connected to the Kaspa network yet. Try again in a moment.")
+        return api.getUtxos(address).map {
+            AddressUtxo(it.outpoint.transactionId, it.outpoint.index, it.utxoEntry.amount, it.utxoEntry.isCoinbase)
         }
     }
 }
