@@ -37,26 +37,4 @@ class PeerAliasStore @Inject constructor(
         prefs.edit().putStringSet(key(wallet, contact), current + clean).apply()
         return true
     }
-
-    // The slow lane for old-style aliases (iOS 00d4919): when the contact last sent on an old
-    // (pre-deterministic) alias, and whether they have ever used the deterministic one.
-
-    /** Block time of the contact's newest message on an old-style alias, 0 when none seen. */
-    fun lastLegacyIncomingAtMs(wallet: String, contact: String): Long =
-        prefs.getLong("legacy_in|" + key(wallet, contact), 0L)
-
-    @Synchronized
-    fun noteLegacyIncoming(wallet: String, contact: String, blockTimeMs: Long) {
-        if (blockTimeMs > lastLegacyIncomingAtMs(wallet, contact)) {
-            prefs.edit().putLong("legacy_in|" + key(wallet, contact), blockTimeMs).apply()
-        }
-    }
-
-    /** True once a message from the contact arrived on the deterministic alias. */
-    fun usesDeterministic(wallet: String, contact: String): Boolean =
-        prefs.getBoolean("det|" + key(wallet, contact), false)
-
-    fun noteDeterministicIncoming(wallet: String, contact: String) {
-        if (!usesDeterministic(wallet, contact)) prefs.edit().putBoolean("det|" + key(wallet, contact), true).apply()
-    }
 }

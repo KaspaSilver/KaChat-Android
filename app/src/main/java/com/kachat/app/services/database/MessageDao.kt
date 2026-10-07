@@ -121,10 +121,6 @@ interface MessageDao {
     suspend fun hasSentToContact(contactId: String, walletAddress: String): Boolean
 
     /** Anything they sent us we can see - a message, payment or handshake. */
-    /** Block time of the contact's newest received message, null when none. */
-    @Query("SELECT MAX(blockTimestamp) FROM messages WHERE walletAddress = :walletAddress AND contactId = :contactId AND direction = 'received'")
-    suspend fun getLatestReceivedTimestamp(contactId: String, walletAddress: String): Long?
-
     /** Whether they have sent us anything in this conversation, whatever the case its address
      *  was stored in (audit IOS-008). [contactIdLowercase] must already be lowercased; Kaspa
      *  addresses are ASCII, so SQLite's LOWER folds them fully. */

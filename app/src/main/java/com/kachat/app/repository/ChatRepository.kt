@@ -84,6 +84,8 @@ class ChatRepository @Inject constructor(
     private val peerAliasStore: com.kachat.app.services.PeerAliasStore,
     /** Message Requests state - accepted, private, blocked (NO_HANDSHAKE_MESSAGING.md). */
     private val chatRequestStore: ChatRequestStore,
+    /** 1:1 messages a push told us about, until they are stored (iOS 60c9fd0). */
+    private val pushedMessageQueue: com.kachat.app.services.PushedMessageQueue,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -738,6 +740,9 @@ class ChatRepository @Inject constructor(
         val retention = settingsRepository.backupRetention.first()
         val cutoff = retention.cutoffMillis(System.currentTimeMillis()) ?: return
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
+        // Before trimming: a chat from before Message Requests must not turn into one because
+        // its early messages are gone (iOS 60c9fd0).
+        grandfatherPreexistingChats(myAddress)
         database.messageDao().deleteOlderThan(myAddress, cutoff)
     }
 
@@ -1209,10 +1214,12 @@ class ChatRepository @Inject constructor(
             lastInboxSyncAt = nowForInbox
             syncInbox(myAddress, api)
         }
+        // Messages a push told us about that are not stored yet (iOS 60c9fd0).
+        ingestPushedMessages(myAddress, api)
         // Saved-handshake notes: re-create chats that never had a handshake after a fresh
         // import, and write the notes still missing (iOS fe45704). Not on the fast poll tick.
         if (!fromPollLoop) contactNotesLazy.get().syncNotesInBackground()
-        syncContextualMessages(myAddress, api, pollShaped = fromPollLoop, slowLane = true)
+        syncContextualMessages(myAddress, api, pollShaped = fromPollLoop)
         // Payments get their own, slower cadence on the poll path: the endpoint is
         // full-transactions (inputs + outputs + payloads resolved server-side — by far the
         // heaviest GET in the cycle) and has no cursor, so polling it every fast tick
@@ -1224,6 +1231,146 @@ class ChatRepository @Inject constructor(
                 syncPayments(myAddress, it, limit = if (fromPollLoop) PAYMENT_POLL_LIMIT else 50)
                 lastPaymentPollAt = now
             }
+        }
+        // After this launch's first sync: old chats whose first messages are no longer stored
+        // stay ordinary chats (iOS 60c9fd0).
+        if (grandfatheredWallets.add(myAddress.lowercase())) grandfatherPreexistingChats(myAddress)
+    }
+
+    /** Wallets [grandfatherPreexistingChats] has run for after a sync, this launch. */
+    private val grandfatheredWallets = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * Chats that existed before Message Requests arrived stay ordinary chats for good (iOS
+     * 60c9fd0 grandfatherPreexistingChats). Decided from the oldest STORED message and recorded
+     * as accepted: [isMessageRequest] reads the first message still in the database, so an old
+     * chat whose early messages were removed by retention could otherwise turn into a request -
+     * leaving the chat list and the push watch list. Runs after the first sync of a launch and
+     * before every retention prune.
+     */
+    private suspend fun grandfatherPreexistingChats(myAddress: String) {
+        try {
+            val state = chatRequestStore.state(myAddress)
+            val me = myAddress.lowercase()
+            val preexisting = database.messageDao().getContactMessageStats(myAddress).first()
+                .filter { stats ->
+                    val address = stats.contactId.lowercase()
+                    val first = stats.firstAt
+                    address != me && stats.anySent == 0 && first != null && first < state.startedAt &&
+                        address !in state.accepted && address !in state.privateChats && address !in state.blocked
+                }
+                .map { it.contactId.lowercase() }
+                .toSet()
+            if (preexisting.isEmpty()) return
+            Log.i("ChatRepository", "${preexisting.size} chat(s) from before Message Requests kept as ordinary chats")
+            chatRequestStore.update(myAddress) { it.copy(accepted = it.accepted + preexisting) }
+        } catch (e: Exception) {
+            Log.w("ChatRepository", "Keeping pre-Message-Requests chats failed", e)
+        }
+    }
+
+    // MARK: - Pushed 1:1 messages (iOS 60c9fd0)
+
+    private val pushedIngestMutex = kotlinx.coroutines.sync.Mutex()
+    /** Per queued tx id: how often its sender was fetched for it, and when last (this launch). */
+    private val pushedAttempts = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Long>>()
+
+    /**
+     * A 1:1 push about [txId] from [sender]: always handed to the ingest - not only when the
+     * banner could not be previewed - and stored now, in the background. A photo, voice or long
+     * message (a payload-less push) otherwise waited for a sync to stumble on it: missing from
+     * the chat list until that chat was opened. Queued first, so a process frozen right after
+     * the push still stores it on its next sync.
+     */
+    fun notePushedMessage(txId: String, sender: String) {
+        val me = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotBlank() } ?: return
+        if (txId.isBlank() || sender.isBlank() || sender.equals(me, ignoreCase = true)) return
+        pushedMessageQueue.add(me, txId, sender)
+        scope.launch {
+            try {
+                ingestPushedMessages(me, networkService.indexerApi.value)
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Storing a pushed message failed", e)
+            }
+        }
+    }
+
+    /**
+     * Stores the queued pushed messages: each sender's conversation is fetched the normal way
+     * (sender + alias) until the tx is in the database. A sender with no chat yet is looked up in
+     * the inbox (Message Requests); if that does not bring them in, they get a chat anyway - a
+     * pending one, so it lands in Message Requests - once the message is confirmed to be for us.
+     * That contact row is their routing state: every sync and sweep covers them from then on
+     * (iOS 60c9fd0 gives anyone first seen through a push routing state on their first message).
+     * An entry not stored after a few spaced tries (an edit, reaction or pool envelope never
+     * becomes a row of its own) or a day is dropped; the regular sync keeps covering the chat.
+     */
+    suspend fun ingestPushedMessages(
+        myAddress: String = runCatching { walletManager.getAddress() }.getOrDefault(""),
+        api: KasiaIndexerApi? = networkService.indexerApi.value,
+    ) {
+        if (myAddress.isEmpty() || api == null || onboardingGate.isHeld) return
+        if (pushedMessageQueue.entries(myAddress).isEmpty()) return
+        if (!pushedIngestMutex.tryLock()) return
+        try {
+            val now = System.currentTimeMillis()
+            val pending = pushedMessageQueue.entries(myAddress)
+            val done = mutableSetOf<String>()
+            for ((_, entries) in pending.groupBy { it.sender.lowercase() }) {
+                val sender = entries.first().sender
+                val open = entries.filter { entry ->
+                    when {
+                        database.messageDao().exists(entry.txId, myAddress) -> false
+                        now - entry.queuedAt > com.kachat.app.services.PushedMessageQueue.MAX_AGE_MS -> false
+                        (pushedAttempts[entry.txId]?.first ?: 0) >= PUSHED_MAX_ATTEMPTS -> false
+                        else -> true
+                    }
+                }
+                done += entries.filterNot { it in open }.map { it.txId }
+                if (open.isEmpty()) continue
+                // Spaced tries: a sender fetched moments ago is left for the next pass.
+                if (open.all { now - (pushedAttempts[it.txId]?.second ?: 0L) < PUSHED_RETRY_SPACING_MS }) continue
+                if (sender.equals(myAddress, ignoreCase = true) || chatRequestStore.isBlocked(sender) ||
+                    !KaspaAddress.isValid(sender) || !com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(sender)
+                ) {
+                    done += open.map { it.txId }
+                    continue
+                }
+                if (database.contactDao().getContact(sender, myAddress) == null) {
+                    // First contact: the inbox brings in a tagged first message with its history.
+                    syncInbox(myAddress, api)
+                }
+                if (database.contactDao().getContact(sender, myAddress) == null) {
+                    // Not in the inbox (yet): a chat for them anyway, once a queued message is
+                    // confirmed to open with our key - so the sync below, and every sync after
+                    // it, looks for their messages.
+                    val forUs = open.any { decryptChainMessage(it.txId) != null }
+                    if (!forUs) {
+                        open.forEach { pushedAttempts.merge(it.txId, 1 to now) { old, _ -> (old.first + 1) to now } }
+                        continue
+                    }
+                    if (database.contactDao().getContact(sender, myAddress) == null) {
+                        val senderPubKeyHex = runCatching {
+                            KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
+                        }.getOrNull()
+                        database.contactDao().insert(
+                            ContactEntity(
+                                id = sender, walletAddress = myAddress, alias = null, knsName = null,
+                                publicKeyHex = senderPubKeyHex,
+                                // Not accepted yet: a Message Request, out of the push watch list.
+                                conversationStatus = "pending",
+                            )
+                        )
+                    }
+                }
+                open.forEach { pushedAttempts.merge(it.txId, 1 to now) { old, _ -> (old.first + 1) to now } }
+                syncContextualMessages(myAddress, api, onlyContactIds = setOf(sender))
+                done += open.filter { database.messageDao().exists(it.txId, myAddress) }.map { it.txId }
+            }
+            pushedMessageQueue.remove(myAddress, done)
+            done.forEach { pushedAttempts.remove(it) }
+        } finally {
+            pushedIngestMutex.unlock()
         }
     }
 
@@ -1531,42 +1678,11 @@ class ChatRepository @Inject constructor(
      * between contacts so a sweep is a drizzle, not a burst. Mirrors iOS ChatService's
      * startForegroundContactSweep. Manual refresh/resync flows never pass this.
      */
-    // MARK: - The slow lane for old-style aliases (iOS 00d4919)
-
-    /** When each old-style alias was last queried, this launch - so a quiet one is queried once
-     *  per launch, then at most daily. */
-    private val legacyAliasPolledAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
-
-    private fun legacyAliasKey(wallet: String, contactId: String, aliasHex: String) =
-        "${wallet.lowercase()}|${contactId.lowercase()}|$aliasHex"
-
-    /**
-     * Whether the regular sync should query an old-style (pre-deterministic) alias this time.
-     * Old-style aliases mostly hold history, yet each one cost an indexer request on every sync,
-     * sweep and open-chat poll, forever. They ride a slow lane - once per launch, then at most
-     * daily - unless in use: the contact sent on an old alias within 30 days, or has never used
-     * the deterministic alias and messaged within 30 days (an old client). Deterministic aliases
-     * are always queried by the caller.
-     */
-    private suspend fun shouldPollAlias(myAddress: String, contactId: String, aliasHex: String): Boolean {
-        val now = System.currentTimeMillis()
-        fun isRecent(ms: Long?): Boolean = ms != null && ms > 0 && (now < ms || now - ms < LEGACY_ALIAS_ACTIVE_WINDOW_MS)
-        if (isRecent(peerAliasStore.lastLegacyIncomingAtMs(myAddress, contactId))) return true
-        if (!peerAliasStore.usesDeterministic(myAddress, contactId) &&
-            isRecent(database.messageDao().getLatestReceivedTimestamp(contactId, myAddress))
-        ) return true
-        val lastPolled = legacyAliasPolledAt[legacyAliasKey(myAddress, contactId, aliasHex)] ?: return true
-        return now < lastPolled || now - lastPolled >= LEGACY_ALIAS_POLL_INTERVAL_MS
-    }
-
     private suspend fun syncContextualMessages(
         myAddress: String,
         api: KasiaIndexerApi,
         onlyContactIds: Set<String>? = null,
         pollShaped: Boolean = false,
-        /** The regular sync: quiet old-style aliases ride the slow lane ([shouldPollAlias]).
-         *  Rescans, resyncs, a new sender's history and an explicit refresh query everything. */
-        slowLane: Boolean = false,
         onContactDone: (suspend (done: Int, total: Int) -> Unit)? = null
     ): Int {
         // Fetch for BOTH active and pending contacts. Gating the FETCH on "active" made a
@@ -1636,10 +1752,12 @@ class ChatRepository @Inject constructor(
             }
 
             for (aliasHex in (listOfNotNull(legacyAliasHex, deterministicAliasHex) + knownAliasHexes).distinct()) {
-                val isLegacyAlias = deterministicAliasHex != null && aliasHex != deterministicAliasHex
-                // Old-style (pre-deterministic) aliases ride the slow lane (iOS 00d4919).
-                if (slowLane && isLegacyAlias && !shouldPollAlias(myAddress, contact.id, aliasHex)) continue
-                var aliasQueried = false
+                // Every alias here is one the contact sends to us on, and every one is queried on
+                // every sync: anyone in the chat list must always be found, whichever alias their
+                // app sends on (an old client, or a reinstall that started over on an old-style
+                // alias). The once-a-day lane for old-style aliases (iOS 00d4919) kept such a
+                // contact's messages off the list until the chat was opened or a day passed; iOS
+                // 60c9fd0 keeps that lane for its OUTGOING copies only, which Android never polls.
                 // block_time cursor, tracked per (contact, alias) since each is its own independent
                 // stream on the indexer — see MessageSyncCursorEntity's doc comment.
                 //
@@ -1681,7 +1799,6 @@ class ChatRepository @Inject constructor(
                         Log.w("ChatRepository", "Failed to fetch messages for ${contact.id}", e)
                         break
                     }
-                    aliasQueried = true
                     if (messages.isEmpty()) break
 
                     for (message in messages) {
@@ -1689,15 +1806,6 @@ class ChatRepository @Inject constructor(
                             if (database.messageDao().exists(message.txId, myAddress)) continue
                             if (isTombstoned(deleted, message.txId, message.blockTime)) continue
                             processContextualMessage(myAddress, contact, message)
-                            // Which lane the contact's aliases belong in: a message on an old
-                            // alias keeps them in the every-sync lane for a while.
-                            if (contact.id != myAddress) {
-                                if (isLegacyAlias) {
-                                    peerAliasStore.noteLegacyIncoming(myAddress, contact.id, message.blockTime)
-                                } else if (aliasHex == deterministicAliasHex) {
-                                    peerAliasStore.noteDeterministicIncoming(myAddress, contact.id)
-                                }
-                            }
                         } catch (e: Exception) {
                             Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
                         }
@@ -1723,7 +1831,6 @@ class ChatRepository @Inject constructor(
                     if (messages.size < CONTEXTUAL_PAGE_LIMIT || !moved) break
                     fetchFrom = maxBlockTime
                 }
-                if (aliasQueried && isLegacyAlias) legacyAliasPolledAt[legacyAliasKey(myAddress, contact.id, aliasHex)] = System.currentTimeMillis()
             }
             onContactDone?.invoke(index + 1, syncableContacts.size)
         }
@@ -2164,10 +2271,10 @@ class ChatRepository @Inject constructor(
         /** Poll-path contact-sweep shape — see [syncContextualMessages]. Matches iOS's
          *  startForegroundContactSweep (5s between sweeps, 100-120ms between contacts, cap 40). */
         private const val CONTACT_SWEEP_MIN_INTERVAL_MS = 5_000L
-        /** Quiet old-style aliases are queried at most this often (iOS 00d4919). */
-        private const val LEGACY_ALIAS_POLL_INTERVAL_MS = 24L * 60 * 60 * 1000
-        /** An old-style alias counts as in use for this long after the contact's last message on one. */
-        private const val LEGACY_ALIAS_ACTIVE_WINDOW_MS = 30L * 24 * 60 * 60 * 1000
+        /** Tries per pushed message before the ingest leaves it to the regular sync, and the
+         *  least time between two of them. */
+        private const val PUSHED_MAX_ATTEMPTS = 6
+        private const val PUSHED_RETRY_SPACING_MS = 10_000L
         /** How often the fast poll tick also asks the inbox for first-contact messages. */
         private const val INBOX_POLL_INTERVAL_MS = 30_000L
         private const val CONTACT_SWEEP_CAP = 40

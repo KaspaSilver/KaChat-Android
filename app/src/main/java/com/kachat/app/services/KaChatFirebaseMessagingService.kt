@@ -268,6 +268,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      */
     private suspend fun handleDirectMessage(data: Map<String, String>) {
         val sender = data["sender"] ?: return
+        // Always hand the message to the app's ingest, whatever the banner below ends up being
+        // (iOS 60c9fd0): it is stored now, in the background, instead of waiting for a sync to
+        // stumble on it - a photo, voice or long message stayed off the chat list until that
+        // chat was opened. Queued, so duplicates are ignored; blocked senders are dropped there.
+        data["tx_id"]?.takeIf { it.isNotBlank() }?.let { chatRepository.notePushedMessage(it, sender) }
         // Media/large messages exceed FCM's 4KB cap, so the server can't attach the encrypted body
         // (enc_payload absent) — the server's generic body is used for those. Small text messages
         // carry enc_payload and are decrypted here for the real preview.
