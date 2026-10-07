@@ -276,6 +276,7 @@ fun ChatThreadScreen(
     val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
     val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
+    val isEstimatingFee by chatViewModel.isEstimatingFee.collectAsState()
     // The composer's text, kept as the State itself and read in only three kinds of place, so a
     // keystroke doesn't recompose this screen (message list and header included - iOS 0977a5b):
     // the text field, inside ComposerTextScope; lambdas that run on a tap (send, Nextcloud link);
@@ -861,23 +862,12 @@ fun ChatThreadScreen(
                 if (pendingPhotoUri != null) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         if (showFeeEstimate && estimatedFee != null) {
-                            Surface(
-                                color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 8.dp)
-                                    .clickable { openFeeEditor(estimatedFee ?: 0L) }
-                            ) {
-                                Text(
-                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
-                                    color = KaspaTeal,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
-                            }
+                            ComposerFeePill(
+                                feeSompi = estimatedFee,
+                                estimating = false,
+                                onTap = { openFeeEditor(it) },
+                                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                            )
                         }
                         Row(
                             modifier = Modifier
@@ -940,23 +930,12 @@ fun ChatThreadScreen(
                 } else if (voiceRecordingState.status == ChatViewModel.VoiceRecordingStatus.RECORDING) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         if (showFeeEstimate && estimatedFee != null) {
-                            Surface(
-                                color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 8.dp)
-                                    .clickable { openFeeEditor(estimatedFee ?: 0L) }
-                            ) {
-                                Text(
-                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
-                                    color = KaspaTeal,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
-                            }
+                            ComposerFeePill(
+                                feeSompi = estimatedFee,
+                                estimating = false,
+                                onTap = { openFeeEditor(it) },
+                                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                            )
                         }
                         Row(
                             modifier = Modifier
@@ -1082,24 +1061,15 @@ fun ChatThreadScreen(
                                 }
                             }
                         }
-                        if (showFeeEstimate && estimatedFee != null && !messageTextIsEmpty) {
-                            Surface(
-                                color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 8.dp)
-                                    .clickable { openFeeEditor(estimatedFee ?: 0L) }
-                            ) {
-                                Text(
-                                    text = "fee: ${ChatRepository.formatKas(estimatedFee ?: 0L)} ${KaspaUnit.symbol}",
-                                    color = KaspaTeal,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
-                            }
+                        if (showFeeEstimate && !messageTextIsEmpty && (estimatedFee != null || isEstimatingFee)) {
+                            // iOS feeBubble: the fee, or - while a re-price waits for its pause - the shimmering
+                            // placeholder (TypingFeeGate).
+                            ComposerFeePill(
+                                feeSompi = estimatedFee,
+                                estimating = isEstimatingFee,
+                                onTap = { openFeeEditor(it) },
+                                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                            )
                         }
 
                         Row(

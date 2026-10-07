@@ -1252,4 +1252,8 @@
     <string name="notification_center_clear_all">Clear All</string>
     <!-- Receive Kaspa QR page (iOS ReceiveKaspaQRView) -->
     <string name="receive_preparing_fresh_address">Preparing a fresh address</string>
+    <!-- Composer fee pill (iOS feeBubble) -->
+    <string name="composer_fee_amount">fee: %1$s KAS</string>
+    <string name="composer_fee_estimating">fee: -------- KAS</string>
+    <string name="composer_fee_unknown">fee: -- KAS</string>
 </resources>

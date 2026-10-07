@@ -272,6 +272,7 @@ fun GroupChatThreadScreen(
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val estimatedFeeRaw by chatViewModel.groupEstimatedFeeSompi.collectAsState()
     val estimatedFee = if (showFeeEstimate) estimatedFeeRaw else null
+    val isEstimatingFee by chatViewModel.groupIsEstimatingFee.collectAsState()
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by chatViewModel.feeRateOverride.collectAsState()
     // What was typed here last time, exactly as 1:1 chats do (iOS 360e5d2).
@@ -722,11 +723,14 @@ fun GroupChatThreadScreen(
                                 }
                             }
                         }
-                        if (estimatedFee != null && !draftIsEmpty) {
+                        // The fee, or - while a re-price waits for its pause - iOS's shimmering
+                        // placeholder (TypingFeeGate).
+                        if (showFeeEstimate && !draftIsEmpty && (estimatedFee != null || isEstimatingFee)) {
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 groupFeePill(
                                     estimatedFee,
                                     modifier = Modifier.align(Alignment.Center),
+                                    estimating = isEstimatingFee,
                                     onClick = { openFeeEditor(estimatedFee ?: 0L) }
                                 )
                             }
@@ -1207,22 +1211,15 @@ fun GroupChatThreadScreen(
 
 /** "fee: N KAS" pill above the composer, matching 1:1/broadcast's identical display - tappable to adjust, same "Adjust Network Fee" dialog as 1:1/broadcast (see [GroupChatThreadScreen]'s showFeeEditor state). */
 @Composable
-private fun groupFeePill(feeSompi: Long?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
-    if (feeSompi == null) return
-    Surface(
-        color = LocalAppColors.current.surface,
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier.padding(bottom = 8.dp).let { if (onClick != null) it.clickable(onClick = onClick) else it }
-    ) {
-        Text(
-            text = "fee: ${ChatRepository.formatKas(feeSompi)} ${KaspaUnit.symbol}",
-            color = KaspaTeal,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            textDecoration = if (onClick != null) androidx.compose.ui.text.style.TextDecoration.Underline else null,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-        )
-    }
+private fun groupFeePill(feeSompi: Long?, modifier: Modifier = Modifier, estimating: Boolean = false, onClick: (() -> Unit)? = null) {
+    if (feeSompi == null && !estimating) return
+    // iOS's feeBubble, the same pill as 1:1 and public chats.
+    ComposerFeePill(
+        feeSompi = feeSompi,
+        estimating = estimating,
+        onTap = { onClick?.invoke() },
+        modifier = modifier.padding(bottom = 8.dp),
+    )
 }
 
 @Composable

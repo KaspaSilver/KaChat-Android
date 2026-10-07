@@ -35,6 +35,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -238,7 +240,7 @@ class BroadcastViewModel @Inject constructor(
      * [com.kachat.app.util.TypingFeeGate]). A reply, fee override, recording or Nextcloud route
      * change re-prices at once. `replyingTo` is declared further down, so it's read lazily.
      */
-    private val typedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(
+    private val typedTextPreview: SharedFlow<com.kachat.app.util.TypingFeeGate.Preview> = com.kachat.app.util.TypingFeeGate.preview(
         combine(
             _messageText,
             _feePreviewForce,
@@ -248,7 +250,13 @@ class BroadcastViewModel @Inject constructor(
         ) { text, force, reply, override, voice ->
             com.kachat.app.util.TypingFeeGate.Input(text, listOf(force, reply?.id, override, voice))
         }
-    )
+    ).shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
+
+    private val typedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(typedTextPreview)
+
+    /** The fee pill shows iOS's shimmering placeholder while a re-price waits for its pause. */
+    val isEstimatingFee: StateFlow<Boolean> = com.kachat.app.util.TypingFeeGate.estimating(typedTextPreview)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
     private val previewPayloadSize = combine(typedTextPreviewBytes, voiceRecordingState, _nextcloudVoiceRequested) { textBytes, recording, voiceNextcloud ->
         if (recording.status == VoiceRecordingStatus.RECORDING) {

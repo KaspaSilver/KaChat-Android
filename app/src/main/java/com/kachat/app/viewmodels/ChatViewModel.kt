@@ -1013,7 +1013,7 @@ class ChatViewModel @Inject constructor(
      * fee pill. A reply, fee override, staged photo, recording, Nextcloud route or payment
      * change re-prices at once. `replyingTo` is declared further down, so it's read lazily.
      */
-    private val typedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(
+    private val typedTextPreview: SharedFlow<com.kachat.app.util.TypingFeeGate.Preview> = com.kachat.app.util.TypingFeeGate.preview(
         combine(
             combine(_messageText, _feePreviewForce, flow { emitAll(replyingTo) }) { text, force, reply -> Triple(text, force, reply?.id) },
             combine(_feeRateOverride, voiceRecordingState.map { it.status }.distinctUntilChanged(), pendingPhotoUri) { override, recording, photoUri -> Triple(override, recording, photoUri) },
@@ -1022,7 +1022,13 @@ class ChatViewModel @Inject constructor(
         ) { (text, force, replyId), media, nextcloud, payment ->
             com.kachat.app.util.TypingFeeGate.Input(text, listOf(force, replyId, media, nextcloud, payment))
         }
-    )
+    ).shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
+
+    private val typedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(typedTextPreview)
+
+    /** The 1:1 fee pill shows iOS's shimmering placeholder while a re-price waits for its pause. */
+    val isEstimatingFee: StateFlow<Boolean> = com.kachat.app.util.TypingFeeGate.estimating(typedTextPreview)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
     /**
      * The payload byte count to price the live fee preview off of: the real typed-text length
@@ -1199,7 +1205,7 @@ class ChatViewModel @Inject constructor(
     /** The group composer's text bytes as the fee preview prices them - the same typing gate as
      *  1:1's [typedTextPreviewBytes] (iOS 0977a5b). `groupReplyingTo` is declared further down,
      *  so it's read lazily. */
-    private val groupTypedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(
+    private val groupTypedTextPreview: SharedFlow<com.kachat.app.util.TypingFeeGate.Preview> = com.kachat.app.util.TypingFeeGate.preview(
         combine(
             combine(_groupMessageText, _groupFeePreviewForce, flow { emitAll(groupReplyingTo) }) { text, force, reply -> Triple(text, force, reply?.txId) },
             combine(_feeRateOverride, groupVoiceRecordingState.map { it.status }.distinctUntilChanged(), groupPendingPhotoUri) { override, recording, photoUri -> Triple(override, recording, photoUri) },
@@ -1207,7 +1213,13 @@ class ChatViewModel @Inject constructor(
         ) { (text, force, replyId), media, nextcloud ->
             com.kachat.app.util.TypingFeeGate.Input(text, listOf(force, replyId, media, nextcloud))
         }
-    )
+    ).shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
+
+    private val groupTypedTextPreviewBytes: Flow<Int> = com.kachat.app.util.TypingFeeGate.payloadBytes(groupTypedTextPreview)
+
+    /** The group fee pill's placeholder state - see [isEstimatingFee]. */
+    val groupIsEstimatingFee: StateFlow<Boolean> = com.kachat.app.util.TypingFeeGate.estimating(groupTypedTextPreview)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
     private val groupPreviewPayloadSize: Flow<Int> = combine(
         combine(groupTypedTextPreviewBytes, groupVoiceRecordingState, groupPendingPhotoUri) { textBytes, recording, photoUri -> Triple(textBytes, recording, photoUri) },

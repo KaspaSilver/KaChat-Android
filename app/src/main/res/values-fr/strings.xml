@@ -1080,4 +1080,7 @@
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <string name="kaposts_retry">Réessayer</string>
     <string name="kaposts_profile">Profil</string>
+    <!-- Composer fee pill (iOS feeBubble) -->
+    <string name="composer_fee_estimating">frais : -------- KAS</string>
+    <string name="composer_fee_unknown">frais : -- KAS</string>
 </resources>
