@@ -10,6 +10,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 // KaChat brand colors — inspired by Kaspa's blue/teal palette
@@ -156,6 +157,12 @@ val DarkSheetAppColors = DarkAppColors.copy(
     surfaceVariant = Color(0xFF3A3A3C),
     divider        = Color(0xFF3D3D41),
 )
+
+/**
+ * The top corners of every sheet: iOS's sheets round theirs at about 10pt, where Material's
+ * default is 28dp.
+ */
+val IosSheetShape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
 
 /** Draws [content] with the iOS sheet palette (see [DarkSheetAppColors]). */
 @Composable

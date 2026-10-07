@@ -1066,6 +1066,7 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -1190,6 +1191,7 @@ fun KachatRegistrationPresenter() {
     key(open.id) {
         com.kachat.app.ui.theme.IosSheetColors {
             ModalBottomSheet(
+                shape = com.kachat.app.ui.theme.IosSheetShape,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = {},
                 sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden }),
@@ -1907,6 +1909,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // A swipe, a tap outside or Back closes the form; the progress stays put (Back on it
             // brings it straight back up).
@@ -2518,7 +2521,7 @@ fun KachatOwnAgainSheet(name: String, choose: (Boolean) -> Unit) {
     }
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
-        ModalBottomSheet(windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
+        ModalBottomSheet(shape = com.kachat.app.ui.theme.IosSheetShape, windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {

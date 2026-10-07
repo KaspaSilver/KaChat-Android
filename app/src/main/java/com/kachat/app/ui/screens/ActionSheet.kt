@@ -212,6 +212,7 @@ fun TileActionSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,
@@ -399,6 +400,7 @@ fun ActionSheetContainer(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,
@@ -1044,6 +1046,7 @@ fun SentConfirmationSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDone,
             // Expanded, not half-height: partial expansion cuts the Done button off.

@@ -543,7 +543,7 @@ private fun VideoRequestSheet(name: String, onAccept: () -> Unit, onDecline: () 
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .clip(com.kachat.app.ui.theme.IosSheetShape)
                 .background(Color(0xFF1C1C1E))
                 .clickable(
                     indication = null,

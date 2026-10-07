@@ -1487,7 +1487,7 @@ private fun ChessWaitingRoom(
             ) {
                 Column(
                     Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                        .clip(com.kachat.app.ui.theme.IosSheetShape)
                         .background(colors.background)
                         .clickable(
                             indication = null,

@@ -1907,6 +1907,7 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -4982,7 +4983,7 @@ private fun KaPostNotificationActionsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .clip(com.kachat.app.ui.theme.IosSheetShape)
                 .background(colors.background)
                 // Swallows taps so they cannot fall through to the scrim behind it.
                 .clickable(
@@ -5701,6 +5702,7 @@ fun KaPostTipSheet(
             com.kachat.app.ui.theme.IosSheetColors {
                 val colors = LocalAppColors.current
                 ModalBottomSheet(
+                    shape = com.kachat.app.ui.theme.IosSheetShape,
                     windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                     onDismissRequest = { showCoinControl = false },
                     sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -6956,6 +6958,7 @@ private fun ExpandableBioText(bio: String) {
         com.kachat.app.ui.theme.IosSheetColors {
             val colors = LocalAppColors.current
             ModalBottomSheet(
+                shape = com.kachat.app.ui.theme.IosSheetShape,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = { showFullBio = false },
                 containerColor = colors.background,

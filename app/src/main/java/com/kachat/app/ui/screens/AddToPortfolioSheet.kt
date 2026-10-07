@@ -135,7 +135,7 @@ fun AddToPortfolioSheet(
 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
-        ModalBottomSheet(windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.background) {
+        ModalBottomSheet(shape = com.kachat.app.ui.theme.IosSheetShape, windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.background) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {

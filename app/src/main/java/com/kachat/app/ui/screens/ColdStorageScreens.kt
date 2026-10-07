@@ -395,6 +395,7 @@ fun ColdStorageListScreen(
         com.kachat.app.ui.theme.IosSheetColors {
             val colors = LocalAppColors.current
             ModalBottomSheet(
+                shape = com.kachat.app.ui.theme.IosSheetShape,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = { pendingKpub = null; viewModel.resetImportState() },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -2340,6 +2341,7 @@ private fun ColdStorageAddressActionsSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
             // either way - so the sheet holds until it is done.
