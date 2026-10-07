@@ -273,7 +273,7 @@
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">Only Notify if I\'m Mentioned</string>
     <string name="open_settings">Open Settings</string>
-    <string name="original_message_not_available">Original message not available</string>
+    <string name="original_message_not_available">Original message not available.</string>
     <string name="original_message_fetching">Original message isn\'t on this device yet - fetching it.</string>
     <string name="other_nodes">Other Nodes</string>
     <string name="paste_from_clipboard">Paste from Clipboard</string>
@@ -442,7 +442,6 @@
     <string name="automatic_scan">Automatic Scan</string>
     <string name="kaspa_node_quick_access_footer">Automatic Scan discovers and connects to the best available nodes. Choosing a specific node connects only to it, without falling back to others. Manage saved addresses in Connection Settings &gt; IP Address Book.</string>
     <string name="node_connections_blocked">Node connections appear blocked on this network. Receiving messages still works over the indexer and plain payments still go through the REST API, but sending chat messages needs a node connection.</string>
-    <string name="address_removed_from_book">Address removed from book</string>
     <string name="last_sync">Last Sync</string>
     <string name="latency">Latency</string>
     <string name="message_indexer_service_for_chat_functionality">Message indexer service for chat functionality</string>
@@ -1288,4 +1287,12 @@
     <string name="qr_enable_camera_access_signed">Please enable camera access in Settings to scan the signed transaction.</string>
     <string name="qr_frames_progress">%1$d / %2$d frames</string>
     <string name="qr_point_camera_kassigner">Point camera at the KasSigner screen</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">Swap Details</string>
+    <string name="swap_status_toast">Status: %1$s</string>
+    <string name="swap_couldnt_reach_changenow">Couldn\'t reach ChangeNOW - try again</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="node_removed_still_connected">Removed from address book. Still connected to this node.</string>
+    <string name="node_address_removed">Address removed.</string>
+    <string name="field_copied_to_clipboard">%1$s copied to clipboard.</string>
 </resources>

@@ -2,7 +2,6 @@ package com.kachat.app.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -207,7 +206,7 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
         if (granted[Manifest.permission.RECORD_AUDIO] == true) {
             callService.acceptIncoming()
         } else {
-            Toast.makeText(context, "KaChat needs the microphone to take a call.", Toast.LENGTH_SHORT).show()
+            IosToasts.error("KaChat needs the microphone to take a call.")
             callService.declineIncoming()
         }
     }

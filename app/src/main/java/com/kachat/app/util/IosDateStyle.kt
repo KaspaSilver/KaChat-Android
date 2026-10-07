@@ -32,6 +32,10 @@ object IosDateStyle {
     fun mediumDate(ms: Long, locale: Locale = Locale.getDefault()): String =
         DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(Date(ms))
 
+    /** `.long` date, no time - SwiftUI's `Text(date, style: .date)`: "September 24, 2026". */
+    fun longDate(ms: Long, locale: Locale = Locale.getDefault()): String =
+        DateFormat.getDateInstance(DateFormat.LONG, locale).format(Date(ms))
+
     private val dayPeriodLetters = setOf('a', 'b', 'B')
     private val spaces = setOf(' ', ' ', ' ')
 

@@ -43,7 +43,6 @@
     <string name="chess_stats">סטטיסטיקת שחמט</string>
     <string name="choose_avatar">בחר אווטאר</string>
     <string name="choose_banner">בחר באנר</string>
-    <string name="choose_coin">בחר מטבע</string>
     <string name="choose_photo">בחר תמונה</string>
     <string name="clear_search">נקה חיפוש</string>
     <string name="close">סגור</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">העתק מפתח פרטי (Hex)</string>
     <string name="copy_kpub">העתק kpub</string>
     <string name="couldn_t_rename_group">לא ניתן היה לשנות שם לקבוצה</string>
-    <string name="couldn_t_read_this_swap_s">לא ניתן היה לקרוא את הסכומים של החלפה זו</string>
     <string name="create">צור</string>
     <string name="create_account">צור חשבון</string>
     <string name="create_kns_profile">צור פרופיל KNS</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">פעולה זו רק מסירה אותה מההיסטוריה המקומית שלך - היא לא משפיעה על ההחלפה בפועל.</string>
     <string name="delete_this_swap">למחוק את ההחלפה הזו?</string>
     <string name="delete_transaction">מחק עסקה</string>
-    <string name="deposit_address">כתובת הפקדה</string>
     <string name="domain_name">שם דומיין</string>
     <string name="done">סיום</string>
     <string name="each_transaction_temporarily_uses_2_kas">כל עסקה משתמשת באופן זמני ב-~2 KAS; ~1 KAS חוזר מיד כעודף, כך שרק עמלת הרשת הקטנה היא עלות אמיתית.</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">הזן kpub</string>
     <string name="error">שגיאה</string>
     <string name="every_member_will_see_the_new">כל חבר יראה את השם החדש.</string>
-    <string name="exchange_id_copied">מזהה ההחלפה הועתק</string>
     <string name="failed_to_send">השליחה נכשלה</string>
     <string name="fee_kas">עמלה (KAS)</string>
     <string name="fee_usd_optional">עמלה (USD, אופציונלי)</string>
@@ -164,7 +160,6 @@
     <string name="ok">אישור</string>
     <string name="only_notify_if_i_m_mentioned">התרע רק אם אני מוזכר</string>
     <string name="open_settings">פתח הגדרות</string>
-    <string name="original_message_not_available">ההודעה המקורית אינה זמינה</string>
     <string name="other_nodes">צמתים אחרים</string>
     <string name="paste_from_clipboard">הדבק מהלוח</string>
     <string name="paste_kpub">הדבק kpub</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">סרוק זאת עם מכשיר KasSigner שלך, בדוק שם, ואז חתום.</string>
     <string name="scroll_to_latest">גלול לאחרון</string>
     <string name="search_chats">חפש צ\'אטים</string>
-    <string name="search_coins">חפש מטבעות</string>
     <string name="secure_messaging_on_kaspa_blockdag">הודעות מאובטחות על Kaspa BlockDAG</string>
     <string name="security_warning">אזהרת אבטחה</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">מצב</string>
     <string name="still_indexing_it_ll_show_up">עדיין באינדוקס. יופיע למעלה בקרוב.</string>
     <string name="swap">החלפה</string>
-    <string name="swap_history">היסטוריית החלפות</string>
-    <string name="swap_started">ההחלפה החלה</string>
     <string name="swaps_are_processed_by_changenow_a">החלפות מעובדות על ידי ChangeNOW, שירות חליפין צד שלישי. בהמשך, אתה מאשר שקראת והסכמת לתנאי השירות של ChangeNOW עצמה. KaChat רק שולח את בקשת ההחלפה שלך ומציג את הסטטוס שלה; KaChat אינו אחראי להחלפות שנכשלו, התעכבו או אבדו. אם החלפה לא מתבצעת, פנה ישירות לתמיכת ChangeNOW.</string>
     <string name="tap_an_address_below_to_swap">הקש על כתובת למטה כדי להחליף ממנה</string>
     <string name="tap_an_address_below_to_use">הקש על כתובת למטה כדי להשתמש בה</string>
@@ -260,7 +252,6 @@
     <string name="unread">לא נקרא</string>
     <string name="use_default">השתמש בברירת המחדל</string>
     <string name="valid_address">כתובת תקפה</string>
-    <string name="view_on_changenow">צפה ב-ChangeNOW</string>
     <string name="waiting_for_camera">ממתין למצלמה...</string>
     <string name="waiting_on_opponent">ממתין ליריב</string>
     <string name="channel_name">שם-ערוץ</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">לא ניתן היה לשמור את התמונה</string>
     <string name="withdrawal_failed">המשיכה נכשלה</string>
     <string name="consolidation_failed">האיחוד נכשל</string>
-    <string name="swap_failed">ההחלפה נכשלה</string>
     <string name="nothing_to_consolidate">אין מה לאחד</string>
     <string name="about">אודות</string>
     <string name="actions">פעולות</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">הפעל גישה למצלמה בהגדרות כדי לסרוק את העסקה החתומה.</string>
     <string name="qr_point_camera_kassigner">כוון את המצלמה למסך KasSigner</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">פרטי החלפה</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s הועתק ללוח.</string>
 </resources>

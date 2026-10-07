@@ -1,6 +1,5 @@
 package com.kachat.app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -209,11 +208,7 @@ fun ShareComposeSheet(
                                 // Nothing typed is ever lost: stage the text in that chat's
                                 // composer and drop the user there to retry manually.
                                 chatViewModel.stageDraft(share.contactId, payloadText)
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.couldnt_send_saved_as_draft),
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                IosToasts.error(context.getString(R.string.couldnt_send_saved_as_draft))
                                 onDismiss()
                                 onOpenChat(share.contactId)
                             }

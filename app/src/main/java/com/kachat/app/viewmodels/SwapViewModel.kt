@@ -349,6 +349,10 @@ class SwapViewModel @Inject constructor(
         viewModelScope.launch { repository.refreshStatus(id) }
     }
 
+    /** Re-checks [id] with ChangeNOW and returns its status, or null when ChangeNOW could not be
+     *  reached (iOS `SwapService.refreshSwapStatusAsync`). The stored swap is updated either way. */
+    suspend fun refreshSwapStatusNow(id: String): String? = repository.refreshStatus(id).getOrNull()?.status
+
     fun markSwapAddedToPortfolio(id: String) {
         viewModelScope.launch { repository.markSwapAddedToPortfolio(id) }
     }
@@ -363,6 +367,13 @@ class SwapViewModel @Inject constructor(
         /** Plain decimal text for a quoted amount: up to 8 places, trailing zeros trimmed, never
          *  scientific notation - it is shown in the card and, for a "You Get" target, sent back
          *  to ChangeNOW as the fromAmount the exchange is created with. */
+        /** Swift's `String.capitalized`, as iOS writes a swap's status: every word's first letter
+         *  upper case and the rest lower case - "finished" reads "Finished". */
+        fun capitalizedStatus(status: String): String =
+            status.split(' ').joinToString(" ") { word ->
+                word.lowercase(java.util.Locale.ROOT).replaceFirstChar { it.titlecase(java.util.Locale.ROOT) }
+            }
+
         fun formatQuotedAmount(value: Double): String {
             var text = "%.8f".format(java.util.Locale.US, value)
             while (text.endsWith("0")) text = text.dropLast(1)

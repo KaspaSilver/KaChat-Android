@@ -43,7 +43,6 @@
     <string name="chess_stats">দাবা পরিসংখ্যান</string>
     <string name="choose_avatar">অবতার চয়ন করুন</string>
     <string name="choose_banner">ব্যানার নির্বাচন করুন</string>
-    <string name="choose_coin">কয়েন বেছে নিন</string>
     <string name="choose_photo">ছবি বেছে নিন</string>
     <string name="clear_search">অনুসন্ধান পরিষ্কার করুন</string>
     <string name="close">বন্ধ করুন</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">প্রাইভেট কী Hex কপি করুন</string>
     <string name="copy_kpub">kpub কপি করুন</string>
     <string name="couldn_t_rename_group">গ্রুপের নাম পরিবর্তন করা যায়নি</string>
-    <string name="couldn_t_read_this_swap_s">এই অদলবদলের পরিমাণগুলো পড়া যায়নি</string>
     <string name="create">তৈরি করুন</string>
     <string name="create_account">অ্যাকাউন্ট তৈরি করুন</string>
     <string name="create_kns_profile">KNS প্রোফাইল তৈরি করুন</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">এটি শুধুমাত্র আপনার স্থানীয় ইতিহাস থেকে সরিয়ে দেয় - এটি প্রকৃত এক্সচেঞ্জকে প্রভাবিত করে না।</string>
     <string name="delete_this_swap">এই সোয়াপটি মুছবেন?</string>
     <string name="delete_transaction">লেনদেন মুছুন</string>
-    <string name="deposit_address">জমার ঠিকানা</string>
     <string name="domain_name">ডোমেইন নাম</string>
     <string name="done">সম্পন্ন</string>
     <string name="each_transaction_temporarily_uses_2_kas">প্রতিটি লেনদেন সাময়িকভাবে ~2 KAS ব্যবহার করে; ~1 KAS অবিলম্বে বাকি হিসেবে ফেরত আসে, তাই শুধুমাত্র ছোট নেটওয়ার্ক ফিই আসল খরচ।</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">kpub লিখুন</string>
     <string name="error">ত্রুটি</string>
     <string name="every_member_will_see_the_new">প্রতিটি সদস্য নতুন নাম দেখতে পাবে।</string>
-    <string name="exchange_id_copied">এক্সচেঞ্জ আইডি কপি হয়েছে</string>
     <string name="failed_to_send">পাঠাতে ব্যর্থ</string>
     <string name="fee_kas">ফি (KAS)</string>
     <string name="fee_usd_optional">ফি (USD, ঐচ্ছিক)</string>
@@ -164,7 +160,6 @@
     <string name="ok">ঠিক আছে</string>
     <string name="only_notify_if_i_m_mentioned">শুধুমাত্র আমাকে উল্লেখ করা হলে জানান</string>
     <string name="open_settings">সেটিংস খুলুন</string>
-    <string name="original_message_not_available">মূল বার্তা উপলব্ধ নয়</string>
     <string name="other_nodes">অন্যান্য নোড</string>
     <string name="paste_from_clipboard">ক্লিপবোর্ড থেকে পেস্ট করুন</string>
     <string name="paste_kpub">kpub পেস্ট করুন</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">আপনার KasSigner ডিভাইস দিয়ে এটি স্ক্যান করুন, সেখানে পর্যালোচনা করুন, তারপর স্বাক্ষর করুন।</string>
     <string name="scroll_to_latest">সর্বশেষে স্ক্রল করুন</string>
     <string name="search_chats">চ্যাট খুঁজুন</string>
-    <string name="search_coins">কয়েন অনুসন্ধান করুন</string>
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG-এ নিরাপদ মেসেজিং</string>
     <string name="security_warning">নিরাপত্তা সতর্কতা</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">স্থিতি</string>
     <string name="still_indexing_it_ll_show_up">এখনও ইনডেক্স হচ্ছে। শীঘ্রই উপরে দেখা যাবে।</string>
     <string name="swap">অদলবদল</string>
-    <string name="swap_history">অদলবদলের ইতিহাস</string>
-    <string name="swap_started">অদলবদল শুরু হয়েছে</string>
     <string name="swaps_are_processed_by_changenow_a">অদলবদল ChangeNOW দ্বারা প্রক্রিয়া করা হয়, যা একটি তৃতীয় পক্ষের এক্সচেঞ্জ। চালিয়ে যাওয়ার মাধ্যমে, আপনি নিশ্চিত করছেন যে আপনি ChangeNOW-এর নিজস্ব পরিষেবার শর্তাবলী পড়েছেন এবং সম্মত হয়েছেন। KaChat শুধুমাত্র আপনার অদলবদল অনুরোধ জমা দেয় এবং এর স্ট্যাটাস প্রদর্শন করে; ব্যর্থ, বিলম্বিত বা হারানো অদলবদলের জন্য KaChat দায়ী নয়। যদি কোনো অদলবদল সম্পন্ন না হয়, সরাসরি ChangeNOW সাপোর্টের সাথে যোগাযোগ করুন।</string>
     <string name="tap_an_address_below_to_swap">একটি ঠিকানা থেকে অদলবদল করতে নিচে সেটিতে ট্যাপ করুন</string>
     <string name="tap_an_address_below_to_use">একটি ঠিকানা ব্যবহার করতে নিচে সেটিতে ট্যাপ করুন</string>
@@ -260,7 +252,6 @@
     <string name="unread">অপঠিত</string>
     <string name="use_default">ডিফল্ট ব্যবহার করুন</string>
     <string name="valid_address">বৈধ ঠিকানা</string>
-    <string name="view_on_changenow">ChangeNOW-এ দেখুন</string>
     <string name="waiting_for_camera">ক্যামেরার জন্য অপেক্ষা করা হচ্ছে...</string>
     <string name="waiting_on_opponent">প্রতিপক্ষের জন্য অপেক্ষা করা হচ্ছে</string>
     <string name="channel_name">চ্যানেল-নাম</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">ছবি সংরক্ষণ করা যায়নি</string>
     <string name="withdrawal_failed">উত্তোলন ব্যর্থ</string>
     <string name="consolidation_failed">একত্রীকরণ ব্যর্থ</string>
-    <string name="swap_failed">অদলবদল ব্যর্থ</string>
     <string name="nothing_to_consolidate">একত্রিত করার কিছু নেই</string>
     <string name="about">সম্পর্কে</string>
     <string name="actions">কার্যক্রম</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">স্বাক্ষরিত লেনদেন স্ক্যান করতে সেটিংসে ক্যামেরা অ্যাক্সেস সক্রিয় করুন।</string>
     <string name="qr_point_camera_kassigner">KasSigner স্ক্রিনের দিকে ক্যামেরা তাক করুন</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">অদলবদলের বিবরণ</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s ক্লিপবোর্ডে কপি করা হয়েছে।</string>
 </resources>

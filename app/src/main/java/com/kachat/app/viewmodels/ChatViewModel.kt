@@ -2936,7 +2936,7 @@ class ChatViewModel @Inject constructor(
                         return@launch
                     } catch (e: Exception) {
                         Log.w("ChatViewModel", "Nextcloud group voice upload failed, falling back to on-chain send", e)
-                        android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending voice message on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                        com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
                     }
                 }
                 groupRepository.sendGroupAudio(bytes, groupId, fileName = file.name)
@@ -2984,7 +2984,7 @@ class ChatViewModel @Inject constructor(
                     return@launch
                 } catch (e: Exception) {
                     Log.w("ChatViewModel", "Nextcloud group photo upload failed, falling back to on-chain send", e)
-                    android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending photo on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                    com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
                 }
             }
             try {
@@ -3025,7 +3025,7 @@ class ChatViewModel @Inject constructor(
                     return@launch
                 } catch (e: Exception) {
                     Log.w("ChatViewModel", "Nextcloud photo upload failed, falling back to on-chain send", e)
-                    android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending photo on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                    com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
                 }
             }
             try {
@@ -3068,11 +3068,9 @@ class ChatViewModel @Inject constructor(
                 nextcloudService.uploadMediaAndShare(body, "video_${System.currentTimeMillis() / 1000}.$extension")
             } catch (e: Exception) {
                 Log.w("ChatViewModel", "Nextcloud video upload failed", e)
-                android.widget.Toast.makeText(
-                    appContext,
-                    e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed),
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
+                com.kachat.app.ui.screens.IosToasts.error(
+                    e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed)
+                )
                 return@launch
             }
             // Warm the preview cache so the sender's own bubble shows the video card at once.
@@ -3114,7 +3112,7 @@ class ChatViewModel @Inject constructor(
                         return@launch
                     } catch (e: Exception) {
                         Log.w("ChatViewModel", "Nextcloud voice upload failed, falling back to on-chain send", e)
-                        android.widget.Toast.makeText(appContext, "Nextcloud upload failed — sending voice message on-chain instead", android.widget.Toast.LENGTH_SHORT).show()
+                        com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
                     }
                 }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)

@@ -1948,6 +1948,18 @@ fun MainShell(
             }
         }
         }
+
+        // iOS's in-app toast for every screen: over a tab it sits above the dock, as iOS's sits
+        // above the tab bar; a pushed screen has it above the navigation bar and keyboard.
+        val dockShown = onTabRoute && !hideBottomBar
+        com.kachat.app.ui.screens.IosToastHost(
+            modifier = Modifier.padding(bottom = if (dockShown) innerPadding.calculateBottomPadding() else 0.dp),
+            bottomInsets = if (dockShown) {
+                androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+            } else {
+                androidx.compose.foundation.layout.WindowInsets.safeDrawing.only(androidx.compose.foundation.layout.WindowInsetsSides.Bottom)
+            },
+        )
     }
 }
 
@@ -2039,6 +2051,8 @@ private fun OwnAddressHistorySheet(
                             }
                         }
                     }
+                    // Copies from these screens confirm in the sheet's own toast.
+                    com.kachat.app.ui.screens.IosToastHost(bottomInsets = com.kachat.app.ui.screens.SheetToastInsets)
                 }
             }
         }

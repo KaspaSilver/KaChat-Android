@@ -198,7 +198,6 @@ fun BroadcastListScreen(
     /** The room whose long-press sheet is up. */
     var roomActionTarget by remember { mutableStateOf<String?>(null) }
     val roomClipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(joinState.status) {
@@ -211,7 +210,6 @@ fun BroadcastListScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         // Its own floating button for joining or creating a room (iOS 6639a0b) - only standalone
         // (Kaspa Hub). Inside Chats, the Chats screen's + covers it ("New Public Chat", in its New
         // sheet - iOS 5da8ccf / be0857a). Not while selecting.
@@ -330,7 +328,8 @@ fun BroadcastListScreen(
         val notifyOn = channel?.notifyEnabled == true
         val summaries by broadcastViewModel.roomSummaries.collectAsState()
         val hasUnread = (summaries[name]?.unreadCount ?: 0) > 0
-        fun say(text: String) { coroutineScope.launch { snackbarHostState.showSnackbar(text) } }
+        // iOS PublicChatListView's toast: up for 3 s.
+        fun say(text: String) = IosToasts.show(text, durationMs = IosToastDuration.LONG)
         // iOS sizes this sheet for five tiles (two rows).
         TileActionSheet(title = "#$name", onDismiss = { roomActionTarget = null }, height = ActionSheetTileMetrics.sheetHeight(tiles = 5)) {
                 if (hasUnread) {
@@ -356,7 +355,14 @@ fun BroadcastListScreen(
                     ) {
                         roomActionTarget = null
                         broadcastViewModel.setNotifyEnabled(name, !notifyOn)
-                        say(if (notifyOn) "Notifications are off for this room" else "Notifications are on for this room")
+                        // iOS toggleNotify's words.
+                        say(
+                            when {
+                                notifyOn -> "Notifications are off for this public chat"
+                                isCurated -> "You'll get notifications for new messages in this public chat, even when the app is closed"
+                                else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
+                            }
+                        )
                     }
                 }
                 ActionSheetRow(icon = Icons.Default.Link, title = "Copy Room Link", subtitle = "A kachat.app link that opens this room.") {
@@ -1600,6 +1606,8 @@ fun BroadcastChannelScreen(
                                         ) {
                                             clipboardManager.setText(AnnotatedString(displayContent))
                                             showMenu = false
+                                            // iOS PublicChatChannelView: "Message copied." for 3 s.
+                                            IosToasts.show("Message copied.", durationMs = IosToastDuration.LONG)
                                         }
                                         when (translationState) {
                                             is com.kachat.app.services.PostTranslationService.TranslationState.Translated ->

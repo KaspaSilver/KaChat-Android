@@ -7,7 +7,6 @@
     <string name="could_not_save_photo">عکس ذخیره نشد</string>
     <string name="withdrawal_failed">برداشت ناموفق بود</string>
     <string name="consolidation_failed">ادغام ناموفق بود</string>
-    <string name="swap_failed">تبدیل ناموفق بود</string>
     <string name="nothing_to_consolidate">چیزی برای ادغام وجود ندارد</string>
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
@@ -61,7 +60,6 @@
     <string name="chess_stats">آمار شطرنج</string>
     <string name="choose_avatar">آواتار را انتخاب کنید</string>
     <string name="choose_banner">بنر را انتخاب کنید</string>
-    <string name="choose_coin">انتخاب سکه</string>
     <string name="choose_photo">انتخاب عکس</string>
     <string name="clear_search">پاک کردن جستجو</string>
     <string name="close">بستن</string>
@@ -81,7 +79,6 @@
     <string name="copy_private_key_hex">کپی کلید خصوصی (Hex)</string>
     <string name="copy_kpub">کپی kpub</string>
     <string name="couldn_t_rename_group">تغییر نام گروه ممکن نشد</string>
-    <string name="couldn_t_read_this_swap_s">مبالغ این تبادل خوانده نشد</string>
     <string name="create">ایجاد</string>
     <string name="create_account">ایجاد حساب</string>
     <string name="create_kns_profile">ایجاد نمایه KNS</string>
@@ -97,7 +94,6 @@
     <string name="delete_swap_history_message">این فقط آن را از تاریخچه محلی شما حذف می‌کند - روی مبادله واقعی تأثیری ندارد.</string>
     <string name="delete_this_swap">این تبادل حذف شود؟</string>
     <string name="delete_transaction">حذف تراکنش</string>
-    <string name="deposit_address">آدرس واریز</string>
     <string name="domain_name">نام دامنه</string>
     <string name="done">انجام شد</string>
     <string name="each_transaction_temporarily_uses_2_kas">هر تراکنش به‌طور موقت از ~2 KAS استفاده می‌کند؛ ~1 KAS بلافاصله به‌عنوان باقیمانده برمی‌گردد، بنابراین فقط کارمزد کوچک شبکه هزینه واقعی است.</string>
@@ -108,7 +104,6 @@
     <string name="error">خطا</string>
     <string name="export">خروجی گرفتن</string>
     <string name="every_member_will_see_the_new">هر عضو نام جدید را خواهد دید.</string>
-    <string name="exchange_id_copied">شناسه تبادل کپی شد</string>
     <string name="failed_to_send">ارسال ناموفق بود</string>
     <string name="fee_kas">کارمزد (KAS)</string>
     <string name="fee_usd_optional">کارمزد (دلار، اختیاری)</string>
@@ -194,7 +189,6 @@
     <string name="ok">تایید</string>
     <string name="only_notify_if_i_m_mentioned">فقط در صورت ذکر نام من مطلع شوم</string>
     <string name="open_settings">باز کردن تنظیمات</string>
-    <string name="original_message_not_available">پیام اصلی در دسترس نیست</string>
     <string name="other_nodes">گره‌های دیگر</string>
     <string name="paste_from_clipboard">جای‌گذاری از حافظه</string>
     <string name="paste_kpub">چسباندن kpub</string>
@@ -246,7 +240,6 @@
     <string name="scan_this_with_your_kassigner_device">این را با دستگاه KasSigner خود اسکن کنید، آنجا بررسی کنید، سپس امضا کنید.</string>
     <string name="scroll_to_latest">پیمایش به آخرین</string>
     <string name="search_chats">جستجوی گفتگوها</string>
-    <string name="search_coins">جستجوی سکه‌ها</string>
     <string name="secure_messaging_on_kaspa_blockdag">پیام‌رسانی امن روی Kaspa BlockDAG</string>
     <string name="security_warning">هشدار امنیتی</string>
     <string name="seed_phrase">عبارت بازیابی</string>
@@ -272,8 +265,6 @@
     <string name="status">وضعیت</string>
     <string name="still_indexing_it_ll_show_up">هنوز در حال نمایه‌سازی است. به‌زودی در بالا ظاهر می‌شود.</string>
     <string name="swap">تبدیل</string>
-    <string name="swap_history">تاریخچه تبدیل‌ها</string>
-    <string name="swap_started">تبدیل شروع شد</string>
     <string name="swaps_are_processed_by_changenow_a">تبدیل‌ها توسط ChangeNOW، یک سرویس تبادل شخص ثالث، پردازش می‌شوند. با ادامه دادن، تأیید می‌کنید که شرایط خدمات مخصوص ChangeNOW را خوانده و پذیرفته‌اید. KaChat فقط درخواست تبدیل شما را ارسال کرده و وضعیت آن را نمایش می‌دهد؛ KaChat مسئول تبدیل‌های ناموفق، تأخیری یا گم‌شده نیست. اگر تبدیلی انجام نشد، مستقیماً با پشتیبانی ChangeNOW تماس بگیرید.</string>
     <string name="tap_an_address_below_to_swap">برای تبدیل از یک آدرس، روی آن در زیر ضربه بزنید</string>
     <string name="tap_an_address_below_to_use">برای استفاده از یک آدرس، روی آن در زیر ضربه بزنید</string>
@@ -297,7 +288,6 @@
     <string name="use_default">استفاده از پیش‌فرض</string>
     <string name="utxos">UTXOها</string>
     <string name="valid_address">آدرس معتبر</string>
-    <string name="view_on_changenow">مشاهده در ChangeNOW</string>
     <string name="waiting_for_camera">در انتظار دوربین...</string>
     <string name="waiting_on_opponent">در انتظار حریف</string>
     <string name="channel_name">نام-کانال</string>
@@ -1120,4 +1110,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">برای اسکن تراکنش امضاشده، دسترسی دوربین را در تنظیمات فعال کنید.</string>
     <string name="qr_point_camera_kassigner">دوربین را به سمت صفحه KasSigner بگیرید</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">جزئیات تبدیل</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s در کلیپ بورد کپی شد.</string>
 </resources>

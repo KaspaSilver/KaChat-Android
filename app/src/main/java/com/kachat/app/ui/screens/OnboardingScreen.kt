@@ -967,6 +967,21 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                 // A phrase on the clipboard fills the slots in one tap, and the word-count
                 // follows whatever was pasted (iOS f9beba1).
                 val pasteContext = LocalContext.current
+                val pasteHaptic = com.kachat.app.util.rememberHaptics()
+                var pasteError by remember { mutableStateOf<String?>(null) }
+                pasteError?.let { message ->
+                    com.kachat.app.ui.theme.IosAlertDialog(
+                        onDismissRequest = { pasteError = null },
+                        containerColor = LocalAppColors.current.surface,
+                        title = { Text(stringResource(R.string.error), color = LocalAppColors.current.textPrimary) },
+                        text = { Text(message, color = LocalAppColors.current.textSecondary) },
+                        confirmButton = {
+                            TextButton(onClick = { pasteError = null }) {
+                                Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+                }
                 val pasteClipboard = pasteContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                 // A bordered button, small, as on iOS - not a bare text link.
                 OutlinedButton(
@@ -974,9 +989,11 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                     border = androidx.compose.foundation.BorderStroke(1.dp, KaspaTeal.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(50),
                     onClick = {
+                        // iOS's pasteSeedPhrase: a refusal goes up in the "Error" alert, a
+                        // success is a haptic and the filled slots.
                         val raw = pasteClipboard?.primaryClip?.getItemAt(0)?.coerceToText(pasteContext)?.toString()
-                        if (raw.isNullOrBlank()) {
-                            android.widget.Toast.makeText(pasteContext, "Nothing to paste.", android.widget.Toast.LENGTH_SHORT).show()
+                        if (raw == null) {
+                            pasteError = "Nothing to paste."
                             return@OutlinedButton
                         }
                         val pasted = raw.lowercase()
@@ -985,19 +1002,11 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                             .filter { it.isNotEmpty() && !it.all { c -> c.isDigit() } }
                         when {
                             pasted.size != 12 && pasted.size != 24 ->
-                                android.widget.Toast.makeText(
-                                    pasteContext,
-                                    "A recovery phrase is 12 or 24 words - the clipboard holds ${pasted.size}.",
-                                    android.widget.Toast.LENGTH_LONG,
-                                ).show()
+                                pasteError = "A recovery phrase is 12 or 24 words - the clipboard holds ${pasted.size}."
                             else -> {
                                 val unknown = pasted.filterNot { wordList.contains(it) }
                                 if (unknown.isNotEmpty()) {
-                                    android.widget.Toast.makeText(
-                                        pasteContext,
-                                        "Not a recovery phrase word: ${unknown.take(3).joinToString(", ")}.",
-                                        android.widget.Toast.LENGTH_LONG,
-                                    ).show()
+                                    pasteError = "Not a recovery phrase word: ${unknown.take(3).joinToString(", ")}."
                                 } else {
                                     wordCount = pasted.size
                                     words = List(24) { index -> pasted.getOrElse(index) { "" } }
@@ -1009,7 +1018,7 @@ fun ImportWalletScreen(viewModel: WalletViewModel, onBack: () -> Unit, onProceed
                                     } else {
                                         pasteClipboard?.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
                                     }
-                                    android.widget.Toast.makeText(pasteContext, "Phrase pasted - clipboard cleared.", android.widget.Toast.LENGTH_SHORT).show()
+                                    pasteHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                                 }
                             }
                         }

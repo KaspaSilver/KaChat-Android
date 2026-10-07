@@ -9,7 +9,6 @@ import com.kachat.app.util.UserFacingError
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -470,14 +469,12 @@ private fun PortfolioTransactionsContent(
                         }
                         viewModel.importCsv(android.net.Uri.fromFile(local)) { result ->
                             local.delete()
-                            val message = result.fold(
-                                onSuccess = { count -> if (count > 0) "Imported $count transaction${if (count == 1) "" else "s"}" else "Import failed. Check the CSV format" },
-                                onFailure = { "Import failed. Check the CSV format" }
-                            )
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            val count = result.getOrNull() ?: 0
+                            if (count > 0) IosToasts.show("Imported $count transaction${if (count == 1) "" else "s"}")
+                            else IosToasts.error("Import failed. Check the CSV format")
                         }
                     } catch (e: Exception) {
-                        Toast.makeText(context, context.getString(R.string.pnc_import_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again")), Toast.LENGTH_SHORT).show()
+                        IosToasts.error(context.getString(R.string.pnc_import_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again")))
                     }
                 }
             },
@@ -487,11 +484,10 @@ private fun PortfolioTransactionsContent(
     val importCsvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             viewModel.importCsv(uri) { result ->
-                val message = result.fold(
-                    onSuccess = { count -> "Imported $count transaction${if (count == 1) "" else "s"}" },
-                    onFailure = { "Import failed. Check the CSV format" }
-                )
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                // iOS: none imported reads as the format error, in red.
+                val count = result.getOrNull() ?: 0
+                if (count > 0) IosToasts.show("Imported $count transaction${if (count == 1) "" else "s"}")
+                else IosToasts.error("Import failed. Check the CSV format")
             }
         }
     }
@@ -651,12 +647,10 @@ private fun PortfolioTransactionsContent(
                                         try {
                                             context.startActivity(Intent.createChooser(intent, "Export Portfolio CSV"))
                                         } catch (e: ActivityNotFoundException) {
-                                            Toast.makeText(context, "No app available to share the CSV", Toast.LENGTH_SHORT).show()
+                                            IosToasts.error("No app available to share the CSV")
                                         }
                                     },
-                                    onUnavailable = { message ->
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    }
+                                    onUnavailable = { message -> IosToasts.error(message) }
                                 )
                             }
                             ActionSheetRow(
@@ -687,21 +681,21 @@ private fun PortfolioTransactionsContent(
                                     viewModel.exportCsv(
                                         onReady = { uri ->
                                             nextcloudScope.launch {
-                                                val message = try {
+                                                val (message, failed) = try {
                                                     val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                                                     } ?: throw java.io.IOException("Couldn't write the CSV file")
                                                     val name = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.endsWith(".csv") }
                                                         ?: "kachat-portfolio-${System.currentTimeMillis()}.csv"
                                                     val path = viewModel.nextcloud.uploadToKaChatFolder(bytes, name, "text/csv")
-                                                    context.getString(R.string.pnc_saved_to, path)
+                                                    context.getString(R.string.pnc_saved_to, path) to false
                                                 } catch (e: Exception) {
-                                                    context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again"))
+                                                    context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again")) to true
                                                 }
-                                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                if (failed) IosToasts.error(message) else IosToasts.show(message)
                                             }
                                         },
-                                        onUnavailable = { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+                                        onUnavailable = { message -> IosToasts.error(message) }
                                     )
                                 }
                             }
@@ -785,7 +779,7 @@ private fun PortfolioTransactionsContent(
                     ) {
                         viewModel.moveTransaction(tx.id, portfolio.id)
                         movingTransaction = null
-                        Toast.makeText(context, context.getString(R.string.portfolio_moved_to, portfolio.name), Toast.LENGTH_SHORT).show()
+                        IosToasts.show(context.getString(R.string.portfolio_moved_to, portfolio.name))
                     }
                 }
             }
@@ -879,21 +873,20 @@ private fun PortfolioTransactionsContent(
                     val result = viewModel.importAddress(address) { text -> importProgressText = text }
                     isImportingAddress = false
                     showAddAddressDialog = false
-                    val message = result.fold(
+                    result.fold(
                         onSuccess = { imported ->
-                            var base = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
+                            // iOS's wording, a sentence at a time.
+                            var message = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
                             if (imported.feeCount > 0) {
-                                base += context.getString(R.string.portfolio_fees_counted, imported.feeCount)
+                                message += context.getString(R.string.portfolio_fees_counted, imported.feeCount)
                             }
                             if (imported.pendingPriceCount > 0) {
-                                "$base. Prices are filling in the background."
-                            } else {
-                                base
+                                message += ". Prices for ${imported.pendingPriceCount} are still loading and will fill in automatically"
                             }
+                            IosToasts.show(message)
                         },
-                        onFailure = { it.message ?: "Import failed." }
+                        onFailure = { IosToasts.error(it.message ?: "Import failed.") }
                     )
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 }
             },
             resolveKns = { input -> viewModel.resolveName(input)?.address }

@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
 import com.kachat.app.R
 
 /**
@@ -30,21 +29,22 @@ import com.kachat.app.R
  * payload - e.g. a foreign chain's swap deposit address) fall back to the plain string.
  */
 fun showAddressCopiedToast(context: Context, address: String) {
-    Toast.makeText(
-        context,
-        context.getString(R.string.address_copied_short, addressCopiedDisplay(address)),
-        Toast.LENGTH_SHORT
-    ).show()
+    com.kachat.app.ui.screens.IosToasts.show(context.getString(R.string.address_copied_short, addressCopiedDisplay(address)))
 }
 
-/** The three-segment shortened form used by [showAddressCopiedToast]; see its doc comment. */
+/**
+ * The three-segment shortened form used by [showAddressCopiedToast]; see its doc comment. iOS's
+ * `addressToastShortened`: trimmed, the prefix through its colon kept (none without one), and the
+ * payload shortened only when it is at least 24 characters, so the segments cannot overlap.
+ */
 internal fun addressCopiedDisplay(address: String): String {
-    val parts = address.split(":", limit = 2)
-    if (parts.size != 2) return address
-    val (prefix, body) = parts
-    if (body.length < 16) return address
+    val trimmed = address.trim()
+    val colon = trimmed.indexOf(':')
+    val prefix = if (colon >= 0) trimmed.substring(0, colon + 1) else ""
+    val body = if (colon >= 0) trimmed.substring(colon + 1) else trimmed
+    if (body.length < 24) return trimmed
     val midStart = body.length / 2 - 2
-    return "$prefix:${body.take(4)}...${body.substring(midStart, midStart + 4)}...${body.takeLast(4)}"
+    return "$prefix${body.take(4)}...${body.substring(midStart, midStart + 4)}...${body.takeLast(4)}"
 }
 
 fun copyPrivateKeyWithAutoWipe(context: Context, value: String, label: String = "private key") {

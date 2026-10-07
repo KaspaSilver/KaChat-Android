@@ -1639,6 +1639,7 @@ private fun GroupMessageBubble(
                             showMenu = false
                         }
                     }
+                    val copyHaptic = com.kachat.app.util.rememberHaptics()
                     ActionSheetRow(
                         icon = Icons.Default.ContentCopy,
                         title = stringResource(R.string.copy_message),
@@ -1646,6 +1647,9 @@ private fun GroupMessageBubble(
                     ) {
                         clipboardManager.setText(AnnotatedString(displayContent))
                         showMenu = false
+                        // iOS MessageBubbleView.handleCopy, in the group's toast (3 s).
+                        copyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                        IosToasts.show("Message copied to clipboard.", durationMs = IosToastDuration.LONG)
                     }
                     ActionSheetRow(
                         icon = Icons.Default.Public,

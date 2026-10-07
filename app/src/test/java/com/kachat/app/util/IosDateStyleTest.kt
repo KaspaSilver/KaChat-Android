@@ -78,6 +78,11 @@ class IosDateStyleTest {
         assertEquals("Sep 24, 2026", text)
     }
 
+    @Test
+    fun `the long date spells the month out, as SwiftUI's date style does`() {
+        assertEquals("September 24, 2026", IosDateStyle.longDate(moment, Locale.US))
+    }
+
     // iOS follows the device's 24-Hour Time switch over the locale's habit.
 
     @Test

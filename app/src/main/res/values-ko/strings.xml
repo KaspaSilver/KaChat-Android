@@ -43,7 +43,6 @@
     <string name="chess_stats">체스 전적</string>
     <string name="choose_avatar">아바타를 선택하세요</string>
     <string name="choose_banner">배너 선택</string>
-    <string name="choose_coin">코인 선택</string>
     <string name="choose_photo">사진 선택</string>
     <string name="clear_search">검색 지우기</string>
     <string name="close">닫기</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">개인 키 Hex 복사</string>
     <string name="copy_kpub">kpub 복사</string>
     <string name="couldn_t_rename_group">그룹 이름을 변경할 수 없음</string>
-    <string name="couldn_t_read_this_swap_s">이 스왑의 금액을 읽을 수 없습니다</string>
     <string name="create">만들기</string>
     <string name="create_account">계정 만들기</string>
     <string name="create_kns_profile">KNS 프로필 만들기</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">이는 로컬 기록에서만 제거되며 실제 교환에는 영향을 주지 않습니다.</string>
     <string name="delete_this_swap">이 스왑을 삭제하시겠습니까?</string>
     <string name="delete_transaction">거래 삭제</string>
-    <string name="deposit_address">입금 주소</string>
     <string name="domain_name">도메인 이름</string>
     <string name="done">완료</string>
     <string name="each_transaction_temporarily_uses_2_kas">각 거래는 일시적으로 ~2 KAS를 사용합니다; ~1 KAS는 즉시 잔돈으로 돌아오므로 실제 비용은 작은 네트워크 수수료뿐입니다.</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">kpub 입력</string>
     <string name="error">오류</string>
     <string name="every_member_will_see_the_new">모든 멤버가 새 이름을 보게 됩니다.</string>
-    <string name="exchange_id_copied">교환 ID가 복사됨</string>
     <string name="failed_to_send">전송 실패</string>
     <string name="fee_kas">수수료 (KAS)</string>
     <string name="fee_usd_optional">수수료 (USD, 선택 사항)</string>
@@ -164,7 +160,6 @@
     <string name="ok">확인</string>
     <string name="only_notify_if_i_m_mentioned">내가 언급된 경우에만 알림</string>
     <string name="open_settings">설정 열기</string>
-    <string name="original_message_not_available">원본 메시지를 사용할 수 없음</string>
     <string name="other_nodes">기타 노드</string>
     <string name="paste_from_clipboard">클립보드에서 붙여넣기</string>
     <string name="paste_kpub">kpub 붙여넣기</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">KasSigner 기기로 이것을 스캔하고 거기서 검토한 다음 서명하세요.</string>
     <string name="scroll_to_latest">최신으로 스크롤</string>
     <string name="search_chats">채팅 검색</string>
-    <string name="search_coins">코인 검색</string>
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG에서 안전한 메시징</string>
     <string name="security_warning">보안 경고</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">상태</string>
     <string name="still_indexing_it_ll_show_up">아직 색인 중입니다. 곧 위에 표시됩니다.</string>
     <string name="swap">스왑</string>
-    <string name="swap_history">스왑 기록</string>
-    <string name="swap_started">스왑 시작됨</string>
     <string name="swaps_are_processed_by_changenow_a">스왑은 타사 거래소인 ChangeNOW에서 처리됩니다. 계속하면 ChangeNOW 자체 서비스 약관을 읽고 동의했음을 확인하는 것입니다. KaChat은 스왑 요청을 제출하고 상태를 표시할 뿐입니다; KaChat은 실패, 지연 또는 손실된 스왑에 대해 책임을 지지 않습니다. 스왑이 진행되지 않으면 ChangeNOW 지원팀에 직접 문의하세요.</string>
     <string name="tap_an_address_below_to_swap">아래 주소를 탭하여 그곳에서 스왑하세요</string>
     <string name="tap_an_address_below_to_use">아래 주소를 탭하여 사용하세요</string>
@@ -260,7 +252,6 @@
     <string name="unread">안읽음</string>
     <string name="use_default">기본값 사용</string>
     <string name="valid_address">유효한 주소</string>
-    <string name="view_on_changenow">ChangeNOW에서 보기</string>
     <string name="waiting_for_camera">카메라 대기 중...</string>
     <string name="waiting_on_opponent">상대방 대기 중</string>
     <string name="channel_name">채널-이름</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">사진을 저장할 수 없음</string>
     <string name="withdrawal_failed">출금 실패</string>
     <string name="consolidation_failed">통합 실패</string>
-    <string name="swap_failed">스왑 실패</string>
     <string name="nothing_to_consolidate">통합할 것이 없음</string>
     <string name="about">정보</string>
     <string name="actions">작업</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">서명된 거래를 스캔하려면 설정에서 카메라 접근을 활성화하세요.</string>
     <string name="qr_point_camera_kassigner">카메라를 KasSigner 화면에 향하게 하세요</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">스왑 세부정보</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s이 클립보드에 복사되었습니다.</string>
 </resources>

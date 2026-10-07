@@ -1,6 +1,5 @@
 package com.kachat.app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -192,16 +191,14 @@ private fun HoldArena(service: ChessTournamentService) {
     }
 }
 
+/**
+ * iOS's `.toast(message: service.lastError, style: .error)` on every chess screen: the red toast,
+ * up for as long as the service holds the error - the next action that goes through clears it.
+ */
 @Composable
 private fun ChessErrorToast(service: ChessTournamentService) {
     val error by service.lastError.collectAsState()
-    val context = LocalContext.current
-    LaunchedEffect(error) {
-        error?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            service.clearError()
-        }
-    }
+    IosToastWhile(error, IosToastStyle.Error)
 }
 
 @Composable
@@ -264,7 +261,8 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
     var isJoining by remember { mutableStateOf(false) }
     /** The waiting room on screen (full-screen, nothing else reachable). */
     var waitingRoomId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
-    val lobbyContext = LocalContext.current
+    /** iOS's waitingNotice: why the waiting room closed on its own (the seat ran out). */
+    var waitingNotice by remember { mutableStateOf<String?>(null) }
 
     fun open(id: String) = navController.navigate("chess_tournament/$id")
 
@@ -408,6 +406,9 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
         }
     }
 
+    // iOS's `.toast(message: waitingNotice, style: .error)`: up while this screen is.
+    IosToastWhile(waitingNotice, IosToastStyle.Error)
+
     waitingRoomId?.let { id ->
         ChessWaitingRoom(
             tournamentId = id,
@@ -426,11 +427,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
             onFinished = { seatExpired ->
                 waitingRoomId = null
                 if (seatExpired) {
-                    Toast.makeText(
-                        lobbyContext,
-                        "No one joined in time. You're out of the queue - join again whenever you like.",
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    waitingNotice = "No one joined in time. You're out of the queue - join again whenever you like."
                 }
             },
         )
@@ -1286,6 +1283,7 @@ private fun ChessWaitingRoom(
     val me = service.myAddress
     val context = LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val chessHaptic = com.kachat.app.util.rememberHaptics()
     var showLeaveWarning by remember { mutableStateOf(false) }
     var isLeaving by remember { mutableStateOf(false) }
     var handedOff by remember { mutableStateOf(false) }
@@ -1441,7 +1439,7 @@ private fun ChessWaitingRoom(
                             fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                         IconButton(onClick = {
                             clipboard.setText(androidx.compose.ui.text.AnnotatedString(tournament.id))
-                            Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
+                            chessHaptic(com.kachat.app.util.IosHaptic.SUCCESS) // iOS: a haptic, no toast
                         }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = KaspaTeal, modifier = Modifier.size(18.dp)) }
                         IconButton(onClick = {
                             val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -1564,6 +1562,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
     var isJoining by remember { mutableStateOf(false) }
     var showCancelConfirm by remember { mutableStateOf(false) }
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val chessHaptic = com.kachat.app.util.rememberHaptics()
     val context = LocalContext.current
 
     fun openGame(gameId: String) = navController.navigate("chess_tournament_game/$tournamentId/$gameId")
@@ -1632,7 +1631,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                                         fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
                                     TextButton(onClick = {
                                         clipboard.setText(androidx.compose.ui.text.AnnotatedString(tournament.id))
-                                        Toast.makeText(context, "Code copied", Toast.LENGTH_SHORT).show()
+                                        chessHaptic(com.kachat.app.util.IosHaptic.SUCCESS) // iOS: a haptic, no toast
                                     }) {
                                         Icon(Icons.Default.ContentCopy, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(4.dp))

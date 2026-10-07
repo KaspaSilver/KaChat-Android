@@ -43,7 +43,6 @@
     <string name="chess_stats">Статистика шахмат</string>
     <string name="choose_avatar">Выбрать аватар</string>
     <string name="choose_banner">Выбрать баннер</string>
-    <string name="choose_coin">Выберите монету</string>
     <string name="choose_photo">Выбрать фото</string>
     <string name="clear_search">Очистить поиск</string>
     <string name="close">Закрыть</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">Скопировать приватный ключ (hex)</string>
     <string name="copy_kpub">Скопировать kpub</string>
     <string name="couldn_t_rename_group">Не удалось переименовать группу</string>
-    <string name="couldn_t_read_this_swap_s">Не удалось прочитать суммы этого обмена</string>
     <string name="create">Создать</string>
     <string name="create_account">Создать аккаунт</string>
     <string name="create_kns_profile">Создать профиль KNS</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">Это удалит его только из вашей локальной истории и не повлияет на сам обмен.</string>
     <string name="delete_this_swap">Удалить этот обмен?</string>
     <string name="delete_transaction">Удалить транзакцию</string>
-    <string name="deposit_address">Адрес депозита</string>
     <string name="domain_name">Имя домена</string>
     <string name="done">Готово</string>
     <string name="each_transaction_temporarily_uses_2_kas">Каждая транзакция временно использует ~2 KAS; ~1 KAS возвращается сразу как сдача, поэтому реальными затратами является только небольшая комиссия сети.</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">Ввести kpub</string>
     <string name="error">Ошибка</string>
     <string name="every_member_will_see_the_new">Все участники увидят новое имя.</string>
-    <string name="exchange_id_copied">ID обмена скопирован</string>
     <string name="failed_to_send">Ошибка отправки</string>
     <string name="fee_kas">Комиссия (KAS)</string>
     <string name="fee_usd_optional">Комиссия (USD, необязательно)</string>
@@ -164,7 +160,6 @@
     <string name="ok">ОК</string>
     <string name="only_notify_if_i_m_mentioned">Уведомлять, только если меня упомянули</string>
     <string name="open_settings">Открыть настройки</string>
-    <string name="original_message_not_available">Исходное сообщение недоступно</string>
     <string name="other_nodes">Другие узлы</string>
     <string name="paste_from_clipboard">Вставить из буфера обмена</string>
     <string name="paste_kpub">Вставить kpub</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">Отсканируйте это на вашем устройстве KasSigner, проверьте там, затем подпишите.</string>
     <string name="scroll_to_latest">Прокрутить к последнему</string>
     <string name="search_chats">Поиск чатов</string>
-    <string name="search_coins">Поиск монет</string>
     <string name="secure_messaging_on_kaspa_blockdag">Безопасные сообщения в Kaspa BlockDAG</string>
     <string name="security_warning">Предупреждение безопасности</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">Статус</string>
     <string name="still_indexing_it_ll_show_up">Ещё индексируется. Скоро появится выше.</string>
     <string name="swap">Обмен</string>
-    <string name="swap_history">История обменов</string>
-    <string name="swap_started">Обмен начат</string>
     <string name="swaps_are_processed_by_changenow_a">Обмены обрабатываются сторонним сервисом ChangeNOW. Продолжая, вы подтверждаете, что прочитали и согласны с собственными Условиями обслуживания ChangeNOW. KaChat только отправляет ваш запрос на обмен и отображает его статус; KaChat не несет ответственности за неудачные, задержанные или потерянные обмены. Если обмен не проходит, обратитесь напрямую в поддержку ChangeNOW.</string>
     <string name="tap_an_address_below_to_swap">Нажмите на адрес ниже, чтобы обменять с него</string>
     <string name="tap_an_address_below_to_use">Нажмите на адрес ниже, чтобы использовать его</string>
@@ -260,7 +252,6 @@
     <string name="unread">Непрочитано</string>
     <string name="use_default">Использовать по умолчанию</string>
     <string name="valid_address">Действительный адрес</string>
-    <string name="view_on_changenow">Посмотреть на ChangeNOW</string>
     <string name="waiting_for_camera">Ожидание камеры...</string>
     <string name="waiting_on_opponent">Ожидание соперника</string>
     <string name="channel_name">имя-канала</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">Не удалось сохранить фото</string>
     <string name="withdrawal_failed">Вывод не удался</string>
     <string name="consolidation_failed">Объединение не удалось</string>
-    <string name="swap_failed">Обмен не удался</string>
     <string name="nothing_to_consolidate">Нечего объединять</string>
     <string name="about">О приложении</string>
     <string name="actions">Действия</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">Включите доступ к камере в Настройках, чтобы отсканировать подписанную транзакцию.</string>
     <string name="qr_point_camera_kassigner">Наведите камеру на экран KasSigner</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">Детали обмена</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s скопирован в буфер обмена.</string>
 </resources>

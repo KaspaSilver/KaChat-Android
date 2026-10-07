@@ -43,7 +43,6 @@
     <string name="chess_stats">Schachstatistik</string>
     <string name="choose_avatar">Wählen Sie Avatar</string>
     <string name="choose_banner">Wählen Sie Banner</string>
-    <string name="choose_coin">Münze wählen</string>
     <string name="choose_photo">Foto wählen</string>
     <string name="clear_search">Suche löschen</string>
     <string name="close">Schließen</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">Privaten Schlüssel (Hex) kopieren</string>
     <string name="copy_kpub">kpub kopieren</string>
     <string name="couldn_t_rename_group">Gruppe konnte nicht umbenannt werden</string>
-    <string name="couldn_t_read_this_swap_s">Beträge dieses Tauschs konnten nicht gelesen werden</string>
     <string name="create">Erstellen</string>
     <string name="create_account">Konto erstellen</string>
     <string name="create_kns_profile">KNS-Profil erstellen</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">Dadurch wird er nur aus deinem lokalen Verlauf entfernt - der eigentliche Tausch wird nicht beeinflusst.</string>
     <string name="delete_this_swap">Diesen Swap löschen?</string>
     <string name="delete_transaction">Transaktion löschen</string>
-    <string name="deposit_address">Einzahlungsadresse</string>
     <string name="domain_name">Domainname</string>
     <string name="done">Fertig</string>
     <string name="each_transaction_temporarily_uses_2_kas">Jede Transaktion verwendet vorübergehend ~2 KAS; ~1 KAS kommt sofort als Wechselgeld zurück, sodass nur die kleine Netzwerkgebühr echte Kosten darstellt.</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">kpub eingeben</string>
     <string name="error">Fehler</string>
     <string name="every_member_will_see_the_new">Jedes Mitglied sieht den neuen Namen.</string>
-    <string name="exchange_id_copied">Tausch-ID kopiert</string>
     <string name="failed_to_send">Senden fehlgeschlagen</string>
     <string name="fee_kas">Gebühr (KAS)</string>
     <string name="fee_usd_optional">Gebühr (USD, optional)</string>
@@ -164,7 +160,6 @@
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">Nur benachrichtigen, wenn ich erwähnt werde</string>
     <string name="open_settings">Einstellungen öffnen</string>
-    <string name="original_message_not_available">Ursprüngliche Nachricht nicht verfügbar</string>
     <string name="other_nodes">Andere Nodes</string>
     <string name="paste_from_clipboard">Aus Zwischenablage einfügen</string>
     <string name="paste_kpub">kpub einfügen</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">Scanne dies mit deinem KasSigner-Gerät, überprüfe es dort und signiere dann.</string>
     <string name="scroll_to_latest">Zum neuesten scrollen</string>
     <string name="search_chats">Chats durchsuchen</string>
-    <string name="search_coins">Münzen suchen</string>
     <string name="secure_messaging_on_kaspa_blockdag">Sichere Nachrichten auf Kaspa BlockDAG</string>
     <string name="security_warning">Sicherheitswarnung</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">Status</string>
     <string name="still_indexing_it_ll_show_up">Wird noch indiziert. Erscheint in Kürze oben.</string>
     <string name="swap">Tauschen</string>
-    <string name="swap_history">Tauchverlauf</string>
-    <string name="swap_started">Tausch gestartet</string>
     <string name="swaps_are_processed_by_changenow_a">Tauchvorgänge werden von ChangeNOW, einem Drittanbieter, abgewickelt. Mit dem Fortfahren bestätigst du, dass du ChangeNOWs eigene Nutzungsbedingungen gelesen hast.</string>
     <string name="tap_an_address_below_to_swap">Tippe unten auf eine Adresse, um von ihr zu tauschen</string>
     <string name="tap_an_address_below_to_use">Tippe unten auf eine Adresse, um sie zu verwenden</string>
@@ -260,7 +252,6 @@
     <string name="unread">Ungelesen</string>
     <string name="use_default">Standard verwenden</string>
     <string name="valid_address">Gültige Adresse</string>
-    <string name="view_on_changenow">Auf ChangeNOW ansehen</string>
     <string name="waiting_for_camera">Warte auf Kamera...</string>
     <string name="waiting_on_opponent">Warte auf Gegner</string>
     <string name="channel_name">kanal-name</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">Foto konnte nicht gespeichert werden</string>
     <string name="withdrawal_failed">Auszahlung fehlgeschlagen</string>
     <string name="consolidation_failed">Konsolidierung fehlgeschlagen</string>
-    <string name="swap_failed">Tausch fehlgeschlagen</string>
     <string name="nothing_to_consolidate">Nichts zu konsolidieren</string>
     <string name="about">Über</string>
     <string name="actions">Aktionen</string>
@@ -1086,4 +1076,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">Aktiviere den Kamerazugriff in den Einstellungen, um die signierte Transaktion zu scannen.</string>
     <string name="qr_point_camera_kassigner">Richte die Kamera auf den KasSigner-Bildschirm</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">Tauschdetails</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s in die Zwischenablage kopiert.</string>
 </resources>

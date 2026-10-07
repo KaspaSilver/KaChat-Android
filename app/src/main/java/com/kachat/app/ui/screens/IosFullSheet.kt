@@ -35,6 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.padding
 import androidx.core.view.ViewCompat
 import androidx.lifecycle.Lifecycle
 import com.kachat.app.ui.theme.LocalAppColors
@@ -100,7 +103,11 @@ fun IosFullSheet(
                 SheetWindowBack { if (dispatcher.hasEnabledCallbacks()) dispatcher.onBackPressed() }
                 CompositionLocalProvider(LocalOnBackPressedDispatcherOwner provides owner) {
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        Box(Modifier.fillMaxWidth().height(maxHeight - 10.dp)) { content(close) }
+                        Box(Modifier.fillMaxWidth().height(maxHeight - 10.dp)) {
+                            content(close)
+                            // The sheet's own toast, over it as iOS's toast is over the sheet's view.
+                            IosToastHost(bottomInsets = SheetToastInsets)
+                        }
                     }
                 }
             }
@@ -141,5 +148,44 @@ private object Api33 {
 
     fun unregister(view: View, callback: Any?) {
         if (callback is OnBackInvokedCallback) view.findOnBackInvokedDispatcher()?.unregisterOnBackInvokedCallback(callback)
+    }
+}
+
+/**
+ * A sheet's inline navigation bar, as iOS draws a `NavigationStack` with
+ * `.navigationBarTitleDisplayMode(.inline)` inside a sheet: 56 tall, the title centred in the
+ * headline weight, [leading] and [trailing] (usually [IosBarTextButton]s) at the ends.
+ */
+@Composable
+fun IosSheetNavBar(
+    title: String,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp)) {
+        leading?.let { Box(Modifier.align(androidx.compose.ui.Alignment.CenterStart)) { it() } }
+        androidx.compose.material3.Text(
+            title,
+            color = LocalAppColors.current.textPrimary,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.align(androidx.compose.ui.Alignment.Center).padding(horizontal = 80.dp),
+        )
+        trailing?.let { Box(Modifier.align(androidx.compose.ui.Alignment.CenterEnd)) { it() } }
+    }
+}
+
+/** A text button in [IosSheetNavBar]: the accent colour at 17, semibold for a confirming action. */
+@Composable
+fun IosBarTextButton(text: String, onClick: () -> Unit, bold: Boolean = false, enabled: Boolean = true) {
+    androidx.compose.material3.TextButton(onClick = onClick, enabled = enabled) {
+        androidx.compose.material3.Text(
+            text,
+            color = if (enabled) com.kachat.app.ui.theme.KaspaTeal else LocalAppColors.current.textSecondary,
+            fontSize = 17.sp,
+            fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal,
+        )
     }
 }

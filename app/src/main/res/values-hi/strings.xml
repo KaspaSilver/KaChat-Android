@@ -43,7 +43,6 @@
     <string name="chess_stats">शतरंज आंकड़े</string>
     <string name="choose_avatar">अवतार चुनें</string>
     <string name="choose_banner">बैनर चुनें</string>
-    <string name="choose_coin">सिक्का चुनें</string>
     <string name="choose_photo">फ़ोटो चुनें</string>
     <string name="clear_search">खोज साफ़ करें</string>
     <string name="close">बंद करें</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">प्राइवेट की Hex कॉपी करें</string>
     <string name="copy_kpub">kpub कॉपी करें</string>
     <string name="couldn_t_rename_group">समूह का नाम नहीं बदला जा सका</string>
-    <string name="couldn_t_read_this_swap_s">इस स्वैप की राशियां पढ़ी नहीं जा सकीं</string>
     <string name="create">बनाएं</string>
     <string name="create_account">खाता बनाएं</string>
     <string name="create_kns_profile">KNS प्रोफ़ाइल बनाएं</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">यह इसे केवल आपके स्थानीय इतिहास से हटाता है - यह वास्तविक एक्सचेंज को प्रभावित नहीं करता।</string>
     <string name="delete_this_swap">क्या इस स्वैप को हटाना है?</string>
     <string name="delete_transaction">लेन-देन हटाएं</string>
-    <string name="deposit_address">जमा पता</string>
     <string name="domain_name">डोमेन नाम</string>
     <string name="done">हो गया</string>
     <string name="each_transaction_temporarily_uses_2_kas">प्रत्येक लेन-देन अस्थायी रूप से ~2 KAS का उपयोग करता है; ~1 KAS तुरंत शेष राशि के रूप में वापस आता है, इसलिए केवल छोटा नेटवर्क शुल्क ही वास्तविक लागत है।</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">kpub दर्ज करें</string>
     <string name="error">त्रुटि</string>
     <string name="every_member_will_see_the_new">हर सदस्य नया नाम देखेगा।</string>
-    <string name="exchange_id_copied">एक्सचेंज आईडी कॉपी हुई</string>
     <string name="failed_to_send">भेजना विफल</string>
     <string name="fee_kas">शुल्क (KAS)</string>
     <string name="fee_usd_optional">शुल्क (USD, वैकल्पिक)</string>
@@ -164,7 +160,6 @@
     <string name="ok">ठीक है</string>
     <string name="only_notify_if_i_m_mentioned">केवल तभी सूचित करें जब मेरा उल्लेख हो</string>
     <string name="open_settings">सेटिंग्स खोलें</string>
-    <string name="original_message_not_available">मूल संदेश उपलब्ध नहीं है</string>
     <string name="other_nodes">अन्य नोड</string>
     <string name="paste_from_clipboard">क्लिपबोर्ड से पेस्ट करें</string>
     <string name="paste_kpub">kpub पेस्ट करें</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">इसे अपने KasSigner डिवाइस से स्कैन करें, वहां इसकी समीक्षा करें, फिर हस्ताक्षर करें।</string>
     <string name="scroll_to_latest">नवीनतम पर स्क्रॉल करें</string>
     <string name="search_chats">चैट खोजें</string>
-    <string name="search_coins">सिक्के खोजें</string>
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG पर सुरक्षित मैसेजिंग</string>
     <string name="security_warning">सुरक्षा चेतावनी</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">स्थिति</string>
     <string name="still_indexing_it_ll_show_up">अभी भी इंडेक्स हो रहा है। यह जल्द ही ऊपर दिखाई देगा।</string>
     <string name="swap">स्वैप</string>
-    <string name="swap_history">स्वैप इतिहास</string>
-    <string name="swap_started">स्वैप शुरू हुआ</string>
     <string name="swaps_are_processed_by_changenow_a">स्वैप ChangeNOW द्वारा संसाधित किए जाते हैं, जो एक तीसरे पक्ष का एक्सचेंज है। जारी रखकर, आप पुष्टि करते हैं कि आपने ChangeNOW की अपनी सेवा शर्तों को पढ़ लिया है और सहमत हैं। KaChat केवल आपका स्वैप अनुरोध सबमिट करता है और उसकी स्थिति प्रदर्शित करता है; असफल, विलंबित या खोए हुए स्वैप के लिए KaChat जिम्मेदार नहीं है। अगर कोई स्वैप नहीं होता, तो सीधे ChangeNOW सपोर्ट से संपर्क करें।</string>
     <string name="tap_an_address_below_to_swap">नीचे किसी पते से स्वैप करने के लिए उस पर टैप करें</string>
     <string name="tap_an_address_below_to_use">नीचे किसी पते का उपयोग करने के लिए उस पर टैप करें</string>
@@ -260,7 +252,6 @@
     <string name="unread">अपठित</string>
     <string name="use_default">डिफ़ॉल्ट उपयोग करें</string>
     <string name="valid_address">मान्य पता</string>
-    <string name="view_on_changenow">ChangeNOW पर देखें</string>
     <string name="waiting_for_camera">कैमरे की प्रतीक्षा हो रही है...</string>
     <string name="waiting_on_opponent">प्रतिद्वंद्वी की प्रतीक्षा है</string>
     <string name="channel_name">चैनल-नाम</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">फ़ोटो सहेजी नहीं जा सकी</string>
     <string name="withdrawal_failed">निकासी विफल</string>
     <string name="consolidation_failed">समेकन विफल</string>
-    <string name="swap_failed">स्वैप विफल</string>
     <string name="nothing_to_consolidate">समेकित करने के लिए कुछ नहीं</string>
     <string name="about">परिचय</string>
     <string name="actions">कार्य</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">हस्ताक्षरित लेन-देन को स्कैन करने के लिए सेटिंग्स में कैमरा एक्सेस सक्षम करें।</string>
     <string name="qr_point_camera_kassigner">कैमरे को KasSigner स्क्रीन की ओर इंगित करें</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">स्वैप विवरण</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s को क्लिपबोर्ड पर कॉपी किया गया।</string>
 </resources>

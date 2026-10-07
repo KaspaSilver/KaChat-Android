@@ -10,7 +10,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Flag
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -2445,6 +2444,7 @@ fun KaPostCell(
                 }
                 // Half sheet rather than an alert dialog - see LinkActionsSheet.
                 tappedLinkUrl?.let { url ->
+                    val linkHaptic = com.kachat.app.util.rememberHaptics()
                     LinkActionsSheet(
                         url = url,
                         onDismiss = { tappedLinkUrl = null },
@@ -2456,7 +2456,8 @@ fun KaPostCell(
                         },
                         onCopy = {
                             clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
-                            Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                            // iOS's post link copy: a haptic, no toast.
+                            linkHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                         },
                     )
                 }
@@ -5475,7 +5476,7 @@ private fun reportPost(context: android.content.Context, post: KaPostDraft) {
     }
     runCatching { context.startActivity(intent) }.onFailure {
         // No mail app on this phone: say where to write instead of doing nothing.
-        Toast.makeText(context, "No email app found. Please write to $KAPOSTS_REPORT_ADDRESS", Toast.LENGTH_LONG).show()
+        IosToasts.error("No email app found. Please write to $KAPOSTS_REPORT_ADDRESS")
     }
 }
 

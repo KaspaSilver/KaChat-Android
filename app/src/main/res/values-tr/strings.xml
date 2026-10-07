@@ -43,7 +43,6 @@
     <string name="chess_stats">Satranc Istatistikleri</string>
     <string name="choose_avatar">Avatar\'ı seçin</string>
     <string name="choose_banner">Banner\'ı seçin</string>
-    <string name="choose_coin">Coin Sec</string>
     <string name="choose_photo">Fotograf Sec</string>
     <string name="clear_search">Aramayi temizle</string>
     <string name="close">Kapat</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">Özel Anahtar Hex Kopyala</string>
     <string name="copy_kpub">kpub Kopyala</string>
     <string name="couldn_t_rename_group">Grup Yeniden Adlandirilamadi</string>
-    <string name="couldn_t_read_this_swap_s">Bu takasin tutarlari okunamadi</string>
     <string name="create">Olustur</string>
     <string name="create_account">Hesap Oluştur</string>
     <string name="create_kns_profile">KNS Profili Olustur</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">Bu yalnızca yerel geçmişinizden kaldırır - gerçek takası etkilemez.</string>
     <string name="delete_this_swap">Bu takas silinsin mi?</string>
     <string name="delete_transaction">Islemi Sil</string>
-    <string name="deposit_address">Yatirma Adresi</string>
     <string name="domain_name">Alan adi</string>
     <string name="done">Tamam</string>
     <string name="each_transaction_temporarily_uses_2_kas">Her islem gecici olarak ~2 KAS kullanir; ~1 KAS hemen para ustu olarak geri doner, bu yuzden gercek maliyet yalnizca kucuk ag ucretidir.</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">kpub Gir</string>
     <string name="error">Hata</string>
     <string name="every_member_will_see_the_new">Her uye yeni ismi gorecek.</string>
-    <string name="exchange_id_copied">Takas Kimligi kopyalandi</string>
     <string name="failed_to_send">Gonderilemedi</string>
     <string name="fee_kas">Ucret (KAS)</string>
     <string name="fee_usd_optional">Ucret (USD, istege bagli)</string>
@@ -164,7 +160,6 @@
     <string name="ok">Tamam</string>
     <string name="only_notify_if_i_m_mentioned">Yalnizca bahsedildigimde bildir</string>
     <string name="open_settings">Ayarları Aç</string>
-    <string name="original_message_not_available">Orijinal mesaj kullanilamiyor</string>
     <string name="other_nodes">Diğer Düğümler</string>
     <string name="paste_from_clipboard">Panodan Yapıştır</string>
     <string name="paste_kpub">kpub Yapistir</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">Bunu KasSigner cihazinizla tarayin, orada inceleyin, sonra imzalayin.</string>
     <string name="scroll_to_latest">En sona kaydir</string>
     <string name="search_chats">Sohbet ara</string>
-    <string name="search_coins">Coin ara</string>
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG üzerinde güvenli mesajlaşma</string>
     <string name="security_warning">Güvenlik Uyarısı</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">Durum</string>
     <string name="still_indexing_it_ll_show_up">Hala dizinleniyor. Kisa surede yukarida gorunecek.</string>
     <string name="swap">Takas</string>
-    <string name="swap_history">Takas Gecmisi</string>
-    <string name="swap_started">Takas basladi</string>
     <string name="swaps_are_processed_by_changenow_a">Takaslar ucuncu taraf bir borsa olan ChangeNOW tarafindan islenir. Devam ederek, ChangeNOW\'un kendi Hizmet Sartlarini okudugunuzu ve kabul ettiginizi onaylarsiniz. KaChat yalnizca takas talebinizi gonderir ve durumunu gosterir; KaChat basarisiz, gecikmis veya kaybolmus takaslardan sorumlu degildir. Bir takas gerceklesmezse dogrudan ChangeNOW destegiyle iletisime gecin.</string>
     <string name="tap_an_address_below_to_swap">Bir adresten takas yapmak icin asagida bir adrese dokunun</string>
     <string name="tap_an_address_below_to_use">Kullanmak icin asagida bir adrese dokunun</string>
@@ -260,7 +252,6 @@
     <string name="unread">Okunmadi</string>
     <string name="use_default">Varsayilani Kullan</string>
     <string name="valid_address">Gecerli adres</string>
-    <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
     <string name="waiting_for_camera">Kamera bekleniyor...</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
     <string name="channel_name">kanal-adi</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">Fotograf kaydedilemedi</string>
     <string name="withdrawal_failed">Cekim basarisiz</string>
     <string name="consolidation_failed">Birlestirme basarisiz</string>
-    <string name="swap_failed">Takas basarisiz</string>
     <string name="nothing_to_consolidate">Birlestirilecek bir sey yok</string>
     <string name="about">Hakkında</string>
     <string name="actions">İşlemler</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">Imzali islemi taramak icin Ayarlar\'da kamera erisimini etkinlestirin.</string>
     <string name="qr_point_camera_kassigner">Kamerayi KasSigner ekranina dogrultun</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">Takas Detaylari</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s panoya kopyalandı.</string>
 </resources>

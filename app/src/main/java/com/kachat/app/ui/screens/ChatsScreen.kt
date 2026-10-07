@@ -186,11 +186,7 @@ fun ChatsScreen(
         val address = myAddress ?: return
         scope.launch {
             val pinned = chatViewModel.toggleChatCirclePin(address, id)
-            android.widget.Toast.makeText(
-                context,
-                context.getString(if (pinned) R.string.chats_pinned_to_front else R.string.chats_unpinned),
-                android.widget.Toast.LENGTH_SHORT,
-            ).show()
+            IosToasts.show(context.getString(if (pinned) R.string.chats_pinned_to_front else R.string.chats_unpinned))
         }
     }
 
@@ -1125,7 +1121,7 @@ private fun ChatCircleActionSheet(
     val context = LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val silentGroups by chatViewModel.groupSilent.collectAsState()
-    fun toast(text: String) = android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+    fun toast(text: String) = IosToasts.show(text)
 
     @Composable
     fun PinRow() {

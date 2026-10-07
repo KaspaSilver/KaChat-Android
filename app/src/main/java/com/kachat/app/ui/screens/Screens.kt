@@ -16,7 +16,6 @@ import android.os.Build
 import android.provider.ContactsContract
 import android.provider.Settings
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -268,7 +267,7 @@ fun ChatThreadScreen(
     val acceptErrorContext = LocalContext.current
     LaunchedEffect(handshakeAcceptError) {
         handshakeAcceptError[contactId]?.let { message ->
-            Toast.makeText(acceptErrorContext, message, Toast.LENGTH_LONG).show()
+            IosToasts.error(message)
             chatViewModel.clearHandshakeAcceptError(contactId)
         }
     }
@@ -400,7 +399,7 @@ fun ChatThreadScreen(
         if (video != null && granted[android.Manifest.permission.RECORD_AUDIO] == true) {
             conversation?.contact?.let { chatViewModel.startCall(it.copy(callsEnabled = true), video) }
         } else if (video != null) {
-            Toast.makeText(callContext, "KaChat needs the microphone to make a call.", Toast.LENGTH_SHORT).show()
+            IosToasts.error("KaChat needs the microphone to make a call.")
         }
     }
     val startCallWithPermissions: (Boolean) -> Unit = { video ->
@@ -425,10 +424,10 @@ fun ChatThreadScreen(
         if (callChatNotice?.contactId != contactId) return@LaunchedEffect
         // A beat, so the notice lands on the chat rather than on the transition into it.
         delay(600)
-        chatViewModel.takeCallChatNotice(contactId)?.let { Toast.makeText(callContext, it, Toast.LENGTH_LONG).show() }
+        chatViewModel.takeCallChatNotice(contactId)?.let { IosToasts.error(it) }
     }
     LaunchedEffect(callLastError) {
-        callLastError?.let { Toast.makeText(callContext, it, Toast.LENGTH_SHORT).show() }
+        callLastError?.let { IosToasts.error(it) }
     }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
@@ -527,7 +526,7 @@ fun ChatThreadScreen(
         pendingPhotoSave = null
         if (granted && pending != null) {
             val saved = ImagePrep.saveToGallery(micContext, pending.first, pending.second)
-            Toast.makeText(micContext, if (saved) micContext.getString(R.string.photo_saved) else micContext.getString(R.string.could_not_save_photo), Toast.LENGTH_SHORT).show()
+            if (saved) IosToasts.show(micContext.getString(R.string.photo_saved)) else IosToasts.error(micContext.getString(R.string.could_not_save_photo))
         }
     }
     val savePhotoIfPermitted = { bytes: ByteArray, fileName: String ->
@@ -535,7 +534,7 @@ fun ChatThreadScreen(
             ContextCompat.checkSelfPermission(micContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         ) {
             val saved = ImagePrep.saveToGallery(micContext, bytes, fileName)
-            Toast.makeText(micContext, if (saved) micContext.getString(R.string.photo_saved) else micContext.getString(R.string.could_not_save_photo), Toast.LENGTH_SHORT).show()
+            if (saved) IosToasts.show(micContext.getString(R.string.photo_saved)) else IosToasts.error(micContext.getString(R.string.could_not_save_photo))
         } else {
             pendingPhotoSave = bytes to fileName
             writeStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -1290,7 +1289,7 @@ fun ChatThreadScreen(
                                         val messageText = messageTextState.value
                                         if (editing != null) {
                                             chatViewModel.sendEdit(contactId, editing, messageText) { reason ->
-                                                Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
+                                                IosToasts.error(reason)
                                             }
                                         } else {
                                             chatViewModel.sendMessage(contactId, messageText)
@@ -1354,9 +1353,9 @@ fun ChatThreadScreen(
                     val reply = liveMessages.lastOrNull { com.kachat.app.util.MessageReply.parseOrNull(it.plaintextBody)?.replyToId == targetId }
                     if (reply != null) {
                         chatViewModel.recoverMissingReplyOriginal(contactId, targetId, reply.blockTimestamp)
-                        Toast.makeText(micContext, micContext.getString(R.string.original_message_fetching), Toast.LENGTH_SHORT).show()
+                        IosToasts.error(micContext.getString(R.string.original_message_fetching))
                     } else {
-                        Toast.makeText(micContext, micContext.getString(R.string.original_message_not_available), Toast.LENGTH_SHORT).show()
+                        IosToasts.error(micContext.getString(R.string.original_message_not_available))
                     }
                 }
             }
@@ -1630,12 +1629,12 @@ fun ChatThreadScreen(
                                     val existing = reactionsByTxId[msg.id]?.find { it.reactorAddress == myAddress }
                                     val action = if (existing?.emoji == emoji) "remove" else "add"
                                     chatViewModel.sendReaction(contactId, msg.id, emoji, action) { reason ->
-                                        Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
+                                        IosToasts.error(reason)
                                     }
                                 },
                                 onRetryReaction = { reaction ->
                                     chatViewModel.retryReaction(contactId, reaction.targetTxId, reaction.emoji, reaction.failedAction ?: "add") { reason ->
-                                        Toast.makeText(micContext, reason, Toast.LENGTH_SHORT).show()
+                                        IosToasts.error(reason)
                                     }
                                 },
                                 onSavePhoto = savePhotoIfPermitted,
@@ -2741,6 +2740,7 @@ fun MessageBubble(
                     preview = displayBody?.takeIf { imageContent == null && voiceContent == null },
                     onDismiss = { showMenu = false },
                 ) {
+                    val copyHaptic = com.kachat.app.util.rememberHaptics()
                     ActionSheetRow(
                         icon = Icons.Default.ContentCopy,
                         title = stringResource(R.string.copy_message),
@@ -2748,6 +2748,9 @@ fun MessageBubble(
                     ) {
                         clipboardManager.setText(AnnotatedString(displayBody ?: ""))
                         showMenu = false
+                        // iOS MessageBubbleView.handleCopy: a haptic and the chat's toast.
+                        copyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                        IosToasts.show("Message copied to clipboard.")
                     }
                     ActionSheetRow(
                         icon = Icons.AutoMirrored.Filled.Reply,
@@ -4308,7 +4311,8 @@ fun ProfileScreen(
                         chatViewModel.startDonationChat(
                             onResolved = { donateAddress -> navController.navigate("chat/$donateAddress?paymentMode=true") },
                             onError = {
-                                Toast.makeText(context, "Couldn't reach ${ChatViewModel.DONATION_KNS_DOMAIN} right now. Try again later", Toast.LENGTH_SHORT).show()
+                                // iOS ContactsView's words, in red.
+                                IosToasts.error("Couldn't resolve ${ChatViewModel.DONATION_KNS_DOMAIN}. Please try again later.")
                             }
                         )
                     }
@@ -5157,15 +5161,13 @@ fun ManageAddressesScreen(
         when (consolidateState.status) {
             WalletViewModel.ConsolidateStatus.SUCCESS -> {
                 val count = consolidateState.sweptCount
-                Toast.makeText(
-                    context,
-                    if (count > 0) "Consolidated $count address${if (count == 1) "" else "es"}" else context.getString(R.string.nothing_to_consolidate),
-                    Toast.LENGTH_SHORT
-                ).show()
+                IosToasts.show(
+                    if (count > 0) "Consolidated $count address${if (count == 1) "" else "es"}" else context.getString(R.string.nothing_to_consolidate)
+                )
                 viewModel.resetConsolidateState()
             }
             WalletViewModel.ConsolidateStatus.FAILED -> {
-                Toast.makeText(context, consolidateState.errorMessage ?: context.getString(R.string.consolidation_failed), Toast.LENGTH_SHORT).show()
+                IosToasts.error(consolidateState.errorMessage ?: context.getString(R.string.consolidation_failed))
                 viewModel.resetConsolidateState()
             }
             else -> {}
@@ -5212,12 +5214,8 @@ fun ManageAddressesScreen(
                 onGenerate = {
                     showActionsMenu = false
                     viewModel.generateNewSpendingAddress { index ->
-                        Toast.makeText(
-                            context,
-                            if (index != null) "Spending address #$index is ready."
-                            else "Could not check addresses. Try again when connected.",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        if (index != null) IosToasts.show("Spending address #$index is ready.")
+                        else IosToasts.error("Could not check addresses. Try again when connected.")
                     }
                 },
                 onDiscover = {
@@ -5230,7 +5228,7 @@ fun ManageAddressesScreen(
                         discoverySummary = summary
                         // Closed the sheet and carried on? Then the summary above has nowhere to
                         // render, so say it here instead of finishing silently.
-                        if (!showActionsMenu) Toast.makeText(context, summary, Toast.LENGTH_LONG).show()
+                        if (!showActionsMenu) IosToasts.show(summary)
                     }
                 },
                 onVisibility = { showActionsMenu = false; onNavigateToVisibility() },
@@ -5472,17 +5470,15 @@ fun ManageAddressesScreen(
                             // reserved branch is a backstop only - reserved rows don't show the
                             // Hide menu entry at all.
                             if (entry.address in privacyReservedAddresses) {
-                                Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
+                                IosToasts.show("This address is offered to a contact for private payments and stays visible.")
                             } else if (entry.balanceSompi > 0) {
-                                Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                                IosToasts.show("Addresses holding a balance stay visible.")
                             } else {
                                 viewModel.setManageAddressHidden(entry.index, true) { ok ->
-                                    Toast.makeText(
-                                        context,
+                                    IosToasts.show(
                                         if (ok) "Address hidden. Re-enable it in Address Visibility."
-                                        else "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                        else "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed."
+                                    )
                                 }
                             }
                         }
@@ -5882,24 +5878,20 @@ fun AddressVisibilityScreen(
                 val toggleVisibility: () -> Unit = {
                     when {
                         entry.isCurrent ->
-                            Toast.makeText(context, "The primary address is always visible.", Toast.LENGTH_SHORT).show()
+                            IosToasts.show("The primary address is always visible.")
                         // Inert checkbox: offered chat-privacy reservations render checked and
                         // cannot be unchecked - tapping only explains the lock.
                         reserved ->
-                            Toast.makeText(context, "This address is offered to a contact for private payments and stays visible.", Toast.LENGTH_SHORT).show()
+                            IosToasts.show("This address is offered to a contact for private payments and stays visible.")
                         funded && visible ->
-                            Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                            IosToasts.show("Addresses holding a balance stay visible.")
                         entry.index > listMax ->
                             viewModel.revealSpendingAddress(entry.index)
                         else -> {
                             val hiding = !entry.hidden
                             viewModel.setManageAddressHidden(entry.index, hiding) { ok ->
                                 if (hiding && !ok) {
-                                    Toast.makeText(
-                                        context,
-                                        "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    IosToasts.show("This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.")
                                 }
                             }
                         }
@@ -6248,7 +6240,7 @@ fun SpendingAddressSendFlow(
                 )
             }
         } else {
-            Toast.makeText(context, result.exceptionOrNull()?.message ?: context.getString(R.string.withdrawal_failed), Toast.LENGTH_SHORT).show()
+            IosToasts.error(result.exceptionOrNull()?.message ?: context.getString(R.string.withdrawal_failed))
         }
         viewModel.sends.consume(sendId)
     }
@@ -6314,15 +6306,15 @@ fun SpendingAddressSendFlow(
                     } else {
                         // Same silence as the plain Max had: nothing to consolidate, or nothing
                         // known yet.
-                        Toast.makeText(context, "Nothing to consolidate here yet.", Toast.LENGTH_SHORT).show()
+                        IosToasts.error("Nothing to consolidate here yet.")
                     }
                 } else {
                     // null = the wallet cannot answer yet (the REST client is created a moment
                     // after launch); 0 = it answered, and the fee eats the balance. Neither may
                     // write "0" into the field, which is what made this read as a dead button.
                     when (val maxSompi = viewModel.estimateMaxSendableAmount(sourceAddress, liveFeeRateSompiPerGram, manualUtxos, maxTier.multiplier, maxCustomExtra)) {
-                        null -> Toast.makeText(context, "Still connecting. Try Max again in a moment.", Toast.LENGTH_SHORT).show()
-                        0L -> Toast.makeText(context, "Not enough here to cover the network fee.", Toast.LENGTH_SHORT).show()
+                        null -> IosToasts.error("Still connecting. Try Max again in a moment.")
+                        0L -> IosToasts.error("Not enough here to cover the network fee.")
                         else -> {
                             fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
                             maxFill = Triple(com.kachat.app.util.formatKasAmount(maxSompi / 100_000_000.0), maxTier, maxCustomExtra)
@@ -6334,7 +6326,7 @@ fun SpendingAddressSendFlow(
                 // button that does nothing, which is exactly how this was reported - and it left
                 // no trace in the log to diagnose it from either.
                 Log.w("SendFlow", "Max estimate failed for ${sourceAddress.redactedForLog()}", e)
-                Toast.makeText(context, UserFacingError.message(e, "Could not work out the maximum."), Toast.LENGTH_SHORT).show()
+                IosToasts.error(UserFacingError.message(e, "Could not work out the maximum."))
             } finally {
                 isEstimatingMax = false
             }
@@ -7513,7 +7505,7 @@ private fun IdentityAddressPublicKeyOverlay(address: String, onDismiss: () -> Un
                 Spacer(Modifier.height(16.dp))
                 TextButton(onClick = {
                     clipboard.setText(AnnotatedString(publicKeyHex))
-                    Toast.makeText(context, "Public key copied", Toast.LENGTH_SHORT).show()
+                    IosToasts.show("Public key copied")
                 }) {
                     Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -7644,7 +7636,7 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
             if (revealed) {
                 TextButton(onClick = {
                     copyPrivateKeyWithAutoWipe(context, privateKeyHex)
-                    Toast.makeText(context, "Private key copied. Clipboard clears in 30s.", Toast.LENGTH_SHORT).show()
+                    IosToasts.show("Private key copied. Clipboard will clear in 30s.")
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
@@ -9033,11 +9025,7 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
                     // it than a photograph of a notebook (iOS f9beba1).
                     TextButton(onClick = {
                         copyPrivateKeyWithAutoWipe(context, mnemonic, label = "recovery phrase")
-                        android.widget.Toast.makeText(
-                            context,
-                            "Seed phrase copied. The clipboard clears in 30s.",
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
+                        IosToasts.show("Seed phrase copied. Clipboard will clear in 30s.")
                     }) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
@@ -10922,6 +10910,8 @@ private fun KaspaNodeQuickAccessSection(viewModel: ConnectionViewModel) {
 @Composable
 private fun AddressBookSection(viewModel: ConnectionViewModel) {
     val savedNodeAddresses by viewModel.savedNodeAddresses.collectAsState()
+    val pinnedNodeAddress by viewModel.trustedNodeAddress.collectAsState()
+    val nodeBookHaptic = com.kachat.app.util.rememberHaptics()
 
     SettingsSection(title = stringResource(R.string.ip_address_book)) {
         var newLabel by remember { mutableStateOf("") }
@@ -11029,11 +11019,14 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
                     // KaspaNodeQuickAccessSection's selectedLabel).
                     IconButton(onClick = {
                         viewModel.removeSavedNodeAddress(entry.id)
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.address_removed_from_book),
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
+                        nodeBookHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                        // iOS deleteSavedNodeAddress: which of the two cases it was.
+                        IosToasts.show(
+                            context.getString(
+                                if (pinnedNodeAddress.trim().isNotEmpty() && pinnedNodeAddress.trim() == entry.address.trim()) R.string.node_removed_still_connected
+                                else R.string.node_address_removed
+                            )
+                        )
                     }) {
                         Icon(Icons.Default.Delete, null, tint = LocalAppColors.current.textSecondary)
                     }
@@ -11759,7 +11752,10 @@ fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {
-                Box(Modifier.fillMaxSize()) { content() }
+                Box(Modifier.fillMaxSize()) {
+                    content()
+                    IosToastHost(bottomInsets = SheetToastInsets)
+                }
             }
         }
     }
@@ -13300,6 +13296,7 @@ fun ChatInfoScreen(
     val clipboardManager = LocalClipboardManager.current
 
     val context = LocalContext.current
+    val infoHaptic = com.kachat.app.util.rememberHaptics()
 
     // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
     // this conversation's messages on-chain. Receiving = the alias on messages this
@@ -13319,13 +13316,13 @@ fun ChatInfoScreen(
                 .clickable {
                     if (revealed != null) {
                         clipboardManager.setText(AnnotatedString(revealed))
-                        Toast.makeText(context, context.getString(R.string.alias_copied), Toast.LENGTH_SHORT).show()
+                        IosToasts.show(context.getString(R.string.alias_copied))
                     } else {
                         val derived = derive()
                         if (derived != null) {
                             onRevealed(derived)
                         } else {
-                            Toast.makeText(context, context.getString(R.string.alias_unavailable), Toast.LENGTH_SHORT).show()
+                            IosToasts.error(context.getString(R.string.alias_unavailable))
                         }
                     }
                 }
@@ -13798,7 +13795,8 @@ fun ChatInfoScreen(
                                 .background(LocalAppColors.current.surface)
                                 .clickable {
                                     clipboardManager.setText(AnnotatedString(full))
-                                    Toast.makeText(context, "$full copied", Toast.LENGTH_SHORT).show()
+                                    infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                    IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
                                 }
                                 .padding(horizontal = 14.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -13855,7 +13853,8 @@ fun ChatInfoScreen(
                                     .background(LocalAppColors.current.surface)
                                     .clickable {
                                         clipboardManager.setText(AnnotatedString(domain))
-                                        Toast.makeText(context, "$domain copied", Toast.LENGTH_SHORT).show()
+                                        infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                        IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
                                     }
                                     .padding(horizontal = 14.dp, vertical = 13.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -14224,6 +14223,7 @@ fun ContactDomainsScreen(
     val colors = LocalAppColors.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val domainsHaptic = com.kachat.app.util.rememberHaptics()
     val knsProfile = chatViewModel.knsProfiles.collectAsState().value[contactId]
     val ownedDomains = knsProfile?.ownedDomains ?: emptyList()
 
@@ -14290,7 +14290,8 @@ fun ContactDomainsScreen(
                             .fillMaxWidth()
                             .clickable {
                                 clipboardManager.setText(AnnotatedString(domain))
-                                Toast.makeText(context, "$domain copied", Toast.LENGTH_SHORT).show()
+                                domainsHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
                             }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,

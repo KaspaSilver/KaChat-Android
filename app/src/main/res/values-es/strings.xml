@@ -43,7 +43,6 @@
     <string name="chess_stats">Estadisticas de ajedrez</string>
     <string name="choose_avatar">Elige Avatar</string>
     <string name="choose_banner">Elija banner</string>
-    <string name="choose_coin">Elegir moneda</string>
     <string name="choose_photo">Elegir foto</string>
     <string name="clear_search">Borrar busqueda</string>
     <string name="close">Cerrar</string>
@@ -61,7 +60,6 @@
     <string name="copy_private_key_hex">Copiar clave privada (Hex)</string>
     <string name="copy_kpub">Copiar kpub</string>
     <string name="couldn_t_rename_group">No se pudo renombrar el grupo</string>
-    <string name="couldn_t_read_this_swap_s">No se pudieron leer los montos de este intercambio</string>
     <string name="create">Crear</string>
     <string name="create_account">Crear cuenta</string>
     <string name="create_kns_profile">Crear perfil KNS</string>
@@ -77,7 +75,6 @@
     <string name="delete_swap_history_message">Esto solo lo elimina de tu historial local; no afecta al intercambio real.</string>
     <string name="delete_this_swap">¿Eliminar este intercambio?</string>
     <string name="delete_transaction">Eliminar transaccion</string>
-    <string name="deposit_address">Direccion de deposito</string>
     <string name="domain_name">Nombre de dominio</string>
     <string name="done">Hecho</string>
     <string name="each_transaction_temporarily_uses_2_kas">Cada transaccion usa temporalmente ~2 KAS; ~1 KAS regresa de inmediato como cambio, asi que solo la pequena comision de red es un costo real.</string>
@@ -87,7 +84,6 @@
     <string name="enter_kpub">Ingresar kpub</string>
     <string name="error">Error</string>
     <string name="every_member_will_see_the_new">Todos los miembros veran el nuevo nombre.</string>
-    <string name="exchange_id_copied">ID de intercambio copiado</string>
     <string name="failed_to_send">Error al enviar</string>
     <string name="fee_kas">Comision (KAS)</string>
     <string name="fee_usd_optional">Comision (USD, opcional)</string>
@@ -164,7 +160,6 @@
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">Notificar solo si me mencionan</string>
     <string name="open_settings">Abrir ajustes</string>
-    <string name="original_message_not_available">Mensaje original no disponible</string>
     <string name="other_nodes">Otros nodos</string>
     <string name="paste_from_clipboard">Pegar desde portapapeles</string>
     <string name="paste_kpub">Pegar kpub</string>
@@ -213,7 +208,6 @@
     <string name="scan_this_with_your_kassigner_device">Escanea esto con tu dispositivo KasSigner, revisalo ahi y luego firma.</string>
     <string name="scroll_to_latest">Desplazarse a lo ultimo</string>
     <string name="search_chats">Buscar chats</string>
-    <string name="search_coins">Buscar monedas</string>
     <string name="secure_messaging_on_kaspa_blockdag">Mensajería segura en Kaspa BlockDAG</string>
     <string name="security_warning">Advertencia de seguridad</string>
     <string name="seed_phrase">Seed Phrase</string>
@@ -237,8 +231,6 @@
     <string name="status">Estado</string>
     <string name="still_indexing_it_ll_show_up">Aun indexando. Aparecera arriba en breve.</string>
     <string name="swap">Intercambiar</string>
-    <string name="swap_history">Historial de intercambios</string>
-    <string name="swap_started">Intercambio iniciado</string>
     <string name="swaps_are_processed_by_changenow_a">Los intercambios los procesa ChangeNOW, un servicio externo. Al continuar, confirmas que has leido y aceptas los Terminos de Servicio propios de ChangeNOW. KaChat solo envia tu solicitud de intercambio y muestra su estado; KaChat no es responsable de intercambios fallidos, retrasados o perdidos. Si un intercambio no se completa, contacta directamente al soporte de ChangeNOW.</string>
     <string name="tap_an_address_below_to_swap">Toca una direccion abajo para intercambiar desde ella</string>
     <string name="tap_an_address_below_to_use">Toca una direccion abajo para usarla</string>
@@ -260,7 +252,6 @@
     <string name="unread">No leido</string>
     <string name="use_default">Usar predeterminado</string>
     <string name="valid_address">Direccion valida</string>
-    <string name="view_on_changenow">Ver en ChangeNOW</string>
     <string name="waiting_for_camera">Esperando la camara...</string>
     <string name="waiting_on_opponent">Esperando al oponente</string>
     <string name="channel_name">nombre-del-canal</string>
@@ -276,7 +267,6 @@
     <string name="could_not_save_photo">No se pudo guardar la foto</string>
     <string name="withdrawal_failed">Retiro fallido</string>
     <string name="consolidation_failed">Consolidacion fallida</string>
-    <string name="swap_failed">Intercambio fallido</string>
     <string name="nothing_to_consolidate">Nada que consolidar</string>
     <string name="about">Acerca de</string>
     <string name="actions">Acciones</string>
@@ -1089,4 +1079,8 @@
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <string name="qr_enable_camera_access_signed">Habilita el acceso a la camara en Ajustes para escanear la transaccion firmada.</string>
     <string name="qr_point_camera_kassigner">Apunta la camara a la pantalla de KasSigner</string>
+    <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
+    <string name="swap_details">Detalles del intercambio</string>
+    <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
+    <string name="field_copied_to_clipboard">%1$s copiado al portapapeles.</string>
 </resources>

@@ -1,6 +1,5 @@
 package com.kachat.app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -93,6 +92,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.kachat.app.util.showAddressCopiedToast
+import com.kachat.app.ui.theme.iosGlass
+import androidx.compose.foundation.layout.heightIn
 
 /** KAS <-> USDC (Polygon) swaps, powered by ChangeNOW — see [SwapViewModel] and [SwapRepository][com.kachat.app.repository.SwapRepository]. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -140,10 +141,10 @@ fun SwapScreen(
 
     LaunchedEffect(createSwapState.status) {
         if (createSwapState.status == SwapViewModel.CreateSwapStatus.SUCCESS) {
-            Toast.makeText(context, context.getString(R.string.swap_started), Toast.LENGTH_SHORT).show()
+            IosToasts.show(context.getString(R.string.swap_started))
         }
         if (createSwapState.status == SwapViewModel.CreateSwapStatus.FAILED) {
-            Toast.makeText(context, createSwapState.errorMessage ?: context.getString(R.string.swap_failed), Toast.LENGTH_SHORT).show()
+            IosToasts.show(createSwapState.errorMessage ?: context.getString(R.string.swap_failed))
         }
     }
 
@@ -152,22 +153,13 @@ fun SwapScreen(
         topBar = {
             Column {
                 MainPageHeader(title = stringResource(R.string.swap))
-                TabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = LocalAppColors.current.background,
-                    contentColor = KaspaTeal
-                ) {
-                    Tab(
-                        selected = pagerState.currentPage == 0,
-                        onClick = { pagerScope.launch { pagerState.animateScrollToPage(0) } },
-                        text = { Text(stringResource(R.string.swap), fontWeight = FontWeight.Bold) }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 1,
-                        onClick = { pagerScope.launch { pagerState.animateScrollToPage(1) } },
-                        text = { Text(stringResource(R.string.swap_history), fontWeight = FontWeight.Bold) }
-                    )
-                }
+                // iOS's swapTabBar: the app's underline tab bar (bold accent labels, the selected
+                // one underlined, a divider below).
+                UnderlineTabBar(
+                    titles = listOf(stringResource(R.string.swap), stringResource(R.string.swap_history)),
+                    selectedIndex = pagerState.currentPage,
+                    onSelect = { pagerScope.launch { pagerState.animateScrollToPage(it) } },
+                )
             }
         }
     ) { padding ->
@@ -420,7 +412,7 @@ fun SwapScreen(
                                 .fillMaxWidth()
                                 .clickable {
                                     clipboardManager.setText(AnnotatedString(result.id))
-                                    Toast.makeText(context, context.getString(R.string.exchange_id_copied), Toast.LENGTH_SHORT).show()
+                                    IosToasts.show(context.getString(R.string.exchange_id_copied))
                                 }
                         )
                         Spacer(Modifier.height(8.dp))
@@ -477,16 +469,16 @@ fun SwapScreen(
     }
 
     selectedSwap?.let { swap ->
-        SwapDetailDialog(
+        SwapDetailSheet(
             swap = swap,
             onDismiss = { selectedSwapId = null },
-            onRefresh = { swapViewModel.refreshSwapStatus(swap.id) },
-            onAddToPortfolio = {
+            refreshStatus = { swapViewModel.refreshSwapStatusNow(swap.id) },
+            onAddToPortfolio = { close ->
                 val isKasReceived = swap.toTicker == "kas"
                 val amountKas = (if (isKasReceived) swap.toAmount else swap.fromAmount).toDoubleOrNull()
                 val fiatValue = (if (isKasReceived) swap.fromAmount else swap.toAmount).toDoubleOrNull()
                 if (amountKas == null || fiatValue == null) {
-                    Toast.makeText(context, context.getString(R.string.couldn_t_read_this_swap_s), Toast.LENGTH_SHORT).show()
+                    IosToasts.show(context.getString(R.string.couldn_t_read_this_swap_s))
                 } else {
                     pendingPortfolioPrefill = SwapPortfolioPrefill(
                         isBuy = isKasReceived,
@@ -496,7 +488,7 @@ fun SwapScreen(
                         notes = "ChangeNOW swap ${swap.id}",
                         swapId = swap.id,
                     )
-                    selectedSwapId = null
+                    close()
                 }
             }
         )
@@ -524,19 +516,16 @@ fun SwapScreen(
                     sourceTxId = com.kachat.app.viewmodels.PortfolioViewModel.swapSourceTxId(prefill.swapId),
                 )
                 swapViewModel.markSwapAddedToPortfolio(prefill.swapId)
-                Toast.makeText(context, context.getString(R.string.swap_added_to_portfolio, name), Toast.LENGTH_SHORT).show()
+                IosToasts.show(context.getString(R.string.swap_added_to_portfolio, name))
             },
         )
     }
 
     if (showCoinPicker) {
-        SwapCoinPickerDialog(
+        SwapCoinPickerSheet(
             currentCoin = otherCoin,
             onDismiss = { showCoinPicker = false },
-            onPick = {
-                swapViewModel.setOtherCoin(it)
-                showCoinPicker = false
-            }
+            onPick = { swapViewModel.setOtherCoin(it) }
         )
     }
 
@@ -631,134 +620,172 @@ fun SwapScreen(
     }
 }
 
-/** Full detail for one past swap — its deposit QR again, live-ish status, the ChangeNOW exchange id, and a link to track it on changenow.io. */
+/**
+ * Full detail for one past swap - iOS's SwapDetailView, a sheet: "Swap Details" in its inline
+ * bar with Done, then a Form of the swap and its deposit QR, the deposit address and the ChangeNOW
+ * exchange id (each copies on a tap, with the toast), the status with Add to Portfolio once it
+ * has finished, and Refresh Status (a spinner, then "Status: ..." in the toast) and View on
+ * ChangeNOW. [swap] is the live history entry, so a refresh shows at once.
+ */
 @Composable
-private fun SwapDetailDialog(
+private fun SwapDetailSheet(
     swap: SwapTransactionEntity,
     onDismiss: () -> Unit,
-    onRefresh: () -> Unit,
-    onAddToPortfolio: () -> Unit
+    refreshStatus: suspend () -> String?,
+    /** Given the sheet's `close`, which it calls once the swap is on its way to a portfolio. */
+    onAddToPortfolio: (close: () -> Unit) -> Unit,
 ) {
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            color = LocalAppColors.current.surface,
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
-                val toAmountText = swap.toAmount.toDoubleOrNull()?.let { "%.8f".format(Locale.US, it) } ?: swap.toAmount
-                Text(
-                    "${swap.fromAmount} ${swap.fromTicker.uppercase()} → $toAmountText ${swap.toTicker.uppercase()}",
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    remember(swap.createdAtMillis) {
-                        SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(swap.createdAtMillis))
-                    },
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(Modifier.height(16.dp))
-
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    val qrPainter = rememberQrBitmapPainter(swap.payinAddress)
-                    Box(
-                        modifier = Modifier
-                            .size(180.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White)
-                            .padding(12.dp),
-                        contentAlignment = Alignment.Center
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true, grouped = true) { close ->
+        val context = LocalContext.current
+        val clipboardManager = LocalClipboardManager.current
+        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+        val haptic = com.kachat.app.util.rememberHaptics()
+        val scope = rememberCoroutineScope()
+        val colors = LocalAppColors.current
+        var isRefreshingStatus by remember { mutableStateOf(false) }
+        androidx.activity.compose.BackHandler(onBack = close)
+        Column(Modifier.fillMaxSize()) {
+            IosSheetNavBar(
+                title = stringResource(R.string.swap_details),
+                trailing = { IosBarTextButton(stringResource(R.string.done), onClick = close) },
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                SettingsSection(title = null) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Image(qrPainter, "Deposit address QR", modifier = Modifier.fillMaxSize())
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-
-                Text(stringResource(R.string.deposit_address), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(
-                    swap.payinAddress,
-                    color = LocalAppColors.current.textPrimary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            clipboardManager.setText(AnnotatedString(swap.payinAddress))
-                            showAddressCopiedToast(context, swap.payinAddress)
-                        }
-                )
-                Spacer(Modifier.height(12.dp))
-
-                Text(stringResource(R.string.status), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        swap.status.replaceFirstChar { it.uppercase() },
-                        color = when (swap.status) {
-                            "finished" -> LocalAppColors.current.success
-                            "failed", "refunded" -> LocalAppColors.current.danger
-                            else -> LocalAppColors.current.warning
-                        },
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (swap.status == "finished") {
-                        Spacer(Modifier.width(16.dp))
+                        val toAmountText = swap.toAmount.toDoubleOrNull()?.let { "%.8f".format(Locale.US, it) } ?: swap.toAmount
                         Text(
-                            stringResource(R.string.add_to_portfolio),
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.clickable(onClick = onAddToPortfolio)
+                            "${swap.fromAmount} ${swap.fromTicker.uppercase()} \u2192 $toAmountText ${swap.toTicker.uppercase()}",
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                        )
+                        Text(
+                            remember(swap.createdAtMillis) { com.kachat.app.util.IosDateStyle.longDate(swap.createdAtMillis) },
+                            color = colors.textSecondary,
+                            fontSize = 12.sp,
                         )
                     }
-                }
-                Spacer(Modifier.height(12.dp))
-
-                Text(stringResource(R.string.changenow_exchange_id), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(
-                    swap.id,
-                    color = LocalAppColors.current.textPrimary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            clipboardManager.setText(AnnotatedString(swap.id))
-                            Toast.makeText(context, context.getString(R.string.exchange_id_copied), Toast.LENGTH_SHORT).show()
+                    SwapFormDivider()
+                    Box(Modifier.fillMaxWidth().padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
+                        val qrPainter = rememberQrBitmapPainter(swap.payinAddress)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .padding(12.dp)
+                                .size(180.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(qrPainter, "Deposit address QR", modifier = Modifier.fillMaxSize())
                         }
-                )
-                Spacer(Modifier.height(20.dp))
+                    }
+                }
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(
-                        stringResource(R.string.refresh_status),
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.clickable(onClick = onRefresh)
-                    )
-                    Text(
-                        stringResource(R.string.view_on_changenow),
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.clickable {
-                            context.startActivity(
-                                android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse("https://changenow.io/exchange/txs/${swap.id}")
-                                )
+                SettingsSection(title = stringResource(R.string.deposit_address)) {
+                    SwapFormRow(onClick = {
+                        clipboardManager.setText(AnnotatedString(swap.payinAddress))
+                        haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                        showAddressCopiedToast(context, swap.payinAddress)
+                    }) {
+                        Text(swap.payinAddress, color = colors.textPrimary, fontSize = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                    }
+                }
+
+                SettingsSection(title = stringResource(R.string.status)) {
+                    SwapFormRow {
+                        Text(
+                            SwapViewModel.capitalizedStatus(swap.status),
+                            color = swapStatusColor(swap.status),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (swap.status == "finished") {
+                            Text(
+                                stringResource(R.string.add_to_portfolio),
+                                color = KaspaTeal,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.clickable { onAddToPortfolio(close) }
                             )
                         }
-                    )
+                    }
+                }
+
+                SettingsSection(title = stringResource(R.string.changenow_exchange_id)) {
+                    SwapFormRow(onClick = {
+                        clipboardManager.setText(AnnotatedString(swap.id))
+                        haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                        IosToasts.show(context.getString(R.string.exchange_id_copied))
+                    }) {
+                        Text(swap.id, color = colors.textPrimary, fontSize = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                    }
+                }
+
+                SettingsSection(title = null) {
+                    SwapFormRow(onClick = {
+                        if (!isRefreshingStatus) {
+                            isRefreshingStatus = true
+                            scope.launch {
+                                val status = refreshStatus()
+                                isRefreshingStatus = false
+                                IosToasts.show(
+                                    status?.let { context.getString(R.string.swap_status_toast, SwapViewModel.capitalizedStatus(it)) }
+                                        ?: context.getString(R.string.swap_couldnt_reach_changenow)
+                                )
+                            }
+                        }
+                    }) {
+                        Text(stringResource(R.string.refresh_status), color = KaspaTeal, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                        if (isRefreshingStatus) {
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(18.dp), color = colors.textSecondary)
+                        }
+                    }
+                    SwapFormDivider()
+                    SwapFormRow(onClick = { uriHandler.openUri("https://changenow.io/exchange/txs/${swap.id}") }) {
+                        Text(stringResource(R.string.view_on_changenow), color = KaspaTeal, fontSize = 17.sp)
+                    }
                 }
             }
         }
     }
+}
+
+/** One row of the Swap Details form: 44 tall at least, 16 in from the card's sides. */
+@Composable
+private fun SwapFormRow(onClick: (() -> Unit)? = null, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .heightIn(min = 44.dp)
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
+}
+
+@Composable
+private fun SwapFormDivider() {
+    HorizontalDivider(color = LocalAppColors.current.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 16.dp))
+}
+
+/** iOS's `statusColor`: green once finished, red when it failed or was refunded, orange while under way. */
+@Composable
+private fun swapStatusColor(status: String): Color = when (status) {
+    "finished" -> LocalAppColors.current.success
+    "failed", "refunded" -> LocalAppColors.current.danger
+    else -> LocalAppColors.current.warning
 }
 
 /** Ticker -> drawable resource for coins with real brand art (sourced from the Tangem wallet
@@ -842,7 +869,10 @@ private fun CoinIcon(coin: SwapCoin, size: Dp = 28.dp) {
     }
 }
 
-/** Full-page swap history — its own pager page rather than a collapsible section, so it's a normal-height scrollable list. */
+/**
+ * The Swap History page - iOS's plain List of swaps: each one its own frosted card, the trash
+ * button beside it, 12 between rows.
+ */
 @Composable
 private fun SwapHistoryPage(swapHistory: List<SwapTransactionEntity>, onSwapClick: (String) -> Unit, onSwapDelete: (String) -> Unit) {
     if (swapHistory.isEmpty()) {
@@ -851,25 +881,12 @@ private fun SwapHistoryPage(swapHistory: List<SwapTransactionEntity>, onSwapClic
         }
         return
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp),
     ) {
-        Surface(
-            color = LocalAppColors.current.surface,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                swapHistory.forEachIndexed { index, swap ->
-                    SwapHistoryRow(swap, onClick = { onSwapClick(swap.id) }, onDelete = { onSwapDelete(swap.id) })
-                    if (index < swapHistory.lastIndex) {
-                        HorizontalDivider(color = LocalAppColors.current.divider)
-                    }
-                }
-            }
+        items(swapHistory, key = { it.id }) { swap ->
+            SwapHistoryRow(swap, onClick = { onSwapClick(swap.id) }, onDelete = { onSwapDelete(swap.id) })
         }
     }
 }
@@ -877,40 +894,44 @@ private fun SwapHistoryPage(swapHistory: List<SwapTransactionEntity>, onSwapClic
 @Composable
 private fun SwapHistoryRow(swap: SwapTransactionEntity, onClick: () -> Unit, onDelete: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(LocalAppColors.current.surface)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            val toAmountText = swap.toAmount.toDoubleOrNull()?.let { "%.8f".format(Locale.US, it) } ?: swap.toAmount
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .iosGlass(18.dp, shadowAlpha = 0f)
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val toAmountText = swap.toAmount.toDoubleOrNull()?.let { "%.8f".format(Locale.US, it) } ?: swap.toAmount
+                Text(
+                    "${swap.fromAmount} ${swap.fromTicker.uppercase()} \u2192 $toAmountText ${swap.toTicker.uppercase()}",
+                    color = LocalAppColors.current.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                )
+                Text(
+                    remember(swap.createdAtMillis) { com.kachat.app.util.IosDateStyle.longDate(swap.createdAtMillis) },
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             Text(
-                "${swap.fromAmount} ${swap.fromTicker.uppercase()} → $toAmountText ${swap.toTicker.uppercase()}",
-                color = LocalAppColors.current.textPrimary,
+                SwapViewModel.capitalizedStatus(swap.status),
+                color = swapStatusColor(swap.status),
                 fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                remember(swap.createdAtMillis) {
-                    SimpleDateFormat("MMM d, yyyy, h:mm a", Locale.US).format(Date(swap.createdAtMillis))
-                },
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
+                fontSize = 12.sp,
             )
         }
-        Text(
-            swap.status.replaceFirstChar { it.uppercase() },
-            color = when (swap.status) {
-                "finished" -> LocalAppColors.current.success
-                "failed", "refunded" -> LocalAppColors.current.danger
-                else -> LocalAppColors.current.warning
-            },
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.bodySmall
-        )
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+        Box(
+            Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onDelete),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 Icons.Default.Delete,
                 contentDescription = stringResource(R.string.delete),
@@ -1005,7 +1026,7 @@ private fun SwapAmountCard(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwapCoinPickerDialog(currentCoin: SwapCoin, onDismiss: () -> Unit, onPick: (SwapCoin) -> Unit) {
+private fun SwapCoinPickerSheet(currentCoin: SwapCoin, onDismiss: () -> Unit, onPick: (SwapCoin) -> Unit) {
     // Tickers with more than one network - collapsed to a single row on the root list that
     // expands in place to show its networks (rather than listing all ~7-9 networks inline
     // unconditionally, or navigating to a second screen), since that's most of what made the flat
@@ -1014,10 +1035,8 @@ private fun SwapCoinPickerDialog(currentCoin: SwapCoin, onDismiss: () -> Unit, o
     var expandedGroups by remember { mutableStateOf(setOf<String>()) }
     var searchText by remember { mutableStateOf("") }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    // A sheet, as iOS presents SwapCoinPickerView.
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true) { close ->
         // Root list: USDC and USDT are pinned as the first two rows (in that order) since they're
         // the most commonly swapped stablecoins, each a collapsed/expandable row that shows one
         // indented network row per its coins while expanded; everything else follows in
@@ -1053,17 +1072,14 @@ private fun SwapCoinPickerDialog(currentCoin: SwapCoin, onDismiss: () -> Unit, o
             }
         }
 
+        androidx.activity.compose.BackHandler(onBack = close)
         Scaffold(
             containerColor = LocalAppColors.current.background,
+            contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
             topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text(stringResource(R.string.choose_coin), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel), tint = LocalAppColors.current.textPrimary)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+                IosSheetNavBar(
+                    title = stringResource(R.string.choose_coin),
+                    leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
                 )
             }
         ) { padding ->
@@ -1092,7 +1108,7 @@ private fun SwapCoinPickerDialog(currentCoin: SwapCoin, onDismiss: () -> Unit, o
                                         row.isGroup -> {
                                             expandedGroups = if (isExpanded) expandedGroups - row.ticker else expandedGroups + row.ticker
                                         }
-                                        row.coin != null -> onPick(row.coin)
+                                        row.coin != null -> { onPick(row.coin); close() }
                                     }
                                 }
                                 .padding(

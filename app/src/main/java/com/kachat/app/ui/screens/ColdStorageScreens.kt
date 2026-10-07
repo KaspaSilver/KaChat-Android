@@ -1,7 +1,6 @@
 package com.kachat.app.ui.screens
 
 import com.kachat.app.R
-import android.widget.Toast
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.Image
@@ -700,15 +699,13 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                             // commit instantly, anything else runs the fail-closed live check and
                             // may refuse.
                             if (row.balanceSompi > 0) {
-                                Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                                IosToasts.show("Addresses holding a balance stay visible.")
                             } else {
                                 viewModel.setColdVisibilityHidden(accountId, row.index, true) { ok ->
-                                    Toast.makeText(
-                                        context,
+                                    IosToasts.show(
                                         if (ok) "Address hidden. Re-enable it in Address Visibility."
-                                        else "This address stays visible. It holds a balance or its balance could not be confirmed.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                        else "This address stays visible. It holds a balance or its balance could not be confirmed."
+                                    )
                                 }
                             }
                         }
@@ -803,11 +800,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
             onGenerate = {
                 showActionsSheet = false
                 viewModel.generateMoreAddresses(accountId) { index ->
-                    Toast.makeText(
-                        context,
-                        if (index != null) "Address #$index is ready." else "Could not derive a new address.",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (index != null) IosToasts.show("Address #$index is ready.") else IosToasts.error("Could not derive a new address.")
                 }
             },
             onDiscover = {
@@ -821,7 +814,7 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                     discoverySummary = summary
                     // Closed the sheet and carried on? Then the summary above has nowhere to
                     // render, so say it here instead of finishing silently.
-                    if (!showActionsSheet) Toast.makeText(context, summary, Toast.LENGTH_LONG).show()
+                    if (!showActionsSheet) IosToasts.show(summary)
                 }
             },
             onVisibility = {
@@ -957,18 +950,14 @@ fun ColdStorageAddressVisibilityScreen(
                 val toggleVisibility: () -> Unit = {
                     when {
                         funded && visible ->
-                            Toast.makeText(context, "Addresses holding a balance stay visible.", Toast.LENGTH_SHORT).show()
+                            IosToasts.show("Addresses holding a balance stay visible.")
                         entry.index > listMax ->
                             viewModel.revealColdAddress(accountId, entry.index)
                         else -> {
                             val hiding = !entry.hidden
                             viewModel.setColdVisibilityHidden(accountId, entry.index, hiding) { ok ->
                                 if (hiding && !ok) {
-                                    Toast.makeText(
-                                        context,
-                                        "This address stays visible. It holds a balance or its balance could not be confirmed.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    IosToasts.show("This address stays visible. It holds a balance or its balance could not be confirmed.")
                                 }
                             }
                         }
