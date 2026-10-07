@@ -120,7 +120,7 @@ fun IosFullSheet(
  * where the app takes predictive back, the window's own back callback.
  */
 @Composable
-private fun SheetWindowBack(onBack: () -> Unit) {
+internal fun SheetWindowBack(onBack: () -> Unit) {
     val view = LocalView.current
     val latest by rememberUpdatedState(onBack)
     DisposableEffect(view) {

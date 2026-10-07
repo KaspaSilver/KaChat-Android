@@ -2966,7 +2966,28 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
             sheetState = sheetState,
             containerColor = colors.background,
             dragHandle = { KachatSheetGrabber() },
+            // System Back steps back from the review to "How long?" (the review's own BackHandler),
+            // as its Back button does; with nothing to step back to it closes the sheet. A
+            // BackHandler inside the sheet's window never hears Back on its own, so the window's
+            // Back is routed through a dispatcher of the sheet's (the IosFullSheet pattern).
+            properties = androidx.compose.material3.ModalBottomSheetProperties(
+                securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit,
+                isFocusable = true,
+                shouldDismissOnBackPress = false,
+            ),
         ) {
+            val backDispatcher = remember { androidx.activity.OnBackPressedDispatcher() }
+            val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+            val backOwner = remember(lifecycleOwner) {
+                object : androidx.activity.OnBackPressedDispatcherOwner {
+                    override val onBackPressedDispatcher: androidx.activity.OnBackPressedDispatcher = backDispatcher
+                    override val lifecycle: androidx.lifecycle.Lifecycle get() = lifecycleOwner.lifecycle
+                }
+            }
+            SheetWindowBack { if (backDispatcher.hasEnabledCallbacks()) backDispatcher.onBackPressed() else dismiss() }
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.activity.compose.LocalOnBackPressedDispatcherOwner provides backOwner,
+            ) {
             Column(Modifier.navigationBarsPadding()) {
                 val chosen = years
                 if (showReview && chosen != null) {
@@ -3004,6 +3025,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
                         }
                     }
                 }
+            }
             }
         }
     }
