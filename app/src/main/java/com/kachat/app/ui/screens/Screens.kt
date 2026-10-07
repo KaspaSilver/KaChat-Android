@@ -6051,6 +6051,12 @@ fun SpendingAddressSendFlow(
     // isCompoundMode behavior, since editing it away from fromAddress would defeat the point of
     // a compound send.
     isCompoundMode: Boolean = false,
+    /**
+     * Shown inside a sheet (the Chats New sheet's Send Kaspa, iOS f81e8d6): the bar's leading
+     * control is "Cancel", as iOS's SpendingAddressWithdrawView has it, and the bars take no
+     * system insets of their own - the sheet already sits clear of them.
+     */
+    presentedAsSheet: Boolean = false,
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -6364,8 +6370,10 @@ fun SpendingAddressSendFlow(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        contentWindowInsets = if (presentedAsSheet) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = if (presentedAsSheet) WindowInsets(0, 0, 0, 0) else TopAppBarDefaults.windowInsets,
                 title = {
                     Text(
                         when {
@@ -6380,8 +6388,18 @@ fun SpendingAddressSendFlow(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { if (!isSending) onDone() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = if (isSending) LocalAppColors.current.textSecondary else KaspaTeal)
+                    if (presentedAsSheet) {
+                        TextButton(onClick = { if (!isSending) onDone() }) {
+                            Text(
+                                stringResource(R.string.cancel),
+                                color = if (isSending) LocalAppColors.current.textSecondary else KaspaTeal,
+                                fontSize = 17.sp,
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { if (!isSending) onDone() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = if (isSending) LocalAppColors.current.textSecondary else KaspaTeal)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)

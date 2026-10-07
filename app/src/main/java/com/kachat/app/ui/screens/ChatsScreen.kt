@@ -277,11 +277,6 @@ fun ChatsScreen(
         }
     }
 
-    // In place, full screen, the way Profile shows the same send.
-    if (showSpendingSend) {
-        ChatsSpendingSendLauncher(walletViewModel = walletViewModel, onDone = { showSpendingSend = false })
-        return
-    }
 
     if (showPublicChatsSettings) {
         PublicChatsSettingsSheet(
@@ -914,6 +909,10 @@ fun ChatsScreen(
             onShowQr = { newSheetQr = it },
             onSendKaspa = { showSpendingSend = true },
         )
+    }
+    // A sheet over Chats, as iOS presents it once the New sheet has gone (f81e8d6).
+    if (showSpendingSend) {
+        ChatsSpendingSendLauncher(walletViewModel = walletViewModel, onDone = { showSpendingSend = false })
     }
     when (newSheetQr) {
         ChatsNewQr.FUND_CHATTING -> ChattingAddressQrOverlay(
@@ -1958,9 +1957,12 @@ private val ChatsNewTileSpacing = 14.dp
 
 /**
  * The New sheet's "Send Kaspa" (iOS f81e8d6 `SpendingSendLauncher`): the same send Profile opens
- * for the current spending address - [SpendingAddressSendFlow], full screen in place, as Profile
- * shows it - once that address's balance has loaded (it shows in the screen's Available pill).
+ * for the current spending address - [SpendingAddressSendFlow] - in a sheet of its own, as iOS
+ * presents it over Chats once the New sheet has gone, with Cancel leading its bar. It loads that
+ * address's balance first (it shows in the screen's Available pill): a spinner until then, or a
+ * line saying the address is still unlocking.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: () -> Unit) {
     val address by walletViewModel.spendingAddress.collectAsState()
@@ -1974,36 +1976,32 @@ private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: 
     val from = address
     val spendingIndex = index
     val balance = balanceSompi
-    if (from != null && spendingIndex != null && balance != null) {
-        SpendingAddressSendFlow(
-            fromAddress = from,
-            balanceSompi = balance,
-            title = stringResource(R.string.chats_send_kaspa),
-            spendingIndex = spendingIndex,
-            viewModel = walletViewModel,
-            onDone = onDone,
-        )
-        return
-    }
-    androidx.activity.compose.BackHandler(onBack = onDone)
-    Box(
-        modifier = Modifier.fillMaxSize().background(LocalAppColors.current.background).statusBarsPadding(),
-        contentAlignment = Alignment.Center,
+    ModalBottomSheet(
+        onDismissRequest = onDone,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = LocalAppColors.current.background,
+        dragHandle = null,
     ) {
-        IconButton(onClick = onDone, modifier = Modifier.align(Alignment.TopStart)) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
-        }
-        if (balance != null) {
-            // Loaded, and still no spending address to send from.
-            Text(
-                stringResource(R.string.spending_address_unlocking),
-                color = LocalAppColors.current.textSecondary,
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(16.dp),
-            )
-        } else {
-            CircularProgressIndicator(color = KaspaTeal)
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            when {
+                from != null && spendingIndex != null && balance != null -> SpendingAddressSendFlow(
+                    fromAddress = from,
+                    balanceSompi = balance,
+                    title = stringResource(R.string.chats_send_kaspa),
+                    spendingIndex = spendingIndex,
+                    viewModel = walletViewModel,
+                    onDone = onDone,
+                    presentedAsSheet = true,
+                )
+                // Loaded, and still no spending address to send from.
+                balance != null -> Text(
+                    stringResource(R.string.spending_address_unlocking),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(16.dp),
+                )
+                else -> com.kachat.app.ui.theme.IosActivityIndicator(color = LocalAppColors.current.textSecondary)
+            }
         }
     }
 }
