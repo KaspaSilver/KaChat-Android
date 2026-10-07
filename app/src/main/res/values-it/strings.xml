@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Rivendicazione di %1$s</string>
     <string name="kn_keep_open_claiming">Tieni KaChat aperta: il nome viene registrato circa un minuto dopo la conferma dell\'impegno nascosto. Se esci, riprende da dove si era fermato quando torni.</string>
-    <string name="kn_err_finish_claiming_first">Completa prima il nome che stai rivendicando.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Mancia</string>
     <string name="tip_goes_to_fresh_address">Va a un nuovo indirizzo privato che ha condiviso</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">È scaduto ed è stato rimosso dal registro. La tua cauzione è tornata a te.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s non è più tuo</string>
     <string name="kn_bell_lapsed_available_body">È scaduto e non è stato rinnovato, quindi ora è disponibile per chiunque nel marketplace. La tua cauzione torna a te quando qualcuno lo rivendica.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Rivendicazione</string>
+    <string name="kn_names_being_claimed">Nomi in rivendicazione</string>
+    <string name="kn_commit_waiting_busy">La rete è congestionata. Il tuo impegno attende un blocco.</string>
+    <string name="kn_commit_sent_again">La rete è congestionata, quindi l\'impegno è stato inviato di nuovo.</string>
 </resources>

@@ -895,7 +895,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Mengklaim %1$s</string>
     <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
-    <string name="kn_err_finish_claiming_first">Selesaikan dulu nama yang sedang Anda klaim.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tip</string>
     <string name="tip_goes_to_fresh_address">Dikirim ke alamat pribadi baru yang mereka bagikan</string>
@@ -959,4 +958,9 @@
     <string name="kn_bell_freed_body">Nama ini kedaluwarsa dan dihapus dari registri. Jaminan Anda sudah kembali.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s bukan milik Anda lagi</string>
     <string name="kn_bell_lapsed_available_body">Nama ini kedaluwarsa dan tidak diperpanjang, jadi sekarang tersedia untuk siapa pun di marketplace. Jaminan Anda kembali saat seseorang mengklaimnya.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Mengklaim</string>
+    <string name="kn_names_being_claimed">Nama yang sedang diklaim</string>
+    <string name="kn_commit_waiting_busy">Jaringan sedang sibuk. Komitmen Anda menunggu blok.</string>
+    <string name="kn_commit_sent_again">Jaringan sedang sibuk, jadi komitmen dikirim ulang.</string>
 </resources>

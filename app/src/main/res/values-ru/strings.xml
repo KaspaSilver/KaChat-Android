@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Получение %1$s</string>
     <string name="kn_keep_open_claiming">Не закрывайте KaChat: имя регистрируется примерно через минуту после подтверждения скрытого обязательства. Если вы выйдете, процесс продолжится с того же места, когда вы вернётесь.</string>
-    <string name="kn_err_finish_claiming_first">Сначала завершите получение текущего имени.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Чаевые</string>
     <string name="tip_goes_to_fresh_address">Уйдут на новый приватный адрес, которым он поделился</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">Срок истёк, и имя удалено из реестра. Ваш залог вернулся к вам.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s больше не ваше</string>
     <string name="kn_bell_lapsed_available_body">Срок истёк, и имя не продлили, поэтому теперь оно доступно всем на маркетплейсе. Залог вернётся к вам, когда кто-нибудь его получит.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Получение</string>
+    <string name="kn_names_being_claimed">Имена в процессе получения</string>
+    <string name="kn_commit_waiting_busy">Сеть загружена. Ваш коммит ждёт блока.</string>
+    <string name="kn_commit_sent_again">Сеть загружена, поэтому коммит отправлен повторно.</string>
 </resources>

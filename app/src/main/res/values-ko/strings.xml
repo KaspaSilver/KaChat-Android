@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s 받는 중</string>
     <string name="kn_keep_open_claiming">KaChat을 열어 두세요. 숨겨진 커밋이 확인되고 약 1분 후에 이름이 등록됩니다. 앱을 나가도 돌아오면 이어서 진행됩니다.</string>
-    <string name="kn_err_finish_claiming_first">먼저 받고 있는 이름을 완료하세요.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">팁</string>
     <string name="tip_goes_to_fresh_address">상대가 공유한 새 비공개 주소로 가요</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">만료되어 레지스트리에서 정리되었습니다. 보증금이 돌아왔습니다.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s은(는) 더 이상 내 것이 아닙니다</string>
     <string name="kn_bell_lapsed_available_body">만료되었고 갱신되지 않아 이제 마켓플레이스에서 누구나 받을 수 있습니다. 누군가 받으면 보증금이 돌아옵니다.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">받는 중</string>
+    <string name="kn_names_being_claimed">받는 중인 이름</string>
+    <string name="kn_commit_waiting_busy">네트워크가 혼잡합니다. 커밋이 블록을 기다리고 있습니다.</string>
+    <string name="kn_commit_sent_again">네트워크가 혼잡해 커밋을 다시 보냈습니다.</string>
 </resources>

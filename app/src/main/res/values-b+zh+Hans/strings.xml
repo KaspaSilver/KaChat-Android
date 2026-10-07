@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">正在认领 %1$s</string>
     <string name="kn_keep_open_claiming">请保持 KaChat 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。</string>
-    <string name="kn_err_finish_claiming_first">请先完成正在认领的名称。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">打赏</string>
     <string name="tip_goes_to_fresh_address">发送到对方分享的新私人地址</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">它已过期并从注册表中清除。你的押金已退还给你。</string>
     <string name="kn_bell_no_longer_yours_title">%1$s 已不再属于你</string>
     <string name="kn_bell_lapsed_available_body">它已过期且未续期，现在市场上任何人都可以认领。有人认领时，你的押金会退还给你。</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">认领中</string>
+    <string name="kn_names_being_claimed">正在认领的名称</string>
+    <string name="kn_commit_waiting_busy">网络繁忙，你的承诺正在等待区块。</string>
+    <string name="kn_commit_sent_again">网络繁忙，承诺已重新发送。</string>
 </resources>

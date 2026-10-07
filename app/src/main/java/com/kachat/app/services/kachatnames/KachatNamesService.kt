@@ -291,6 +291,16 @@ class KachatNamesService @Inject constructor(
         }
     }
 
+    /** Whether a node still holds [txId] in its mempool (a commit not on chain yet: waiting, or
+     *  dropped by a busy network; iOS b219bb0 `NodePoolService.getMempoolEntry`). */
+    suspend fun isInMempool(txId: String): Boolean = try {
+        nodePoolManager.isInMempool(txId)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        false
+    }
+
     /**
      * The live UTXO at [outpoint] holding [script] (a gap, name, offer or commit), read from a node
      * with its covenant id. A registry record from the indexer is trusted only once this confirms

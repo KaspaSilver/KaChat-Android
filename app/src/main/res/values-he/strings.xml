@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">תובע את %1$s</string>
     <string name="kn_keep_open_claiming">השאירו את KaChat פתוחה: השם נרשם כדקה אחרי שההתחייבות המוסתרת מאושרת. אם תצאו, התהליך ימשיך מהמקום שבו נעצר כשתחזרו.</string>
-    <string name="kn_err_finish_claiming_first">סיימו קודם את השם שאתם תובעים.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">טיפ</string>
     <string name="tip_goes_to_fresh_address">נשלח לכתובת פרטית חדשה ששיתפו</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">תוקפו פג והוא הוסר מהרישום. הפיקדון שלך חזר אליך.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s כבר לא שלך</string>
     <string name="kn_bell_lapsed_available_body">תוקפו פג והוא לא חודש, כך שעכשיו הוא זמין לכל אחד בשוק. הפיקדון שלך יחזור אליך כשמישהו יתבע אותו.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">בתביעה</string>
+    <string name="kn_names_being_claimed">שמות בתהליך תביעה</string>
+    <string name="kn_commit_waiting_busy">הרשת עמוסה. ההתחייבות שלך ממתינה לבלוק.</string>
+    <string name="kn_commit_sent_again">הרשת עמוסה, ולכן ההתחייבות נשלחה שוב.</string>
 </resources>

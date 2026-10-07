@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s alınıyor</string>
     <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
-    <string name="kn_err_finish_claiming_first">Önce almakta olduğunuz adı tamamlayın.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Bahşiş</string>
     <string name="tip_goes_to_fresh_address">Paylaştığı yeni özel bir adrese gider</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">Süresi doldu ve kayıttan kaldırıldı. Teminatınız size geri döndü.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s artık sizin değil</string>
     <string name="kn_bell_lapsed_available_body">Süresi doldu ve yenilenmedi, bu yüzden artık pazar yerinde herkese açık. Biri onu aldığında teminatınız size geri döner.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Alınıyor</string>
+    <string name="kn_names_being_claimed">Alınmakta olan adlar</string>
+    <string name="kn_commit_waiting_busy">Ağ yoğun. Taahhüdünüz bir blok bekliyor.</string>
+    <string name="kn_commit_sent_again">Ağ yoğun, bu yüzden taahhüt yeniden gönderildi.</string>
 </resources>

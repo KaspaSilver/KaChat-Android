@@ -52,6 +52,10 @@ data class PendingRegistration(
     val registerTxId: String? = null,
     /** The reclaim this registration sent to free a lapsed old record of the name first (iOS eea52b2). */
     val reclaimTxId: String? = null,
+    /** When the current commit went out, and how many times it was sent again after a node
+     *  dropped it (a busy network evicts low-fee transactions; iOS b219bb0). */
+    val commitSentAt: Long? = null,
+    val commitResends: Int? = null,
     val cancelTxId: String? = null,
     val stage: Stage,
     val createdAt: Long,
@@ -140,13 +144,17 @@ class KachatNamesActions @Inject constructor(
     /** The current wallet's registrations (in flight, registered, taken, failed). */
     val pending: StateFlow<List<PendingRegistration>> = _pending.asStateFlow()
 
-    /** The registration whose progress sheet is up: the open one (one at a time, iOS 61fb0fc). */
-    val openRegistration: PendingRegistration? get() = openRegistration(_pending.value)
+    /** The registrations still open (in progress, or finished and not yet dismissed): the .kachat
+     *  screen's claims button lists them (iOS b219bb0). */
+    val openRegistrations: List<PendingRegistration> get() = openRegistrations(_pending.value)
 
-    /** Claim sheets currently showing a registration's progress themselves; while one does, the
-     *  app-level progress sheet (`KachatRegistrationPresenter`) stays down (iOS 61fb0fc
-     *  `inlineProgressCount`). */
-    val inlineProgressCount = MutableStateFlow(0)
+    /**
+     * The registration whose progress half sheet the app shows by itself
+     * (`KachatRegistrationPresenter`): set once per launch when a claim is still in progress,
+     * since it needs the app open to finish. Swiping the sheet away clears it (iOS b219bb0).
+     */
+    val autoPresentedRegistration = MutableStateFlow<String?>(null)
+    @Volatile private var autoPresentedThisLaunch = false
 
     private val _virtualDaa = MutableStateFlow<Long?>(null)
     /** The virtual DAA score the driver last saw (registration progress, "refundable now"). */
@@ -348,16 +356,19 @@ class KachatNamesActions @Inject constructor(
 
     val myAddress: String? get() = walletManager.getActiveAccount()?.address?.lowercase()
 
-    /** `max(100, the REST API's priority fee rate)` in sompi per gram. */
+    /** `max(100, the REST API's priority fee rate)` in sompi per gram; read twice, and
+     *  [UNKNOWN_FEERATE] when it can't be read (iOS b219bb0). */
     suspend fun feerate(): Double {
-        val api = networkService.kaspaRestApi.value ?: return KachatNames.MIN_FEERATE
-        return try {
-            maxOf(KachatNames.MIN_FEERATE, api.getFeeEstimate().priorityBucket.feerate)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            KachatNames.MIN_FEERATE
+        val api = networkService.kaspaRestApi.value ?: return UNKNOWN_FEERATE
+        repeat(2) {
+            try {
+                return maxOf(KachatNames.MIN_FEERATE, api.getFeeEstimate().priorityBucket.feerate)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
         }
+        return UNKNOWN_FEERATE
     }
 
     private class Context3(val builder: Builder, val env: Env, val wallet: List<Utxo>)
@@ -827,9 +838,8 @@ class KachatNamesActions @Inject constructor(
         val s = signer()
         val name = Codec.normalize(raw)
         Codec.validate(name)
-        // One registration at a time: its progress sheet stays up until it's done (iOS 61fb0fc).
+        // Claims can run side by side: no one-at-a-time rule any more (iOS b219bb0).
         loadPending(s.address)
-        if (blocksNewRegistration(_pending.value)) throw ActionError.NotRegisterable(FINISH_CLAIMING_FIRST)
         registry.refresh()
         // Expired past grace: free to claim. The commit goes out now; the driver frees the old
         // record (a reclaim) and then registers (iOS eea52b2).
@@ -852,7 +862,8 @@ class KachatNamesActions @Inject constructor(
         upsert(record)
         try {
             val txId = service.signAndSubmit(plan, s.privateKey, c.env)
-            record = record.copy(commitTxId = txId, stage = PendingRegistration.Stage.WAITING, updatedAt = System.currentTimeMillis())
+            val sentAt = System.currentTimeMillis()
+            record = record.copy(commitTxId = txId, commitSentAt = sentAt, stage = PendingRegistration.Stage.WAITING, updatedAt = sentAt)
             upsert(record)
         } catch (e: Exception) {
             // The node may still have taken it: keep the record (and the salt) until the driver
@@ -921,6 +932,14 @@ class KachatNamesActions @Inject constructor(
         }
         loadPending(address)
         startDriver()
+        // A claim still in progress when the app starts: its half sheet comes back up once (iOS b219bb0).
+        synchronized(lock) {
+            val open = _pending.value.firstOrNull { it.needsDriving }
+            if (!autoPresentedThisLaunch && open != null) {
+                autoPresentedThisLaunch = true
+                autoPresentedRegistration.value = open.id
+            }
+        }
     }
 
     private fun startDriver() {
@@ -970,13 +989,12 @@ class KachatNamesActions @Inject constructor(
     /** One step of one registration. */
     private suspend fun advance(p: PendingRegistration) {
         val now = System.currentTimeMillis()
-        val age = now - p.createdAt
         val sinceUpdate = now - p.updatedAt
         when (p.stage) {
             PendingRegistration.Stage.COMMITTING, PendingRegistration.Stage.WAITING -> {
                 val commit = liveCommit(p)
                 if (commit == null) {
-                    if (p.commitDaa == null && age < 10 * 60_000) return
+                    if (p.commitDaa == null && commitStillPending(p)) return
                     // the commit is gone: registered by us (another device?), or never confirmed
                     if (ownsName(p.name)) {
                         finishRegistered(p)
@@ -1025,6 +1043,46 @@ class KachatNamesActions @Inject constructor(
             PendingRegistration.Stage.REGISTERED, PendingRegistration.Stage.TAKEN,
             PendingRegistration.Stage.FAILED, PendingRegistration.Stage.CANCELLED,
             PendingRegistration.Stage.PRICE_CHANGED -> Unit
+        }
+    }
+
+    /**
+     * A commit not on chain yet: still waiting in a node's mempool (true), sent again because a
+     * node dropped it (true), or past saving (false: the caller fails it). On a busy network a
+     * low-fee transaction is evicted instead of mined, so silence must not mean "wait" (iOS b219bb0).
+     */
+    private suspend fun commitStillPending(p: PendingRegistration): Boolean {
+        val now = System.currentTimeMillis()
+        if (commitJustSent(p, now)) return true // just sent: give it time to show up
+        if (service.isInMempool(p.commitTxId)) {
+            if (commitBusyNoteDue(p, now)) set(p) { it.copy(lastError = COMMIT_WAITING_BUSY) }
+            return true
+        }
+        if (!mayResendCommit(p)) return false
+        resendCommit(p)
+        return true
+    }
+
+    /** Sends the commit again - same name, owner and salt, so the same commit script - with the
+     *  current fee, after a node dropped the first one (iOS b219bb0). */
+    private suspend fun resendCommit(p: PendingRegistration) {
+        try {
+            val s = signer()
+            if (hex(s.me) != p.owner) return
+            val salt = loadSalt(p.id, s.address) ?: throw ActionError.NoSalt()
+            val c = context(s)
+            val plan = c.builder.commit(c.env, c.wallet, p.name, salt)
+            val script = plan.newCommit?.utxo?.entry?.script
+            if (script == null || hex(script) != p.commitScript) throw KachatNames.Failure("commit: a different script")
+            val txId = service.signAndSubmit(plan, s.privateKey, c.env)
+            Log.i(TAG, "commit for ${p.name} sent again: $txId")
+            set(p) { commitResent(it, txId, System.currentTimeMillis()) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val message = e.message ?: e.toString()
+            Log.w(TAG, "resending the commit for ${p.name} failed: $message")
+            set(p) { commitResendFailed(it, message, System.currentTimeMillis()) }
         }
     }
 
@@ -1218,17 +1276,50 @@ class KachatNamesActions @Inject constructor(
         fun holdsLive(lookup: Lookup, me: ByteArray, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Boolean =
             lookup is Lookup.Registered && lookup.info.owner.contentEquals(me) && lookup.info.status(graceMs, nowMs) != Status.LAPSED
 
-        /** Why a second registration is refused while one is in progress; English like the other
-         *  action errors, localized by the screens (`kachatErrorText`, iOS 61fb0fc). */
-        const val FINISH_CLAIMING_FIRST = "Finish the name you're claiming first."
+        /** The registrations the claims button lists: every open one, in progress or finished and
+         *  not yet dismissed (iOS b219bb0). */
+        fun openRegistrations(pending: List<PendingRegistration>): List<PendingRegistration> = pending.filter { it.isOpen }
 
-        /** A registration is still in progress (open and not yet registered): no second one starts
-         *  until it is done or its commit is cancelled (iOS 61fb0fc). */
-        fun blocksNewRegistration(pending: List<PendingRegistration>): Boolean =
-            pending.any { it.isOpen && it.stage != PendingRegistration.Stage.REGISTERED }
+        /** When the fee estimate can't be read: well above the floor, since the floor is exactly
+         *  what a busy network drops (testnet-10 asked 115-894 sompi/gram on 2026-10-07). Still a
+         *  tiny fee on these small transactions (iOS b219bb0). */
+        const val UNKNOWN_FEERATE: Double = KachatNames.MIN_FEERATE * 10
 
-        /** The registration whose progress half sheet is up: the first open one (iOS 61fb0fc). */
-        fun openRegistration(pending: List<PendingRegistration>): PendingRegistration? = pending.firstOrNull { it.isOpen }
+        /** A commit this young isn't looked for in the mempools yet: give it time to show up. */
+        const val COMMIT_SHOW_UP_MS: Long = 30_000
+
+        /** A commit still in a mempool this long after it went out: the network is busy. */
+        const val COMMIT_BUSY_MS: Long = 60_000
+
+        /** How many times a dropped commit is sent again before the registration fails. */
+        const val MAX_COMMIT_RESENDS: Int = 3
+
+        /** The driver's notes while a commit waits (iOS b219bb0); English like its other
+         *  messages, localized by the screens (`kachatPendingError`). */
+        const val COMMIT_WAITING_BUSY = "The network is busy. Your commit is waiting for a block."
+        const val COMMIT_SENT_AGAIN = "The network is busy, so the commit was sent again."
+
+        /** Since [p]'s commit went out (its first send when it was never sent again: the record's start). */
+        private fun sinceCommitSent(p: PendingRegistration, nowMs: Long): Long = nowMs - (p.commitSentAt ?: p.createdAt)
+
+        /** [p]'s commit went out under [COMMIT_SHOW_UP_MS] ago: nothing to ask the mempools yet. */
+        fun commitJustSent(p: PendingRegistration, nowMs: Long): Boolean = sinceCommitSent(p, nowMs) < COMMIT_SHOW_UP_MS
+
+        /** A commit still in a mempool after [COMMIT_BUSY_MS] says so on the card, unless the card
+         *  already has a note. */
+        fun commitBusyNoteDue(p: PendingRegistration, nowMs: Long): Boolean =
+            sinceCommitSent(p, nowMs) > COMMIT_BUSY_MS && p.lastError == null
+
+        /** A dropped commit may be sent again: fewer than [MAX_COMMIT_RESENDS] resends so far. */
+        fun mayResendCommit(p: PendingRegistration): Boolean = (p.commitResends ?: 0) < MAX_COMMIT_RESENDS
+
+        /** [p] once its commit went out again as [txId]: tracked by the new txid, timed from now. */
+        fun commitResent(p: PendingRegistration, txId: String, nowMs: Long): PendingRegistration =
+            p.copy(commitTxId = txId, commitSentAt = nowMs, commitResends = (p.commitResends ?: 0) + 1, lastError = COMMIT_SENT_AGAIN)
+
+        /** [p] once sending its commit again failed: it counts as a try, and the next one waits. */
+        fun commitResendFailed(p: PendingRegistration, message: String, nowMs: Long): PendingRegistration =
+            p.copy(commitSentAt = nowMs, commitResends = (p.commitResends ?: 0) + 1, lastError = message)
 
         /** The driver's note while it frees an expired old record of the name; English like the
          *  driver's other messages, localized by the screens (`kachatPendingError`, iOS eea52b2). */

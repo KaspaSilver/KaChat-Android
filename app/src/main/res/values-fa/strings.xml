@@ -1048,7 +1048,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">در حال دریافت %1$s</string>
     <string name="kn_keep_open_claiming">KaChat را باز نگه دارید: نام حدود یک دقیقه پس از تأیید تعهد پنهان ثبت می‌شود. اگر خارج شوید، هنگام بازگشت از همان‌جا ادامه می‌یابد.</string>
-    <string name="kn_err_finish_claiming_first">ابتدا نامی را که در حال دریافت آن هستید تمام کنید.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">انعام</string>
     <string name="tip_goes_to_fresh_address">به یک آدرس خصوصی تازه که به اشتراک گذاشته‌اند می‌رود</string>
@@ -1123,4 +1122,9 @@
     <string name="kn_bell_freed_body">منقضی شد و از رجیستری پاک شد. وثیقه شما به شما برگشت.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s دیگر متعلق به شما نیست</string>
     <string name="kn_bell_lapsed_available_body">منقضی شده و تمدید نشده است، بنابراین اکنون در بازار برای همه در دسترس است. وقتی کسی آن را دریافت کند، وثیقه شما برمی‌گردد.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">در حال دریافت</string>
+    <string name="kn_names_being_claimed">نام‌های در حال دریافت</string>
+    <string name="kn_commit_waiting_busy">شبکه شلوغ است. تعهد شما منتظر یک بلاک است.</string>
+    <string name="kn_commit_sent_again">شبکه شلوغ است، بنابراین تعهد دوباره ارسال شد.</string>
 </resources>

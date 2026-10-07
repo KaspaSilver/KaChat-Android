@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s を取得中</string>
     <string name="kn_keep_open_claiming">KaChat を開いたままにしてください。非公開のコミットが承認されてから約1分後に名前が登録されます。アプリを離れても、戻ったときに続きから再開します。</string>
-    <string name="kn_err_finish_claiming_first">先に取得中の名前を完了してください。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">チップ</string>
     <string name="tip_goes_to_fresh_address">相手が共有した新しいプライベートアドレスに送られます</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">期限が切れてレジストリから削除されました。保証金はあなたに返却されました。</string>
     <string name="kn_bell_no_longer_yours_title">%1$s はあなたのものではなくなりました</string>
     <string name="kn_bell_lapsed_available_body">期限切れで更新されなかったため、マーケットプレイスで誰でも取得できるようになりました。誰かが取得すると保証金があなたに返却されます。</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">取得中</string>
+    <string name="kn_names_being_claimed">取得中の名前</string>
+    <string name="kn_commit_waiting_busy">ネットワークが混雑しています。コミットはブロックを待っています。</string>
+    <string name="kn_commit_sent_again">ネットワークが混雑しているため、コミットを再送しました。</string>
 </resources>

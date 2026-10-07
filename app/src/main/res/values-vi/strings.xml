@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Đang nhận %1$s</string>
     <string name="kn_keep_open_claiming">Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.</string>
-    <string name="kn_err_finish_claiming_first">Hãy hoàn tất tên bạn đang nhận trước.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tiền tip</string>
     <string name="tip_goes_to_fresh_address">Gửi tới một địa chỉ riêng mới mà họ đã chia sẻ</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">Tên đã hết hạn và được xóa khỏi sổ đăng ký. Tiền đặt cọc đã trở lại với bạn.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s không còn là của bạn</string>
     <string name="kn_bell_lapsed_available_body">Tên đã hết hạn và không được gia hạn, nên giờ ai cũng có thể nhận trong chợ. Tiền đặt cọc sẽ trở lại với bạn khi có người nhận tên.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Đang nhận</string>
+    <string name="kn_names_being_claimed">Các tên đang được nhận</string>
+    <string name="kn_commit_waiting_busy">Mạng đang bận. Cam kết của bạn đang chờ một khối.</string>
+    <string name="kn_commit_sent_again">Mạng đang bận nên cam kết đã được gửi lại.</string>
 </resources>

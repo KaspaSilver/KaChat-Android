@@ -192,6 +192,8 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     }
                 },
                 actions = {
+                    // names being claimed: shown only while there are some (iOS b219bb0)
+                    if (live != null) KachatClaimsButton(live)
                     IconButton(onClick = { showHowItWorks = true }) {
                         Icon(Icons.Outlined.HelpOutline, contentDescription = stringResource(R.string.km_how_it_works), tint = KaspaTeal)
                     }
@@ -287,7 +289,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     }
                 }
             }
-            // A registration in flight shows as its own half sheet (KachatRegistrationPresenter, iOS 61fb0fc).
+            // Registrations in flight: the claims button in the top bar (KachatClaimsButton, iOS b219bb0).
             UnderlineTabBar(
                 // Names for sale, expired names anyone may claim, and everything that happens in
                 // the registry. Your own names (and the offers you made) live in Profile > Your

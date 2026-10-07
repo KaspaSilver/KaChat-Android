@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Réclamation de %1$s</string>
     <string name="kn_keep_open_claiming">Gardez KaChat ouvert : le nom est enregistré environ une minute après la confirmation de l\'engagement masqué. Si vous partez, il reprendra là où il s\'était arrêté à votre retour.</string>
-    <string name="kn_err_finish_claiming_first">Terminez d\'abord le nom que vous réclamez.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Pourboire</string>
     <string name="tip_goes_to_fresh_address">Va à une nouvelle adresse privée qu’il a partagée</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">Il a expiré et a été retiré du registre. Votre caution vous a été restituée.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s ne vous appartient plus</string>
     <string name="kn_bell_lapsed_available_body">Il a expiré et n\'a pas été renouvelé : il est maintenant disponible pour tous sur la place de marché. Votre caution vous revient quand quelqu\'un le réclame.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Réclamation</string>
+    <string name="kn_names_being_claimed">Noms en cours de réclamation</string>
+    <string name="kn_commit_waiting_busy">Le réseau est chargé. Votre engagement attend un bloc.</string>
+    <string name="kn_commit_sent_again">Le réseau est chargé : l\'engagement a été renvoyé.</string>
 </resources>

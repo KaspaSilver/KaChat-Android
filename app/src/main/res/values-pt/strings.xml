@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">Reivindicando %1$s</string>
     <string name="kn_keep_open_claiming">Mantenha o KaChat aberto: o nome é registrado cerca de um minuto depois que o compromisso oculto é confirmado. Se você sair, ele continua de onde parou quando você voltar.</string>
-    <string name="kn_err_finish_claiming_first">Conclua primeiro o nome que você está reivindicando.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Gorjeta</string>
     <string name="tip_goes_to_fresh_address">Vai para um novo endereço privado que a pessoa compartilhou</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">Ele expirou e foi removido do registro. Sua caução voltou para você.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s não é mais seu</string>
     <string name="kn_bell_lapsed_available_body">Ele expirou e não foi renovado, então agora está disponível para qualquer pessoa no marketplace. Sua caução volta para você quando alguém o reivindicar.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Reivindicando</string>
+    <string name="kn_names_being_claimed">Nomes sendo reivindicados</string>
+    <string name="kn_commit_waiting_busy">A rede está congestionada. Seu compromisso aguarda um bloco.</string>
+    <string name="kn_commit_sent_again">A rede está congestionada, então o compromisso foi enviado de novo.</string>
 </resources>

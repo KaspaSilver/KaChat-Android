@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s দাবি করা হচ্ছে</string>
     <string name="kn_keep_open_claiming">KaChat খোলা রাখুন: গোপন প্রতিশ্রুতি নিশ্চিত হওয়ার প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়। আপনি চলে গেলে, ফিরে এলে যেখানে থেমেছিল সেখান থেকে চলবে।</string>
-    <string name="kn_err_finish_claiming_first">আগে যে নামটি দাবি করছেন সেটি শেষ করুন।</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">টিপ</string>
     <string name="tip_goes_to_fresh_address">তাদের শেয়ার করা একটি নতুন ব্যক্তিগত ঠিকানায় যায়</string>
@@ -1092,4 +1091,9 @@
     <string name="kn_bell_freed_body">এর মেয়াদ শেষ হয়ে রেজিস্ট্রি থেকে সরানো হয়েছে। আপনার জামানত আপনার কাছে ফিরে এসেছে।</string>
     <string name="kn_bell_no_longer_yours_title">%1$s আর আপনার নয়</string>
     <string name="kn_bell_lapsed_available_body">এর মেয়াদ শেষ হয়েছে এবং নবায়ন হয়নি, তাই এটি এখন মার্কেটপ্লেসে যে কারও জন্য উপলব্ধ। কেউ দাবি করলে আপনার জামানত আপনার কাছে ফিরে আসবে।</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">দাবি করা হচ্ছে</string>
+    <string name="kn_names_being_claimed">যে নামগুলো দাবি করা হচ্ছে</string>
+    <string name="kn_commit_waiting_busy">নেটওয়ার্ক ব্যস্ত। আপনার কমিট একটি ব্লকের অপেক্ষায় আছে।</string>
+    <string name="kn_commit_sent_again">নেটওয়ার্ক ব্যস্ত, তাই কমিটটি আবার পাঠানো হয়েছে।</string>
 </resources>

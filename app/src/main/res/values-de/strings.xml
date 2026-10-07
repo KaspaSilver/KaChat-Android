@@ -1017,7 +1017,6 @@
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
     <string name="kn_claiming_name">%1$s wird beansprucht</string>
     <string name="kn_keep_open_claiming">Lass KaChat geöffnet: Der Name wird etwa eine Minute nach der Bestätigung des verdeckten Commits registriert. Wenn du die App verlässt, geht es bei deiner Rückkehr dort weiter.</string>
-    <string name="kn_err_finish_claiming_first">Schließe zuerst den Namen ab, den du gerade beanspruchst.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Trinkgeld</string>
     <string name="tip_goes_to_fresh_address">Geht an eine neue private Adresse, die sie geteilt haben</string>
@@ -1089,4 +1088,9 @@
     <string name="kn_bell_freed_body">Er ist abgelaufen und wurde aus dem Register entfernt. Deine Kaution ist wieder bei dir.</string>
     <string name="kn_bell_no_longer_yours_title">%1$s gehört dir nicht mehr</string>
     <string name="kn_bell_lapsed_available_body">Er ist abgelaufen und wurde nicht verlängert, daher steht er jetzt im Marktplatz für alle bereit. Deine Kaution kommt zu dir zurück, sobald ihn jemand beansprucht.</string>
+    <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
+    <string name="kn_claiming_title">Wird beansprucht</string>
+    <string name="kn_names_being_claimed">Namen, die gerade beansprucht werden</string>
+    <string name="kn_commit_waiting_busy">Das Netzwerk ist ausgelastet. Dein Commit wartet auf einen Block.</string>
+    <string name="kn_commit_sent_again">Das Netzwerk ist ausgelastet, daher wurde der Commit erneut gesendet.</string>
 </resources>

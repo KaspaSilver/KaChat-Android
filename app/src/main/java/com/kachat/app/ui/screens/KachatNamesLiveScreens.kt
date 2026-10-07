@@ -311,7 +311,6 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
         is KachatNamesActions.ActionError.NotRegisterable -> when {
             m == "An expired name can't be listed. Renew it first." -> getString(R.string.kn_err_expired_list)
-            m == KachatNamesActions.FINISH_CLAIMING_FIRST -> getString(R.string.kn_err_finish_claiming_first)
             m.endsWith(" is already registered.") -> getString(R.string.kn_err_already_registered, m.removeSuffix(" is already registered."))
             else -> m
         }
@@ -325,6 +324,9 @@ fun Context.kachatPendingError(m: String): String {
     return when (m) {
         "The commit never reached the chain." -> getString(R.string.kn_err_commit_never)
         "The commit is no longer on chain." -> getString(R.string.kn_err_commit_gone)
+        // the busy-network notes (iOS b219bb0)
+        KachatNamesActions.COMMIT_WAITING_BUSY -> getString(R.string.kn_commit_waiting_busy)
+        KachatNamesActions.COMMIT_SENT_AGAIN -> getString(R.string.kn_commit_sent_again)
         else -> m
     }
 }
@@ -1153,8 +1155,9 @@ private fun KachatSheetGrabber() {
  * A registration's progress (iOS 61fb0fc `KachatRegistrationProgressSheet`'s body): "Claiming
  * name.kachat", the registration card, and - while it still needs the app - the keep-open note.
  * Claiming takes the app being open (the commit has to age about a minute before the name
- * registers), and one name is claimed at a time. Shown by the claim sheet itself once Claim went
- * through, and by [KachatRegistrationPresenter] otherwise.
+ * registers). Swiping its half sheet away leaves the claim running: the .kachat screen's claims
+ * button ([KachatClaimsButton]) lists it (iOS b219bb0). Shown by the claim sheet itself once Claim
+ * went through, and by [KachatRegistrationPresenter] after a relaunch.
  */
 @Composable
 private fun KachatRegistrationProgressContent(registration: PendingRegistration, vm: KachatLiveViewModel) {
@@ -1182,11 +1185,12 @@ private fun KachatRegistrationProgressContent(registration: PendingRegistration,
 }
 
 /**
- * The app-level progress sheet (iOS 61fb0fc `KachatRegistrationPresenter`, on MainTabView): brings
- * an open registration's progress back up when the app starts or returns (a claim needs the app
- * open to finish), unless a claim sheet is showing it ([KachatNamesActions.inlineProgressCount]).
- * A half sheet - medium, draggable to large - that can't be closed until the registration is done
- * (Done) or its commit was cancelled. Launched networks only.
+ * The app-level progress sheet (iOS `KachatRegistrationPresenter`, on MainTabView): brings a claim
+ * still in progress back up once when the app starts (a claim needs the app open to finish;
+ * [KachatNamesActions.autoPresentedRegistration]). A half sheet - medium, draggable to large -
+ * that swiping away (or Back) closes, leaving the claim running; it closes by itself once the
+ * registration is dismissed (Done) or its commit was cancelled (iOS b219bb0). Launched networks
+ * only.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1194,29 +1198,142 @@ fun KachatRegistrationPresenter() {
     if (!KachatNamesService.isLaunched) return
     val vm: KachatLiveViewModel = hiltViewModel()
     val pending by vm.actions.pending.collectAsState()
-    val inline by vm.actions.inlineProgressCount.collectAsState()
-    if (inline > 0) return
-    val open = KachatNamesActions.openRegistration(pending) ?: return
-    key(open.id) {
+    val shownId by vm.actions.autoPresentedRegistration.collectAsState()
+    val id = shownId ?: return
+    val registration = pending.firstOrNull { it.id == id }
+    key(id) {
+        val sheetState = rememberModalBottomSheetState()
+        fun clear() {
+            if (vm.actions.autoPresentedRegistration.value == id) vm.actions.autoPresentedRegistration.value = null
+        }
+        // closes once the registration is dismissed (Done) or its commit was cancelled
+        val over = registration?.isOpen != true
+        LaunchedEffect(over) {
+            if (over) {
+                try {
+                    sheetState.hide()
+                } finally {
+                    clear()
+                }
+            }
+        }
         com.kachat.app.ui.theme.IosSheetColors {
             ModalBottomSheet(
                 shape = com.kachat.app.ui.theme.IosSheetShape,
                 tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
-                onDismissRequest = {},
-                sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden }),
+                onDismissRequest = { clear() },
+                sheetState = sheetState,
                 containerColor = LocalAppColors.current.background,
                 dragHandle = { KachatSheetGrabber() },
-                properties = ModalBottomSheetProperties(
-                    securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit,
-                    isFocusable = true,
-                    shouldDismissOnBackPress = false,
-                ),
             ) {
                 // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
                 // its content stays above it.
                 Column(Modifier.navigationBarsPadding()) {
-                    KachatRegistrationProgressContent(open, vm)
+                    if (registration != null) KachatRegistrationProgressContent(registration, vm)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The .kachat screen's claims button, next to "How it works" (iOS b219bb0 `KachatClaimsButton`):
+ * the names being claimed right now (and finished ones not yet dismissed), with a count. Hidden
+ * when there are none, and where the registry isn't launched.
+ */
+@Composable
+fun KachatClaimsButton(vm: KachatLiveViewModel) {
+    if (!KachatNamesService.isLaunched) return
+    val pending by vm.actions.pending.collectAsState()
+    val open = KachatNamesActions.openRegistrations(pending)
+    var showList by remember { mutableStateOf(false) }
+    if (open.isNotEmpty()) {
+        val label = stringResource(R.string.kn_names_being_claimed)
+        IconButton(onClick = { showList = true }, modifier = Modifier.semantics { contentDescription = label }) {
+            Box {
+                Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = KaspaTeal)
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(x = 9.dp, y = (-8).dp)
+                        .defaultMinSize(minWidth = 15.dp, minHeight = 15.dp)
+                        .clip(RoundedCornerShape(50)).background(KaspaTeal)
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("${open.size}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 15.sp)
+                }
+            }
+        }
+    }
+    if (showList) KachatClaimsListSheet(vm, onDismiss = { showList = false })
+}
+
+/**
+ * Every open claim with its progress: the list behind [KachatClaimsButton] (iOS b219bb0
+ * `KachatClaimsListSheet`). A half sheet - medium, draggable to large - titled "Claiming" with
+ * Done; it closes by itself once the last claim is dismissed.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KachatClaimsListSheet(vm: KachatLiveViewModel, onDismiss: () -> Unit) {
+    val pending by vm.actions.pending.collectAsState()
+    val open = KachatNamesActions.openRegistrations(pending)
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    val close by rememberUpdatedState(onDismiss)
+    fun dismiss() {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
+    }
+    // the last one dismissed: nothing left to show
+    val empty = open.isEmpty()
+    LaunchedEffect(empty) {
+        if (empty) {
+            try {
+                sheetState.hide()
+            } finally {
+                close()
+            }
+        }
+    }
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = { close() },
+            sheetState = sheetState,
+            containerColor = colors.background,
+            dragHandle = { KachatSheetGrabber() },
+        ) {
+            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
+            // its content stays above it.
+            Column(Modifier.navigationBarsPadding()) {
+                // The inline navigation bar: "Claiming" and Done (right).
+                Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
+                    Text(
+                        stringResource(R.string.kn_claiming_title),
+                        color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                    TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                    }
+                }
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    open.forEach { registration ->
+                        key(registration.id) { KachatRegistrationCard(registration, vm) }
+                    }
+                    Text(
+                        stringResource(R.string.kn_keep_open_claiming),
+                        color = colors.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
                 }
             }
         }
@@ -1317,7 +1434,13 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
             Text(stringResource(R.string.kn_seconds_to_go, left), color = colors.textSecondary, fontSize = 12.sp)
         }
         val message = error ?: registration.lastError?.takeIf { registration.stage == PendingRegistration.Stage.FAILED }?.let { context.kachatPendingError(it) }
-        if (message != null) Text(message, color = colors.danger, fontSize = 12.sp)
+        val note = registration.lastError?.takeIf { registration.needsDriving }
+        if (message != null) {
+            Text(message, color = colors.danger, fontSize = 12.sp)
+        } else if (note != null) {
+            // what the driver is doing or waiting on (a busy network, freeing an expired name; iOS b219bb0)
+            Text(context.kachatPendingError(note), color = colors.textSecondary, fontSize = 12.sp)
+        }
         when (registration.stage) {
             PendingRegistration.Stage.REGISTERED, PendingRegistration.Stage.CANCELLED -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 finished?.let { f -> KachatButton(stringResource(R.string.kn_view_transaction), prominent = true) { done = f } }
@@ -1844,10 +1967,8 @@ fun KachatTxSheet(
  * the bond and the registry deposit (both back on release), the commit (back at registration),
  * network fees, total and what the chatting address has. Claim starts the registration (commit,
  * then the driver registers), and the sheet then turns into that registration's progress half
- * sheet, which can't be closed until the registration is done (Done) or its commit was cancelled
- * (iOS 61fb0fc) - from the marketplace and from Your Domains alike. While it shows the progress
- * itself, the app-level [KachatRegistrationPresenter] stays down
- * ([KachatNamesActions.inlineProgressCount]).
+ * sheet (iOS 61fb0fc) - from the marketplace and from Your Domains alike. Swiping it away leaves
+ * the claim running: the .kachat screen's claims button lists it (iOS b219bb0).
  *
  * Opens at full height (iOS's large detent) and can be pulled to half (medium); the progress opens
  * at half.
@@ -1865,24 +1986,12 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     var quoteError by remember { mutableStateOf<String?>(null) }
     var starting by remember { mutableStateOf(false) }
     var startError by remember { mutableStateOf<String?>(null) }
-    // Once the registration started, this sheet shows its progress (iOS `progressId`) ...
+    // Once the registration started, this sheet shows its progress (iOS `progressId`).
     var progressId by remember { mutableStateOf<String?>(null) }
-    // ... and holds the app-level progress sheet down meanwhile (iOS `holdsInline`).
-    var holdsInline by remember { mutableStateOf(false) }
     val maxYears = manifest?.params?.maxYears ?: 2L
     val registration = progressId?.let { id -> pending.firstOrNull { it.id == id } }
-    // can't be closed while the registration it shows is still open (iOS interactiveDismissDisabled)
-    val locked by rememberUpdatedState(registration?.isOpen == true)
     val close by rememberUpdatedState(onClose)
-    val sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden || !locked })
-
-    fun releaseInline() {
-        if (holdsInline) {
-            holdsInline = false
-            vm.actions.inlineProgressCount.value -= 1
-        }
-    }
-    DisposableEffect(Unit) { onDispose { releaseInline() } }
+    val sheetState = rememberModalBottomSheetState()
 
     fun dismiss() {
         scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
@@ -1925,11 +2034,6 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         if (q == null || q.years != years) return
         starting = true
         startError = null
-        // This sheet shows the progress itself: keep the app-level progress sheet down meanwhile.
-        if (!holdsInline) {
-            holdsInline = true
-            vm.actions.inlineProgressCount.value += 1
-        }
         vm.launch {
             try {
                 vm.actions.startRegistration(target.name, years, maxPrice = q.price)
@@ -1941,7 +2045,6 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                 throw e
             } catch (e: Exception) {
                 startError = context.kachatErrorText(e)
-                releaseInline()
             }
             starting = false
         }
@@ -1953,9 +2056,9 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
-            // A swipe, a tap outside or Back closes the form; the progress stays put (Back on it
-            // brings it straight back up).
-            onDismissRequest = { if (locked) scope.launch { sheetState.show() } else close() },
+            // A swipe, a tap outside or Back closes it - the form, or the progress (the claim keeps
+            // running; iOS b219bb0).
+            onDismissRequest = { close() },
             sheetState = sheetState,
             containerColor = colors.background,
             dragHandle = { KachatSheetGrabber() },

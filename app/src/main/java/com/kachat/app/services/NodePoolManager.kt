@@ -781,6 +781,10 @@ class NodePoolManager @Inject constructor(
             acceptedViaRest = { id -> rest != null && isAcceptedViaRest(rest, id) },
         )
 
+    /** Whether a node still holds [txId] in its mempool ([isInAnyMempool]): a `.kachat` commit
+     *  that isn't on chain yet is waiting there, or was dropped (iOS b219bb0 `getMempoolEntry`). */
+    suspend fun isInMempool(txId: String): Boolean = isInAnyMempool(txId)
+
     /** Whether any of up to three nodes (the trusted node alone, when one is set) holds [txId]
      *  in its mempool, orphan pool included. Asked in parallel, 2 s each. */
     private suspend fun isInAnyMempool(txId: String): Boolean {
