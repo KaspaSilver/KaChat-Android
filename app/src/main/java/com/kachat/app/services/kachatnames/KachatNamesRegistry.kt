@@ -1164,6 +1164,12 @@ class KachatSocialImageResolver @Inject constructor(
             parseEntries(legacy)?.also { KachatProfileCache.write(context, CACHE_FILE, legacy.toByteArray(Charsets.UTF_8)) }
         }
         prefs.edit().remove(LEGACY_CACHE_KEY).apply()
+        // Answers with nothing at all are looked up again once: earlier builds cached FxTwitter's
+        // wrong "User not found" as an account with no avatar, banner or bio for a day (iOS 6ef968a).
+        if (!prefs.getBoolean(EMPTY_RECHECK_KEY, false)) {
+            prefs.edit().putBoolean(EMPTY_RECHECK_KEY, true).apply()
+            return withoutEmptyAnswers(entries ?: emptyMap())
+        }
         return entries ?: emptyMap()
     }
 
@@ -1235,10 +1241,11 @@ class KachatSocialImageResolver @Inject constructor(
                 // (served to link-preview crawlers) is the fallback, and unavatar.io the last
                 // resort for the avatar alone (iOS c124cb3, 683d311). Each step's outcome is
                 // logged: a phone network can be challenged or rate-limited where a desktop is not.
+                // Only a profile is taken from FxTwitter: its "User not found" is not final - it
+                // says that for real accounts too - so X's own page decides whether the account is
+                // gone (iOS 6ef968a, [fxTwitterAnswer]).
                 val answer = fetch("https://api.fxtwitter.com/${source.handle}", BROWSER_AGENT, timeoutSec = 5)
-                answer?.takeIf { it.second == 200 || it.second == 404 }
-                    ?.let { SocialSource.fxTwitterProfile(it.first) }
-                    ?.let { return it }
+                fxTwitterAnswer(answer?.second, answer?.first)?.let { return it }
                 Log.i(TAG, "x ${source.handle}: FxTwitter ${answer?.let { "HTTP ${it.second}" } ?: "no answer"}")
             }
             SocialSource.Platform.GITHUB -> {
@@ -1359,6 +1366,25 @@ class KachatSocialImageResolver @Inject constructor(
          *  mobile page escapes it); GitHub's API wants a User-Agent. iOS's exact string. */
         private const val BROWSER_AGENT =
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+
+        /** Set once the empty answers of earlier builds were dropped to be looked up again (iOS 6ef968a). */
+        private const val EMPTY_RECHECK_KEY = "kachat_social_empty_rechecked_v1"
+
+        /**
+         * What FxTwitter's answer ([status] and [body], both null when nothing came back) gives
+         * the X lookup (iOS 6ef968a): a profile with something in it, only from a 200 - or null,
+         * and the lookup goes on to X's own page (whose 404/410 alone means the account is gone)
+         * and unavatar.io. FxTwitter's "User not found" (404) is not taken as gone: it says that
+         * for existing accounts too.
+         */
+        fun fxTwitterAnswer(status: Int?, body: String?): SocialProfile? {
+            if (status != 200 || body == null) return null
+            return SocialSource.fxTwitterProfile(body)?.takeIf { !it.isEmpty }
+        }
+
+        /** The cache without answers that hold nothing at all (iOS 6ef968a's one-time recheck). */
+        fun withoutEmptyAnswers(entries: Map<String, Entry>): Map<String, Entry> =
+            entries.filterValues { !it.profile.isEmpty }
 
         /** The cache key of a social link: its normalized form; null for an unsupported link. */
         fun key(link: String?): String? = link?.let { SocialSource.from(it, SocialSource.Kind.AVATAR)?.link }
