@@ -240,7 +240,12 @@ class Manifest(
          * other registry (a dry run, the test vectors) has no offer pin, so only a bundled
          * manifest of it is trusted.
          */
-        val DEPLOYED_TEMPLATE_HASHES: Map<String, Map<String, String>> = emptyMap()
+        val DEPLOYED_TEMPLATE_HASHES: Map<String, Map<String, String>> = mapOf(
+            // testnet-10 registry v4, 2026-10-07: genesis b1f28a5f..85a1 (iOS d82dfb2)
+            "bff185546af1940ec70d74143e23b5f018fdb864bd02e15ca9b4c8d8ede40e2f" to mapOf(
+                "KachatOffer" to "226def4b7fea21b21957c55fd47331b1d2f510fa2a63f8e7543bafaed4898e7d"
+            ),
+        )
         val STATE_LENGTHS: Map<String, Int> = mapOf("KachatGap" to 66, "KachatName" to 126, "KachatOffer" to 108)
         val ENTRIES: Map<String, List<String>> = mapOf(
             "KachatGap" to listOf("register", "merge", "absorbed"),
