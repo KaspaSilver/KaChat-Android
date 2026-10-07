@@ -30,7 +30,9 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material.icons.filled.ArrowCircleRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -175,11 +177,14 @@ fun SwapScreen(
             )
             return@HorizontalPager
         }
+        // iOS's swapFormPage: a 12-spaced stack of glass cards in a 16 margin.
+        val swapCopyHaptic = com.kachat.app.util.rememberHaptics()
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Both cards take input. Type under "You Send" and "You Get" is quoted; type under
             // "You Get" and the derived quote fills "You Send" with what that costs.
@@ -195,29 +200,32 @@ fun SwapScreen(
                 onCoinClick = if (!kasIsSendSide) { { showCoinPicker = true } } else null
             )
 
-            // Flip control and the primary CTA share a row instead of the CTA sitting in its own
-            // full-width button further down — keeps the whole form on screen without scrolling.
+            // The flip control and the primary CTA share a row (iOS).
             val isBusy = createSwapState.status == SwapViewModel.CreateSwapStatus.CREATING
             val canSwap = estimateState.status == SwapViewModel.EstimateStatus.SUCCESS && !isBusy
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                IconButton(
-                    onClick = { swapViewModel.flipDirection() },
+                Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(KaspaTeal)
+                        .clickable { swapViewModel.flipDirection() },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.SwapVert, "Switch direction", tint = Color.Black)
+                    Icon(Icons.Default.SwapVert, "Switch direction", tint = Color.Black, modifier = Modifier.size(20.dp))
                 }
-                Button(
-                    onClick = { swapViewModel.executeSwap() },
-                    enabled = canSwap,
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = LocalAppColors.current.surfaceVariant),
-                    modifier = Modifier.weight(1f).height(40.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .clip(CircleShape)
+                        .background(if (canSwap) KaspaTeal else LocalAppColors.current.surfaceVariant)
+                        .clickable(enabled = canSwap) { swapViewModel.executeSwap() },
+                    contentAlignment = Alignment.Center,
                 ) {
                     if (isBusy) {
                         com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp), color = Color.Black, strokeWidth = 2.dp)
@@ -225,7 +233,8 @@ fun SwapScreen(
                         Text(
                             "Get Deposit Address",
                             color = if (canSwap) Color.Black else LocalAppColors.current.textSecondary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
                         )
                     }
                 }
@@ -242,44 +251,39 @@ fun SwapScreen(
             )
 
             if (needsPayoutAddress) {
-                Spacer(Modifier.height(16.dp))
-                com.kachat.app.ui.theme.IosTextField(
+                // iOS: a plain monospaced field in a 14-cornered glass card.
+                SwapPlainField(
                     value = payoutAddressText,
                     onValueChange = { swapViewModel.setPayoutAddressText(it) },
-                    label = { Text("Receive ${toCoinForDisplay.displayName} at") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = LocalAppColors.current.surfaceVariant,
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        focusedLabelColor = KaspaTeal,
-                        unfocusedLabelColor = LocalAppColors.current.textSecondary
+                    placeholder = "Receive ${toCoinForDisplay.displayName} at",
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 17.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .iosGlass(14.dp, shadowAlpha = 0f)
+                        .padding(12.dp),
                 )
             }
 
             if (!kasIsSendSide) {
-                Spacer(Modifier.height(12.dp))
+                // iOS spendingAddressRow: the title and the address on the left, "Change" on the
+                // right - the only part that is a button.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(LocalAppColors.current.surface)
-                        .clickable(enabled = navController != null) {
-                            navController?.navigate("manage_addresses_pick/to")
-                        }
+                        .iosGlass(14.dp, shadowAlpha = 0f)
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(stringResource(R.string.receiving_kas_at), color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
-                        Spacer(Modifier.height(2.dp))
                         Text(
                             if (toAddress.length > 20) "${toAddress.take(12)}...${toAddress.takeLast(6)}" else toAddress,
                             color = LocalAppColors.current.textPrimary,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -287,25 +291,25 @@ fun SwapScreen(
                     Text(
                         stringResource(R.string.change),
                         color = KaspaTeal,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                        modifier = Modifier.clickable(enabled = navController != null) {
+                            navController?.navigate("manage_addresses_pick/to")
+                        },
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-
+            // iOS rateCard.
             val isEstimateFailed = estimateState.status == SwapViewModel.EstimateStatus.FAILED
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(LocalAppColors.current.surface)
-                    .padding(10.dp)
+                    .iosGlass(14.dp, shadowAlpha = 0f)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(stringResource(R.string.rate), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Spacer(Modifier.height(2.dp))
                 val rateText = if (estimateState.status == SwapViewModel.EstimateStatus.SUCCESS) {
                     // Both figures come from the quote itself, whichever side was typed.
                     val fromAmount = estimateState.fromAmount ?: 0.0
@@ -325,125 +329,115 @@ fun SwapScreen(
                 )
             }
 
+            // iOS swapResultCard: an 18-cornered glass card, 16 in, its parts 10 apart.
             createSwapState.result?.let { result ->
-                Spacer(Modifier.height(16.dp))
-                Surface(
-                    color = LocalAppColors.current.surface,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .iosGlass(18.dp, shadowAlpha = 0f)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        val fromCoinDisplayName = if (kasIsSendSide) com.kachat.app.models.KAS_SWAP_COIN.displayName else otherCoin.displayName
-                        if (kasIsSendSide) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = navController != null) {
-                                        navController?.navigate("manage_addresses")
-                                    }
-                                    .padding(bottom = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "Go to Spending Addresses",
-                                    color = KaspaTeal,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = KaspaTeal)
-                            }
+                    val fromCoinDisplayName = if (kasIsSendSide) com.kachat.app.models.KAS_SWAP_COIN.displayName else otherCoin.displayName
+                    if (kasIsSendSide) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = navController != null) {
+                                    navController?.navigate("manage_addresses")
+                                }
+                                .padding(bottom = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(Icons.Default.ArrowCircleRight, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                            Text(
+                                "Go to Spending Addresses",
+                                color = KaspaTeal,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                         }
-                        Text(
-                            "Send $fromCoinDisplayName to this address",
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        // Neither side of a swap is something this app sends automatically - the
-                        // user always pays into the deposit address themselves, from wherever they
-                        // hold whichever coin they're giving up (including KAS).
+                    }
+                    Text(
+                        "Send $fromCoinDisplayName to this address",
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                    )
+                    // Neither side of a swap is something this app sends automatically - the
+                    // user always pays into the deposit address themselves, from wherever they
+                    // hold whichever coin they're giving up (including KAS).
+                    result.payinAddress?.let { payin ->
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            val qrPainter = rememberQrBitmapPainter(result.payinAddress ?: "")
+                            val qrPainter = rememberQrBitmapPainter(payin)
+                            // iOS: the code at 180, 12 of white around it, 12 corners.
                             Box(
                                 modifier = Modifier
-                                    .size(180.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(Color.White)
                                     .clickable {
-                                        result.payinAddress?.let {
-                                            clipboardManager.setText(AnnotatedString(it))
-                                            showAddressCopiedToast(context, it)
-                                        }
+                                        clipboardManager.setText(AnnotatedString(payin))
+                                        showAddressCopiedToast(context, payin)
                                     }
                                     .padding(12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                androidx.compose.foundation.Image(qrPainter, "Deposit address QR", modifier = Modifier.fillMaxSize())
+                                androidx.compose.foundation.Image(qrPainter, "Deposit address QR", modifier = Modifier.size(180.dp))
                             }
                         }
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    result.payinAddress?.let {
-                                        clipboardManager.setText(AnnotatedString(it))
-                                        showAddressCopiedToast(context, it)
-                                    }
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                result.payinAddress ?: "",
-                                color = LocalAppColors.current.textSecondary,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.weight(1f)
-                            )
+                    }
+                    Text(
+                        result.payinAddress ?: "",
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.clickable {
+                            val payin = result.payinAddress ?: ""
+                            clipboardManager.setText(AnnotatedString(payin))
+                            showAddressCopiedToast(context, payin)
                         }
-                        Spacer(Modifier.height(8.dp))
-                        Text("Status: ${result.status ?: "new"}", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(8.dp))
+                    )
+                    Text("Status: ${result.status ?: "new"}", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(stringResource(R.string.changenow_exchange_id), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         Text(
                             result.id,
                             color = LocalAppColors.current.textPrimary,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    clipboardManager.setText(AnnotatedString(result.id))
-                                    IosToasts.show(context.getString(R.string.exchange_id_copied))
-                                }
+                            fontSize = 12.sp,
+                            modifier = Modifier.clickable {
+                                clipboardManager.setText(AnnotatedString(result.id))
+                                swapCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                IosToasts.show(context.getString(R.string.exchange_id_copied))
+                            }
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(
-                                stringResource(R.string.refresh_status),
-                                color = KaspaTeal,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.clickable { swapViewModel.refreshSwapStatus(result.id) }
-                            )
-                            Text(
-                                stringResource(R.string.view_on_changenow),
-                                color = KaspaTeal,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.clickable {
-                                    context.startActivity(
-                                        android.content.Intent(
-                                            android.content.Intent.ACTION_VIEW,
-                                            android.net.Uri.parse("https://changenow.io/exchange/txs/${result.id}")
-                                        )
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            stringResource(R.string.refresh_status),
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.clickable { swapViewModel.refreshSwapStatus(result.id) }
+                        )
+                        Text(
+                            stringResource(R.string.view_on_changenow),
+                            color = KaspaTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.clickable {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://changenow.io/exchange/txs/${result.id}")
                                     )
-                                }
-                            )
-                        }
+                                )
+                            }
+                        )
                     }
                 }
             }
-
-            Spacer(Modifier.height(8.dp))
 
             Text(
                 stringResource(R.string.powered_by_changenow),
@@ -452,6 +446,7 @@ fun SwapScreen(
                 textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(top = 4.dp)
                     .clickable {
                         context.startActivity(
                             android.content.Intent(
@@ -462,8 +457,6 @@ fun SwapScreen(
                     },
                 textAlign = TextAlign.Center
             )
-
-            Spacer(Modifier.height(24.dp))
         }
         }
     }
@@ -942,6 +935,12 @@ private fun SwapHistoryRow(swap: SwapTransactionEntity, onClick: () -> Unit, onD
     }
 }
 
+/**
+ * iOS swapAmountCard: the caption, then the amount as a plain title2 field (a spinner where the
+ * number will land while the other card's quote is fetched), and the coin badge - the coin's
+ * icon and name in a grey capsule, with a chevron beside it when the coin can be changed - in an
+ * 18-cornered glass card, 16 in.
+ */
 @Composable
 private fun SwapAmountCard(
     label: String,
@@ -957,65 +956,95 @@ private fun SwapAmountCard(
     // callers only ever pass this for the card showing `otherCoin`.
     onCoinClick: (() -> Unit)? = null
 ) {
-    Surface(
-        color = LocalAppColors.current.surface,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth()
+    val colors = LocalAppColors.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .iosGlass(18.dp, shadowAlpha = 0f)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isQuoting) {
-                    Box(modifier = Modifier.weight(1f).height(56.dp), contentAlignment = Alignment.CenterStart) {
-                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                    }
-                } else {
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = amountText,
-                        onValueChange = onAmountChange,
-                        placeholder = { Text(stringResource(R.string.n_0_00), color = LocalAppColors.current.textSecondary) },
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                        ),
-                        trailingIcon = onMaxClick?.let { max ->
-                            { TextButton(onClick = max) { Text(stringResource(R.string.max), color = KaspaTeal) } }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = KaspaTeal,
-                            unfocusedBorderColor = LocalAppColors.current.surfaceVariant,
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+        Text(label, color = colors.textSecondary, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (isQuoting) {
+                Box(modifier = Modifier.weight(1f).height(28.dp), contentAlignment = Alignment.CenterStart) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal)
                 }
-                Spacer(Modifier.width(12.dp))
+            } else {
+                SwapPlainField(
+                    value = amountText,
+                    onValueChange = onAmountChange,
+                    placeholder = stringResource(R.string.n_0_00),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp, fontWeight = FontWeight.SemiBold),
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (onMaxClick != null) {
+                Text(
+                    stringResource(R.string.max),
+                    color = KaspaTeal,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onMaxClick),
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = if (onCoinClick != null) Modifier.clickable(onClick = onCoinClick) else Modifier,
+            ) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(LocalAppColors.current.surfaceVariant)
-                        .then(if (onCoinClick != null) Modifier.clickable(onClick = onCoinClick) else Modifier)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clip(CircleShape)
+                        .background(colors.surfaceVariant)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     CoinIcon(coin, size = 20.dp)
-                    Spacer(Modifier.width(6.dp))
-                    Text(coinLabel, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    if (onCoinClick != null) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = LocalAppColors.current.textSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+                    Text(coinLabel, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
+                }
+                if (onCoinClick != null) {
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
         }
     }
+}
+
+/** A SwiftUI plain TextField: no box, no underline - just the text, and [placeholder] in the
+ *  placeholder grey while it is empty. */
+@Composable
+private fun SwapPlainField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    textStyle: androidx.compose.ui.text.TextStyle,
+    keyboardType: androidx.compose.ui.text.input.KeyboardType,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = textStyle.copy(color = colors.textPrimary),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
+        modifier = modifier,
+        decorationBox = { inner ->
+            Box(contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty()) Text(placeholder, style = textStyle.copy(color = colors.textTertiary), maxLines = 1)
+                inner()
+            }
+        },
+    )
 }
 
 /**
