@@ -490,12 +490,17 @@ class KachatNamesRegistryTest {
         fun info(n: String, exp: Long, reg: Long?) =
             NameInfo(n, Codec.key(n), me, 0, exp, Outpoint(KachatNames.ZERO32, 0), registeredAt = reg)
         val now = 10_000_000_000_000L
-        val owned = listOf(info("zeta", now + 5, 10), info("alpha", now + 5, 20), info("old", now - 5, 1))
-        r.eq(KachatNames.label(owned, null, g, now), "zeta", "label: the oldest active name")
+        // "grace" expired but is in its grace period; "gone" lapsed (back on the market). A name in
+        // grace still labels its owner (2026-10-07); only a lapsed one doesn't.
+        val owned = listOf(info("zeta", now + 5, 10), info("alpha", now + 5, 20),
+            info("grace", now - 5, 5), info("gone", now - g - 5, 1))
+        r.eq(KachatNames.label(owned, null, g, now), "grace", "label: the oldest held name (one in grace counts)")
         r.eq(KachatNames.label(owned, "Alpha.kachat", g, now), "alpha", "label: the primary name")
-        r.eq(KachatNames.label(owned, "old", g, now), "zeta", "label: a primary name in grace is skipped")
-        r.eq(KachatNames.label(owned, "notmine", g, now), "zeta", "label: a primary name not owned is skipped")
-        r.eq(KachatNames.label(listOf(owned[2]), null, g, now), null, "label: no active name")
+        r.eq(KachatNames.label(owned, "grace", g, now), "grace", "label: a primary name in grace still labels")
+        r.eq(KachatNames.label(owned, "gone", g, now), "grace", "label: a lapsed primary name is skipped")
+        r.eq(KachatNames.label(owned, "notmine", g, now), "grace", "label: a primary name not owned is skipped")
+        r.eq(KachatNames.label(listOf(owned[0], owned[1]), null, g, now), "zeta", "label: the oldest active name")
+        r.eq(KachatNames.label(listOf(owned[3]), null, g, now), null, "label: only a lapsed name")
 
         // The record is {avatar, banner, bio, linktree, primaryName}, each piece a social profile
         // link on a platform that can supply it (iOS c124cb3); nothing typed or uploaded is on chain.
