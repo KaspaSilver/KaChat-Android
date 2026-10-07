@@ -141,6 +141,11 @@ class KachatNamesActions @Inject constructor(
     /** The registration whose progress sheet is up: the open one (one at a time, iOS 61fb0fc). */
     val openRegistration: PendingRegistration? get() = openRegistration(_pending.value)
 
+    /** Claim sheets currently showing a registration's progress themselves; while one does, the
+     *  app-level progress sheet (`KachatRegistrationPresenter`) stays down (iOS 61fb0fc
+     *  `inlineProgressCount`). */
+    val inlineProgressCount = MutableStateFlow(0)
+
     private val _virtualDaa = MutableStateFlow<Long?>(null)
     /** The virtual DAA score the driver last saw (registration progress, "refundable now"). */
     val virtualDaa: StateFlow<Long?> = _virtualDaa.asStateFlow()

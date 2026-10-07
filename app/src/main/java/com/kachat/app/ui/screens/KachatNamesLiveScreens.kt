@@ -86,6 +86,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -1111,60 +1112,81 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
 // MARK: - Registrations in flight
 
 /**
- * A registration's progress as a half sheet that can't be closed until it's done (iOS 61fb0fc
- * `KachatRegistrationProgressSheet`): claiming takes the app being open (the commit has to age about
- * a minute before the name registers), and one name is claimed at a time. It goes once the
- * registration is dismissed (Done) or its commit was cancelled.
+ * iOS's sheet grabber: the short rounded bar a sheet with more than one detent shows at its top
+ * (the medium and large stops here), 5 high and 36 wide, 5 below the sheet's edge.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KachatRegistrationProgressSheet(registration: PendingRegistration, vm: KachatLiveViewModel) {
+private fun KachatSheetGrabber() {
+    Box(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 5.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(width = 36.dp, height = 5.dp).clip(CircleShape).background(LocalAppColors.current.textSecondary.copy(alpha = 0.5f)))
+    }
+}
+
+/**
+ * A registration's progress (iOS 61fb0fc `KachatRegistrationProgressSheet`'s body): "Claiming
+ * name.kachat", the registration card, and - while it still needs the app - the keep-open note.
+ * Claiming takes the app being open (the commit has to age about a minute before the name
+ * registers), and one name is claimed at a time. Shown by the claim sheet itself once Claim went
+ * through, and by [KachatRegistrationPresenter] otherwise.
+ */
+@Composable
+private fun KachatRegistrationProgressContent(registration: PendingRegistration, vm: KachatLiveViewModel) {
     val colors = LocalAppColors.current
-    val sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden })
-    ModalBottomSheet(
-        onDismissRequest = {},
-        sheetState = sheetState,
-        containerColor = colors.background,
-        properties = ModalBottomSheetProperties(
-            securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit,
-            isFocusable = true,
-            shouldDismissOnBackPress = false,
-        ),
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+        Text(
+            stringResource(R.string.kn_claiming_name, "${registration.name}.kachat"),
+            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center,
+            // 22 from the sheet's top edge, the grabber's 10 included
+            modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp)
+        )
+        KachatRegistrationCard(registration, vm)
+        if (registration.needsDriving) {
             Text(
-                stringResource(R.string.kn_claiming_name, "${registration.name}.kachat"),
-                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp)
+                stringResource(R.string.kn_keep_open_claiming),
+                color = colors.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
             )
-            KachatRegistrationCard(registration, vm)
-            if (registration.needsDriving) {
-                Text(
-                    stringResource(R.string.kn_keep_open_claiming),
-                    color = colors.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
-            }
         }
     }
 }
 
 /**
- * The app-level progress sheet (iOS 61fb0fc `KachatRegistrationPresenter`, on MainTabView): an open
- * registration's progress, over whatever is showing - right after Claim, and back up when the app
- * starts or returns, since a claim needs the app open to finish. Launched networks only.
+ * The app-level progress sheet (iOS 61fb0fc `KachatRegistrationPresenter`, on MainTabView): brings
+ * an open registration's progress back up when the app starts or returns (a claim needs the app
+ * open to finish), unless a claim sheet is showing it ([KachatNamesActions.inlineProgressCount]).
+ * A half sheet - medium, draggable to large - that can't be closed until the registration is done
+ * (Done) or its commit was cancelled. Launched networks only.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatRegistrationPresenter() {
     if (!KachatNamesService.isLaunched) return
     val vm: KachatLiveViewModel = hiltViewModel()
     val pending by vm.actions.pending.collectAsState()
+    val inline by vm.actions.inlineProgressCount.collectAsState()
+    if (inline > 0) return
     val open = KachatNamesActions.openRegistration(pending) ?: return
-    key(open.id) { KachatRegistrationProgressSheet(open, vm) }
+    key(open.id) {
+        com.kachat.app.ui.theme.IosSheetColors {
+            ModalBottomSheet(
+                onDismissRequest = {},
+                sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden }),
+                containerColor = LocalAppColors.current.background,
+                dragHandle = { KachatSheetGrabber() },
+                properties = ModalBottomSheetProperties(
+                    securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit,
+                    isFocusable = true,
+                    shouldDismissOnBackPress = false,
+                ),
+            ) {
+                KachatRegistrationProgressContent(open, vm)
+            }
+        }
+    }
 }
 
 /** One registration in flight: its stage, the commit's maturity progress, and what can be done
@@ -1753,22 +1775,72 @@ fun KachatTxSheet(
 // MARK: - Claim
 
 /**
- * Claim a free name: 1 or 2 years; price x years to miners, the bond and the registry deposit
- * (both back on release), the commit (back at registration), network fees, total and what the
- * chatting address has. Claim starts the registration (commit, then the driver registers).
+ * Claim a free name, in a sheet (iOS `KachatClaimSheet`): 1 or 2 years; price x years to miners,
+ * the bond and the registry deposit (both back on release), the commit (back at registration),
+ * network fees, total and what the chatting address has. Claim starts the registration (commit,
+ * then the driver registers), and the sheet then turns into that registration's progress half
+ * sheet, which can't be closed until the registration is done (Done) or its commit was cancelled
+ * (iOS 61fb0fc) - from the marketplace and from Your Domains alike. While it shows the progress
+ * itself, the app-level [KachatRegistrationPresenter] stays down
+ * ([KachatNamesActions.inlineProgressCount]).
+ *
+ * Opens at full height (iOS's large detent) and can be pulled to half (medium); the progress opens
+ * at half.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: () -> Unit = {}, vm: KachatLiveViewModel = hiltViewModel()) {
-    val colors = LocalAppColors.current
     val context = LocalContext.current
     val view = LocalView.current
+    val scope = rememberCoroutineScope()
     val manifest by vm.service.manifest.collectAsState()
+    val pending by vm.actions.pending.collectAsState()
     var years by remember { mutableLongStateOf(1L) }
     var quote by remember { mutableStateOf<KachatNamesActions.Quote?>(null) }
     var quoteError by remember { mutableStateOf<String?>(null) }
     var starting by remember { mutableStateOf(false) }
     var startError by remember { mutableStateOf<String?>(null) }
+    // Once the registration started, this sheet shows its progress (iOS `progressId`) ...
+    var progressId by remember { mutableStateOf<String?>(null) }
+    // ... and holds the app-level progress sheet down meanwhile (iOS `holdsInline`).
+    var holdsInline by remember { mutableStateOf(false) }
     val maxYears = manifest?.params?.maxYears ?: 2L
+    val registration = progressId?.let { id -> pending.firstOrNull { it.id == id } }
+    // can't be closed while the registration it shows is still open (iOS interactiveDismissDisabled)
+    val locked by rememberUpdatedState(registration?.isOpen == true)
+    val close by rememberUpdatedState(onClose)
+    val sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden || !locked })
+
+    fun releaseInline() {
+        if (holdsInline) {
+            holdsInline = false
+            vm.actions.inlineProgressCount.value -= 1
+        }
+    }
+    DisposableEffect(Unit) { onDispose { releaseInline() } }
+
+    fun dismiss() {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
+    }
+
+    // Opens at the large detent, as iOS's claim sheet does: the sheet first heads for its half
+    // stop, so it carries on to the top.
+    LaunchedEffect(sheetState) {
+        val first = snapshotFlow { sheetState.targetValue }.first { it != SheetValue.Hidden }
+        if (first == SheetValue.PartiallyExpanded && progressId == null) sheetState.expand()
+    }
+
+    // Closes once the registration is dismissed (Done) or its commit was cancelled.
+    val over = progressId != null && registration?.isOpen != true
+    LaunchedEffect(over) {
+        if (over) {
+            try {
+                sheetState.hide()
+            } finally {
+                close()
+            }
+        }
+    }
 
     LaunchedEffect(years) {
         quote = null
@@ -1788,80 +1860,120 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         if (q == null || q.years != years) return
         starting = true
         startError = null
+        // This sheet shows the progress itself: keep the app-level progress sheet down meanwhile.
+        if (!holdsInline) {
+            holdsInline = true
+            vm.actions.inlineProgressCount.value += 1
+        }
         vm.launch {
             try {
                 vm.actions.startRegistration(target.name, years, maxPrice = q.price)
                 view.successHaptic()
                 onStarted()
-                onClose()
+                progressId = vm.actions.pending.value.lastOrNull { it.name == target.name && it.isOpen }?.id
+                if (progressId == null) dismiss() else scope.launch { sheetState.partialExpand() }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 startError = context.kachatErrorText(e)
+                releaseInline()
             }
             starting = false
         }
     }
 
-    KachatLiveForm(title = stringResource(R.string.kn_claim_name_title), onClose = onClose) {
-        FormSection {
-            LabeledRow(stringResource(R.string.kl_name), "${target.name}.kachat", bold = false)
-            SettingsDivider()
-            val count = maxOf(1, maxYears.toInt())
-            KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
-        }
-
-        FormSection(
-            header = stringResource(R.string.kn_cost),
-            footer = {
-                val q = quote
-                if (q != null && !q.affordable) FormFooter(KaspaUnit.label(stringResource(R.string.kn_not_enough)), colors.danger)
-                else FormFooter(stringResource(R.string.kn_claim_footer))
-            }
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            // A swipe, a tap outside or Back closes the form; the progress stays put (Back on it
+            // brings it straight back up).
+            onDismissRequest = { if (locked) scope.launch { sheetState.show() } else close() },
+            sheetState = sheetState,
+            containerColor = colors.background,
+            dragHandle = { KachatSheetGrabber() },
         ) {
-            val q = quote
-            val qe = quoteError
-            when {
-                q != null -> {
-                    LabeledRow(stringResource(R.string.kn_price_to_miners), "${KaspaUnit.amount(q.price / maxOf(q.years, 1L))} × ${q.years}"); SettingsDivider()
-                    LabeledRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond)); SettingsDivider()
-                    LabeledRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit)); SettingsDivider()
-                    LabeledRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit)); SettingsDivider()
-                    LabeledRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee)); SettingsDivider()
-                    LabeledRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true); SettingsDivider()
-                    LabeledRow(stringResource(R.string.kn_available), KaspaUnit.amount(q.spendable))
-                }
-                qe != null -> Text(qe, color = colors.danger, modifier = Modifier.padding(16.dp))
-                else -> LoadingRow(stringResource(R.string.kl_total))
-            }
-        }
-
-        FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
-            val params = manifest?.params
-            val step3 = if (KachatLive.yearlyPeriods(params)) {
-                stringResource(R.string.kn_claim_step3_cap)
+            val shown = registration
+            if (progressId != null && shown != null) {
+                KachatRegistrationProgressContent(shown, vm)
             } else {
-                stringResource(R.string.kn_claim_step3_time, yearsText(maxYears.toInt(), params), KachatLive.duration(params?.renewWindowMs ?: 0L, context))
-            }
-            listOf(stringResource(R.string.kn_claim_step1), stringResource(R.string.kn_claim_step2), step3).forEachIndexed { index, text ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                        Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Column(Modifier.fillMaxSize()) {
+                    // The inline navigation bar: Cancel (left) and "Claim Name".
+                    Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
+                        TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                            Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
+                        }
+                        Text(
+                            stringResource(R.string.kn_claim_name_title),
+                            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Text(text, color = colors.textPrimary, fontSize = 15.sp)
-                }
-                if (index < 2) SettingsDivider(50.dp)
-            }
-        }
+                    Column(
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp)
+                    ) {
+                        FormSection {
+                            LabeledRow(stringResource(R.string.kl_name), "${target.name}.kachat", bold = false)
+                            SettingsDivider()
+                            val count = maxOf(1, maxYears.toInt())
+                            KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+                        }
 
-        FormSection(footer = { startError?.let { FormFooter(it, colors.danger) } }) {
-            FormButtonRow(
-                stringResource(R.string.kn_claim_name_button, target.name),
-                enabled = quote?.affordable == true && !starting,
-                busy = starting
-            ) {
-                context.kachatAuthorize { start() }
+                        FormSection(
+                            header = stringResource(R.string.kn_cost),
+                            footer = {
+                                val q = quote
+                                if (q != null && !q.affordable) FormFooter(KaspaUnit.label(stringResource(R.string.kn_not_enough)), colors.danger)
+                                else FormFooter(stringResource(R.string.kn_claim_footer))
+                            }
+                        ) {
+                            val q = quote
+                            val qe = quoteError
+                            when {
+                                q != null -> {
+                                    LabeledRow(stringResource(R.string.kn_price_to_miners), "${KaspaUnit.amount(q.price / maxOf(q.years, 1L))} × ${q.years}"); SettingsDivider()
+                                    LabeledRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond)); SettingsDivider()
+                                    LabeledRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit)); SettingsDivider()
+                                    LabeledRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit)); SettingsDivider()
+                                    LabeledRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee)); SettingsDivider()
+                                    LabeledRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true); SettingsDivider()
+                                    LabeledRow(stringResource(R.string.kn_available), KaspaUnit.amount(q.spendable))
+                                }
+                                qe != null -> Text(qe, color = colors.danger, modifier = Modifier.padding(16.dp))
+                                else -> LoadingRow(stringResource(R.string.kl_total))
+                            }
+                        }
+
+                        FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
+                            val params = manifest?.params
+                            val step3 = if (KachatLive.yearlyPeriods(params)) {
+                                stringResource(R.string.kn_claim_step3_cap)
+                            } else {
+                                stringResource(R.string.kn_claim_step3_time, yearsText(maxYears.toInt(), params), KachatLive.duration(params?.renewWindowMs ?: 0L, context))
+                            }
+                            listOf(stringResource(R.string.kn_claim_step1), stringResource(R.string.kn_claim_step2), step3).forEachIndexed { index, text ->
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                                    Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+                                        Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(text, color = colors.textPrimary, fontSize = 15.sp)
+                                }
+                                if (index < 2) SettingsDivider(50.dp)
+                            }
+                        }
+
+                        FormSection(footer = { startError?.let { FormFooter(it, colors.danger) } }) {
+                            FormButtonRow(
+                                stringResource(R.string.kn_claim_name_button, target.name),
+                                enabled = quote?.affordable == true && !starting,
+                                busy = starting
+                            ) {
+                                context.kachatAuthorize { start() }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -2029,10 +2141,10 @@ fun KachatLiveNameDetailScreen(
         }
     }
 
-    // Sheets over the detail (full-screen swaps, Cancel top left).
+    // The claim sheet is a real sheet over the detail (iOS .sheet); the others are full-screen
+    // swaps, Cancel top left.
     claimTarget?.let { target ->
         KachatClaimSheet(target, onClose = { claimTarget = null }, vm = vm)
-        return
     }
     offerAction?.let { action ->
         KachatOfferActionSheet(action, onClose = { offerAction = null })

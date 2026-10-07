@@ -141,10 +141,8 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 KachatLiveNameDetailScreen(sheet.info, onBack = { liveSheet = null }, onOpenChat = onOpenChat, vm = live)
                 return
             }
-            is KachatHubSheet.Claim -> {
-                KachatClaimSheet(sheet.target, onClose = { liveSheet = null }, vm = live)
-                return
-            }
+            // a sheet over the market (iOS .sheet), not a full-screen swap
+            is KachatHubSheet.Claim -> KachatClaimSheet(sheet.target, onClose = { liveSheet = null }, vm = live)
             is KachatHubSheet.Reclaim -> {
                 KachatReclaimSheet(sheet.info, onClose = { liveSheet = null }, vm = live)
                 return
@@ -374,9 +372,9 @@ private fun KachatNameRouteScreen(name: String, onBack: () -> Unit, onOpenChat: 
             KachatRouteFound.Failed
         }
     }
+    // a sheet over the name (iOS .sheet)
     claimTarget?.let { target ->
         KachatClaimSheet(target, onClose = { claimTarget = null }, vm = vm)
-        return
     }
     when (val f = found) {
         is KachatRouteFound.Registered -> KachatLiveNameDetailScreen(f.info, onBack = onBack, onOpenChat = onOpenChat, vm = vm)
