@@ -14,11 +14,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.FormatAlignLeft
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PanTool
+import androidx.compose.material.icons.outlined.Photo
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -318,11 +327,11 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
 
     if (showHowItWorks) {
         ActionSheetContainer(title = stringResource(R.string.km_how_kachat_works), subtitle = null, onDismiss = { showHowItWorks = false }) {
-            HowRow(Icons.Default.AlternateEmail, stringResource(R.string.km_claim), stringResource(R.string.km_claim_detail))
-            HowRow(Icons.Default.Sell, stringResource(R.string.km_list), stringResource(R.string.km_list_detail))
-            HowRow(Icons.Default.ShoppingCart, stringResource(R.string.km_buy), stringResource(R.string.km_buy_detail))
-            HowRow(Icons.Default.PanTool, stringResource(R.string.kl_offer), KaspaUnit.label(stringResource(R.string.kl_offer_detail)))
-            HowRow(Icons.Default.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
+            HowRow(KachatSymbols.AtBadgePlus, stringResource(R.string.km_claim), stringResource(R.string.km_claim_detail))
+            HowRow(Icons.Outlined.Sell, stringResource(R.string.km_list), stringResource(R.string.km_list_detail))
+            HowRow(Icons.Outlined.ShoppingCart, stringResource(R.string.km_buy), stringResource(R.string.km_buy_detail))
+            HowRow(Icons.Outlined.PanTool, stringResource(R.string.kl_offer), KaspaUnit.label(stringResource(R.string.kl_offer_detail)))
+            HowRow(Icons.Outlined.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
             Text(
                 stringResource(if (isLive) R.string.kn_how_live_footer else R.string.km_nothing_live),
                 color = LocalAppColors.current.textSecondary,
@@ -397,7 +406,7 @@ private fun SettingUpPill() {
         Modifier.clip(RoundedCornerShape(50)).background(KaspaTeal.copy(alpha = 0.15f)).padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Construction, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(12.dp))
+        Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(12.dp))
         Spacer(Modifier.width(4.dp))
         Text(stringResource(R.string.kn_setting_up), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
     }
@@ -437,7 +446,7 @@ private fun MarketPage(onOpenListing: () -> Unit) {
             TilePlaceholder(onClick = onOpenListing)
         }
         OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp)) {
-            Icon(Icons.Default.Sell, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Sell, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.km_list_a_name), fontWeight = FontWeight.Bold)
         }
@@ -480,7 +489,7 @@ private fun ReclaimablePage() {
 @Composable
 private fun ActivityPage() {
     val colors = LocalAppColors.current
-    val icons = listOf(Icons.Default.Sell, Icons.Default.ShoppingCart, Icons.Default.AlternateEmail, Icons.AutoMirrored.Filled.CompareArrows)
+    val icons = listOf(Icons.Outlined.Sell, Icons.Outlined.ShoppingCart, Icons.Default.AlternateEmail, Icons.Default.SwapHoriz)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
         SectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.kn_activity_all_detail))
         Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface)) {
@@ -538,8 +547,8 @@ enum class KaChatStatCategory(val key: String, val title: Int, val detail: Int, 
     CHESS_GAMES("chessGames", R.string.ks_chess_games, R.string.ks_chess_games_detail, Icons.Default.EmojiEvents, Color(0xFFFFD60A)),
     // .kachat names (registry transactions, iOS b2d108b). An indexer reports them only where names
     // are live, so on a network without the registry yet (mainnet before launch) they stay hidden.
-    KACHAT_REGISTRATIONS("kachatRegistrations", R.string.ks_kachat_registrations, R.string.ks_kachat_registrations_detail, Icons.Default.AlternateEmail, Color(0xFF63E6E2)),
-    KACHAT_RENEWALS("kachatRenewals", R.string.ks_kachat_renewals, R.string.ks_kachat_renewals_detail, Icons.Default.Autorenew, Color(0xFF008C80)),
+    KACHAT_REGISTRATIONS("kachatRegistrations", R.string.ks_kachat_registrations, R.string.ks_kachat_registrations_detail, KachatSymbols.AtBadgePlus, Color(0xFF63E6E2)),
+    KACHAT_RENEWALS("kachatRenewals", R.string.ks_kachat_renewals, R.string.ks_kachat_renewals_detail, Icons.Default.ChangeCircle, Color(0xFF008C80)),
     KACHAT_SALES("kachatSales", R.string.ks_kachat_sales, R.string.ks_kachat_sales_detail, Icons.Default.ShoppingCart, Color(0xFFFF453A)),
     KACHAT_OFFERS("kachatOffers", R.string.ks_kachat_offers, R.string.ks_kachat_offers_detail, Icons.Default.PanTool, Color(0xFFD98C1A)),
     KACHAT_ACTIVITY("kachatActivity", R.string.ks_kachat_activity, R.string.ks_kachat_activity_detail, Icons.Default.LocalOffer, Color(0xFF7373BF)),
@@ -1008,23 +1017,23 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
                     if (!KachatLive.isEnabled) ComingSoonPill()
                 }
                 1 -> {
-                    header({ Icon(Icons.Default.AccountCircle, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_avatar_title, R.string.kg_avatar_body)
+                    header({ Icon(Icons.Outlined.AccountCircle, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_avatar_title, R.string.kg_avatar_body)
                     Box(Modifier.size(120.dp).clip(CircleShape).background(colors.surface), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Person, null, tint = colors.textTertiary, modifier = Modifier.size(48.dp))
                     }
-                    disabledAction(stringResource(R.string.kg_choose_photo), Icons.Default.Photo)
+                    disabledAction(stringResource(R.string.kg_choose_photo), Icons.Outlined.Photo)
                     ComingSoonPill()
                 }
                 2 -> {
-                    header({ Icon(Icons.Default.Panorama, null, tint = KaspaTeal, modifier = Modifier.size(48.dp)) }, R.string.kg_banner_title, R.string.kg_banner_body)
+                    header({ Icon(Icons.Outlined.PhotoLibrary, null, tint = KaspaTeal, modifier = Modifier.size(48.dp)) }, R.string.kg_banner_title, R.string.kg_banner_body)
                     Box(Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Photo, null, tint = colors.textTertiary, modifier = Modifier.size(36.dp))
+                        Icon(Icons.Outlined.Photo, null, tint = colors.textTertiary, modifier = Modifier.size(36.dp))
                     }
-                    disabledAction(stringResource(R.string.choose_banner), Icons.Default.Panorama)
+                    disabledAction(stringResource(R.string.choose_banner), Icons.Outlined.PhotoLibrary)
                     ComingSoonPill()
                 }
                 3 -> {
-                    header({ Icon(Icons.Default.Notes, null, tint = KaspaTeal, modifier = Modifier.size(46.dp)) }, R.string.kg_details_title, R.string.kg_details_body)
+                    header({ Icon(Icons.AutoMirrored.Outlined.FormatAlignLeft, null, tint = KaspaTeal, modifier = Modifier.size(46.dp)) }, R.string.kg_details_title, R.string.kg_details_body)
                     val fields = listOf(R.string.bio, R.string.x_handle, R.string.website, R.string.telegram, R.string.discord_user_id, R.string.email, R.string.github)
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface)) {
                         fields.forEachIndexed { index, res ->
@@ -1081,11 +1090,11 @@ private fun KachatListingScreen(onBack: () -> Unit, onBuy: () -> Unit, onOffer: 
             }
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = onBuy, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)) {
-                    Icon(Icons.Default.ShoppingCart, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Outlined.ShoppingCart, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.kl_buy_now), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
                 OutlinedButton(onClick = onOffer, modifier = Modifier.weight(1f).height(48.dp)) {
-                    Icon(Icons.Default.PanTool, null, tint = KaspaTeal, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Outlined.PanTool, null, tint = KaspaTeal, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.kl_make_offer), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
                 }
             }
@@ -1103,10 +1112,10 @@ private fun KachatListingScreen(onBack: () -> Unit, onBuy: () -> Unit, onOffer: 
                     OutlinedButton(onClick = {}, enabled = false) { Text(stringResource(R.string.kl_message), fontSize = 14.sp) }
                 }
             }
-            ListingPlaceholderList(stringResource(R.string.kl_offers), stringResource(R.string.kl_offers_on_name), List(3) { Icons.Default.PanTool })
-            ListingPlaceholderList(stringResource(R.string.kl_history), null, listOf(Icons.Default.Sell, Icons.AutoMirrored.Filled.CompareArrows, Icons.Default.AlternateEmail))
+            ListingPlaceholderList(stringResource(R.string.kl_offers), stringResource(R.string.kl_offers_on_name), List(3) { Icons.Outlined.PanTool })
+            ListingPlaceholderList(stringResource(R.string.kl_history), null, listOf(Icons.Outlined.Sell, Icons.Default.SwapHoriz, KachatSymbols.AtBadgePlus))
             Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(Icons.Default.ShoppingCart to R.string.kl_note_buy, Icons.Default.Lock to R.string.kl_note_offer, Icons.Default.Forum to R.string.kl_note_message).forEach { (icon, text) ->
+                listOf(Icons.Outlined.ShoppingCart to R.string.kl_note_buy, Icons.Outlined.Lock to R.string.kl_note_offer, Icons.Outlined.Forum to R.string.kl_note_message).forEach { (icon, text) ->
                     Row(verticalAlignment = Alignment.Top) {
                         Icon(icon, null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))

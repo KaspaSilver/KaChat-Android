@@ -18,11 +18,18 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.LabelOff
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.PanTool
+import androidx.compose.material.icons.outlined.Pending
+import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -135,16 +142,16 @@ object KachatLive {
     }
 
     fun eventIcon(op: String): ImageVector = when (op) {
-        "register" -> Icons.Default.AlternateEmail
-        "transfer" -> Icons.AutoMirrored.Filled.CompareArrows
-        "list" -> Icons.Default.Sell
-        "delist" -> Icons.AutoMirrored.Filled.LabelOff
-        "sale", "offer_accepted" -> Icons.Default.ShoppingCart
-        "extend" -> Icons.Default.MoreTime
+        "register" -> KachatSymbols.AtBadgePlus
+        "transfer" -> Icons.Default.SwapHoriz
+        "list" -> Icons.Outlined.Sell
+        "delist" -> KachatSymbols.TagSlash
+        "sale", "offer_accepted" -> Icons.Outlined.ShoppingCart
+        "extend" -> KachatSymbols.CalendarBadgePlus
         "renew" -> Icons.Default.Refresh
         "release" -> Icons.AutoMirrored.Filled.Undo
         "reclaim" -> Icons.Default.Recycling
-        else -> Icons.Default.PanTool
+        else -> Icons.Outlined.PanTool
     }
 
     @StringRes
@@ -1095,7 +1102,7 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
             KachatButton(
                 stringResource(R.string.view_in_explorer),
                 modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Default.Explore,
+                icon = Icons.Outlined.Explore,
                 prominent = true,
                 large = true
             ) { browserUrl = explorerUrl }
@@ -1492,7 +1499,7 @@ private fun KachatOfferRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.PanTool, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+            Icon(Icons.Outlined.PanTool, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -1523,7 +1530,7 @@ private fun KachatOfferRow(
         when {
             isBuyer -> Box {
                 IconButton(onClick = { menu = true }) {
-                    Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = KaspaTeal)
+                    Icon(Icons.Outlined.Pending, contentDescription = null, tint = KaspaTeal)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
@@ -1542,7 +1549,7 @@ private fun KachatOfferRow(
                 // the owner can decline it too (registry v3, iOS 49c0baa)
                 Box {
                     IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = KaspaTeal)
+                        Icon(Icons.Outlined.Pending, contentDescription = null, tint = KaspaTeal)
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
@@ -2278,7 +2285,7 @@ fun KachatLiveNameDetailScreen(
                         info.periodStart?.let { start ->
                             // registry v2: the paid period, from its start to the expiry (at most 2 years)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     stringResource(R.string.kn_paid_from_to, KachatLive.day(start), KachatLive.day(info.expiresAt)),
@@ -2297,7 +2304,7 @@ fun KachatLiveNameDetailScreen(
                 if (gone) {
                     val gap = freeGap
                     if (gap != null && KachatLive.isEnabled) {
-                        KachatButton(stringResource(R.string.km_claim), Modifier.fillMaxWidth().padding(horizontal = 16.dp), Icons.Default.AlternateEmail, prominent = true, large = true) {
+                        KachatButton(stringResource(R.string.km_claim), Modifier.fillMaxWidth().padding(horizontal = 16.dp), KachatSymbols.AtBadgePlus, prominent = true, large = true) {
                             claimTarget = KachatClaimTarget(info.name, gap)
                         }
                     }
@@ -2313,7 +2320,7 @@ fun KachatLiveNameDetailScreen(
                             if (status == Status.LAPSED) {
                                 // Past grace: a renewal can't bring it back, so the way back is to
                                 // clear it (your bond comes back) and register it again (iOS ba1a734).
-                                KachatButton(stringResource(R.string.kn_reclaim_to_own), big, Icons.Default.Autorenew, prominent = true, large = true) {
+                                KachatButton(stringResource(R.string.kn_reclaim_to_own), big, Icons.Default.Recycling, prominent = true, large = true) {
                                     startReclaimToOwn()
                                 }
                             } else if (status != Status.ACTIVE && p != null && info.renewOpen(p)) {
@@ -2333,11 +2340,11 @@ fun KachatLiveNameDetailScreen(
                         } else {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 if (info.isListed && status == Status.ACTIVE) {
-                                    KachatButton(stringResource(R.string.kl_buy_now), Modifier.weight(1f), Icons.Default.ShoppingCart, prominent = true, large = true) { sheet = KachatDetailSheet.BUY }
+                                    KachatButton(stringResource(R.string.kl_buy_now), Modifier.weight(1f), Icons.Outlined.ShoppingCart, prominent = true, large = true) { sheet = KachatDetailSheet.BUY }
                                 }
                                 // an expired name can be reclaimed by anyone soon: no offers on it (iOS 71128c4)
                                 if (status == Status.ACTIVE) {
-                                    KachatButton(stringResource(R.string.kl_make_offer), Modifier.weight(1f), Icons.Default.PanTool, large = true) { sheet = KachatDetailSheet.OFFER }
+                                    KachatButton(stringResource(R.string.kl_make_offer), Modifier.weight(1f), Icons.Outlined.PanTool, large = true) { sheet = KachatDetailSheet.OFFER }
                                 }
                             }
                         }
@@ -2401,7 +2408,7 @@ fun KachatLiveNameDetailScreen(
                             }
                             if (!ownedByWallet && ownerAddress != null) {
                                 Spacer(Modifier.width(8.dp))
-                                KachatButton(stringResource(R.string.kl_message), icon = Icons.Default.Forum) {
+                                KachatButton(stringResource(R.string.kl_message), icon = Icons.Outlined.Forum) {
                                     vm.message(ownerAddress, onOpenChat)
                                 }
                             }
@@ -2501,7 +2508,7 @@ fun KachatOwnAgainSheet(name: String, choose: (Boolean) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
+            Icon(KachatSymbols.AtBadgePlus, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
             Text(
                 stringResource(R.string.kn_register_again_q, name),
                 color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.Center
@@ -2563,7 +2570,7 @@ private fun KachatManageNameSheet(
     val items = KachatManageMenu.actions(info, status, params, mine).map { action ->
         when (action) {
             KachatManageMenu.Action.RECLAIM_TO_OWN -> KachatManageItem(
-                stringResource(R.string.kn_reclaim_to_own), stringResource(R.string.kn_reclaim_to_own_hint), Icons.Default.Autorenew,
+                stringResource(R.string.kn_reclaim_to_own), stringResource(R.string.kn_reclaim_to_own_hint), Icons.Default.Recycling,
                 run = open(KachatDetailSheet.RECLAIM_TO_OWN)
             )
             KachatManageMenu.Action.EXTEND -> {
@@ -2577,22 +2584,22 @@ private fun KachatManageNameSheet(
                 }
                 val subtitle = if (yearly) stringResource(R.string.kn_manage_extend_hint)
                 else stringResource(R.string.kn_manage_extend_hint_time, yearsText(p.maxYears.toInt(), p))
-                KachatManageItem(title, subtitle, Icons.Default.MoreTime, run = open(KachatDetailSheet.EXTEND))
+                KachatManageItem(title, subtitle, KachatSymbols.CalendarBadgePlus, run = open(KachatDetailSheet.EXTEND))
             }
             KachatManageMenu.Action.RENEW ->
                 KachatManageItem(stringResource(R.string.kn_renew), stringResource(R.string.kn_manage_renew_hint), Icons.Default.Refresh, run = open(KachatDetailSheet.RENEW))
             KachatManageMenu.Action.CHANGE_PRICE ->
-                KachatManageItem(stringResource(R.string.kn_change_price), stringResource(R.string.kn_manage_change_price_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST))
+                KachatManageItem(stringResource(R.string.kn_change_price), stringResource(R.string.kn_manage_change_price_hint), Icons.Outlined.Sell, enabled = active, run = open(KachatDetailSheet.LIST))
             KachatManageMenu.Action.DELIST ->
-                KachatManageItem(stringResource(R.string.kn_delist), stringResource(R.string.kn_manage_delist_hint), Icons.AutoMirrored.Filled.LabelOff, run = open(KachatDetailSheet.DELIST))
+                KachatManageItem(stringResource(R.string.kn_delist), stringResource(R.string.kn_manage_delist_hint), KachatSymbols.TagSlash, run = open(KachatDetailSheet.DELIST))
             KachatManageMenu.Action.LIST ->
-                KachatManageItem(stringResource(R.string.kn_list_for_sale), stringResource(R.string.kn_manage_list_hint), Icons.Default.Sell, enabled = active, run = open(KachatDetailSheet.LIST))
+                KachatManageItem(stringResource(R.string.kn_list_for_sale), stringResource(R.string.kn_manage_list_hint), Icons.Outlined.Sell, enabled = active, run = open(KachatDetailSheet.LIST))
             KachatManageMenu.Action.TRANSFER ->
-                KachatManageItem(stringResource(R.string.portfolio_type_transfer), stringResource(R.string.kn_manage_transfer_hint), Icons.AutoMirrored.Filled.CompareArrows, run = open(KachatDetailSheet.TRANSFER))
+                KachatManageItem(stringResource(R.string.portfolio_type_transfer), stringResource(R.string.kn_manage_transfer_hint), Icons.Default.SwapHoriz, run = open(KachatDetailSheet.TRANSFER))
             KachatManageMenu.Action.PRIMARY ->
-                KachatManageItem(stringResource(R.string.set_as_primary), stringResource(R.string.kn_manage_primary_hint), Icons.Default.HowToReg, enabled = active) { close(onPrimary) }
+                KachatManageItem(stringResource(R.string.set_as_primary), stringResource(R.string.kn_manage_primary_hint), KachatSymbols.PersonCircleBadgeCheckmark, enabled = active) { close(onPrimary) }
             KachatManageMenu.Action.RELEASE ->
-                KachatManageItem(stringResource(R.string.kn_release_name), stringResource(R.string.kn_manage_release_hint), Icons.Default.Delete, tint = danger, run = open(KachatDetailSheet.RELEASE))
+                KachatManageItem(stringResource(R.string.kn_release_name), stringResource(R.string.kn_manage_release_hint), Icons.Outlined.Delete, tint = danger, run = open(KachatDetailSheet.RELEASE))
         }
     }
     // When the renewal window opens, while it hasn't yet - under the sheet's title.
@@ -2955,7 +2962,7 @@ fun KachatLiveDomainsTab(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.Construction, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(40.dp))
+                    Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(40.dp))
                     Text(stringResource(R.string.kn_setting_up), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                     Text(stringResource(R.string.kn_registry_upgrading), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
@@ -2966,7 +2973,7 @@ fun KachatLiveDomainsTab(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
+                            Icon(KachatSymbols.AtCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
                             Text(stringResource(R.string.km_no_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                         }
                     } else {
@@ -3214,7 +3221,7 @@ private fun KachatSocialPreview(
                 Text(stringResource(R.string.kn_social_from, name), color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
             KachatSocialLookup.EMPTY -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.NoAccounts, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                Icon(KachatSymbols.PersonCircleBadgeExclamation, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 val missing = when (kind) {
                     SocialSource.Kind.AVATAR -> R.string.kn_social_no_avatar
@@ -3224,7 +3231,7 @@ private fun KachatSocialPreview(
                 Text(stringResource(missing, name), color = colors.textSecondary, fontSize = 13.sp)
             }
             KachatSocialLookup.UNREACHABLE -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.WifiOff, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.SignalWifiStatusbarConnectedNoInternet4, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Text(stringResource(R.string.kn_couldnt_reach, name), color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
                 Text(
@@ -3391,7 +3398,7 @@ fun KachatLiveProfileEditorScreen(
     KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack) {
         FormSection(footer = { FormFooter(stringResource(R.string.kn_profile_pieces_footer)) }) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
-                Icon(Icons.Default.ContactPage, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(12.dp))
                 Text(stringResource(R.string.kn_profile_belongs), color = colors.textPrimary, fontSize = 15.sp)
             }
