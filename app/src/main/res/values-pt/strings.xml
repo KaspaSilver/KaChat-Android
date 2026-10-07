@@ -1106,4 +1106,6 @@
     <string name="swap_started">Troca iniciada</string>
     <string name="view_on_changenow">Ver na ChangeNOW</string>
     <string name="swap_failed">Troca falhou</string>
+    <!-- .kachat sale tile: expiry flag -->
+    <string name="kn_expires_soon">Expira em breve</string>
 </resources>

@@ -1137,4 +1137,6 @@
     <string name="swap_history">تاریخچه تبدیل‌ها</string>
     <string name="swap_started">تبدیل شروع شد</string>
     <string name="view_on_changenow">مشاهده در ChangeNOW</string>
+    <!-- .kachat sale tile: expiry flag -->
+    <string name="kn_expires_soon">به‌زودی منقضی می‌شود</string>
 </resources>

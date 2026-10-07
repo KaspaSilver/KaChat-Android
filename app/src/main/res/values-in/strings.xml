@@ -973,4 +973,6 @@
     <string name="clear">Hapus</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">Terjadi Kesalahan</string>
+    <!-- .kachat sale tile: expiry flag -->
+    <string name="kn_expires_soon">Segera kedaluwarsa</string>
 </resources>

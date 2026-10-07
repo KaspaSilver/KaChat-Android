@@ -1367,9 +1367,25 @@ fun KachatLiveMarketPage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_no_listings) else null)
         } else {
             val colors = LocalAppColors.current
+            val manifest by vm.service.manifest.collectAsState()
+            // 30 days on mainnet's yearly clock, the renewal window on testnet's 10-minute one (iOS ad184c3)
+            val soonMs = manifest?.params?.expiresSoonMs ?: (30L * 86_400_000L)
             KachatNameGrid(vm.listings) { n ->
                 KachatNameTile(n.name, onClick = { onOpen(n) }) {
                     KachatFitText(KaspaUnit.amount(n.price), color = colors.textPrimary)
+                    // what a buyer gets: the paid time left, flagged when it's short (iOS ad184c3)
+                    Text(
+                        stringResource(R.string.kn_expires_on, KachatLive.day(n.expiresAt)),
+                        color = colors.textSecondary, fontSize = 11.sp, textAlign = TextAlign.Center
+                    )
+                    if (n.expiresAt - soonMs < KachatNames.nowMs()) {
+                        Text(
+                            stringResource(R.string.kn_expires_soon),
+                            color = colors.warning, fontWeight = FontWeight.Bold, fontSize = 11.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(colors.warning.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }

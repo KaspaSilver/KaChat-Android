@@ -1106,4 +1106,6 @@
     <string name="swap_started">스왑 시작됨</string>
     <string name="view_on_changenow">ChangeNOW에서 보기</string>
     <string name="swap_failed">스왑 실패</string>
+    <!-- .kachat sale tile: expiry flag -->
+    <string name="kn_expires_soon">곧 만료</string>
 </resources>

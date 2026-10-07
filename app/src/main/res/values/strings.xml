@@ -1314,4 +1314,6 @@
     <string name="clear">Clear</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <string name="something_went_wrong_title">Something Went Wrong</string>
+    <!-- .kachat sale tile: expiry flag -->
+    <string name="kn_expires_soon">Expires soon</string>
 </resources>
