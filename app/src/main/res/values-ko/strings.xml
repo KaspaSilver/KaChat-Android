@@ -1079,7 +1079,6 @@
     <string name="store_this_in_a_safe_place_anyone_with_these_words">안전한 곳에 보관하세요. 이 단어를 아는 사람은 누구나 계정에 접근할 수 있습니다.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <string name="kaposts_retry">다시 시도</string>
-    <string name="kaposts_profile">프로필</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">수수료: -------- KAS</string>
     <string name="composer_fee_unknown">수수료: -- KAS</string>

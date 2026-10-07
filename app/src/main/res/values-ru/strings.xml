@@ -1079,7 +1079,6 @@
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Храните это в надёжном месте. Любой, у кого есть эти слова, может получить доступ к вашему аккаунту.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <string name="kaposts_retry">Повторить</string>
-    <string name="kaposts_profile">Профиль</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">комиссия: -------- KAS</string>
     <string name="composer_fee_unknown">комиссия: -- KAS</string>

@@ -72,6 +72,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FormatBold
@@ -154,6 +155,9 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -3940,8 +3944,7 @@ fun KaPostThreadOverlay(
                 .pointerInput(Unit) { detectHorizontalDragGestures { _, _ -> } },
         ) {
             Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(KaPostsOverlayInsets)) {
-                KaPostsOverlayStatusBar()
-                KaPostsOverlayHeader(title = "Post")
+                CompositionLocalProvider(LocalKaPostsBack provides onClose) { KaPostsOverlayStatusBar() }
                 Column(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -4021,11 +4024,12 @@ fun KaPostThreadOverlay(
         }
     }
 
+    val threadSlide = rememberKaPostsCoverSlideState(onClose, slidesIn = slidesIn)
     Box(
         modifier = Modifier
             .fillMaxSize()
             // Slides in from the right and pulls out with the finger, like every other cover.
-            .then(rememberKaPostsCoverSlide(onClose, slidesIn = slidesIn))
+            .then(threadSlide.modifier)
             .background(colors.background)
             // Claim ONLY horizontal drags (which the ancestor feed pager would otherwise read
             // as a tab swipe). The previous blanket every-unconsumed-change consumer here also
@@ -4048,10 +4052,9 @@ fun KaPostThreadOverlay(
                 .fillMaxSize()
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
-            KaPostsOverlayStatusBar()
             // ONE control, and it always means back: up a level while the thread has history,
             // out of it at the root (iOS).
-            KaPostsOverlayHeader(title = "Post")
+            CompositionLocalProvider(LocalKaPostsBack provides threadSlide.back) { KaPostsOverlayStatusBar() }
             LazyColumn(state = threadListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
                 // The chain above this post, oldest first, each rung tappable to jump straight
                 // to that level - X stacks these over the focal post. Full post cells, not
@@ -4649,16 +4652,16 @@ fun KaPostsProfileOverlay(
     ) {
         // Same window-sizing fix as the other overlays.
         ForceFullScreenDialogWindow()
+        val profileSlide = rememberKaPostsCoverSlideState(onClose)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(rememberKaPostsCoverSlide(onClose))
+                .then(profileSlide.modifier)
                 .background(colors.background)
                 .windowInsetsPadding(KaPostsOverlayInsets),
         ) {
-            KaPostsOverlayStatusBar()
-            // Inline "Profile" title with a trailing Back, the banner starting BELOW the bar (iOS).
-            KaPostsOverlayHeader(title = stringResource(R.string.kaposts_profile))
+            // The bar - back chevron, dot, balance - with the banner starting BELOW it (iOS).
+            CompositionLocalProvider(LocalKaPostsBack provides profileSlide.back) { KaPostsOverlayStatusBar() }
             val repliesPage = selectedTab == 1
             val pageItems = if (repliesPage) repliesList else myPostsList
             val pagePaging = pagingStateOf(
@@ -6507,6 +6510,11 @@ fun KaPostsBookmarksOverlay(
     }
 }
 
+/** A cover's slide ([modifier]) and its [back]: the same slide-out the edge swipe plays, then
+ *  [rememberKaPostsCoverSlideState]'s onClose - what the bar's back chevron runs (iOS
+ *  `KaPostsSlideHandle.back`). */
+internal class KaPostsCoverSlideState(val modifier: Modifier, val back: () -> Unit)
+
 /**
  * A KaPosts cover, presented the way a pushed screen behaves: it slides in from the right, and a
  * drag from the left edge follows the finger - past a third of the way it leaves (calling
@@ -6519,7 +6527,7 @@ fun KaPostsBookmarksOverlay(
  * reaches the content underneath.
  */
 @Composable
-internal fun rememberKaPostsCoverSlide(onClose: () -> Unit, slidesIn: Boolean = true): Modifier {
+internal fun rememberKaPostsCoverSlideState(onClose: () -> Unit, slidesIn: Boolean = true): KaPostsCoverSlideState {
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val widthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
@@ -6532,7 +6540,19 @@ internal fun rememberKaPostsCoverSlide(onClose: () -> Unit, slidesIn: Boolean = 
         if (!leaving) offsetX.animateTo(0f, animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing))
     }
     val shadowWidthPx = with(density) { 14.dp.toPx() }
-    return Modifier
+    val currentOnClose by rememberUpdatedState(onClose)
+    val back: () -> Unit = remember(widthPx) {
+        {
+            if (!leaving) {
+                leaving = true
+                scope.launch {
+                    offsetX.animateTo(widthPx, animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing))
+                    currentOnClose()
+                }
+            }
+        }
+    }
+    val modifier = Modifier
         .offset { IntOffset(offsetX.value.roundToInt(), 0) }
         // The edge shadow is a 14dp gradient strip along the leading edge, drawn only while the
         // screen is off its resting place - never a shadow on the whole cover, which would
@@ -6589,7 +6609,15 @@ internal fun rememberKaPostsCoverSlide(onClose: () -> Unit, slidesIn: Boolean = 
                 }
             }
         }
+    return KaPostsCoverSlideState(modifier, back)
 }
+
+/**
+ * Closes the KaPosts cover this screen is the root of, with the slide - null where there is no
+ * cover to close (the feed, the composer). [KaPostsOverlayStatusBar] puts a back chevron in front
+ * of the dot when it is set (iOS `kaPostsBack`, 8f0a86a).
+ */
+internal val LocalKaPostsBack = androidx.compose.runtime.staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /** Shared full-screen overlay chrome: back arrow + bold title over the app background. */
 /**
@@ -6601,38 +6629,41 @@ internal fun rememberKaPostsCoverSlide(onClose: () -> Unit, slidesIn: Boolean = 
  */
 @Composable
 internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
+    // iOS KaPostsStatusChrome: ONE inline bar - a back chevron in front of the dot on a screen
+    // that is the root of a cover, the balance in the title's place. The principal item takes
+    // precedence over the navigation title, so iOS draws no "Post" / "Profile" title there.
+    val back = LocalKaPostsBack.current
+    val haptic = com.kachat.app.util.rememberHaptics()
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .height(44.dp)
+            .padding(horizontal = 12.dp),
     ) {
-        ConnectionDotButton(
-            onClick = { ConnectionStatusOverlayState.open() },
+        Row(
             modifier = Modifier.align(Alignment.CenterStart),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (back != null) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBackIos,
+                    contentDescription = stringResource(R.string.back),
+                    tint = KaspaTeal,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            haptic(com.kachat.app.util.IosHaptic.SELECTION)
+                            back()
+                        }
+                        .padding(start = 8.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+                )
+            }
+            ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
+        }
         BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))
     }
-}
-
-/**
- * The overlays' navigation bar as iOS draws it: an inline centred title and ONE trailing text
- * control that closes the screen - "Back" everywhere, "Done" on Search.
- */
-@Composable
-internal fun KaPostsOverlayHeader(title: String) {
-    val colors = LocalAppColors.current
-    Box(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(44.dp),
-    ) {
-        Text(
-            title,
-            color = colors.textPrimary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp,
-            modifier = Modifier.align(Alignment.Center),
-        )
-    }
-    HorizontalDivider(color = colors.surfaceVariant)
 }
 
 @Composable
@@ -6647,16 +6678,20 @@ private fun KaPostsOverlayScaffold(
         properties = KaPostsFullScreenDialogProperties,
     ) {
         ForceFullScreenDialogWindow()
+        val slide = rememberKaPostsCoverSlideState(onClose)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(rememberKaPostsCoverSlide(onClose))
+                .then(slide.modifier)
                 .background(colors.background)
-                .windowInsetsPadding(KaPostsOverlayInsets),
+                .windowInsetsPadding(KaPostsOverlayInsets)
+                // [title] names the screen to TalkBack; iOS's bar shows the balance in its place.
+                .semantics { paneTitle = title },
         ) {
-            KaPostsOverlayStatusBar()
-            KaPostsOverlayHeader(title = title)
-            Box(modifier = Modifier.weight(1f)) { content() }
+            CompositionLocalProvider(LocalKaPostsBack provides slide.back) {
+                KaPostsOverlayStatusBar()
+                Box(modifier = Modifier.weight(1f)) { content() }
+            }
         }
     }
 }

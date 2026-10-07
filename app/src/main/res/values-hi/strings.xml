@@ -1079,7 +1079,6 @@
     <string name="store_this_in_a_safe_place_anyone_with_these_words">इसे सुरक्षित स्थान पर रखें। इन शब्दों से कोई भी आपके खाते तक पहुंच सकता है।</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <string name="kaposts_retry">फिर कोशिश करें</string>
-    <string name="kaposts_profile">प्रोफ़ाइल</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">शुल्क: -------- KAS</string>
     <string name="composer_fee_unknown">शुल्क: -- KAS</string>
