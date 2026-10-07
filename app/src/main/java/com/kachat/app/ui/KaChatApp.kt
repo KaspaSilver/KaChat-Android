@@ -1956,8 +1956,8 @@ fun MainShell(
  * (iOS 13046ad `OwnAddressHistorySheet`): the chatting address, a spending address or a
  * cold-storage address, each on the same screen you'd reach it through (Profile > Chatting
  * Address, Manage Addresses, Cold Storage), resolved with its balance for the header. Those
- * screens already open on History and carry their own back control, which closes the sheet here
- * in place of iOS's Done.
+ * screens already open on History; at the root of this sheet each puts Done top left in place of
+ * its back arrow (closesWithDone), where iOS's sheet has its Done.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1991,6 +1991,7 @@ private fun OwnAddressHistorySheet(
                         onBack = onDismiss,
                         viewModel = walletViewModel,
                         onOpenChat = onOpenChat,
+                        closesWithDone = true,
                     )
                     is OwnAddressResolution.Spending -> SpendingAddressTxHistoryScreen(
                         index = target.entry.index,
@@ -1998,6 +1999,7 @@ private fun OwnAddressHistorySheet(
                         viewModel = walletViewModel,
                         onOpenChat = onOpenChat,
                         fallbackEntry = target.entry,
+                        closesWithDone = true,
                     )
                     is OwnAddressResolution.Cold -> ColdStorageTxHistoryScreen(
                         address = target.row.address,
@@ -2005,6 +2007,7 @@ private fun OwnAddressHistorySheet(
                         viewModel = coldViewModel,
                         onOpenChat = onOpenChat,
                         resolvedRow = target.row,
+                        closesWithDone = true,
                     )
                     OwnAddressResolution.Unknown, null -> Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {

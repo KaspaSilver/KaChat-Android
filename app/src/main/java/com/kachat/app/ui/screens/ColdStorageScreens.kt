@@ -1829,6 +1829,9 @@ fun ColdStorageTxHistoryScreen(
      *  tapped "Received" notification opens (iOS 13046ad) - so it still reads "Address #N" with
      *  its balance while the shared list holds another account, or nothing yet. */
     resolvedRow: ColdStorageViewModel.AddressRow? = null,
+    /** Opened as the root of the "Received" History sheet (iOS 13046ad `OwnAddressHistorySheet`):
+     *  Done closes it, top left, in place of the back arrow. */
+    closesWithDone: Boolean = false,
 ) {
     val txHistory by viewModel.txHistory.collectAsState()
     val isLoading by viewModel.isLoadingTxHistory.collectAsState()
@@ -1923,8 +1926,14 @@ fun ColdStorageTxHistoryScreen(
             CenterAlignedTopAppBar(
                 title = { Text(displayName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                    // At the root of the "Received" History sheet: Done, as iOS's
+                    // OwnAddressHistorySheet puts it (13046ad); a back arrow everywhere else.
+                    if (closesWithDone) {
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp) }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                        }
                     }
                 },
                 actions = {

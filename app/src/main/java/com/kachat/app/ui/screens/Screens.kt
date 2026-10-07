@@ -6524,6 +6524,9 @@ fun SpendingAddressTxHistoryScreen(
     /** The row resolved by the History sheet a tapped "Received" notification opens (iOS
      *  13046ad), used only while the shared list hasn't got this index (a failed load). */
     fallbackEntry: com.kachat.app.services.WalletService.SpendingAddressEntry? = null,
+    /** Opened as the root of the "Received" History sheet (iOS 13046ad `OwnAddressHistorySheet`):
+     *  Done closes it, top left, in place of the back arrow. */
+    closesWithDone: Boolean = false,
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     // Looked up from the already-loaded address list (shared with ManageAddressesScreen) rather
@@ -6621,8 +6624,14 @@ fun SpendingAddressTxHistoryScreen(
             CenterAlignedTopAppBar(
                 title = { Text(displayName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                    // At the root of the "Received" History sheet: Done, as iOS's
+                    // OwnAddressHistorySheet puts it (13046ad); a back arrow everywhere else.
+                    if (closesWithDone) {
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp) }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                        }
                     }
                 },
                 actions = {
@@ -6909,6 +6918,9 @@ fun IdentityAddressDetailScreen(
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
     /** Message on a .kachat name's owner, from its detail. */
     onOpenChat: (String) -> Unit = {},
+    /** Opened as the root of the "Received" History sheet (iOS 13046ad `OwnAddressHistorySheet`):
+     *  Done closes it, top left, in place of the back arrow. */
+    closesWithDone: Boolean = false,
 ) {
     val address by viewModel.address.collectAsState()
     val balanceSompi by viewModel.balanceSompi.collectAsState()
@@ -7001,8 +7013,14 @@ fun IdentityAddressDetailScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Chatting Address", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                    // At the root of the "Received" History sheet: Done, as iOS's
+                    // OwnAddressHistorySheet puts it (13046ad); a back arrow everywhere else.
+                    if (closesWithDone) {
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp) }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                        }
                     }
                 },
                 // Export and Explorer used to be two unlabelled glyphs here. A pair of icons has
