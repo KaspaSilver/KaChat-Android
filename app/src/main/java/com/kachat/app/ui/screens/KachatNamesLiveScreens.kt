@@ -1835,10 +1835,17 @@ fun KachatTxSheet(
         building = true
         delay(300)
         try {
-            plan = vm.actions.plan(op)
+            val built = vm.actions.plan(op)
+            // A newer choice (10m -> 20m) replaced this build while it ran: its plan is for the
+            // old choice, and the new build owns the sheet now (iOS 5e707f4).
+            ensureActive()
+            plan = built
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // Cancelled (the choice changed) and failing on the way out (a cancelled call): not
+            // an error to show, and the new build owns the sheet (iOS 5e707f4).
+            ensureActive()
             planError = context.kachatErrorText(e)
         }
         building = false
@@ -2011,10 +2018,15 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         quote = null
         quoteError = null
         try {
-            quote = vm.actions.quote(target.name, years, target.gap)
+            val built = vm.actions.quote(target.name, years, target.gap)
+            // a newer choice of years replaced this build: it owns the sheet (iOS 5e707f4)
+            ensureActive()
+            quote = built
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // cancelled on the way out: not an error to show (iOS 5e707f4)
+            ensureActive()
             quoteError = context.kachatErrorText(e)
         }
     }
