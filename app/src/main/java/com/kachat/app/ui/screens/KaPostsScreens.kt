@@ -679,6 +679,7 @@ private fun KaPostsFeedScreen(
      * amount screen opens. A send that fails falls back to the amount screen so the tip can
      * still be made by hand.
      */
+    val tipFailedContext = LocalContext.current
     val tip: (String, String) -> Unit = { address, name ->
         val amount = defaultTipSompi
         if (amount == null || amount <= 0) {
@@ -690,7 +691,13 @@ private fun KaPostsFeedScreen(
                 if (ok) {
                     viewModel.showTipToast("Tipped $kasText ${KaspaUnit.symbol} to $name", txId.orEmpty())
                 } else {
-                    viewModel.showFeedError(error ?: "Tip didn't send.")
+                    // iOS: "Tip didn't send: " and the reason, as UserFacingError words it.
+                    viewModel.showFeedError(
+                        tipFailedContext.getString(
+                            R.string.kaposts_tip_didnt_send,
+                            com.kachat.app.util.UserFacingError.message(error, tipFailedContext.getString(R.string.something_went_wrong)),
+                        )
+                    )
                     tipTarget = address to name
                 }
             }
@@ -2311,7 +2318,7 @@ fun KaPostCell(
                                 ActionSheetRow(
                                     icon = Icons.Default.Delete,
                                     title = stringResource(R.string.delete),
-                                    subtitle = "Takes it out of every feed. The chain keeps the transaction.",
+                                    subtitle = stringResource(R.string.kaposts_delete_post_subtitle),
                                     tint = LocalAppColors.current.danger,
                                 ) {
                                     showOverflow = false

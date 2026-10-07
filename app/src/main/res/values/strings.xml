@@ -1256,4 +1256,7 @@
     <string name="composer_fee_amount">fee: %1$s KAS</string>
     <string name="composer_fee_estimating">fee: -------- KAS</string>
     <string name="composer_fee_unknown">fee: -- KAS</string>
+    <!-- KaPosts (iOS KaPostsView) -->
+    <string name="kaposts_delete_post_subtitle">Removes this post everywhere. You have five seconds to undo.</string>
+    <string name="kaposts_tip_didnt_send">Tip didn\'t send: %1$s</string>
 </resources>
