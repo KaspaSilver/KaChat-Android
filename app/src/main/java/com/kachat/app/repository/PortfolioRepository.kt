@@ -654,7 +654,8 @@ class PortfolioRepository @Inject constructor(
         val existingFeeTxIds = loadFees(walletAddress).filter { it.portfolioId == portfolioId }.map { it.txId }.toSet()
 
         onProgress("Fetching transactions…")
-        val history = coldStorageAddressDiscovery.getFullTransactionHistoryPaginated(trimmed)
+        val historyResult = coldStorageAddressDiscovery.getFullTransactionHistoryPaginated(trimmed)
+        val history = historyResult.transactions
 
         data class Candidate(val txId: String, val sent: Boolean, val amountSompi: Long, val dayStartMillis: Long, val timestampMillis: Long)
 
@@ -682,7 +683,9 @@ class PortfolioRepository @Inject constructor(
             )
         }
         if (candidates.isEmpty() && feeCandidates.isEmpty()) {
-            throw PortfolioAddressImportError.NoTransactions
+            // Nothing new because the fetch gave up is not "no new transactions" (iOS).
+            throw if (historyResult.complete) PortfolioAddressImportError.NoTransactions
+            else PortfolioAddressImportError.HistoryFetchFailed
         }
         if (feeCandidates.isNotEmpty()) {
             updateFees(walletAddress) { it + feeCandidates }
@@ -725,7 +728,7 @@ class PortfolioRepository @Inject constructor(
             priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays) }
         }
 
-        return AddressImportResult(importedCount, pendingPriceCount, feeCandidates.size)
+        return AddressImportResult(importedCount, pendingPriceCount, feeCandidates.size, historyComplete = historyResult.complete)
     }
 
     /**
@@ -1062,7 +1065,28 @@ data class AddressImportResult(
     val pendingPriceCount: Int,
     /** Network fees this address paid that the import counted, for the Fees Spent card. */
     val feeCount: Int = 0,
+    /** False when the history fetch gave up partway: what it got is imported, and adding the
+     *  address again later imports the rest (iOS ImportResult.historyComplete). */
+    val historyComplete: Boolean = true,
 )
+
+/**
+ * The toast after "Add Kaspa Address", iOS PortfolioTransactionsView's wording a sentence at a
+ * time: how many were imported, the fees counted, the prices still loading, and - when the
+ * history came back incomplete - that re-adding the address later imports the rest.
+ * [feesCounted] renders ". Network fees counted: N" in the app's language.
+ */
+fun addressImportToastMessage(result: AddressImportResult, feesCounted: (Int) -> String): String {
+    var message = "Imported ${result.importedCount} transaction${if (result.importedCount == 1) "" else "s"}"
+    if (result.feeCount > 0) message += feesCounted(result.feeCount)
+    if (result.pendingPriceCount > 0) {
+        message += ". Prices for ${result.pendingPriceCount} are still loading and will fill in automatically"
+    }
+    if (!result.historyComplete) {
+        message += ". Some history couldn't be fetched, re-add this address later to import the rest"
+    }
+    return message
+}
 
 /** Marks a [PortfolioTransactionEntity.notes] value as "auto-imported but couldn't be priced" — checked by [com.kachat.app.ui.screens.PortfolioScreen]'s transaction row to show a warning icon flagging rows that still need the user to fill in a price. */
 const val PRICE_UNAVAILABLE_NOTE = "Price unavailable — set manually"
@@ -1070,4 +1094,5 @@ const val PRICE_UNAVAILABLE_NOTE = "Price unavailable — set manually"
 sealed class PortfolioAddressImportError(message: String) : Exception(message) {
     object InvalidAddress : PortfolioAddressImportError("That doesn't look like a valid Kaspa address.")
     object NoTransactions : PortfolioAddressImportError("No new transactions found for this address.")
+    object HistoryFetchFailed : PortfolioAddressImportError("Couldn't fetch this address's transactions. Check your connection and try again.")
 }

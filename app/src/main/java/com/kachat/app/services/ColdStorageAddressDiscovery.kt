@@ -383,9 +383,12 @@ class ColdStorageAddressDiscovery @Inject constructor(
         // limit=50 ones, without changing anything else about this loop's shape/correctness.
         pageSize: Int = 500,
         maxTransactions: Int = 500
-    ): List<AddressTransaction> {
-        val api = networkService.kaspaRestApi.value ?: return emptyList()
+    ): HistoryResult {
+        val api = networkService.kaspaRestApi.value ?: return HistoryResult(emptyList(), complete = false)
         val all = mutableListOf<AddressTransaction>()
+        // False once a page kept failing after its retries - what was fetched before it is still
+        // returned (iOS PortfolioAddressImporter's HistoryFetchResult.complete).
+        var complete = true
         var offset = 0
         var pageRetries = 0
 
@@ -404,6 +407,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
                     continue
                 }
                 Log.w("ColdStorageAddressDiscovery", "Paginated fetch failed for ${address.redactedForLog()} at offset $offset after $MAX_PAGE_RETRIES retries; returning partial history", e)
+                complete = false
                 break
             }
             pageRetries = 0
@@ -425,7 +429,7 @@ class ColdStorageAddressDiscovery @Inject constructor(
             offset += pageSize
         }
 
-        return all.sortedBy { it.blockTimeMillis ?: 0L }
+        return HistoryResult(all.sortedBy { it.blockTimeMillis ?: 0L }, complete)
     }
 
     data class AddressUtxo(

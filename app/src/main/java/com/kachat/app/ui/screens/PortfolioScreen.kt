@@ -796,15 +796,11 @@ private fun PortfolioTransactionsContent(
                     showAddAddressDialog = false
                     result.fold(
                         onSuccess = { imported ->
-                            // iOS's wording, a sentence at a time.
-                            var message = "Imported ${imported.importedCount} transaction${if (imported.importedCount == 1) "" else "s"}"
-                            if (imported.feeCount > 0) {
-                                message += context.getString(R.string.portfolio_fees_counted, imported.feeCount)
-                            }
-                            if (imported.pendingPriceCount > 0) {
-                                message += ". Prices for ${imported.pendingPriceCount} are still loading and will fill in automatically"
-                            }
-                            IosToasts.show(message)
+                            IosToasts.show(
+                                com.kachat.app.repository.addressImportToastMessage(imported) { count ->
+                                    context.getString(R.string.portfolio_fees_counted, count)
+                                }
+                            )
                         },
                         onFailure = { IosToasts.error(it.message ?: "Import failed.") }
                     )
