@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">Fotoğraf ve sesli not gönderirken oluşan geçici dosyalar. Her zaman silinebilir.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Devam</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">Ne kadar süre?</string>
+    <string name="kn_renew_starts_at_expiry">Yenileme, sonraki dönemi bugünden değil, mevcut bitiş tarihinden başlatır.</string>
 </resources>

@@ -1324,4 +1324,7 @@
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_enter_recovery_phrase">Enter your recovery phrase</string>
     <string name="import_words_continue">Continue</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">How long?</string>
+    <string name="kn_renew_starts_at_expiry">A renewal starts the next period at the current expiry, not from today.</string>
 </resources>

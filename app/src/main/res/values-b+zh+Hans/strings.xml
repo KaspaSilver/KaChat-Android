@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">发送照片和语音消息时产生的临时文件。随时可以安全删除。</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">继续</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">多长时间?</string>
+    <string name="kn_renew_starts_at_expiry">续期会从当前到期时间开始下一个周期，而不是从今天开始。</string>
 </resources>

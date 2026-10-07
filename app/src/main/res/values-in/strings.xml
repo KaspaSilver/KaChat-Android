@@ -982,4 +982,7 @@
     <string name="cache_temporary_files_detail">File sementara dari pengiriman foto dan pesan suara. Aman dihapus kapan saja.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Lanjutkan</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">Berapa lama?</string>
+    <string name="kn_renew_starts_at_expiry">Perpanjangan memulai periode berikutnya pada masa berakhir saat ini, bukan dari hari ini.</string>
 </resources>

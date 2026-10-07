@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">Arquivos temporários do envio de fotos e mensagens de voz. Podem ser removidos a qualquer momento.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Continuar</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">Por quanto tempo?</string>
+    <string name="kn_renew_starts_at_expiry">Uma renovação começa o próximo período no vencimento atual, não a partir de hoje.</string>
 </resources>

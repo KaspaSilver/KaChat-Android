@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">Tệp tạm khi gửi ảnh và tin nhắn thoại. Có thể xóa bất kỳ lúc nào.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Tiếp tục</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">Trong bao lâu?</string>
+    <string name="kn_renew_starts_at_expiry">Gia hạn bắt đầu kỳ tiếp theo từ lúc hết hạn hiện tại, không phải từ hôm nay.</string>
 </resources>

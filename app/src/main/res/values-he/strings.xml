@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">קבצי עבודה משליחת תמונות והודעות קוליות. בטוח למחוק אותם בכל עת.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">המשך</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">לכמה זמן?</string>
+    <string name="kn_renew_starts_at_expiry">חידוש מתחיל את התקופה הבאה במועד התפוגה הנוכחי, לא מהיום.</string>
 </resources>

@@ -1146,4 +1146,7 @@
     <string name="cache_temporary_files_detail">فایل‌های موقت ارسال عکس و پیام صوتی. حذف آن‌ها در هر زمان بی‌خطر است.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">ادامه</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">برای چه مدت؟</string>
+    <string name="kn_renew_starts_at_expiry">تمدید، دوره بعدی را از زمان انقضای فعلی شروع می‌کند، نه از امروز.</string>
 </resources>

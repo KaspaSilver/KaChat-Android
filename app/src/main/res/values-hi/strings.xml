@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">फ़ोटो और वॉइस नोट भेजने की अस्थायी फ़ाइलें। कभी भी हटाना सुरक्षित है।</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">जारी रखें</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">कितने समय के लिए?</string>
+    <string name="kn_renew_starts_at_expiry">नवीनीकरण अगली अवधि मौजूदा समाप्ति से शुरू करता है, आज से नहीं।</string>
 </resources>

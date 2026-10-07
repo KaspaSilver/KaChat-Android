@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">写真やボイスメモの送信で作られた一時ファイル。いつ削除しても問題ありません。</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">続ける</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">期間は?</string>
+    <string name="kn_renew_starts_at_expiry">更新は次の期間を今日からではなく、現在の有効期限から開始します。</string>
 </resources>

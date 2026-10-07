@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">사진과 음성 메모를 보낼 때 생긴 임시 파일. 언제든 삭제해도 안전합니다.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">계속</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">기간은?</string>
+    <string name="kn_renew_starts_at_expiry">갱신하면 다음 기간이 오늘이 아니라 현재 만료 시점부터 시작됩니다.</string>
 </resources>

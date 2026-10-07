@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">ছবি ও ভয়েস নোট পাঠানোর অস্থায়ী ফাইল। যেকোনো সময় মুছে ফেলা নিরাপদ।</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">চালিয়ে যান</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">কতদিনের জন্য?</string>
+    <string name="kn_renew_starts_at_expiry">নবায়ন পরের মেয়াদ বর্তমান মেয়াদ শেষ হওয়ার সময় থেকে শুরু করে, আজ থেকে নয়।</string>
 </resources>

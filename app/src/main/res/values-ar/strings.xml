@@ -1115,4 +1115,7 @@
     <string name="cache_temporary_files_detail">ملفات مؤقتة من إرسال الصور والرسائل الصوتية. يمكن حذفها في أي وقت.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">متابعة</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">لأي مدة؟</string>
+    <string name="kn_renew_starts_at_expiry">يبدأ التجديد الفترة التالية عند تاريخ الانتهاء الحالي، وليس من اليوم.</string>
 </resources>

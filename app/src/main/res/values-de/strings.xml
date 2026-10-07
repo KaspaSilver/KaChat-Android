@@ -1112,4 +1112,7 @@
     <string name="cache_temporary_files_detail">Zwischendateien vom Senden von Fotos und Sprachnachrichten. Können jederzeit entfernt werden.</string>
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Weiter</string>
+    <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
+    <string name="kn_how_long">Wie lange?</string>
+    <string name="kn_renew_starts_at_expiry">Eine Verlängerung beginnt den nächsten Zeitraum beim aktuellen Ablauf, nicht ab heute.</string>
 </resources>

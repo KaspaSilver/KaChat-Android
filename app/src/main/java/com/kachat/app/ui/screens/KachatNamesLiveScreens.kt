@@ -8,6 +8,8 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -856,6 +858,48 @@ private fun KachatLiveForm(title: String, onClose: () -> Unit, finished: Boolean
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp),
+            content = content,
+        )
+    }
+}
+
+/**
+ * A later step of a flow inside a sheet (iOS a view pushed on the sheet's NavigationStack): the
+ * inline bar - Back with the previous step's title (left) until it's done, then Done (right) - and
+ * the step's scrolling form.
+ */
+@Composable
+private fun KachatSheetStep(
+    title: String,
+    backTitle: String,
+    onBack: () -> Unit,
+    onDone: () -> Unit,
+    finished: Boolean,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    if (!finished) BackHandler(onBack = onBack)
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
+            if (!finished) {
+                TextButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                    Text(backTitle, color = KaspaTeal, fontSize = 17.sp, maxLines = 1)
+                }
+            } else {
+                TextButton(onClick = onDone, modifier = Modifier.align(Alignment.CenterEnd)) {
+                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+            }
+            Text(
+                title,
+                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        Column(
+            Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp),
             content = content,
         )
     }
@@ -1808,6 +1852,11 @@ fun KachatTxSheet(
     @StringRes doneTitle: Int = R.string.kn_done_tx_sent,
     onDone: (String) -> Unit = {},
     vm: KachatLiveViewModel = hiltViewModel(),
+    /** Shown as a step of a flow inside its own sheet (Renew's "How long?" first; iOS 26bd5dc
+     *  `embedded`): the sheet's inline bar, and Back ([backTitle]), not Cancel, leads back until
+     *  it's sent. Null: the full-screen form with Cancel. */
+    onBack: (() -> Unit)? = null,
+    backTitle: String = "",
     inputs: @Composable ColumnScope.() -> Unit = {},
 ) {
     val colors = LocalAppColors.current
@@ -1876,7 +1925,7 @@ fun KachatTxSheet(
 
     fun authorize() = context.kachatAuthorize { send() }
 
-    KachatLiveForm(title = title, onClose = onClose, finished = txId != null) {
+    val form: @Composable ColumnScope.() -> Unit = {
         inputs()
         FormSection(footer = {
             val pe = planError
@@ -1936,6 +1985,11 @@ fun KachatTxSheet(
                 }
             }
         }
+    }
+    if (onBack != null) {
+        KachatSheetStep(title, backTitle = backTitle, onBack = onBack, onDone = onClose, finished = txId != null, content = form)
+    } else {
+        KachatLiveForm(title = title, onClose = onClose, finished = txId != null, content = form)
     }
 
     // Closing the finished-transaction sheet closes the action too (iOS onDismiss: dismiss()).
@@ -2310,13 +2364,15 @@ fun KachatLiveNameDetailScreen(
         KachatOfferActionSheet(action, onClose = { offerAction = null })
         return
     }
-    sheet?.let { s ->
+    // Renew is a half sheet over the detail (iOS 26bd5dc), not a full-screen swap.
+    if (sheet == KachatDetailSheet.RENEW) KachatRenewSheet(info, onClose = { sheet = null }, vm = vm)
+    sheet?.takeIf { it != KachatDetailSheet.RENEW }?.let { s ->
         val close = { sheet = null }
         when (s) {
             KachatDetailSheet.BUY -> KachatLiveBuySheet(info, close)
             KachatDetailSheet.OFFER -> KachatLiveOfferSheet(info, close)
             KachatDetailSheet.EXTEND -> KachatExtendSheet(info, close)
-            KachatDetailSheet.RENEW -> KachatRenewSheet(info, close)
+            KachatDetailSheet.RENEW -> Unit
             KachatDetailSheet.LIST -> KachatListSheet(info, close)
             KachatDetailSheet.DELIST -> KachatTxSheet(
                 title = stringResource(R.string.kn_delist), confirmTitle = stringResource(R.string.kn_delist),
@@ -2799,13 +2855,141 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
  * `renew`: the next period, from the current expiry, for 1 or 2 periods - only once the renewal
  * window is open (`renewWindowMs` before the expiry; the detail screen says when; iOS bd2c54a,
  * 49c0baa). Each period costs the renewal price (registry v4, iOS c8f1086).
+ *
+ * A half sheet in two steps (iOS 26bd5dc): how long (10m / 20m on testnet's clock, 1 / 2 years on
+ * mainnet's) as full-width choices with what each costs, then Next to the review with the fee and
+ * Renew, in the same sheet. Pulls up to full height (iOS's medium and large detents).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val manifest by vm.service.manifest.collectAsState()
-    var years by remember { mutableLongStateOf(1L) }
     val params = manifest?.params
-    val maxYears = params?.maxYears ?: 2L
+    // Nothing is chosen until the person taps one.
+    var years by remember { mutableStateOf<Int?>(null) }
+    var showReview by remember { mutableStateOf(false) }
+    val maxYears = (params?.maxYears ?: 2L).toInt()
+    val perYear = KachatLive.renewPrice(vm.registry, info.name) ?: 0L
+    val scope = rememberCoroutineScope()
+    val close by rememberUpdatedState(onClose)
+    val sheetState = rememberModalBottomSheetState()
+
+    fun dismiss() {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { close() }
+    }
+
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = { close() },
+            sheetState = sheetState,
+            containerColor = colors.background,
+            dragHandle = { KachatSheetGrabber() },
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                val chosen = years
+                if (showReview && chosen != null) {
+                    KachatRenewReview(info, chosen.toLong(), onBack = { showReview = false }, onClose = { dismiss() }, vm = vm)
+                } else {
+                    Column(Modifier.fillMaxSize()) {
+                        // The inline navigation bar: Cancel (left) and "Renew".
+                        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
+                            TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                                Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
+                            }
+                            Text(
+                                stringResource(R.string.kn_renew),
+                                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        Column(
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Text(stringResource(R.string.kn_how_long), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                            Text(stringResource(R.string.kn_renew_starts_at_expiry), color = colors.textSecondary, fontSize = 15.sp)
+                            for (y in 1..maxOf(1, maxYears)) {
+                                KachatPeriodChoice(
+                                    title = yearsText(y, params),
+                                    amount = KaspaUnit.amount(perYear * y),
+                                    chosen = years == y,
+                                ) { years = y }
+                            }
+                            KachatNextButton(stringResource(R.string.next), enabled = years != null, modifier = Modifier.padding(top = 6.dp)) {
+                                showReview = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One period choice of Renew's "How long?": full width, filled with the accent (white text) when
+ *  chosen, outlined otherwise; the period on the left, what it costs on the right (iOS 26bd5dc). */
+@Composable
+private fun KachatPeriodChoice(title: String, amount: String, chosen: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    val tint = if (chosen) Color.White else KaspaTeal
+    // dims while held instead of rippling (iOS `.buttonStyle(.plain)`)
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (pressed) 0.4f else 1f)
+            .clip(shape)
+            .background(if (chosen) KaspaTeal else Color.Transparent)
+            .border(1.5.dp, KaspaTeal, shape)
+            .selectable(
+                selected = chosen,
+                interactionSource = interaction,
+                indication = null,
+                role = androidx.compose.ui.semantics.Role.RadioButton,
+                onClick = onClick,
+            )
+            .padding(16.dp)
+    ) {
+        Icon(
+            if (chosen) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+            contentDescription = null, tint = tint, modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(title, color = tint, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        Spacer(Modifier.weight(1f))
+        Text(amount, color = tint, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+    }
+}
+
+/** The accent-filled Next button (iOS `CreateWalletNextButton`): white text, dimmed while disabled. */
+@Composable
+private fun KachatNextButton(title: String, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(KaspaTeal)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(title, color = Color.White, fontSize = 17.sp)
+    }
+}
+
+/** Renew, step 2: what the chosen period costs, and Renew (iOS 26bd5dc `KachatRenewReview`). */
+@Composable
+private fun KachatRenewReview(info: NameInfo, years: Long, onBack: () -> Unit, onClose: () -> Unit, vm: KachatLiveViewModel) {
+    val manifest by vm.service.manifest.collectAsState()
+    val params = manifest?.params
     val perYear = KachatLive.renewPrice(vm.registry, info.name) ?: 0L
     val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
     KachatTxSheet(
@@ -2821,13 +3005,9 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
             ),
         ),
         operation = KachatNamesActions.Operation.Renew(info, years), operationKey = "renew-$years",
-        onClose = onClose, vm = vm
-    ) {
-        FormSection {
-            val count = maxOf(1, maxYears.toInt())
-            KachatSegmented((1..count).map { yearsText(it, params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
-        }
-    }
+        onClose = onClose, vm = vm,
+        onBack = onBack, backTitle = stringResource(R.string.kn_renew),
+    )
 }
 
 @Composable
