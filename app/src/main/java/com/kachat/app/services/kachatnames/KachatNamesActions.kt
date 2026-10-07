@@ -50,8 +50,11 @@ data class PendingRegistration(
     /** the commit UTXO's DAA score once seen */
     val commitDaa: Long? = null,
     val registerTxId: String? = null,
-    /** The reclaim this registration sent to free a lapsed old record of the name first (iOS eea52b2). */
+    /** The reclaim this registration sent to free a lapsed old record of the name first (iOS
+     *  eea52b2), and the gap it reopens (hex), which is that reclaim's output 0 (iOS beb9c45). */
     val reclaimTxId: String? = null,
+    val reclaimLo: String? = null,
+    val reclaimHi: String? = null,
     /** When the current commit went out, and how many times it was sent again after a node
      *  dropped it (a busy network evicts low-fee transactions; iOS b219bb0). */
     val commitSentAt: Long? = null,
@@ -765,11 +768,13 @@ class KachatNamesActions @Inject constructor(
         // Claims can run side by side: no one-at-a-time rule any more (iOS b219bb0).
         loadPending(s.address)
         registry.refresh()
-        // Expired past grace: free to claim. The commit goes out now; the driver frees the old
-        // record (a reclaim) and then registers (iOS eea52b2).
-        if (!isRegisterable(registry.lookup(name), registry.graceMs)) {
+        // Expired past grace: free to claim. The commit and the reclaim that frees the old record
+        // both go out now; the driver registers once the commit has aged (iOS eea52b2, beb9c45).
+        val lookup = registry.lookup(name)
+        if (!isRegisterable(lookup, registry.graceMs)) {
             throw ActionError.NotRegisterable("$name.kachat is already registered.")
         }
+        val lapsed = (lookup as? Lookup.Registered)?.info
         val c = context(s)
         val salt = KachatNamesService.newSalt()
         val plan = c.builder.commit(c.env, c.wallet, name, salt)
@@ -789,6 +794,18 @@ class KachatNamesActions @Inject constructor(
             val sentAt = System.currentTimeMillis()
             record = record.copy(commitTxId = txId, commitSentAt = sentAt, stage = PendingRegistration.Stage.WAITING, updatedAt = sentAt)
             upsert(record)
+            // The reclaim needs nothing from the wallet (its fee comes out of the freed deposit),
+            // so it runs while the commit ages instead of after. If it fails, the driver sends it
+            // (iOS beb9c45).
+            if (lapsed != null) {
+                try {
+                    sendReclaim(lapsed, record)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "reclaim of ${lapsed.name} failed: ${e.message ?: e}")
+                }
+            }
         } catch (e: Exception) {
             // The node may still have taken it: keep the record (and the salt) until the driver
             // sees the commit on chain or gives up on it.
@@ -1001,6 +1018,13 @@ class KachatNamesActions @Inject constructor(
         }
     }
 
+    /** Frees a lapsed old record of [p]'s name (a reclaim) and notes the gap it reopens (iOS beb9c45). */
+    private suspend fun sendReclaim(n: NameInfo, p: PendingRegistration) {
+        val (below, above) = registry.exitGaps(n)
+        val txId = perform(Operation.Reclaim(n))
+        set(p) { it.copy(reclaimTxId = txId, reclaimLo = hex(below.lo), reclaimHi = hex(above.hi), lastError = freeingName(p.name)) }
+    }
+
     /** This wallet holds [name] as a live registration (a lapsed old record of it doesn't count:
      *  that is what claiming an expired name registers over, iOS eea52b2). */
     private suspend fun ownsName(name: String): Boolean {
@@ -1030,17 +1054,22 @@ class KachatNamesActions @Inject constructor(
                     // (Only sending the reclaim touches the record, so `updatedAt` is when it went
                     // out; iOS 4f0bd33.)
                     val sent = p.reclaimTxId
-                    if (sent != null) {
-                        if (registry.isAccepted(sent)) {
-                            registry.refresh()
-                        } else if (reclaimRetryDue(p, System.currentTimeMillis())) {
+                    if (sent == null) {
+                        sendReclaim(step.name, p)
+                        return
+                    }
+                    // The freed gap is the reclaim's output 0: register into it as soon as a node
+                    // has it, without waiting for the registry (a chain walk, or the indexer) to
+                    // notice (iOS beb9c45).
+                    val freed = freedGap(p)
+                    if (freed != null && liveGapOrNull(freed, m) != null) {
+                        freed
+                    } else {
+                        if (reclaimRetryDue(p, System.currentTimeMillis())) {
                             set(p) { it.copy(reclaimTxId = null) } // never accepted: send it again
                         }
                         return
                     }
-                    val txId = perform(Operation.Reclaim(step.name))
-                    set(p) { it.copy(reclaimTxId = txId, lastError = freeingName(p.name)) }
-                    return
                 }
                 RegisterStep.Mine -> { finishRegistered(p); return }
                 RegisterStep.Taken -> {
@@ -1071,6 +1100,23 @@ class KachatNamesActions @Inject constructor(
             val fatal = message.contains("insufficient funds") || e is ActionError
             set(p) { it.copy(lastError = message, stage = if (fatal) PendingRegistration.Stage.FAILED else it.stage) }
         }
+    }
+
+    /** The gap [p]'s reclaim reopens: its output 0, between the two gaps around the old name. */
+    private fun freedGap(p: PendingRegistration): GapInfo? {
+        val tx = p.reclaimTxId ?: return null
+        val lo = p.reclaimLo?.let { runCatching { unhex32(it) }.getOrNull() } ?: return null
+        val hi = p.reclaimHi?.let { runCatching { unhex32(it) }.getOrNull() } ?: return null
+        val txid = runCatching { unhex32(tx) }.getOrNull() ?: return null
+        return GapInfo(lo, hi, Outpoint(txid, 0))
+    }
+
+    private suspend fun liveGapOrNull(g: GapInfo, m: Manifest): GapRecord? = try {
+        liveGap(g, m)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
     }
 
     private fun finishRegistered(p: PendingRegistration) {
