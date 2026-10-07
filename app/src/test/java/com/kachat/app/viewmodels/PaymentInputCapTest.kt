@@ -18,10 +18,10 @@ class PaymentInputCapTest {
     private val rate = 100L
     private val cap = KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION
 
-    private fun utxo(amount: Long, index: Int) = UtxoEntry(
+    private fun utxo(amount: Long, index: Int, coinbase: Boolean = false) = UtxoEntry(
         address = "kaspa:test",
         outpoint = Outpoint(transactionId = "tx$index", index = index),
-        utxoEntry = UtxoData(amount = amount, scriptPublicKey = ScriptPublicKey("aa"), blockDaaScore = 0, isCoinbase = false)
+        utxoEntry = UtxoData(amount = amount, scriptPublicKey = ScriptPublicKey("aa"), blockDaaScore = 0, isCoinbase = coinbase)
     )
 
     /** 150 coins of 0.2 .. 30 KAS, in no particular order. */
@@ -104,5 +104,36 @@ class PaymentInputCapTest {
     fun `coin control's pick is priced exactly`() {
         val picked = busy.take(3)
         assertEquals(picked.sumOf { it.utxoEntry.amount } to 3, ChatViewModel.paymentFeeInputs(busy, picked, sweeps = true, sompiNeeded = kas))
+    }
+
+    // iOS estimateMaxPaymentAmount: Max is worked out over the non-coinbase coins only.
+
+    @Test
+    fun `Max leaves coinbase coins out of the source's balance and count`() {
+        val coins = listOf(utxo(2 * kas, 0), utxo(5 * kas, 1, coinbase = true), utxo(3 * kas, 2))
+        val balance = coins.sumOf { it.utxoEntry.amount }
+        assertEquals(5 * kas to 2, ChatViewModel.paymentMaxCoins(balance, coins, manual = null))
+    }
+
+    @Test
+    fun `Max leaves coinbase coins out of a coin control pick`() {
+        val coins = listOf(utxo(2 * kas, 0), utxo(5 * kas, 1, coinbase = true), utxo(3 * kas, 2))
+        assertEquals(2 * kas to 1, ChatViewModel.paymentMaxCoins(10 * kas, coins, manual = coins.take(2)))
+    }
+
+    @Test
+    fun `only coinbase coins leave nothing for Max`() {
+        val coins = listOf(utxo(5 * kas, 0, coinbase = true))
+        assertEquals(0L to 0, ChatViewModel.paymentMaxCoins(5 * kas, coins, manual = null))
+        assertEquals(0L, ChatViewModel.computePaymentMaxSompi(0L, 0, "", rate.toDouble(), 1, null))
+    }
+
+    @Test
+    fun `the 80-coin cap counts only non-coinbase coins`() {
+        // 150 ordinary coins plus 10 coinbase coins bigger than any of them.
+        val coinbase = (1..10).map { utxo(100 * kas + it, 1000 + it, coinbase = true) }
+        val all = busy + coinbase
+        val balance = all.sumOf { it.utxoEntry.amount }
+        assertEquals(top80Total to cap, ChatViewModel.paymentMaxCoins(balance, all, manual = null))
     }
 }

@@ -3534,27 +3534,32 @@ class ChatViewModel @Inject constructor(
 
     companion object {
         /**
-         * The balance and input count the Send KAS sheet's Max prices: coin control's pick, else
-         * the source's coins - in both cases only the
+         * The balance and input count the Send KAS sheet's (and the KaPosts tip sheet's) Max
+         * prices: coin control's pick, else the source's coins - leaving out coinbase coins, as
+         * iOS's estimateMaxPaymentAmount does (its candidates are the non-coinbase coins, and a
+         * coin control pick is resolved against them) - and in both cases only the
          * [com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest when there
          * are more, since the engine refuses a transaction with more inputs (audit AND-012;
-         * mirrors WalletViewModel.estimateMaxSendableAmount). Under the cap it is unchanged:
-         * the picked coins, or [sourceBalanceSompi] over every source coin.
+         * mirrors WalletViewModel.estimateMaxSendableAmount). Under the cap: the picked coins, or
+         * [sourceBalanceSompi] less whatever of it is in coinbase coins.
          */
         fun paymentMaxCoins(
             sourceBalanceSompi: Long,
             sourceCoins: List<com.kachat.app.services.UtxoEntry>,
             manual: List<com.kachat.app.services.UtxoEntry>?,
         ): Pair<Long, Int> {
-            val coins = manual ?: sourceCoins
+            val coins = (manual ?: sourceCoins).filterNot { it.utxoEntry.isCoinbase }
             val capped = com.kachat.app.util.SendFeeModel.largestSpendable(coins)
             // Node-supplied amounts that are not real values count as nothing (IOS-020).
             fun sum(c: List<com.kachat.app.services.UtxoEntry>) =
                 com.kachat.app.util.UtxoMath.checkedTotal(c.map { it.utxoEntry.amount }) ?: 0L
             return when {
                 capped.size < coins.size -> sum(capped) to capped.size
-                manual != null -> sum(manual) to manual.size
-                else -> sourceBalanceSompi to sourceCoins.size
+                manual != null -> sum(coins) to coins.size
+                else -> {
+                    val coinbase = sum(sourceCoins.filter { it.utxoEntry.isCoinbase })
+                    (sourceBalanceSompi - coinbase).coerceAtLeast(0L) to coins.size
+                }
             }
         }
 
