@@ -33,6 +33,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -993,15 +995,27 @@ private fun CreateWalletNextButton(title: String, enabled: Boolean, busy: Boolea
 @Composable
 private fun SeedLengthButton(title: String, chosen: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
+    // The whole card is the button, its padding and outline included (iOS ceca9fa), and it dims
+    // while held instead of rippling (iOS `.buttonStyle(.plain)`).
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer { alpha = if (pressed) IOS_PLAIN_PRESSED_ALPHA else 1f }
             .clip(shape)
             .background(if (chosen) KaspaTeal else Color.Transparent)
             .border(1.5.dp, KaspaTeal, shape)
-            .selectable(selected = chosen, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+            .selectable(
+                selected = chosen,
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
             .padding(16.dp)
     ) {
         Icon(
@@ -1362,6 +1376,9 @@ fun CreateAccountSeedScreen(mnemonic: String, onBack: () -> Unit, onNext: () -> 
         }
     }
 }
+
+/** How far a control in iOS's plain button style fades while it is held. */
+private const val IOS_PLAIN_PRESSED_ALPHA = 0.4f
 
 /** iOS `Color.gray`, the disabled Next of the seed phrase step. */
 private val IosGray = Color(0xFF8E8E93)
