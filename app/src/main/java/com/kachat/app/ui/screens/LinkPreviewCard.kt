@@ -1,6 +1,13 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.ui.res.stringResource
+import com.kachat.app.R
+import kotlinx.coroutines.flow.first
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -997,15 +1004,21 @@ object ProfileDeepLink {
 }
 
 /**
- * The rich preview for an in-app KaChat link: the link's own identity (KaPosts post / broadcast
- * room), and for a post the author and text themselves, resolved from the chain by
- * [KaPostLinkPreviewService] - a shared post previews AS the post rather than as a URL.
+ * The rich preview for an in-app KaChat link (iOS `KaChatInternalLinkCardView`): the link's own
+ * identity (KaPosts post / public chat room / KaChat profile), and for a post the author and text
+ * themselves, resolved from the chain by [KaPostLinkPreviewService] - a shared post previews AS
+ * the post rather than as a URL.
+ *
+ * iOS's layout: the author's avatar or the link's glyph in an accent tile, then an accent
+ * uppercase eyebrow ABOVE the title, the title, the line under it, and a chevron - on the same
+ * glass card as the Send Kaspa pieces, up to 280 wide.
  *
  * The only request that leaves the device is that one, to Kaspa's own REST API with a transaction
  * id. The link's host is never contacted, so there is no "tap to load" gate: a stranger's KaChat
  * link is as safe to render as your own.
  *
- * Long-press menu matches every other preview card's.
+ * Long-press opens iOS's "KaChat Link" message menu: Open in KaChat, Copy Link, View in Explorer,
+ * Select.
  */
 @Composable
 fun KaChatInternalLinkCard(
@@ -1018,8 +1031,8 @@ fun KaChatInternalLinkCard(
 ) {
     val uriHandler = LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
+    val colors = LocalAppColors.current
     var showMenu by remember { mutableStateOf(false) }
-    var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     val postId = (ref as? KaChatLinkRef.KaPost)?.txId
     val previews by KaPostLinkPreviewService.previews.collectAsState()
@@ -1042,48 +1055,60 @@ fun KaChatInternalLinkCard(
         }
     }
 
+    // A curated room, or one already in your list, just opens; anything else is joined on tap,
+    // so the card says which before you tap (iOS).
+    val roomChannel = (ref as? KaChatLinkRef.BroadcastRoom)?.channel
+    var roomIsKnown by remember(roomChannel) {
+        mutableStateOf(roomChannel != null && roomChannel in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES)
+    }
+    if (roomChannel != null && !roomIsKnown) {
+        val rooms: KaChatLinkCardViewModel = hiltViewModel()
+        LaunchedEffect(roomChannel) { roomIsKnown = rooms.hasJoinedRoom(roomChannel) }
+    }
+
     val icon = when (ref) {
         is KaChatLinkRef.KaPost -> Icons.Default.NoteAlt
         is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
         is KaChatLinkRef.Profile -> Icons.Default.AccountCircle
+    }
+    val eyebrow = when (ref) {
+        // A reply or a quote is still a KaPosts post, but saying which one it is explains why
+        // the text may read as half a conversation.
+        is KaChatLinkRef.KaPost -> when (post?.action) {
+            "reply" -> "KaPosts reply"
+            "quote" -> "KaPosts quote"
+            else -> "KaPosts"
+        }
+        is KaChatLinkRef.BroadcastRoom -> "Public Chat Room"
+        is KaChatLinkRef.Profile -> "KaChat Profile"
     }
     val title = when (ref) {
         is KaChatLinkRef.KaPost -> post?.authorName ?: "KaPosts post"
         is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
         is KaChatLinkRef.Profile -> profileName ?: com.kachat.app.util.KaspaAddress.shortDisplay(ref.address)
     }
-    val body = post?.snippet?.takeIf { it.isNotBlank() }
-        // A quote with no added comment is a repost: there is no text to show, so say what it is
-        // rather than leaving the card looking half-loaded.
-        ?: (post?.takeIf { it.action == "quote" }?.let { "Reposted a post." })
-        ?: when (ref) {
-            is KaChatLinkRef.KaPost -> "Tap to open this post in KaChat"
-            is KaChatLinkRef.BroadcastRoom -> "Tap to join this KaChat public chat room."
-            is KaChatLinkRef.Profile ->
-                if (profileIsContact) "Tap to open your chat." else "Tap to start a chat on KaChat."
+    val subtitle = when (ref) {
+        is KaChatLinkRef.KaPost -> when {
+            post == null -> "Tap to open this post in KaChat."
+            // A quote with no added comment is a repost: there is no text to show, so say what
+            // it is rather than leaving the card looking half-loaded.
+            post.snippet.isBlank() ->
+                if (post.action == "quote") "Reposted a post." else "Tap to open this post in KaChat."
+            else -> post.snippet
         }
-    val caption = when (ref) {
-        // A reply or a quote is still a KaPosts post, but saying which one it is explains why
-        // the text may read as half a conversation.
-        is KaChatLinkRef.KaPost -> when (post?.action) {
-            "reply" -> "KAPOSTS REPLY"
-            "quote" -> "KAPOSTS QUOTE"
-            else -> "KAPOSTS"
-        }
-        is KaChatLinkRef.BroadcastRoom -> "BROADCAST ROOM"
-        is KaChatLinkRef.Profile -> "KACHAT PROFILE"
+        is KaChatLinkRef.BroadcastRoom ->
+            if (roomIsKnown) "Tap to open this KaChat public chat room." else "Tap to join this KaChat public chat room."
+        is KaChatLinkRef.Profile ->
+            if (profileIsContact) "Tap to open your chat." else "Tap to start a chat on KaChat."
     }
-    // The text of a real post deserves more than the placeholder's two lines.
-    val bodyMaxLines = if (post?.snippet?.isNotBlank() == true) 6 else 2
+    // The text of a real post deserves more than the placeholder's three lines.
+    val subtitleMaxLines = if (post?.snippet?.isNotBlank() == true) 6 else 3
 
     Row(
         modifier = Modifier
-            .widthIn(max = 260.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(LocalAppColors.current.surface)
-            .onGloballyPositioned { coords ->
-                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-            }
+            .widthIn(max = 280.dp)
+            .fillMaxWidth()
+            .sendKaspaGlass(14.dp)
             .pointerInput(url) {
                 detectTapGestures(
                     onLongPress = { showMenu = true },
@@ -1091,7 +1116,7 @@ fun KaChatInternalLinkCard(
                     onTap = { openKaChatLink(ref) }
                 )
             }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // A resolved post shows its AUTHOR, the same avatar the KaPosts feed draws for them. The
@@ -1102,63 +1127,99 @@ fun KaChatInternalLinkCard(
             ContactAvatar(
                 imageUrl = post.authorAvatarUrl,
                 fallbackText = post.authorName ?: "",
-                size = 34.dp,
-                fontSize = 14.sp
+                size = 40.dp,
+                address = authorAddress,
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(KaspaTeal.copy(alpha = 0.15f)),
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(KaspaTeal.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
             }
         }
         Spacer(Modifier.width(10.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                eyebrow.uppercase(),
+                color = KaspaTeal,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
             // Truncated in the middle, as iOS does: a profile link's title can be an address.
             MiddleEllipsisText(
                 title,
-                color = LocalAppColors.current.textPrimary,
+                color = colors.textPrimary,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                body,
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = bodyMaxLines,
+                subtitle,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                maxLines = subtitleMaxLines,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                caption,
-                color = KaspaTeal,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1
-            )
         }
+        Spacer(Modifier.width(10.dp))
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textSecondary,
+            modifier = Modifier.size(16.dp),
+        )
     }
 
     if (showMenu) {
-        CenteredOptionsMenu(onDismissRequest = { showMenu = false }, anchor = menuAnchor) {
-            PopupMenuRow(Icons.Default.ContentCopy, "Copy Link") {
+        MessageActionsSheet(title = "KaChat Link", preview = url, onDismiss = { showMenu = false }) {
+            ActionSheetRow(
+                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                title = "Open in KaChat",
+                subtitle = "Opens it right here in the app.",
+            ) {
+                showMenu = false
+                openKaChatLink(ref)
+            }
+            ActionSheetRow(
+                icon = Icons.Default.Link,
+                title = stringResource(R.string.copy_link),
+                subtitle = "Copies the address to your clipboard.",
+            ) {
                 clipboardManager.setText(AnnotatedString(url))
                 showMenu = false
             }
-            HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-            PopupMenuRow(Icons.Default.Public, "View in Explorer") {
+            ActionSheetRow(
+                icon = Icons.Default.Public,
+                title = stringResource(R.string.view_in_explorer),
+                subtitle = "Opens this transaction in the block explorer.",
+            ) {
                 uriHandler.openUri(kaspaExplorer.txUrl(txId))
                 showMenu = false
             }
             if (onSelect != null) {
-                HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.08f))
-                PopupMenuRow(Icons.Default.CheckCircle, "Select") {
+                ActionSheetRow(
+                    icon = Icons.Default.CheckCircle,
+                    title = "Select",
+                    subtitle = "Pick several messages at once.",
+                ) {
                     onSelect()
                     showMenu = false
                 }
             }
         }
     }
+}
+
+/** Whether a public chat room is already in your list - the KaChat link card's "open" or "join". */
+@dagger.hilt.android.lifecycle.HiltViewModel
+class KaChatLinkCardViewModel @javax.inject.Inject constructor(
+    private val broadcastRepository: com.kachat.app.repository.BroadcastRepository,
+) : androidx.lifecycle.ViewModel() {
+    suspend fun hasJoinedRoom(channel: String): Boolean = runCatching {
+        broadcastRepository.getJoinedChannels().first().any { it.channelName == channel }
+    }.getOrDefault(false)
 }
