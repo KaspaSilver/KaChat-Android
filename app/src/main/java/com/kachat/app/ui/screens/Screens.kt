@@ -11722,6 +11722,17 @@ fun PushedQrPage(visible: Boolean, white: Boolean, onBack: () -> Unit, content: 
         exit = androidx.compose.animation.slideOutHorizontally { it },
     ) {
         BackHandler(onBack = onBack)
+        // On the white page the status bar's clock and icons turn dark, as iOS's do over white.
+        if (white) {
+            val view = androidx.compose.ui.platform.LocalView.current
+            DisposableEffect(view) {
+                val window = (view.context as? android.app.Activity)?.window
+                val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+                val wasLight = controller?.isAppearanceLightStatusBars
+                controller?.isAppearanceLightStatusBars = true
+                onDispose { if (wasLight != null) controller.isAppearanceLightStatusBars = wasLight }
+            }
+        }
         // The page's colour runs up under the status bar, as iOS's white page does.
         Box(Modifier.fillMaxSize().background(if (white) Color.White else LocalAppColors.current.background)) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) { content() }
