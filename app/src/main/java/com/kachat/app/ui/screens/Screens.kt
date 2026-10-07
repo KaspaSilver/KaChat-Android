@@ -5158,21 +5158,27 @@ fun ManageAddressesScreen(
         viewModel.loadManageAddresses()
     }
 
-    LaunchedEffect(consolidateState.status) {
-        when (consolidateState.status) {
-            WalletViewModel.ConsolidateStatus.SUCCESS -> {
-                val count = consolidateState.sweptCount
-                IosToasts.show(
-                    if (count > 0) "Consolidated $count address${if (count == 1) "" else "es"}" else context.getString(R.string.nothing_to_consolidate)
-                )
-                viewModel.resetConsolidateState()
-            }
-            WalletViewModel.ConsolidateStatus.FAILED -> {
-                IosToasts.error(consolidateState.errorMessage ?: context.getString(R.string.consolidation_failed))
-                viewModel.resetConsolidateState()
-            }
-            else -> {}
-        }
+    // iOS's consolidateToPrimary: what was sent shows in ConsolidateSuccessCard's half sheet; a
+    // sweep that sent nothing and failed says why in a "Something Went Wrong" alert.
+    val consolidateExplorer by viewModel.kaspaExplorer.collectAsState()
+    if (consolidateState.status == WalletViewModel.ConsolidateStatus.SUCCESS) {
+        ConsolidateSuccessSheet(
+            txIds = consolidateState.txIds,
+            explorer = consolidateExplorer,
+            onDismiss = { viewModel.resetConsolidateState() },
+        )
+    }
+    if (consolidateState.status == WalletViewModel.ConsolidateStatus.FAILED) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { viewModel.resetConsolidateState() },
+            title = { Text(stringResource(R.string.something_went_wrong_title), color = LocalAppColors.current.textPrimary) },
+            text = { Text(consolidateState.errorMessage.orEmpty(), color = LocalAppColors.current.textPrimary) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resetConsolidateState() }) {
+                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
+                }
+            },
+        )
     }
 
     // Pull-to-refresh owns its spinner end-to-end (same pattern as the Profile and Domains
@@ -5467,19 +5473,15 @@ fun ManageAddressesScreen(
                         onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
                         onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
                         onHideClick = {
-                            // Same guards + copy as the Address Visibility checklist toggle. The
-                            // reserved branch is a backstop only - reserved rows don't show the
-                            // Hide menu entry at all.
-                            if (entry.address in privacyReservedAddresses) {
-                                IosToasts.show("This address is offered to a contact for private payments and stays visible.")
-                            } else if (entry.balanceSompi > 0) {
-                                IosToasts.show("Addresses holding a balance stay visible.")
-                            } else {
-                                viewModel.setManageAddressHidden(entry.index, true) { ok ->
-                                    IosToasts.show(
-                                        if (ok) "Address hidden. Re-enable it in Address Visibility."
-                                        else "This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed."
-                                    )
+                            // iOS hideAddress: the menu offers Hide only for an unfunded,
+                            // non-primary, non-reserved address; the setter re-checks all three
+                            // and its refusal says why.
+                            viewModel.setManageAddressHidden(entry.index, true) { ok ->
+                                when {
+                                    ok -> IosToasts.show("Address hidden. Re-enable it in Address Visibility.")
+                                    entry.address in privacyReservedAddresses ->
+                                        IosToasts.show("This address is offered to a contact for private payments and stays visible.")
+                                    else -> IosToasts.show("This address can't be hidden.")
                                 }
                             }
                         }
@@ -5876,26 +5878,17 @@ fun AddressVisibilityScreen(
                 // page appeared, which is the other half of what made this screen unusable.
                 val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
                 // The WHOLE row toggles, not just the checkmark.
+                // iOS's toggle: a locked row (the primary, or a funded or offered address while
+                // visible) does nothing, and a hide the setter refuses leaves the row as it was -
+                // the dimmed checkmark already says it is locked.
                 val toggleVisibility: () -> Unit = {
                     when {
-                        entry.isCurrent ->
-                            IosToasts.show("The primary address is always visible.")
-                        // Inert checkbox: offered chat-privacy reservations render checked and
-                        // cannot be unchecked - tapping only explains the lock.
-                        reserved ->
-                            IosToasts.show("This address is offered to a contact for private payments and stays visible.")
-                        funded && visible ->
-                            IosToasts.show("Addresses holding a balance stay visible.")
+                        entry.isCurrent -> Unit
+                        reserved && visible -> Unit
+                        funded && visible -> Unit
                         entry.index > listMax ->
                             viewModel.revealSpendingAddress(entry.index)
-                        else -> {
-                            val hiding = !entry.hidden
-                            viewModel.setManageAddressHidden(entry.index, hiding) { ok ->
-                                if (hiding && !ok) {
-                                    IosToasts.show("This address stays visible. It is the primary address, holds a balance, or its balance could not be confirmed.")
-                                }
-                            }
-                        }
+                        else -> viewModel.setManageAddressHidden(entry.index, !entry.hidden)
                     }
                 }
                 Row(
@@ -7917,14 +7910,14 @@ private fun ManageAddressRow(
                     subtitle = "New payments send from here by default.",
                 ) { showMenu = false; onActivateClick() }
             }
-            // Hide straight from the row - never offered for the primary address or for a
-            // chat-privacy reservation (offered to a contact, locked visible); the funded guard
-            // lives in the caller so it can toast the reason.
-            if (onHideClick != null && !entry.isCurrent && !showsPrivacyTag) {
+            // Hide straight from the row - iOS's guard: never the primary address, a funded
+            // address, or a chat-privacy reservation (offered to a contact, locked visible).
+            if (onHideClick != null && !entry.isCurrent && !showsPrivacyTag && entry.balanceSompi == 0L) {
                 ActionSheetRow(
                     icon = Icons.Default.VisibilityOff,
                     title = "Hide Address",
                     subtitle = "Removes it from this list. Re-enable it in Address Visibility.",
+                    tint = LocalAppColors.current.warning,
                 ) { showMenu = false; onHideClick() }
             }
         }

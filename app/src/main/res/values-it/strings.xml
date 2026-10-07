@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">Tocca un nodo per copiare host:port.</string>
     <string name="node_endpoint_copied">Endpoint del nodo copiato.</string>
     <string name="clear">Cancella</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">Qualcosa e andato storto</string>
 </resources>

@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">点击节点复制 host:port。</string>
     <string name="node_endpoint_copied">节点端点已复制。</string>
     <string name="clear">清除</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">出错了</string>
 </resources>

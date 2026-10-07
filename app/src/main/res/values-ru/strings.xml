@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">Нажмите на узел, чтобы скопировать host:port.</string>
     <string name="node_endpoint_copied">Эндпоинт узла скопирован.</string>
     <string name="clear">Очистить</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">Что-то пошло не так</string>
 </resources>

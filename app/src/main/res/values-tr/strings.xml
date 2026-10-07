@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">host:port kopyalamak için bir düğüme dokunun.</string>
     <string name="node_endpoint_copied">Düğüm uç noktası kopyalandı.</string>
     <string name="clear">Temizle</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">Bir Seyler Ters Gitti</string>
 </resources>

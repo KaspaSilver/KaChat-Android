@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -94,6 +95,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
 import com.kachat.app.services.AddressActivityNotifier
 import com.kachat.app.services.ColdStorageAddressDiscovery
@@ -1191,6 +1193,87 @@ fun SentConfirmationSheet(
                     ) {
                         Text("Done", fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * iOS ManageAddressesView's ConsolidateSuccessCard: after "Send All Kaspa To Primary Spend
+ * Address", a half sheet - min(420, 220 + 44 per transaction) tall, with the grabber - holding a
+ * 300-wide card: the green checkmark, "Sent", every transaction the sweep submitted (one per
+ * source address) as a monospaced link to the explorer, and OK.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConsolidateSuccessSheet(
+    txIds: List<String>,
+    explorer: com.kachat.app.models.KaspaExplorer,
+    onDismiss: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = minOf(420, 220 + txIds.size * 44).dp, largeDetent = false) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .widthIn(max = 300.dp)
+                            .fillMaxWidth()
+                            .iosShadow(20.dp, Color.Black.copy(alpha = 0.2f), 20.dp, 10.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(colors.surface)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = colors.success,
+                            modifier = Modifier.size(44.dp),
+                        )
+                        Text(stringResource(R.string.sent), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            txIds.forEach { txId ->
+                                Text(
+                                    txId,
+                                    color = KaspaTeal,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center,
+                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                                    modifier = Modifier.clickable { uriHandler.openUri(explorer.txUrl(txId)) },
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 50.dp)
+                                .clip(CircleShape)
+                                .background(KaspaTeal)
+                                .clickable(onClick = onDismiss),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(stringResource(R.string.ok), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
             }
         }

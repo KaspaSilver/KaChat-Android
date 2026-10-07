@@ -1016,7 +1016,12 @@ class WalletViewModel @Inject constructor(
     }
 
     enum class ConsolidateStatus { IDLE, RUNNING, SUCCESS, FAILED }
-    data class ConsolidateUiState(val status: ConsolidateStatus = ConsolidateStatus.IDLE, val sweptCount: Int = 0, val errorMessage: String? = null)
+    data class ConsolidateUiState(
+        val status: ConsolidateStatus = ConsolidateStatus.IDLE,
+        /** The sweep's transactions, for iOS's ConsolidateSuccessCard. */
+        val txIds: List<String> = emptyList(),
+        val errorMessage: String? = null,
+    )
 
     private val _consolidateState = MutableStateFlow(ConsolidateUiState())
     val consolidateState: StateFlow<ConsolidateUiState> = _consolidateState.asStateFlow()
@@ -1026,14 +1031,17 @@ class WalletViewModel @Inject constructor(
         if (_consolidateState.value.status == ConsolidateStatus.RUNNING) return
         viewModelScope.launch {
             _consolidateState.value = ConsolidateUiState(status = ConsolidateStatus.RUNNING)
-            try {
-                val count = walletService.consolidateSpendingAddressesToCurrent()
-                _consolidateState.value = ConsolidateUiState(status = ConsolidateStatus.SUCCESS, sweptCount = count)
-                refreshSpendingAddress()
-                loadManageAddresses()
+            val result = try {
+                walletService.consolidateSpendingAddressesToCurrent()
             } catch (e: Exception) {
-                _consolidateState.value = ConsolidateUiState(status = ConsolidateStatus.FAILED, errorMessage = UserFacingError.message(e, "Consolidation failed"))
+                com.kachat.app.services.WalletService.ConsolidationResult(emptyList(), e)
             }
+            refreshSpendingAddress()
+            loadManageAddresses()
+            _consolidateState.value = consolidateOutcome(
+                result.txIds,
+                result.lastError?.let { UserFacingError.message(it, "Consolidation failed") },
+            )
         }
     }
 
@@ -2323,4 +2331,16 @@ class WalletViewModel @Inject constructor(
         WalletService.KnsInscribeStep.SUBMITTING_REVEAL -> KnsInscribeUiStatus.SUBMITTING_REVEAL
         WalletService.KnsInscribeStep.VERIFYING -> KnsInscribeUiStatus.VERIFYING
     }
+}
+
+/**
+ * How a finished consolidation ends, as iOS's consolidateToPrimary decides it: anything sent shows
+ * the sent sheet - one address failing must not hide the others' success; nothing sent and
+ * something failed shows that failure; nothing sent and nothing failed (no other address held
+ * a balance) just ends.
+ */
+internal fun consolidateOutcome(txIds: List<String>, lastErrorMessage: String?): WalletViewModel.ConsolidateUiState = when {
+    txIds.isNotEmpty() -> WalletViewModel.ConsolidateUiState(WalletViewModel.ConsolidateStatus.SUCCESS, txIds = txIds)
+    lastErrorMessage != null -> WalletViewModel.ConsolidateUiState(WalletViewModel.ConsolidateStatus.FAILED, errorMessage = lastErrorMessage)
+    else -> WalletViewModel.ConsolidateUiState()
 }

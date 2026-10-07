@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">host:port कॉपी करने के लिए नोड पर टैप करें।</string>
     <string name="node_endpoint_copied">नोड एंडपॉइंट कॉपी किया गया।</string>
     <string name="clear">साफ़ करें</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">कुछ गलत हो गया</string>
 </resources>

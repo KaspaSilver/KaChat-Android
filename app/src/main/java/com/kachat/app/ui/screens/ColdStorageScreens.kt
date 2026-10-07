@@ -693,22 +693,18 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
                         },
                         onSendClick = { if (row.balanceSompi > 0) sendFromRow = row },
                         onShowQrClick = { qrRow = row },
-                        onHideClick = {
-                            // Same guards + copy as the Address Visibility checklist toggle. The
-                            // toast waits for the real result: rows this session live-confirmed
-                            // commit instantly, anything else runs the fail-closed live check and
-                            // may refuse.
-                            if (row.balanceSompi > 0) {
-                                IosToasts.show("Addresses holding a balance stay visible.")
-                            } else {
+                        // iOS: Hide is offered only for an unfunded address; the toast waits for
+                        // the setter's live check, and a refusal says the address can't be hidden.
+                        onHideClick = if (row.balanceSompi == 0L) {
+                            {
                                 viewModel.setColdVisibilityHidden(accountId, row.index, true) { ok ->
                                     IosToasts.show(
                                         if (ok) "Address hidden. Re-enable it in Address Visibility."
-                                        else "This address stays visible. It holds a balance or its balance could not be confirmed."
+                                        else "This address can't be hidden."
                                     )
                                 }
                             }
-                        }
+                        } else null
                     )
                 }
             }
@@ -947,20 +943,14 @@ fun ColdStorageAddressVisibilityScreen(
                 val used = if (entry.index <= listMax) entry.hasHistory else usedCache[entry.index]
                 // The WHOLE row toggles, not just the checkmark. No primary-address rule here —
                 // a watch-only kpub account has no primary; only "funded stays visible" applies.
+                // iOS's toggle: a funded row does nothing, and a hide the live check refuses
+                // leaves the row as it was.
                 val toggleVisibility: () -> Unit = {
                     when {
-                        funded && visible ->
-                            IosToasts.show("Addresses holding a balance stay visible.")
+                        funded -> Unit
                         entry.index > listMax ->
                             viewModel.revealColdAddress(accountId, entry.index)
-                        else -> {
-                            val hiding = !entry.hidden
-                            viewModel.setColdVisibilityHidden(accountId, entry.index, hiding) { ok ->
-                                if (hiding && !ok) {
-                                    IosToasts.show("This address stays visible. It holds a balance or its balance could not be confirmed.")
-                                }
-                            }
-                        }
+                        else -> viewModel.setColdVisibilityHidden(accountId, entry.index, !entry.hidden)
                     }
                 }
                 Row(
@@ -1145,14 +1135,13 @@ private fun ColdAddressRow(
                 onShowQrClick()
             }
             // Hide straight from the row (same as spending rows) — no primary-address rule for a
-            // watch-only kpub account; the funded guard lives in the caller so it can toast the
-            // reason.
+            // watch-only kpub account; the caller passes null for a funded address (iOS).
             if (onHideClick != null) {
                 ActionSheetRow(
                     icon = Icons.Default.VisibilityOff,
                     title = "Hide Address",
                     subtitle = "Removes it from this list. Re-enable it in Address Visibility.",
-                    tint = Color(0xFFFFA000),
+                    tint = LocalAppColors.current.warning,
                 ) {
                     showMenu = false
                     onHideClick()

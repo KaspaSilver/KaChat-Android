@@ -1124,4 +1124,6 @@
     <string name="tap_a_node_to_copy_host_port">روی یک گره بزنید تا host:port کپی شود.</string>
     <string name="node_endpoint_copied">نقطه اتصال گره کپی شد.</string>
     <string name="clear">پاک کردن</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">مشکلی پیش آمد</string>
 </resources>

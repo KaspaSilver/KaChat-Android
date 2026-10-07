@@ -563,31 +563,38 @@ class WalletService @Inject constructor(
         }
     }
 
+    /** What a consolidation sweep did: the transactions it submitted, one per source address,
+     *  and the last failure, if any address could not be swept. */
+    data class ConsolidationResult(val txIds: List<String>, val lastError: Throwable?)
+
     /**
      * Sweeps every other spending-chain address's balance into the currently active one — for
      * when KAS ended up scattered across several old addresses (e.g. from payments received
      * directly, or before switching which one is starred) and the user wants it all back in one
-     * spendable place. Each address with a balance is its own real transaction; returns how many
-     * were actually swept.
+     * spendable place. Each address with a balance is its own real transaction. One address
+     * failing does not stop the others, as iOS's consolidateToPrimary keeps going and keeps the
+     * last error.
      */
-    suspend fun consolidateSpendingAddressesToCurrent(): Int {
-        val account = walletManager.getActiveAccount() ?: return 0
+    suspend fun consolidateSpendingAddressesToCurrent(): ConsolidationResult {
+        val account = walletManager.getActiveAccount() ?: return ConsolidationResult(emptyList(), null)
         val currentIndex = account.spendingAddressIndex
         val maxIndex = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
-        val api = readyApi() ?: return 0
+        val api = readyApi() ?: return ConsolidationResult(emptyList(), null)
         val currentAddress = walletManager.deriveSpendingAddress(currentIndex)
 
-        var sweptCount = 0
+        val txIds = mutableListOf<String>()
+        var lastError: Throwable? = null
         for (index in 0..maxIndex) {
             if (index == currentIndex) continue
             val address = walletManager.deriveSpendingAddress(index)
             val balance = try { api.getBalance(address).balance } catch (e: Exception) { 0L }
-            if (balance > 0 && walletEngine.sweepSpendingAddress(index, currentAddress).isSuccess) {
-                sweptCount++
-            }
+            if (balance <= 0) continue
+            walletEngine.sweepSpendingAddress(index, currentAddress)
+                .onSuccess { txIds += it }
+                .onFailure { lastError = it }
         }
         refreshSpendingBalance()
-        return sweptCount
+        return ConsolidationResult(txIds, lastError)
     }
 
     /**

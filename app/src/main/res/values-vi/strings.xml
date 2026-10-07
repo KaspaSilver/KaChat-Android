@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">Nhấn vào nút để sao chép host:port.</string>
     <string name="node_endpoint_copied">Đã sao chép điểm cuối nút.</string>
     <string name="clear">Xóa</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">Đã xảy ra lỗi</string>
 </resources>

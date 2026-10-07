@@ -1093,4 +1093,6 @@
     <string name="tap_a_node_to_copy_host_port">לחץ על צומת להעתקת host:port.</string>
     <string name="node_endpoint_copied">נקודת קצה של צומת הועתקה.</string>
     <string name="clear">נקה</string>
+    <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
+    <string name="something_went_wrong_title">משהו השתבש</string>
 </resources>
