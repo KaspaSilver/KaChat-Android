@@ -203,7 +203,8 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             // Hero: the logo and the testnet / setting-up status - no title or description, so
             // the search sits higher (iOS 27a4f39).
             Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.Black, fontSize = 35.sp)
+                // the wordmark, 56 tall (iOS KachatTabIcon.view(side: 56))
+                com.kachat.app.ui.KachatWordmark(56.dp)
                 if (isLive) {
                     KachatTestnetBadge()
                 } else if (KachatLive.isEnabled && live?.upgrading == true) {
@@ -991,7 +992,7 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
             }
             when (step) {
                 0 -> {
-                    header({ Text(".kachat", color = KaspaTeal, fontWeight = FontWeight.Black, fontSize = 34.sp) }, R.string.kg_claim_title, R.string.kg_claim_body)
+                    header({ com.kachat.app.ui.KachatWordmark(56.dp) }, R.string.kg_claim_title, R.string.kg_claim_body)
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface).padding(12.dp)) {
                             Text("yourname", color = colors.textTertiary, modifier = Modifier.weight(1f))

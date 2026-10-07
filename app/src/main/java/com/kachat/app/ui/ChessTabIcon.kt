@@ -7,7 +7,12 @@ import android.graphics.Typeface
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.asAndroidColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -37,26 +42,74 @@ private val chessIconBitmap by lazy {
 }
 
 /**
- * The ".kachat" wordmark as a tintable bitmap - the Kaspa Hub tile, the dock item and Customize
- * Dock draw it the way they draw the chess pieces (iOS KachatTabIcon). Black on transparent; the
- * word is wider than it is tall.
+ * The ".kachat" wordmark as a tintable painter (iOS `KachatTabIcon`) - the Kaspa Hub tile, the dock
+ * item, Customize Dock, the .kachat hero and the setup guide all draw it. The word is drawn at
+ * whatever size it is given (crisp from the 24 dp dock item to the 56 dp hero, where a bitmap
+ * would have to be scaled), [WORDMARK_SIDE] units tall with its natural width, black, so an
+ * Icon's tint colours it like any other symbol.
+ *
+ * iOS draws it in SF Pro Rounded Heavy; Apple's fonts are licensed for Apple platforms only, so it
+ * cannot ship here, and the heaviest system face (sans-serif-black) stands in.
  */
-private val kachatWordmarkBitmap by lazy {
-    val side = 96
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.BLACK
-        textSize = side * 0.62f
-        // iOS draws it heavy (UIFont .heavy, rounded design); black is the heaviest system weight.
-        typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
-        textAlign = Paint.Align.CENTER
+private const val WORDMARK_SIDE = 96f
+
+private fun wordmarkPaint(side: Float) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    color = android.graphics.Color.BLACK
+    textSize = side * 0.62f
+    // iOS draws it heavy (UIFont .heavy, rounded design); black is the heaviest system weight.
+    typeface = Typeface.create("sans-serif-black", Typeface.NORMAL)
+    textAlign = Paint.Align.CENTER
+}
+
+private const val WORDMARK_TEXT = ".kachat"
+
+/** The wordmark's width at [WORDMARK_SIDE] tall: the word's, a little air, never under square. */
+private val wordmarkWidth by lazy {
+    maxOf(wordmarkPaint(WORDMARK_SIDE).measureText(WORDMARK_TEXT) + 8f, WORDMARK_SIDE)
+}
+
+private class KachatWordmarkPainter : Painter() {
+    private var filter: androidx.compose.ui.graphics.ColorFilter? = null
+    private var alpha = 1f
+
+    override val intrinsicSize: Size get() = Size(wordmarkWidth, WORDMARK_SIDE)
+
+    override fun applyColorFilter(colorFilter: androidx.compose.ui.graphics.ColorFilter?): Boolean {
+        filter = colorFilter
+        return true
     }
-    val text = ".kachat"
-    val width = maxOf(paint.measureText(text).toInt() + 8, side)
-    val bitmap = Bitmap.createBitmap(width, side, Bitmap.Config.ARGB_8888)
-    val metrics = paint.fontMetrics
-    val baseline = side / 2f - (metrics.ascent + metrics.descent) / 2f
-    Canvas(bitmap).drawText(text, width / 2f, baseline, paint)
-    bitmap.asImageBitmap()
+
+    override fun applyAlpha(alpha: Float): Boolean {
+        this.alpha = alpha
+        return true
+    }
+
+    override fun DrawScope.onDraw() {
+        // drawn into the box the painter was given, keeping the word's proportions
+        val scale = minOf(size.width / wordmarkWidth, size.height / WORDMARK_SIDE)
+        val side = WORDMARK_SIDE * scale
+        val paint = wordmarkPaint(side).apply {
+            colorFilter = filter?.asAndroidColorFilter()
+            alpha = (this@KachatWordmarkPainter.alpha * 255).toInt().coerceIn(0, 255)
+        }
+        val metrics = paint.fontMetrics
+        val baseline = size.height / 2f - (metrics.ascent + metrics.descent) / 2f
+        drawIntoCanvas { it.nativeCanvas.drawText(WORDMARK_TEXT, size.width / 2f, baseline, paint) }
+    }
+}
+
+/**
+ * The .kachat wordmark [height] tall in [tint] (iOS `KachatTabIcon.view(side:)`): the .kachat
+ * hero and the setup guide's first step draw it at 56.
+ */
+@Composable
+fun KachatWordmark(height: androidx.compose.ui.unit.Dp, modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier, tint: androidx.compose.ui.graphics.Color = com.kachat.app.ui.theme.KaspaTeal) {
+    androidx.compose.material3.Icon(
+        painter = remember { KachatWordmarkPainter() },
+        contentDescription = ".kachat",
+        tint = tint,
+        modifier = modifier.then(Screen.KachatNames.tabIconModifier(height)),
+    )
 }
 
 /**
@@ -67,7 +120,7 @@ private val kachatWordmarkBitmap by lazy {
  */
 fun Screen.tabIconModifier(size: androidx.compose.ui.unit.Dp): androidx.compose.ui.Modifier = when (this) {
     Screen.Chess -> androidx.compose.ui.Modifier.size(width = size * (chessIconBitmap.width.toFloat() / chessIconBitmap.height), height = size)
-    Screen.KachatNames -> androidx.compose.ui.Modifier.size(width = size * (kachatWordmarkBitmap.width.toFloat() / kachatWordmarkBitmap.height), height = size)
+    Screen.KachatNames -> androidx.compose.ui.Modifier.size(width = size * (wordmarkWidth / WORDMARK_SIDE), height = size)
     else -> androidx.compose.ui.Modifier.size(size)
 }
 
@@ -77,6 +130,6 @@ fun Screen.tabIconModifier(size: androidx.compose.ui.unit.Dp): androidx.compose.
 fun Screen.tabIconPainter(): Painter = when {
     usesKaspaLogo -> painterResource(com.kachat.app.R.drawable.ic_kaspa_logo)
     this == Screen.Chess -> remember { BitmapPainter(chessIconBitmap) }
-    this == Screen.KachatNames -> remember { BitmapPainter(kachatWordmarkBitmap) }
+    this == Screen.KachatNames -> remember { KachatWordmarkPainter() }
     else -> rememberVectorPainter(icon)
 }
