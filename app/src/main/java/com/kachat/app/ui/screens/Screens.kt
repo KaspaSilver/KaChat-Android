@@ -67,6 +67,7 @@ import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Storage
@@ -3686,7 +3687,7 @@ fun formatRecordingElapsed(elapsedMs: Long): String = VoiceMessage.formatDuratio
  * ([NotificationHelper.broadcastNotificationText]); anything still JSON-shaped after that is a
  * truncated envelope, recognized by its surviving type marker instead.
  */
-private fun broadcastCenterBody(body: String): String {
+internal fun broadcastCenterBody(body: String): String {
     val humanized = com.kachat.app.services.NotificationHelper.broadcastNotificationText(body)
     if (humanized.trimStart().firstOrNull() != '{') return humanized
     val compact = humanized.replace(" ", "")
@@ -3893,7 +3894,8 @@ fun ProfileScreen(
                         ) {
                             Box {
                                 Icon(
-                                    Icons.Default.Notifications,
+                                    // SF Symbols "bell" is an outline.
+                                    Icons.Outlined.Notifications,
                                     contentDescription = "Notifications",
                                     tint = KaspaTeal,
                                     modifier = Modifier.size(20.dp),
@@ -3960,115 +3962,12 @@ fun ProfileScreen(
                     }
                 }
                 if (showNotifCenter) {
-                    com.kachat.app.ui.theme.IosAlertDialog(
-                        onDismissRequest = {
-                            notifCenterVm.store.markAllSeen()
-                            showNotifCenter = false
-                        },
-                        containerColor = LocalAppColors.current.surface,
-                        title = { Text("Notifications", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                        text = {
-                            if (notifEntries.isEmpty()) {
-                                Text(
-                                    stringResource(R.string.notification_center_empty),
-                                    color = LocalAppColors.current.textSecondary,
-                                )
-                            } else {
-                                androidx.compose.foundation.lazy.LazyColumn(
-                                    modifier = Modifier.heightIn(max = 420.dp),
-                                ) {
-                                    items(notifEntries.size) { index ->
-                                        val entry = notifEntries[index]
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                // Every row opens what it is about, the same way
-                                                // the matching shade notification's tap does:
-                                                // KaPosts rows deep-open the exact post/comment
-                                                // via the deep-link flow, group @mentions open
-                                                // the group's thread, broadcast rows open the
-                                                // room. (Group and broadcast rows used to be
-                                                // inert even though the entry already carried
-                                                // the target id.)
-                                                .let {
-                                                    val open: (() -> Unit)? = when (entry.source) {
-                                                        "kaposts" -> {
-                                                            {
-                                                                KaPostsDeepLink.pendingOpenNotifications.value = false
-                                                                KaPostsDeepLink.pendingPostTxId.value = entry.targetId ?: ""
-                                                            }
-                                                        }
-                                                        "group" -> entry.targetId?.takeIf { id -> id.isNotBlank() }?.let { id ->
-                                                            { navController.navigate("group_chat/$id") }
-                                                        }
-                                                        "broadcast" -> entry.targetId
-                                                            ?.let { raw -> KaChatLink.sanitizeChannelName(raw) }
-                                                            ?.let { channel ->
-                                                                { navController.navigate("broadcast_channel/$channel") }
-                                                            }
-                                                        // The name, the same way a tapped .kachat
-                                                        // push opens it (iOS 86471dd).
-                                                        com.kachat.app.services.kachatnames.KachatNamesNotifier.SOURCE ->
-                                                            entry.targetId?.takeIf { name -> name.isNotBlank() }?.let { name ->
-                                                                {
-                                                                    KachatDeepLink.pendingName.value =
-                                                                        com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(name)
-                                                                }
-                                                            }
-                                                        else -> null
-                                                    }
-                                                    if (open != null) it.clickable {
-                                                        notifCenterVm.store.markAllSeen()
-                                                        showNotifCenter = false
-                                                        open()
-                                                    } else it
-                                                }
-                                                .padding(vertical = 6.dp),
-                                        ) {
-                                            Text(
-                                                entry.title,
-                                                color = LocalAppColors.current.textPrimary,
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 13.5.sp,
-                                            )
-                                            // Broadcast rows carry the raw on-chain body, which is
-                                            // a JSON envelope for anything but plain text - same
-                                            // problem the shade had. See the helper below.
-                                            val entryBody = remember(entry.id, entry.body, entry.source) {
-                                                if (entry.source == "broadcast") broadcastCenterBody(entry.body) else entry.body
-                                            }
-                                            if (entryBody.isNotBlank()) {
-                                                Text(
-                                                    entryBody,
-                                                    color = LocalAppColors.current.textSecondary,
-                                                    fontSize = 12.sp,
-                                                    maxLines = 2,
-                                                )
-                                            }
-                                            Text(
-                                                "${com.kachat.app.services.GlobalNotificationCenterStore.sourceLabel(entry.source)} · ${android.text.format.DateUtils.getRelativeTimeSpanString(entry.timestampMs)}",
-                                                color = LocalAppColors.current.textSecondary,
-                                                fontSize = 10.5.sp,
-                                            )
-                                        }
-                                        HorizontalDivider(color = LocalAppColors.current.surfaceVariant)
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                notifCenterVm.store.markAllSeen()
-                                showNotifCenter = false
-                            }) { Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold) }
-                        },
-                        dismissButton = {
-                            if (notifEntries.isNotEmpty()) {
-                                TextButton(onClick = { notifCenterVm.store.clearAll() }) {
-                                    Text("Clear All", color = LocalAppColors.current.textSecondary)
-                                }
-                            }
-                        },
+                    // A full-height sheet, as iOS presents GlobalNotificationListView.
+                    GlobalNotificationSheet(
+                        store = notifCenterVm.store,
+                        walletViewModel = viewModel,
+                        navController = navController,
+                        onDismiss = { showNotifCenter = false },
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))

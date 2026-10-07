@@ -1248,4 +1248,7 @@
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <string name="kaposts_retry">Retry</string>
     <string name="kaposts_profile">Profile</string>
+    <!-- Profile bell sheet (iOS GlobalNotificationListView) -->
+    <string name="notification_center_empty_title">No notifications yet</string>
+    <string name="notification_center_clear_all">Clear All</string>
 </resources>
