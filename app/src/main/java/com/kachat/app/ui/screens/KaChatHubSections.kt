@@ -112,14 +112,13 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     var nameRoute by remember { mutableStateOf<String?>(null) }
     val routeScope = rememberCoroutineScope()
     val pendingName by KachatDeepLink.pendingName.collectAsState()
-    // The first take is this screen appearing (iOS onAppear); a tap that arrives while it is up is
-    // taken once the tab switch has landed (iOS's 0.4 s).
-    var appeared by remember { mutableStateOf(false) }
+    // Taken once the screen is up (iOS's 0.4 s): a tap that arrives while it is up, after the tab
+    // switch has landed, and a notification that opened this screen fresh (a cold start, or
+    // .kachat not the open Kaspa Hub section), whose name is pushed once the screen has appeared
+    // rather than in the same frame (iOS 04b0c2c).
     LaunchedEffect(pendingName) {
-        val wasUp = appeared
-        appeared = true
         if (pendingName == null || live == null) return@LaunchedEffect
-        if (wasUp) kotlinx.coroutines.delay(400)
+        kotlinx.coroutines.delay(400)
         val name = KachatDeepLink.pendingName.value ?: return@LaunchedEffect
         KachatDeepLink.pendingName.value = null
         val open = nameRoute
