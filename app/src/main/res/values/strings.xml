@@ -1301,4 +1301,6 @@
     <string name="reactions_one_person">1 person</string>
     <string name="reactions_people">%1$d people</string>
     <string name="reactions_you">You</string>
+    <!-- Coin control load failure (iOS ActionSheet.swift UtxoLoadFailureRow) -->
+    <string name="coins_couldnt_load">Couldn\'t load the coins at this address</string>
 </resources>

@@ -231,12 +231,18 @@ class ColdStorageSendEngine @Inject constructor(
      *  model), these are the actual [UtxoEntry] objects [buildUnsignedTransaction] and
      *  [estimateMaxAmount] accept as `manualUtxos`. */
     suspend fun fetchUtxos(fromAddress: String): List<UtxoEntry> {
-        val api = networkService.kaspaRestApi.value ?: return emptyList()
         return try {
-            pendingSpent.filter(fromAddress, api.getUtxos(fromAddress))
+            fetchUtxosOrThrow(fromAddress)
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    /** [fetchUtxos], throwing when the node cannot be asked rather than reading as empty - see
+     *  [KaspaWalletEngine.fetchUtxosOrThrow]. */
+    suspend fun fetchUtxosOrThrow(fromAddress: String): List<UtxoEntry> {
+        val api = networkService.kaspaRestApi.value ?: throw IllegalStateException(COIN_FETCH_NOT_CONNECTED)
+        return pendingSpent.filter(fromAddress, api.getUtxos(fromAddress))
     }
 
     data class CompoundInputs(val utxos: List<UtxoEntry>, val hasMore: Boolean)

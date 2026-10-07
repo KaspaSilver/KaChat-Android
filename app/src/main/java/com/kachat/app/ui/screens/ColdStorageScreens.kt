@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1398,7 +1399,8 @@ private fun ColdSendFlow(
             onDone = { selection -> manualUtxos = selection },
             onDismiss = { showCoinControl = false },
             // KasSigner signs at most this many inputs per transaction.
-            maxSelection = com.kachat.app.util.KsptCodec.MAX_INPUTS
+            maxSelection = com.kachat.app.util.KsptCodec.MAX_INPUTS,
+            utxoLabels = remember(fromAddress) { viewModel.getUtxoLabels(fromAddress) },
         )
     }
 
@@ -1687,6 +1689,9 @@ fun CoinControlSheet(
     onDone: (List<UtxoEntry>?) -> Unit,
     onDismiss: () -> Unit,
     maxSelection: Int = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
+    /** Cold Storage's coin labels for [fromAddress] (outpoint key "txId:index" -> label), shown
+     *  over each coin's amount as iOS's coin control shows ColdStorageManager's. */
+    utxoLabels: Map<String, String> = emptyMap(),
 ) {
     IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true, grouped = true) { close ->
         BackHandler(onBack = close)
@@ -1697,6 +1702,7 @@ fun CoinControlSheet(
             onDone = { selection -> onDone(selection); close() },
             onCancel = close,
             maxSelection = maxSelection,
+            utxoLabels = utxoLabels,
         )
     }
 }
@@ -1723,20 +1729,36 @@ fun CoinControlScreen(
      *  KasSigner's ([com.kachat.app.util.KsptCodec.MAX_INPUTS]) for Cold Storage. A pick never
      *  grows past it (see [com.kachat.app.util.CoinControlSelection]). */
     maxSelection: Int = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
+    utxoLabels: Map<String, String> = emptyMap(),
 ) {
     var utxos by remember { mutableStateOf<List<UtxoEntry>>(emptyList()) }
     var selectedKeys by remember { mutableStateOf<Set<com.kachat.app.services.Outpoint>>(emptySet()) }
     var isLoading by remember { mutableStateOf(false) }
+    // The node could not be asked. Shown in place of "no coins": an outage must never read as an
+    // empty address when the coins here are about to be spent (iOS CoinControlView.loadError).
+    var loadError by remember { mutableStateOf<String?>(null) }
+    val loadScope = rememberCoroutineScope()
+
+    suspend fun loadUtxos() {
+        isLoading = true
+        try {
+            utxos = fetchUtxos(fromAddress)
+            loadError = null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            loadError = com.kachat.app.util.UserFacingError.message(e, "Couldn't load the coins.")
+        }
+        isLoading = false
+    }
 
     LaunchedEffect(fromAddress) {
-        isLoading = true
-        utxos = fetchUtxos(fromAddress)
+        loadUtxos()
         if (!initialSelection.isNullOrEmpty()) {
             selectedKeys = com.kachat.app.util.CoinControlSelection
                 .resolve(utxos, initialSelection.map { it.outpoint }.toSet(), maxSelection)
                 .map { it.outpoint }.toSet()
         }
-        isLoading = false
     }
     val atCap = com.kachat.app.util.CoinControlSelection.isAtCap(selectedKeys.size, utxos.size, maxSelection)
 
@@ -1811,8 +1833,8 @@ fun CoinControlScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
         ) {
-            when {
-                isLoading && utxos.isEmpty() -> item {
+            when (coinListContent(isLoading, utxos.isNotEmpty(), loadError)) {
+                CoinListContent.LOADING -> item {
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface).padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center,
@@ -1820,7 +1842,14 @@ fun CoinControlScreen(
                         com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
                     }
                 }
-                utxos.isEmpty() -> item {
+                CoinListContent.LOAD_FAILED -> item {
+                    UtxoLoadFailureRow(
+                        detail = loadError.orEmpty(),
+                        retry = { loadScope.launch { loadUtxos() } },
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface),
+                    )
+                }
+                CoinListContent.EMPTY -> item {
                     Text(
                         stringResource(R.string.no_utxos_found_at_address),
                         color = colors.textSecondary,
@@ -1828,7 +1857,7 @@ fun CoinControlScreen(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface).padding(horizontal = 16.dp, vertical = 12.dp),
                     )
                 }
-                else -> {
+                CoinListContent.COINS -> {
                     if (atCap) {
                         item {
                             Text(
@@ -1869,6 +1898,9 @@ fun CoinControlScreen(
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    utxoLabels["${utxo.outpoint.transactionId}:${utxo.outpoint.index}"]?.takeIf { it.isNotEmpty() }?.let { label ->
+                                        Text(label, color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                     Text(
                                         "%.8f ${KaspaUnit.symbol}".format(Locale.US, utxo.utxoEntry.amount / 100_000_000.0),
                                         color = colors.textPrimary,
@@ -2487,3 +2519,43 @@ private fun ColdStorageAddressActionsSheet(
 }
 
 
+
+/**
+ * In place of an empty coin list when the node could not be asked - iOS's `UtxoLoadFailureRow`:
+ * "Couldn't load the coins at this address" in red beside the warning triangle, what went wrong
+ * under it, and Try Again. An outage used to render as "no coins", which on an address about to
+ * be spent from is the wrong thing to believe.
+ */
+@Composable
+fun UtxoLoadFailureRow(detail: String, retry: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(Icons.Default.WarningAmber, contentDescription = null, tint = colors.danger, modifier = Modifier.size(17.dp))
+            Text(stringResource(R.string.coins_couldnt_load), color = colors.danger, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Text(detail, color = colors.textSecondary, fontSize = 12.sp)
+        Text(
+            stringResource(R.string.try_again),
+            color = KaspaTeal,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clickable(onClick = retry),
+        )
+    }
+}
+
+/** What coin control's list shows - iOS CoinControlView's branches. */
+internal enum class CoinListContent { LOADING, LOAD_FAILED, EMPTY, COINS }
+
+/** The spinner while the first fetch runs, the failure row when it could not be asked, "No
+ *  UTXOs found" only when it answered with nothing, the coins otherwise. */
+internal fun coinListContent(isLoading: Boolean, hasCoins: Boolean, loadError: String?): CoinListContent = when {
+    hasCoins -> CoinListContent.COINS
+    isLoading -> CoinListContent.LOADING
+    loadError != null -> CoinListContent.LOAD_FAILED
+    else -> CoinListContent.EMPTY
+}

@@ -13,10 +13,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.ceil
 
+/** Why a coin fetch could not even be asked: the node connection is not up yet. */
+internal const val COIN_FETCH_NOT_CONNECTED = "Not connected to a Kaspa node yet. Try again in a moment."
+
 /**
  * KaspaWalletEngine — handles low-level transaction construction and broadcasting.
  * Follows the required send flow: Fetch UTXOs -> Build -> Sign -> Broadcast.
  */
+
 @Singleton
 class KaspaWalletEngine @Inject constructor(
     private val networkService: NetworkService,
@@ -572,13 +576,22 @@ class KaspaWalletEngine @Inject constructor(
         nodePoolManager.getUtxosByAddress(address)?.let { UtxoMath.checkedTotal(it.map { u -> u.utxoEntry.amount }) }
 
     suspend fun fetchUtxos(address: String): List<UtxoEntry> {
-        val api = networkService.kaspaRestApi.value ?: return emptyList()
         return try {
-            val fetched = nodePoolManager.getUtxosByAddress(address) ?: api.getUtxos(address)
-            filterSpendableCoinbase(reconcileUtxos(address, fetched))
+            fetchUtxosOrThrow(address)
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    /**
+     * [fetchUtxos], but a node that could not be asked (no REST client yet, or the request
+     * failed) throws instead of reading as an empty address - what coin control needs to say
+     * "Couldn't load the coins" rather than "No UTXOs found" (iOS `CoinControlView.loadError`).
+     */
+    suspend fun fetchUtxosOrThrow(address: String): List<UtxoEntry> {
+        val api = networkService.kaspaRestApi.value ?: throw IllegalStateException(COIN_FETCH_NOT_CONNECTED)
+        val fetched = nodePoolManager.getUtxosByAddress(address) ?: api.getUtxos(address)
+        return filterSpendableCoinbase(reconcileUtxos(address, fetched))
     }
 
     /**

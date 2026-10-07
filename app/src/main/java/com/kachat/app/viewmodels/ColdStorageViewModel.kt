@@ -817,7 +817,8 @@ class ColdStorageViewModel @Inject constructor(
     ): Long =
         sendEngine.estimateMaxAmount(fromAddress, feeRateOverride, manualUtxos, feeMultiplier, customExtraFeeSompi)
 
-    suspend fun fetchUtxosForCoinControl(fromAddress: String): List<UtxoEntry> = sendEngine.fetchUtxos(fromAddress)
+    /** Throws when the coins could not be fetched, so coin control can say so. */
+    suspend fun fetchUtxosForCoinControl(fromAddress: String): List<UtxoEntry> = sendEngine.fetchUtxosOrThrow(fromAddress)
 
     suspend fun compoundInputs(fromAddress: String): ColdStorageSendEngine.CompoundInputs =
         sendEngine.compoundInputs(fromAddress)

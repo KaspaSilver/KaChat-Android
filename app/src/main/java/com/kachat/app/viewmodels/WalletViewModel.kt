@@ -738,7 +738,8 @@ class WalletViewModel @Inject constructor(
     /** Coin control's data source for a spending address - see `SpendingAddressSendFlow`. Never
      *  [coldStorageAddressDiscovery]/[spendingAddressUtxos] - those return a display-only DTO
      *  with no scriptPublicKey, which signing needs. */
-    suspend fun fetchUtxosForCoinControl(address: String): List<UtxoEntry> = walletEngine.fetchUtxos(address)
+    /** Throws when the coins could not be fetched, so coin control can say so. */
+    suspend fun fetchUtxosForCoinControl(address: String): List<UtxoEntry> = walletEngine.fetchUtxosOrThrow(address)
 
     /** The live quoted fee rate a send with no override pays - fetched once when the Send screen
      *  opens, to price its base fee. */
