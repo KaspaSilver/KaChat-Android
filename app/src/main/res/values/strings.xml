@@ -1277,4 +1277,15 @@
     <string name="message_action_select">Select</string>
     <string name="message_action_select_subtitle">Pick several messages at once.</string>
     <string name="tap_to_load_preview">Tap to load preview</string>
+    <!-- QR scanner sheet (iOS QRScannerView) -->
+    <string name="qr_point_camera">Point camera at a QR code</string>
+    <string name="qr_camera_access_required">Camera Access Required</string>
+    <string name="qr_enable_camera_access">Please enable camera access in Settings to scan QR codes.</string>
+    <string name="qr_requesting_camera_access">Requesting camera access...</string>
+    <!-- Coin control (iOS CoinControlView) -->
+    <string name="no_utxos_found_at_address">No UTXOs found at this address.</string>
+    <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
+    <string name="qr_enable_camera_access_signed">Please enable camera access in Settings to scan the signed transaction.</string>
+    <string name="qr_frames_progress">%1$d / %2$d frames</string>
+    <string name="qr_point_camera_kassigner">Point camera at the KasSigner screen</string>
 </resources>

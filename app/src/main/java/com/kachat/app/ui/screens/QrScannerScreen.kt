@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,195 +82,6 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.QrFrameChunker
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-
-/**
- * Full-screen camera QR scanner. Decodes with the same ZXing core library already
- * used to render QR codes elsewhere in the app — no separate scanning library needed.
- */
-@Composable
-fun QrScannerOverlay(onScanned: (String) -> Unit, onDismiss: () -> Unit) {
-    val hasScanned = remember { AtomicBoolean(false) }
-    ScannerScaffold(onDismiss = onDismiss) {
-        CameraQrScanner(modifier = Modifier.fillMaxSize()) { result ->
-            if (hasScanned.compareAndSet(false, true)) onScanned(result.text)
-        }
-    }
-}
-
-/**
- * Scans a KasSigner animated multi-frame QR sequence (a signed KSPT response, or anything else
- * chunked with [QrFrameChunker]) and reassembles it. Deliberately a contained inline card, not a
- * full-screen takeover — matches KasSigner's own web companion (KasSee), whose scanner is a fixed
- * ~300dp square sitting in the normal page flow with a title/progress-dots/cancel link around it,
- * not an edge-to-edge camera view. Unlike [QrScannerOverlay], which fires once on the first
- * decode, this keeps scanning until every frame has been seen.
- */
-@Composable
-fun MultiFrameQrScannerOverlay(
-    isComplete: (ByteArray) -> Boolean,
-    onComplete: (ByteArray) -> Unit,
-    onCancel: () -> Unit
-) {
-    val context = LocalContext.current
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> hasCameraPermission = granted }
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
-    }
-
-    val accumulator = remember { QrFrameChunker.Accumulator(isComplete) }
-    var progress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var receivedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
-    var done by remember { mutableStateOf(false) }
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.scan_signed_transaction), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Spacer(Modifier.height(12.dp))
-
-        Box(
-            modifier = Modifier
-                .size(280.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(LocalAppColors.current.background)
-                .border(1.dp, LocalAppColors.current.surfaceVariant, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (hasCameraPermission) {
-                CameraQrScanner(modifier = Modifier.fillMaxSize()) { result ->
-                    if (done) return@CameraQrScanner
-                    val bytes = extractRawBytes(result) ?: return@CameraQrScanner
-                    val complete = accumulator.addFrame(bytes)
-                    progress = accumulator.progress
-                    receivedIndices = accumulator.receivedFrameIndices
-                    if (complete != null) {
-                        done = true
-                        onComplete(complete)
-                    }
-                }
-
-                val infiniteTransition = rememberInfiniteTransition(label = "scanGuide")
-                val glowAlpha by infiniteTransition.animateFloat(
-                    initialValue = 0.4f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(animation = tween(1000), repeatMode = RepeatMode.Reverse),
-                    label = "glowAlpha"
-                )
-                Box(
-                    modifier = Modifier
-                        .size(190.dp)
-                        .border(2.dp, KaspaTeal.copy(alpha = glowAlpha), RoundedCornerShape(8.dp))
-                )
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        stringResource(R.string.camera_permission_is_needed_to_scan),
-                        color = LocalAppColors.current.textSecondary,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text(stringResource(R.string.grant_permission), color = KaspaTeal)
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        val (received, total) = progress ?: (0 to 0)
-        if (total > 0) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(total) { i ->
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (i in receivedIndices) KaspaTeal else LocalAppColors.current.surfaceVariant)
-                    )
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Text("$received / $total frames", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-        } else {
-            Text(stringResource(R.string.waiting_for_camera), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
-        }
-
-        Spacer(Modifier.height(8.dp))
-        TextButton(onClick = onCancel) {
-            Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-        }
-    }
-}
-
-/** Camera permission handling + framing-guide chrome + close button, shared by both scanner variants above. */
-@Composable
-private fun ScannerScaffold(onDismiss: () -> Unit, content: @Composable BoxScope.() -> Unit) {
-    val context = LocalContext.current
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> hasCameraPermission = granted }
-
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
-    }
-
-    Box(modifier = Modifier.fillMaxSize().background(LocalAppColors.current.background)) {
-        if (hasCameraPermission) {
-            content()
-
-            // Framing guide, matching a typical QR scanner UI.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(250.dp)
-                    .border(2.dp, Color.White, RoundedCornerShape(16.dp))
-            )
-        } else {
-            Column(
-                modifier = Modifier.align(Alignment.Center).padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    stringResource(R.string.camera_permission_is_needed_to_scan),
-                    color = LocalAppColors.current.textPrimary,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                    Text(stringResource(R.string.grant_permission_2))
-                }
-            }
-        }
-
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .zIndex(1f)
-                .statusBarsPadding()
-                .padding(16.dp)
-                .size(48.dp)
-                // Always a white icon on a solid dark circle — this sits on a live camera
-                // preview, not the app's own background, so it must stay visible regardless
-                // of light/dark theme rather than following LocalAppColors.
-                .background(Color(0xCC000000), CircleShape)
-        ) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = Color.White, modifier = Modifier.size(28.dp))
-        }
-    }
-}
 
 /**
  * CameraX preview bound to a ZXing decode analyzer — [onResult] fires for every decoded frame, as
@@ -391,5 +203,219 @@ private fun decodeQrCode(imageProxy: ImageProxy, onResult: (Result) -> Unit) {
         // Decode failure for this frame — ignore and try the next one.
     } finally {
         imageProxy.close()
+    }
+}
+
+/**
+ * The camera QR scanner as iOS presents its `QRScannerView`: a sheet over whatever asked for it
+ * (a send's recipient field, a cold storage account, a new chat, a portfolio address), its inline
+ * bar reading "Scan QR Code" with Cancel leading, the camera filling the sheet under it, a 250
+ * white frame and "Point camera at a QR code" on a frosted plate 50 above the bottom. A scan
+ * plays the success haptic, hands the code over and slides the sheet down. A swipe down, Cancel
+ * or Back closes it.
+ */
+@Composable
+fun QrScannerSheet(onScanned: (String) -> Unit, onDismiss: () -> Unit) {
+    val latestScanned by androidx.compose.runtime.rememberUpdatedState(onScanned)
+    val haptic = com.kachat.app.util.rememberHaptics()
+    val hasScanned = remember { AtomicBoolean(false) }
+    CameraScannerSheet(
+        title = stringResource(R.string.scan_qr_code),
+        deniedMessage = stringResource(R.string.qr_enable_camera_access),
+        onDismiss = onDismiss,
+        onResult = { result, close ->
+            if (hasScanned.compareAndSet(false, true)) {
+                haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                latestScanned(result.text)
+                close()
+            }
+        },
+    ) {
+        ScannerPlate(stringResource(R.string.qr_point_camera))
+    }
+}
+
+/**
+ * Scans a KasSigner animated multi-frame QR sequence (a signed KSPT response, or anything else
+ * chunked with [QrFrameChunker]) and reassembles it - iOS's `MultiFrameQRScannerView`, the same
+ * sheet as [QrScannerSheet] titled "Scan Signed Transaction": "Point camera at the KasSigner
+ * screen" until the first frame, then a dot per frame (the accent once seen) over "3 / 5 frames".
+ * Unlike [QrScannerSheet], which takes the first code, this keeps scanning until every frame has
+ * been seen, then hands the bytes over and slides down.
+ */
+@Composable
+fun MultiFrameQrScannerSheet(
+    isComplete: (ByteArray) -> Boolean,
+    onComplete: (ByteArray) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val latestComplete by androidx.compose.runtime.rememberUpdatedState(onComplete)
+    val accumulator = remember { QrFrameChunker.Accumulator(isComplete) }
+    var progress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var receivedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    val done = remember { AtomicBoolean(false) }
+    CameraScannerSheet(
+        title = stringResource(R.string.scan_signed_transaction),
+        deniedMessage = stringResource(R.string.qr_enable_camera_access_signed),
+        onDismiss = onDismiss,
+        onResult = { result, close ->
+            if (done.get()) return@CameraScannerSheet
+            val bytes = extractRawBytes(result) ?: return@CameraScannerSheet
+            val complete = accumulator.addFrame(bytes)
+            if (complete == null) {
+                progress = accumulator.progress
+                receivedIndices = accumulator.receivedFrameIndices
+            } else if (done.compareAndSet(false, true)) {
+                latestComplete(complete)
+                close()
+            }
+        },
+    ) {
+        val (received, total) = progress ?: (0 to 0)
+        if (total > 0) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                repeat(total) { i ->
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (i in receivedIndices) KaspaTeal else Color.White.copy(alpha = 0.4f))
+                    )
+                }
+            }
+            ScannerPlate(stringResource(R.string.qr_frames_progress, received, total))
+        } else {
+            ScannerPlate(stringResource(R.string.qr_point_camera_kassigner))
+        }
+    }
+}
+
+/** The white headline on iOS's `.ultraThinMaterial` plate that sits under the scanning frame. */
+@Composable
+private fun ScannerPlate(text: String) {
+    Text(
+        text,
+        color = Color.White,
+        fontSize = 17.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            // iOS's .ultraThinMaterial: a thin frosted plate over the camera.
+            .background(if (LocalAppColors.current.isDark) Color(0x591C1C1E) else Color(0x4DFFFFFF))
+            .padding(16.dp),
+    )
+}
+
+/**
+ * What [QrScannerSheet] and [MultiFrameQrScannerSheet] share - iOS's scanner sheets: an
+ * [IosFullSheet] that swipes away, its inline bar ([title], Cancel leading) drawn over the camera
+ * as iOS's transparent bar is, the 250 white frame, and [bottom] 50 above the bottom edge. Before
+ * the camera may be used it says "Requesting camera access..."; refused, it shows "Camera Access
+ * Required", [deniedMessage] and Open Settings, and looks again on coming back from Settings.
+ * [onResult] gets every decode and `close`, which slides the sheet down.
+ */
+@Composable
+private fun CameraScannerSheet(
+    title: String,
+    deniedMessage: String,
+    onDismiss: () -> Unit,
+    onResult: (Result, close: () -> Unit) -> Unit,
+    bottom: @Composable () -> Unit,
+) {
+    val latestResult by androidx.compose.runtime.rememberUpdatedState(onResult)
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true) { close ->
+        androidx.activity.compose.BackHandler(onBack = close)
+        val context = LocalContext.current
+        var authorized by remember {
+            mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+        }
+        var denied by remember { mutableStateOf(false) }
+        val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            authorized = granted
+            denied = !granted
+        }
+        LaunchedEffect(Unit) { if (!authorized) launcher.launch(Manifest.permission.CAMERA) }
+        // Back from Settings with access granted: the camera starts.
+        val lifecycleOwner = LocalLifecycleOwner.current
+        androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && !authorized &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    authorized = true
+                    denied = false
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+        val colors = LocalAppColors.current
+        Box(Modifier.fillMaxSize()) {
+            when {
+                authorized -> {
+                    // Decodes arrive on the analyzer's thread; the sheet acts on them on the main one.
+                    val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
+                    CameraQrScanner(modifier = Modifier.fillMaxSize()) { result ->
+                        mainExecutor.execute { latestResult(result, close) }
+                    }
+                    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(Modifier.weight(1f))
+                        Box(Modifier.size(250.dp).border(3.dp, Color.White, RoundedCornerShape(12.dp)))
+                        Spacer(Modifier.weight(1f))
+                        bottom()
+                        Spacer(Modifier.height(50.dp))
+                    }
+                }
+                denied -> Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(60.dp))
+                    Text(stringResource(R.string.qr_camera_access_required), color = colors.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        deniedMessage,
+                        color = colors.textSecondary,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                    Button(
+                        onClick = {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    android.net.Uri.fromParts("package", context.packageName, null),
+                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        },
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                    ) {
+                        Text(stringResource(R.string.open_settings))
+                    }
+                }
+                else -> Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
+                    Text(stringResource(R.string.qr_requesting_camera_access), color = colors.textSecondary, fontSize = 17.sp)
+                }
+            }
+            // iOS's inline navigation bar, drawn over the camera as its transparent bar is.
+            Box(Modifier.fillMaxWidth().height(44.dp)) {
+                TextButton(onClick = close, modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)) {
+                    Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
+                }
+                Text(
+                    title,
+                    color = colors.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
+        }
     }
 }

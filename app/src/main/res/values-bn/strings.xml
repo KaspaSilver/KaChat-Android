@@ -1082,4 +1082,11 @@
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">ফি: -------- KAS</string>
     <string name="composer_fee_unknown">ফি: -- KAS</string>
+    <!-- QR scanner sheet (iOS QRScannerView) -->
+    <string name="qr_point_camera">ক্যামেরা QR কোডের দিকে রাখুন</string>
+    <string name="qr_camera_access_required">ক্যামেরা অ্যাক্সেস প্রয়োজন</string>
+    <string name="qr_enable_camera_access">QR কোড স্ক্যান করতে অনুগ্রহ করে সেটিংসে ক্যামেরা অ্যাক্সেস সক্রিয় করুন।</string>
+    <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
+    <string name="qr_enable_camera_access_signed">স্বাক্ষরিত লেনদেন স্ক্যান করতে সেটিংসে ক্যামেরা অ্যাক্সেস সক্রিয় করুন।</string>
+    <string name="qr_point_camera_kassigner">KasSigner স্ক্রিনের দিকে ক্যামেরা তাক করুন</string>
 </resources>

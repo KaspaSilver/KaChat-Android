@@ -1082,4 +1082,11 @@
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">comision: -------- KAS</string>
     <string name="composer_fee_unknown">comision: -- KAS</string>
+    <!-- QR scanner sheet (iOS QRScannerView) -->
+    <string name="qr_point_camera">Apunta la camara hacia un codigo QR</string>
+    <string name="qr_camera_access_required">Se requiere acceso a la camara</string>
+    <string name="qr_enable_camera_access">Habilita el acceso a la camara en Ajustes para escanear codigos QR.</string>
+    <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
+    <string name="qr_enable_camera_access_signed">Habilita el acceso a la camara en Ajustes para escanear la transaccion firmada.</string>
+    <string name="qr_point_camera_kassigner">Apunta la camara a la pantalla de KasSigner</string>
 </resources>

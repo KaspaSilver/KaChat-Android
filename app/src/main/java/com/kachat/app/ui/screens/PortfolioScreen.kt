@@ -956,22 +956,12 @@ private fun AddressEntryDialog(
     val effectiveAddress = knsResolvedAddress ?: addressText.trim()
     val isValid = knsResolvedAddress != null || isRawValid
 
+    // A sheet over the address sheet, as iOS's PortfolioTransactionsView presents QRScannerView.
     if (showScanner) {
-        // Full-screen (usePlatformDefaultWidth = false) so the camera overlay isn't squeezed
-        // into a dialog-width box — reuses the same scanner composable as the send flows.
-        Dialog(
-            onDismissRequest = { showScanner = false },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            QrScannerOverlay(
-                onScanned = { scanned ->
-                    addressText = com.kachat.app.util.KaspaAddress.fromScanned(scanned)
-                    showScanner = false
-                },
-                onDismiss = { showScanner = false }
-            )
-        }
-        return
+        QrScannerSheet(
+            onScanned = { scanned -> addressText = com.kachat.app.util.KaspaAddress.fromScanned(scanned) },
+            onDismiss = { showScanner = false }
+        )
     }
 
     LaunchedEffect(presetAddress) {

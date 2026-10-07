@@ -1950,34 +1950,16 @@ fun ChatThreadScreen(
             myAddress
         }
         if (coinControlAddress != null) {
-            com.kachat.app.ui.theme.IosSheetColors {
-                ModalBottomSheet(
-                    shape = com.kachat.app.ui.theme.IosSheetShape,
-                    windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
-                    onDismissRequest = { showPaymentCoinControl = false },
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    containerColor = LocalAppColors.current.background,
-                    dragHandle = null,
-                ) {
-                    // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
-                    // its content stays above it.
-                    Column(Modifier.navigationBarsPadding()) {
-                        Box(Modifier.fillMaxSize()) {
-                            CoinControlScreen(
-                                fromAddress = coinControlAddress,
-                                fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
-                                initialSelection = paymentManualUtxos,
-                                onDone = { selection ->
-                                    paymentManualUtxos = selection?.takeIf { it.isNotEmpty() }
-                                    chatViewModel.setPaymentManualUtxos(paymentManualUtxos)
-                                    showPaymentCoinControl = false
-                                },
-                                onCancel = { showPaymentCoinControl = false },
-                            )
-                        }
-                    }
-                }
-            }
+            CoinControlSheet(
+                fromAddress = coinControlAddress,
+                fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
+                initialSelection = paymentManualUtxos,
+                onDone = { selection ->
+                    paymentManualUtxos = selection?.takeIf { it.isNotEmpty() }
+                    chatViewModel.setPaymentManualUtxos(paymentManualUtxos)
+                },
+                onDismiss = { showPaymentCoinControl = false },
+            )
         }
     }
 
@@ -6276,25 +6258,23 @@ fun SpendingAddressSendFlow(
         }
     }
 
+    // The recipient scanner and coin control are sheets over the send, as iOS's
+    // SpendingAddressWithdrawView and WithdrawKaspaView present QRScannerView and CoinControlView.
     if (showScanner) {
-        BackHandler { showScanner = false }
-        QrScannerOverlay(
-            onScanned = { scanned -> recipientInput = KaspaAddress.fromScanned(scanned); showScanner = false },
+        QrScannerSheet(
+            onScanned = { scanned -> recipientInput = KaspaAddress.fromScanned(scanned) },
             onDismiss = { showScanner = false }
         )
-        return
     }
 
     if (showCoinControl) {
-        BackHandler { showCoinControl = false }
-        CoinControlScreen(
+        CoinControlSheet(
             fromAddress = sourceAddress,
             fetchUtxos = { addr -> viewModel.fetchUtxosForCoinControl(addr) },
             initialSelection = manualUtxos,
-            onDone = { selection -> manualUtxos = selection; showCoinControl = false },
-            onCancel = { showCoinControl = false }
+            onDone = { selection -> manualUtxos = selection },
+            onDismiss = { showCoinControl = false }
         )
-        return
     }
 
     val amountSompi = KaspaUnit.sompiFromUserText(amountInput)
@@ -12120,30 +12100,25 @@ fun CreateChatScreen(
     val effectiveAddress = if (looksLikeKnsDomain) knsResolvedAddress else KaspaAddress.fromScanned(address)
     val isValidAddress = if (looksLikeKnsDomain) knsResolvedAddress != null else isValidRawAddress
 
+    // Sheets over the form, as iOS's AddContactView presents its QRScannerView.
     if (showScanner) {
-        BackHandler { showScanner = false }
-        QrScannerOverlay(
-            onScanned = { scanned ->
-                address = KaspaAddress.fromScanned(scanned)
-                showScanner = false
-            },
+        QrScannerSheet(
+            onScanned = { scanned -> address = KaspaAddress.fromScanned(scanned) },
             onDismiss = { showScanner = false }
         )
-        return
     }
 
     scanningGroupRowId?.let { rowId ->
-        BackHandler { scanningGroupRowId = null }
-        QrScannerOverlay(
-            onScanned = { scanned ->
-                groupAddressRows = groupAddressRows.map {
-                    if (it.id == rowId) it.copy(text = KaspaAddress.fromScanned(scanned)) else it
-                }
-                scanningGroupRowId = null
-            },
-            onDismiss = { scanningGroupRowId = null }
-        )
-        return
+        key(rowId) {
+            QrScannerSheet(
+                onScanned = { scanned ->
+                    groupAddressRows = groupAddressRows.map {
+                        if (it.id == rowId) it.copy(text = KaspaAddress.fromScanned(scanned)) else it
+                    }
+                },
+                onDismiss = { scanningGroupRowId = null }
+            )
+        }
     }
 
     val canCreateGroup = groupName.trim().isNotEmpty() && selectedMemberAddresses.isNotEmpty()

@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -125,23 +129,15 @@ fun ColdStorageListScreen(
         }
     }
 
-    // Cold Storage is a tab route, so the floating bottom nav bar is normally always shown on
-    // top of it — this is a genuinely full-screen camera view, not a "pushed" detail screen, so
-    // it has to explicitly ask the shell to hide the bar rather than that happening for free.
-    LaunchedEffect(showScanner) { walletViewModel.setHideBottomBar(showScanner) }
-    DisposableEffect(Unit) { onDispose { walletViewModel.setHideBottomBar(false) } }
-
+    // A sheet over the list, as iOS's ColdStorageView presents its QRScannerView.
     if (showScanner) {
-        BackHandler { showScanner = false }
-        QrScannerOverlay(
+        QrScannerSheet(
             onScanned = { scanned ->
-                showScanner = false
                 pendingKpub = scanned
                 nameInput = "Cold Storage ${accounts.size + 1}"
             },
             onDismiss = { showScanner = false }
         )
-        return
     }
 
     Scaffold(
@@ -1377,27 +1373,44 @@ private fun ColdSendFlow(
 
     BackHandler(enabled = !inFlight) { onDone() }
 
+    // The recipient scanner and coin control are sheets over the send, as iOS's ColdSendFlowView
+    // presents its QRScannerView and CoinControlView.
     if (showRecipientScanner) {
-        BackHandler { showRecipientScanner = false }
-        QrScannerOverlay(
-            onScanned = { scanned -> toAddress = com.kachat.app.util.KaspaAddress.fromScanned(scanned); showRecipientScanner = false },
+        QrScannerSheet(
+            onScanned = { scanned -> toAddress = com.kachat.app.util.KaspaAddress.fromScanned(scanned) },
             onDismiss = { showRecipientScanner = false }
         )
-        return
+    }
+
+    // iOS's ColdSendFlowView presents MultiFrameQRScannerView as a sheet over an empty page;
+    // closing it without a complete scan goes back to the form.
+    if (showSignedScanner) {
+        var scanned by remember { mutableStateOf(false) }
+        MultiFrameQrScannerSheet(
+            isComplete = { KsptCodec.looksLikeKspt(it) },
+            onComplete = { bytes ->
+                scanned = true
+                viewModel.onSignedKsptScanned(bytes)
+            },
+            onDismiss = {
+                showSignedScanner = false
+                if (!scanned && viewModel.sendState.value.step == ColdStorageViewModel.ColdSendStep.SHOWING_QR) {
+                    viewModel.resetColdSendState()
+                }
+            }
+        )
     }
 
     if (showCoinControl) {
-        BackHandler { showCoinControl = false }
-        CoinControlScreen(
+        CoinControlSheet(
             fromAddress = fromAddress,
             fetchUtxos = { addr -> viewModel.fetchUtxosForCoinControl(addr) },
             initialSelection = manualUtxos,
-            onDone = { selection -> manualUtxos = selection; showCoinControl = false },
-            onCancel = { showCoinControl = false },
+            onDone = { selection -> manualUtxos = selection },
+            onDismiss = { showCoinControl = false },
             // KasSigner signs at most this many inputs per transaction.
             maxSelection = com.kachat.app.util.KsptCodec.MAX_INPUTS
         )
-        return
     }
 
     Scaffold(
@@ -1616,15 +1629,6 @@ private fun ColdSendFlow(
                         ) {
                             Text(stringResource(R.string.scan_signed_transaction), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
-                    } else {
-                        MultiFrameQrScannerOverlay(
-                            isComplete = { KsptCodec.looksLikeKspt(it) },
-                            onComplete = { bytes ->
-                                showSignedScanner = false
-                                viewModel.onSignedKsptScanned(bytes)
-                            },
-                            onCancel = { showSignedScanner = false }
-                        )
                     }
                 }
 
@@ -1682,6 +1686,33 @@ private fun ColdSendFlow(
 }
 
 /**
+ * [CoinControlScreen] as iOS presents its `CoinControlView`: a sheet over the send that asked for
+ * it, Cancel leading its bar. Confirm hands the pick to [onDone] and slides the sheet down; Cancel,
+ * Back or a swipe down leave the pick as it was.
+ */
+@Composable
+fun CoinControlSheet(
+    fromAddress: String,
+    fetchUtxos: suspend (String) -> List<UtxoEntry>,
+    initialSelection: List<UtxoEntry>?,
+    onDone: (List<UtxoEntry>?) -> Unit,
+    onDismiss: () -> Unit,
+    maxSelection: Int = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
+) {
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true) { close ->
+        BackHandler(onBack = close)
+        CoinControlScreen(
+            fromAddress = fromAddress,
+            fetchUtxos = fetchUtxos,
+            initialSelection = initialSelection,
+            onDone = { selection -> onDone(selection); close() },
+            onCancel = close,
+            maxSelection = maxSelection,
+        )
+    }
+}
+
+/**
  * Coin control — lets the user fix the exact UTXO set a send spends from instead of the
  * automatic largest-first selector. Shared by [ColdSendFlow] and the spending-address send flow
  * (`SpendingAddressSendFlow` in Screens.kt) — not Cold-Storage-specific: parameterized by
@@ -1722,20 +1753,32 @@ fun CoinControlScreen(
 
     val selectedTotalSompi = utxos.filter { selectedKeys.contains(it.outpoint) }.sumOf { it.utxoEntry.amount }
 
+    // iOS's CoinControlView: an inline bar (Cancel, "Coin Control", the ellipsis.circle menu), an
+    // inset grouped list of the coins with the running total as its footer, and a capsule button
+    // pinned under it.
+    val colors = LocalAppColors.current
     Scaffold(
-        containerColor = LocalAppColors.current.background,
+        containerColor = colors.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.coin_control), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                title = { Text(stringResource(R.string.coin_control), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                    TextButton(onClick = onCancel) {
+                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
                     }
                 },
                 actions = {
                     var showMenu by remember { mutableStateOf(false) }
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, null, tint = KaspaTeal)
+                        // SF Symbols' ellipsis.circle: the three dots in a ring.
+                        Box(
+                            Modifier.size(22.dp).border(1.5.dp, KaspaTeal, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Default.MoreHoriz, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                        }
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
@@ -1748,102 +1791,124 @@ fun CoinControlScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         },
         bottomBar = {
-            Button(
-                onClick = {
-                    val selected = com.kachat.app.util.CoinControlSelection.resolve(utxos, selectedKeys, maxSelection)
-                    onDone(selected.ifEmpty { null })
-                },
-                modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal)
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp)
+                    .fillMaxWidth()
+                    .clip(CircleShape)
+                    .background(KaspaTeal)
+                    .clickable {
+                        val selected = com.kachat.app.util.CoinControlSelection.resolve(utxos, selectedKeys, maxSelection)
+                        onDone(selected.ifEmpty { null })
+                    }
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     if (selectedKeys.isEmpty()) stringResource(R.string.use_automatic_selection) else stringResource(R.string.confirm_selection),
                     color = Color.Black,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
                 )
             }
         }
     ) { padding ->
-        when {
-            isLoading && utxos.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                }
-            }
-            utxos.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.no_utxos), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (selectedKeys.isNotEmpty()) {
-                        item {
-                            Text(
-                                "%s: %.8f ${KaspaUnit.symbol} (%d)".format(
-                                    Locale.US,
-                                    stringResource(R.string.selected),
-                                    selectedTotalSompi / 100_000_000.0,
-                                    selectedKeys.size
-                                ),
-                                color = LocalAppColors.current.textSecondary,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        ) {
+            when {
+                isLoading && utxos.isEmpty() -> item {
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface).padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
                     }
+                }
+                utxos.isEmpty() -> item {
+                    Text(
+                        stringResource(R.string.no_utxos_found_at_address),
+                        color = colors.textSecondary,
+                        fontSize = 17.sp,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface).padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
+                }
+                else -> {
                     if (atCap) {
                         item {
                             Text(
                                 stringResource(R.string.coin_control_max_selection, maxSelection),
-                                color = LocalAppColors.current.textSecondary,
-                                style = MaterialTheme.typography.bodySmall
+                                color = colors.textSecondary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
                             )
                         }
                     }
-                    items(utxos, key = { "${it.outpoint.transactionId}:${it.outpoint.index}" }) { utxo ->
+                    itemsIndexed(utxos, key = { _, it -> "${it.outpoint.transactionId}:${it.outpoint.index}" }) { index, utxo ->
                         val isSelected = selectedKeys.contains(utxo.outpoint)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(LocalAppColors.current.surface)
-                                .clickable {
-                                    // Past the cap the tap is refused; the note above says why.
-                                    com.kachat.app.util.CoinControlSelection
-                                        .toggle(selectedKeys, utxo.outpoint, maxSelection)
-                                        ?.let { selectedKeys = it }
+                        val first = index == 0
+                        val last = index == utxos.lastIndex
+                        val shape = RoundedCornerShape(
+                            topStart = if (first) 10.dp else 0.dp, topEnd = if (first) 10.dp else 0.dp,
+                            bottomStart = if (last) 10.dp else 0.dp, bottomEnd = if (last) 10.dp else 0.dp,
+                        )
+                        Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        // Past the cap the tap is refused; the note above says why.
+                                        com.kachat.app.util.CoinControlSelection
+                                            .toggle(selectedKeys, utxo.outpoint, maxSelection)
+                                            ?.let { selectedKeys = it }
+                                    }
+                                    .alpha(if (!isSelected && atCap) 0.5f else 1f)
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    if (isSelected) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                                    null,
+                                    tint = if (isSelected) KaspaTeal else colors.textSecondary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        "%.8f ${KaspaUnit.symbol}".format(Locale.US, utxo.utxoEntry.amount / 100_000_000.0),
+                                        color = colors.textPrimary,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp,
+                                    )
+                                    Text(
+                                        "${utxo.outpoint.transactionId.take(10)}...:${utxo.outpoint.index}",
+                                        color = colors.textSecondary,
+                                        fontSize = 11.sp,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    )
                                 }
-                                .alpha(if (!isSelected && atCap) 0.5f else 1f)
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
-                                null,
-                                tint = if (isSelected) KaspaTeal else LocalAppColors.current.textSecondary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    "%.8f ${KaspaUnit.symbol}".format(Locale.US, utxo.utxoEntry.amount / 100_000_000.0),
-                                    color = LocalAppColors.current.textPrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    "${utxo.outpoint.transactionId.take(10)}...:${utxo.outpoint.index}",
-                                    color = LocalAppColors.current.textSecondary,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
                             }
+                            if (!last) HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 50.dp))
+                        }
+                    }
+                    // iOS's section footer, word for word (it is not translated there either).
+                    if (selectedKeys.isNotEmpty()) {
+                        item {
+                            val count = selectedKeys.size
+                            Text(
+                                "Selected: %.8f ${KaspaUnit.symbol} (%d UTXO%s)".format(
+                                    Locale.US, selectedTotalSompi / 100_000_000.0, count, if (count == 1) "" else "s"
+                                ),
+                                color = colors.textSecondary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                            )
                         }
                     }
                 }

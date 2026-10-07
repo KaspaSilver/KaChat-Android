@@ -5709,35 +5709,16 @@ fun KaPostTipSheet(
     if (showCoinControl) {
         val coinControlAddress = if (fundsFromSpending) spendingAddress else chattingAddress
         if (coinControlAddress != null) {
-            com.kachat.app.ui.theme.IosSheetColors {
-                val colors = LocalAppColors.current
-                ModalBottomSheet(
-                    shape = com.kachat.app.ui.theme.IosSheetShape,
-                    windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
-                    onDismissRequest = { showCoinControl = false },
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    containerColor = colors.background,
-                    dragHandle = null,
-                ) {
-                    // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
-                    // its content stays above it.
-                    Column(Modifier.navigationBarsPadding()) {
-                        Box(Modifier.fillMaxSize()) {
-                            CoinControlScreen(
-                                fromAddress = coinControlAddress,
-                                fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
-                                initialSelection = manualUtxos,
-                                onDone = { selection ->
-                                    manualUtxos = selection?.takeIf { it.isNotEmpty() }
-                                    chatViewModel.setPaymentManualUtxos(manualUtxos)
-                                    showCoinControl = false
-                                },
-                                onCancel = { showCoinControl = false },
-                            )
-                        }
-                    }
-                }
-            }
+            CoinControlSheet(
+                fromAddress = coinControlAddress,
+                fetchUtxos = { addr -> walletViewModel.fetchUtxosForCoinControl(addr) },
+                initialSelection = manualUtxos,
+                onDone = { selection ->
+                    manualUtxos = selection?.takeIf { it.isNotEmpty() }
+                    chatViewModel.setPaymentManualUtxos(manualUtxos)
+                },
+                onDismiss = { showCoinControl = false },
+            )
         } else {
             showCoinControl = false
         }

@@ -1079,4 +1079,11 @@
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Bewahre dies an einem sicheren Ort auf. Jeder mit diesen Wörtern kann auf dein Konto zugreifen.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <string name="kaposts_retry">Erneut versuchen</string>
+    <!-- QR scanner sheet (iOS QRScannerView) -->
+    <string name="qr_point_camera">Kamera auf einen QR-Code richten</string>
+    <string name="qr_camera_access_required">Kamerazugriff erforderlich</string>
+    <string name="qr_enable_camera_access">Bitte aktiviere den Kamerazugriff in den Einstellungen, um QR-Codes zu scannen.</string>
+    <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
+    <string name="qr_enable_camera_access_signed">Aktiviere den Kamerazugriff in den Einstellungen, um die signierte Transaktion zu scannen.</string>
+    <string name="qr_point_camera_kassigner">Richte die Kamera auf den KasSigner-Bildschirm</string>
 </resources>

@@ -1082,4 +1082,11 @@
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">ucret: -------- KAS</string>
     <string name="composer_fee_unknown">ucret: -- KAS</string>
+    <!-- QR scanner sheet (iOS QRScannerView) -->
+    <string name="qr_point_camera">Kamerayı bir QR koda doğrultun</string>
+    <string name="qr_camera_access_required">Kamera Erişimi Gerekli</string>
+    <string name="qr_enable_camera_access">QR kodları taramak için Ayarlar\'da kamera erişimini etkinleştirin.</string>
+    <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
+    <string name="qr_enable_camera_access_signed">Imzali islemi taramak icin Ayarlar\'da kamera erisimini etkinlestirin.</string>
+    <string name="qr_point_camera_kassigner">Kamerayi KasSigner ekranina dogrultun</string>
 </resources>
