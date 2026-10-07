@@ -18,9 +18,10 @@ import java.io.File
  * `KachatNamesVectors.json`, copied from iOS KaChatTests/, written by `kachat-names-vectors` from
  * the CLI's own builders and validated by rusty-kaspa a41a333's consensus validator). A port of
  * iOS scripts/test_kachat_names_core.swift (KaChat a6cf1f6, 2989ea1; registry v2 - extend, the
- * renewal window, the period rules - from 3ef2ec2; registry v3 - the price shards, periodMs,
- * seller-bound offers, decline - from e1e3455): every vector transaction the app builds (all but
- * the CLI's `setPrices`) is rebuilt with the recorded signatures fed in and must be byte-identical (inputs, sequences,
+ * renewal window, the period rules - from 3ef2ec2; registry v3 - periodMs, seller-bound offers,
+ * decline - from e1e3455; registry v4 - fixed register and renew tables, no price record - from
+ * 0ed15e9): every vector transaction is rebuilt with the recorded signatures fed in and must be
+ * byte-identical (inputs, sequences,
  * budgets, outputs, covenant bindings, lock time, payload, masses, fee, rest and full preimages,
  * every sighash, every signature script, txid and tx hash). Also codecs, BLAKE3 against Rust
  * `blake3::hash`, and the manifest checks. The official BLAKE3 vectors are in `Blake3Test`.
@@ -83,10 +84,6 @@ class KachatNamesCoreTest {
     private fun offerRec(o: JsonObject) = OfferRecord(
         OfferFields(o.hx("key"), o.hx("buyer"), o.hx("seller"), o.l("refundAfter")), o.l("value"), utxo(o.o("utxo")), o.optS("name")
     )
-
-    private fun priceFields(p: JsonObject) = PriceFields(p.l("shard"), p.hx("authority"), p.arr("prices").map { it.asLong })
-
-    private fun shardRec(p: JsonObject) = PriceRecord(priceFields(p), p.l("value"), utxo(p.o("utxo")))
 
     private fun commitRec(c: JsonObject) = CommitRecord(c.s("name"), c.hx("owner"), c.hx("salt"), c.l("value"), utxo(c.o("utxo")))
 
@@ -151,12 +148,6 @@ class KachatNamesCoreTest {
         r.eq(of.encoded.size, 108, "offer state is 108 bytes (registry v3: with the seller)")
         r.eqHex(m.offer.script(of.encoded), o.s("spk"), "offer spk")
         r.eq(Codec.decodeOfferState(of.encoded), of, "decode offer state")
-        val pj = st.o("price")
-        val pf = priceFields(pj)
-        r.eqHex(pf.encoded, pj.s("state"), "price state")
-        r.eq(pf.encoded.size, 87, "price state is 87 bytes")
-        r.eqHex(m.price.script(pf.encoded), pj.s("spk"), "price spk")
-        r.eq(Codec.decodePriceState(pf.encoded), pf, "decode price state")
         r.eq(hex(Codec.decodeGapState(gs).second), g.s("hi"), "decode gap state")
         for (cv in c.arr("covenantIds").map { it.asJsonObject }) {
             val op = cv.o("outpoint")
@@ -192,19 +183,30 @@ class KachatNamesCoreTest {
         val m = manifest()
         m.verify()
         assertTrue("the vectors' manifest is a dry run", m.isDryRun)
-        // the gap and name are not pinned until the testnet genesis: an indexer-served copy is refused (iOS e1e3455)
+        // the gap and name are pinned (registry v4 bakes only params), the offer only once the
+        // registry genesis exists: an indexer-served copy of this dry run is refused (iOS 0ed15e9)
         assertFalse(
-            "an indexer-served manifest with unpinned gap/name verified",
+            "an indexer-served manifest with an unpinned offer verified",
             runCatching { m.verify(Manifest.Source.INDEXER) }.isSuccess
         )
-        assertEquals("price covenant id", vectors.s("priceCovenantId"), hex(m.priceCovenantId))
-        assertEquals("price genesis shards", vectors.l("priceShards"), m.genesisShards.size.toLong())
         assertEquals("periodMs", vectors.l("periodMs"), m.params.periodMs)
-        // a wrong price covenant id is caught
+        // the fixed tables (registry v4) and the rule the contracts charge by
+        assertEquals("register prices", vectors.arr("registerPrices").map { it.asLong }, m.params.registerPrices)
+        assertEquals("renew prices", vectors.arr("renewPrices").map { it.asLong }, m.params.renewPrices)
+        for (len in 1..6) {
+            for (years in listOf(1L, 2L)) {
+                val expect = m.params.registerPrices[Codec.tier(len)] + m.params.renewPrices[Codec.tier(len)] * (years - 1)
+                assertEquals("register cost, $len chars x$years", expect, m.params.registerCost(len, years))
+            }
+        }
+        // a manifest that claims other prices than the pinned templates bake is refused
         val jp = vectors.o("manifest").deepCopy()
-        jp.addProperty("priceCovenantId", "cd".repeat(32))
-        jp.o("priceGenesis").addProperty("priceCovenantId", "cd".repeat(32))
-        assertFalse("manifest with a wrong price covenant id verified", runCatching { manifest(jp).verify() }.isSuccess)
+        jp.o("params").o("prices").o("register").addProperty("len1", 1)
+        assertFalse("manifest with other prices than the templates bake verified", runCatching { manifest(jp).verify() }.isSuccess)
+        // ... the renewal table too (both are pinned)
+        val jr = vectors.o("manifest").deepCopy()
+        jr.o("params").o("prices").o("renew").addProperty("len5plus", 1)
+        assertFalse("manifest with other renewal prices than the templates bake verified", runCatching { manifest(jr).verify() }.isSuccess)
         // tampering is caught
         val j = vectors.o("manifest").deepCopy()
         j.addProperty("registryCovenantId", "ab".repeat(32))
@@ -226,10 +228,12 @@ class KachatNamesCoreTest {
     @Test
     fun indexerManifestMustPinTheOfferTemplate() {
         val m = manifest()
-        val pins = listOf(m.price, m.gap, m.name, m.offer).associate { it.contract to hex(it.templateHash) }
-        assertEquals(setOf("KachatPrice", "KachatGap", "KachatName", "KachatOffer"), pins.keys)
+        val pins = listOf(m.gap, m.name, m.offer).associate { it.contract to hex(it.templateHash) }
+        assertEquals(setOf("KachatGap", "KachatName", "KachatOffer"), pins.keys)
+        // the app's own pins are this build's gap and name (registry v4, iOS 0ed15e9)
+        assertEquals(pins - "KachatOffer", Manifest.PINNED_TEMPLATE_HASHES)
         val withoutOffer = pins - "KachatOffer"
-        // price, gap and name pinned, the offer not: refused from an indexer
+        // gap and name pinned, the offer not: refused from an indexer
         val refused = runCatching { m.verify(Manifest.Source.INDEXER, withoutOffer) }.exceptionOrNull()
         assertTrue("an indexer-served manifest with an unpinned offer template verified", refused is KachatNames.Failure)
         assertTrue("refused for the offer: $refused", refused?.message?.contains("KachatOffer is not pinned") == true)
@@ -245,29 +249,19 @@ class KachatNamesCoreTest {
     }
 
     /**
-     * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json) is the live
-     * testnet-10 registry v3 of 2026-10-06 (registry 90f56bd1...6d24, iOS 32b7b32): it verifies
-     * both as bundled and as an indexer would serve it (every template pinned for this
-     * deployment), it is not a dry run, and a tampered offer template is refused.
+     * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json): either a verified
+     * registry v4 one, or an earlier one the app shows as "setting up" (iOS 0ed15e9).
      */
     @Test
-    fun bundledManifestIsTheDeployedRegistryV3() {
+    fun bundledManifestVerifiesOrIsOutdated() {
         val bytes = File("src/main/assets/${Manifest.ASSET_NAME}").readBytes()
-        val m = Manifest.decode(bytes)
-        m.verify(Manifest.Source.BUNDLE)
-        m.verify(Manifest.Source.INDEXER)
-        assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
-        assertEquals("90f56bd1babeda8e901639eaffacd9dba211c32d3f4f2587916f419140ee6d24", KachatNames.hex(m.registryCovenantId))
-        Builder(m)
-        // a different offer build for this registry is refused, wherever the manifest came from
-        val wrongOffer = mapOf("KachatOffer" to "00".repeat(32))
-        for (source in listOf(Manifest.Source.BUNDLE, Manifest.Source.INDEXER)) {
-            try {
-                m.verify(source, Manifest.PINNED_TEMPLATE_HASHES + wrongOffer)
-                fail("a tampered offer pin must be refused ($source)")
-            } catch (e: KachatNames.Failure) {
-                assertTrue(e.toString(), e.toString().contains("not the pinned build"))
-            }
+        try {
+            val m = Manifest.decode(bytes)
+            m.verify()
+            println("bundled manifest: registry v4, verified")
+        } catch (e: KachatNames.Failure) {
+            assertTrue("the bundled manifest neither verifies nor is an outdated one: $e", e.isOutdatedRegistry)
+            println("bundled manifest: an earlier registry (outdated) - the app shows .kachat as setting up until the v4 genesis manifest is bundled")
         }
     }
 
@@ -325,17 +319,12 @@ class KachatNamesCoreTest {
             val env = Env(me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"))
             var n = nameRec(ext.o("records").o("name"))
             val wallet = ext.arr("wallet").map { utxo(it.asJsonObject) }
-            val sh = shardRec(ext.o("records").o("shard"))
-            r.check(runCatching { b.extend(env, wallet, n, sh, 2) }.isFailure) { "extend past 2 periods from periodStart refused" }
+            r.check(runCatching { b.extend(env, wallet, n, 2) }.isFailure) { "extend past 2 periods from periodStart refused" }
             n = n.copy(fields = n.fields.extended(1, p.periodMs))
-            r.check(runCatching { b.extend(env, wallet, n, sh, 1) }.isFailure) { "a second extend of a full name refused" }
-            r.check(runCatching { b.extend(env, wallet, n, sh, 0) }.isFailure) { "extend by 0 refused" }
-            // a shard with the wrong covenant id (a look-alike) is refused before anything is built
-            val e0 = sh.utxo.entry
-            val fake = sh.copy(utxo = sh.utxo.copy(entry = UtxoEntry(e0.amount, e0.scriptVersion, e0.script, e0.blockDaaScore, e0.isCoinbase, null)))
-            r.check(runCatching { b.extend(env, wallet, nameRec(ext.o("records").o("name")), fake, 1) }.isFailure) { "a look-alike price shard refused" }
+            r.check(runCatching { b.extend(env, wallet, n, 1) }.isFailure) { "a second extend of a full name refused" }
+            r.check(runCatching { b.extend(env, wallet, n, 0) }.isFailure) { "extend by 0 refused" }
             // renew before the window: built (a note says it is not open) with the opening as lock time
-            val plan = runCatching { b.renew(env, wallet, n, sh, 1) }.getOrNull()
+            val plan = runCatching { b.renew(env, wallet, n, 1) }.getOrNull()
             if (plan != null) {
                 r.eq(plan.unsignedTx.lockTime, p.renewOpens(n.fields.expiresAt), "early renew: lock time = the window opening")
                 r.check(plan.notes.any { it.startsWith("renewal window not open") }) { "early renew: noted as not open" }
@@ -343,34 +332,32 @@ class KachatNamesCoreTest {
             } else {
                 r.check(false) { "early renew plan not built" }
             }
-            r.check(runCatching { b.renew(env, wallet, n, sh, 3) }.isFailure) { "renew by 3 refused" }
+            r.check(runCatching { b.renew(env, wallet, n, 3) }.isFailure) { "renew by 3 refused" }
         } else {
             r.check(false) { "no extend step in the vectors" }
         }
         // the fixed budgets are the vectors' table, entry for entry
         val recommended = vectors.o("recommendedBudgets")
-        // price.update / price.follow are the CLI's (price changes); every other role is the app's
-        r.eq(recommended.keySet().toSet() - setOf("price.update", "price.follow"), BudgetRole.entries.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
+        r.eq(recommended.keySet().toSet(), BudgetRole.entries.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
         for (role in BudgetRole.entries) {
             r.eq(Budgets.RECOMMENDED[role].toLong(), recommended.l(role.raw), "recommended budget ${role.raw}")
         }
-        // an earlier registry's manifest (no registryVersion 3) is recognised as outdated, never trusted
+        // an earlier registry's manifest (no registryVersion 4) is recognised as outdated, never trusted
         val old = vectors.o("manifest").deepCopy()
         old.remove("registryVersion")
         val err = runCatching { manifest(old) }.exceptionOrNull()
-        r.check(err != null) { "a manifest without registryVersion 3 decoded" }
-        r.check((err as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a manifest without registryVersion 3 is the outdated registry: $err" }
-        // and so is a registry v2 one (registryVersion 2)
-        val v2 = vectors.o("manifest").deepCopy()
-        v2.addProperty("registryVersion", 2)
-        val errB = runCatching { manifest(v2) }.exceptionOrNull()
-        r.check((errB as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a registryVersion 2 manifest is the outdated registry: $errB" }
+        r.check(err != null) { "a manifest without registryVersion 4 decoded" }
+        r.check((err as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a manifest without registryVersion 4 is the outdated registry: $err" }
+        // and so are registry v2 and v3 ones
+        for (version in listOf(2, 3)) {
+            val earlier = vectors.o("manifest").deepCopy()
+            earlier.addProperty("registryVersion", version)
+            val errB = runCatching { manifest(earlier) }.exceptionOrNull()
+            r.check((errB as? KachatNames.Failure)?.isOutdatedRegistry == true) { "a registryVersion $version manifest is the outdated registry: $errB" }
+        }
         println("period rules: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
-
-    /** Price changes are built by the CLI only (the authority signs on KasSigner); the app reads the result. */
-    private fun appBuilds(st: JsonObject): Boolean = st.s("op") != "setPrices"
 
     /** One vector step through the builder its `op` names (the Swift script's switch). */
     private fun build(b: Builder, st: JsonObject, env: Env): Plan {
@@ -379,11 +366,9 @@ class KachatNamesCoreTest {
         val rec = st.o("records")
         return when (st.s("op")) {
             "commit" -> b.commit(env, wallet, args.s("name"), args.hx("salt"))
-            "register" -> b.register(
-                env, wallet, gapRec(rec.o("gap")), commitRec(rec.o("commit")), shardRec(rec.o("shard")), args.l("years"), args.l("now")
-            )
-            "extend" -> b.extend(env, wallet, nameRec(rec.o("name")), shardRec(rec.o("shard")), args.l("years"))
-            "renew" -> b.renew(env, wallet, nameRec(rec.o("name")), shardRec(rec.o("shard")), args.l("years"))
+            "register" -> b.register(env, wallet, gapRec(rec.o("gap")), commitRec(rec.o("commit")), args.l("years"), args.l("now"))
+            "extend" -> b.extend(env, wallet, nameRec(rec.o("name")), args.l("years"))
+            "renew" -> b.renew(env, wallet, nameRec(rec.o("name")), args.l("years"))
             "transfer" -> b.transfer(env, wallet, nameRec(rec.o("name")), args.hx("newOwner"))
             "list" -> b.list(env, wallet, nameRec(rec.o("name")), args.l("price"))
             "buy" -> b.buy(env, wallet, nameRec(rec.o("name")))
@@ -407,7 +392,7 @@ class KachatNamesCoreTest {
     @Test
     fun vectorStepsBuildWithRecommendedBudgets() {
         val b = Builder(manifest())
-        for (st in vectors.arr("steps").map { it.asJsonObject }.filter(::appBuilds)) {
+        for (st in vectors.arr("steps").map { it.asJsonObject }) {
             val env0 = st.o("env")
             val env = Env(me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"))
             val plan = build(b, st, env)
@@ -427,9 +412,7 @@ class KachatNamesCoreTest {
         val b = Builder(m)
         val recommended = vectors.o("recommendedBudgets")
         val results = ArrayList<Triple<String, Boolean, String?>>()
-        val allSteps = vectors.arr("steps").map { it.asJsonObject }
-        // price changes are built by the CLI only (the authority signs on KasSigner)
-        val steps = allSteps.filter(::appBuilds)
+        val steps = vectors.arr("steps").map { it.asJsonObject }
         for (st in steps) {
             val failBefore = r.fail
             val failuresBefore = r.failures.size
@@ -452,7 +435,7 @@ class KachatNamesCoreTest {
             val args = st.o("args")
             val plan: Plan = try {
                 if (st.s("op") == "register") {
-                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 45L * 60_000L else 0L), "$label: registerNow")
+                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 65L * 60_000L else 0L), "$label: registerNow")
                 }
                 val built = build(b, st, env)
                 when (st.s("op")) {
@@ -554,8 +537,7 @@ class KachatNamesCoreTest {
         }
         val identical = results.count { it.second }
         println("vectors: ${r.pass} checks pass, ${r.fail} fail; $identical/${results.size} transactions byte-identical")
-        assertEquals("vector steps (registry v3)", 38, allSteps.size)
-        assertEquals("steps the app builds", 35, steps.size)
+        assertEquals("vector steps (registry v4)", 35, steps.size)
         r.assertClean()
         assertEquals("transactions byte-identical", steps.size, identical)
     }

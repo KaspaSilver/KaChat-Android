@@ -172,9 +172,6 @@ class KachatNamesActions @Inject constructor(
     /** Offers this app is declining for their seller (see [declineOpenOffers], iOS 49c0baa). */
     val decliningOffers: StateFlow<Set<String>> = _decliningOffers.asStateFlow()
 
-    /** The shards the last [liveShard] read, to tell which one a built plan spends. */
-    @Volatile private var lastShards: List<ShardInfo> = emptyList()
-
     @Volatile private var pendingWallet: String? = null
     @Volatile private var driver: Job? = null
 
@@ -415,36 +412,6 @@ class KachatNamesActions @Inject constructor(
         return OfferRecord(o.fields, u.entry.amount, u, o.name)
     }
 
-    /**
-     * A live price shard for a register, extend or renew (registry v3, iOS 49c0baa): a random one
-     * of the K, so paid operations at the same moment rarely pick the same shard, skipping [avoid]
-     * (shards a previous attempt lost to someone else; tried last) and any the node no longer has
-     * at that state with the price covenant id.
-     */
-    private suspend fun liveShard(m: Manifest, avoid: Set<Long> = emptySet()): PriceRecord {
-        val all = registry.shards()
-        lastShards = all
-        val fresh = all.filter { it.shard !in avoid }.shuffled()
-        val lost = all.filter { it.shard in avoid }.shuffled()
-        for (sh in fresh + lost) {
-            val u = try {
-                service.livePriceUtxo(m.price.script(sh.fields.encoded), sh.outpoint)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                continue
-            }
-            return PriceRecord(sh.fields, u.entry.amount, u)
-        }
-        throw ActionError.PriceBusy()
-    }
-
-    /** The price shard a built plan spends (register, extend, renew), so a retry can avoid it. */
-    private fun shardSpent(plan: Plan): Long? {
-        val u = plan.inputs.firstOrNull { it.role == BudgetRole.PRICE_USE }?.utxo ?: return null
-        return lastShards.firstOrNull { it.outpoint == u.outpoint }?.shard
-    }
-
     /** A unit of [offerTimeLeft]. */
     enum class TimeLeftUnit { DAY, HOUR, MINUTE }
 
@@ -477,7 +444,7 @@ class KachatNamesActions @Inject constructor(
         build(op, s).first
     }
 
-    private suspend fun build(op: Operation, s: Signer, avoidShards: Set<Long> = emptySet()): Pair<Plan, Env> {
+    private suspend fun build(op: Operation, s: Signer): Pair<Plan, Env> {
         val m = registry.prepare()
         val c = context(s)
         val b = c.builder
@@ -489,7 +456,7 @@ class KachatNamesActions @Inject constructor(
                 if (op.years < 1 || op.years > op.name.extendableYears(m.params)) {
                     throw ActionError.PeriodFull(op.name.renewOpens(m.params))
                 }
-                b.extend(env, wallet, liveName(op.name, m), liveShard(m, avoidShards), op.years)
+                b.extend(env, wallet, liveName(op.name, m), op.years)
             }
             is Operation.Renew -> {
                 // Valid only once the network's median time passes the window opening (the mempool
@@ -500,7 +467,7 @@ class KachatNamesActions @Inject constructor(
                 // A renewal counts from the old expiry, not from today: one that would still end
                 // in the past is paid for nothing, and anyone could reclaim the name right after.
                 checkRenewEndsAhead(op.name.expiresAt, op.years, m.params.periodMs, env.wallMs)
-                b.renew(env, wallet, liveName(op.name, m), liveShard(m, avoidShards), op.years)
+                b.renew(env, wallet, liveName(op.name, m), op.years)
             }
             is Operation.Transfer -> {
                 validateKey(op.to, "The new owner")
@@ -555,8 +522,8 @@ class KachatNamesActions @Inject constructor(
     /**
      * Builds, signs and submits [op]; returns the txid. The registry refreshes once the
      * transaction is accepted. [maxPrice] is the price the person saw and confirmed (a plan's
-     * `priceFee`): a register, extend or renew never pays more. Prices can change at any time in
-     * the price record (iOS 4f5d95e).
+     * `priceFee`): a register, extend or renew never pays more (iOS 4f5d95e; registry v4's prices
+     * are fixed, so it never has to, iOS c8f1086).
      */
     suspend fun perform(op: Operation, maxPrice: Long? = null): String = withContext(Dispatchers.IO) {
         val s = signer(op)
@@ -581,36 +548,23 @@ class KachatNamesActions @Inject constructor(
     }
 
     /**
-     * Signs and submits [op]. A register, extend or renew that lost its price shard to someone
-     * else's transaction (the node rejects it as already spent; nothing was sent) is rebuilt on
-     * another shard, up to twice (iOS 49c0baa).
+     * Signs and submits [op], rebuilt against live UTXOs. It never pays more than [maxPrice], the
+     * price the person confirmed (iOS c8f1086: no price shard to lose, so no retry on another).
      */
     private suspend fun submit(op: Operation, s: Signer, maxPrice: Long?): String {
-        val avoid = HashSet<Long>()
-        for (attempt in 0 until 3) {
-            val (plan, env) = build(op, s, avoid)
-            checkPriceCap(plan.priceFee, maxPrice)
-            try {
-                val txId = service.signAndSubmit(plan, s.privateKey, env)
-                val o = plan.newOffer
-                if (op is Operation.Offer && o != null) {
-                    registry.trackOffer(
-                        OfferInfo(
-                            o.utxo.outpoint, o.fields.key, o.name, o.fields.buyer, o.fields.seller, o.value, o.fields.refundAfter,
-                            System.currentTimeMillis()
-                        )
-                    )
-                }
-                return txId
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val shard = shardSpent(plan)
-                if (attempt >= 2 || shard == null || !isSpentConflict(e)) throw e
-                avoid.add(shard)
-            }
+        val (plan, env) = build(op, s)
+        checkPriceCap(plan.priceFee, maxPrice)
+        val txId = service.signAndSubmit(plan, s.privateKey, env)
+        val o = plan.newOffer
+        if (op is Operation.Offer && o != null) {
+            registry.trackOffer(
+                OfferInfo(
+                    o.utxo.outpoint, o.fields.key, o.name, o.fields.buyer, o.fields.seller, o.value, o.fields.refundAfter,
+                    System.currentTimeMillis()
+                )
+            )
         }
-        throw KachatNames.Failure("unreachable")
+        return txId
     }
 
     // Expired offers (iOS ba07975)
@@ -779,7 +733,7 @@ class KachatNamesActions @Inject constructor(
     }
 
     /** The cost of registering [name] for [years], estimated by building both transactions
-     *  (nothing is signed or sent); the price from a live price shard (registry v3, iOS 49c0baa). */
+     *  (nothing is signed or sent); the price from the manifest's fixed tables (registry v4, iOS c8f1086). */
     suspend fun quote(name: String, years: Long, gap: GapInfo): Quote = withContext(Dispatchers.IO) {
         val s = signer()
         val m = registry.prepare()
@@ -789,8 +743,7 @@ class KachatNamesActions @Inject constructor(
         val wallet = c.wallet
         val salt = KachatNamesService.newSalt()
         val spendable = wallet.sumOf { it.entry.amount }
-        val shard = liveShard(m)
-        val price = shard.price(name.toByteArray(Charsets.UTF_8).size) * years
+        val price = m.params.registerCost(name.toByteArray(Charsets.UTF_8).size, years)
         var commitFee = 0L
         var registerFee = 0L
         val commitPlan = runCatching { b.commit(env, wallet, name, salt) }.getOrNull()
@@ -814,7 +767,7 @@ class KachatNamesActions @Inject constructor(
                 )
                 val rest = wallet.filter { u -> commitPlan.inputs.none { it.utxo.outpoint == u.outpoint } }
                 runCatching {
-                    b.register(env, rest, GapRecord(gap.lo, gap.hi, m.params.gapValue, gapUtxo), matureCommit, shard, years, Builder.registerNow(env))
+                    b.register(env, rest, GapRecord(gap.lo, gap.hi, m.params.gapValue, gapUtxo), matureCommit, years, Builder.registerNow(env))
                 }.getOrNull()?.let { registerFee = it.networkFee }
             }
         }
@@ -1135,11 +1088,8 @@ class KachatNamesActions @Inject constructor(
                 is RegisterStep.Claim -> step.gap ?: throw KachatNames.Failure("no gap for ${p.name} yet")
             }
             val c = context(s)
-            // a random live shard each try: one someone else just spent fails this try, and the
-            // next tick picks again
-            val shard = liveShard(m)
-            // Never pay more than the person confirmed: prices can change while the commit ages (iOS 4f5d95e).
-            val price = Math.multiplyExact(shard.price(p.name.toByteArray(Charsets.UTF_8).size), maxOf(p.years, 1L))
+            // Never pay more than the person confirmed (iOS 4f5d95e).
+            val price = m.params.registerCost(p.name.toByteArray(Charsets.UTF_8).size, maxOf(p.years, 1L))
             if (p.stoppedAtPrice(price) != null) {
                 set(p) { it.stoppedAtPrice(price) ?: it }
                 return
@@ -1147,7 +1097,7 @@ class KachatNamesActions @Inject constructor(
             val plan = c.builder.register(
                 c.env, c.wallet, liveGap(gap, m),
                 CommitRecord(p.name, s.me, salt, commit.entry.amount, commit),
-                shard, p.years, Builder.registerNow(c.env)
+                p.years, Builder.registerNow(c.env)
             )
             val txId = service.signAndSubmit(plan, s.privateKey, c.env)
             set(p) { it.copy(stage = PendingRegistration.Stage.REGISTERING, registerTxId = txId, lastError = null) }

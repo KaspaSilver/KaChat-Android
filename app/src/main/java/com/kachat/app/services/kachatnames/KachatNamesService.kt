@@ -59,7 +59,7 @@ import javax.inject.Singleton
  *
  * The flow every action follows ([KachatNamesActions]): [loadManifest], read the records it needs
  * ([KachatNamesRegistry]: the indexer's `/names/...` or the chain walker), confirm them with
- * [liveRegistryUtxo] / [livePriceUtxo], [environment], build with [builder], show the plan's fee,
+ * [liveRegistryUtxo], [environment], build with [builder], show the plan's fee,
  * then [signAndSubmit] (iOS 24d673a).
  */
 @Singleton
@@ -322,14 +322,6 @@ class KachatNamesService @Inject constructor(
         val m = loadManifest()
         val u = liveUtxo(script, outpoint)
         if (!m.registryCovenantId.contentEquals(u.entry.covenantId)) throw ServiceError.NotOnChain("a registry UTXO")
-        return u
-    }
-
-    /** [liveUtxo] for a price shard, which must also carry the price covenant id (registry v3, iOS 49c0baa). */
-    suspend fun livePriceUtxo(script: ByteArray, outpoint: Outpoint): Utxo {
-        val m = loadManifest()
-        val u = liveUtxo(script, outpoint)
-        if (!m.priceCovenantId.contentEquals(u.entry.covenantId)) throw ServiceError.NotOnChain("a price shard")
         return u
     }
 

@@ -220,11 +220,11 @@ object KachatLive {
     }
 
     /**
-     * The price per period for [name], from the price record (registry v3; every shard holds the
-     * same prices): the last prices read, else the genesis prices (iOS 49c0baa `KachatLive.price`).
+     * What registering [name] costs for its first period (registry v4: fixed, baked into the
+     * pinned templates; iOS c8f1086 `KachatLive.price`).
      */
     fun price(registry: KachatNamesRegistry, name: String): Long? {
-        val prices = registry.cachedPrices ?: return null
+        val prices = registry.registerPrices ?: return null
         if (prices.size != 5) return null
         return prices[KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size)]
     }
@@ -443,13 +443,6 @@ class KachatLiveViewModel @Inject constructor(
         try {
             listings = registry.listings()
             lapsed = registry.lapsed()
-            // the prices can change at any time (registry v3, iOS 49c0baa): read them with the rest
-            try {
-                registry.currentPrices()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-            }
             val me = myKey
             if (me != null) {
                 mine = registry.names(me, includeInactive = true)
@@ -1018,7 +1011,6 @@ fun KachatLiveSearchResult(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("${s.name}.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         val params = vm.service.manifest.collectAsState().value?.params
-                        vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
                         vm.pricePerYear(s.name)?.let { price ->
                             val text = if (KachatLive.yearlyPeriods(params)) {
                                 stringResource(R.string.kn_available_per_year, KaspaUnit.amount(price))
@@ -1534,7 +1526,7 @@ fun KachatLiveAvailablePage(vm: KachatLiveViewModel?, onOpen: (NameInfo) -> Unit
         } else {
             // the tile opens the name; the Claim button inside keeps its own tap
             val colors = LocalAppColors.current
-            vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
+            vm.service.manifest.collectAsState().value // re-price once the manifest (its price tables) loads
             KachatNameGrid(vm.lapsed) { n ->
                 KachatNameTile(n.name, onClick = { onOpen(n) }) {
                     // what claiming it costs: the price for its length (iOS c488d1d)
@@ -2761,7 +2753,6 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
     val maxYears = params?.maxYears ?: 2L
     /** The years that still fit in the period (in practice 1). */
     val available = maxOf(1L, params?.let { info.extendableYears(it) } ?: 1L)
-    vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
     val perYear = KachatLive.price(vm.registry, info.name) ?: 0L
     val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
     val yearly = KachatLive.yearlyPeriods(params)
@@ -2803,7 +2794,6 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     var years by remember { mutableLongStateOf(1L) }
     val params = manifest?.params
     val maxYears = params?.maxYears ?: 2L
-    vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
     val perYear = KachatLive.price(vm.registry, info.name) ?: 0L
     val periodMs = params?.periodMs ?: KachatNames.YEAR_MS
     KachatTxSheet(
@@ -3104,7 +3094,6 @@ fun KachatNameLookupScreen(name: String, onBack: () -> Unit, onRetry: (() -> Uni
 fun KachatFreeNameScreen(name: String, gap: GapInfo?, onBack: () -> Unit, onClaim: (KachatClaimTarget) -> Unit, vm: KachatLiveViewModel) {
     val colors = LocalAppColors.current
     val params = vm.service.manifest.collectAsState().value?.params
-    vm.registry.pricesCache.collectAsState().value // re-price when the prices are read
     KachatRoutePage(onBack) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),

@@ -22,8 +22,8 @@ class KachatNamesNotifierTest {
     private val window = 120_000L
     private val params = Params(
         bond = 100_000_000L, gapValue = 100_000_000L, tCommit = 10, maxYears = 5, periodMs = period,
-        graceMs = grace, renewWindowMs = window, genesisPrices = listOf(1L, 1L, 1L, 1L, 1L), priceShards = 1,
-        priceValue = 1, offerMaxFee = 1
+        graceMs = grace, renewWindowMs = window, registerPrices = listOf(1L, 1L, 1L, 1L, 1L),
+        renewPrices = listOf(1L, 1L, 1L, 1L, 1L), offerMaxFee = 1
     )
     private val expires = 10_000_000L
 

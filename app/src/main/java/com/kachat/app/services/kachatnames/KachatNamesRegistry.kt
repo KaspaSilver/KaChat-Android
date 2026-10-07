@@ -113,9 +113,6 @@ class KachatNamesRegistry @Inject constructor(
 
     @Volatile private var cacheNetwork: String? = null
 
-    private val _pricesCache = MutableStateFlow<PriceFields?>(null)
-    /** The last prices read ([currentPrices]); screens collect it to re-price (iOS 49c0baa `currentPricesCache`). */
-    val pricesCache: StateFlow<PriceFields?> = _pricesCache.asStateFlow()
     private val ownProfiles = ConcurrentHashMap<String, OwnProfile>()
     /** Addresses with no saved profile file: [ownProfile] is read while names render, so a miss
      *  is remembered instead of touching the disk again (until [noteOwnProfile]). */
@@ -174,7 +171,6 @@ class KachatNamesRegistry @Inject constructor(
         _source.value = null
         _chainState.value = null
         cacheNetwork = null
-        _pricesCache.value = null
         ownProfiles.clear()
         ownProfileMisses.clear()
         synchronized(identityLock) { identities = emptyMap() }
@@ -195,10 +191,8 @@ class KachatNamesRegistry @Inject constructor(
         } catch (e: Exception) {
             return Source.Chain
         }
-        // registry v3: the indexer must follow this manifest's registry and price covenants (iOS 49c0baa)
-        return if (status.registryCovenantId?.lowercase() == hex(m.registryCovenantId) &&
-            status.priceCovenantId?.lowercase() == hex(m.priceCovenantId)
-        ) Source.Indexer(base) else Source.Chain
+        // the indexer must follow this manifest's registry (registry v4 has no price covenant; iOS c8f1086)
+        return if (status.registryCovenantId?.lowercase() == hex(m.registryCovenantId)) Source.Indexer(base) else Source.Chain
     }
 
     private suspend fun indexerBase(): String? {
@@ -255,7 +249,6 @@ class KachatNamesRegistry @Inject constructor(
         // a copy: the walk only replaces the published state once it succeeded
         val state = (_chainState.value ?: RegistryState.atGenesis(m)).copy()
         val registryId = hex(m.registryCovenantId)
-        val priceId = hex(m.priceCovenantId)
         val report = state.walk(
             manifest = m,
             address = { KachatNamesService.p2shAddress(it) },
@@ -264,12 +257,10 @@ class KachatNamesRegistry @Inject constructor(
                 for (chunk in addresses.chunked(50)) {
                     for (u in service.utxosByAddresses(chunk)) {
                         // A node reports the covenant id; the REST fallback cannot (null). A UTXO
-                        // carrying another id is not the registry's. The price shards the walker
-                        // follows since registry v3 carry the price covenant id: without it here
-                        // every shard would read as spent and never resolve (iOS c150042 keeps
-                        // only the registry id).
+                        // carrying another id is not the registry's (registry v4 has no price
+                        // record, iOS c8f1086).
                         val c = u.entry.covenantId
-                        if (c != null && hex(c) != registryId && hex(c) != priceId) continue
+                        if (c != null && hex(c) != registryId) continue
                         out.add("${hex(u.outpoint.txid)}:${u.outpoint.index}")
                     }
                 }
@@ -509,30 +500,12 @@ class KachatNamesRegistry @Inject constructor(
     }
 
     /**
-     * Every live price shard, shard order (registry v3, iOS 49c0baa). A register, extend or renew
-     * spends one; the actions re-read the picked shard's UTXO from a node before building.
+     * The fixed prices (registry v4, baked into the pinned templates; iOS c8f1086): sompi for a
+     * name's first period, and for every further one, by length 1, 2, 3, 4, 5+ bytes. Null until a
+     * manifest loads.
      */
-    suspend fun shards(): List<ShardInfo> {
-        prepare()
-        return when (val src = _source.value) {
-            is Source.Indexer -> IndexerApi.PricesJson.parse(get(src.base, "/names/prices")).shards.mapNotNull { it.info }.sortedBy { it.shard }
-            else -> _chainState.value?.shardInfos ?: emptyList()
-        }
-    }
-
-    /** The current prices per period by name length (every shard holds the same ones). */
-    suspend fun currentPrices(): PriceFields? {
-        val first = shards().firstOrNull()?.fields
-        if (first != null) _pricesCache.value = first
-        return first
-    }
-
-    /**
-     * The last prices read, for screens that price names synchronously (refreshed by
-     * [currentPrices] and every walk). Falls back to the manifest's genesis prices.
-     */
-    val cachedPrices: List<Long>?
-        get() = (_pricesCache.value ?: _chainState.value?.currentPrices)?.prices ?: service.manifest.value?.params?.genesisPrices
+    val registerPrices: List<Long>? get() = service.manifest.value?.params?.registerPrices
+    val renewPrices: List<Long>? get() = service.manifest.value?.params?.renewPrices
 
     /**
      * The free gap a lapsed name's reclaim reopens - the two gaps around it, merged: where a claim
@@ -762,7 +735,7 @@ class KachatNamesRegistry @Inject constructor(
         val st = runCatching { gson.fromJson(String(data, Charsets.UTF_8), RegistryState::class.java) }.getOrNull() ?: return null
         // Gson bypasses Kotlin's null checks: a file missing a list is not a cache
         @Suppress("SENSELESS_COMPARISON")
-        if (st.network == null || st.registryCovenantId == null || st.priceCovenantId == null || st.shards == null ||
+        if (st.network == null || st.registryCovenantId == null ||
             st.gaps == null || st.names == null || st.offers == null || st.applied == null || st.events == null
         ) return null
         if (!st.matches(m) || runCatching { st.checkInvariants() }.isFailure) return null

@@ -6,7 +6,8 @@ import java.util.Locale
 
 // The builders, ported from iOS KaChat/Services/KachatNames/KachatNamesBuilder.swift (KaChat
 // 4c2c45d, cancelCommit from 2989ea1, registry v2 extend / renew window from 3ef2ec2; registry v3
-// price shards, seller-bound offers and decline from e1e3455).
+// seller-bound offers and decline from e1e3455; registry v4 fixed prices, no price shard, from
+// 0ed15e9).
 
 // Compute budgets
 
@@ -27,8 +28,7 @@ enum class BudgetRole(val raw: String) {
     OFFER_ACCEPT("offer.accept"),
     OFFER_DECLINE("offer.decline"),
     OFFER_WITHDRAW("offer.withdraw"),
-    OFFER_REFUND("offer.refund"),
-    PRICE_USE("price.use");
+    OFFER_REFUND("offer.refund");
 
     companion object {
         fun fromRaw(raw: String): BudgetRole? = entries.firstOrNull { it.raw == raw }
@@ -40,7 +40,7 @@ enum class BudgetRole(val raw: String) {
  * no engine, so it commits a fixed budget per entry that covers every case (README "Cost per
  * operation"; the vector generator checks every measured budget fits this table, the vectors'
  * `recommendedBudgets`). An input that needs more than it committed fails, so these only ever err
- * on the side of a slightly higher fee (100 grams per unit). Registry v3 (iOS e1e3455).
+ * on the side of a slightly higher fee (100 grams per unit). Registry v4 (iOS 0ed15e9).
  */
 data class Budgets(val table: Map<BudgetRole, Int>) {
     operator fun get(role: BudgetRole): Int = table[role] ?: RECOMMENDED.table[role] ?: 0
@@ -52,13 +52,12 @@ data class Budgets(val table: Map<BudgetRole, Int>) {
         val RECOMMENDED = Budgets(
             mapOf(
                 BudgetRole.P2PK to 10, BudgetRole.COMMIT to 10,
-                BudgetRole.GAP_REGISTER to 11, BudgetRole.GAP_MERGE to 5, BudgetRole.GAP_ABSORBED to 0,
+                BudgetRole.GAP_REGISTER to 8, BudgetRole.GAP_MERGE to 4, BudgetRole.GAP_ABSORBED to 0,
                 BudgetRole.NAME_TRANSFER to 12, BudgetRole.NAME_LIST to 12, BudgetRole.NAME_BUY to 2,
-                BudgetRole.NAME_EXTEND to 3, BudgetRole.NAME_RENEW to 3, BudgetRole.NAME_RELEASE to 10,
+                BudgetRole.NAME_EXTEND to 2, BudgetRole.NAME_RENEW to 2, BudgetRole.NAME_RELEASE to 10,
                 BudgetRole.NAME_RECLAIM to 0,
                 BudgetRole.OFFER_ACCEPT to 17, BudgetRole.OFFER_DECLINE to 10, BudgetRole.OFFER_WITHDRAW to 10,
-                BudgetRole.OFFER_REFUND to 0,
-                BudgetRole.PRICE_USE to 1
+                BudgetRole.OFFER_REFUND to 0
             )
         )
     }
@@ -88,12 +87,6 @@ class GapRecord(val lo: ByteArray, val hi: ByteArray, val value: Long, val utxo:
 
 data class NameRecord(val fields: NameFields, val value: Long, val utxo: Utxo) {
     val name: String get() = fields.name
-}
-
-/** A price shard (registry v3, iOS e1e3455) with its live UTXO: register / extend / renew read one. */
-data class PriceRecord(val fields: PriceFields, val value: Long, val utxo: Utxo) {
-    val shard: Long get() = fields.shard
-    fun price(forLength: Int): Long = fields.price(forLength)
 }
 
 data class OfferRecord(
@@ -273,7 +266,6 @@ class Builder(val manifest: Manifest) {
 
     val params: Params get() = manifest.params
     val registryId: ByteArray get() = manifest.registryCovenantId
-    val priceId: ByteArray get() = manifest.priceCovenantId
 
     // Shared assembly
 
@@ -443,18 +435,6 @@ class Builder(val manifest: Manifest) {
         return PlannedInput(utxo = g.utxo, unlock = unlock, role = role, label = label)
     }
 
-    /** A price shard's `use()` input and its unchanged continuation, authorized by [inputIndex] (iOS e1e3455). */
-    private fun shardRead(s: PriceRecord, inputIndex: Int): Pair<PlannedInput, PlannedOutput> {
-        checkLive("price shard ${s.shard}", s.utxo, params.priceValue, priceId)
-        val unlock = Unlock.Contract(manifest.price.redeem(s.fields.encoded), manifest.price.tag("use"), emptyList())
-        val input = PlannedInput(utxo = s.utxo, unlock = unlock, role = BudgetRole.PRICE_USE, label = "price shard ${s.shard} use()")
-        val out = TxOutput(
-            value = params.priceValue, script = manifest.price.script(s.fields.encoded),
-            covenant = CovenantBinding(authorizingInput = inputIndex, covenantId = priceId)
-        )
-        return input to PlannedOutput(out, "price shard ${s.shard} (unchanged)")
-    }
-
     private fun offerInput(o: OfferRecord, entry: String, args: List<Arg>, role: BudgetRole, label: String): PlannedInput {
         val unlock = Unlock.Contract(manifest.offer.redeem(o.fields.encoded), manifest.offer.tag(entry), args)
         return PlannedInput(utxo = o.utxo, unlock = unlock, role = role, label = label)
@@ -488,12 +468,12 @@ class Builder(val manifest: Manifest) {
     }
 
     /**
-     * Register `commit.name` for [years] periods: [gap.register(.., priceIdx = 2), commit, price
-     * shard (use), funding] -> [gap (lo,key), gap (key,hi), name (periodStart = now), the shard
-     * unchanged, change]; lock time [now], commit sequence `tCommit`. The price is the shard's
-     * (registry v3, iOS e1e3455).
+     * Register `commit.name` for [years] periods: [gap.register, commit, funding] -> [gap
+     * (lo,key), gap (key,hi), name (periodStart = now), change]; lock time [now], commit sequence
+     * `tCommit`. The price is the baked one (registry v4, iOS 0ed15e9): the registration price for
+     * the first period, the renewal price for each further one.
      */
-    fun register(env: Env, wallet: List<Utxo>, gap: GapRecord, commit: CommitRecord, shard: PriceRecord, years: Long, now: Long): Plan {
+    fun register(env: Env, wallet: List<Utxo>, gap: GapRecord, commit: CommitRecord, years: Long, now: Long): Plan {
         val name = commit.name
         Codec.validate(name)
         if (!commit.owner.contentEquals(env.me)) throw Failure("the commit for $name is for another owner")
@@ -509,9 +489,8 @@ class Builder(val manifest: Manifest) {
         if (now <= 0 || now < KachatNames.LOCK_TIME_THRESHOLD) throw Failure("now must be a unix-ms timestamp")
 
         val nameLength = name.toByteArray(Charsets.UTF_8).size
-        val price = shard.price(nameLength) * years
+        val price = params.registerCost(nameLength, years)
         val expires = now + years * params.periodMs
-        val (shardIn, shardOut) = shardRead(shard, inputIndex = 2)
         val fields = NameFields(name = name, owner = env.me, price = 0, periodStart = now, expiresAt = expires)
         val notes = mutableListOf<String>()
         val matureAt = commitUtxo.entry.blockDaaScore + params.tCommit
@@ -527,9 +506,9 @@ class Builder(val manifest: Manifest) {
             gap, "register",
             listOf(
                 Arg.Bytes(name.toByteArray(Charsets.UTF_8)), Arg.Bytes(env.me), Arg.Bytes(commit.salt), Arg.Num(now), Arg.Num(years),
-                Arg.Bytes(manifest.name.prefix), Arg.Bytes(manifest.name.suffix), Arg.Num(2)
+                Arg.Bytes(manifest.name.prefix), Arg.Bytes(manifest.name.suffix)
             ),
-            BudgetRole.GAP_REGISTER, "gap register (price at input 2)"
+            BudgetRole.GAP_REGISTER, "gap register"
         )
         val commitIn = PlannedInput(
             utxo = commitUtxo, sequence = params.tCommit, unlock = Unlock.Commit(redeem), role = BudgetRole.COMMIT,
@@ -537,12 +516,11 @@ class Builder(val manifest: Manifest) {
         )
         val d = Draft(
             op = "register $name ($years period(s))",
-            inputs = listOf(gapIn, commitIn, shardIn),
+            inputs = listOf(gapIn, commitIn),
             outputs = listOf(
                 PlannedOutput(gapOutput(gap.lo, key), "gap (lo, key)"),
                 PlannedOutput(gapOutput(key, gap.hi), "gap (key, hi)"),
-                PlannedOutput(nameOutput(fields), "name $name"),
-                shardOut
+                PlannedOutput(nameOutput(fields), "name $name")
             )
         )
         d.lockTime = now
@@ -577,12 +555,12 @@ class Builder(val manifest: Manifest) {
     // Name entries
 
     /**
-     * Anyone extends the current period (a gift needs no signature): [name.extend(years, 1), price
-     * shard (use), funding] -> [continuation (periodStart kept, expiresAt + years periods), the
-     * shard unchanged, change]. Lock time 0, every sequence 0. Valid any time while
-     * `expiresAt + years <= periodStart + maxYears` (in periods) (iOS 3ef2ec2, e1e3455, ops.rs).
+     * Anyone extends the current period (a gift needs no signature): [name.extend(years),
+     * funding] -> [continuation (periodStart kept, expiresAt + years periods), change]. Lock time
+     * 0, every sequence 0. Valid any time while `expiresAt + years <= periodStart + maxYears` (in
+     * periods). Pays the renewal price per period (iOS 3ef2ec2, 0ed15e9, ops.rs).
      */
-    fun extend(env: Env, wallet: List<Utxo>, name: NameRecord, shard: PriceRecord, years: Long): Plan {
+    fun extend(env: Env, wallet: List<Utxo>, name: NameRecord, years: Long): Plan {
         val n = name
         yearsCheck(years)
         checkLive(n.name, n.utxo, params.bond, registryId)
@@ -594,16 +572,12 @@ class Builder(val manifest: Manifest) {
                     "paid until ${f.expiresAt}, so $room can be added now; renew opens at ${params.renewOpens(f.expiresAt)}"
             )
         }
-        val price = shard.price(n.name.toByteArray(Charsets.UTF_8).size) * years
+        val price = params.renewPrice(n.name.toByteArray(Charsets.UTF_8).size) * years
         val nf = f.extended(years, params.periodMs)
-        val (shardIn, shardOut) = shardRead(shard, inputIndex = 1)
         val d = Draft(
             op = "extend ${n.name} ($years period(s))",
-            inputs = listOf(
-                nameInput(n, "extend", listOf(Arg.Num(years), Arg.Num(1)), BudgetRole.NAME_EXTEND, "name extend($years, price at input 1)"),
-                shardIn
-            ),
-            outputs = listOf(PlannedOutput(nameOutput(nf), "name ${n.name}"), shardOut)
+            inputs = listOf(nameInput(n, "extend", listOf(Arg.Num(years)), BudgetRole.NAME_EXTEND, "name extend($years)")),
+            outputs = listOf(PlannedOutput(nameOutput(nf), "name ${n.name}"))
         )
         d.priceFee = price
         d.notes = mutableListOf(
@@ -615,13 +589,13 @@ class Builder(val manifest: Manifest) {
     }
 
     /**
-     * Anyone renews once the renewal window opened: [name.renew(years, 1), price shard (use),
-     * funding] -> [continuation (periodStart = old expiresAt, expiresAt + years periods), the
-     * shard unchanged, change]. Lock time = [renewLockTime] (timestamp domain), every input
+     * Anyone renews once the renewal window opened: [name.renew(years), funding] ->
+     * [continuation (periodStart = old expiresAt, expiresAt + years periods), change]. Pays the
+     * renewal price per period. Lock time = [renewLockTime] (timestamp domain), every input
      * sequence 0 (not final, as the CLTV needs). Before the window opens the plan is built but not
-     * valid (a note says so); the actions refuse to submit it (iOS 3ef2ec2, e1e3455, ops.rs).
+     * valid (a note says so); the actions refuse to submit it (iOS 3ef2ec2, 0ed15e9, ops.rs).
      */
-    fun renew(env: Env, wallet: List<Utxo>, name: NameRecord, shard: PriceRecord, years: Long): Plan {
+    fun renew(env: Env, wallet: List<Utxo>, name: NameRecord, years: Long): Plan {
         val n = name
         yearsCheck(years)
         checkLive(n.name, n.utxo, params.bond, registryId)
@@ -629,16 +603,12 @@ class Builder(val manifest: Manifest) {
         val opens = params.renewOpens(f.expiresAt)
         if (opens < KachatNames.LOCK_TIME_THRESHOLD) throw Failure("${n.name}: expiresAt - renewWindowMs is not a timestamp")
         val lock = renewLockTime(env, params, f.expiresAt)
-        val price = shard.price(n.name.toByteArray(Charsets.UTF_8).size) * years
+        val price = params.renewPrice(n.name.toByteArray(Charsets.UTF_8).size) * years
         val nf = f.renewed(years, params.periodMs)
-        val (shardIn, shardOut) = shardRead(shard, inputIndex = 1)
         val d = Draft(
             op = "renew ${n.name} ($years period(s))",
-            inputs = listOf(
-                nameInput(n, "renew", listOf(Arg.Num(years), Arg.Num(1)), BudgetRole.NAME_RENEW, "name renew($years, price at input 1)"),
-                shardIn
-            ),
-            outputs = listOf(PlannedOutput(nameOutput(nf), "name ${n.name}"), shardOut)
+            inputs = listOf(nameInput(n, "renew", listOf(Arg.Num(years)), BudgetRole.NAME_RENEW, "name renew($years)")),
+            outputs = listOf(PlannedOutput(nameOutput(nf), "name ${n.name}"))
         )
         d.lockTime = lock
         d.priceFee = price

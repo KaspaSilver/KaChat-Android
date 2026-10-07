@@ -172,7 +172,7 @@ class KachatNamesSpendRulesTest {
 
     private fun params(periodMs: Long, renewWindowMs: Long) = Params(
         bond = 0, gapValue = 0, tCommit = 600, maxYears = 2, periodMs = periodMs, graceMs = periodMs,
-        renewWindowMs = renewWindowMs, genesisPrices = List(5) { 0L }, priceShards = 1, priceValue = 0, offerMaxFee = 0
+        renewWindowMs = renewWindowMs, registerPrices = List(5) { 0L }, renewPrices = List(5) { 0L }, offerMaxFee = 0
     )
 
     @Test
