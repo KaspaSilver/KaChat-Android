@@ -887,7 +887,10 @@ class KachatNamesActions @Inject constructor(
                             service.registryUpgrading.value || _pending.value.none { it.needsDriving }
                         ) break
                         for (p in _pending.value.filter { it.needsDriving }) advance(p)
-                        delay(5_000)
+                        // waiting for a registration's acceptance: check often, so the receipt
+                        // shows within a couple of seconds of it (iOS d65fd1a)
+                        val registering = _pending.value.any { it.stage == PendingRegistration.Stage.REGISTERING }
+                        delay(if (registering) 2_000 else 5_000)
                     }
                 } finally {
                     synchronized(lock) { if (driver === coroutineContext[Job]) driver = null }
@@ -956,8 +959,12 @@ class KachatNamesActions @Inject constructor(
             PendingRegistration.Stage.REGISTERING -> {
                 val tx = p.registerTxId
                 if (tx != null && registry.isAccepted(tx)) {
-                    registry.refresh()
-                    if (ownsName(p.name)) finishRegistered(p)
+                    // Accepted is registered: the gap only accepts a register that mints this
+                    // owner's name. The receipt shows now; the registry catches up in the
+                    // background instead of first (a chain walk while the indexer follows
+                    // another registry; iOS d65fd1a).
+                    finishRegistered(p)
+                    scope.launch { runCatching { registry.refresh() } }
                     return
                 }
                 // not accepted after two minutes and the commit is still there: register again
