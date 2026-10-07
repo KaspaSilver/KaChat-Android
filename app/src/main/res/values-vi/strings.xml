@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">Bất kỳ ai có các từ này đều có thể lấy hết mọi thứ trong tài khoản của bạn. Nếu bạn làm mất chúng và cũng mất thiết bị này, không ai có thể khôi phục tài khoản cho bạn, kể cả KaChat.</string>
     <string name="seed_phrase_explainer_paper">Hãy viết các từ ra giấy theo đúng thứ tự và cất ở nơi an toàn, riêng tư. Đừng bao giờ gõ chúng vào trang web, gửi qua tin nhắn, hay lưu trong ảnh chụp màn hình hoặc ghi chú trên đám mây.</string>
     <string name="seed_phrase_explainer_lengths">12 từ đã rất an toàn. 24 từ còn bảo vệ tốt hơn nữa.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">Nói ngắn gọn</string>
+    <string name="seed_phrase_explainer_anyone_title">Ai có nó cũng có thể lấy đi mọi thứ</string>
+    <string name="seed_phrase_explainer_safe_title">Cách giữ an toàn</string>
+    <string name="seed_phrase_explainer_lengths_title">12 hay 24 từ?</string>
 </resources>

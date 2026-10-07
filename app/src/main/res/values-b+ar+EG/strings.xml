@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">أي شخص يملك هذه الكلمات يمكنه أخذ كل ما في حسابك. إذا فقدتها وفقدت هذا الجهاز، فلن يتمكن أحد من استعادة حسابك، ولا حتى KaChat.</string>
     <string name="seed_phrase_explainer_paper">اكتب الكلمات على ورقة بالترتيب واحفظها في مكان آمن وخاص. لا تكتبها أبدًا في موقع ويب، ولا ترسلها في محادثة، ولا تحفظها في لقطة شاشة أو ملاحظات سحابية.</string>
     <string name="seed_phrase_explainer_lengths">12 كلمة آمنة جدًا بالفعل. 24 كلمة تضيف حماية أكبر.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">باختصار</string>
+    <string name="seed_phrase_explainer_anyone_title">من يملكها يستطيع أخذ كل شيء</string>
+    <string name="seed_phrase_explainer_safe_title">كيف تحفظها بأمان</string>
+    <string name="seed_phrase_explainer_lengths_title">12 أم 24 كلمة؟</string>
 </resources>

@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">これらの単語を持っている人は、アカウントのすべてを持ち出せます。単語をなくし、さらにこの端末もなくすと、誰もアカウントを取り戻せません。KaChat でも無理です。</string>
     <string name="seed_phrase_explainer_paper">単語は順番どおりに紙に書き、安全で人目につかない場所に保管してください。ウェブサイトに入力したり、チャットで送ったり、スクリーンショットやクラウドのメモに残したりしないでください。</string>
     <string name="seed_phrase_explainer_lengths">12 語でも十分に安全です。24 語にするとさらに保護が強くなります。</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">かんたんに言うと</string>
+    <string name="seed_phrase_explainer_anyone_title">持っている人は何でも持ち出せます</string>
+    <string name="seed_phrase_explainer_safe_title">安全に保管する方法</string>
+    <string name="seed_phrase_explainer_lengths_title">12 語と 24 語どちら?</string>
 </resources>

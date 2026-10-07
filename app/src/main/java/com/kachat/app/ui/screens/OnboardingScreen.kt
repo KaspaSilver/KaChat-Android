@@ -111,8 +111,14 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
             CreateAccountLengthScreen(
                 viewModel,
                 accountName = backStackEntry.arguments?.getString("name").orEmpty(),
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenExplainer = { navController.navigate("seed_phrase_explainer") }
             )
+        }
+        // "What is this?" on the seed length step: a pushed page, like "What is a passphrase?"
+        // (iOS 712bb4d).
+        composable("seed_phrase_explainer") {
+            SeedPhraseExplainerPage(onBack = { navController.popBackStack() })
         }
         composable("import_source") {
             ImportSourceWalletScreen(
@@ -713,13 +719,16 @@ private fun AccountNameForm(title: String, onBack: () -> Unit, onNext: (String) 
  * until the user taps one), and the warning that the seed phrase comes next.
  */
 @Composable
-fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, onBack: () -> Unit) {
+fun CreateAccountLengthScreen(
+    viewModel: WalletViewModel,
+    accountName: String,
+    onBack: () -> Unit,
+    onOpenExplainer: () -> Unit,
+) {
     val colors = LocalAppColors.current
     var wordCount by rememberSaveable { mutableStateOf<Int?>(null) }
     // Until the seed phrase screen takes over (OnboardingScreen navigates on the new phrase).
     var isCreating by remember { mutableStateOf(false) }
-    var showExplainer by remember { mutableStateOf(false) }
-    if (showExplainer) SeedPhraseExplainerSheet(onDismiss = { showExplainer = false })
 
     CreateAccountStepScaffold(onBack = onBack) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -782,7 +791,7 @@ fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, o
             }
         }
 
-        // What a seed phrase is, in a half sheet (iOS dd0aab1).
+        // What a seed phrase is, on a page of its own (iOS dd0aab1, 712bb4d).
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -792,7 +801,7 @@ fun CreateAccountLengthScreen(viewModel: WalletViewModel, accountName: String, o
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null,
                     role = Role.Button,
-                    onClick = { showExplainer = true }
+                    onClick = onOpenExplainer
                 )
         ) {
             Icon(
@@ -855,60 +864,52 @@ fun ImportLengthScreen(onBack: () -> Unit, onNext: (Int) -> Unit) {
 }
 
 /**
- * What a seed phrase is, in plain words (iOS dd0aab1 `SeedPhraseExplainerSheet`): the half sheet
- * behind "What is this?" on the seed length step. Opens at half height and drags up to full
- * (`[.medium, .large]`), with the grabber; Done closes it.
+ * What a seed phrase is, in plain words (iOS 712bb4d `SeedPhraseExplainerPage`): the page behind
+ * "What is this?" on the seed length step. A full page on the plain background, pushed like
+ * "What is a passphrase?" and in the same headline-and-text sections, so it reads easily.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SeedPhraseExplainerSheet(onDismiss: () -> Unit) {
-    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-    com.kachat.app.ui.theme.IosSheetColors {
-        val colors = LocalAppColors.current
-        ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
-            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
-            windowInsets = WindowInsets.statusBars,
-            onDismissRequest = onDismiss,
-            sheetState = sheetState,
-            containerColor = colors.background,
-            dragHandle = null,
-        ) {
-            Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = halfScreen, largeDetent = true) {
-                    Column(Modifier.fillMaxSize()) {
-                        IosSheetNavBar(
-                            title = stringResource(R.string.what_is_a_seed_phrase),
-                            trailing = {
-                                IosBarTextButton(
-                                    text = stringResource(R.string.done),
-                                    bold = true,
-                                    onClick = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() } }
-                                )
-                            }
-                        )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(16.dp)
-                        ) {
-                            listOf(
-                                R.string.seed_phrase_explainer_master_key,
-                                R.string.seed_phrase_explainer_anyone,
-                                R.string.seed_phrase_explainer_paper,
-                                R.string.seed_phrase_explainer_lengths,
-                            ).forEach { res ->
-                                Text(text = stringResource(res), color = colors.textSecondary, fontSize = 15.sp)
-                            }
-                        }
+private fun SeedPhraseExplainerPage(onBack: () -> Unit) {
+    val colors = LocalAppColors.current
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.what_is_a_seed_phrase), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), tint = KaspaTeal)
                     }
-                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
-                }
-            }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            PassphraseExplainerSection(
+                stringResource(R.string.seed_phrase_explainer_short_version),
+                stringResource(R.string.seed_phrase_explainer_master_key)
+            )
+            PassphraseExplainerSection(
+                stringResource(R.string.seed_phrase_explainer_anyone_title),
+                stringResource(R.string.seed_phrase_explainer_anyone)
+            )
+            PassphraseExplainerSection(
+                stringResource(R.string.seed_phrase_explainer_safe_title),
+                stringResource(R.string.seed_phrase_explainer_paper)
+            )
+            PassphraseExplainerSection(
+                stringResource(R.string.seed_phrase_explainer_lengths_title),
+                stringResource(R.string.seed_phrase_explainer_lengths)
+            )
         }
     }
 }

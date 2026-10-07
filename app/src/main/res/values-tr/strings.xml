@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">Bu kelimelere sahip olan herkes hesabınızdaki her şeyi alabilir. Onları kaybeder ve bu cihazı da kaybederseniz, hesabınızı kimse geri getiremez, KaChat bile.</string>
     <string name="seed_phrase_explainer_paper">Kelimeleri sırasıyla kağıda yazın ve güvenli, özel bir yerde saklayın. Onları asla bir web sitesine yazmayın, sohbette göndermeyin ve ekran görüntüsünde ya da bulut notlarında tutmayın.</string>
     <string name="seed_phrase_explainer_lengths">12 kelime zaten çok güvenlidir. 24 kelime daha da fazla koruma ekler.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">Kısaca</string>
+    <string name="seed_phrase_explainer_anyone_title">Ona sahip olan her şeyi alabilir</string>
+    <string name="seed_phrase_explainer_safe_title">Nasıl güvende tutulur</string>
+    <string name="seed_phrase_explainer_lengths_title">12 mi 24 kelime mi?</string>
 </resources>

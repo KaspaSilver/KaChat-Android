@@ -1132,4 +1132,9 @@
     <string name="seed_phrase_explainer_anyone">هر کسی این کلمات را داشته باشد می‌تواند همه‌چیز حساب شما را بردارد. اگر آن‌ها را گم کنید و این دستگاه را هم از دست بدهید، هیچ‌کس نمی‌تواند حسابتان را برگرداند، حتی KaChat.</string>
     <string name="seed_phrase_explainer_paper">کلمات را به ترتیب روی کاغذ بنویسید و در جایی امن و خصوصی نگه دارید. هرگز آن‌ها را در وب‌سایتی تایپ نکنید، در گفتگو نفرستید و در اسکرین‌شات یا یادداشت ابری نگه ندارید.</string>
     <string name="seed_phrase_explainer_lengths">۱۲ کلمه همین حالا هم بسیار امن است. ۲۴ کلمه امنیت بیشتری اضافه می‌کند.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">به طور خلاصه</string>
+    <string name="seed_phrase_explainer_anyone_title">هر کس آن را داشته باشد همه‌چیز را می‌برد</string>
+    <string name="seed_phrase_explainer_safe_title">چگونه آن را امن نگه داریم</string>
+    <string name="seed_phrase_explainer_lengths_title">۱۲ یا ۲۴ کلمه؟</string>
 </resources>

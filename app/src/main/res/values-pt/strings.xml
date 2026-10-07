@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">Qualquer pessoa que tenha essas palavras pode levar tudo o que há na sua conta. Se você perdê-las e também perder este aparelho, ninguém consegue recuperar sua conta, nem mesmo o KaChat.</string>
     <string name="seed_phrase_explainer_paper">Escreva as palavras em papel, na ordem, e guarde-as em um lugar seguro e privado. Nunca as digite em um site, não as envie em um chat e não as guarde em uma captura de tela ou em notas na nuvem.</string>
     <string name="seed_phrase_explainer_lengths">12 palavras já são muito seguras. 24 palavras adicionam ainda mais proteção.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">Em resumo</string>
+    <string name="seed_phrase_explainer_anyone_title">Quem a tiver pode levar tudo</string>
+    <string name="seed_phrase_explainer_safe_title">Como guardá-la com segurança</string>
+    <string name="seed_phrase_explainer_lengths_title">12 ou 24 palavras?</string>
 </resources>

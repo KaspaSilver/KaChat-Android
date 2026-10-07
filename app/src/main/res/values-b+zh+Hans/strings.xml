@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">任何拿到这些单词的人都能拿走你账户里的一切。如果你丢了这些单词，又丢了这台设备，没有人能找回你的账户，KaChat 也不行。</string>
     <string name="seed_phrase_explainer_paper">把这些单词按顺序写在纸上，放在安全、私密的地方。永远不要在网站上输入它们，不要在聊天里发送，也不要存在截图或云笔记里。</string>
     <string name="seed_phrase_explainer_lengths">12 个单词已经非常安全。24 个单词能提供更多保护。</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">简单来说</string>
+    <string name="seed_phrase_explainer_anyone_title">拿到它的人可以拿走一切</string>
+    <string name="seed_phrase_explainer_safe_title">如何安全保管</string>
+    <string name="seed_phrase_explainer_lengths_title">12 个还是 24 个单词?</string>
 </resources>

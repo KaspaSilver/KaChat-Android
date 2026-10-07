@@ -968,4 +968,9 @@
     <string name="seed_phrase_explainer_anyone">Siapa pun yang memiliki kata-kata ini dapat mengambil semua isi akun Anda. Jika Anda kehilangannya dan juga kehilangan perangkat ini, tidak ada yang bisa mengembalikan akun Anda, bahkan KaChat.</string>
     <string name="seed_phrase_explainer_paper">Tulis kata-katanya di kertas secara berurutan dan simpan di tempat yang aman dan pribadi. Jangan pernah mengetiknya di situs web, mengirimnya lewat chat, atau menyimpannya di tangkapan layar atau catatan cloud.</string>
     <string name="seed_phrase_explainer_lengths">12 kata sudah sangat aman. 24 kata menambah perlindungan lebih lagi.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">Singkatnya</string>
+    <string name="seed_phrase_explainer_anyone_title">Siapa pun yang memilikinya bisa mengambil semuanya</string>
+    <string name="seed_phrase_explainer_safe_title">Cara menyimpannya dengan aman</string>
+    <string name="seed_phrase_explainer_lengths_title">12 atau 24 kata?</string>
 </resources>

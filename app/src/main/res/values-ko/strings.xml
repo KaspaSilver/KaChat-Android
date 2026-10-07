@@ -1101,4 +1101,9 @@
     <string name="seed_phrase_explainer_anyone">이 단어를 가진 사람은 누구나 계정의 모든 것을 가져갈 수 있습니다. 단어를 잃어버리고 이 기기도 잃어버리면 아무도 계정을 되찾을 수 없습니다. KaChat도 마찬가지입니다.</string>
     <string name="seed_phrase_explainer_paper">단어를 순서대로 종이에 적어 안전하고 남이 볼 수 없는 곳에 보관하세요. 웹사이트에 입력하거나, 채팅으로 보내거나, 스크린샷이나 클라우드 메모에 저장하지 마세요.</string>
     <string name="seed_phrase_explainer_lengths">12개 단어도 이미 매우 안전합니다. 24개 단어는 더 강한 보호를 더해 줍니다.</string>
+    <!-- Onboarding: the seed phrase explainer page's headings (iOS 712bb4d) -->
+    <string name="seed_phrase_explainer_short_version">간단히 말하면</string>
+    <string name="seed_phrase_explainer_anyone_title">가진 사람은 모든 것을 가져갈 수 있습니다</string>
+    <string name="seed_phrase_explainer_safe_title">안전하게 보관하는 방법</string>
+    <string name="seed_phrase_explainer_lengths_title">12개 또는 24개 단어?</string>
 </resources>
