@@ -1894,70 +1894,75 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
     val tooSoon = chosenMs < earliest
     val tooFar = chosenMs > latest
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = colors.surface,
-            modifier = Modifier.fillMaxWidth(0.94f).heightIn(max = 640.dp),
-        ) {
+    // A full-height sheet with the grabber, as iOS presents it (.large, drag indicator visible):
+    // swiping it down is how it is left - iOS has no Cancel here.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background,
+        dragHandle = null,
+    ) {
+        Box(Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("Schedule post", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(Modifier.height(6.dp))
                 Text(
-                    "Signed now, posted then - by the indexer, or by this phone if the indexer cannot be reached.",
+                    stringResource(R.string.kaposts_schedule_post),
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                    modifier = Modifier.padding(top = 20.dp),
+                )
+                Text(
+                    stringResource(R.string.kaposts_schedule_post_note),
                     color = colors.textSecondary,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp),
                 )
-                Spacer(Modifier.height(8.dp))
-                DatePicker(
-                    state = dateState,
-                    title = null,
-                    headline = null,
-                    showModeToggle = false,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Time",
-                    color = colors.textSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.Start),
-                )
-                Spacer(Modifier.height(8.dp))
-                // The compact clock input rather than the dial: it sits under the calendar
-                // without a second step, which is the whole point of one sheet.
-                TimeInput(state = timeState)
-                if (tooSoon || tooFar) {
-                    Text(
-                        if (tooSoon) "Pick a time at least five minutes from now." else "A post can be scheduled up to thirty days ahead.",
-                        color = colors.danger,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
+                Column(Modifier.padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    DatePicker(
+                        state = dateState,
+                        title = null,
+                        headline = null,
+                        showModeToggle = false,
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
+                    // iOS's graphical picker carries the time under the month; Material's calendar
+                    // has no time, so the compact clock input sits under it - one sheet still.
+                    TimeInput(state = timeState)
+                    // iOS's picker cannot leave its five-minutes-to-thirty-days range at all;
+                    // Material's time input can, so this says when it has.
+                    if (tooSoon || tooFar) {
+                        Text(
+                            if (tooSoon) "Pick a time at least five minutes from now." else "A post can be scheduled up to thirty days ahead.",
+                            color = colors.danger,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
                 Text(
                     "Schedule for ${formatScheduledTime(chosenMs)}",
                     color = if (tooSoon || tooFar) colors.textSecondary else Color.Black,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
+                        .padding(horizontal = 24.dp)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(if (tooSoon || tooFar) colors.surfaceVariant else KaspaTeal)
                         .clickable(enabled = !tooSoon && !tooFar) { onPicked(chosenMs) }
-                        .padding(vertical = 13.dp),
+                        .padding(vertical = 12.dp),
                 )
-                Spacer(Modifier.height(4.dp))
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = colors.textSecondary) }
+                Spacer(Modifier.height(24.dp))
             }
+            com.kachat.app.ui.screens.IosSheetGrabber(Modifier.align(Alignment.TopCenter))
         }
     }
 }

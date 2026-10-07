@@ -1259,4 +1259,7 @@
     <!-- KaPosts (iOS KaPostsView) -->
     <string name="kaposts_delete_post_subtitle">Removes this post everywhere. You have five seconds to undo.</string>
     <string name="kaposts_tip_didnt_send">Tip didn\'t send: %1$s</string>
+    <!-- KaPosts schedule sheet (iOS KaPostComposer) -->
+    <string name="kaposts_schedule_post">Schedule post</string>
+    <string name="kaposts_schedule_post_note">Signed now, posted then - by the indexer, or by this phone if the indexer can\'t be reached.</string>
 </resources>
