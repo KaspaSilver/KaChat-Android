@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.layout.statusBars
 
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -1918,6 +1919,7 @@ private fun KaPostSchedulePicker(initialMs: Long, onDismiss: () -> Unit, onPicke
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -4973,68 +4975,71 @@ private fun KaPostNotificationActionsSheet(
     onOpenExplorer: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val colors = LocalAppColors.current
-    // Back closes the sheet, not the list behind it - the innermost handler wins, so the
-    // overlay's own back is left alone while this is up.
-    BackHandler(enabled = true) { onDismiss() }
-    Box(modifier = Modifier.fillMaxSize()) {
-        // The scrim. Tapping it, like tapping outside a sheet anywhere else, puts it away.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() },
-                    onClick = onDismiss,
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .clip(com.kachat.app.ui.theme.IosSheetShape)
-                .background(colors.background)
-                // Swallows taps so they cannot fall through to the scrim behind it.
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() },
-                    onClick = {},
-                ),
-        ) {
-            Column(
+    // A sheet of plain content: iOS's white sheet in light mode, the raised grey in dark.
+    com.kachat.app.ui.theme.IosSheetColors {
+        val colors = LocalAppColors.current
+        // Back closes the sheet, not the list behind it - the innermost handler wins, so the
+        // overlay's own back is left alone while this is up.
+        BackHandler(enabled = true) { onDismiss() }
+        Box(modifier = Modifier.fillMaxSize()) {
+            // The scrim. Tapping it, like tapping outside a sheet anywhere else, puts it away.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = onDismiss,
+                    ),
+            )
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 12.dp, bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .align(Alignment.BottomCenter)
+                    .clip(com.kachat.app.ui.theme.IosSheetShape)
+                    .background(colors.background)
+                    // Swallows taps so they cannot fall through to the scrim behind it.
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = {},
+                    ),
             ) {
-                // The drag handle a sheet is recognised by, even though this one is dismissed by
-                // tapping away rather than dragged.
-                Box(
+                Column(
                     modifier = Modifier
-                        .padding(bottom = 4.dp)
-                        .width(32.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(colors.textSecondary.copy(alpha = 0.4f)),
-                )
-                Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                if (canOpenInApp) {
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 12.dp, bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // The drag handle a sheet is recognised by, even though this one is dismissed by
+                    // tapping away rather than dragged.
+                    Box(
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .width(32.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(colors.textSecondary.copy(alpha = 0.4f)),
+                    )
+                    Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    if (canOpenInApp) {
+                        ActionSheetRow(
+                            icon = Icons.AutoMirrored.Filled.Chat,
+                            title = "Open in KaPosts",
+                            subtitle = "Goes to the post this is about, in the app.",
+                            onClick = onOpenInApp,
+                        )
+                    }
                     ActionSheetRow(
-                        icon = Icons.AutoMirrored.Filled.Chat,
-                        title = "Open in KaPosts",
-                        subtitle = "Goes to the post this is about, in the app.",
-                        onClick = onOpenInApp,
+                        icon = Icons.Default.Public,
+                        title = stringResource(R.string.view_in_explorer),
+                        subtitle = "Opens the transaction on your chosen block explorer.",
+                        onClick = onOpenExplorer,
                     )
                 }
-                ActionSheetRow(
-                    icon = Icons.Default.Public,
-                    title = stringResource(R.string.view_in_explorer),
-                    subtitle = "Opens the transaction on your chosen block explorer.",
-                    onClick = onOpenExplorer,
-                )
             }
         }
     }
@@ -6739,9 +6744,12 @@ fun KaPostsToastOverlay(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
+                        // iOS's toastCapsule: .regularMaterial, a white hairline at 18%, and a shadow
+                        // (black at 15%, radius 10, 4 down).
+                        .iosShadow(24.dp, Color.Black.copy(alpha = 0.15f), 10.dp, 4.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .background(colors.surface)
-                        .border(1.dp, colors.surfaceVariant, RoundedCornerShape(24.dp))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     Text("${toast.label} in ${seconds}s", color = colors.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -6767,9 +6775,12 @@ fun KaPostsToastOverlay(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
+                        // iOS's toastCapsule: .regularMaterial, a white hairline at 18%, and a shadow
+                        // (black at 15%, radius 10, 4 down).
+                        .iosShadow(24.dp, Color.Black.copy(alpha = 0.15f), 10.dp, 4.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .background(colors.surface)
-                        .border(1.dp, colors.surfaceVariant, RoundedCornerShape(24.dp))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     Icon(
@@ -6953,6 +6964,7 @@ private fun ExpandableBioText(bio: String) {
             val colors = LocalAppColors.current
             ModalBottomSheet(
                 shape = com.kachat.app.ui.theme.IosSheetShape,
+                tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = { showFullBio = false },
                 containerColor = colors.background,

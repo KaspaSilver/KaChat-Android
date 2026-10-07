@@ -1160,6 +1160,7 @@ private fun SwapPortfolioPickerSheet(
         val colors = LocalAppColors.current
         androidx.compose.material3.ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,

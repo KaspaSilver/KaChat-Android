@@ -143,9 +143,10 @@ fun GlobalNotificationSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         // A plain list: the sheet's own background (white in light mode, the raised sheet grey in dark).
-        val background = if (colors.isDark) colors.background else colors.surface
+        val background = colors.background
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,

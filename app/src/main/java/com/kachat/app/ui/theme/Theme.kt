@@ -148,8 +148,8 @@ val DarkAppColors = AppColors(
 /**
  * What a screen inside an iOS sheet is drawn with in dark mode: the sheet itself is the elevated
  * grouped background (#1C1C1E) and its cards the elevated secondary (#2C2C2E) - Settings is a
- * sheet on iOS, so its whole stack reads one step lighter than a tab. Light mode is unchanged
- * (grouped #F2F2F7 behind white cards either way).
+ * sheet on iOS, so its whole stack reads one step lighter than a tab. Light mode's sheets are
+ * [LightPlainSheetAppColors] or, for a List or Form, the grouped #F2F2F7 behind white rows.
  */
 val DarkSheetAppColors = DarkAppColors.copy(
     background     = Color(0xFF1C1C1E),
@@ -164,11 +164,38 @@ val DarkSheetAppColors = DarkAppColors.copy(
  */
 val IosSheetShape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
 
-/** Draws [content] with the iOS sheet palette (see [DarkSheetAppColors]). */
+/**
+ * The tonal elevation every sheet passes to ModalBottomSheet. Material tints a sheet whose colour
+ * is the scheme's surface by its elevation, and with this app's transparent surfaceTint that tint
+ * is 5% black: light mode's white sheet ([LightPlainSheetAppColors]) would read #F2F2F2. iOS's is
+ * white, so light mode takes none. Dark mode keeps Material's default, as it has rendered so far.
+ */
+val IosSheetTonalElevation: androidx.compose.ui.unit.Dp
+    @Composable get() = if (LocalAppColors.current.isDark) 1.dp else 0.dp // 1 = BottomSheetDefaults.Elevation
+
+/**
+ * iOS's `.regularMaterial` as it reads on a white sheet in light mode: a faint neutral grey. iOS
+ * blurs whatever lies beneath the card; older Android cannot blur the content under a view, so
+ * this solid colour stands in for it. Its shape comes from the hairline and shadow that go with
+ * it ([iosGlass]).
+ */
+val IosRegularMaterialLight = Color(0xFFF4F4F4)
+
+/**
+ * Draws [content] with the iOS sheet palette. Dark mode: the raised sheet colours
+ * ([DarkSheetAppColors]) either way. Light mode: a sheet of plain content is white with
+ * material-coloured cards ([LightPlainSheetAppColors]); a [grouped] one - iOS's List or Form in a
+ * sheet - keeps the grouped background (#F2F2F7) behind white rows.
+ */
 @Composable
-fun IosSheetColors(content: @Composable () -> Unit) {
+fun IosSheetColors(grouped: Boolean = false, content: @Composable () -> Unit) {
     val current = LocalAppColors.current
-    CompositionLocalProvider(LocalAppColors provides if (current.isDark) DarkSheetAppColors else current, content = content)
+    val colors = when {
+        current.isDark -> DarkSheetAppColors
+        grouped -> current
+        else -> LightPlainSheetAppColors
+    }
+    CompositionLocalProvider(LocalAppColors provides colors, content = content)
 }
 
 // The same iOS system colours, light appearance.
@@ -188,6 +215,16 @@ val LightAppColors = AppColors(
     outgoingBubble = Color(0xFF70C7BA),
     onOutgoingBubble = Color.White,
     incomingBubble = Color(0xFFE5E5EA)
+)
+
+/**
+ * Light mode inside a sheet whose content is plain views (a VStack or ScrollView, not a List or
+ * Form): iOS draws such a sheet on `systemBackground` - white - and its frosted cards and tiles
+ * (`.regularMaterial`) a shade under it ([IosRegularMaterialLight]), each with a soft shadow.
+ */
+val LightPlainSheetAppColors = LightAppColors.copy(
+    background = Color.White,
+    surface = IosRegularMaterialLight,
 )
 
 val LocalAppColors = staticCompositionLocalOf { DarkAppColors }

@@ -1,6 +1,7 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.layout.statusBars
+import com.kachat.app.ui.theme.iosGlass
 
 import androidx.compose.foundation.layout.navigationBarsPadding
 
@@ -213,6 +214,7 @@ fun TileActionSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,
@@ -364,12 +366,16 @@ fun ActionSheetContainer(
     onDismiss: () -> Unit,
     /** Extra line under the subtitle - the txid on the transaction menu, for instance. */
     detail: String? = null,
+    /** What iOS shows as a grouped List (the reactions sheet): the grouped light palette - see
+     *  [com.kachat.app.ui.theme.IosSheetColors]. */
+    grouped: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ActionSheetContainer(
         title = title,
         subtitle = subtitle,
         onDismiss = onDismiss,
+        grouped = grouped,
         // Opens EXPANDED, not half-height. Partial expansion caps the opening height at about
         // half the screen, so a sheet with more than a few options opened already cut off - the
         // 1:1 composer's + menu hid Send Handshake below the fold, and an option you cannot see
@@ -394,13 +400,15 @@ fun ActionSheetContainer(
     onDismiss: () -> Unit,
     sheetState: SheetState,
     detail: String? = null,
+    grouped: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalAppColors.current
-    com.kachat.app.ui.theme.IosSheetColors {
+    com.kachat.app.ui.theme.IosSheetColors(grouped = grouped) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,
@@ -521,7 +529,7 @@ private fun ActionSheetRowFrame(
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(if (enabled) 1f else 0.45f)
-                .sendKaspaGlass(18.dp)
+                .iosGlass(18.dp)
                 .clickable(enabled = enabled) { onClick() }
                 .semantics { contentDescription = "$title. $subtitle" }
                 .padding(8.dp),
@@ -543,20 +551,22 @@ private fun ActionSheetRowFrame(
         }
         return
     }
+    // iOS's row: the glyph centred in 28, 12 to the words - the title in .subheadline semibold
+    // (taking the tint unless it is the accent), the line under it in .caption, 2 apart - on the
+    // frosted card (glassBackground, 16 corners, its shadow).
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.5f)
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.surface)
+            .iosGlass(16.dp)
             .clickable(enabled = enabled) { onClick() }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon(22.dp)
+        Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) { icon(22.dp) }
         Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = tileTitleColor ?: colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Text(subtitle, color = colors.textSecondary, fontSize = 12.sp)
         }
     }
@@ -831,6 +841,8 @@ fun ChatReactionsSheet(
         title = "Reactions",
         subtitle = if (reactions.size == 1) "1 reaction" else "${reactions.size} reactions",
         onDismiss = onDismiss,
+        // iOS's ReactionsSheet is a grouped List: white sections on the grouped grey.
+        grouped = true,
     ) {
         grouped.forEach { (emoji, rows) ->
             Column(
@@ -1047,6 +1059,7 @@ fun SentConfirmationSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDone,
             // Expanded, not half-height: partial expansion cuts the Done button off.
@@ -1094,8 +1107,7 @@ fun SentConfirmationSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(colors.surface)
+                            .iosGlass(14.dp)
                             .let { base ->
                                 if (explorerUrl != null) base.clickable { uriHandler.openUri(explorerUrl) } else base
                             }

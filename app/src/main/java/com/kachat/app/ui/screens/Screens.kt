@@ -7385,6 +7385,7 @@ private fun IdentityAddressActionsSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             // Expanded, not half-height: a partially-expanded sheet cuts the last row off.
@@ -7951,6 +7952,7 @@ private fun ManageAddressActionsSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
@@ -11744,9 +11746,10 @@ fun ReceiveKaspaQrPage(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -> Unit) {
-    com.kachat.app.ui.theme.IosSheetColors {
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -14495,6 +14498,7 @@ private fun ManageAddressesActionsSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // Freely dismissable mid-scan now, by the swipe as well as by the button above: the scan
             // belongs to the ViewModel rather than to the sheet, so closing it abandons nothing - the
@@ -14667,6 +14671,7 @@ private fun DomainTransferProgressSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // Held open for the duration: the work keeps running either way, and a dismissed sheet
             // would leave an on-chain transfer with nothing reporting on it.

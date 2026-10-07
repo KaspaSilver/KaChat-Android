@@ -62,6 +62,9 @@ import kotlinx.coroutines.launch
 fun IosFullSheet(
     onDismissed: () -> Unit,
     swipeToDismiss: Boolean,
+    /** iOS's List or Form as the sheet's content (coin control): the grouped light palette
+     *  rather than the white plain-content one - see [com.kachat.app.ui.theme.IosSheetColors]. */
+    grouped: Boolean = false,
     content: @Composable (close: () -> Unit) -> Unit,
 ) {
     val latestSwipe by rememberUpdatedState(swipeToDismiss)
@@ -72,9 +75,10 @@ fun IosFullSheet(
     val close: () -> Unit = remember(sheetState) {
         { scope.launch { sheetState.hide() }.invokeOnCompletion { latestDismissed() } }
     }
-    com.kachat.app.ui.theme.IosSheetColors {
+    com.kachat.app.ui.theme.IosSheetColors(grouped = grouped) {
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = { latestDismissed() },
             sheetState = sheetState,

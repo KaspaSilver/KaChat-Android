@@ -133,9 +133,9 @@ fun AddToPortfolioSheet(
     val price = priceText.replace(',', '.').toDoubleOrNull()
     val total = if (amount != null && price != null) amount * price else null
 
-    com.kachat.app.ui.theme.IosSheetColors {
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
-        ModalBottomSheet(shape = com.kachat.app.ui.theme.IosSheetShape, windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.background) {
+        ModalBottomSheet(shape = com.kachat.app.ui.theme.IosSheetShape, tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation, windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.background) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {

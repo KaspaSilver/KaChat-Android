@@ -626,10 +626,11 @@ fun SpendingSourcePicker(
         all.filter { !it.hidden || it.balanceSompi > 0 || it.index == currentIndex }
             .sortedWith(compareBy({ if (it.balanceSompi > 0) 0 else 1 }, { it.index }))
     }
-    com.kachat.app.ui.theme.IosSheetColors {
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(),

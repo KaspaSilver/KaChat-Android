@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.iosShadow
 import android.content.Context
 import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
@@ -551,9 +552,13 @@ class KachatSocialViewModel @Inject constructor(
 
 // MARK: - Small building blocks
 
-/** The app's glass card (iOS `kachatGlass`): the grouped surface, rounded. */
+/** The app's glass card (iOS `kachatGlass`): the material surface, rounded, a 0.8 white hairline
+ *  at 18% and a soft shadow (black at 10%, radius 8, 4 down). */
 private fun Modifier.kachatGlass(colors: com.kachat.app.ui.theme.AppColors, radius: Int = 16): Modifier =
-    this.clip(RoundedCornerShape(radius.dp)).background(colors.surface)
+    this.iosShadow(radius.dp, Color.Black.copy(alpha = 0.10f), 8.dp, 4.dp)
+        .clip(RoundedCornerShape(radius.dp))
+        .background(colors.surface)
+        .border(0.8.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(radius.dp))
 
 @Composable
 fun KachatTestnetBadge() {
@@ -1067,6 +1072,7 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -1192,6 +1198,7 @@ fun KachatRegistrationPresenter() {
         com.kachat.app.ui.theme.IosSheetColors {
             ModalBottomSheet(
                 shape = com.kachat.app.ui.theme.IosSheetShape,
+                tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = {},
                 sheetState = rememberModalBottomSheetState(confirmValueChange = { it != SheetValue.Hidden }),
@@ -1906,10 +1913,11 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         }
     }
 
-    com.kachat.app.ui.theme.IosSheetColors {
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // A swipe, a tap outside or Back closes the form; the progress stays put (Back on it
             // brings it straight back up).
@@ -2521,7 +2529,7 @@ fun KachatOwnAgainSheet(name: String, choose: (Boolean) -> Unit) {
     }
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
-        ModalBottomSheet(shape = com.kachat.app.ui.theme.IosSheetShape, windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
+        ModalBottomSheet(shape = com.kachat.app.ui.theme.IosSheetShape, tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation, windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars, onDismissRequest = { choose(false) }, sheetState = sheetState, containerColor = colors.background) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {

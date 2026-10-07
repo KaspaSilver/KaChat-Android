@@ -392,6 +392,7 @@ fun ColdStorageListScreen(
             val colors = LocalAppColors.current
             ModalBottomSheet(
                 shape = com.kachat.app.ui.theme.IosSheetShape,
+                tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
                 onDismissRequest = { pendingKpub = null; viewModel.resetImportState() },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -1698,7 +1699,7 @@ fun CoinControlSheet(
     onDismiss: () -> Unit,
     maxSelection: Int = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
 ) {
-    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true) { close ->
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true, grouped = true) { close ->
         BackHandler(onBack = close)
         CoinControlScreen(
             fromAddress = fromAddress,
@@ -2406,6 +2407,7 @@ private fun ColdStorageAddressActionsSheet(
         val colors = LocalAppColors.current
         ModalBottomSheet(
             shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             // Dismissing mid-scan would abandon the only progress readout, and the work keeps running
             // either way - so the sheet holds until it is done.
