@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">1 回の取引で名前は購入者に、オファー額はあなたに移ります。元に戻せません。</string>
     <string name="kn_buyer">購入者</string>
     <string name="kn_price_to_miners">価格（マイナーへ）</string>
-    <string name="kn_sent_note">ネットワークが受け入れるとここに表示されます。通常は数秒です。</string>
     <string name="kn_years">年数</string>
     <string name="kn_bond_returned">保証金（解放時に返却）</string>
     <string name="kn_deposit_returned">レジストリ預託金（解放時に返却）</string>
     <string name="kn_commit_returned">コミット（登録時に返却）</string>
     <string name="kn_network_fees">ネットワーク手数料</string>
-    <string name="kn_cost">費用</string>
     <string name="kn_not_enough">この名前にはチャットアドレスの KAS が足りません。</string>
     <string name="kn_claim_footer">価格はマイナーに渡り、KaChat は何も受け取りません。保証金と預託金は名前を解放すると戻ります。</string>
     <string name="kn_claim_step1">まず非公開のコミットがチェーンに送られます。どの名前のものかは誰にもわかりません。</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">チャットアドレスの残高</string>
     <string name="kn_balance_after">送信後の残高</string>
-    <string name="kn_balance_change">残高の変化</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">トランザクションを送信しました</string>
     <string name="kn_view_transaction">トランザクションを表示</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">インポート完了：追加 %1$d 件、更新 %2$d 件。</string>
     <string name="ab_err_not_an_export">そのファイルは KaChat アドレス帳のエクスポートではありません。</string>
     <string name="ab_err_export_empty">そのエクスポートにはアドレスがありません。</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">ネットワークが混雑しています</string>
+    <string name="kn_busy_body">通常では時間がかかる場合があります。高速または優先は少し多く払い、早くブロックに入ります。</string>
+    <string name="kn_balance_after_value">送信後の残高: %1$s</string>
+    <string name="kn_balance_change_value">残高の変化: %1$s</string>
+    <string name="kn_available_value">利用可能: %1$s</string>
+    <string name="kn_claim_fee_note">取得では2つのトランザクションを送ります。今コミット、約1分後に登録。どちらもこの速度です。</string>
+    <string name="kn_step_sent">ネットワークに送信</string>
+    <string name="kn_step_in_block">ブロックに入りました</string>
+    <string name="kn_step_updated">KaChat に反映</string>
+    <string name="kn_tx_stage_waiting">ネットワークがブロックに入れるのを待っています。通常は数秒、混雑時はもっとかかります。</string>
+    <string name="kn_tx_stage_in_block">ブロックに入りました。KaChat を更新中...</string>
+    <string name="kn_tx_stage_done">完了。KaChat に表示されています。</string>
+    <string name="kn_tx_stage_dropped">まだネットワークに取り込まれていません。届かなければ何も使われません。より速い手数料でもう一度お試しください。</string>
+    <string name="kn_tap_tx_explorer">トランザクションをタップするとエクスプローラーで開きます。</string>
 </resources>

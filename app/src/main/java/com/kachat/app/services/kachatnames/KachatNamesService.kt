@@ -301,6 +301,11 @@ class KachatNamesService @Inject constructor(
         false
     }
 
+    /** The node's fee estimate: (priority, first normal bucket). Throws when no node answers
+     *  ([NodePoolManager.feeEstimate], iOS e426432 `NodePoolService.feeEstimate`). */
+    suspend fun nodeFeeEstimate(): Pair<NodePoolManager.NodeFeeBucket, NodePoolManager.NodeFeeBucket> =
+        withContext(Dispatchers.IO) { nodePoolManager.feeEstimate() }
+
     /**
      * The live UTXO at [outpoint] holding [script] (a gap, name, offer or commit), read from a node
      * with its covenant id. A registry record from the indexer is trusted only once this confirms

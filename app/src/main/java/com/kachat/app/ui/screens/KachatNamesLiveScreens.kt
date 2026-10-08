@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -728,9 +729,9 @@ private fun KachatButton(
 
 /** iOS's segmented Picker (the same control the offer mockup draws). */
 @Composable
-private fun KachatSegmented(titles: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+private fun KachatSegmented(titles: List<String>, selected: Int, inset: Boolean = true, onSelect: (Int) -> Unit) {
     val colors = LocalAppColors.current
-    Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceVariant).padding(2.dp)) {
+    Row(Modifier.fillMaxWidth().padding(if (inset) 8.dp else 0.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceVariant).padding(2.dp)) {
         titles.forEachIndexed { index, title ->
             Box(
                 Modifier.weight(1f).clip(RoundedCornerShape(7.dp))
@@ -932,19 +933,28 @@ private fun KachatSheetStep(
     }
 }
 
-/** An amount field with the unit after it (offer, list price). */
+/** An amount field with the unit after it (offer, list price), for a [KachatInputCard]. */
 @Composable
 private fun AmountField(value: String, onValueChange: (String) -> Unit) {
     val colors = LocalAppColors.current
-    Row(Modifier.fillMaxWidth().padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        FormTextField(
+    // In a Send-style card (iOS e426432): the title2 field, no row insets.
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.text.BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = "0",
-            keyboardType = KeyboardType.Decimal,
-            textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.weight(1f)
+            singleLine = true,
+            textStyle = TextStyle(color = colors.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.weight(1f),
+            decorationBox = { inner ->
+                Box {
+                    if (value.isEmpty()) Text("0", color = colors.textTertiary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    inner()
+                }
+            },
         )
+        Spacer(Modifier.width(8.dp))
         Text(KaspaUnit.symbol, color = colors.textSecondary)
     }
 }
@@ -1126,25 +1136,31 @@ private fun SearchChecking(name: String) {
 // MARK: - A finished transaction
 
 /** A name transaction that went out: what it did and its id, for [KachatTxDoneSheet] (iOS
- *  `KachatTxDone`, 0870fcc). */
-data class KachatTxDone(val txId: String, @StringRes val title: Int = R.string.kn_done_tx_sent)
+ *  `KachatTxDone`, 0870fcc). [accepted]: already known to be in a block (a registration the
+ *  driver saw land) - no progress to follow (iOS e426432). */
+data class KachatTxDone(val txId: String, @StringRes val title: Int = R.string.kn_done_tx_sent, val accepted: Boolean = false)
 
 /**
- * The half sheet every finished name transaction shows: what happened, the transaction id (tap to
- * copy), and a link to it on the block explorer - the one picked in Settings, which on testnet is
- * the testnet-10 explorer ([com.kachat.app.models.KaspaExplorer.txUrl]). It opens in the in-app
- * browser, over the sheet, as iOS's full-screen cover does (iOS `KachatTxDoneSheet`, 0870fcc).
+ * The receipt every name transaction ends on, in the Send receipt's style (iOS e426432
+ * `KachatTxDoneSheet`): what it does, its progress followed on a node - sent, in a block, showing
+ * in KaChat ([KachatNamesActions.txStages]) - and the transaction id as a link to the block
+ * explorer picked in Settings (the testnet-10 one on testnet), opened in the in-app browser over
+ * the sheet. Closing it early is fine: the change still lands.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
-    val colors = LocalAppColors.current
-    val view = LocalView.current
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val explorer by vm.settings.kaspaExplorer.collectAsState(initial = com.kachat.app.models.KaspaExplorer.default)
     val explorerUrl = explorer.txUrl(done.txId)
-    var copied by remember(done.txId) { mutableStateOf(false) }
+    val stages by vm.actions.txStages.collectAsState()
+    val stage = stages[done.txId] ?: if (done.accepted) KachatNamesActions.TxStage.SHOWN else KachatNamesActions.TxStage.SENT
+    val inBlock = stage == KachatNamesActions.TxStage.ACCEPTED || stage == KachatNamesActions.TxStage.SHOWN
     var browserUrl by remember { mutableStateOf<String?>(null) }
+
+    // a transaction this sheet wasn't handed by `perform` (a profile save): follow it here
+    LaunchedEffect(done.txId) {
+        if (vm.actions.txStages.value[done.txId] == null && !done.accepted) vm.actions.follow(done.txId, null)
+    }
 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
@@ -1155,47 +1171,77 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = colors.background,
+            dragHandle = { KachatSheetGrabber() },
         ) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
-            Column(Modifier.navigationBarsPadding()) {
+            Column(
+                Modifier.navigationBarsPadding().fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.padding(top = 18.dp).height(52.dp), contentAlignment = Alignment.Center) {
+                    when (stage) {
+                        KachatNamesActions.TxStage.SHOWN ->
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(52.dp))
+                        KachatNamesActions.TxStage.DROPPED ->
+                            Icon(Icons.Default.Error, contentDescription = null, tint = colors.warning, modifier = Modifier.size(52.dp))
+                        else -> IosActivityIndicator(color = colors.textSecondary, modifier = Modifier.size(36.dp))
+                    }
+                }
+                Text(
+                    stringResource(done.title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                    textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp)
+                )
+                Text(
+                    stringResource(
+                        when (stage) {
+                            KachatNamesActions.TxStage.SENT, KachatNamesActions.TxStage.IN_MEMPOOL -> R.string.kn_tx_stage_waiting
+                            KachatNamesActions.TxStage.ACCEPTED -> R.string.kn_tx_stage_in_block
+                            KachatNamesActions.TxStage.SHOWN -> R.string.kn_tx_stage_done
+                            KachatNamesActions.TxStage.DROPPED -> R.string.kn_tx_stage_dropped
+                        }
+                    ),
+                    color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 4.dp, start = 28.dp, end = 28.dp)
+                )
+
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(16.dp).padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.padding(top = 8.dp).size(48.dp))
-                    Text(stringResource(done.title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = TextAlign.Center)
-                    Text(stringResource(R.string.kn_sent_note), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
-                    Row(
-                        Modifier.clip(RoundedCornerShape(50)).background(colors.surface)
-                            .clickable {
-                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(done.txId))
-                                copied = true
-                                view.successHaptic()
-                            }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // iOS truncates in the middle: the start and the end of a txid are what people compare.
-                        val id = done.txId
-                        Text(
-                            if (id.length > 28) "${id.take(13)}...${id.takeLast(13)}" else id,
-                            color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
-                    }
-                    KachatButton(
-                        stringResource(R.string.view_in_explorer),
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Outlined.Explore,
-                        prominent = true,
-                        large = true
-                    ) { browserUrl = explorerUrl }
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    }
+                    KachatTxStep(stringResource(R.string.kn_step_sent), done = true)
+                    KachatTxStep(stringResource(R.string.kn_step_in_block), done = inBlock, active = !inBlock && stage != KachatNamesActions.TxStage.DROPPED)
+                    KachatTxStep(stringResource(R.string.kn_step_updated), done = stage == KachatNamesActions.TxStage.SHOWN, active = stage == KachatNamesActions.TxStage.ACCEPTED)
+                }
+
+                Row(
+                    Modifier.padding(top = 12.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(14.dp)
+                        .clickable(enabled = explorerUrl != null) { browserUrl = explorerUrl }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // iOS truncates in the middle: the start and the end of a txid are what people compare.
+                    val id = done.txId
+                    Text(
+                        if (id.length > 36) "${id.take(17)}...${id.takeLast(17)}" else id,
+                        color = KaspaTeal, fontSize = 13.sp, fontFamily = FontFamily.Monospace, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(15.dp))
+                }
+                Text(
+                    stringResource(R.string.kn_tap_tx_explorer), color = colors.textSecondary, fontSize = 12.sp,
+                    textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp, start = 20.dp, end = 20.dp)
+                )
+
+                Box(
+                    Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().clip(CircleShape).background(KaspaTeal)
+                        .clickable(onClick = onDismiss).padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 }
             }
         }
@@ -1208,6 +1254,24 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
         ) {
             InAppBrowserScreen(url = url, title = runCatching { java.net.URI(url).host }.getOrNull() ?: "", onClose = { browserUrl = null })
         }
+    }
+}
+
+/** One step of the receipt: a green check when done, a spinner while it's the one in progress,
+ *  else an empty circle (iOS e426432 `step`). */
+@Composable
+private fun KachatTxStep(title: String, done: Boolean, active: Boolean = false) {
+    val colors = LocalAppColors.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+            when {
+                done -> Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(20.dp))
+                active -> IosActivityIndicator(color = colors.textSecondary, modifier = Modifier.size(16.dp))
+                else -> Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(title, color = if (done || active) colors.textPrimary else colors.textSecondary, fontSize = 15.sp)
     }
 }
 
@@ -1429,8 +1493,8 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
 
     // The finished registration (or cancelled commit) as the half sheet shows it (iOS 0870fcc).
     val finished: KachatTxDone? = when (registration.stage) {
-        PendingRegistration.Stage.REGISTERED -> registration.registerTxId?.let { KachatTxDone(it, R.string.kn_done_registered) }
-        PendingRegistration.Stage.CANCELLED -> registration.cancelTxId?.let { KachatTxDone(it, R.string.kn_done_commit_cancelled) }
+        PendingRegistration.Stage.REGISTERED -> registration.registerTxId?.let { KachatTxDone(it, R.string.kn_done_registered, accepted = true) }
+        PendingRegistration.Stage.CANCELLED -> registration.cancelTxId?.let { KachatTxDone(it, R.string.kn_done_commit_cancelled, accepted = true) }
         else -> null
     }
     // Pops up the moment the registration lands (or the commit is cancelled) - on a change of
@@ -1911,10 +1975,71 @@ fun KachatOfferActionSheet(action: KachatOfferAction, onClose: () -> Unit) {
 
 class KachatTxRow(val title: String, val value: String)
 
+/** A glass card in the Send screens' style, for one group of a name transaction's details (iOS
+ *  e426432 `KachatCard`). */
+@Composable
+fun KachatCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier.fillMaxWidth().sendKaspaGlass(20.dp).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        content = content
+    )
+}
+
+/** An input in a name transaction's sheet (price, offer, new owner...): a small caption title, the
+ *  field, and an optional note under it - in a Send-style card (iOS e426432 `KachatInputCard`). */
+@Composable
+fun KachatInputCard(
+    title: String? = null,
+    footer: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val colors = LocalAppColors.current
+    KachatCard {
+        if (title != null) Text(title, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        content()
+        if (footer != null) Text(footer, color = colors.textSecondary, fontSize = 12.sp)
+    }
+}
+
+/** A detail row inside a [KachatCard]: title left, value right (iOS `LabeledRow` in a card). */
+@Composable
+private fun KachatCardRow(title: String, value: String, bold: Boolean = false) {
+    val colors = LocalAppColors.current
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = colors.textPrimary, fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            value, color = colors.textPrimary, fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = TextAlign.End, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/** Shown when the network is busy: Normal may wait, a faster fee gets in sooner (iOS e426432
+ *  `KachatBusyNetworkNotice`). */
+@Composable
+fun KachatBusyNetworkNotice() {
+    val colors = LocalAppColors.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.warning.copy(alpha = 0.12f)).padding(14.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(Icons.Default.Warning, contentDescription = null, tint = colors.warning, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(stringResource(R.string.kn_busy_title), color = colors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.kn_busy_body), color = colors.textSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
 /**
- * Every action's sheet: its inputs, what it costs (built against live UTXOs, nothing sent), one
- * Confirm - an extra warning for the destructive ones - then the device lock, then the
- * transaction. Shows the txid when it is sent (iOS `KachatTxSheet`).
+ * Every action's sheet, in the Send screens' style (iOS e426432 `KachatTxSheet`): what it does (a
+ * card), its inputs (cards), the network fee with Normal / Fast / Priority or a custom amount (and a
+ * notice when the network is busy), the cost, and slide to confirm - an extra warning for the
+ * destructive ones - then the device lock, then the transaction. Ends on a receipt that follows it
+ * into a block ([KachatTxDoneSheet]).
  */
 @Composable
 fun KachatTxSheet(
@@ -1948,13 +2073,37 @@ fun KachatTxSheet(
     var txId by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf<KachatTxDone?>(null) }
     var sendError by remember { mutableStateOf<String?>(null) }
+    var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var customFee by remember { mutableStateOf<Long?>(null) }
+    var isEditingFee by remember { mutableStateOf(false) }
+    var customFeeText by remember { mutableStateOf("") }
+    // The person picked a speed: a busy network no longer moves it for them.
+    var feeTouched by remember { mutableStateOf(false) }
     val currentOperation by rememberUpdatedState(operation)
     val chattingBalance by vm.wallet.balance.collectAsState()
     val chattingBalanceKnown by vm.wallet.balanceKnown.collectAsState()
+    val feeEstimate by vm.actions.feeEstimate.collectAsState()
     // bumped to build the plan again (the price moved at send time, iOS 4f5d95e `rebuild()`)
     var rebuilds by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(operationKey, rebuilds) {
+    fun feeChoice(): KachatNamesActions.FeeChoice =
+        customFee?.let { KachatNamesActions.FeeChoice.CustomTotal(it) } ?: KachatNamesActions.FeeChoice.Tier(feeTier)
+
+    fun chooseTier(tier: ColdFeeTier) {
+        if (tier == feeTier) return
+        feeTier = tier
+        // a speed replaces a typed fee
+        feeTouched = true
+        customFee = null
+    }
+
+    // A busy network starts on Fast unless the person already chose.
+    LaunchedEffect(Unit) {
+        val estimate = vm.actions.refreshFeeEstimate()
+        if (estimate != null && estimate.isBusy && !feeTouched && customFee == null) chooseTier(ColdFeeTier.FAST)
+    }
+
+    LaunchedEffect(operationKey, rebuilds, feeTier, customFee) {
         plan = null
         planError = null
         val op = currentOperation
@@ -1962,9 +2111,9 @@ fun KachatTxSheet(
         building = true
         delay(300)
         try {
-            val built = vm.actions.plan(op)
-            // A newer choice (10m -> 20m) replaced this build while it ran: its plan is for the
-            // old choice, and the new build owns the sheet now (iOS 5e707f4).
+            val built = vm.actions.plan(op, feeChoice())
+            // A newer choice replaced this build while it ran: its plan is for the old choice,
+            // and the new build owns the sheet now (iOS 5e707f4).
             ensureActive()
             plan = built
         } catch (e: CancellationException) {
@@ -1980,12 +2129,13 @@ fun KachatTxSheet(
 
     fun send() {
         val op = currentOperation ?: return
+        val fee = feeChoice()
         sending = true
         sendError = null
         vm.launch {
             try {
-                // never pays more than the price shown (iOS 4f5d95e, c8f1086)
-                val id = vm.actions.perform(op, maxPrice = plan?.priceFee)
+                // never pays more than the price shown, at the fee shown (iOS 4f5d95e, e426432)
+                val id = vm.actions.perform(op, maxPrice = plan?.priceFee, fee = fee)
                 txId = id
                 view.successHaptic()
                 onDone(id)
@@ -2004,64 +2154,86 @@ fun KachatTxSheet(
     fun authorize() = context.kachatAuthorize { send() }
 
     val form: @Composable ColumnScope.() -> Unit = {
-        inputs()
-        FormSection(footer = {
-            val pe = planError
-            if (pe != null) FormFooter(pe, colors.danger) else if (footer != null) FormFooter(footer)
-        }) {
-            // (title, value, bold); the value null is the spinner while the plan is built
-            val lines = rows.map { Triple(it.title, it.value as String?, false) }.toMutableList()
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             val p = plan
-            if (p != null) {
-                if (p.priceFee > 0) lines += Triple(stringResource(R.string.kn_price_to_miners), KaspaUnit.amount(p.priceFee), false)
-                lines += Triple(stringResource(R.string.kl_network_fee), KaspaUnit.amount(p.networkFee), false)
-                // Names always spend from, and pay back to, the chatting address: show its real
-                // balance and what it will be once this is sent (iOS 8ecc38c).
-                vm.myKey?.let { me ->
-                    val change = KachatLive.balanceChange(p, me)
-                    if (chattingBalanceKnown) {
-                        lines += Triple(stringResource(R.string.kn_chatting_balance), KaspaUnit.amount(chattingBalance), false)
-                        lines += Triple(stringResource(R.string.kn_balance_after), KaspaUnit.amount(maxOf(0L, chattingBalance + change)), true)
-                    } else {
-                        lines += Triple(stringResource(R.string.kn_balance_change), KaspaUnit.signed(change), true)
+            if (rows.isNotEmpty() || (p?.priceFee ?: 0L) > 0L) {
+                KachatCard {
+                    rows.forEach { KachatCardRow(it.title, it.value) }
+                    if (p != null && p.priceFee > 0) {
+                        if (rows.isNotEmpty()) HorizontalDivider(color = colors.divider)
+                        KachatCardRow(stringResource(R.string.kn_price_to_miners), KaspaUnit.amount(p.priceFee))
                     }
                 }
-            } else if (building) {
-                lines += Triple(stringResource(R.string.kl_network_fee), null, false)
             }
-            lines.forEachIndexed { index, (title, value, bold) ->
-                if (value != null) LabeledRow(title, value, bold) else LoadingRow(title)
-                if (index < lines.lastIndex) SettingsDivider()
+
+            inputs()
+
+            val estimate = feeEstimate
+            if (estimate != null && estimate.isBusy && txId == null) KachatBusyNetworkNotice()
+
+            SendFeeControls(
+                feeTier = feeTier,
+                onFeeTierChange = { chooseTier(it) },
+                isEditingFee = isEditingFee,
+                customFeeText = customFeeText,
+                onCustomFeeTextChange = { customFeeText = KaspaUnit.sanitizeAmountInput(it) },
+                isEstimatingFee = building,
+                feeText = p?.let { KaspaUnit.amount(it.networkFee) },
+                onStartEditing = {
+                    customFeeText = p?.let { KaspaUnit.plain(it.networkFee) } ?: ""
+                    isEditingFee = true
+                },
+                onCommit = {
+                    isEditingFee = false
+                    feeTouched = true
+                    KaspaUnit.sompiFromUserText(customFeeText)?.takeIf { it > 0 }?.let { customFee = it }
+                },
+                showsCoinControl = false,
+            )
+
+            val me = vm.myKey
+            if (p != null && me != null) {
+                // Names always spend from, and pay back to, the chatting address.
+                val change = KachatLive.balanceChange(p, me)
+                Row(Modifier.fillMaxWidth()) {
+                    SendInfoPill {
+                        Text(
+                            if (chattingBalanceKnown) stringResource(R.string.kn_balance_after_value, KaspaUnit.amount(maxOf(0L, chattingBalance + change)))
+                            else stringResource(R.string.kn_balance_change_value, KaspaUnit.signed(change))
+                        )
+                    }
+                }
             }
-        }
-        if (warning != null) {
-            FormSection {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
+
+            if (warning != null) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.danger.copy(alpha = 0.1f)).padding(14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
                     Icon(Icons.Default.Warning, contentDescription = null, tint = colors.danger, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(warning, color = colors.danger)
+                    Spacer(Modifier.width(10.dp))
+                    Text(warning, color = colors.danger, fontSize = 15.sp)
                 }
             }
-        }
-        FormSection(footer = { sendError?.let { FormFooter(it, colors.danger) } }) {
-            val sent = txId
-            if (sent != null) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.sent), color = colors.success)
-                    }
-                    SelectionContainer {
-                        Text(sent, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                    }
-                    Text(stringResource(R.string.kn_sent_note), color = colors.textSecondary, fontSize = 12.sp)
-                }
-            } else {
-                FormButtonRow(confirmTitle, enabled = plan != null && !sending, busy = sending, destructive = warning != null) {
-                    if (warning != null) confirmWarning = true else authorize()
+
+            val pe = planError
+            if (pe != null) {
+                Text(pe, color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+            } else if (footer != null) {
+                Text(footer, color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+            }
+
+            if (txId == null) {
+                Box(Modifier.padding(top = 4.dp)) {
+                    SendActionButton(
+                        title = confirmTitle,
+                        isBusy = sending,
+                        isEnabled = plan != null && !building,
+                        onSend = { if (warning != null) confirmWarning = true else authorize() },
+                    )
                 }
             }
+            sendError?.let { Text(it, color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth()) }
         }
     }
     if (onBack != null) {
@@ -2116,6 +2288,10 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     var quoteError by remember { mutableStateOf<String?>(null) }
     var starting by remember { mutableStateOf(false) }
     var startError by remember { mutableStateOf<String?>(null) }
+    // The fee speed for the commit and the register (iOS e426432).
+    var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var feeTouched by remember { mutableStateOf(false) }
+    val feeEstimate by vm.actions.feeEstimate.collectAsState()
     // Once the registration started, this sheet shows its progress (iOS `progressId`).
     var progressId by remember { mutableStateOf<String?>(null) }
     val maxYears = manifest?.params?.maxYears ?: 2L
@@ -2146,11 +2322,17 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         }
     }
 
-    LaunchedEffect(years) {
+    // A busy network starts on Fast unless the person already chose.
+    LaunchedEffect(Unit) {
+        val estimate = vm.actions.refreshFeeEstimate()
+        if (estimate != null && estimate.isBusy && !feeTouched) feeTier = ColdFeeTier.FAST
+    }
+
+    LaunchedEffect(years, feeTier) {
         quote = null
         quoteError = null
         try {
-            val built = vm.actions.quote(target.name, years, target.gap)
+            val built = vm.actions.quote(target.name, years, target.gap, feeTier)
             // a newer choice of years replaced this build: it owns the sheet (iOS 5e707f4)
             ensureActive()
             quote = built
@@ -2171,7 +2353,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         startError = null
         vm.launch {
             try {
-                vm.actions.startRegistration(target.name, years, maxPrice = q.price)
+                vm.actions.startRegistration(target.name, years, maxPrice = q.price, feeTier = feeTier)
                 view.successHaptic()
                 onStarted()
                 progressId = vm.actions.pending.value.lastOrNull { it.name == target.name && it.isOpen }?.id
@@ -2219,42 +2401,64 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                             )
                         }
                         Column(
-                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp)
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            FormSection {
-                                LabeledRow(stringResource(R.string.kl_name), "${target.name}.kachat", bold = false)
-                                SettingsDivider()
+                            KachatCard {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.kl_name), color = colors.textPrimary)
+                                    Spacer(Modifier.weight(1f))
+                                    Text("${target.name}.kachat", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
                                 val count = maxOf(1, maxYears.toInt())
-                                KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+                                KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt(), inset = false) { years = (it + 1).toLong() }
                             }
 
-                            FormSection(
-                                header = stringResource(R.string.kn_cost),
-                                footer = {
-                                    val q = quote
-                                    if (q != null && !q.affordable) FormFooter(KaspaUnit.label(stringResource(R.string.kn_not_enough)), colors.danger)
-                                    else FormFooter(stringResource(R.string.kn_claim_footer))
-                                }
-                            ) {
+                            KachatCard {
                                 val q = quote
                                 val qe = quoteError
                                 when {
                                     q != null -> {
                                         // the first period at the registration price, any further one at the renewal price (iOS c8f1086)
-                                        LabeledRow(stringResource(R.string.kn_price_to_miners), KaspaUnit.amount(q.price)); SettingsDivider()
-                                        LabeledRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond)); SettingsDivider()
-                                        LabeledRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit)); SettingsDivider()
-                                        LabeledRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit)); SettingsDivider()
-                                        LabeledRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee)); SettingsDivider()
-                                        LabeledRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true); SettingsDivider()
-                                        LabeledRow(stringResource(R.string.kn_available), KaspaUnit.amount(q.spendable))
+                                        KachatCardRow(stringResource(R.string.kn_price_to_miners), KaspaUnit.amount(q.price))
+                                        KachatCardRow(stringResource(R.string.kn_bond_returned), KaspaUnit.amount(q.bond))
+                                        KachatCardRow(stringResource(R.string.kn_deposit_returned), KaspaUnit.amount(q.gapDeposit))
+                                        KachatCardRow(stringResource(R.string.kn_commit_returned), KaspaUnit.amount(q.commit))
+                                        KachatCardRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee))
+                                        HorizontalDivider(color = colors.divider)
+                                        KachatCardRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true)
                                     }
-                                    qe != null -> Text(qe, color = colors.danger, modifier = Modifier.padding(16.dp))
-                                    else -> LoadingRow(stringResource(R.string.kl_total))
+                                    qe != null -> Text(qe, color = colors.danger)
+                                    else -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(stringResource(R.string.kl_total), color = colors.textPrimary, modifier = Modifier.weight(1f))
+                                        IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                             }
 
-                            FormSection(header = stringResource(R.string.kn_how_claiming_works)) {
+                            val estimate = feeEstimate
+                            if (estimate != null && estimate.isBusy) KachatBusyNetworkNotice()
+
+                            KachatCard {
+                                Text(stringResource(R.string.network_fee), color = colors.textPrimary, fontSize = 15.sp)
+                                KachatSegmented(ColdFeeTier.entries.map { feeTierLabel(it) }, feeTier.ordinal, inset = false) {
+                                    val tier = ColdFeeTier.entries[it]
+                                    if (tier != feeTier) {
+                                        feeTier = tier
+                                        feeTouched = true
+                                    }
+                                }
+                                Text(stringResource(R.string.kn_claim_fee_note), color = colors.textSecondary, fontSize = 12.sp)
+                            }
+
+                            quote?.let { q ->
+                                Row(Modifier.fillMaxWidth()) {
+                                    SendInfoPill { Text(stringResource(R.string.kn_available_value, KaspaUnit.amount(q.spendable))) }
+                                }
+                            }
+
+                            KachatCard {
+                                Text(stringResource(R.string.kn_how_claiming_works), color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 val params = manifest?.params
                                 val step3 = if (KachatLive.yearlyPeriods(params)) {
                                     stringResource(R.string.kn_claim_step3_cap)
@@ -2262,26 +2466,32 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                                     stringResource(R.string.kn_claim_step3_time, yearsText(maxYears.toInt(), params), KachatLive.duration(params?.renewWindowMs ?: 0L, context))
                                 }
                                 listOf(stringResource(R.string.kn_claim_step1), stringResource(R.string.kn_claim_step2), step3).forEachIndexed { index, text ->
-                                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                                         Box(Modifier.size(22.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
                                             Text("${index + 1}", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                         Spacer(Modifier.width(12.dp))
                                         Text(text, color = colors.textPrimary, fontSize = 15.sp)
                                     }
-                                    if (index < 2) SettingsDivider(50.dp)
                                 }
                             }
 
-                            FormSection(footer = { startError?.let { FormFooter(it, colors.danger) } }) {
-                                FormButtonRow(
-                                    stringResource(R.string.kn_claim_name_button, target.name),
-                                    enabled = quote?.affordable == true && !starting,
-                                    busy = starting
-                                ) {
-                                    context.kachatAuthorize { start() }
-                                }
+                            val q = quote
+                            if (q != null && !q.affordable) {
+                                Text(KaspaUnit.label(stringResource(R.string.kn_not_enough)), color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+                            } else {
+                                Text(stringResource(R.string.kn_claim_footer), color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
                             }
+
+                            Box(Modifier.padding(top = 4.dp)) {
+                                SendActionButton(
+                                    title = stringResource(R.string.kn_claim_name_button, target.name),
+                                    isBusy = starting,
+                                    isEnabled = quote?.affordable == true,
+                                    onSend = { context.kachatAuthorize { start() } },
+                                )
+                            }
+                            startError?.let { Text(it, color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth()) }
                         }
                     }
                 }
@@ -2908,11 +3118,11 @@ fun KachatLiveOfferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveView
         operation = operation, operationKey = "${amount ?: 0}-$days-${virtualDaa ?: 0}",
         onClose = onClose, vm = vm
     ) {
-        FormSection(header = stringResource(R.string.kl_your_offer), footer = { FormFooter(KaspaUnit.label(stringResource(R.string.kn_offer_locked_decline))) }) {
+        KachatInputCard(title = stringResource(R.string.kl_your_offer), footer = KaspaUnit.label(stringResource(R.string.kn_offer_locked_decline))) {
             AmountField(amountText) { amountText = it }
         }
-        FormSection(header = stringResource(R.string.kn_refundable_after)) {
-            KachatSegmented(choices.map { stringResource(it.second) }, choices.indexOfFirst { it.first == days }) { days = choices[it].first }
+        KachatInputCard(title = stringResource(R.string.kn_refundable_after)) {
+            KachatSegmented(choices.map { stringResource(it.second) }, choices.indexOfFirst { it.first == days }, inset = false) { days = choices[it].first }
         }
     }
 }
@@ -2953,8 +3163,8 @@ fun KachatExtendSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMod
         onClose = onClose, vm = vm
     ) {
         if (available > 1) {
-            FormSection {
-                KachatSegmented((1..available.toInt()).map { yearsText(it, params) }, (years - 1).toInt()) { years = (it + 1).toLong() }
+            KachatInputCard {
+                KachatSegmented((1..available.toInt()).map { yearsText(it, params) }, (years - 1).toInt(), inset = false) { years = (it + 1).toLong() }
             }
         }
     }
@@ -3154,7 +3364,7 @@ fun KachatListSheet(info: NameInfo, onClose: () -> Unit) {
         operation = price?.let { KachatNamesActions.Operation.List(info, it) }, operationKey = "list-${price ?: 0}",
         onClose = onClose
     ) {
-        FormSection(header = stringResource(R.string.kl_price)) {
+        KachatInputCard(title = stringResource(R.string.kl_price)) {
             AmountField(priceText) { priceText = it }
         }
     }
@@ -3212,20 +3422,30 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         operation = target?.let { KachatNamesActions.Operation.Transfer(info, it.second) }, operationKey = target?.first ?: "-",
         onClose = onClose, vm = vm
     ) {
-        FormSection(header = stringResource(R.string.kn_new_owner), footer = { FormFooter(stringResource(R.string.kn_transfer_footer)) }) {
-            FormTextField(input, { input = it }, stringResource(R.string.kn_transfer_placeholder), Modifier.fillMaxWidth())
-            when {
-                resolving -> { SettingsDivider(); Box(Modifier.padding(16.dp)) { IosActivityIndicator(color = KaspaTeal) } }
-                target != null -> {
-                    SettingsDivider()
-                    SelectionContainer {
-                        Text(target.first, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(16.dp))
+        KachatInputCard(title = stringResource(R.string.kn_new_owner), footer = stringResource(R.string.kn_transfer_footer)) {
+            androidx.compose.foundation.text.BasicTextField(
+                value = input,
+                onValueChange = { input = it },
+                singleLine = true,
+                textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, fontFamily = FontFamily.Monospace),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, keyboardType = KeyboardType.Uri),
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { inner ->
+                    Box {
+                        if (input.isEmpty()) {
+                            Text(stringResource(R.string.kn_transfer_placeholder), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
+                        }
+                        inner()
                     }
+                },
+            )
+            when {
+                resolving -> IosActivityIndicator(color = KaspaTeal)
+                target != null -> SelectionContainer {
+                    Text(target.first, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                 }
-                resolveError != null -> {
-                    SettingsDivider()
-                    Text(stringResource(resolveError!!), color = colors.danger, fontSize = 12.sp, modifier = Modifier.padding(16.dp))
-                }
+                resolveError != null -> Text(stringResource(resolveError!!), color = colors.danger, fontSize = 12.sp)
             }
         }
     }

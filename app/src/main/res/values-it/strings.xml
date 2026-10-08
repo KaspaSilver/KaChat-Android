@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">Il nome va all’acquirente e l’importo dell’offerta arriva a te, in un’unica transazione. Non si può annullare.</string>
     <string name="kn_buyer">Acquirente</string>
     <string name="kn_price_to_miners">Prezzo (ai miner)</string>
-    <string name="kn_sent_note">Appare qui quando la rete la accetta, di solito in pochi secondi.</string>
     <string name="kn_years">Anni</string>
     <string name="kn_bond_returned">Cauzione (restituita al rilascio)</string>
     <string name="kn_deposit_returned">Deposito del registro (restituito al rilascio)</string>
     <string name="kn_commit_returned">Impegno (restituito alla registrazione)</string>
     <string name="kn_network_fees">Commissioni di rete</string>
-    <string name="kn_cost">Costo</string>
     <string name="kn_not_enough">Non ci sono abbastanza KAS sul tuo indirizzo di chat per questo nome.</string>
     <string name="kn_claim_footer">Il prezzo va ai miner: KaChat non prende nulla. Cauzione e deposito tornano quando rilasci il nome.</string>
     <string name="kn_claim_step1">Prima va sulla chain un impegno nascosto. Nessuno può vedere per quale nome sia.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Saldo dell\'indirizzo chat</string>
     <string name="kn_balance_after">Saldo dopo</string>
-    <string name="kn_balance_change">Variazione del saldo</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Transazione inviata</string>
     <string name="kn_view_transaction">Vedi transazione</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">Importati: %1$d aggiunti, %2$d aggiornati.</string>
     <string name="ab_err_not_an_export">Quel file non è un\'esportazione della rubrica KaChat.</string>
     <string name="ab_err_export_empty">Quell\'esportazione non contiene indirizzi.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">La rete è congestionata</string>
+    <string name="kn_busy_body">Con Normale potrebbe volerci un po\'. Veloce o Priorità paga un po\' di più per entrare prima in un blocco.</string>
+    <string name="kn_balance_after_value">Saldo dopo: %1$s</string>
+    <string name="kn_balance_change_value">Variazione del saldo: %1$s</string>
+    <string name="kn_available_value">Disponibile: %1$s</string>
+    <string name="kn_claim_fee_note">Rivendicare invia due transazioni: l\'impegno ora, la registrazione circa un minuto dopo. Entrambe a questa velocità.</string>
+    <string name="kn_step_sent">Inviata alla rete</string>
+    <string name="kn_step_in_block">In un blocco</string>
+    <string name="kn_step_updated">Aggiornata in KaChat</string>
+    <string name="kn_tx_stage_waiting">In attesa che la rete la inserisca in un blocco. Di solito pochi secondi, di più se è congestionata.</string>
+    <string name="kn_tx_stage_in_block">È in un blocco. Aggiornamento di KaChat...</string>
+    <string name="kn_tx_stage_done">Fatto. Ora si vede in KaChat.</string>
+    <string name="kn_tx_stage_dropped">La rete non l\'ha ancora presa. Se non arriva mai, non si spende nulla - riprova con una commissione più veloce.</string>
+    <string name="kn_tap_tx_explorer">Tocca la transazione per aprirla nell\'explorer.</string>
 </resources>

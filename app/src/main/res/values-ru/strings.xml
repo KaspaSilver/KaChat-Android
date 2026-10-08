@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">Имя переходит покупателю, а сумма предложения — вам, одной транзакцией. Это нельзя отменить.</string>
     <string name="kn_buyer">Покупатель</string>
     <string name="kn_price_to_miners">Цена (майнерам)</string>
-    <string name="kn_sent_note">Появится здесь, когда сеть её примет, обычно за секунды.</string>
     <string name="kn_years">Годы</string>
     <string name="kn_bond_returned">Залог (возвращается при освобождении)</string>
     <string name="kn_deposit_returned">Депозит реестра (возвращается при освобождении)</string>
     <string name="kn_commit_returned">Коммит (возвращается при регистрации)</string>
     <string name="kn_network_fees">Сетевые комиссии</string>
-    <string name="kn_cost">Стоимость</string>
     <string name="kn_not_enough">На вашем адресе для чатов недостаточно KAS для этого имени.</string>
     <string name="kn_claim_footer">Цена уходит майнерам — KaChat ничего не берёт. Залог и депозит вернутся, когда вы освободите имя.</string>
     <string name="kn_claim_step1">Сначала в сеть уходит скрытый коммит. Никто не видит, для какого он имени.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Баланс адреса для чата</string>
     <string name="kn_balance_after">Баланс после</string>
-    <string name="kn_balance_change">Изменение баланса</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Транзакция отправлена</string>
     <string name="kn_view_transaction">Открыть транзакцию</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">Импортировано: добавлено %1$d, обновлено %2$d.</string>
     <string name="ab_err_not_an_export">Это не экспорт адресной книги KaChat.</string>
     <string name="ab_err_export_empty">В этом экспорте нет адресов.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">Сеть загружена</string>
+    <string name="kn_busy_body">С обычной комиссией это может затянуться. Быстрая или приоритетная платит чуть больше и раньше попадает в блок.</string>
+    <string name="kn_balance_after_value">Баланс после: %1$s</string>
+    <string name="kn_balance_change_value">Изменение баланса: %1$s</string>
+    <string name="kn_available_value">Доступно: %1$s</string>
+    <string name="kn_claim_fee_note">Получение отправляет две транзакции: коммит сейчас, регистрацию примерно через минуту. Обе с этой скоростью.</string>
+    <string name="kn_step_sent">Отправлено в сеть</string>
+    <string name="kn_step_in_block">В блоке</string>
+    <string name="kn_step_updated">Обновлено в KaChat</string>
+    <string name="kn_tx_stage_waiting">Ждём, пока сеть включит её в блок. Обычно несколько секунд, дольше при нагрузке.</string>
+    <string name="kn_tx_stage_in_block">Она в блоке. Обновляем KaChat...</string>
+    <string name="kn_tx_stage_done">Готово. Теперь это видно в KaChat.</string>
+    <string name="kn_tx_stage_dropped">Сеть её пока не приняла. Если она так и не пройдёт, ничего не потрачено - попробуйте снова с более быстрой комиссией.</string>
+    <string name="kn_tap_tx_explorer">Нажмите на транзакцию, чтобы открыть её в обозревателе.</string>
 </resources>

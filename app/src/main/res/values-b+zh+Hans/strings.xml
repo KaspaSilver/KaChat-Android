@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">名称转给买家，报价金额转给你，在同一笔交易中完成。此操作无法撤销。</string>
     <string name="kn_buyer">买家</string>
     <string name="kn_price_to_miners">价格（归矿工）</string>
-    <string name="kn_sent_note">网络接受后会显示在这里，通常只需几秒。</string>
     <string name="kn_years">年数</string>
     <string name="kn_bond_returned">保证金（释放时退还）</string>
     <string name="kn_deposit_returned">注册表押金（释放时退还）</string>
     <string name="kn_commit_returned">承诺（注册时退还）</string>
     <string name="kn_network_fees">网络费</string>
-    <string name="kn_cost">费用</string>
     <string name="kn_not_enough">你的聊天地址上的 KAS 不足以注册这个名称。</string>
     <string name="kn_claim_footer">价格归矿工 - KaChat 分文不取。释放名称时，保证金和押金会退还。</string>
     <string name="kn_claim_step1">首先，一个隐藏的承诺上链。没人能看出它对应哪个名称。</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">聊天地址余额</string>
     <string name="kn_balance_after">操作后余额</string>
-    <string name="kn_balance_change">余额变化</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">交易已发送</string>
     <string name="kn_view_transaction">查看交易</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">已导入：新增 %1$d 个，更新 %2$d 个。</string>
     <string name="ab_err_not_an_export">该文件不是 KaChat 地址簿导出文件。</string>
     <string name="ab_err_export_empty">该导出文件中没有地址。</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">网络繁忙</string>
+    <string name="kn_busy_body">普通速度可能要等一会儿。快速或优先多付一点，更快进入区块。</string>
+    <string name="kn_balance_after_value">之后余额：%1$s</string>
+    <string name="kn_balance_change_value">余额变化：%1$s</string>
+    <string name="kn_available_value">可用：%1$s</string>
+    <string name="kn_claim_fee_note">认领会发送两笔交易：现在提交承诺，约一分钟后注册。两笔都用这个速度。</string>
+    <string name="kn_step_sent">已发送到网络</string>
+    <string name="kn_step_in_block">已进入区块</string>
+    <string name="kn_step_updated">已在 KaChat 更新</string>
+    <string name="kn_tx_stage_waiting">正在等待网络将其打包进区块。通常几秒钟；繁忙时更久。</string>
+    <string name="kn_tx_stage_in_block">已进入区块。正在更新 KaChat...</string>
+    <string name="kn_tx_stage_done">完成。现在已在 KaChat 中显示。</string>
+    <string name="kn_tx_stage_dropped">网络尚未接收。如果始终未上链，不会花费任何东西——请用更快的费用重试。</string>
+    <string name="kn_tap_tx_explorer">点按交易可在浏览器中打开。</string>
 </resources>

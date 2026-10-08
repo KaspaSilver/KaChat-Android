@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">ينتقل الاسم إلى المشتري ويصل إليك مبلغ العرض في معاملة واحدة. لا يمكن التراجع عن ذلك.</string>
     <string name="kn_buyer">المشتري</string>
     <string name="kn_price_to_miners">السعر (للمعدِّنين)</string>
-    <string name="kn_sent_note">يظهر هنا بعد قبول الشبكة له، عادةً خلال ثوانٍ.</string>
     <string name="kn_years">السنوات</string>
     <string name="kn_bond_returned">الضمان (يُعاد عند التخلي)</string>
     <string name="kn_deposit_returned">وديعة السجل (تُعاد عند التخلي)</string>
     <string name="kn_commit_returned">الالتزام (يُعاد عند التسجيل)</string>
     <string name="kn_network_fees">رسوم الشبكة</string>
-    <string name="kn_cost">التكلفة</string>
     <string name="kn_not_enough">لا يوجد ما يكفي من KAS على عنوان الدردشة لهذا الاسم.</string>
     <string name="kn_claim_footer">يذهب السعر إلى المعدِّنين - لا يأخذ KaChat شيئًا. يعود الضمان والوديعة عندما تتخلى عن الاسم.</string>
     <string name="kn_claim_step1">يُرسل التزام مخفي إلى السلسلة أولًا. لا يمكن لأحد معرفة الاسم الذي يخصه.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">رصيد عنوان الدردشة</string>
     <string name="kn_balance_after">الرصيد بعد العملية</string>
-    <string name="kn_balance_change">تغيّر الرصيد</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">تم إرسال المعاملة</string>
     <string name="kn_view_transaction">عرض المعاملة</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">تم الاستيراد: أُضيف %1$d، وحُدّث %2$d.</string>
     <string name="ab_err_not_an_export">هذا الملف ليس تصديرًا لدفتر عناوين KaChat.</string>
     <string name="ab_err_export_empty">لا يحتوي ملف التصدير هذا على أي عناوين.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">الشبكة مزدحمة</string>
+    <string name="kn_busy_body">بالرسوم العادية قد يطول الانتظار. السريع أو الأولوية يدفع أكثر قليلًا ليدخل في كتلة أسرع.</string>
+    <string name="kn_balance_after_value">الرصيد بعد: %1$s</string>
+    <string name="kn_balance_change_value">تغيّر الرصيد: %1$s</string>
+    <string name="kn_available_value">المتاح: %1$s</string>
+    <string name="kn_claim_fee_note">المطالبة ترسل معاملتين: الالتزام الآن، والتسجيل بعد دقيقة تقريبًا. كلاهما بهذه السرعة.</string>
+    <string name="kn_step_sent">أُرسلت إلى الشبكة</string>
+    <string name="kn_step_in_block">في كتلة</string>
+    <string name="kn_step_updated">حُدّثت في KaChat</string>
+    <string name="kn_tx_stage_waiting">بانتظار أن تضعها الشبكة في كتلة. عادة بضع ثوانٍ، وأطول عند الازدحام.</string>
+    <string name="kn_tx_stage_in_block">إنها في كتلة. جارٍ تحديث KaChat...</string>
+    <string name="kn_tx_stage_done">تم. تظهر في KaChat الآن.</string>
+    <string name="kn_tx_stage_dropped">لم تقبلها الشبكة بعد. لن يُنفق شيء إن لم تصل أبدًا - أعد المحاولة برسوم أسرع.</string>
+    <string name="kn_tap_tx_explorer">اضغط المعاملة لفتحها في المستكشف.</string>
 </resources>

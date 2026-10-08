@@ -703,13 +703,11 @@
     <string name="kn_accept_warning">نام به خریدار می‌رسد و مبلغ پیشنهاد به شما، در یک تراکنش. این کار برگشت‌پذیر نیست.</string>
     <string name="kn_buyer">خریدار</string>
     <string name="kn_price_to_miners">قیمت (به ماینرها)</string>
-    <string name="kn_sent_note">وقتی شبکه آن را پذیرفت اینجا نمایش داده می‌شود، معمولاً ظرف چند ثانیه.</string>
     <string name="kn_years">سال‌ها</string>
     <string name="kn_bond_returned">وثیقه (هنگام رهاسازی برمی‌گردد)</string>
     <string name="kn_deposit_returned">سپردهٔ رجیستری (هنگام رهاسازی برمی‌گردد)</string>
     <string name="kn_commit_returned">کامیت (هنگام ثبت برمی‌گردد)</string>
     <string name="kn_network_fees">کارمزدهای شبکه</string>
-    <string name="kn_cost">هزینه</string>
     <string name="kn_not_enough">برای این نام KAS کافی در نشانی گفتگوی شما نیست.</string>
     <string name="kn_claim_footer">قیمت به ماینرها می‌رسد - KaChat چیزی برنمی‌دارد. وثیقه و سپرده هنگام رها کردن نام برمی‌گردند.</string>
     <string name="kn_claim_step1">ابتدا یک کامیت پنهان روی زنجیره می‌رود. هیچ‌کس نمی‌بیند برای کدام نام است.</string>
@@ -787,7 +785,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">موجودی آدرس گفتگو</string>
     <string name="kn_balance_after">موجودی پس از آن</string>
-    <string name="kn_balance_change">تغییر موجودی</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">تراکنش ارسال شد</string>
     <string name="kn_view_transaction">مشاهدهٔ تراکنش</string>
@@ -1201,4 +1198,19 @@
     <string name="ab_imported_counts">وارد شد: %1$d افزوده، %2$d به‌روزرسانی.</string>
     <string name="ab_err_not_an_export">آن فایل یک فایل صادرشده دفترچه نشانی KaChat نیست.</string>
     <string name="ab_err_export_empty">این فایل صادرشده هیچ نشانی‌ای ندارد.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">شبکه شلوغ است</string>
+    <string name="kn_busy_body">با کارمزد عادی ممکن است طول بکشد. سریع یا اولویت کمی بیشتر می‌پردازد تا زودتر وارد بلوک شود.</string>
+    <string name="kn_balance_after_value">موجودی پس از آن: %1$s</string>
+    <string name="kn_balance_change_value">تغییر موجودی: %1$s</string>
+    <string name="kn_available_value">در دسترس: %1$s</string>
+    <string name="kn_claim_fee_note">ادعا دو تراکنش می‌فرستد: تعهد اکنون، و ثبت حدود یک دقیقه بعد. هر دو با این سرعت.</string>
+    <string name="kn_step_sent">به شبکه ارسال شد</string>
+    <string name="kn_step_in_block">در یک بلوک</string>
+    <string name="kn_step_updated">در KaChat به‌روز شد</string>
+    <string name="kn_tx_stage_waiting">در انتظار قرار گرفتن در بلوک توسط شبکه. معمولاً چند ثانیه؛ هنگام شلوغی بیشتر.</string>
+    <string name="kn_tx_stage_in_block">در یک بلوک است. در حال به‌روزرسانی KaChat...</string>
+    <string name="kn_tx_stage_done">انجام شد. اکنون در KaChat دیده می‌شود.</string>
+    <string name="kn_tx_stage_dropped">شبکه هنوز آن را نپذیرفته. اگر هرگز نرسد چیزی خرج نشده - با کارمزد سریع‌تر دوباره امتحان کنید.</string>
+    <string name="kn_tap_tx_explorer">برای باز کردن در کاوشگر روی تراکنش بزنید.</string>
 </resources>

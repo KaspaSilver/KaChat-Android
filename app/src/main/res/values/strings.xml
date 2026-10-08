@@ -842,13 +842,11 @@
     <string name="kn_accept_warning">The name goes to the buyer and the offer\'s amount comes to you, in one transaction. This can\'t be undone.</string>
     <string name="kn_buyer">Buyer</string>
     <string name="kn_price_to_miners">Price (to miners)</string>
-    <string name="kn_sent_note">It shows here once the network accepts it, usually within seconds.</string>
     <string name="kn_years">Years</string>
     <string name="kn_bond_returned">Bond (returned on release)</string>
     <string name="kn_deposit_returned">Registry deposit (returned on release)</string>
     <string name="kn_commit_returned">Commit (returned at registration)</string>
     <string name="kn_network_fees">Network fees</string>
-    <string name="kn_cost">Cost</string>
     <string name="kn_not_enough">Not enough KAS on your chatting address for this name.</string>
     <string name="kn_claim_footer">The price goes to the miners - KaChat takes nothing. The bond and the deposit come back when you release the name.</string>
     <string name="kn_claim_step1">A hidden commit goes on chain first. Nobody can see which name it is for.</string>
@@ -926,7 +924,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Chatting address balance</string>
     <string name="kn_balance_after">Balance after</string>
-    <string name="kn_balance_change">Balance change</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Transaction sent</string>
     <string name="kn_view_transaction">View Transaction</string>
@@ -1373,4 +1370,19 @@
     <string name="ab_imported_counts">Imported: %1$d added, %2$d updated.</string>
     <string name="ab_err_not_an_export">That file isn\'t a KaChat Address Book export.</string>
     <string name="ab_err_export_empty">That Address Book export has no addresses.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">The network is busy</string>
+    <string name="kn_busy_body">At Normal this may wait a while. Fast or Priority pays a little more to get into a block sooner.</string>
+    <string name="kn_balance_after_value">Balance after: %1$s</string>
+    <string name="kn_balance_change_value">Balance change: %1$s</string>
+    <string name="kn_available_value">Available: %1$s</string>
+    <string name="kn_claim_fee_note">Claiming sends two transactions: the commit now, the registration about a minute later. Both use this speed.</string>
+    <string name="kn_step_sent">Sent to the network</string>
+    <string name="kn_step_in_block">In a block</string>
+    <string name="kn_step_updated">Updated in KaChat</string>
+    <string name="kn_tx_stage_waiting">Waiting for the network to put it in a block. Usually a few seconds; longer when it\'s busy.</string>
+    <string name="kn_tx_stage_in_block">It\'s in a block. Updating KaChat...</string>
+    <string name="kn_tx_stage_done">Done. It shows in KaChat now.</string>
+    <string name="kn_tx_stage_dropped">The network hasn\'t taken it. Nothing was spent if it never lands - try again with a faster fee.</string>
+    <string name="kn_tap_tx_explorer">Tap the transaction to open it in the explorer.</string>
 </resources>

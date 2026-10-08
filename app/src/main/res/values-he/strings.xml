@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">השם עובר לקונה וסכום ההצעה מגיע אליך, בעסקה אחת. אי אפשר לבטל את זה.</string>
     <string name="kn_buyer">קונה</string>
     <string name="kn_price_to_miners">מחיר (לכורים)</string>
-    <string name="kn_sent_note">זה יופיע כאן כשהרשת תקבל אותה, בדרך כלל תוך שניות.</string>
     <string name="kn_years">שנים</string>
     <string name="kn_bond_returned">ערבון (מוחזר בשחרור)</string>
     <string name="kn_deposit_returned">פיקדון רישום (מוחזר בשחרור)</string>
     <string name="kn_commit_returned">התחייבות (מוחזרת ברישום)</string>
     <string name="kn_network_fees">עמלות רשת</string>
-    <string name="kn_cost">עלות</string>
     <string name="kn_not_enough">אין מספיק KAS בכתובת הצ׳אט שלך עבור השם הזה.</string>
     <string name="kn_claim_footer">המחיר הולך לכורים - KaChat לא לוקח כלום. הערבון והפיקדון חוזרים כשמשחררים את השם.</string>
     <string name="kn_claim_step1">קודם נשלחת לשרשרת התחייבות מוסתרת. אף אחד לא יכול לראות לאיזה שם היא.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">יתרת כתובת הצ\'אט</string>
     <string name="kn_balance_after">יתרה לאחר מכן</string>
-    <string name="kn_balance_change">שינוי ביתרה</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">העסקה נשלחה</string>
     <string name="kn_view_transaction">הצג עסקה</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">יובאו: %1$d נוספו, %2$d עודכנו.</string>
     <string name="ab_err_not_an_export">הקובץ אינו ייצוא של פנקס הכתובות של KaChat.</string>
     <string name="ab_err_export_empty">בייצוא הזה אין כתובות.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">הרשת עמוסה</string>
+    <string name="kn_busy_body">ב\'רגיל\' זה עלול להתעכב. \'מהיר\' או \'עדיפות\' משלמים מעט יותר כדי להיכנס לבלוק מוקדם יותר.</string>
+    <string name="kn_balance_after_value">יתרה אחרי: %1$s</string>
+    <string name="kn_balance_change_value">שינוי ביתרה: %1$s</string>
+    <string name="kn_available_value">זמין: %1$s</string>
+    <string name="kn_claim_fee_note">תביעה שולחת שתי עסקאות: ההתחייבות עכשיו, והרישום כדקה אחר כך. שתיהן במהירות הזו.</string>
+    <string name="kn_step_sent">נשלחה לרשת</string>
+    <string name="kn_step_in_block">בבלוק</string>
+    <string name="kn_step_updated">עודכן ב-KaChat</string>
+    <string name="kn_tx_stage_waiting">ממתינה שהרשת תכניס אותה לבלוק. בדרך כלל כמה שניות; יותר כשעמוס.</string>
+    <string name="kn_tx_stage_in_block">היא בבלוק. מעדכן את KaChat...</string>
+    <string name="kn_tx_stage_done">הושלם. זה מופיע ב-KaChat עכשיו.</string>
+    <string name="kn_tx_stage_dropped">הרשת עוד לא קיבלה אותה. אם היא לא תגיע לעולם, דבר לא נוצל - נסו שוב עם עמלה מהירה יותר.</string>
+    <string name="kn_tap_tx_explorer">הקישו על העסקה כדי לפתוח אותה בסייר.</string>
 </resources>

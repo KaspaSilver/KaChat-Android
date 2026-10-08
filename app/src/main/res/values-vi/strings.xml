@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">Tên chuyển cho người mua và số tiền đề nghị về bạn, trong một giao dịch. Không thể hoàn tác.</string>
     <string name="kn_buyer">Người mua</string>
     <string name="kn_price_to_miners">Giá (trả cho thợ đào)</string>
-    <string name="kn_sent_note">Sẽ hiện ở đây khi mạng chấp nhận, thường trong vài giây.</string>
     <string name="kn_years">Số năm</string>
     <string name="kn_bond_returned">Tiền bảo đảm (hoàn khi nhả)</string>
     <string name="kn_deposit_returned">Ký quỹ sổ đăng ký (hoàn khi nhả)</string>
     <string name="kn_commit_returned">Cam kết (hoàn khi đăng ký)</string>
     <string name="kn_network_fees">Phí mạng</string>
-    <string name="kn_cost">Chi phí</string>
     <string name="kn_not_enough">Địa chỉ trò chuyện của bạn không đủ KAS cho tên này.</string>
     <string name="kn_claim_footer">Giá trả cho thợ đào - KaChat không lấy gì. Tiền bảo đảm và ký quỹ trả lại khi bạn nhả tên.</string>
     <string name="kn_claim_step1">Một cam kết ẩn được đưa lên chuỗi trước. Không ai thấy nó dành cho tên nào.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Số dư địa chỉ trò chuyện</string>
     <string name="kn_balance_after">Số dư sau đó</string>
-    <string name="kn_balance_change">Thay đổi số dư</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Đã gửi giao dịch</string>
     <string name="kn_view_transaction">Xem giao dịch</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">Đã nhập: thêm %1$d, cập nhật %2$d.</string>
     <string name="ab_err_not_an_export">Tệp đó không phải bản xuất sổ địa chỉ KaChat.</string>
     <string name="ab_err_export_empty">Bản xuất đó không có địa chỉ nào.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">Mạng đang bận</string>
+    <string name="kn_busy_body">Với Bình thường có thể phải chờ. Nhanh hoặc Ưu tiên trả nhiều hơn một chút để vào khối sớm hơn.</string>
+    <string name="kn_balance_after_value">Số dư sau: %1$s</string>
+    <string name="kn_balance_change_value">Thay đổi số dư: %1$s</string>
+    <string name="kn_available_value">Khả dụng: %1$s</string>
+    <string name="kn_claim_fee_note">Nhận tên gửi hai giao dịch: cam kết ngay bây giờ, đăng ký khoảng một phút sau. Cả hai dùng tốc độ này.</string>
+    <string name="kn_step_sent">Đã gửi lên mạng</string>
+    <string name="kn_step_in_block">Trong một khối</string>
+    <string name="kn_step_updated">Đã cập nhật trong KaChat</string>
+    <string name="kn_tx_stage_waiting">Đang chờ mạng đưa vào khối. Thường vài giây; lâu hơn khi mạng bận.</string>
+    <string name="kn_tx_stage_in_block">Đã vào khối. Đang cập nhật KaChat...</string>
+    <string name="kn_tx_stage_done">Xong. Giờ đã hiển thị trong KaChat.</string>
+    <string name="kn_tx_stage_dropped">Mạng chưa nhận giao dịch. Nếu nó không bao giờ vào, không có gì bị tiêu - hãy thử lại với phí nhanh hơn.</string>
+    <string name="kn_tap_tx_explorer">Chạm vào giao dịch để mở trong trình khám phá.</string>
 </resources>

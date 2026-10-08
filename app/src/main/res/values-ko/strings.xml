@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">한 번의 거래로 이름은 구매자에게, 제안 금액은 나에게 와요. 되돌릴 수 없어요.</string>
     <string name="kn_buyer">구매자</string>
     <string name="kn_price_to_miners">가격 (채굴자에게)</string>
-    <string name="kn_sent_note">네트워크가 받아들이면 여기에 보여요. 보통 몇 초 걸려요.</string>
     <string name="kn_years">연수</string>
     <string name="kn_bond_returned">보증금 (해제 시 반환)</string>
     <string name="kn_deposit_returned">레지스트리 예치금 (해제 시 반환)</string>
     <string name="kn_commit_returned">커밋 (등록 시 반환)</string>
     <string name="kn_network_fees">네트워크 수수료</string>
-    <string name="kn_cost">비용</string>
     <string name="kn_not_enough">이 이름을 받기에 채팅 주소의 KAS가 부족해요.</string>
     <string name="kn_claim_footer">가격은 채굴자에게 가고 KaChat은 아무것도 받지 않아요. 보증금과 예치금은 이름을 해제하면 돌아와요.</string>
     <string name="kn_claim_step1">먼저 숨겨진 커밋이 체인에 올라가요. 어떤 이름인지는 아무도 볼 수 없어요.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">채팅 주소 잔액</string>
     <string name="kn_balance_after">이후 잔액</string>
-    <string name="kn_balance_change">잔액 변화</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">거래를 보냈습니다</string>
     <string name="kn_view_transaction">거래 보기</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">가져옴: %1$d개 추가, %2$d개 업데이트.</string>
     <string name="ab_err_not_an_export">그 파일은 KaChat 주소록 내보내기 파일이 아닙니다.</string>
     <string name="ab_err_export_empty">그 내보내기 파일에 주소가 없습니다.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">네트워크가 혼잡합니다</string>
+    <string name="kn_busy_body">보통으로는 오래 걸릴 수 있습니다. 빠름이나 우선은 조금 더 내고 더 빨리 블록에 들어갑니다.</string>
+    <string name="kn_balance_after_value">이후 잔액: %1$s</string>
+    <string name="kn_balance_change_value">잔액 변화: %1$s</string>
+    <string name="kn_available_value">사용 가능: %1$s</string>
+    <string name="kn_claim_fee_note">등록 시 두 건의 트랜잭션을 보냅니다. 지금 커밋, 약 1분 뒤 등록. 둘 다 이 속도로 보냅니다.</string>
+    <string name="kn_step_sent">네트워크로 보냄</string>
+    <string name="kn_step_in_block">블록에 포함됨</string>
+    <string name="kn_step_updated">KaChat에 반영됨</string>
+    <string name="kn_tx_stage_waiting">네트워크가 블록에 넣기를 기다리는 중. 보통 몇 초, 혼잡하면 더 걸립니다.</string>
+    <string name="kn_tx_stage_in_block">블록에 포함되었습니다. KaChat 업데이트 중...</string>
+    <string name="kn_tx_stage_done">완료. 이제 KaChat에 표시됩니다.</string>
+    <string name="kn_tx_stage_dropped">네트워크가 아직 받지 않았습니다. 끝내 들어가지 않으면 아무것도 쓰이지 않습니다 - 더 빠른 수수료로 다시 시도하세요.</string>
+    <string name="kn_tap_tx_explorer">트랜잭션을 탭하면 익스플로러에서 열립니다.</string>
 </resources>

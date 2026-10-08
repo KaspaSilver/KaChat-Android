@@ -23,6 +23,7 @@ import protowire.Messages
 import protowire.RPCGrpcKt
 import protowire.Rpc
 import protowire.getBlockDagInfoRequestMessage
+import protowire.getFeeEstimateRequestMessage
 import protowire.getInfoRequestMessage
 import protowire.getMempoolEntryRequestMessage
 import protowire.getPeerAddressesRequestMessage
@@ -247,6 +248,14 @@ class KaspadConnection internal constructor(
         timeoutMs = timeoutMs,
         build = { id -> kaspadRequest { this.id = id; getBlockDagInfoRequest = getBlockDagInfoRequestMessage {} } },
         extract = { it.getBlockDagInfoResponse }
+    )
+
+    /** The node's fee estimate (`GetFeeEstimate`): the priority bucket and the normal buckets, in
+     *  sompi per gram with the seconds each is expected to wait (iOS e426432). */
+    suspend fun getFeeEstimate(timeoutMs: Long = 10_000): Rpc.GetFeeEstimateResponseMessage = call(
+        timeoutMs = timeoutMs,
+        build = { id -> kaspadRequest { this.id = id; getFeeEstimateRequest = getFeeEstimateRequestMessage {} } },
+        extract = { it.getFeeEstimateResponse }
     )
 
     suspend fun getPeerAddresses(): Rpc.GetPeerAddressesResponseMessage = call(

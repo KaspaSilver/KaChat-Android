@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">Ad alıcıya, teklif tutarı size tek işlemde geçer. Bu geri alınamaz.</string>
     <string name="kn_buyer">Alıcı</string>
     <string name="kn_price_to_miners">Fiyat (madencilere)</string>
-    <string name="kn_sent_note">Ağ kabul edince burada görünür, genellikle saniyeler içinde.</string>
     <string name="kn_years">Yıl</string>
     <string name="kn_bond_returned">Teminat (bırakınca iade)</string>
     <string name="kn_deposit_returned">Kayıt depozitosu (bırakınca iade)</string>
     <string name="kn_commit_returned">Taahhüt (kayıtta iade)</string>
     <string name="kn_network_fees">Ağ ücretleri</string>
-    <string name="kn_cost">Maliyet</string>
     <string name="kn_not_enough">Sohbet adresinizde bu ad için yeterli KAS yok.</string>
     <string name="kn_claim_footer">Fiyat madencilere gider - KaChat hiçbir şey almaz. Teminat ve depozito, adı bıraktığınızda geri gelir.</string>
     <string name="kn_claim_step1">Önce zincire gizli bir taahhüt gider. Hangi ad için olduğunu kimse göremez.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Sohbet adresi bakiyesi</string>
     <string name="kn_balance_after">Sonraki bakiye</string>
-    <string name="kn_balance_change">Bakiye değişimi</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">İşlem gönderildi</string>
     <string name="kn_view_transaction">İşlemi görüntüle</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">İçe aktarıldı: %1$d eklendi, %2$d güncellendi.</string>
     <string name="ab_err_not_an_export">Bu dosya bir KaChat Adres Defteri dışa aktarımı değil.</string>
     <string name="ab_err_export_empty">Bu dışa aktarımda adres yok.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">Ağ yoğun</string>
+    <string name="kn_busy_body">Normal ile biraz sürebilir. Hızlı veya Öncelikli biraz daha ödeyip bloğa daha erken girer.</string>
+    <string name="kn_balance_after_value">Sonraki bakiye: %1$s</string>
+    <string name="kn_balance_change_value">Bakiye değişimi: %1$s</string>
+    <string name="kn_available_value">Kullanılabilir: %1$s</string>
+    <string name="kn_claim_fee_note">Talep etmek iki işlem gönderir: şimdi taahhüt, yaklaşık bir dakika sonra kayıt. İkisi de bu hızla.</string>
+    <string name="kn_step_sent">Ağa gönderildi</string>
+    <string name="kn_step_in_block">Bir blokta</string>
+    <string name="kn_step_updated">KaChat\'te güncellendi</string>
+    <string name="kn_tx_stage_waiting">Ağın onu bir bloğa koyması bekleniyor. Genelde birkaç saniye; yoğunken daha uzun.</string>
+    <string name="kn_tx_stage_in_block">Bir blokta. KaChat güncelleniyor...</string>
+    <string name="kn_tx_stage_done">Tamam. Artık KaChat\'te görünüyor.</string>
+    <string name="kn_tx_stage_dropped">Ağ henüz almadı. Hiç girmezse hiçbir şey harcanmaz - daha hızlı bir ücretle yeniden dene.</string>
+    <string name="kn_tap_tx_explorer">Gezginde açmak için işleme dokun.</string>
 </resources>

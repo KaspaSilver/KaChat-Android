@@ -556,13 +556,11 @@
     <string name="kn_accept_warning">Nama berpindah ke pembeli dan jumlah penawaran masuk ke Anda, dalam satu transaksi. Ini tidak bisa dibatalkan.</string>
     <string name="kn_buyer">Pembeli</string>
     <string name="kn_price_to_miners">Harga (untuk penambang)</string>
-    <string name="kn_sent_note">Ini muncul di sini setelah jaringan menerimanya, biasanya dalam hitungan detik.</string>
     <string name="kn_years">Tahun</string>
     <string name="kn_bond_returned">Jaminan (dikembalikan saat dilepas)</string>
     <string name="kn_deposit_returned">Deposit registri (dikembalikan saat dilepas)</string>
     <string name="kn_commit_returned">Komitmen (dikembalikan saat pendaftaran)</string>
     <string name="kn_network_fees">Biaya jaringan</string>
-    <string name="kn_cost">Biaya</string>
     <string name="kn_not_enough">KAS di alamat obrolan Anda tidak cukup untuk nama ini.</string>
     <string name="kn_claim_footer">Harga diberikan ke penambang - KaChat tidak mengambil apa pun. Jaminan dan deposit kembali saat Anda melepas nama.</string>
     <string name="kn_claim_step1">Komitmen tersembunyi dikirim ke chain terlebih dahulu. Tidak ada yang bisa melihat untuk nama apa.</string>
@@ -642,7 +640,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Saldo alamat obrolan</string>
     <string name="kn_balance_after">Saldo setelahnya</string>
-    <string name="kn_balance_change">Perubahan saldo</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Transaksi terkirim</string>
     <string name="kn_view_transaction">Lihat transaksi</string>
@@ -1037,4 +1034,19 @@
     <string name="ab_imported_counts">Diimpor: %1$d ditambahkan, %2$d diperbarui.</string>
     <string name="ab_err_not_an_export">File itu bukan ekspor Buku Alamat KaChat.</string>
     <string name="ab_err_export_empty">Ekspor itu tidak berisi alamat.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">Jaringan sedang sibuk</string>
+    <string name="kn_busy_body">Dengan Normal bisa agak lama. Cepat atau Prioritas membayar sedikit lebih untuk masuk blok lebih cepat.</string>
+    <string name="kn_balance_after_value">Saldo setelahnya: %1$s</string>
+    <string name="kn_balance_change_value">Perubahan saldo: %1$s</string>
+    <string name="kn_available_value">Tersedia: %1$s</string>
+    <string name="kn_claim_fee_note">Klaim mengirim dua transaksi: commit sekarang, pendaftaran sekitar satu menit kemudian. Keduanya memakai kecepatan ini.</string>
+    <string name="kn_step_sent">Dikirim ke jaringan</string>
+    <string name="kn_step_in_block">Di dalam blok</string>
+    <string name="kn_step_updated">Diperbarui di KaChat</string>
+    <string name="kn_tx_stage_waiting">Menunggu jaringan memasukkannya ke blok. Biasanya beberapa detik; lebih lama saat sibuk.</string>
+    <string name="kn_tx_stage_in_block">Sudah di dalam blok. Memperbarui KaChat...</string>
+    <string name="kn_tx_stage_done">Selesai. Sekarang tampil di KaChat.</string>
+    <string name="kn_tx_stage_dropped">Jaringan belum menerimanya. Jika tidak pernah masuk, tidak ada yang terpakai - coba lagi dengan biaya lebih cepat.</string>
+    <string name="kn_tap_tx_explorer">Ketuk transaksi untuk membukanya di explorer.</string>
 </resources>

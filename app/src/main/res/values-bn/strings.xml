@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">এক লেনদেনেই নাম ক্রেতার কাছে যাবে আর প্রস্তাবের অর্থ আপনার কাছে আসবে। এটি ফেরানো যাবে না।</string>
     <string name="kn_buyer">ক্রেতা</string>
     <string name="kn_price_to_miners">দাম (মাইনারদের জন্য)</string>
-    <string name="kn_sent_note">নেটওয়ার্ক গ্রহণ করলে এখানে দেখা যাবে, সাধারণত কয়েক সেকেন্ডে।</string>
     <string name="kn_years">বছর</string>
     <string name="kn_bond_returned">বন্ড (ছাড়লে ফেরত)</string>
     <string name="kn_deposit_returned">রেজিস্ট্রি জমা (ছাড়লে ফেরত)</string>
     <string name="kn_commit_returned">কমিট (নিবন্ধনে ফেরত)</string>
     <string name="kn_network_fees">নেটওয়ার্ক ফি</string>
-    <string name="kn_cost">খরচ</string>
     <string name="kn_not_enough">এই নামের জন্য আপনার চ্যাটিং ঠিকানায় যথেষ্ট KAS নেই।</string>
     <string name="kn_claim_footer">দাম যায় মাইনারদের কাছে - KaChat কিছুই নেয় না। নাম ছেড়ে দিলে বন্ড ও জমা ফেরত আসে।</string>
     <string name="kn_claim_step1">প্রথমে একটি লুকানো কমিট চেইনে যায়। কেউ দেখতে পায় না সেটি কোন নামের জন্য।</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">চ্যাটিং ঠিকানার ব্যালান্স</string>
     <string name="kn_balance_after">পরে ব্যালান্স</string>
-    <string name="kn_balance_change">ব্যালান্সের পরিবর্তন</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">লেনদেন পাঠানো হয়েছে</string>
     <string name="kn_view_transaction">লেনদেন দেখুন</string>
@@ -1170,4 +1167,19 @@
     <string name="ab_imported_counts">ইমপোর্ট হয়েছে: %1$d যোগ, %2$d হালনাগাদ।</string>
     <string name="ab_err_not_an_export">এটি KaChat ঠিকানা বইয়ের এক্সপোর্ট নয়।</string>
     <string name="ab_err_export_empty">এই এক্সপোর্টে কোনো ঠিকানা নেই।</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">নেটওয়ার্ক ব্যস্ত</string>
+    <string name="kn_busy_body">সাধারণ ফি-তে অপেক্ষা করতে হতে পারে। দ্রুত বা অগ্রাধিকার একটু বেশি দিয়ে দ্রুত ব্লকে ঢোকে।</string>
+    <string name="kn_balance_after_value">পরে ব্যালেন্স: %1$s</string>
+    <string name="kn_balance_change_value">ব্যালেন্স পরিবর্তন: %1$s</string>
+    <string name="kn_available_value">উপলব্ধ: %1$s</string>
+    <string name="kn_claim_fee_note">দাবি করতে দুটি লেনদেন যায়: এখন কমিট, প্রায় এক মিনিট পরে নিবন্ধন। দুটোই এই গতিতে।</string>
+    <string name="kn_step_sent">নেটওয়ার্কে পাঠানো হয়েছে</string>
+    <string name="kn_step_in_block">একটি ব্লকে</string>
+    <string name="kn_step_updated">KaChat-এ হালনাগাদ</string>
+    <string name="kn_tx_stage_waiting">নেটওয়ার্ক একে ব্লকে রাখার অপেক্ষায়। সাধারণত কয়েক সেকেন্ড; ব্যস্ত থাকলে বেশি।</string>
+    <string name="kn_tx_stage_in_block">এটি ব্লকে আছে। KaChat হালনাগাদ হচ্ছে...</string>
+    <string name="kn_tx_stage_done">সম্পন্ন। এখন KaChat-এ দেখা যাচ্ছে।</string>
+    <string name="kn_tx_stage_dropped">নেটওয়ার্ক এখনো নেয়নি। কখনো না পৌঁছালে কিছুই খরচ হয়নি - দ্রুত ফি দিয়ে আবার চেষ্টা করুন।</string>
+    <string name="kn_tap_tx_explorer">এক্সপ্লোরারে খুলতে লেনদেনে ট্যাপ করুন।</string>
 </resources>

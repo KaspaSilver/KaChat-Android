@@ -666,13 +666,11 @@
     <string name="kn_accept_warning">Der Name geht an den Käufer und der Angebotsbetrag an dich, in einer Transaktion. Das lässt sich nicht rückgängig machen.</string>
     <string name="kn_buyer">Käufer</string>
     <string name="kn_price_to_miners">Preis (an die Miner)</string>
-    <string name="kn_sent_note">Es erscheint hier, sobald das Netzwerk es annimmt, meist innerhalb von Sekunden.</string>
     <string name="kn_years">Jahre</string>
     <string name="kn_bond_returned">Kaution (bei Freigabe zurück)</string>
     <string name="kn_deposit_returned">Registry-Einlage (bei Freigabe zurück)</string>
     <string name="kn_commit_returned">Commit (bei der Registrierung zurück)</string>
     <string name="kn_network_fees">Netzwerkgebühren</string>
-    <string name="kn_cost">Kosten</string>
     <string name="kn_not_enough">Nicht genug KAS auf deiner Chat-Adresse für diesen Namen.</string>
     <string name="kn_claim_footer">Der Preis geht an die Miner - KaChat nimmt nichts. Kaution und Einlage kommen zurück, wenn du den Namen freigibst.</string>
     <string name="kn_claim_step1">Zuerst geht ein versteckter Commit auf die Chain. Niemand sieht, für welchen Namen er ist.</string>
@@ -750,7 +748,6 @@
     <!-- .kachat sheets: the chatting address's balance (iOS 8ecc38c) -->
     <string name="kn_chatting_balance">Guthaben der Chat-Adresse</string>
     <string name="kn_balance_after">Guthaben danach</string>
-    <string name="kn_balance_change">Guthabenänderung</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Transaktion gesendet</string>
     <string name="kn_view_transaction">Transaktion ansehen</string>
@@ -1167,4 +1164,19 @@
     <string name="ab_imported_counts">Importiert: %1$d hinzugefügt, %2$d aktualisiert.</string>
     <string name="ab_err_not_an_export">Diese Datei ist kein KaChat-Adressbuch-Export.</string>
     <string name="ab_err_export_empty">Dieser Adressbuch-Export enthält keine Adressen.</string>
+    <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
+    <string name="kn_busy_title">Das Netzwerk ist ausgelastet</string>
+    <string name="kn_busy_body">Mit Normal kann es eine Weile dauern. Schnell oder Priorität zahlt etwas mehr und kommt früher in einen Block.</string>
+    <string name="kn_balance_after_value">Guthaben danach: %1$s</string>
+    <string name="kn_balance_change_value">Guthabenänderung: %1$s</string>
+    <string name="kn_available_value">Verfügbar: %1$s</string>
+    <string name="kn_claim_fee_note">Zum Beanspruchen gehen zwei Transaktionen raus: jetzt der Commit, etwa eine Minute später die Registrierung. Beide mit dieser Geschwindigkeit.</string>
+    <string name="kn_step_sent">An das Netzwerk gesendet</string>
+    <string name="kn_step_in_block">In einem Block</string>
+    <string name="kn_step_updated">In KaChat aktualisiert</string>
+    <string name="kn_tx_stage_waiting">Warte darauf, dass das Netzwerk sie in einen Block aufnimmt. Meist ein paar Sekunden, länger bei viel Betrieb.</string>
+    <string name="kn_tx_stage_in_block">Sie ist in einem Block. KaChat wird aktualisiert...</string>
+    <string name="kn_tx_stage_done">Fertig. Sie wird jetzt in KaChat angezeigt.</string>
+    <string name="kn_tx_stage_dropped">Das Netzwerk hat sie noch nicht aufgenommen. Kommt sie nie an, wurde nichts ausgegeben - versuch es mit einer schnelleren Gebühr.</string>
+    <string name="kn_tap_tx_explorer">Tippe auf die Transaktion, um sie im Explorer zu öffnen.</string>
 </resources>

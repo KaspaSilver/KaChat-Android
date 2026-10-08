@@ -786,6 +786,46 @@ class NodePoolManager @Inject constructor(
             },
         ) { orphan -> getBroadcastConnection().submitTransaction(transaction, allowOrphan = orphan) }
 
+    /** One fee bucket from a node: sompi per gram, and the seconds a transaction paying it is
+     *  expected to wait. */
+    data class NodeFeeBucket(val feerate: Double, val seconds: Double)
+
+    /**
+     * The node's own fee estimate: the priority bucket, and the first normal bucket (the priority
+     * one when a node sends no normal bucket). Read from a node, so a fee picture never depends on
+     * a third-party API - the broadcast node first, then up to two other healthy ones; throws when
+     * none answers (iOS e426432 `NodePoolService.feeEstimate`).
+     */
+    suspend fun feeEstimate(): Pair<NodeFeeBucket, NodeFeeBucket> {
+        val candidates = buildList {
+            add(getBroadcastConnection())
+            if (trustedNodeAddress.value == null) {
+                registry.snapshot()
+                    .filter { registry.statusOf(it) == "Active" }
+                    .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+                    .take(3)
+                    .forEach { add(connectionFor(it.address)) }
+            }
+        }.distinct().take(3)
+        var last: Exception? = null
+        for (connection in candidates) {
+            try {
+                val r = connection.getFeeEstimate()
+                if (r.hasError() && r.error.message.isNotEmpty()) throw IllegalStateException(r.error.message)
+                val priority = r.estimate.priorityBucket
+                val normal = r.estimate.normalBucketsList.firstOrNull() ?: priority
+                return NodeFeeBucket(priority.feerate, priority.estimatedSeconds) to NodeFeeBucket(normal.feerate, normal.estimatedSeconds)
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                last = e
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                last = e
+            }
+        }
+        throw last ?: IllegalStateException("no node answered the fee estimate")
+    }
+
     /** Whether the network already has [txId]: in a mempool (up to three nodes), or accepted
      *  (REST API) - asked twice, 1.5 s apart (iOS NodePoolService.isTransactionKnown). */
     suspend fun isTransactionKnown(txId: String, rest: KaspaRestApi?): Boolean =
