@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">Убрать фото адресной книги?</string>
     <string name="ab_photos_footer">Фото, которые вы назначили сохранённым адресам, для всех кошельков на этом устройстве. Они хранятся, пока вы их не уберёте, и входят в резервную копию чатов.</string>
     <string name="ab_photos_frees">Освободит %1$s. Сохранённые адреса сохранят имена и будут показывать аватар, указанный владельцем.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Сохраните этот адрес под понятным именем.</string>
+    <string name="ab_row_edit_subtitle">Изменить или убрать этот сохранённый адрес.</string>
 </resources>

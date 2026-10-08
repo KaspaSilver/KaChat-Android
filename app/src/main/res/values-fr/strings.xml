@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">Retirer les photos du carnet d\'adresses ?</string>
     <string name="ab_photos_footer">Les photos que vous avez attribuées aux adresses enregistrées, pour tous les portefeuilles de cet appareil. Elles restent jusqu\'à ce que vous les retiriez et sont incluses dans votre sauvegarde des discussions.</string>
     <string name="ab_photos_frees">Libère %1$s. Les adresses enregistrées gardent leur nom et affichent à la place l\'avatar choisi par leur propriétaire.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Enregistrez cette adresse sous un nom que vous reconnaîtrez.</string>
+    <string name="ab_row_edit_subtitle">Modifiez ou retirez cette adresse enregistrée.</string>
 </resources>

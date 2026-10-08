@@ -1347,4 +1347,7 @@
     <string name="ab_photos_remove_question">Remove Address Book Photos?</string>
     <string name="ab_photos_footer">Photos you assigned to saved addresses, for every wallet on this device. They\'re kept until you remove them, and they\'re included in your chat backup.</string>
     <string name="ab_photos_frees">Frees %1$s. Saved addresses keep their names; they show the avatar their owner set instead.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Save this address with a name you\'ll recognize.</string>
+    <string name="ab_row_edit_subtitle">Edit or remove this saved address.</string>
 </resources>

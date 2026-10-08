@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">एड्रेस बुक फ़ोटो हटाएँ?</string>
     <string name="ab_photos_footer">सहेजे गए पतों को आपकी दी हुई फ़ोटो, इस डिवाइस के सभी वॉलेट के लिए। आप हटाएँ तब तक रहती हैं, और आपके चैट बैकअप में शामिल होती हैं।</string>
     <string name="ab_photos_frees">%1$s खाली होगा। सहेजे गए पतों के नाम बने रहेंगे; बदले में उनके मालिक का लगाया अवतार दिखेगा।</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">इस पते को पहचाने जाने वाले नाम से सहेजें।</string>
+    <string name="ab_row_edit_subtitle">इस सहेजे गए पते को संपादित करें या हटाएँ।</string>
 </resources>

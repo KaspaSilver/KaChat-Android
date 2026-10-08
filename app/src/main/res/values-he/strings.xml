@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">להסיר את תמונות פנקס הכתובות?</string>
     <string name="ab_photos_footer">תמונות שהקצית לכתובות שמורות, לכל הארנקים במכשיר הזה. הן נשמרות עד שתסירו אותן, ונכללות בגיבוי הצ\'אטים.</string>
     <string name="ab_photos_frees">משחרר %1$s. הכתובות השמורות שומרות על השמות שלהן ומציגות במקום זאת את האווטאר שהבעלים הגדירו.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">שמרו את הכתובת הזו בשם שתזהו.</string>
+    <string name="ab_row_edit_subtitle">עריכה או הסרה של הכתובת השמורה.</string>
 </resources>

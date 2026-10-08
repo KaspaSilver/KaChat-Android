@@ -1175,4 +1175,7 @@
     <string name="ab_photos_remove_question">عکس‌های دفترچه نشانی حذف شوند؟</string>
     <string name="ab_photos_footer">عکس‌هایی که به نشانی‌های ذخیره‌شده داده‌اید، برای همه کیف پول‌های این دستگاه. تا وقتی حذفشان نکنید می‌مانند و در پشتیبان گفتگوهای شما هستند.</string>
     <string name="ab_photos_frees">%1$s آزاد می‌شود. نشانی‌های ذخیره‌شده نامشان را نگه می‌دارند و به جای آن آواتاری را نشان می‌دهند که صاحبشان گذاشته است.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">این نشانی را با نامی که می‌شناسید ذخیره کنید.</string>
+    <string name="ab_row_edit_subtitle">این نشانی ذخیره‌شده را ویرایش یا حذف کنید.</string>
 </resources>

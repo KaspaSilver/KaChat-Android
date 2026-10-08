@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">إزالة صور دفتر العناوين؟</string>
     <string name="ab_photos_footer">الصور التي خصصتها للعناوين المحفوظة، لكل المحافظ على هذا الجهاز. تبقى حتى تزيلها، وهي مضمّنة في النسخة الاحتياطية للمحادثات.</string>
     <string name="ab_photos_frees">يحرّر %1$s. تحتفظ العناوين المحفوظة بأسمائها، وتعرض بدلًا من ذلك الصورة التي وضعها أصحابها.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">احفظ هذا العنوان باسم تتعرف عليه.</string>
+    <string name="ab_row_edit_subtitle">عدّل هذا العنوان المحفوظ أو أزله.</string>
 </resources>

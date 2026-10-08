@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">Rimuovere le foto della rubrica?</string>
     <string name="ab_photos_footer">Le foto che hai assegnato agli indirizzi salvati, per tutti i wallet su questo dispositivo. Restano finché non le rimuovi e sono incluse nel backup delle chat.</string>
     <string name="ab_photos_frees">Libera %1$s. Gli indirizzi salvati mantengono il nome e mostrano invece l\'avatar scelto dal proprietario.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Salva questo indirizzo con un nome che riconosci.</string>
+    <string name="ab_row_edit_subtitle">Modifica o rimuovi questo indirizzo salvato.</string>
 </resources>

@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">ঠিকানা বইয়ের ছবি সরাবেন?</string>
     <string name="ab_photos_footer">সংরক্ষিত ঠিকানাগুলোর জন্য আপনার দেওয়া ছবি, এই ডিভাইসের সব ওয়ালেটের জন্য। আপনি না সরানো পর্যন্ত থাকে, এবং আপনার চ্যাট ব্যাকআপে অন্তর্ভুক্ত থাকে।</string>
     <string name="ab_photos_frees">%1$s খালি হবে। সংরক্ষিত ঠিকানাগুলোর নাম থাকবে; বদলে মালিকের সেট করা অবতার দেখাবে।</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">এই ঠিকানাটি চেনা নামে সংরক্ষণ করুন।</string>
+    <string name="ab_row_edit_subtitle">এই সংরক্ষিত ঠিকানাটি সম্পাদনা করুন বা সরান।</string>
 </resources>

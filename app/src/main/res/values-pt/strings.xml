@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">Remover as fotos do livro de endereços?</string>
     <string name="ab_photos_footer">Fotos que você atribuiu a endereços salvos, para todas as carteiras deste dispositivo. Ficam até você removê-las e estão incluídas no backup das conversas.</string>
     <string name="ab_photos_frees">Libera %1$s. Os endereços salvos mantêm os nomes e passam a mostrar o avatar definido pelo dono.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Salve este endereço com um nome que você reconheça.</string>
+    <string name="ab_row_edit_subtitle">Edite ou remova este endereço salvo.</string>
 </resources>

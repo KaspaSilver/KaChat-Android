@@ -1141,4 +1141,7 @@
     <string name="ab_photos_remove_question">Adressbuch-Fotos entfernen?</string>
     <string name="ab_photos_footer">Fotos, die du gespeicherten Adressen zugewiesen hast, für alle Wallets auf diesem Gerät. Sie bleiben, bis du sie entfernst, und sind in deinem Chat-Backup enthalten.</string>
     <string name="ab_photos_frees">Gibt %1$s frei. Gespeicherte Adressen behalten ihre Namen und zeigen stattdessen den Avatar, den ihr Inhaber festgelegt hat.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Speichere diese Adresse unter einem Namen, den du wiedererkennst.</string>
+    <string name="ab_row_edit_subtitle">Diese gespeicherte Adresse bearbeiten oder entfernen.</string>
 </resources>

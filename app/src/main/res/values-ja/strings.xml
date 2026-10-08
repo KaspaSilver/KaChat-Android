@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">アドレス帳の写真を削除しますか？</string>
     <string name="ab_photos_footer">保存したアドレスに設定した写真です（このデバイスのすべてのウォレット分）。削除するまで残り、チャットのバックアップにも含まれます。</string>
     <string name="ab_photos_frees">%1$s が空きます。保存したアドレスの名前はそのままで、代わりに持ち主が設定したアバターが表示されます。</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">このアドレスを分かりやすい名前で保存します。</string>
+    <string name="ab_row_edit_subtitle">保存したこのアドレスを編集または削除します。</string>
 </resources>

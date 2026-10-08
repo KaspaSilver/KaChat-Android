@@ -1011,4 +1011,7 @@
     <string name="ab_photos_remove_question">Hapus foto Buku Alamat?</string>
     <string name="ab_photos_footer">Foto yang Anda tetapkan untuk alamat tersimpan, untuk semua dompet di perangkat ini. Foto tetap ada sampai Anda menghapusnya, dan disertakan dalam cadangan obrolan.</string>
     <string name="ab_photos_frees">Membebaskan %1$s. Alamat tersimpan tetap memakai namanya dan menampilkan avatar yang dipasang pemiliknya.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Simpan alamat ini dengan nama yang mudah dikenali.</string>
+    <string name="ab_row_edit_subtitle">Edit atau hapus alamat tersimpan ini.</string>
 </resources>

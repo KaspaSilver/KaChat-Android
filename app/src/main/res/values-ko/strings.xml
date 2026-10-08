@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">주소록 사진을 제거할까요?</string>
     <string name="ab_photos_footer">저장한 주소에 지정한 사진으로, 이 기기의 모든 지갑에 해당합니다. 직접 제거할 때까지 유지되며 채팅 백업에 포함됩니다.</string>
     <string name="ab_photos_frees">%1$s 확보됩니다. 저장한 주소의 이름은 유지되고, 대신 주인이 설정한 아바타가 표시됩니다.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">이 주소를 알아보기 쉬운 이름으로 저장합니다.</string>
+    <string name="ab_row_edit_subtitle">저장한 이 주소를 편집하거나 제거합니다.</string>
 </resources>

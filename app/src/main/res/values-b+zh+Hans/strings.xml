@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">要移除地址簿照片吗？</string>
     <string name="ab_photos_footer">你为已保存地址指定的照片，涵盖这台设备上的所有钱包。在你移除前会一直保留，并包含在聊天备份中。</string>
     <string name="ab_photos_frees">将释放 %1$s。已保存的地址保留名称，改为显示其所有者设置的头像。</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">用你认得出的名字保存这个地址。</string>
+    <string name="ab_row_edit_subtitle">编辑或移除这个已保存的地址。</string>
 </resources>

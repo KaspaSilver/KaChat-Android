@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">¿Quitar las fotos de la libreta de direcciones?</string>
     <string name="ab_photos_footer">Fotos que asignaste a direcciones guardadas, para todas las carteras de este dispositivo. Se conservan hasta que las quites y se incluyen en tu copia de seguridad de chats.</string>
     <string name="ab_photos_frees">Libera %1$s. Las direcciones guardadas conservan sus nombres y muestran en su lugar el avatar que eligió su dueño.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Guarda esta dirección con un nombre que reconozcas.</string>
+    <string name="ab_row_edit_subtitle">Edita o quita esta dirección guardada.</string>
 </resources>

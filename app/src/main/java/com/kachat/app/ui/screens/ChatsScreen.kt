@@ -23,6 +23,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.filled.MoveToInbox
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.outlined.Person
@@ -493,6 +495,9 @@ fun ChatsScreen(
             var contactToDelete by remember { mutableStateOf<String?>(null) }
             // Long-press target - which conversation's action sheet is open.
             var menuContactId by remember { mutableStateOf<String?>(null) }
+            // The row's "Add to Address Book" tile: the chat whose entry sheet is up (iOS 98f3728).
+            var addressBookTarget by remember { mutableStateOf<com.kachat.app.models.ContactEntity?>(null) }
+            val addressBookEntries = rememberAddressBookEntries()
 
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 // Group chats and public rooms, as circles under the search bar - swipe sideways
@@ -637,6 +642,20 @@ fun ChatsScreen(
                                                 if (isSilent) null else com.kachat.app.models.ContactNotificationMode.OFF
                                             )
                                         }
+                                        // Save this person's address (or edit their saved entry)
+                                        // without leaving the list. Not on your own chat.
+                                        if (!convo.contact.id.equals(myAddress, ignoreCase = true)) {
+                                            val saved = addressBookEntries.isNotEmpty() &&
+                                                com.kachat.app.services.AddressBookManager.shared?.entry(convo.contact.id) != null
+                                            ActionSheetRow(
+                                                icon = if (saved) Icons.Filled.Book else Icons.Outlined.Book,
+                                                title = stringResource(if (saved) R.string.ab_address_book else R.string.ab_add_to_address_book),
+                                                subtitle = stringResource(if (saved) R.string.ab_row_edit_subtitle else R.string.ab_row_add_subtitle),
+                                            ) {
+                                                menuContactId = null
+                                                addressBookTarget = convo.contact
+                                            }
+                                        }
                                         // Your chat with yourself cannot be deleted - it is always
                                         // there, first in the list (iOS ef4f183).
                                         if (!convo.contact.id.equals(myAddress, ignoreCase = true)) ActionSheetRow(
@@ -699,6 +718,15 @@ fun ChatsScreen(
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
+            }
+
+            addressBookTarget?.let { contact ->
+                AddressBookEntryEditor(
+                    address = contact.id,
+                    suggestedName = contact.alias?.takeIf { it.isNotBlank() } ?: contact.displayName,
+                    onDone = {},
+                    onDismiss = { addressBookTarget = null },
+                )
             }
 
             contactToDelete?.let { contactId ->

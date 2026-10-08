@@ -1144,4 +1144,7 @@
     <string name="ab_photos_remove_question">Gỡ ảnh sổ địa chỉ?</string>
     <string name="ab_photos_footer">Ảnh bạn gán cho các địa chỉ đã lưu, cho mọi ví trên thiết bị này. Ảnh được giữ cho đến khi bạn gỡ và có trong bản sao lưu trò chuyện.</string>
     <string name="ab_photos_frees">Giải phóng %1$s. Các địa chỉ đã lưu vẫn giữ tên và sẽ hiển thị ảnh đại diện do chủ sở hữu đặt.</string>
+    <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
+    <string name="ab_row_add_subtitle">Lưu địa chỉ này với một cái tên dễ nhận ra.</string>
+    <string name="ab_row_edit_subtitle">Sửa hoặc gỡ địa chỉ đã lưu này.</string>
 </resources>
