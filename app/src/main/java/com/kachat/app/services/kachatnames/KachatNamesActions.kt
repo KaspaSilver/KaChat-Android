@@ -656,7 +656,8 @@ class KachatNamesActions @Inject constructor(
                     val landed = utxos?.firstOrNull { hex(it.outpoint.txid) == id && it.outpoint.index == index }
                     if (landed != null) {
                         setStage(txId, TxStage.ACCEPTED)
-                        registry.refresh()
+                        // until the registry (indexer or walk) has caught up with this block (iOS 32260ae)
+                        registry.refreshUntilIncludes(txId, landed.entry.blockDaaScore)
                         setStage(txId, TxStage.SHOWN)
                         return@launch
                     }
@@ -670,7 +671,7 @@ class KachatNamesActions @Inject constructor(
                     // settles the rare case.
                     if (registry.isAccepted(txId)) {
                         setStage(txId, TxStage.ACCEPTED)
-                        registry.refresh()
+                        registry.refreshUntilIncludes(txId, service.currentVirtualDaaScore())
                         setStage(txId, TxStage.SHOWN)
                         return@launch
                     }
@@ -1141,7 +1142,9 @@ class KachatNamesActions @Inject constructor(
                     // background instead of first (a chain walk while the indexer follows
                     // another registry; iOS d65fd1a).
                     finishRegistered(p)
-                    scope.launch { runCatching { registry.refresh() } }
+                    scope.launch {
+                        runCatching { registry.refreshUntilIncludes(tx, service.currentVirtualDaaScore()) }
+                    }
                     return
                 }
                 // not accepted after two minutes and the commit is still there: register again

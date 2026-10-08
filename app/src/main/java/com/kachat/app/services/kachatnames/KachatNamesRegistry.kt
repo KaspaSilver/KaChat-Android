@@ -277,6 +277,42 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
+    /**
+     * Read-your-writes after this app's own transaction: refreshes until the registry shows it -
+     * an indexer that has indexed up to [daa] (the block it landed in), or a chain walk that has
+     * applied it - so every screen reloading on [revision] (Your Domains, the marketplace, the
+     * name) shows the change without being opened again. Gives up after 45 s (iOS 32260ae).
+     */
+    suspend fun refreshUntilIncludes(txId: String, daa: Long?) {
+        val deadline = System.currentTimeMillis() + 45_000
+        do {
+            refresh()
+            if (includes(txId, daa)) return
+            delay(1_500)
+        } while (System.currentTimeMillis() < deadline)
+    }
+
+    private suspend fun includes(txId: String, daa: Long?): Boolean = when (val src = _source.value) {
+        is Source.Indexer -> {
+            if (daa == null) {
+                true
+            } else {
+                val status = try {
+                    IndexerApi.StatusJson.parse(get(src.base, "/names/status"))
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+                status != null && (status.indexedDaa ?: 0L) >= daa
+            }
+        }
+        else -> {
+            val id = txId.lowercase()
+            _chainState.value?.applied?.any { it.lowercase() == id } ?: false
+        }
+    }
+
     /** [refresh] unless the last one is younger than [maxAgeMs] (lookups from typed names). */
     suspend fun refreshIfStale(maxAgeMs: Long = 60_000) {
         val at = _refreshedAt.value
