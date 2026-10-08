@@ -1147,4 +1147,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">이 주소를 알아보기 쉬운 이름으로 저장합니다.</string>
     <string name="ab_row_edit_subtitle">저장한 이 주소를 편집하거나 제거합니다.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">추가 (%1$d)</string>
+    <string name="ab_add_members">멤버 추가</string>
+    <string name="ab_members_footer">주소록에서 사람을 고르거나, Kaspa 주소나 도메인으로 누구든 추가하세요.</string>
+    <string name="ab_members_intro">그룹에 사람을 추가하세요. 그룹 관리자로서 멤버를 관리합니다.</string>
+    <string name="ab_members_empty">아직 멤버가 없습니다. 아래에서 주소록이나 주소로 추가하세요.</string>
 </resources>

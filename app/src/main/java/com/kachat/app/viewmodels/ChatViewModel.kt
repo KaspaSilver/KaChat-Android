@@ -1345,6 +1345,9 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** The account in use - never offered as a group member from the Address Book. */
+    val activeAddress: String? get() = walletManager.activeAddressFlow.value
+
     /**
      * Whether the ACTIVE account's Chats Payment Privacy toggle is on (default true) — drives the
      * payment composer's funding-source display: which balance the Available pill shows, whether
@@ -1431,124 +1434,6 @@ class ChatViewModel @Inject constructor(
      * [onCreateChatAddressChanged]) and pass the result here.
      * @param knsName The domain name to display, if this contact was added via KNS.
      */
-    // -------------------------------------------------------------------------
-    // Contacts picker (create-chat shortcuts)
-    // -------------------------------------------------------------------------
-
-    /**
-     * One person you can start a chat with: someone already in your address book, or someone
-     * from your KaPosts follow graph, or both.
-     */
-    data class PickerContact(
-        val address: String,
-        /** The contact's stored name, following [com.kachat.app.models.displayName]'s first two
-         *  tiers - null when nothing is stored and the row falls back to their KNS profile. */
-        val storedName: String?,
-        val youFollow: Boolean,
-        val followsYou: Boolean
-    )
-
-    private val _pickerContacts = MutableStateFlow<List<PickerContact>>(emptyList())
-    val pickerContacts: StateFlow<List<PickerContact>> = _pickerContacts.asStateFlow()
-
-    /** Starts true so create-chat renders the section on first frame; the loader clears it. */
-    private val _isLoadingPickerContacts = MutableStateFlow(true)
-    val isLoadingPickerContacts: StateFlow<Boolean> = _isLoadingPickerContacts.asStateFlow()
-
-    private var pickerContactsLoaded = false
-
-    /**
-     * Everyone you could plausibly want to message: your address book first, so the list is
-     * useful on the first frame, then both follow lists for our own K identity merged in (along
-     * with the locally-stored follows the indexer may not have caught up on). A chat you had
-     * months ago is buried far down the chat list, so it belongs here next to the people you
-     * follow. Only our own address is dropped.
-     */
-    fun loadPickerContacts() {
-        if (pickerContactsLoaded) return
-        pickerContactsLoaded = true
-        viewModelScope.launch {
-            val myAddress = walletManager.getAddress()
-            val storedNames = chatRepository.getContacts().first()
-                .filter { it.id != myAddress }
-                .associate { it.id to (it.alias ?: it.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }) }
-            publishPickerContacts(storedNames, storedNames.keys, emptySet(), emptySet())
-            _isLoadingPickerContacts.value = false
-
-            val youFollow = (settings.kapostsFollowing(myAddress).first()).toMutableSet()
-            val followsYou = mutableSetOf<String>()
-
-            for (wantFollowers in listOf(false, true)) {
-                val pubkey = runCatching { kaPostsService.requesterPubkey() }.getOrNull() ?: break
-                var cursor: String? = null
-                var pagesLeft = 5 // 500 accounts per direction, far beyond any real follow list
-                while (pagesLeft > 0) {
-                    pagesLeft--
-                    val page = runCatching {
-                        kaPostsService.fetchFollowListPage(pubkey, wantFollowers, 100, cursor)
-                    }.getOrNull() ?: break
-                    for (user in page.items) {
-                        val addr = com.kachat.app.services.KaPostsService
-                            .kaspaAddressFromPubkey(user.userPublicKey) ?: continue
-                        if (wantFollowers) followsYou.add(addr) else youFollow.add(addr)
-                    }
-                    if (!page.hasMore || page.cursor == null) break
-                    cursor = page.cursor
-                }
-            }
-
-            publishPickerContacts(
-                storedNames,
-                (storedNames.keys + youFollow + followsYou) - setOf(myAddress),
-                youFollow,
-                followsYou,
-            )
-
-            // Names and avatars for the rows, into the same profile map the preview card reads.
-            // Deliberately sequential and in this coroutine: `refreshKnsProfile` launches one
-            // coroutine per call, and a follow graph in the hundreds would fire that many KNS
-            // round trips at once. The list renders immediately and names fill in behind it.
-            for (connection in _pickerContacts.value) {
-                if (!com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) break
-                if (_knsProfiles.value.containsKey(connection.address)) continue
-                val assets = runCatching { knsService.getOwnedDomainsCached(connection.address) }
-                    .getOrNull().orEmpty()
-                val names = assets.mapNotNull { it.asset }
-                if (names.isEmpty()) {
-                    _knsProfiles.update { it + (connection.address to KnsProfileUiState()) }
-                    continue
-                }
-                val explicitPrimary = runCatching {
-                    knsService.getExplicitPrimaryDomain(connection.address)
-                }.getOrNull()
-                val active = KnsService.pickActiveDomain(names, null, explicitPrimary ?: names.first())
-                val assetId = assets.firstOrNull { it.asset == active }?.assetId
-                val profile = assetId?.let { runCatching { knsService.getProfile(it) }.getOrNull() }
-                _knsProfiles.update {
-                    it + (connection.address to KnsProfileUiState(names, active, profile, explicitPrimary))
-                }
-            }
-        }
-    }
-
-    private fun publishPickerContacts(
-        storedNames: Map<String, String?>,
-        addresses: Set<String>,
-        youFollow: Set<String>,
-        followsYou: Set<String>,
-    ) {
-        _pickerContacts.value = addresses
-            .map {
-                PickerContact(
-                    address = it,
-                    storedName = storedNames[it],
-                    youFollow = it in youFollow,
-                    followsYou = it in followsYou,
-                )
-            }
-            .sortedBy { (it.storedName ?: it.address).lowercase() }
-    }
-
     /**
      * [deliberate]: the user typed the address in (Create Chat) - their own other accounts are
      * allowed, only the account in use is refused (see ChatRepository.addContact). [onResult]

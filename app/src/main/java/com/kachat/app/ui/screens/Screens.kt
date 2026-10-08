@@ -11956,9 +11956,11 @@ fun CreateChatScreen(
     var isGroupMode by remember { mutableStateOf(startInGroupMode) }
     var groupName by remember { mutableStateOf("") }
     var groupAddressRows by remember { mutableStateOf(listOf(GroupAddressRow())) }
-    // New group flow: members are picked from existing contacts (searchable), not typed.
+    // New group flow: members come from the Address Book (a full-screen multi-select) or are
+    // added by address / domain / paste / QR (iOS 1be4f6e).
     var selectedMemberAddresses by remember { mutableStateOf(setOf<String>()) }
-    var memberSearchText by remember { mutableStateOf("") }
+    var membersExpanded by remember { mutableStateOf(false) }
+    var showGroupAddressBook by remember { mutableStateOf(false) }
     var scanningGroupRowId by remember { mutableStateOf<String?>(null) }
     var showAddressBookPicker by remember { mutableStateOf(false) }
     val isCreatingGroup by chatViewModel.isCreatingGroup.collectAsState()
@@ -11982,18 +11984,13 @@ fun CreateChatScreen(
     val knsProfilesForPreview by chatViewModel.knsProfiles.collectAsState()
     val isResolvingKns by chatViewModel.isResolvingKns.collectAsState()
     val knsError by chatViewModel.knsError.collectAsState()
-    // Existing contacts (via conversations) shown in the group member picker.
+    // Existing contacts (via conversations), for the group roster's names and avatars.
     val conversations by chatViewModel.conversations.collectAsState()
-    // KaPosts follow graph, offered as one-tap chat targets under the Address field.
-    val pickerContacts by chatViewModel.pickerContacts.collectAsState()
-    val isLoadingPickerContacts by chatViewModel.isLoadingPickerContacts.collectAsState()
-    var isSearchingPickerContacts by remember { mutableStateOf(false) }
-    var pickerSearchText by remember { mutableStateOf("") }
 
     // The name you gave someone always wins, and it is read LIVE from the contacts flow rather
-    // than from the snapshot the picker loader captured - a rename made after this screen loaded
-    // would otherwise never show. Order matches ContactEntity.displayName and iOS's
-    // ContactsManager.displayName: assigned name -> KNS domain -> short address.
+    // so a rename made after this screen loaded shows. Order matches ContactEntity.displayName
+    // and iOS's ContactsManager.displayName: assigned name -> Address Book name -> KNS domain ->
+    // short address.
     val assignedNamesByAddress = remember(conversations) {
         conversations.mapNotNull { convo ->
             (convo.contact.alias?.takeIf { it.isNotBlank() })?.let { convo.contact.id to it }
@@ -12006,6 +12003,7 @@ fun CreateChatScreen(
     }
     val resolvePickerName: (String, String?) -> String = { address, liveDomain ->
         assignedNamesByAddress[address]
+            ?: com.kachat.app.services.AddressBookManager.nameFor(address)
             ?: liveDomain?.takeIf { it.isNotBlank() }
             ?: storedDomainsByAddress[address]
             ?: KaspaAddress.shortDisplay(address)
@@ -12026,36 +12024,9 @@ fun CreateChatScreen(
         groupPhoto = android.graphics.BitmapFactory.decodeByteArray(prepared.bytes, 0, prepared.bytes.size)
     }
 
-    // Everyone offerable in one tap for a group: existing chats plus both directions of the
-    // KaPosts follow graph - the same set the 1:1 screen offers.
-    val groupMemberCandidates = remember(conversations, pickerContacts, knsProfilesForPreview, memberSearchText) {
-        val byAddress = LinkedHashMap<String, GroupMemberCandidate>()
-        for (convo in conversations) {
-            byAddress[convo.contact.id] = GroupMemberCandidate(
-                address = convo.contact.id,
-                name = resolvePickerName(convo.contact.id, knsProfilesForPreview[convo.contact.id]?.selectedDomain),
-                avatarUrl = convo.contact.knsAvatarUrl,
-            )
-        }
-        for (pick in pickerContacts) {
-            if (byAddress.containsKey(pick.address)) continue
-            val profile = knsProfilesForPreview[pick.address]
-            byAddress[pick.address] = GroupMemberCandidate(
-                address = pick.address,
-                name = resolvePickerName(pick.address, profile?.selectedDomain),
-                avatarUrl = profile?.profile?.avatarUrl,
-            )
-        }
-        val query = memberSearchText.trim().lowercase()
-        byAddress.values
-            .filter { query.isEmpty() || it.name.lowercase().contains(query) || it.address.lowercase().contains(query) }
-            .sortedBy { it.name.lowercase() }
-    }
-    // Who is actually in the group, built from the selection rather than filtered out of the
-    // candidate list. The candidates are narrowed by the search box, so reading the roster off
-    // them would make members vanish from Members while you search - and anyone added by raw
-    // address or KNS domain is not in that list at all, so they never appeared.
-    val selectedGroupMembers = remember(selectedMemberAddresses, conversations, pickerContacts, knsProfilesForPreview) {
+    // Who is in the group so far, sorted by name.
+    val addressBookEntries = rememberAddressBookEntries()
+    val selectedGroupMembers = remember(selectedMemberAddresses, conversations, knsProfilesForPreview, addressBookEntries) {
         selectedMemberAddresses.map { addr ->
             val profile = knsProfilesForPreview[addr]
             GroupMemberCandidate(
@@ -12066,7 +12037,6 @@ fun CreateChatScreen(
             )
         }.sortedBy { it.name.lowercase() }
     }
-    LaunchedEffect(Unit) { chatViewModel.loadPickerContacts() }
 
     // The Address Book in place of importing from the phone's Contacts (iOS 00767a4): the picked
     // address fills the field - the single-chat one, or the group's add-by-address one.
@@ -12076,6 +12046,27 @@ fun CreateChatScreen(
             onSelect = { entry ->
                 address = entry.address
                 importErrorMessage = null
+            },
+        )
+    }
+    // The group's Address Book: ticks show who is already in; the result replaces the Address
+    // Book part of the roster, so unticking someone takes them out again.
+    if (showGroupAddressBook) {
+        AddressBookPickerSheet(
+            onDismiss = { showGroupAddressBook = false },
+            preselected = selectedMemberAddresses,
+            excluding = chatViewModel.activeAddress,
+            onDoneMultiple = { picked ->
+                val bookAddresses = addressBookEntries.map { com.kachat.app.services.AddressBookManager.normalize(it.address) }.toSet()
+                val members = selectedMemberAddresses
+                    .filter { com.kachat.app.services.AddressBookManager.normalize(it) !in bookAddresses }
+                    .toMutableSet()
+                for (entry in picked) {
+                    if (members.size >= MAX_GROUP_MEMBERS) break
+                    members.add(entry.address)
+                }
+                selectedMemberAddresses = members
+                if (members.isNotEmpty()) membersExpanded = true
             },
         )
     }
@@ -12226,9 +12217,8 @@ fun CreateChatScreen(
                 GroupChatCreationFields(
                     groupName = groupName,
                     onGroupNameChange = { groupName = it },
-                    searchText = memberSearchText,
-                    onSearchTextChange = { memberSearchText = it },
-                    candidates = groupMemberCandidates,
+                    membersExpanded = membersExpanded,
+                    onMembersExpandedChange = { membersExpanded = it },
                     selectedMembers = selectedGroupMembers,
                     selectedAddresses = selectedMemberAddresses,
                     onToggleMember = { address ->
@@ -12362,7 +12352,7 @@ fun CreateChatScreen(
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
                         CreateChatActionItem(Icons.Outlined.Book, stringResource(R.string.ab_address_book)) {
-                            showAddressBookPicker = true
+                            showGroupAddressBook = true
                         }
                         CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
                             clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
@@ -12615,173 +12605,6 @@ fun CreateChatScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                 )
             }
-
-            // Your existing chats plus both directions of your KaPosts follow graph. A chat you
-            // had months ago is buried far down the chat list, so it belongs here next to the
-            // people you follow. Hidden while empty so the screen stays a plain address form.
-            if (isLoadingPickerContacts || pickerContacts.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Contacts",
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(Modifier.weight(1f))
-                    if (pickerContacts.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                isSearchingPickerContacts = !isSearchingPickerContacts
-                                if (!isSearchingPickerContacts) pickerSearchText = ""
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                if (isSearchingPickerContacts) Icons.Default.Close else Icons.Default.Search,
-                                contentDescription = if (isSearchingPickerContacts) "Close search" else "Search contacts",
-                                tint = LocalAppColors.current.textSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (pickerContacts.isEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        com.kachat.app.ui.theme.IosActivityIndicator(
-                            color = KaspaTeal,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            "Loading contacts...",
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                } else {
-                    if (isSearchingPickerContacts) {
-                        TextField(
-                            value = pickerSearchText,
-                            onValueChange = { pickerSearchText = it },
-                            placeholder = { Text("Search contacts", color = LocalAppColors.current.textTertiary) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = LocalAppColors.current.textSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(25.dp)),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = LocalAppColors.current.surface,
-                                unfocusedContainerColor = LocalAppColors.current.surface,
-                                focusedTextColor = LocalAppColors.current.textPrimary,
-                                unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                cursorColor = KaspaTeal,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            singleLine = true
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    val query = pickerSearchText.trim().lowercase()
-                    val shownContacts = if (!isSearchingPickerContacts || query.isEmpty()) {
-                        pickerContacts
-                    } else {
-                        pickerContacts.filter { connection ->
-                            val name = resolvePickerName(
-                                connection.address,
-                                knsProfilesForPreview[connection.address]?.selectedDomain,
-                            )
-                            name.lowercase().contains(query) ||
-                                connection.address.lowercase().contains(query)
-                        }
-                    }
-
-                    if (shownContacts.isEmpty()) {
-                        Text(
-                            "No matches",
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(LocalAppColors.current.surface)
-                        ) {
-                            shownContacts.forEach { connection ->
-                                val profile = knsProfilesForPreview[connection.address]
-                                // Assigned name, else KNS domain, else short address - the same
-                                // rule ContactEntity.displayName applies everywhere else.
-                                val rowName = resolvePickerName(connection.address, profile?.selectedDomain)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { address = connection.address }
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    ContactAvatar(
-                                        imageUrl = profile?.profile?.avatarUrl,
-                                        fallbackText = rowName,
-                                        size = 36.dp,
-                                    )
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(
-                                            rowName,
-                                            color = LocalAppColors.current.textPrimary,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        // The follow relationship when there is one, since that
-                                        // is the thing you would not otherwise know; the address
-                                        // for someone you simply have a chat with, where the name
-                                        // above it is already the useful part.
-                                        Text(
-                                            when {
-                                                connection.youFollow && connection.followsYou -> "You follow each other"
-                                                connection.youFollow -> "You follow them"
-                                                connection.followsYou -> "Follows you"
-                                                else -> KaspaAddress.shortDisplay(connection.address)
-                                            },
-                                            color = LocalAppColors.current.textSecondary,
-                                            fontSize = 11.sp,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                    if (address == connection.address) {
-                                        Icon(
-                                            Icons.Default.CheckCircle,
-                                            contentDescription = null,
-                                            tint = KaspaTeal,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -12946,19 +12769,18 @@ private fun GroupDisclosure(
 fun GroupChatCreationFields(
     groupName: String,
     onGroupNameChange: (String) -> Unit,
-    searchText: String,
-    onSearchTextChange: (String) -> Unit,
-    /** Everyone offerable in one tap: existing chats plus the KaPosts follow graph. */
-    candidates: List<GroupMemberCandidate>,
-    /** The current roster, unfiltered - see the note where it is built. */
+    /** The Members drawer - the caller opens it when the Address Book adds people. */
+    membersExpanded: Boolean,
+    onMembersExpandedChange: (Boolean) -> Unit,
+    /** The current roster, sorted by name. */
     selectedMembers: List<GroupMemberCandidate>,
     selectedAddresses: Set<String>,
     onToggleMember: (String) -> Unit,
     photo: android.graphics.Bitmap?,
     onPickPhoto: () -> Unit,
-    /** The address entry, rendered under its own heading BETWEEN the name row and the people
-     *  list. It lives at the call site because it reuses that screen's KNS resolution, scanner
-     *  and clipboard state - but it belongs here in the layout, not tacked on at the end. */
+    /** The "Add Members" entry: the Address Book button, and adding anyone by address. It lives
+     *  at the call site because it reuses that screen's KNS resolution, scanner and clipboard
+     *  state. */
     addByAddress: @Composable () -> Unit,
     errorMessage: String?
 ) {
@@ -13023,27 +12845,22 @@ fun GroupChatCreationFields(
 
     Spacer(modifier = Modifier.height(16.dp))
     Text(
-        text = "Add contacts to the group. You control the membership as the group admin.",
+        text = stringResource(R.string.ab_members_intro),
         color = colors.textSecondary,
         style = MaterialTheme.typography.bodySmall,
     )
 
-    // Members and Contacts are collapsed drawers rather than two lists stacked in the open.
-    // Either one can run to dozens of rows, and with both open at once the address field below
-    // them was somewhere you had to go looking for.
-    var membersExpanded by remember { mutableStateOf(false) }
-    var contactsExpanded by remember { mutableStateOf(false) }
-
-
+    // A collapsed drawer: the roster can run to dozens of rows, and open it would push the
+    // address field below out of sight.
     Spacer(modifier = Modifier.height(16.dp))
     GroupDisclosure(
         title = if (selectedAddresses.isEmpty()) "Members" else "Members (${selectedAddresses.size})",
         expanded = membersExpanded,
-        onToggle = { membersExpanded = !membersExpanded },
+        onToggle = { onMembersExpandedChange(!membersExpanded) },
     ) {
         if (selectedMembers.isEmpty()) {
             Text(
-                "No members added yet. Open Contacts below to add people.",
+                stringResource(R.string.ab_members_empty),
                 color = colors.textSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -13080,79 +12897,23 @@ fun GroupChatCreationFields(
         }
     }
 
-    Spacer(modifier = Modifier.height(10.dp))
-    GroupDisclosure(
-        title = "Contacts",
-        expanded = contactsExpanded,
-        onToggle = { contactsExpanded = !contactsExpanded },
-    ) {
-        TextField(
-            value = searchText,
-            onValueChange = onSearchTextChange,
-            placeholder = { Text("Search name or address", color = LocalAppColors.current.textTertiary) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp)
-                .clip(RoundedCornerShape(14.dp)),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = colors.background,
-                unfocusedContainerColor = colors.background,
-                focusedTextColor = colors.textPrimary,
-                unfocusedTextColor = colors.textPrimary,
-                cursorColor = KaspaTeal,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-            singleLine = true,
-        )
-        if (candidates.isEmpty()) {
-            Text(
-                text = if (searchText.isBlank()) "Nobody to suggest yet. Add someone by address below." else "No matches.",
-                color = colors.textSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            )
-        } else {
-            candidates.forEach { candidate ->
-                val selected = candidate.address in selectedAddresses
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onToggleMember(candidate.address) }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ContactAvatar(imageUrl = candidate.avatarUrl, fallbackText = candidate.name, size = 40.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(candidate.name, color = colors.textPrimary, fontWeight = FontWeight.Bold, maxLines = 1)
-                        Text(
-                            text = KaspaAddress.shortDisplay(candidate.address),
-                            color = colors.textSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                        )
-                    }
-                    if (selected) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KaspaTeal)
-                    }
-                }
-            }
-        }
-    }
-
-    // Last, under the people you can add in one tap: the fallback for everyone else.
-    Spacer(modifier = Modifier.height(20.dp))
-    HorizontalDivider(color = colors.divider)
-    Spacer(modifier = Modifier.height(16.dp))
+    // How members are added: several at once from the Address Book, or anyone by address,
+    // domain, paste or QR.
+    Spacer(modifier = Modifier.height(24.dp))
     Text(
-        text = "Not in your contacts? Add anyone by Kaspa address or KNS domain:",
-        color = colors.textSecondary,
-        style = MaterialTheme.typography.bodySmall,
+        text = stringResource(R.string.ab_add_members),
+        color = colors.textPrimary,
+        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.titleMedium,
     )
     Spacer(modifier = Modifier.height(12.dp))
     addByAddress()
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = stringResource(R.string.ab_members_footer),
+        color = colors.textSecondary,
+        style = MaterialTheme.typography.bodySmall,
+    )
 
     errorMessage?.let { message ->
         Spacer(modifier = Modifier.height(12.dp))
@@ -13166,7 +12927,7 @@ fun GroupChatCreationFields(
     Spacer(modifier = Modifier.height(32.dp))
 }
 
-/** One offerable group member: an existing chat, or someone from the KaPosts follow graph. */
+/** One member of the group being created. */
 data class GroupMemberCandidate(
     val address: String,
     val name: String,

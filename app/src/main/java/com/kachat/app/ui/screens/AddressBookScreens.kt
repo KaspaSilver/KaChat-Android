@@ -747,25 +747,51 @@ fun AddressBookEntryEditor(
 }
 
 /**
- * Pick one address from the Address Book (Add Contact, the Send screens), in a full-height sheet;
- * tapping a row picks it and closes. iOS `AddressBookPickerSheet`.
+ * Pick from the Address Book, full screen everywhere (iOS 1be4f6e's full-screen cover; here a
+ * full-height sheet only Cancel closes): one address (New Chat, the Send screens) - [onSelect],
+ * tapping a row picks it and closes - or, with [onDoneMultiple], several at once with ticks (New
+ * Group), starting from [preselected]; "Add (n)" hands back every ticked entry. [excluding] is
+ * never offered (your own address, in a group). iOS `AddressBookPickerSheet`.
  */
 @Composable
 fun AddressBookPickerSheet(
     onDismiss: () -> Unit,
-    onSelect: (AddressBookEntry) -> Unit,
+    onSelect: ((AddressBookEntry) -> Unit)? = null,
+    preselected: Set<String> = emptySet(),
+    excluding: String? = null,
+    onDoneMultiple: ((List<AddressBookEntry>) -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     val entries = rememberAddressBookEntries()
+    val isMultiple = onDoneMultiple != null
+    val excluded = excluding?.let(AddressBookManager::normalize)
     var search by remember { mutableStateOf("") }
-    val shown = remember(entries, search) { AddressBookManager.shared?.search(search) ?: emptyList() }
+    var ticked by remember {
+        val saved = entries.map { AddressBookManager.normalize(it.address) }.toSet()
+        mutableStateOf(preselected.map(AddressBookManager::normalize).toSet().intersect(saved))
+    }
+    val shown = remember(entries, search, excluded) {
+        (AddressBookManager.shared?.search(search) ?: emptyList()).filter { AddressBookManager.normalize(it.address) != excluded }
+    }
 
-    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true) { close ->
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = false) { close ->
         BackHandler(onBack = close)
         Column(Modifier.fillMaxSize()) {
             IosSheetNavBar(
                 title = stringResource(R.string.ab_address_book),
                 leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
+                trailing = {
+                    if (isMultiple) {
+                        IosBarTextButton(
+                            if (ticked.isEmpty()) stringResource(R.string.done) else stringResource(R.string.ab_add_count, ticked.size),
+                            bold = true,
+                            onClick = {
+                                onDoneMultiple?.invoke(entries.filter { AddressBookManager.normalize(it.address) in ticked })
+                                close()
+                            },
+                        )
+                    }
+                },
             )
             if (entries.isEmpty()) {
                 AddressBookEmptyState(
@@ -774,6 +800,7 @@ fun AddressBookPickerSheet(
                     iconTint = colors.textSecondary,
                 )
             } else {
+                // Always showing: hidden until you pulled the list down, it read as pull-to-refresh.
                 AddressBookSearchField(search, { search = it }, Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(10.dp))
                 LazyColumn(
@@ -784,17 +811,32 @@ fun AddressBookPickerSheet(
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
                             shown.forEachIndexed { index, entry ->
                                 if (index > 0) SettingsDivider(inset = 66.dp)
+                                val key = AddressBookManager.normalize(entry.address)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            onSelect(entry)
-                                            close()
+                                            if (isMultiple) {
+                                                ticked = if (key in ticked) ticked - key else ticked + key
+                                            } else {
+                                                onSelect?.invoke(entry)
+                                                close()
+                                            }
                                         }
                                         .padding(horizontal = 16.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     AddressBookRow(entry, Modifier.weight(1f))
+                                    if (isMultiple) {
+                                        Spacer(Modifier.width(8.dp))
+                                        val on = key in ticked
+                                        Icon(
+                                            if (on) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                                            contentDescription = null,
+                                            tint = if (on) KaspaTeal else colors.textSecondary,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    }
                                 }
                             }
                         }

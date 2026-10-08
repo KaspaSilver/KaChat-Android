@@ -1147,4 +1147,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">এই ঠিকানাটি চেনা নামে সংরক্ষণ করুন।</string>
     <string name="ab_row_edit_subtitle">এই সংরক্ষিত ঠিকানাটি সম্পাদনা করুন বা সরান।</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">যোগ করুন (%1$d)</string>
+    <string name="ab_add_members">সদস্য যোগ করুন</string>
+    <string name="ab_members_footer">আপনার ঠিকানা বই থেকে লোক বেছে নিন, অথবা Kaspa ঠিকানা বা ডোমেইন দিয়ে যে কাউকে যোগ করুন।</string>
+    <string name="ab_members_intro">গ্রুপে লোক যোগ করুন। গ্রুপ অ্যাডমিন হিসেবে সদস্যপদ আপনার নিয়ন্ত্রণে।</string>
+    <string name="ab_members_empty">এখনো কোনো সদস্য যোগ হয়নি। নিচে ঠিকানা বই থেকে বা ঠিকানা দিয়ে লোক যোগ করুন।</string>
 </resources>

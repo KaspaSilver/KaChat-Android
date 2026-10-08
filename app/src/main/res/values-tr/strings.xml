@@ -1147,4 +1147,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">Bu adresi tanıyacağın bir adla kaydet.</string>
     <string name="ab_row_edit_subtitle">Kayıtlı bu adresi düzenle veya kaldır.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">Ekle (%1$d)</string>
+    <string name="ab_add_members">Üye Ekle</string>
+    <string name="ab_members_footer">Adres defterinden kişi seç ya da herkesi Kaspa adresi veya alan adıyla ekle.</string>
+    <string name="ab_members_intro">Gruba kişi ekle. Grup yöneticisi olarak üyeliği sen yönetirsin.</string>
+    <string name="ab_members_empty">Henüz üye yok. Aşağıdan adres defterinden veya adresle kişi ekle.</string>
 </resources>

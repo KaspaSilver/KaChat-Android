@@ -1147,4 +1147,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">Сохраните этот адрес под понятным именем.</string>
     <string name="ab_row_edit_subtitle">Изменить или убрать этот сохранённый адрес.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">Добавить (%1$d)</string>
+    <string name="ab_add_members">Добавить участников</string>
+    <string name="ab_members_footer">Выберите людей из адресной книги или добавьте любого по адресу Kaspa или домену.</string>
+    <string name="ab_members_intro">Добавьте людей в группу. Как администратор группы, вы управляете составом.</string>
+    <string name="ab_members_empty">Участников пока нет. Добавьте людей из адресной книги или по адресу ниже.</string>
 </resources>

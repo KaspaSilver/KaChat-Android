@@ -1350,4 +1350,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">Save this address with a name you\'ll recognize.</string>
     <string name="ab_row_edit_subtitle">Edit or remove this saved address.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">Add (%1$d)</string>
+    <string name="ab_add_members">Add Members</string>
+    <string name="ab_members_footer">Pick people from your Address Book, or add anyone by Kaspa address or domain.</string>
+    <string name="ab_members_intro">Add people to the group. You control the membership as the group admin.</string>
+    <string name="ab_members_empty">No members added yet. Add people from your Address Book or by address below.</string>
 </resources>

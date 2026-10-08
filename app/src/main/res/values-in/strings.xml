@@ -1014,4 +1014,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">Simpan alamat ini dengan nama yang mudah dikenali.</string>
     <string name="ab_row_edit_subtitle">Edit atau hapus alamat tersimpan ini.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">Tambah (%1$d)</string>
+    <string name="ab_add_members">Tambah Anggota</string>
+    <string name="ab_members_footer">Pilih orang dari Buku Alamat, atau tambahkan siapa saja lewat alamat Kaspa atau domain.</string>
+    <string name="ab_members_intro">Tambahkan orang ke grup. Sebagai admin grup, Anda yang mengatur keanggotaan.</string>
+    <string name="ab_members_empty">Belum ada anggota. Tambahkan orang dari Buku Alamat atau lewat alamat di bawah.</string>
 </resources>

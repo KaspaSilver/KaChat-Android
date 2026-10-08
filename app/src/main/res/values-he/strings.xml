@@ -1147,4 +1147,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">שמרו את הכתובת הזו בשם שתזהו.</string>
     <string name="ab_row_edit_subtitle">עריכה או הסרה של הכתובת השמורה.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">הוספה (%1$d)</string>
+    <string name="ab_add_members">הוספת חברים</string>
+    <string name="ab_members_footer">בחרו אנשים מפנקס הכתובות, או הוסיפו כל אחד לפי כתובת Kaspa או דומיין.</string>
+    <string name="ab_members_intro">הוסיפו אנשים לקבוצה. כמנהלי הקבוצה, אתם שולטים בחברות.</string>
+    <string name="ab_members_empty">עדיין לא נוספו חברים. הוסיפו אנשים מפנקס הכתובות או לפי כתובת למטה.</string>
 </resources>

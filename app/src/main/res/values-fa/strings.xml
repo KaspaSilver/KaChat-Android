@@ -1178,4 +1178,10 @@
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
     <string name="ab_row_add_subtitle">این نشانی را با نامی که می‌شناسید ذخیره کنید.</string>
     <string name="ab_row_edit_subtitle">این نشانی ذخیره‌شده را ویرایش یا حذف کنید.</string>
+    <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
+    <string name="ab_add_count">افزودن (%1$d)</string>
+    <string name="ab_add_members">افزودن اعضا</string>
+    <string name="ab_members_footer">افراد را از دفترچه نشانی انتخاب کنید، یا هر کسی را با نشانی Kaspa یا دامنه اضافه کنید.</string>
+    <string name="ab_members_intro">افرادی را به گروه اضافه کنید. شما به‌عنوان مدیر گروه عضویت را کنترل می‌کنید.</string>
+    <string name="ab_members_empty">هنوز عضوی اضافه نشده. در پایین افراد را از دفترچه نشانی یا با نشانی اضافه کنید.</string>
 </resources>
