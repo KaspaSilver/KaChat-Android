@@ -18,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -793,37 +794,60 @@ class NodePoolManager @Inject constructor(
     /**
      * The node's own fee estimate: the priority bucket, and the first normal bucket (the priority
      * one when a node sends no normal bucket). Read from a node, so a fee picture never depends on
-     * a third-party API - the broadcast node first, then up to two other healthy ones; throws when
-     * none answers (iOS e426432 `NodePoolService.feeEstimate`).
+     * a third-party API; throws when none answers (the caller falls back to REST).
+     *
+     * A hedged request, as iOS e426432 `NodePoolService.feeEstimate` (`executeHedged`): up to five
+     * candidates (the trusted node alone when one is set; otherwise the healthy nodes, fastest
+     * first), already-connected ones moved to the front, the first three asked. A connected node
+     * starts after [FEE_HEDGE_DELAY_MS] times its place (the first one at once), a node still to be
+     * dialed one place later; each waits up to 10 s. The first answer wins and the others are
+     * cancelled; when all fail, the last error is thrown.
      */
     suspend fun feeEstimate(): Pair<NodeFeeBucket, NodeFeeBucket> {
-        val candidates = buildList {
-            add(getBroadcastConnection())
-            if (trustedNodeAddress.value == null) {
-                registry.snapshot()
-                    .filter { registry.statusOf(it) == "Active" }
-                    .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
-                    .take(3)
-                    .forEach { add(connectionFor(it.address)) }
+        val addresses = trustedNodeAddress.value?.let { listOf(it) }
+            ?: registry.snapshot()
+                .filter { registry.statusOf(it) == "Active" }
+                .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+                .take(5)
+                .map { it.address }
+                .ifEmpty { listOf(dnsResolvedEndpoints.firstOrNull() ?: seeds.first()) }
+        val connected = addresses.filter { connections[it]?.isConnected == true }.toSet()
+        val selected = addresses.sortedByDescending { it in connected }.take(3)
+        return coroutineScope {
+            val outcomes = Channel<Result<Pair<NodeFeeBucket, NodeFeeBucket>>>(selected.size)
+            val jobs = selected.mapIndexed { index, address ->
+                val wait = if (address in connected) FEE_HEDGE_DELAY_MS * index else FEE_HEDGE_DELAY_MS * (index + 1)
+                launch {
+                    if (wait > 0) delay(wait)
+                    val outcome = try {
+                        val r = connectionFor(address).getFeeEstimate(timeoutMs = 10_000)
+                        if (r.hasError() && r.error.message.isNotEmpty()) throw IllegalStateException(r.error.message)
+                        val priority = r.estimate.priorityBucket
+                        val normal = r.estimate.normalBucketsList.firstOrNull() ?: priority
+                        Result.success(NodeFeeBucket(priority.feerate, priority.estimatedSeconds) to NodeFeeBucket(normal.feerate, normal.estimatedSeconds))
+                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                        Result.failure(e)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("NodePoolManager", "Hedged fee estimate failed on $address: ${e.message}")
+                        Result.failure(e)
+                    }
+                    outcomes.send(outcome)
+                }
             }
-        }.distinct().take(3)
-        var last: Exception? = null
-        for (connection in candidates) {
-            try {
-                val r = connection.getFeeEstimate()
-                if (r.hasError() && r.error.message.isNotEmpty()) throw IllegalStateException(r.error.message)
-                val priority = r.estimate.priorityBucket
-                val normal = r.estimate.normalBucketsList.firstOrNull() ?: priority
-                return NodeFeeBucket(priority.feerate, priority.estimatedSeconds) to NodeFeeBucket(normal.feerate, normal.estimatedSeconds)
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                last = e
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                last = e
+            var last: Throwable = IllegalStateException("All hedged requests failed")
+            repeat(selected.size) {
+                val outcome = outcomes.receive()
+                val value = outcome.getOrNull()
+                if (value != null) {
+                    jobs.forEach { it.cancel() }
+                    return@coroutineScope value
+                }
+                outcome.exceptionOrNull()?.let { last = it }
             }
+            throw last
         }
-        throw last ?: IllegalStateException("no node answered the fee estimate")
     }
 
     /** Whether the network already has [txId]: in a mempool (up to three nodes), or accepted
@@ -925,5 +949,14 @@ class NodePoolManager @Inject constructor(
             registry.update(trimmed, "Manual", probeExisting(trimmed, connectionFor(trimmed)))
             publish()
         }
+    }
+
+    private companion object {
+        /**
+         * iOS `NetworkEpochMonitor.effectiveHedgeDelayMs`: 3000 ms on unmetered WiFi or wired
+         * (`.excellent`), and never under that on an expensive (metered / constrained) path - which
+         * covers metered WiFi and cellular, the only paths where the 400 / 800 ms tiers would apply.
+         */
+        const val FEE_HEDGE_DELAY_MS = 3_000L
     }
 }

@@ -1171,77 +1171,84 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = colors.background,
-            dragHandle = { KachatSheetGrabber() },
+            dragHandle = null,
         ) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
-            // its content stays above it.
-            Column(
-                Modifier.navigationBarsPadding().fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(Modifier.padding(top = 18.dp).height(52.dp), contentAlignment = Alignment.Center) {
-                    when (stage) {
-                        KachatNamesActions.TxStage.SHOWN ->
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(52.dp))
-                        KachatNamesActions.TxStage.DROPPED ->
-                            Icon(Icons.Default.Error, contentDescription = null, tint = colors.warning, modifier = Modifier.size(52.dp))
-                        else -> IosActivityIndicator(color = colors.textSecondary, modifier = Modifier.size(36.dp))
-                    }
-                }
-                Text(
-                    stringResource(done.title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp,
-                    textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp)
-                )
-                Text(
-                    stringResource(
-                        when (stage) {
-                            KachatNamesActions.TxStage.SENT, KachatNamesActions.TxStage.IN_MEMPOOL -> R.string.kn_tx_stage_waiting
-                            KachatNamesActions.TxStage.ACCEPTED -> R.string.kn_tx_stage_in_block
-                            KachatNamesActions.TxStage.SHOWN -> R.string.kn_tx_stage_done
-                            KachatNamesActions.TxStage.DROPPED -> R.string.kn_tx_stage_dropped
+            // its content stays above it. iOS: `.presentationDetents([.height(520), .large])` with
+            // `.presentationDragIndicator(.visible)` - 520 high, pulled up to full height, the
+            // grabber drawn over the content.
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = 520.dp, largeDetent = true) {
+                    Column(
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(Modifier.padding(top = 28.dp).height(52.dp), contentAlignment = Alignment.Center) {
+                            when (stage) {
+                                KachatNamesActions.TxStage.SHOWN ->
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(52.dp))
+                                KachatNamesActions.TxStage.DROPPED ->
+                                    Icon(Icons.Default.Error, contentDescription = null, tint = colors.warning, modifier = Modifier.size(52.dp))
+                                else -> IosActivityIndicator(color = colors.textSecondary, modifier = Modifier.size(36.dp))
+                            }
                         }
-                    ),
-                    color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 4.dp, start = 28.dp, end = 28.dp)
-                )
+                        Text(
+                            stringResource(done.title), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                            textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp)
+                        )
+                        Text(
+                            stringResource(
+                                when (stage) {
+                                    KachatNamesActions.TxStage.SENT, KachatNamesActions.TxStage.IN_MEMPOOL -> R.string.kn_tx_stage_waiting
+                                    KachatNamesActions.TxStage.ACCEPTED -> R.string.kn_tx_stage_in_block
+                                    KachatNamesActions.TxStage.SHOWN -> R.string.kn_tx_stage_done
+                                    KachatNamesActions.TxStage.DROPPED -> R.string.kn_tx_stage_dropped
+                                }
+                            ),
+                            color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp, start = 28.dp, end = 28.dp)
+                        )
 
-                Column(
-                    Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(16.dp).padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    KachatTxStep(stringResource(R.string.kn_step_sent), done = true)
-                    KachatTxStep(stringResource(R.string.kn_step_in_block), done = inBlock, active = !inBlock && stage != KachatNamesActions.TxStage.DROPPED)
-                    KachatTxStep(stringResource(R.string.kn_step_updated), done = stage == KachatNamesActions.TxStage.SHOWN, active = stage == KachatNamesActions.TxStage.ACCEPTED)
-                }
+                        Column(
+                            Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(16.dp).padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            KachatTxStep(stringResource(R.string.kn_step_sent), done = true)
+                            KachatTxStep(stringResource(R.string.kn_step_in_block), done = inBlock, active = !inBlock && stage != KachatNamesActions.TxStage.DROPPED)
+                            KachatTxStep(stringResource(R.string.kn_step_updated), done = stage == KachatNamesActions.TxStage.SHOWN, active = stage == KachatNamesActions.TxStage.ACCEPTED)
+                        }
 
-                Row(
-                    Modifier.padding(top = 12.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(14.dp)
-                        .clickable(enabled = explorerUrl != null) { browserUrl = explorerUrl }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    // iOS truncates in the middle: the start and the end of a txid are what people compare.
-                    val id = done.txId
-                    Text(
-                        if (id.length > 36) "${id.take(17)}...${id.takeLast(17)}" else id,
-                        color = KaspaTeal, fontSize = 13.sp, fontFamily = FontFamily.Monospace, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(15.dp))
-                }
-                Text(
-                    stringResource(R.string.kn_tap_tx_explorer), color = colors.textSecondary, fontSize = 12.sp,
-                    textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp, start = 20.dp, end = 20.dp)
-                )
+                        Row(
+                            Modifier.padding(top = 12.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(14.dp)
+                                .clickable(enabled = explorerUrl != null) { browserUrl = explorerUrl }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            // iOS truncates in the middle: the start and the end of a txid are what people compare.
+                            val id = done.txId
+                            Text(
+                                if (id.length > 36) "${id.take(17)}...${id.takeLast(17)}" else id,
+                                color = KaspaTeal, fontSize = 13.sp, fontFamily = FontFamily.Monospace, maxLines = 1,
+                                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(15.dp))
+                        }
+                        Text(
+                            stringResource(R.string.kn_tap_tx_explorer), color = colors.textSecondary, fontSize = 12.sp,
+                            textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp, start = 20.dp, end = 20.dp)
+                        )
 
-                Box(
-                    Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().clip(CircleShape).background(KaspaTeal)
-                        .clickable(onClick = onDismiss).padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                        Box(
+                            Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().clip(CircleShape).background(KaspaTeal)
+                                .clickable(onClick = onDismiss).padding(vertical = 14.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
             }
         }
