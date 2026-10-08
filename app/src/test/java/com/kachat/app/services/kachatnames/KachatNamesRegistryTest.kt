@@ -874,7 +874,7 @@ class KachatNamesRegistryTest {
         r.eq(link("tiktok.com/@kaspa"), "https://www.tiktok.com/@kaspa", "TikTok")
         r.eq(link("tiktok.com/kaspa"), null, "TikTok needs the @")
         r.eq(link("twitch.tv/kaspa"), "https://www.twitch.tv/kaspa", "Twitch")
-        r.eq(link("www.kick.com/kaspa"), "https://kick.com/kaspa", "Kick")
+        r.eq(link("www.kick.com/kaspa"), null, "Kick is not a source (iOS 14e3c52)")
         r.eq(link("github.com/kaspanet"), "https://github.com/kaspanet", "GitHub")
         r.eq(link("github.com/kaspanet/rusty-kaspa"), null, "a GitHub repo is not a profile")
         r.eq(link("telegram.me/kaspa"), "https://t.me/kaspa", "Telegram")
