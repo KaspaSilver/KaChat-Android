@@ -394,21 +394,21 @@ data class SocialSource(
     ) {
         X("X", "x.com/"), YOUTUBE("YouTube", "youtube.com/@"), FACEBOOK("Facebook", "facebook.com/"),
         INSTAGRAM("Instagram", "instagram.com/"), TIKTOK("TikTok", "tiktok.com/@"), TWITCH("Twitch", "twitch.tv/"),
-        KICK("Kick", "kick.com/"), GITHUB("GitHub", "github.com/"), TELEGRAM("Telegram", "t.me/"),
+        GITHUB("GitHub", "github.com/"), TELEGRAM("Telegram", "t.me/"),
         LINKEDIN("LinkedIn", "linkedin.com/in/"), DISCORD("Discord", "discord.gg/");
 
         /** Platforms whose banner can be read without signing in. */
         val hasBanner: Boolean get() = this == X || this == YOUTUBE || this == DISCORD
 
         /** Platforms whose preview carries the person's own bio (see [SocialSource.bio]). */
-        val hasBio: Boolean get() = this in setOf(X, YOUTUBE, TELEGRAM, TWITCH, KICK, GITHUB, DISCORD)
+        val hasBio: Boolean get() = this in setOf(X, YOUTUBE, TELEGRAM, TWITCH, GITHUB, DISCORD)
 
         companion object {
             /** The platforms that can fill a field, in picker order. */
             fun choices(kind: Kind): List<Platform> = when (kind) {
-                Kind.AVATAR -> listOf(X, YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, TWITCH, KICK, GITHUB, TELEGRAM, LINKEDIN, DISCORD)
+                Kind.AVATAR -> listOf(X, YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, TWITCH, GITHUB, TELEGRAM, LINKEDIN, DISCORD)
                 Kind.BANNER -> listOf(X, YOUTUBE, DISCORD)
-                Kind.BIO -> listOf(X, YOUTUBE, TELEGRAM, TWITCH, KICK, GITHUB, DISCORD)
+                Kind.BIO -> listOf(X, YOUTUBE, TELEGRAM, TWITCH, GITHUB, DISCORD)
             }
         }
     }
@@ -465,8 +465,6 @@ data class SocialSource(
                     }
                 "twitch.tv" ->
                     if (parts.size == 1 && ok(parts[0])) { platform = Platform.TWITCH; handle = parts[0]; link = "https://www.twitch.tv/$handle" }
-                "kick.com" ->
-                    if (parts.size == 1 && ok(parts[0])) { platform = Platform.KICK; handle = parts[0]; link = "https://kick.com/$handle" }
                 "github.com" ->
                     if (parts.size == 1 && ok(parts[0])) { platform = Platform.GITHUB; handle = parts[0]; link = "https://github.com/$handle" }
                 "t.me", "telegram.me" ->
@@ -552,7 +550,7 @@ data class SocialSource(
 
         /**
          * The bio a platform shows in its preview, where that text really is the person's own (X,
-         * YouTube, Telegram, Kick, and Twitch without its boilerplate). Instagram, TikTok, Facebook
+         * YouTube, Telegram, and Twitch without its boilerplate). Instagram, TikTok, Facebook
          * and LinkedIn only put follower counts or site text there: no bio from them. GitHub and
          * Discord come from their APIs instead.
          */
@@ -560,7 +558,7 @@ data class SocialSource(
             val d = openGraphDescription
             if (d.isNullOrEmpty()) return null
             val text = when (platform) {
-                Platform.X, Platform.YOUTUBE, Platform.TELEGRAM, Platform.KICK -> d
+                Platform.X, Platform.YOUTUBE, Platform.TELEGRAM -> d
                 // "<description> — Twitch streams live on Twitch! Check out their videos ..."
                 Platform.TWITCH -> d.split(" — ").first()
                 else -> return null
