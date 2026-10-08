@@ -53,7 +53,6 @@
     <string name="connection_settings">Cài đặt kết nối</string>
     <string name="connection_status">Trạng thái kết nối</string>
     <string name="contact_has_requested_permission_to_communicate">Liên hệ đã yêu cầu quyền liên lạc</string>
-    <string name="contacts">Danh bạ</string>
     <string name="controls_how_much_photos_are_compressed">Kiểm soát mức độ nén ảnh trước khi gửi. Chất lượng cao hơn trông rõ hơn nhưng tốn phí cao hơn và gửi lâu hơn; chất lượng thấp hơn gửi nhanh và rẻ hơn nhưng trông nén hơn. Điều này chỉ ảnh hưởng đến ảnh bạn gửi, không phải ảnh bạn nhận.</string>
     <string name="copy">Sao chép</string>
     <string name="copy_address">Sao chép địa chỉ</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">Rời khỏi và xóa</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Rời khỏi phát sóng này sẽ xóa vĩnh viễn mọi tin nhắn được lưu trong bộ nhớ đệm cho nó trên thiết bị này. Không thể hoàn tác; tham gia lại sau này sẽ bắt đầu mà không có lịch sử.</string>
     <string name="let_s_add_more_details_about">Hãy thêm chi tiết hơn về bạn</string>
-    <string name="link_from_contacts">Liên kết từ danh bạ</string>
-    <string name="linked">Đã liên kết</string>
     <string name="log_out">Đăng xuất</string>
     <string name="longer_retention_means_more_messages_stay">Thời gian lưu giữ lâu hơn nghĩa là nhiều tin nhắn hơn được lưu trong bộ nhớ đệm trên thiết bị của bạn, điều này có thể làm chậm ứng dụng theo thời gian, đặc biệt với các phòng đông đúc.</string>
     <string name="make_active_address">Đặt làm địa chỉ hoạt động</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">Chưa có giao dịch nào.</string>
     <string name="no_transactions_yet_tap_to_add">Chưa có giao dịch nào. Chạm + để thêm giao dịch mua hoặc bán đầu tiên của bạn.</string>
     <string name="not_now">Không phải bây giờ</string>
-    <string name="not_linked">Chưa liên kết</string>
     <string name="notes_optional">Ghi chú (tùy chọn)</string>
     <string name="notifications">Thông báo</string>
     <string name="notifications_are_off_in_system_settings">Thông báo đang tắt trong cài đặt hệ thống</string>
@@ -248,7 +244,6 @@
     <string name="transactions">Giao dịch</string>
     <string name="try_again">Thử lại</string>
     <string name="unhide">Bỏ ẩn</string>
-    <string name="unlink">Hủy liên kết</string>
     <string name="unread">Chua doc</string>
     <string name="use_default">Dùng mặc định</string>
     <string name="valid_address">Địa chỉ hợp lệ</string>
@@ -271,7 +266,6 @@
     <string name="about">Giới thiệu</string>
     <string name="actions">Thao tác</string>
     <string name="active">Đang hoạt động</string>
-    <string name="autocreate_system_contacts">Tự động tạo liên hệ hệ thống</string>
     <string name="avatar">Hình đại diện</string>
     <string name="banner">Ngọn cờ</string>
     <string name="bio">Tiểu sử</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">Đang gửi giao dịch tiết lộ...</string>
     <string name="submitting_reveal_transaction_this_could_take">Đang gửi giao dịch tiết lộ... quá trình này có thể mất vài phút trong khi xác nhận trên chuỗi.</string>
     <string name="support_email">Email hỗ trợ</string>
-    <string name="sync_system_contacts">Đồng bộ liên hệ hệ thống</string>
-    <string name="system_contact">Liên hệ hệ thống</string>
     <string name="telegram">Telegram</string>
     <string name="total">Tổng</string>
-    <string name="uses_your_device_contacts_to_match">Sử dụng danh bạ thiết bị để đối chiếu và bổ sung liên hệ Kaspa.</string>
     <string name="verified">Đã xác minh</string>
     <string name="verifying_new_ownership_on_chain_this">Đang xác minh quyền sở hữu mới trên chuỗi (có thể mất một phút)...</string>
     <string name="verifying_on_chain_this_can_take">Đang xác minh trên chuỗi (có thể mất một phút)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">Cụm mật khẩu</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Không thể sao lưu khóa của tài khoản hiện tại trên thiết bị này, nên chưa có gì thay đổi. Hãy thử lại.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">Gọi cho %1$s?</string>
-    <string name="contacts_call_confirm_voice">Thoại</string>
-    <string name="contacts_call_confirm_video">Video</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">Tin nhắn mới</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">Không có tên .kachat nào như vậy.</string>
     <string name="kn_detail_grace_resolves">Đã hết hạn. Tên vẫn trỏ đến chủ sở hữu cho đến khi hết thời gian ân hạn, và chủ sở hữu vẫn có thể gia hạn.</string>
     <string name="kn_detail_grace_mine_resolves">Đã hết hạn - hãy gia hạn để giữ. Cho đến khi hết thời gian ân hạn, tên vẫn trỏ đến bạn và không ai khác có thể lấy.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Sổ địa chỉ</string>
+    <string name="ab_add_to_address_book">Thêm vào sổ địa chỉ</string>
+    <string name="ab_search_prompt">Tìm tên và địa chỉ</string>
+    <string name="ab_empty_body">Lưu các địa chỉ Kaspa bạn hay dùng với một cái tên dễ nhận ra. Chúng nằm trong KaChat, chỉ cho ví này, và không bao giờ vào danh bạ điện thoại của bạn.</string>
+    <string name="ab_add_address">Thêm địa chỉ</string>
+    <string name="ab_copied">Đã sao chép</string>
+    <string name="ab_share_address">Chia sẻ địa chỉ</string>
+    <string name="ab_edit">Sửa</string>
+    <string name="ab_delete_from">Xóa khỏi sổ địa chỉ</string>
+    <string name="ab_delete_confirm">Xóa %1$s khỏi sổ địa chỉ?</string>
+    <string name="ab_not_in_book">Không có trong sổ địa chỉ</string>
+    <string name="ab_note_optional">Ghi chú (tùy chọn)</string>
+    <string name="ab_editor_footer">Lưu trong KaChat chỉ cho ví này. Không bao giờ được thêm vào danh bạ điện thoại.</string>
+    <string name="ab_remove_from">Gỡ khỏi sổ địa chỉ</string>
+    <string name="ab_edit_address">Sửa địa chỉ</string>
+    <string name="ab_picker_empty_body">Thêm địa chỉ trong Kaspa Hub &gt; Sổ địa chỉ.</string>
+    <string name="ab_err_no_wallet">Hãy mở một ví trước.</string>
+    <string name="ab_err_empty_name">Nhập tên.</string>
+    <string name="ab_err_invalid_address">Nhập một địa chỉ Kaspa hợp lệ.</string>
+    <string name="ab_saved_toast">Đã lưu vào sổ địa chỉ.</string>
+    <string name="ab_removed_toast">Đã gỡ khỏi sổ địa chỉ.</string>
 </resources>

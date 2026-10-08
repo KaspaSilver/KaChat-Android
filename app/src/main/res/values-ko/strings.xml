@@ -53,7 +53,6 @@
     <string name="connection_settings">연결 설정</string>
     <string name="connection_status">연결 상태</string>
     <string name="contact_has_requested_permission_to_communicate">연락처가 통신 권한을 요청했습니다</string>
-    <string name="contacts">연락처</string>
     <string name="controls_how_much_photos_are_compressed">전송 전 사진이 얼마나 압축되는지 제어합니다. 품질이 높을수록 더 선명해 보이지만 수수료가 더 많이 들고 전송 시간이 길어집니다; 품질이 낮을수록 더 빠르고 저렴하게 전송되지만 더 압축되어 보입니다. 이는 보내는 사진에만 영향을 미치며 받는 사진에는 영향을 주지 않습니다.</string>
     <string name="copy">복사</string>
     <string name="copy_address">주소 복사</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">나가기 및 삭제</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">이 방송을 나가면 이 기기에 캐시된 모든 메시지가 영구적으로 삭제됩니다. 되돌릴 수 없습니다; 나중에 다시 참여하면 기록 없이 시작됩니다.</string>
     <string name="let_s_add_more_details_about">당신에 대한 세부 정보를 더 추가해 봅시다</string>
-    <string name="link_from_contacts">연락처에서 연결</string>
-    <string name="linked">연결됨</string>
     <string name="log_out">로그아웃</string>
     <string name="longer_retention_means_more_messages_stay">보관 기간이 길수록 기기에 더 많은 메시지가 캐시된 상태로 남아 있으며, 이는 특히 활발한 방의 경우 시간이 지남에 따라 앱 속도를 저하시킬 수 있습니다.</string>
     <string name="make_active_address">활성 주소로 설정</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">아직 거래가 없습니다.</string>
     <string name="no_transactions_yet_tap_to_add">아직 거래가 없습니다. 첫 매수 또는 매도를 추가하려면 +를 탭하세요.</string>
     <string name="not_now">지금은 안 함</string>
-    <string name="not_linked">연결되지 않음</string>
     <string name="notes_optional">메모 (선택 사항)</string>
     <string name="notifications">알림</string>
     <string name="notifications_are_off_in_system_settings">시스템 설정에서 알림이 꺼져 있습니다</string>
@@ -248,7 +244,6 @@
     <string name="transactions">거래</string>
     <string name="try_again">다시 시도</string>
     <string name="unhide">숨김 해제</string>
-    <string name="unlink">연결 해제</string>
     <string name="unread">안읽음</string>
     <string name="use_default">기본값 사용</string>
     <string name="valid_address">유효한 주소</string>
@@ -271,7 +266,6 @@
     <string name="about">정보</string>
     <string name="actions">작업</string>
     <string name="active">활성</string>
-    <string name="autocreate_system_contacts">시스템 연락처 자동 생성</string>
     <string name="avatar">화신</string>
     <string name="banner">기치</string>
     <string name="bio">바이오</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">리빌 거래 전송 중...</string>
     <string name="submitting_reveal_transaction_this_could_take">리빌 거래 전송 중... 체인에서 확인되는 동안 몇 분 정도 걸릴 수 있습니다.</string>
     <string name="support_email">지원 이메일</string>
-    <string name="sync_system_contacts">시스템 연락처 동기화</string>
-    <string name="system_contact">시스템 연락처</string>
     <string name="telegram">Telegram</string>
     <string name="total">합계</string>
-    <string name="uses_your_device_contacts_to_match">기기 연락처를 사용하여 Kaspa 연락처를 매칭하고 보완합니다.</string>
     <string name="verified">검증됨</string>
     <string name="verifying_new_ownership_on_chain_this">체인에서 새 소유권 확인 중 (1분 정도 걸릴 수 있음)...</string>
     <string name="verifying_on_chain_this_can_take">체인에서 확인 중 (1분 정도 걸릴 수 있음)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">패스프레이즈</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">이 기기에서 현재 계정의 키를 백업하지 못해 아무것도 바꾸지 않았어요. 다시 시도하세요.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">%1$s에게 전화할까요?</string>
-    <string name="contacts_call_confirm_voice">음성</string>
-    <string name="contacts_call_confirm_video">영상</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">새 메시지</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">해당 이름의 .kachat 이름이 없습니다.</string>
     <string name="kn_detail_grace_resolves">만료되었습니다. 유예 기간이 끝날 때까지 여전히 소유자 주소로 연결되며, 소유자는 아직 갱신할 수 있습니다.</string>
     <string name="kn_detail_grace_mine_resolves">만료되었습니다 - 유지하려면 갱신하세요. 유예 기간이 끝날 때까지 여전히 내 주소로 연결되며 다른 사람은 가져갈 수 없습니다.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">주소록</string>
+    <string name="ab_add_to_address_book">주소록에 추가</string>
+    <string name="ab_search_prompt">이름과 주소 검색</string>
+    <string name="ab_empty_body">자주 쓰는 Kaspa 주소를 알아보기 쉬운 이름으로 저장하세요. KaChat 안에만, 이 지갑 전용으로 저장되며 휴대폰 연락처에는 절대 들어가지 않습니다.</string>
+    <string name="ab_add_address">주소 추가</string>
+    <string name="ab_copied">복사됨</string>
+    <string name="ab_share_address">주소 공유</string>
+    <string name="ab_edit">편집</string>
+    <string name="ab_delete_from">주소록에서 삭제</string>
+    <string name="ab_delete_confirm">주소록에서 %1$s 님을 삭제할까요?</string>
+    <string name="ab_not_in_book">주소록에 없음</string>
+    <string name="ab_note_optional">메모 (선택)</string>
+    <string name="ab_editor_footer">이 지갑 전용으로 KaChat에 저장됩니다. 휴대폰 연락처에는 추가되지 않습니다.</string>
+    <string name="ab_remove_from">주소록에서 제거</string>
+    <string name="ab_edit_address">주소 편집</string>
+    <string name="ab_picker_empty_body">Kaspa Hub &gt; 주소록에서 주소를 추가하세요.</string>
+    <string name="ab_err_no_wallet">먼저 지갑을 여세요.</string>
+    <string name="ab_err_empty_name">이름을 입력하세요.</string>
+    <string name="ab_err_invalid_address">올바른 Kaspa 주소를 입력하세요.</string>
+    <string name="ab_saved_toast">주소록에 저장했습니다.</string>
+    <string name="ab_removed_toast">주소록에서 제거했습니다.</string>
 </resources>

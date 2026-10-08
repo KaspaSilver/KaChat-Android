@@ -72,7 +72,6 @@
     <string name="connection_settings">تنظیمات اتصال</string>
     <string name="connection_status">وضعیت اتصال</string>
     <string name="contact_has_requested_permission_to_communicate">مخاطب درخواست اجازه ارتباط داده است</string>
-    <string name="contacts">مخاطبین</string>
     <string name="controls_how_much_photos_are_compressed">میزان فشرده‌سازی عکس‌ها قبل از ارسال را کنترل می‌کند. کیفیت بالاتر واضح‌تر به نظر می‌رسد اما کارمزد بیشتری دارد و ارسال آن طولانی‌تر است؛ کیفیت پایین‌تر سریع‌تر و ارزان‌تر ارسال می‌شود اما فشرده‌تر به نظر می‌رسد. این فقط بر عکس‌هایی که ارسال می‌کنید تأثیر می‌گذارد، نه آن‌هایی که دریافت می‌کنید.</string>
     <string name="copy">کپی</string>
     <string name="copy_address">کپی آدرس</string>
@@ -149,8 +148,6 @@
     <string name="leave_delete">ترک کردن و حذف</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">ترک این پخش تمام پیام‌های ذخیره‌شده در حافظه پنهان آن روی این دستگاه را برای همیشه حذف می‌کند. این قابل بازگشت نیست؛ پیوستن دوباره بعداً بدون سابقه شروع می‌شود.</string>
     <string name="let_s_add_more_details_about">بیایید جزئیات بیشتری درباره شما اضافه کنیم</string>
-    <string name="link_from_contacts">پیوند از مخاطبین</string>
-    <string name="linked">پیوند شده</string>
     <string name="log_out">خروج</string>
     <string name="longer_retention_means_more_messages_stay">نگهداری طولانی‌تر یعنی پیام‌های بیشتری در حافظه پنهان دستگاه شما باقی می‌مانند، که می‌تواند با گذشت زمان برنامه را کند کند، به‌خصوص برای اتاق‌های شلوغ.</string>
     <string name="make_active_address">تبدیل به آدرس فعال</string>
@@ -182,7 +179,6 @@
     <string name="no_transactions_yet_tap_to_add">هنوز هیچ تراکنشی وجود ندارد. برای افزودن اولین خرید یا فروش خود، روی + ضربه بزنید.</string>
     <string name="no_utxos">هیچ UTXOای وجود ندارد.</string>
     <string name="not_now">الان نه</string>
-    <string name="not_linked">پیوند نشده</string>
     <string name="notes_optional">یادداشت‌ها (اختیاری)</string>
     <string name="notifications">اعلان‌ها</string>
     <string name="notifications_are_off_in_system_settings">اعلان‌ها در تنظیمات سیستم خاموش هستند</string>
@@ -282,7 +278,6 @@
     <string name="transactions">تراکنش‌ها</string>
     <string name="try_again">تلاش مجدد</string>
     <string name="unhide">لغو پنهان‌سازی</string>
-    <string name="unlink">حذف پیوند</string>
     <string name="unread">خوانده‌نشده</string>
     <string name="use_automatic_selection">استفاده از انتخاب خودکار</string>
     <string name="use_default">استفاده از پیش‌فرض</string>
@@ -304,7 +299,6 @@
     <string name="about">درباره</string>
     <string name="actions">عملیات</string>
     <string name="active">فعال</string>
-    <string name="autocreate_system_contacts">ایجاد خودکار مخاطبین سیستم</string>
     <string name="avatar">آواتار</string>
     <string name="banner">بنر</string>
     <string name="bio">بیوگرافی</string>
@@ -381,11 +375,8 @@
     <string name="submitting_reveal_transaction">در حال ارسال تراکنش رونمایی...</string>
     <string name="submitting_reveal_transaction_this_could_take">در حال ارسال تراکنش رونمایی... این ممکن است چند دقیقه طول بکشد تا در زنجیره تأیید شود.</string>
     <string name="support_email">ایمیل پشتیبانی</string>
-    <string name="sync_system_contacts">همگام‌سازی مخاطبین سیستم</string>
-    <string name="system_contact">مخاطب سیستم</string>
     <string name="telegram">Telegram</string>
     <string name="total">کل</string>
-    <string name="uses_your_device_contacts_to_match">از مخاطبین دستگاه شما برای تطبیق و غنی‌سازی مخاطبین Kaspa استفاده می‌کند.</string>
     <string name="verified">تایید شده</string>
     <string name="verifying_new_ownership_on_chain_this">در حال تأیید مالکیت جدید در زنجیره (ممکن است یک دقیقه طول بکشد)...</string>
     <string name="verifying_on_chain_this_can_take">در حال تأیید در زنجیره (ممکن است یک دقیقه طول بکشد)...</string>
@@ -1003,10 +994,6 @@
     <string name="seed_phrase_passphrase_label">عبارت عبور</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">کلیدهای حساب فعلی روی این دستگاه پشتیبان‌گیری نشد، پس چیزی تغییر نکرد. دوباره امتحان کنید.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">تماس با %1$s؟</string>
-    <string name="contacts_call_confirm_voice">صوتی</string>
-    <string name="contacts_call_confirm_video">تصویری</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">پیام جدید</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1156,4 +1143,26 @@
     <string name="kn_err_no_name">هیچ نام ‎.kachat‎ با این نام وجود ندارد.</string>
     <string name="kn_detail_grace_resolves">منقضی شده. تا پایان دوره مهلت همچنان به مالک خود اشاره می‌کند و مالک هنوز می‌تواند آن را تمدید کند.</string>
     <string name="kn_detail_grace_mine_resolves">منقضی شده - برای نگه داشتن آن را تمدید کنید. تا پایان دوره مهلت همچنان به شما اشاره می‌کند و هیچ‌کس دیگری نمی‌تواند آن را بگیرد.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">دفترچه نشانی</string>
+    <string name="ab_add_to_address_book">افزودن به دفترچه نشانی</string>
+    <string name="ab_search_prompt">جستجوی نام‌ها و نشانی‌ها</string>
+    <string name="ab_empty_body">نشانی‌های Kaspa که استفاده می‌کنید را با نامی که می‌شناسید ذخیره کنید. آن‌ها در KaChat می‌مانند، فقط برای این کیف پول، و هرگز به مخاطبین گوشی شما نمی‌روند.</string>
+    <string name="ab_add_address">افزودن آدرس</string>
+    <string name="ab_copied">کپی شد</string>
+    <string name="ab_share_address">اشتراک‌گذاری نشانی</string>
+    <string name="ab_edit">ویرایش</string>
+    <string name="ab_delete_from">حذف از دفترچه نشانی</string>
+    <string name="ab_delete_confirm">%1$s از دفترچه نشانی حذف شود؟</string>
+    <string name="ab_not_in_book">در دفترچه نشانی شما نیست</string>
+    <string name="ab_note_optional">یادداشت (اختیاری)</string>
+    <string name="ab_editor_footer">فقط برای این کیف پول در KaChat ذخیره می‌شود. هرگز به مخاطبین گوشی شما اضافه نمی‌شود.</string>
+    <string name="ab_remove_from">برداشتن از دفترچه نشانی</string>
+    <string name="ab_edit_address">ویرایش نشانی</string>
+    <string name="ab_picker_empty_body">نشانی‌ها را در Kaspa Hub &gt; دفترچه نشانی اضافه کنید.</string>
+    <string name="ab_err_no_wallet">ابتدا یک کیف پول باز کنید.</string>
+    <string name="ab_err_empty_name">یک نام وارد کنید.</string>
+    <string name="ab_err_invalid_address">یک نشانی معتبر Kaspa وارد کنید.</string>
+    <string name="ab_saved_toast">در دفترچه نشانی ذخیره شد.</string>
+    <string name="ab_removed_toast">از دفترچه نشانی برداشته شد.</string>
 </resources>

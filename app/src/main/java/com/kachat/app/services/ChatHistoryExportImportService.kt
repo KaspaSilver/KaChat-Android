@@ -60,7 +60,8 @@ class ChatHistoryExportImportService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val chatRepository: ChatRepository,
     private val groupRepository: GroupRepository,
-    private val walletManager: WalletManager
+    private val walletManager: WalletManager,
+    private val addressBookManager: AddressBookManager
 ) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -130,7 +131,9 @@ class ChatHistoryExportImportService @Inject constructor(
             walletAddress = myAddress,
             conversations = conversations,
             groups = groupRepository.exportArchiveGroups(),
-            deletedContactAddresses = deletedIds.sorted().takeIf { it.isNotEmpty() }
+            deletedContactAddresses = deletedIds.sorted().takeIf { it.isNotEmpty() },
+            addressBook = addressBookManager.archiveEntries().takeIf { it.isNotEmpty() },
+            addressBookDeleted = addressBookManager.archiveTombstones().takeIf { it.isNotEmpty() }
         )
     }
 
@@ -168,34 +171,10 @@ class ChatHistoryExportImportService @Inject constructor(
         return BackupCrypto.encrypt(gson.toJson(body), key, myAddress)
     }
 
-    /**
-     * A cross-platform base64 JPEG for the contact's photo, or null. A photo already carried in
-     * from a backup wins; otherwise the linked device-contact photo is decoded, downscaled to a
-     * small thumbnail, and re-encoded so it travels in the shared file without bloating it.
-     * Best-effort: any failure (no photo, unreadable URI) just omits the photo.
-     */
-    private fun contactPhotoForArchive(contact: ContactEntity?): String? {
-        if (contact == null) return null
-        if (!contact.backupPhotoBase64.isNullOrBlank()) return contact.backupPhotoBase64
-        val uriString = contact.systemContactPhotoUri ?: return null
-        return try {
-            val bytes = context.contentResolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }
-                ?: return null
-            // Sampled at decode: a full-size camera photo on a contact card would otherwise be
-            // decoded whole just to be shrunk to 256px.
-            val source = com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = 1024) ?: return null
-            val maxDimension = 256
-            val scale = minOf(1f, maxDimension.toFloat() / maxOf(source.width, source.height))
-            val scaled = if (scale < 1f) {
-                Bitmap.createScaledBitmap(source, (source.width * scale).toInt().coerceAtLeast(1), (source.height * scale).toInt().coerceAtLeast(1), true)
-            } else source
-            val out = java.io.ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, 70, out)
-            Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
-        } catch (e: Exception) {
-            null
-        }
-    }
+    /** The contact's cross-platform photo (one restored from another device), or null. KaChat no
+     *  longer reads the phone's Contacts, so no Contacts-app photo is rendered (iOS 00767a4). */
+    private fun contactPhotoForArchive(contact: ContactEntity?): String? =
+        contact?.backupPhotoBase64?.takeIf { it.isNotBlank() }
 
     /** Builds the archive for the active account (encrypted into the v1 backup envelope, like every
      *  cloud copy), writes it to app-private cache, and returns a content:// URI ready to hand to a
@@ -268,6 +247,16 @@ class ChatHistoryExportImportService @Inject constructor(
         if (archive.schemaVersion != ChatHistoryArchive.CURRENT_SCHEMA_VERSION) {
             throw UnreadableBackupException("This export was made with an incompatible app version")
         }
+
+        // The Address Book is per wallet: only this wallet's archive (or an unstamped one) fills
+        // it (iOS 00767a4).
+        val archiveWallet = archive.walletAddress.orEmpty().trim().lowercase()
+        if (archiveWallet.isEmpty() || archiveWallet == walletManager.getAddress().lowercase()) {
+            addressBookManager.importFromArchive(
+                entries = archive.addressBook.orEmpty(),
+                tombstones = archive.addressBookDeleted.orEmpty()
+            )
+        }
         if (archive.conversations.all { it.messages.isEmpty() }) {
             throw UnreadableBackupException("This file has no chat history to import")
         }
@@ -310,9 +299,8 @@ class ChatHistoryExportImportService @Inject constructor(
                 if (existingContact.alias.isNullOrBlank() && !conversation.contactAlias.isNullOrBlank()) {
                     updated = updated.copy(alias = conversation.contactAlias)
                 }
-                // Adopt a backed-up photo only when this device has no photo of its own for the
-                // contact (no linked device photo and no prior backup photo).
-                if (updated.backupPhotoBase64.isNullOrBlank() && updated.systemContactPhotoUri.isNullOrBlank() && importedPhoto != null) {
+                // Adopt a backed-up photo only when this device has none for the contact yet.
+                if (updated.backupPhotoBase64.isNullOrBlank() && importedPhoto != null) {
                     updated = updated.copy(backupPhotoBase64 = importedPhoto)
                 }
                 if (updated != existingContact) chatRepository.addContact(updated)
@@ -752,6 +740,45 @@ class ChatHistoryExportImportService @Inject constructor(
          * silently drop it and wipe desktop's state on the next Android backup. The same applies
          * per-conversation and per-message: unknown keys there are carried through too.
          */
+        /**
+         * The two sides' `addressBook` / `addressBookDeleted`, merged ([AddressBookManager.merge])
+         * and re-encoded in the archive's own shape (dates ISO 8601). An unreadable side counts as
+         * empty (iOS `mergeArchiveAddressBooks`).
+         */
+        internal fun mergeArchiveAddressBooks(local: JsonObject, remote: JsonObject): Pair<JsonArray, JsonArray> {
+            val plain = Gson()
+            fun entries(side: JsonObject): List<AddressBookEntry> = runCatching {
+                (side.get("addressBook") as? JsonArray)?.mapNotNull { el ->
+                    runCatching {
+                        with(AddressBookManager) { plain.fromJson(el, ArchiveAddressBookEntry::class.java)?.toEntry() }
+                    }.getOrNull()
+                }.orEmpty()
+            }.getOrDefault(emptyList())
+            fun tombstones(side: JsonObject): List<AddressBookTombstone> = runCatching {
+                (side.get("addressBookDeleted") as? JsonArray)?.mapNotNull { el ->
+                    val obj = el as? JsonObject ?: return@mapNotNull null
+                    val address = obj.string("address").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    val deletedAt = AddressBookManager.parseDate(runCatching { obj.get("deletedAt")?.asString }.getOrNull())
+                        ?: return@mapNotNull null
+                    AddressBookTombstone(address, deletedAt)
+                }.orEmpty()
+            }.getOrDefault(emptyList())
+            val (kept, tombs) = AddressBookManager.merge(
+                listOf(entries(local), entries(remote)),
+                listOf(tombstones(local), tombstones(remote))
+            )
+            val book = JsonArray()
+            kept.forEach { book.add(plain.toJsonTree(with(AddressBookManager) { it.toArchive() })) }
+            val deleted = JsonArray()
+            tombs.forEach {
+                deleted.add(JsonObject().apply {
+                    addProperty("address", it.address)
+                    addProperty("deletedAt", AddressBookManager.isoSeconds(it.deletedAt))
+                })
+            }
+            return book to deleted
+        }
+
         internal fun mergeArchives(remote: JsonObject, local: JsonObject): JsonObject {
             val remoteIsNewer = exportedAtMs(remote) > exportedAtMs(local)
             val merged = LinkedHashMap<String, ConversationMerge>()
@@ -860,6 +887,11 @@ class ChatHistoryExportImportService @Inject constructor(
                 }
             }
             if (mergedGroups.size() > 0) result.add("groups", mergedGroups) else result.remove("groups")
+
+            // Address Book: per address the newest edit or deletion wins (AddressBookManager.merge).
+            val (book, bookDeleted) = mergeArchiveAddressBooks(local, remote)
+            if (book.size() > 0) result.add("addressBook", book) else result.remove("addressBook")
+            if (bookDeleted.size() > 0) result.add("addressBookDeleted", bookDeleted) else result.remove("addressBookDeleted")
             if (tombstones.isNotEmpty()) {
                 val tombstoneArray = JsonArray()
                 tombstones.forEach { tombstoneArray.add(it) }

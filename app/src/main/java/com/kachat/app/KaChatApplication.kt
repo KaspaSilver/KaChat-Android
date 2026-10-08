@@ -132,6 +132,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var kachatSocialImages: dagger.Lazy<com.kachat.app.services.kachatnames.KachatSocialImageResolver>
 
+    // The Address Book (iOS 00767a4): built at startup because every display name reads it
+    // through its companion (addressDisplayName), and it follows the active wallet on its own.
+    @Inject
+    lateinit var addressBookManager: com.kachat.app.services.AddressBookManager
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory()).build()
 

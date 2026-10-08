@@ -22,7 +22,6 @@ import com.kachat.app.services.KnsProfileFields
 import com.kachat.app.services.KnsService
 import com.kachat.app.services.NextcloudFile
 import com.kachat.app.services.NextcloudService
-import com.kachat.app.services.SystemContactsSyncService
 import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.ImagePrep
@@ -63,7 +62,6 @@ class ChatViewModel @Inject constructor(
     private val walletService: com.kachat.app.services.WalletService,
     private val notificationHelper: com.kachat.app.services.NotificationHelper,
     private val knsService: KnsService,
-    private val systemContactsSyncService: SystemContactsSyncService,
     private val chatHistoryExportImportService: ChatHistoryExportImportService,
     private val diagnosticsExportService: com.kachat.app.services.DiagnosticsExportService,
     private val voiceRecorderService: VoiceRecorderService,
@@ -77,7 +75,6 @@ class ChatViewModel @Inject constructor(
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
     private val kaPostsService: com.kachat.app.services.KaPostsService,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
-    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter,
     private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
@@ -254,21 +251,6 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = getOrCreateContact(contactId)
             chatRepository.addContact(existing.copy(callsEnabled = if (enabled) true else null))
-            // The phone contact's card gains or loses "KaChat call" with the switch, so it never
-            // offers a call this device would ignore.
-            exportCallableContacts()
-        }
-    }
-
-    /**
-     * Puts "KaChat call" and "KaChat video call" on the card of every phone contact a callable
-     * KaChat contact is linked to, and takes them off everyone else's. Off the main thread: it
-     * walks the phone's contacts database.
-     */
-    private fun exportCallableContacts() {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching { callableContactsExporter.sync(chatRepository.getContacts().first()) }
-                .onFailure { android.util.Log.w("ChatViewModel", "Could not update contact cards: ${it.message}") }
         }
     }
 
@@ -633,16 +615,6 @@ class ChatViewModel @Inject constructor(
      */
     val contactAvatarsByAddress: StateFlow<Map<String, String?>> = chatRepository.getContacts()
         .map { contacts -> contacts.associateBy({ it.id }, { it.knsAvatarUrl }) }
-        .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
-
-    /**
-     * address -> cached device address-book photo URI, the fallback rendered wherever there's no
-     * KNS avatar (see [com.kachat.app.models.ContactEntity.systemContactPhotoUri]). Paired with
-     * [contactAvatarsByAddress] at every group-chat avatar call site so group members resolve
-     * through the same KNS -> device photo -> glyph chain the 1:1 screens use.
-     */
-    val contactPhotoUrisByAddress: StateFlow<Map<String, String?>> = chatRepository.getContacts()
-        .map { contacts -> contacts.associateBy({ it.id }, { it.systemContactPhotoUri }) }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** address -> live contact alias (KNS-resolved name or custom nickname), for group chat's sender labels - see [contactAvatarsByAddress]. */
@@ -2282,7 +2254,7 @@ class ChatViewModel @Inject constructor(
             try {
             val contacts = chatRepository.getContacts().first()
             for (contact in contacts) {
-                if (!canAutoUpdateAliasToDomain(contact.alias, contact.systemContactId, contact.knsName)) continue
+                if (!canAutoUpdateAliasToDomain(contact.alias, contact.knsName)) continue
                 val primary = knsService.reverseResolve(contact.id) ?: continue
                 if (primary != contact.knsName) {
                     chatRepository.addContact(contact.copy(knsName = primary))
@@ -2332,94 +2304,6 @@ class ChatViewModel @Inject constructor(
                 val avatar = try { knsService.getProfile(assetId)?.avatarUrl } catch (e: Exception) { null }
                 if (!avatar.isNullOrBlank() && avatar != contact.knsAvatarUrl) {
                     chatRepository.addContact(contact.copy(knsAvatarUrl = avatar))
-                }
-            }
-        }
-    }
-
-    /** Links a chat to a phone contact picked via ActivityResultContracts.PickContact() — that name always wins over KNS auto-rename. */
-    fun linkSystemContact(contactId: String, lookupKey: String, displayName: String, photoUri: String? = null) {
-        viewModelScope.launch { chatRepository.linkSystemContact(contactId, lookupKey, displayName, source = "manual", photoUri = photoUri) }
-    }
-
-    fun unlinkSystemContact(contactId: String) {
-        viewModelScope.launch { chatRepository.unlinkSystemContact(contactId) }
-    }
-
-    val syncSystemContactsEnabled: StateFlow<Boolean> = settings.syncSystemContactsEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
-
-    val autoCreateSystemContactsEnabled: StateFlow<Boolean> = settings.autoCreateSystemContactsEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
-
-    fun setSyncSystemContactsEnabled(enabled: Boolean) {
-        viewModelScope.launch { settings.setSyncSystemContactsEnabled(enabled) }
-    }
-
-    /** Disabling Autocreate deletes only the shadow contacts this app created — any manually-linked real contact is untouched. */
-    fun setAutoCreateSystemContactsEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            settings.setAutoCreateSystemContactsEnabled(enabled)
-            if (!enabled) {
-                val contacts = chatRepository.getContacts().first()
-                for (contact in contacts.filter { it.systemContactLinkSource == "autoCreated" }) {
-                    contact.systemContactId?.let { systemContactsSyncService.deleteShadowContact(it) }
-                    chatRepository.unlinkSystemContact(contact.id)
-                }
-            }
-        }
-    }
-
-    /**
-     * Automatic system-contacts sync — matches iOS's SystemContactsService: scan for an
-     * embedded Kaspa address on any unlinked chat's phone contacts, link on exact match, and
-     * (if Autocreate is on) create a shadow phone contact for anything still unmatched. Run
-     * whenever the chat list appears, alongside the KNS name refresh.
-     */
-    fun syncSystemContacts() {
-        // Independent of the switches below: the rows follow "Allow calls" and the contact link,
-        // both of which can have changed since the last time the list was on screen.
-        exportCallableContacts()
-        viewModelScope.launch {
-            if (!settings.syncSystemContactsEnabled.first()) return@launch
-            if (!systemContactsSyncService.hasReadPermission()) return@launch
-
-            val allContacts = chatRepository.getContacts().first()
-
-            // Already-linked contacts: re-read their address-book photo so contacts linked before
-            // photos were stored get backfilled, and a photo changed on the phone follows through.
-            // ContentResolver work is deliberately off the main thread — this runs on every chat
-            // list appearance and a full address-book lookup per contact would jank the list.
-            val linked = allContacts.filter { it.systemContactId != null }
-            if (linked.isNotEmpty()) {
-                val refreshedPhotos = withContext(Dispatchers.IO) {
-                    linked.mapNotNull { contact ->
-                        val lookupKey = contact.systemContactId ?: return@mapNotNull null
-                        contact.id to systemContactsSyncService.photoUriForLookupKey(lookupKey)
-                    }
-                }
-                for ((contactId, photoUri) in refreshedPhotos) {
-                    chatRepository.updateSystemContactPhotoUri(contactId, photoUri)
-                }
-            }
-
-            val unlinked = allContacts.filter { it.systemContactId == null }
-            if (unlinked.isEmpty()) return@launch
-
-            val matches = withContext(Dispatchers.IO) {
-                systemContactsSyncService.findMatches(unlinked.map { it.id }.toSet())
-            }
-            for (contact in unlinked) {
-                val match = matches[contact.id] ?: continue
-                chatRepository.linkSystemContact(contact.id, match.lookupKey, match.displayName, source = "manual", photoUri = match.photoUri)
-            }
-
-            if (settings.autoCreateSystemContactsEnabled.first() && systemContactsSyncService.hasWritePermission()) {
-                for (contact in unlinked) {
-                    if (contact.id in matches) continue // just linked above
-                    val alias = contact.displayName
-                    val lookupKey = withContext(Dispatchers.IO) { systemContactsSyncService.createShadowContact(contact.id, alias) } ?: continue
-                    chatRepository.linkSystemContact(contact.id, lookupKey, alias, source = "autoCreated")
                 }
             }
         }
@@ -3747,15 +3631,13 @@ class ChatViewModel @Inject constructor(
         /**
          * Safe to auto-overwrite a contact's alias with the detected primary KNS domain only if
          * it's unset — never clobber a real custom nickname the user typed in, matching iOS's
-         * identical rule. A contact linked to a system (phone) contact is never eligible either
-         * way, regardless of what its alias currently looks like — that link always takes
-         * priority. Once any domain is associated with a contact (`knsName` set, whether by this
+         * identical rule. Once any domain is associated with a contact (`knsName` set, whether by this
          * same auto-detection or by an explicit pick in Chat Info), that choice is pinned —
          * without this, an explicit non-primary domain selection would silently revert back to
          * primary the next time this runs, since the selected domain also "looks like" a domain
          * and would otherwise pass the old unset-or-domain-shaped check.
          */
-        internal fun canAutoUpdateAliasToDomain(currentAlias: String?, systemContactId: String? = null, knsName: String? = null): Boolean =
-            systemContactId == null && knsName == null && currentAlias == null
+        internal fun canAutoUpdateAliasToDomain(currentAlias: String?, knsName: String? = null): Boolean =
+            knsName == null && currentAlias == null
     }
 }

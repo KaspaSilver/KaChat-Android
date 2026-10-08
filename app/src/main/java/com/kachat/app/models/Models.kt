@@ -168,13 +168,17 @@ data class ContactEntity(
     val theirAlias: String? = null,         // Alias THEY sent us in their handshake — required to query their self-stashed messages
     val myAlias: String? = null,            // OUR protocol alias for THIS contact — 12 lowercase hex chars, NOT our display name. Set by a handshake: the deterministic alias since XP-003; a random one only on chats from older builds (see HandshakeAliasPolicy)
     val knsAvatarUrl: String? = null,       // Cached from the KNS profile of `knsName`, so the chat list can render an avatar without a live fetch per row
-    val systemContactId: String? = null,    // Phone contact's LOOKUP_KEY, once linked via "Link from Contacts" — takes priority over KNS auto-rename
-    val systemContactName: String? = null,  // Name snapshot at link time, for the "Linked: X" row
-    val systemContactPhotoUri: String? = null, // Device address-book photo (content:// URI) of the linked phone contact — the fallback every avatar uses when there's no KNS avatar. Stored (not resolved per-render) so the chat list never touches ContactsContract on the main thread; refreshed by ChatViewModel.syncSystemContacts.
-    val systemContactLinkSource: String? = null, // "manual" | "autoCreated" — only "autoCreated" shadow contacts get deleted if Autocreate is turned off
+    // Legacy phone-contact link (KaChat stopped using the phone's Contacts, iOS 00767a4). The
+    // columns stay so the table shape is unchanged; nothing writes them any more. The old linked
+    // name ([systemContactId] + [systemContactName]) is read once by AddressBookManager's
+    // migration, like iOS's `legacyLinkedName`.
+    val systemContactId: String? = null,
+    val systemContactName: String? = null,
+    val systemContactPhotoUri: String? = null,
+    val systemContactLinkSource: String? = null,
     val photoAutoDisplayOverride: String? = null, // PhotoAutoDisplayMode.name, null = automatic (see ChatRepository.shouldAutoDisplayPhotos)
     val notificationOverride: String? = null, // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
-    val backupPhotoBase64: String? = null, // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS or system-contact photo (e.g. a photo set on desktop)
+    val backupPhotoBase64: String? = null, // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS photo (e.g. a photo set on desktop)
     @Deprecated("Superseded by callsEnabled (calls are off by default now); the column stays so the table shape is unchanged.")
     val callsDisabled: Boolean? = null,
     val callsEnabled: Boolean? = null // True once you have allowed calls with this contact - the prompt behind the call button or Chat Info's switch. Off (null) by default: nobody can ring you, or ask your Nextcloud to host a call, until you say so for them (device-local, like iOS Contact.callsEnabled)
@@ -189,7 +193,8 @@ data class ContactEntity(
  * reading it.
  */
 // A contact's stored .kas name is not shown since 5.2 (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY):
-// the name you gave them, else (testnet) their .kachat name, else their address.
+// the name you gave them, else their Address Book name, else (testnet) their .kachat name, else
+// their address.
 val ContactEntity.displayName: String
     get() = addressDisplayName(
         id, alias, knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
@@ -197,7 +202,8 @@ val ContactEntity.displayName: String
 
 /**
  * The app's one display-name rule for an address (iOS `ContactsManager.displayName`, e52357d):
- * the name you gave them ([alias]), else their `.kachat` name - KNS is not consulted, on any
+ * the name you gave them ([alias]), else the name it has in the Address Book (iOS 00767a4), else
+ * their `.kachat` name - KNS is not consulted, on any
  * network since iOS 7227d69 (mainnet has no launched registry yet, so there it is always the
  * short address); the KNS branch ([knsName]) is kept, unreachable; else [fallback], the short
  * address. The `.kachat` name comes from the registry's identity cache
@@ -211,6 +217,7 @@ fun addressDisplayName(
     fallback: String = com.kachat.app.util.KaspaAddress.shortDisplay(address)
 ): String {
     alias?.takeIf { it.isNotBlank() }?.let { return it }
+    com.kachat.app.services.AddressBookManager.nameFor(address)?.let { return it }
     if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
         return com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address) ?: fallback
     }
@@ -219,11 +226,12 @@ fun addressDisplayName(
 
 /**
  * A live name for [address] from an address -> name map (contact aliases, the group members'
- * names), else on testnet its `.kachat` name - the [addressDisplayName] rule for screens that
+ * names), else its Address Book name, else on testnet its `.kachat` name - the [addressDisplayName] rule for screens that
  * keep a names map and their own fallback after it.
  */
 fun Map<String, String>.liveNameFor(address: String): String? =
     this[address]?.takeIf { it.isNotBlank() }
+        ?: com.kachat.app.services.AddressBookManager.nameFor(address)
         ?: com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address)
 
 /** Avatar initial source - same order, but the raw tail rather than the formatted short address. */

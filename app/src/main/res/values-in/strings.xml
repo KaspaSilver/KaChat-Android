@@ -41,7 +41,6 @@
     <string name="connection_settings">Pengaturan Koneksi</string>
     <string name="connection_status">Status Koneksi</string>
     <string name="contact_has_requested_permission_to_communicate">Kontak telah meminta izin untuk berkomunikasi</string>
-    <string name="contacts">Kontak</string>
     <string name="copy_address">Salin Alamat</string>
     <string name="copy_private_key_hex">Salin Hex Kunci Privat</string>
     <string name="copy_kpub">Salin kpub</string>
@@ -96,8 +95,6 @@
     <string name="leave">Keluar</string>
     <string name="leave_delete">Keluar &amp; Hapus</string>
     <string name="let_s_add_more_details_about">Mari tambahkan lebih banyak detail tentang Anda</string>
-    <string name="link_from_contacts">Tautkan dari Kontak</string>
-    <string name="linked">Ditautkan</string>
     <string name="log_out">Keluar</string>
     <string name="manage_addresses">Kelola Alamat</string>
     <string name="max">Maks</string>
@@ -118,7 +115,6 @@
     <string name="no_swaps_yet">Belum ada swap.</string>
     <string name="no_transactions_yet">Belum ada transaksi.</string>
     <string name="not_now">Nanti Saja</string>
-    <string name="not_linked">Tidak ditautkan</string>
     <string name="notifications">Pemberitahuan</string>
     <string name="ok">OK</string>
     <string name="open_settings">Buka Pengaturan</string>
@@ -178,7 +174,6 @@
     <string name="transactions">Transaksi</string>
     <string name="try_again">Coba Lagi</string>
     <string name="unhide">Tampilkan Kembali</string>
-    <string name="unlink">Putuskan Tautan</string>
     <string name="unread">Belum Dibaca</string>
     <string name="use_default">Gunakan Default</string>
     <string name="kpub">kpub</string>
@@ -187,7 +182,6 @@
     <string name="about">Tentang</string>
     <string name="actions">Tindakan</string>
     <string name="active">Aktif</string>
-    <string name="autocreate_system_contacts">Buat kontak sistem otomatis</string>
     <string name="avatar">Avatar</string>
     <string name="banner">Banner</string>
     <string name="bio">Bio</string>
@@ -241,10 +235,7 @@
     <string name="sound_vibration">Suara &amp; Getaran</string>
     <string name="storage">Penyimpanan</string>
     <string name="support_email">Email Dukungan</string>
-    <string name="sync_system_contacts">Sinkronkan kontak sistem</string>
-    <string name="system_contact">Kontak Sistem</string>
     <string name="total">Total</string>
-    <string name="uses_your_device_contacts_to_match">Menggunakan kontak perangkat Anda untuk mencocokkan dan memperkaya kontak Kaspa.</string>
     <string name="verified">Terverifikasi</string>
     <string name="version">Versi</string>
     <string name="vibration">Getaran</string>
@@ -850,10 +841,6 @@
     <string name="seed_phrase_passphrase_label">Frasa sandi</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Kunci akun saat ini tidak bisa dicadangkan di perangkat ini, jadi tidak ada yang diubah. Coba lagi.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">Telepon %1$s?</string>
-    <string name="contacts_call_confirm_voice">Suara</string>
-    <string name="contacts_call_confirm_video">Video</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">Pesan baru</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -992,4 +979,26 @@
     <string name="kn_err_no_name">Tidak ada nama .kachat dengan nama itu.</string>
     <string name="kn_detail_grace_resolves">Kedaluwarsa. Nama ini masih mengarah ke pemiliknya sampai masa tenggang berakhir, dan pemilik masih bisa memperpanjangnya.</string>
     <string name="kn_detail_grace_mine_resolves">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, nama ini masih mengarah ke Anda dan tidak ada orang lain yang bisa mengambilnya.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Buku Alamat</string>
+    <string name="ab_add_to_address_book">Tambahkan ke Buku Alamat</string>
+    <string name="ab_search_prompt">Cari nama dan alamat</string>
+    <string name="ab_empty_body">Simpan alamat Kaspa yang Anda pakai dengan nama yang mudah dikenali. Alamat itu tetap di KaChat, hanya untuk dompet ini, dan tidak pernah masuk ke Kontak ponsel Anda.</string>
+    <string name="ab_add_address">Tambah Alamat</string>
+    <string name="ab_copied">Disalin</string>
+    <string name="ab_share_address">Bagikan Alamat</string>
+    <string name="ab_edit">Edit</string>
+    <string name="ab_delete_from">Hapus dari Buku Alamat</string>
+    <string name="ab_delete_confirm">Hapus %1$s dari Buku Alamat Anda?</string>
+    <string name="ab_not_in_book">Tidak ada di Buku Alamat Anda</string>
+    <string name="ab_note_optional">Catatan (opsional)</string>
+    <string name="ab_editor_footer">Disimpan di KaChat hanya untuk dompet ini. Tidak pernah ditambahkan ke Kontak ponsel Anda.</string>
+    <string name="ab_remove_from">Hapus dari Buku Alamat</string>
+    <string name="ab_edit_address">Edit Alamat</string>
+    <string name="ab_picker_empty_body">Tambahkan alamat di Kaspa Hub &gt; Buku Alamat.</string>
+    <string name="ab_err_no_wallet">Buka dompet terlebih dahulu.</string>
+    <string name="ab_err_empty_name">Masukkan nama.</string>
+    <string name="ab_err_invalid_address">Masukkan alamat Kaspa yang valid.</string>
+    <string name="ab_saved_toast">Disimpan ke Buku Alamat.</string>
+    <string name="ab_removed_toast">Dihapus dari Buku Alamat.</string>
 </resources>

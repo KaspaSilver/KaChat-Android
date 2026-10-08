@@ -53,7 +53,6 @@
     <string name="connection_settings">הגדרות חיבור</string>
     <string name="connection_status">מצב חיבור</string>
     <string name="contact_has_requested_permission_to_communicate">איש הקשר ביקש הרשאה לתקשורת</string>
-    <string name="contacts">אנשי קשר</string>
     <string name="controls_how_much_photos_are_compressed">שולט בכמה התמונות נדחסות לפני השליחה. איכות גבוהה יותר נראית ברורה יותר אך עולה עמלה גבוהה יותר ולוקחת יותר זמן לשליחה; איכות נמוכה יותר נשלחת מהר יותר וזול יותר אך נראית דחוסה יותר. זה משפיע רק על תמונות שאתה שולח, לא על אלה שאתה מקבל.</string>
     <string name="copy">העתק</string>
     <string name="copy_address">העתק כתובת</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">עזוב ומחק</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">עזיבת השידור הזה מוחקת לצמיתות כל הודעה שנשמרה במטמון עבורו במכשיר זה. לא ניתן לבטל זאת; הצטרפות מחדש מאוחר יותר מתחילה ללא היסטוריה.</string>
     <string name="let_s_add_more_details_about">בואו נוסיף עוד פרטים עליך</string>
-    <string name="link_from_contacts">קשר מאנשי קשר</string>
-    <string name="linked">מקושר</string>
     <string name="log_out">התנתק</string>
     <string name="longer_retention_means_more_messages_stay">שמירה ארוכה יותר פירושה שיותר הודעות נשארות במטמון במכשיר שלך, מה שעלול להאט את האפליקציה עם הזמן, במיוחד בחדרים עמוסים.</string>
     <string name="make_active_address">הפוך לכתובת פעילה</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">אין עדיין עסקאות.</string>
     <string name="no_transactions_yet_tap_to_add">אין עדיין עסקאות. הקש + כדי להוסיף את הקנייה או המכירה הראשונה שלך.</string>
     <string name="not_now">לא עכשיו</string>
-    <string name="not_linked">לא מקושר</string>
     <string name="notes_optional">הערות (אופציונלי)</string>
     <string name="notifications">התראות</string>
     <string name="notifications_are_off_in_system_settings">ההתראות כבויות בהגדרות המערכת</string>
@@ -248,7 +244,6 @@
     <string name="transactions">עסקאות</string>
     <string name="try_again">נסה שוב</string>
     <string name="unhide">בטל הסתרה</string>
-    <string name="unlink">בטל קישור</string>
     <string name="unread">לא נקרא</string>
     <string name="use_default">השתמש בברירת המחדל</string>
     <string name="valid_address">כתובת תקפה</string>
@@ -271,7 +266,6 @@
     <string name="about">אודות</string>
     <string name="actions">פעולות</string>
     <string name="active">פעיל</string>
-    <string name="autocreate_system_contacts">יצירת אנשי קשר מערכת אוטומטית</string>
     <string name="avatar">גִלגוּל</string>
     <string name="banner">דֶגֶל</string>
     <string name="bio">ביו</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">שולח עסקת חשיפה...</string>
     <string name="submitting_reveal_transaction_this_could_take">שולח עסקת חשיפה... זה עשוי לקחת כמה דקות בזמן שהיא מתאשרת על השרשרת.</string>
     <string name="support_email">דוא\"ל תמיכה</string>
-    <string name="sync_system_contacts">סנכרן אנשי קשר מערכת</string>
-    <string name="system_contact">איש קשר מערכת</string>
     <string name="telegram">Telegram</string>
     <string name="total">סה\"כ</string>
-    <string name="uses_your_device_contacts_to_match">משתמש באנשי קשר מהמכשיר להתאמה והעשרת אנשי קשר Kaspa.</string>
     <string name="verified">מאומת</string>
     <string name="verifying_new_ownership_on_chain_this">מאמת בעלות חדשה על השרשרת (זה עשוי לקחת דקה)...</string>
     <string name="verifying_on_chain_this_can_take">מאמת על השרשרת (זה עשוי לקחת דקה)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">ביטוי סיסמה</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">לא ניתן היה לגבות את המפתחות של החשבון הנוכחי במכשיר הזה, ולכן דבר לא שונה. נסו שוב.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">להתקשר אל %1$s?</string>
-    <string name="contacts_call_confirm_voice">קולי</string>
-    <string name="contacts_call_confirm_video">וידאו</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">הודעה חדשה</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">אין שם ‎.kachat‎ בשם הזה.</string>
     <string name="kn_detail_grace_resolves">פג תוקף. השם עדיין מפנה לבעלים עד שתקופת החסד מסתיימת, והבעלים עדיין יכול לחדש אותו.</string>
     <string name="kn_detail_grace_mine_resolves">פג תוקף - חדש כדי לשמור עליו. עד שתקופת החסד מסתיימת הוא עדיין מפנה אליך ואף אחד אחר לא יכול לקחת אותו.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">פנקס כתובות</string>
+    <string name="ab_add_to_address_book">הוספה לפנקס הכתובות</string>
+    <string name="ab_search_prompt">חיפוש שמות וכתובות</string>
+    <string name="ab_empty_body">שמרו את כתובות ה-Kaspa שבהן אתם משתמשים בשם שתזהו. הן נשארות ב-KaChat, רק עבור הארנק הזה, ולעולם לא נכנסות לאנשי הקשר בטלפון.</string>
+    <string name="ab_add_address">הוסף כתובת</string>
+    <string name="ab_copied">הועתק</string>
+    <string name="ab_share_address">שיתוף כתובת</string>
+    <string name="ab_edit">עריכה</string>
+    <string name="ab_delete_from">מחיקה מפנקס הכתובות</string>
+    <string name="ab_delete_confirm">למחוק את %1$s מפנקס הכתובות?</string>
+    <string name="ab_not_in_book">לא בפנקס הכתובות שלך</string>
+    <string name="ab_note_optional">הערה (רשות)</string>
+    <string name="ab_editor_footer">נשמר ב-KaChat עבור הארנק הזה בלבד. לעולם לא נוסף לאנשי הקשר בטלפון.</string>
+    <string name="ab_remove_from">הסרה מפנקס הכתובות</string>
+    <string name="ab_edit_address">עריכת כתובת</string>
+    <string name="ab_picker_empty_body">הוסיפו כתובות ב-Kaspa Hub &gt; פנקס כתובות.</string>
+    <string name="ab_err_no_wallet">פתחו קודם ארנק.</string>
+    <string name="ab_err_empty_name">הזינו שם.</string>
+    <string name="ab_err_invalid_address">הזינו כתובת Kaspa תקינה.</string>
+    <string name="ab_saved_toast">נשמר בפנקס הכתובות.</string>
+    <string name="ab_removed_toast">הוסר מפנקס הכתובות.</string>
 </resources>

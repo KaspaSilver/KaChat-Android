@@ -53,7 +53,6 @@
     <string name="connection_settings">Настройки подключения</string>
     <string name="connection_status">Состояние подключения</string>
     <string name="contact_has_requested_permission_to_communicate">Контакт запросил разрешение на общение</string>
-    <string name="contacts">Контакты</string>
     <string name="controls_how_much_photos_are_compressed">Определяет степень сжатия фото перед отправкой. Более высокое качество выглядит четче, но стоит больше комиссии и дольше отправляется; более низкое качество отправляется быстрее и дешевле, но выглядит более сжатым. Это влияет только на фото, которые вы отправляете, а не на те, что получаете.</string>
     <string name="copy">Копировать</string>
     <string name="copy_address">Скопировать адрес</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">Покинуть и удалить</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Покидая эту трансляцию, вы навсегда удаляете все сообщения, кэшированные для неё на этом устройстве. Это нельзя отменить; повторное присоединение позже начнётся без истории.</string>
     <string name="let_s_add_more_details_about">Добавим больше информации о вас</string>
-    <string name="link_from_contacts">Привязать из контактов</string>
-    <string name="linked">Привязан</string>
     <string name="log_out">Выйти</string>
     <string name="longer_retention_means_more_messages_stay">Более длительное хранение означает, что больше сообщений остаётся в кэше на вашем устройстве, что может со временем замедлить приложение, особенно для активных комнат.</string>
     <string name="make_active_address">Сделать активным адресом</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">Пока нет транзакций.</string>
     <string name="no_transactions_yet_tap_to_add">Пока нет транзакций. Нажмите +, чтобы добавить первую покупку или продажу.</string>
     <string name="not_now">Не сейчас</string>
-    <string name="not_linked">Не привязан</string>
     <string name="notes_optional">Заметки (необязательно)</string>
     <string name="notifications">Уведомления</string>
     <string name="notifications_are_off_in_system_settings">Уведомления отключены в системных настройках</string>
@@ -248,7 +244,6 @@
     <string name="transactions">Транзакции</string>
     <string name="try_again">Повторить</string>
     <string name="unhide">Показать снова</string>
-    <string name="unlink">Отвязать</string>
     <string name="unread">Непрочитано</string>
     <string name="use_default">Использовать по умолчанию</string>
     <string name="valid_address">Действительный адрес</string>
@@ -271,7 +266,6 @@
     <string name="about">О приложении</string>
     <string name="actions">Действия</string>
     <string name="active">Активные</string>
-    <string name="autocreate_system_contacts">Автосоздание системных контактов</string>
     <string name="avatar">Аватар</string>
     <string name="banner">Баннер</string>
     <string name="bio">О себе</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">Отправка транзакции раскрытия...</string>
     <string name="submitting_reveal_transaction_this_could_take">Отправка транзакции раскрытия... это может занять несколько минут, пока она подтверждается в блокчейне.</string>
     <string name="support_email">Email поддержки</string>
-    <string name="sync_system_contacts">Синхронизировать системные контакты</string>
-    <string name="system_contact">Системный контакт</string>
     <string name="telegram">Telegram</string>
     <string name="total">Всего</string>
-    <string name="uses_your_device_contacts_to_match">Использует контакты вашего устройства для сопоставления и дополнения контактов Kaspa.</string>
     <string name="verified">Проверенные</string>
     <string name="verifying_new_ownership_on_chain_this">Проверка нового владения в блокчейне (это может занять минуту)...</string>
     <string name="verifying_on_chain_this_can_take">Проверка в блокчейне (это может занять минуту)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">Парольная фраза</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Не удалось сохранить резервную копию ключей текущего аккаунта на этом устройстве, поэтому ничего не изменено. Попробуйте ещё раз.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">Позвонить %1$s?</string>
-    <string name="contacts_call_confirm_voice">Аудио</string>
-    <string name="contacts_call_confirm_video">Видео</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">Новое сообщение</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">Нет имени .kachat с таким названием.</string>
     <string name="kn_detail_grace_resolves">Истекло. До конца льготного периода имя по-прежнему указывает на владельца, и владелец ещё может его продлить.</string>
     <string name="kn_detail_grace_mine_resolves">Истекло - продлите, чтобы сохранить. До конца льготного периода имя по-прежнему указывает на вас, и никто другой не может его занять.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Адресная книга</string>
+    <string name="ab_add_to_address_book">Добавить в адресную книгу</string>
+    <string name="ab_search_prompt">Поиск по именам и адресам</string>
+    <string name="ab_empty_body">Сохраняйте адреса Kaspa, которыми пользуетесь, под понятными именами. Они хранятся в KaChat, только для этого кошелька, и никогда не попадают в контакты телефона.</string>
+    <string name="ab_add_address">Добавить адрес</string>
+    <string name="ab_copied">Скопировано</string>
+    <string name="ab_share_address">Поделиться адресом</string>
+    <string name="ab_edit">Изменить</string>
+    <string name="ab_delete_from">Удалить из адресной книги</string>
+    <string name="ab_delete_confirm">Удалить %1$s из адресной книги?</string>
+    <string name="ab_not_in_book">Нет в вашей адресной книге</string>
+    <string name="ab_note_optional">Заметка (необязательно)</string>
+    <string name="ab_editor_footer">Хранится в KaChat только для этого кошелька. Никогда не добавляется в контакты телефона.</string>
+    <string name="ab_remove_from">Убрать из адресной книги</string>
+    <string name="ab_edit_address">Изменить адрес</string>
+    <string name="ab_picker_empty_body">Добавляйте адреса в Kaspa Hub &gt; Адресная книга.</string>
+    <string name="ab_err_no_wallet">Сначала откройте кошелёк.</string>
+    <string name="ab_err_empty_name">Введите имя.</string>
+    <string name="ab_err_invalid_address">Введите правильный адрес Kaspa.</string>
+    <string name="ab_saved_toast">Сохранено в адресной книге.</string>
+    <string name="ab_removed_toast">Удалено из адресной книги.</string>
 </resources>

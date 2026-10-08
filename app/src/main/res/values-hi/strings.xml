@@ -53,7 +53,6 @@
     <string name="connection_settings">कनेक्शन सेटिंग्स</string>
     <string name="connection_status">कनेक्शन स्थिति</string>
     <string name="contact_has_requested_permission_to_communicate">संपर्क ने संवाद करने की अनुमति मांगी है</string>
-    <string name="contacts">संपर्क</string>
     <string name="controls_how_much_photos_are_compressed">भेजने से पहले फ़ोटो कितनी संपीड़ित होती हैं इसे नियंत्रित करता है। उच्च गुणवत्ता अधिक स्पष्ट दिखती है लेकिन अधिक शुल्क लगती है और भेजने में अधिक समय लगता है; कम गुणवत्ता तेज़ और सस्ती भेजी जाती है लेकिन अधिक संपीड़ित दिखती है। यह केवल उन फ़ोटो को प्रभावित करता है जो आप भेजते हैं, जो आप प्राप्त करते हैं उन्हें नहीं।</string>
     <string name="copy">कॉपी करें</string>
     <string name="copy_address">पता कॉपी करें</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">छोड़ें और हटाएं</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">इस ब्रॉडकास्ट को छोड़ने से इस डिवाइस पर इसके लिए कैश किया गया हर संदेश स्थायी रूप से हट जाता है। इसे पूर्ववत नहीं किया जा सकता; बाद में फिर से शामिल होना बिना इतिहास के शुरू होता है।</string>
     <string name="let_s_add_more_details_about">आइए आपके बारे में और विवरण जोड़ें</string>
-    <string name="link_from_contacts">संपर्कों से लिंक करें</string>
-    <string name="linked">लिंक किया गया</string>
     <string name="log_out">लॉग आउट</string>
     <string name="longer_retention_means_more_messages_stay">लंबी अवधि की रिटेंशन का मतलब है कि आपके डिवाइस पर अधिक संदेश कैश में रहते हैं, जो समय के साथ ऐप को धीमा कर सकता है, खासकर व्यस्त कमरों के लिए।</string>
     <string name="make_active_address">सक्रिय पता बनाएं</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">अभी तक कोई लेन-देन नहीं।</string>
     <string name="no_transactions_yet_tap_to_add">अभी तक कोई लेन-देन नहीं। अपनी पहली खरीद या बिक्री जोड़ने के लिए + पर टैप करें।</string>
     <string name="not_now">अभी नहीं</string>
-    <string name="not_linked">लिंक नहीं है</string>
     <string name="notes_optional">नोट्स (वैकल्पिक)</string>
     <string name="notifications">सूचनाएं</string>
     <string name="notifications_are_off_in_system_settings">सूचनाएं सिस्टम सेटिंग्स में बंद हैं</string>
@@ -248,7 +244,6 @@
     <string name="transactions">लेन-देन</string>
     <string name="try_again">फिर कोशिश करें</string>
     <string name="unhide">अनहाइड करें</string>
-    <string name="unlink">अनलिंक करें</string>
     <string name="unread">अपठित</string>
     <string name="use_default">डिफ़ॉल्ट उपयोग करें</string>
     <string name="valid_address">मान्य पता</string>
@@ -271,7 +266,6 @@
     <string name="about">परिचय</string>
     <string name="actions">कार्य</string>
     <string name="active">सक्रिय</string>
-    <string name="autocreate_system_contacts">सिस्टम संपर्क स्वतः बनाएं</string>
     <string name="avatar">अवतार</string>
     <string name="banner">बैनर</string>
     <string name="bio">जैव</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">रिवील लेन-देन भेजा जा रहा है...</string>
     <string name="submitting_reveal_transaction_this_could_take">रिवील लेन-देन भेजा जा रहा है... चेन पर कन्फर्म होने में कुछ मिनट लग सकते हैं।</string>
     <string name="support_email">सहायता ईमेल</string>
-    <string name="sync_system_contacts">सिस्टम संपर्क सिंक करें</string>
-    <string name="system_contact">सिस्टम संपर्क</string>
     <string name="telegram">Telegram</string>
     <string name="total">कुल</string>
-    <string name="uses_your_device_contacts_to_match">Kaspa संपर्कों को मिलान और समृद्ध करने के लिए आपके डिवाइस संपर्कों का उपयोग करता है।</string>
     <string name="verified">सत्यापित</string>
     <string name="verifying_new_ownership_on_chain_this">चेन पर नया स्वामित्व सत्यापित हो रहा है (इसमें एक मिनट लग सकता है)...</string>
     <string name="verifying_on_chain_this_can_take">चेन पर सत्यापित हो रहा है (इसमें एक मिनट लग सकता है)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">पासफ़्रेज़</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">इस डिवाइस पर मौजूदा खाते की कुंजियों का बैकअप नहीं लिया जा सका, इसलिए कुछ भी नहीं बदला गया। फिर से कोशिश करें।</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">%1$s को कॉल करें?</string>
-    <string name="contacts_call_confirm_voice">वॉइस</string>
-    <string name="contacts_call_confirm_video">वीडियो</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">नया संदेश</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">इस नाम का कोई .kachat नाम नहीं है।</string>
     <string name="kn_detail_grace_resolves">समाप्त हो गया। ग्रेस अवधि समाप्त होने तक यह अभी भी अपने मालिक के पते पर रिज़ॉल्व होता है, और मालिक अभी भी इसे नवीनीकृत कर सकता है।</string>
     <string name="kn_detail_grace_mine_resolves">समाप्त हो गया - इसे रखने के लिए नवीनीकृत करें। ग्रेस अवधि समाप्त होने तक यह अभी भी आपके पते पर रिज़ॉल्व होता है और कोई और इसे नहीं ले सकता।</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">एड्रेस बुक</string>
+    <string name="ab_add_to_address_book">एड्रेस बुक में जोड़ें</string>
+    <string name="ab_search_prompt">नाम और पते खोजें</string>
+    <string name="ab_empty_body">जिन Kaspa पतों का आप उपयोग करते हैं, उन्हें पहचाने जाने वाले नाम से सहेजें। वे KaChat में रहते हैं, सिर्फ़ इस वॉलेट के लिए, और कभी आपके फ़ोन के संपर्कों में नहीं जाते।</string>
+    <string name="ab_add_address">पता जोड़ें</string>
+    <string name="ab_copied">कॉपी हो गया</string>
+    <string name="ab_share_address">पता साझा करें</string>
+    <string name="ab_edit">संपादित करें</string>
+    <string name="ab_delete_from">एड्रेस बुक से हटाएँ</string>
+    <string name="ab_delete_confirm">%1$s को अपनी एड्रेस बुक से हटाएँ?</string>
+    <string name="ab_not_in_book">आपकी एड्रेस बुक में नहीं है</string>
+    <string name="ab_note_optional">नोट (वैकल्पिक)</string>
+    <string name="ab_editor_footer">सिर्फ़ इस वॉलेट के लिए KaChat में सहेजा गया। कभी आपके फ़ोन के संपर्कों में नहीं जोड़ा जाता।</string>
+    <string name="ab_remove_from">एड्रेस बुक से हटाएँ</string>
+    <string name="ab_edit_address">पता संपादित करें</string>
+    <string name="ab_picker_empty_body">Kaspa Hub &gt; एड्रेस बुक में पते जोड़ें।</string>
+    <string name="ab_err_no_wallet">पहले एक वॉलेट खोलें।</string>
+    <string name="ab_err_empty_name">एक नाम दर्ज करें।</string>
+    <string name="ab_err_invalid_address">एक मान्य Kaspa पता दर्ज करें।</string>
+    <string name="ab_saved_toast">एड्रेस बुक में सहेजा गया।</string>
+    <string name="ab_removed_toast">एड्रेस बुक से हटाया गया।</string>
 </resources>

@@ -1,0 +1,703 @@
+package com.kachat.app.ui.screens
+
+import android.content.Intent
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.kachat.app.R
+import com.kachat.app.services.AddressBookEntry
+import com.kachat.app.services.AddressBookManager
+import com.kachat.app.ui.theme.KaspaTeal
+import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.KaspaAddress
+import com.kachat.app.viewmodels.WalletViewModel
+import kotlinx.coroutines.delay
+
+// The Address Book (Kaspa Hub > Address Book): saved Kaspa addresses with a name and a note, per
+// wallet. It replaced syncing with the phone's Contacts - see AddressBookManager (iOS
+// AddressBookView.swift, 00767a4).
+
+/** This wallet's Address Book entries, sorted by name; re-renders on every change. */
+@Composable
+fun rememberAddressBookEntries(): List<AddressBookEntry> {
+    val book = AddressBookManager.shared ?: return emptyList()
+    val entries by book.entries.collectAsState()
+    return entries
+}
+
+/**
+ * Kaspa Hub > Address Book (also a dock tab, if placed there): the list with its search, add, and
+ * the entry pages it opens. [onBack] is the Hub's way back to its grid; null as a dock tab.
+ */
+@Composable
+fun AddressBookScreen(
+    onBack: (() -> Unit)?,
+    onOpenChat: (String) -> Unit,
+    walletViewModel: WalletViewModel,
+) {
+    val entries = rememberAddressBookEntries()
+    var openAddress by rememberSaveable { mutableStateOf<String?>(null) }
+    var showAdd by remember { mutableStateOf(false) }
+
+    val open = openAddress
+    if (open != null) {
+        AddressBookEntryDetail(
+            address = open,
+            onBack = { openAddress = null },
+            onOpenChat = onOpenChat,
+            walletViewModel = walletViewModel,
+        )
+        return
+    }
+    if (onBack != null) BackHandler(onBack = onBack)
+
+    val colors = LocalAppColors.current
+    var search by rememberSaveable { mutableStateOf("") }
+    val shown = remember(entries, search) { AddressBookManager.shared?.search(search) ?: emptyList() }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            MainPageHeader(title = stringResource(R.string.ab_address_book), onBack = onBack) {
+                IconButton(onClick = { showAdd = true }) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.ab_add_address), tint = KaspaTeal)
+                }
+            }
+        }
+    ) { padding ->
+        if (entries.isEmpty()) {
+            AddressBookEmptyState(
+                body = stringResource(R.string.ab_empty_body),
+                modifier = Modifier.padding(padding),
+            ) {
+                Button(
+                    onClick = { showAdd = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.ab_add_address), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        } else {
+            Column(Modifier.fillMaxSize().padding(padding)) {
+                // Always showing: hidden until you pulled the list down, it read as pull-to-refresh.
+                AddressBookSearchField(search, { search = it }, Modifier.padding(horizontal = 16.dp))
+                Spacer(Modifier.height(10.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 120.dp),
+                ) {
+                    item {
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)
+                        ) {
+                            shown.forEachIndexed { index, entry ->
+                                if (index > 0) SettingsDivider(inset = 66.dp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { openAddress = entry.address }
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    AddressBookRow(entry, Modifier.weight(1f))
+                                    IosDisclosureChevron()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAdd) {
+        AddressBookEntryEditor(address = null, onDone = {}, onDismiss = { showAdd = false })
+    }
+}
+
+/** The search field the Address Book and its picker keep at the top, always visible. */
+@Composable
+private fun AddressBookSearchField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(22.dp)),
+        placeholder = { Text(stringResource(R.string.ab_search_prompt), color = colors.textSecondary) },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyMedium,
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+        },
+        trailingIcon = {
+            if (value.isNotEmpty()) {
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search), tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = colors.surface,
+            unfocusedContainerColor = colors.surface,
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
+            cursorColor = KaspaTeal,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        )
+    )
+}
+
+/** "No saved addresses", what the book is for, and [action]. */
+@Composable
+private fun AddressBookEmptyState(
+    body: String,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 44.dp,
+    iconTint: Color = KaspaTeal,
+    action: (@Composable () -> Unit)? = null,
+) {
+    val colors = LocalAppColors.current
+    Column(
+        modifier = modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+    ) {
+        Icon(Icons.Outlined.Book, contentDescription = null, tint = iconTint, modifier = Modifier.size(iconSize))
+        Text(stringResource(R.string.no_saved_addresses), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        Text(body, color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+        action?.invoke()
+    }
+}
+
+/**
+ * An Address Book picture: the photo you assigned to the entry, else exactly the avatar the
+ * address set on its own profile, else the person glyph. Never a photo carried for a chat contact
+ * (iOS `AddressBookAvatar`).
+ */
+@Composable
+fun AddressBookAvatar(address: String, size: Dp = 44.dp) {
+    ContactAvatar(imageUrl = null, fallbackText = "", size = size, address = address)
+}
+
+/** One saved address in a list: avatar, name, short address. */
+@Composable
+fun AddressBookRow(entry: AddressBookEntry, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    Row(modifier = modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        AddressBookAvatar(entry.address, size = 38.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(entry.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                KaspaAddress.shortDisplay(entry.address),
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/** A row in one of the detail page's sections: an icon and a label in [tint]. */
+@Composable
+private fun AddressBookActionRow(icon: ImageVector, label: String, tint: Color = KaspaTeal, enabled: Boolean = true, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val color = if (enabled) tint else LocalAppColors.current.textTertiary
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(label, color = color, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/** A saved address: send to it, message it, copy or share it, edit or delete it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddressBookEntryDetail(
+    address: String,
+    onBack: () -> Unit,
+    onOpenChat: (String) -> Unit,
+    walletViewModel: WalletViewModel,
+) {
+    BackHandler(onBack = onBack)
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val entries = rememberAddressBookEntries()
+    val entry = remember(entries, address) { AddressBookManager.shared?.entry(address) }
+    val walletAddress by walletViewModel.address.collectAsState()
+    val balanceSompi by walletViewModel.balanceSompi.collectAsState()
+    val isOwnAddress = AddressBookManager.normalize(walletAddress.orEmpty()) == AddressBookManager.normalize(address)
+    var showEdit by remember { mutableStateOf(false) }
+    var showSend by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) { delay(1500); copied = false }
+    }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(entry?.name.orEmpty(), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal) }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        }
+    ) { padding ->
+        if (entry == null) {
+            // Deleted (here or by a backup restore) while open.
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.ab_not_in_book), color = colors.textSecondary)
+            }
+            return@Scaffold
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            Spacer(Modifier.height(4.dp))
+            SettingsSection(title = null) {
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    AddressBookAvatar(entry.address, size = 76.dp)
+                    Text(entry.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, textAlign = TextAlign.Center)
+                    if (entry.note.isNotEmpty()) {
+                        Text(entry.note, color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+
+            SettingsSection(title = stringResource(R.string.address)) {
+                SelectionContainer {
+                    Text(
+                        entry.address,
+                        color = colors.textPrimary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
+                }
+                SettingsDivider()
+                AddressBookActionRow(
+                    if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                    stringResource(if (copied) R.string.ab_copied else R.string.copy_address),
+                ) {
+                    clipboard.setText(AnnotatedString(entry.address))
+                    copied = true
+                }
+                SettingsDivider()
+                AddressBookActionRow(Icons.Default.Share, stringResource(R.string.ab_share_address)) {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, entry.address)
+                    }
+                    context.startActivity(Intent.createChooser(send, null))
+                }
+            }
+
+            SettingsSection(title = null) {
+                AddressBookActionRow(Icons.Default.Send, stringResource(R.string.send_kas_title), enabled = walletAddress != null) {
+                    showSend = true
+                }
+                if (!isOwnAddress) {
+                    SettingsDivider()
+                    AddressBookActionRow(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.message)) {
+                        onOpenChat(entry.address)
+                    }
+                }
+            }
+
+            SettingsSection(title = null) {
+                AddressBookActionRow(Icons.Default.Edit, stringResource(R.string.ab_edit)) { showEdit = true }
+                SettingsDivider()
+                AddressBookActionRow(Icons.Default.Delete, stringResource(R.string.ab_delete_from), tint = colors.danger) {
+                    confirmDelete = true
+                }
+            }
+        }
+    }
+
+    if (showEdit && entry != null) {
+        AddressBookEntryEditor(
+            address = entry.address,
+            onDone = { result -> if (result == AddressBookEditResult.REMOVED) onBack() },
+            onDismiss = { showEdit = false },
+        )
+    }
+    if (showSend && entry != null) {
+        IosFullSheet(onDismissed = { showSend = false }, swipeToDismiss = false) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = walletAddress.orEmpty(),
+                balanceSompi = balanceSompi,
+                title = "Send Kaspa",
+                viewModel = walletViewModel,
+                onDone = close,
+                presentedAsSheet = true,
+                prefillAddress = entry.address,
+            )
+        }
+    }
+    if (confirmDelete && entry != null) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.ab_delete_confirm, entry.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    AddressBookManager.shared?.remove(entry.address)
+                    onBack()
+                }) { Text(stringResource(R.string.delete), color = colors.danger, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel), color = KaspaTeal) }
+            },
+        )
+    }
+}
+
+enum class AddressBookEditResult { SAVED, REMOVED }
+
+/** A form section's text field: no box of its own, the section's card is the box. */
+@Composable
+private fun AddressBookFormField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = 1,
+    monospace: Boolean = false,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.Sentences,
+) {
+    val colors = LocalAppColors.current
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = colors.textTertiary, fontFamily = if (monospace) FontFamily.Monospace else null) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = singleLine,
+        minLines = minLines,
+        maxLines = maxLines,
+        textStyle = if (monospace) MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace) else MaterialTheme.typography.bodyLarge,
+        keyboardOptions = KeyboardOptions(
+            capitalization = capitalization,
+            autoCorrect = !monospace,
+            keyboardType = if (monospace) KeyboardType.Uri else KeyboardType.Text,
+        ),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
+            cursorColor = KaspaTeal,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+        ),
+    )
+}
+
+/**
+ * Add or edit one entry. With an [address] it edits that address's entry (or adds it, with
+ * [suggestedName] filled in - User Info's "Add to Address Book"); without one the address is
+ * typed, pasted or scanned (iOS `AddressBookEntryEditor`).
+ */
+@Composable
+fun AddressBookEntryEditor(
+    address: String?,
+    suggestedName: String = "",
+    onDone: (AddressBookEditResult) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val book = AddressBookManager.shared ?: return
+    val colors = LocalAppColors.current
+    val clipboard = LocalClipboardManager.current
+    val entries = rememberAddressBookEntries()
+    var addressInput by remember { mutableStateOf("") }
+    val effectiveAddress = AddressBookManager.normalize(address ?: addressInput)
+    val existing = remember(entries, effectiveAddress) { book.entry(effectiveAddress) }
+    // Filled once, from the saved entry or the suggestion.
+    val initial = remember { book.entry(address) }
+    var name by remember { mutableStateOf(initial?.name ?: suggestedName) }
+    var note by remember { mutableStateOf(initial?.note.orEmpty()) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var showScanner by remember { mutableStateOf(false) }
+    val errNoWallet = stringResource(R.string.ab_err_no_wallet)
+    val errEmptyName = stringResource(R.string.ab_err_empty_name)
+    val errInvalid = stringResource(R.string.ab_err_invalid_address)
+
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true, grouped = true) { close ->
+        BackHandler(onBack = close)
+        Column(Modifier.fillMaxSize()) {
+            IosSheetNavBar(
+                title = stringResource(if (existing == null) R.string.ab_add_to_address_book else R.string.ab_edit_address),
+                leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
+                trailing = {
+                    IosBarTextButton(
+                        stringResource(R.string.save),
+                        bold = true,
+                        enabled = name.isNotBlank() && effectiveAddress.isNotEmpty(),
+                        onClick = {
+                            try {
+                                book.save(effectiveAddress, name, note)
+                                onDone(AddressBookEditResult.SAVED)
+                                close()
+                            } catch (e: AddressBookManager.SaveException) {
+                                error = when (e.messageKey) {
+                                    AddressBookManager.SaveError.NO_WALLET -> errNoWallet
+                                    AddressBookManager.SaveError.EMPTY_NAME -> errEmptyName
+                                    AddressBookManager.SaveError.INVALID_ADDRESS -> errInvalid
+                                }
+                            }
+                        },
+                    )
+                },
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Spacer(Modifier.height(4.dp))
+                SettingsSection(title = stringResource(R.string.name)) {
+                    AddressBookFormField(name, { name = it }, stringResource(R.string.name), capitalization = KeyboardCapitalization.Words)
+                }
+
+                SettingsSection(title = stringResource(R.string.address)) {
+                    if (address != null) {
+                        Text(
+                            address,
+                            color = colors.textSecondary,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        )
+                    } else {
+                        AddressBookFormField(
+                            addressInput, { addressInput = it }, "kaspa:qr...",
+                            singleLine = false, maxLines = 3, monospace = true,
+                            capitalization = KeyboardCapitalization.None,
+                        )
+                        SettingsDivider()
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CreateChatActionItem(Icons.Default.ContentPaste, stringResource(R.string.paste)) {
+                                clipboard.getText()?.text?.let { addressInput = it.trim() }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            CreateChatActionItem(Icons.Default.QrCodeScanner, stringResource(R.string.scan_qr)) { showScanner = true }
+                        }
+                    }
+                }
+
+                Column {
+                    SettingsSection(title = null) {
+                        AddressBookFormField(
+                            note, { note = it }, stringResource(R.string.ab_note_optional),
+                            singleLine = false, minLines = 1, maxLines = 4,
+                        )
+                    }
+                    SettingsFooter(stringResource(R.string.ab_editor_footer))
+                }
+
+                error?.let { message ->
+                    SettingsSection(title = null) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = colors.danger, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(message, color = colors.danger, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                if (address != null && existing != null) {
+                    SettingsSection(title = null) {
+                        AddressBookActionRow(Icons.Default.Delete, stringResource(R.string.ab_remove_from), tint = colors.danger) {
+                            book.remove(effectiveAddress)
+                            onDone(AddressBookEditResult.REMOVED)
+                            close()
+                        }
+                    }
+                }
+            }
+        }
+        if (showScanner) {
+            QrScannerSheet(
+                onScanned = { code ->
+                    var scanned = code.trim()
+                    val q = scanned.indexOf('?')
+                    if (q >= 0) scanned = scanned.substring(0, q)
+                    addressInput = scanned
+                    showScanner = false
+                },
+                onDismiss = { showScanner = false },
+            )
+        }
+    }
+}
+
+/**
+ * Pick one address from the Address Book (Add Contact, the Send screens), in a full-height sheet;
+ * tapping a row picks it and closes. iOS `AddressBookPickerSheet`.
+ */
+@Composable
+fun AddressBookPickerSheet(
+    onDismiss: () -> Unit,
+    onSelect: (AddressBookEntry) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val entries = rememberAddressBookEntries()
+    var search by remember { mutableStateOf("") }
+    val shown = remember(entries, search) { AddressBookManager.shared?.search(search) ?: emptyList() }
+
+    IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true) { close ->
+        BackHandler(onBack = close)
+        Column(Modifier.fillMaxSize()) {
+            IosSheetNavBar(
+                title = stringResource(R.string.ab_address_book),
+                leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
+            )
+            if (entries.isEmpty()) {
+                AddressBookEmptyState(
+                    body = stringResource(R.string.ab_picker_empty_body),
+                    iconSize = 36.dp,
+                    iconTint = colors.textSecondary,
+                )
+            } else {
+                AddressBookSearchField(search, { search = it }, Modifier.padding(horizontal = 16.dp))
+                Spacer(Modifier.height(10.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 32.dp),
+                ) {
+                    item {
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
+                            shown.forEachIndexed { index, entry ->
+                                if (index > 0) SettingsDivider(inset = 66.dp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onSelect(entry)
+                                            close()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    AddressBookRow(entry, Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

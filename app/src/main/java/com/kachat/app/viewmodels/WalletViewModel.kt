@@ -57,7 +57,6 @@ class WalletViewModel @Inject constructor(
     private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
     private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
-    private val callableContactsExporter: com.kachat.app.services.CallableContactsExporter,
     private val chatRepository: com.kachat.app.repository.ChatRepository,
     private val nextcloudService: com.kachat.app.services.NextcloudService,
     /** The .k and .kaspa name services (Your Domains tabs, name resolution) - iOS NameServicesClient. */
@@ -1292,9 +1291,6 @@ class WalletViewModel @Inject constructor(
         // deleting some other saved account from the Welcome list must not kill this one's push.
         if (address == walletManager.getActiveAccount()?.address) {
             pushRegistrationManager.unregisterAsync()
-            // The phone's contact cards must not keep offering "KaChat call" for chats whose
-            // keys are about to be destroyed.
-            viewModelScope.launch(Dispatchers.IO) { runCatching { callableContactsExporter.removeAll() } }
         }
         // Everything this account held locally goes with it. wipeAllLocalDataForAddress has been
         // here the whole time and nothing called it on deletion, so a deleted account's messages,

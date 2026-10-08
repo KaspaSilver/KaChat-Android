@@ -53,7 +53,6 @@
     <string name="connection_settings">接続設定</string>
     <string name="connection_status">接続状況</string>
     <string name="contact_has_requested_permission_to_communicate">連絡先が通信許可をリクエストしました</string>
-    <string name="contacts">連絡先</string>
     <string name="controls_how_much_photos_are_compressed">送信前に写真がどの程度圧縮されるかを制御します。高品質はより鮮明に見えますが、手数料が高くなり送信に時間がかかります。低品質はより速く安価に送信されますが、より圧縮されて見えます。これは送信する写真にのみ影響し、受信する写真には影響しません。</string>
     <string name="copy">コピー</string>
     <string name="copy_address">アドレスをコピー</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">退出して削除</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">このブロードキャストを退出すると、このデバイスにキャッシュされているすべてのメッセージが完全に削除されます。これは元に戻せません。後で再参加すると履歴なしで開始されます。</string>
     <string name="let_s_add_more_details_about">あなたについての詳細をもっと追加しましょう</string>
-    <string name="link_from_contacts">連絡先からリンク</string>
-    <string name="linked">リンク済み</string>
     <string name="log_out">ログアウト</string>
     <string name="longer_retention_means_more_messages_stay">保持期間が長いほど、デバイスにキャッシュされるメッセージが増えます。これは特にアクティブな部屋では時間の経過とともにアプリを遅くする可能性があります。</string>
     <string name="make_active_address">アクティブなアドレスにする</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">まだ取引がありません。</string>
     <string name="no_transactions_yet_tap_to_add">まだ取引がありません。最初の購入または売却を追加するには+をタップしてください。</string>
     <string name="not_now">今はしない</string>
-    <string name="not_linked">未リンク</string>
     <string name="notes_optional">メモ (任意)</string>
     <string name="notifications">通知</string>
     <string name="notifications_are_off_in_system_settings">システム設定で通知がオフになっています</string>
@@ -248,7 +244,6 @@
     <string name="transactions">取引</string>
     <string name="try_again">再試行</string>
     <string name="unhide">表示に戻す</string>
-    <string name="unlink">リンク解除</string>
     <string name="unread">未読</string>
     <string name="use_default">デフォルトを使用</string>
     <string name="valid_address">有効なアドレス</string>
@@ -271,7 +266,6 @@
     <string name="about">情報</string>
     <string name="actions">アクション</string>
     <string name="active">アクティブ</string>
-    <string name="autocreate_system_contacts">システム連絡先を自動作成</string>
     <string name="avatar">アバター</string>
     <string name="banner">バナー</string>
     <string name="bio">バイオ</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">リビール取引を送信中...</string>
     <string name="submitting_reveal_transaction_this_could_take">リビール取引を送信中... チェーン上で確認されるまで数分かかる場合があります。</string>
     <string name="support_email">サポートメール</string>
-    <string name="sync_system_contacts">システム連絡先を同期</string>
-    <string name="system_contact">システム連絡先</string>
     <string name="telegram">Telegram</string>
     <string name="total">合計</string>
-    <string name="uses_your_device_contacts_to_match">デバイスの連絡先を使用してKaspa連絡先とマッチングし補完します。</string>
     <string name="verified">検証済み</string>
     <string name="verifying_new_ownership_on_chain_this">チェーン上で新しい所有権を確認中 (1分ほどかかる場合があります)...</string>
     <string name="verifying_on_chain_this_can_take">チェーン上で確認中 (1分ほどかかる場合があります)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">パスフレーズ</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">このデバイスで現在のアカウントの鍵をバックアップできなかったため、何も変更していません。もう一度お試しください。</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">%1$sに発信しますか？</string>
-    <string name="contacts_call_confirm_voice">音声</string>
-    <string name="contacts_call_confirm_video">ビデオ</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">新しいメッセージ</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">その名前の.kachatネームはありません。</string>
     <string name="kn_detail_grace_resolves">期限切れです。猶予期間が終わるまでは引き続き所有者のアドレスに解決され、所有者はまだ更新できます。</string>
     <string name="kn_detail_grace_mine_resolves">期限切れです - 保持するには更新してください。猶予期間が終わるまでは引き続きあなたのアドレスに解決され、他の人は取得できません。</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">アドレス帳</string>
+    <string name="ab_add_to_address_book">アドレス帳に追加</string>
+    <string name="ab_search_prompt">名前とアドレスを検索</string>
+    <string name="ab_empty_body">よく使うKaspaアドレスを、分かりやすい名前で保存できます。KaChatの中だけに、このウォレット専用で保存され、電話の連絡先には一切入りません。</string>
+    <string name="ab_add_address">アドレスを追加</string>
+    <string name="ab_copied">コピーしました</string>
+    <string name="ab_share_address">アドレスを共有</string>
+    <string name="ab_edit">編集</string>
+    <string name="ab_delete_from">アドレス帳から削除</string>
+    <string name="ab_delete_confirm">%1$sをアドレス帳から削除しますか？</string>
+    <string name="ab_not_in_book">アドレス帳にありません</string>
+    <string name="ab_note_optional">メモ（任意）</string>
+    <string name="ab_editor_footer">このウォレット専用にKaChatに保存されます。電話の連絡先には追加されません。</string>
+    <string name="ab_remove_from">アドレス帳から削除</string>
+    <string name="ab_edit_address">アドレスを編集</string>
+    <string name="ab_picker_empty_body">Kaspa Hub &gt; アドレス帳でアドレスを追加できます。</string>
+    <string name="ab_err_no_wallet">先にウォレットを開いてください。</string>
+    <string name="ab_err_empty_name">名前を入力してください。</string>
+    <string name="ab_err_invalid_address">有効なKaspaアドレスを入力してください。</string>
+    <string name="ab_saved_toast">アドレス帳に保存しました。</string>
+    <string name="ab_removed_toast">アドレス帳から削除しました。</string>
 </resources>

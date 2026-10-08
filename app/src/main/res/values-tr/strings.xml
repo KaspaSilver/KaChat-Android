@@ -53,7 +53,6 @@
     <string name="connection_settings">Bağlantı Ayarları</string>
     <string name="connection_status">Bağlantı Durumu</string>
     <string name="contact_has_requested_permission_to_communicate">Kişi iletişim izni istedi</string>
-    <string name="contacts">Kişiler</string>
     <string name="controls_how_much_photos_are_compressed">Fotograflarin gonderilmeden once ne kadar sikistirilacagini kontrol eder. Daha yuksek kalite daha net gorunur ancak daha yuksek ucret gerektirir ve gonderimi uzun surer; daha dusuk kalite daha hizli ve ucuz gonderilir ama daha sikistirilmis gorunur. Bu yalnizca gonderdiginiz fotograflari etkiler, aldiklarinizi degil.</string>
     <string name="copy">Kopyala</string>
     <string name="copy_address">Adresi Kopyala</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">Ayril ve Sil</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Bu yayindan ayrilmak, bu cihazda onun icin onbellege alinmis her mesaji kalici olarak siler. Bu geri alinamaz; daha sonra tekrar katilmak gecmis olmadan baslar.</string>
     <string name="let_s_add_more_details_about">Hakkinizda daha fazla detay ekleyelim</string>
-    <string name="link_from_contacts">Kişilerden Bağla</string>
-    <string name="linked">Bağlı</string>
     <string name="log_out">Çıkış Yap</string>
     <string name="longer_retention_means_more_messages_stay">Daha uzun saklama, cihazinizda daha fazla mesajin onbellekte kalmasi anlamina gelir, bu da ozellikle hareketli odalarda uygulamayi zamanla yavaslatabilir.</string>
     <string name="make_active_address">Aktif Adres Yap</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">Henuz islem yok.</string>
     <string name="no_transactions_yet_tap_to_add">Henuz islem yok. Ilk alim veya satiminizi eklemek icin + dokunun.</string>
     <string name="not_now">Simdi Degil</string>
-    <string name="not_linked">Bağlı değil</string>
     <string name="notes_optional">Notlar (istege bagli)</string>
     <string name="notifications">Bildirimler</string>
     <string name="notifications_are_off_in_system_settings">Bildirimler sistem ayarlarinda kapali</string>
@@ -248,7 +244,6 @@
     <string name="transactions">Islemler</string>
     <string name="try_again">Tekrar Dene</string>
     <string name="unhide">Gizlemeyi Kaldir</string>
-    <string name="unlink">Bağlantıyı Kaldır</string>
     <string name="unread">Okunmadi</string>
     <string name="use_default">Varsayilani Kullan</string>
     <string name="valid_address">Gecerli adres</string>
@@ -271,7 +266,6 @@
     <string name="about">Hakkında</string>
     <string name="actions">İşlemler</string>
     <string name="active">Aktif</string>
-    <string name="autocreate_system_contacts">Sistem kişilerini otomatik oluştur</string>
     <string name="avatar">avatar</string>
     <string name="banner">Afiş</string>
     <string name="bio">Biyografi</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">Acilma islemi gonderiliyor...</string>
     <string name="submitting_reveal_transaction_this_could_take">Acilma islemi gonderiliyor... zincir uzerinde onaylanirken birkac dakika surebilir.</string>
     <string name="support_email">Destek E-postası</string>
-    <string name="sync_system_contacts">Sistem kişilerini senkronize et</string>
-    <string name="system_contact">Sistem Kişisi</string>
     <string name="telegram">Telegram</string>
     <string name="total">Toplam</string>
-    <string name="uses_your_device_contacts_to_match">Kaspa kişilerini eşleştirmek ve zenginleştirmek için cihaz kişilerinizi kullanır.</string>
     <string name="verified">Doğrulanmış</string>
     <string name="verifying_new_ownership_on_chain_this">Yeni sahiplik zincir uzerinde dogrulaniyor (bir dakika surebilir)...</string>
     <string name="verifying_on_chain_this_can_take">Zincir uzerinde dogrulaniyor (bir dakika surebilir)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">Parola ifadesi</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Mevcut hesabın anahtarları bu cihazda yedeklenemedi, bu yüzden hiçbir şey değiştirilmedi. Tekrar deneyin.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">%1$s aransın mı?</string>
-    <string name="contacts_call_confirm_voice">Sesli</string>
-    <string name="contacts_call_confirm_video">Görüntülü</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">Yeni mesaj</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">Bu adla bir .kachat adı yok.</string>
     <string name="kn_detail_grace_resolves">Süresi doldu. Ek süre bitene kadar hâlâ sahibine çözümlenir ve sahibi hâlâ yenileyebilir.</string>
     <string name="kn_detail_grace_mine_resolves">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar hâlâ size çözümlenir ve başka kimse alamaz.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Adres Defteri</string>
+    <string name="ab_add_to_address_book">Adres Defterine Ekle</string>
+    <string name="ab_search_prompt">Ad ve adres ara</string>
+    <string name="ab_empty_body">Kullandığın Kaspa adreslerini tanıyacağın bir adla kaydet. KaChat\'te, yalnızca bu cüzdan için kalırlar ve telefonunun Kişiler\'ine asla girmezler.</string>
+    <string name="ab_add_address">Adres Ekle</string>
+    <string name="ab_copied">Kopyalandı</string>
+    <string name="ab_share_address">Adresi Paylaş</string>
+    <string name="ab_edit">Düzenle</string>
+    <string name="ab_delete_from">Adres Defterinden Sil</string>
+    <string name="ab_delete_confirm">%1$s adres defterinden silinsin mi?</string>
+    <string name="ab_not_in_book">Adres defterinde yok</string>
+    <string name="ab_note_optional">Not (isteğe bağlı)</string>
+    <string name="ab_editor_footer">Yalnızca bu cüzdan için KaChat\'te kaydedilir. Telefonunun Kişiler\'ine asla eklenmez.</string>
+    <string name="ab_remove_from">Adres Defterinden Kaldır</string>
+    <string name="ab_edit_address">Adresi Düzenle</string>
+    <string name="ab_picker_empty_body">Adresleri Kaspa Hub &gt; Adres Defteri\'nden ekle.</string>
+    <string name="ab_err_no_wallet">Önce bir cüzdan aç.</string>
+    <string name="ab_err_empty_name">Bir ad gir.</string>
+    <string name="ab_err_invalid_address">Geçerli bir Kaspa adresi gir.</string>
+    <string name="ab_saved_toast">Adres defterine kaydedildi.</string>
+    <string name="ab_removed_toast">Adres defterinden kaldırıldı.</string>
 </resources>

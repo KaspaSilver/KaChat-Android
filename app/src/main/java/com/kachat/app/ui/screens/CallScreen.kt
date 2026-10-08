@@ -276,7 +276,6 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                 fallbackText = call.contact.avatarFallbackText,
                 size = 120.dp,
                 fontSize = 40.sp,
-                deviceContactPhotoUri = call.contact.systemContactPhotoUri,
                 backupPhotoBase64 = call.contact.backupPhotoBase64,
                 address = call.contact.id,
             )
@@ -414,7 +413,6 @@ private fun VideoTile(
                         fallbackText = contact.avatarFallbackText,
                         size = 72.dp,
                         fontSize = 26.sp,
-                        deviceContactPhotoUri = contact.systemContactPhotoUri,
                         backupPhotoBase64 = contact.backupPhotoBase64,
                         address = contact.id,
                     )

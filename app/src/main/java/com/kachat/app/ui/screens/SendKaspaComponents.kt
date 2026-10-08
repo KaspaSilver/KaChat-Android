@@ -1,5 +1,8 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.services.AddressBookManager
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.foundation.layout.statusBars
 
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -152,6 +155,11 @@ fun SendRecipientCard(
     val colors = LocalAppColors.current
     val clipboard = LocalClipboardManager.current
     val trimmed = input.trim()
+    val addressBook = rememberAddressBookEntries()
+    var showAddressBook by remember { mutableStateOf(false) }
+    if (showAddressBook) {
+        AddressBookPickerSheet(onDismiss = { showAddressBook = false }, onSelect = { onInputChange(it.address) })
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
@@ -216,10 +224,31 @@ fun SendRecipientCard(
                         .clip(CircleShape)
                         .clickable(enabled = enabled, role = Role.Button) { onScan() },
                 )
+                if (addressBook.isNotEmpty()) {
+                    Icon(
+                        Icons.Outlined.Book,
+                        contentDescription = stringResource(R.string.ab_address_book),
+                        tint = KaspaTeal,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .clickable(enabled = enabled, role = Role.Button) { showAddressBook = true },
+                    )
+                }
             }
             // Who the coins are going to - the card Create chat shows (iOS ac0ef19). Android's
             // card resolves the typed input on its own.
             AddressResolutionCard(input = trimmed)
+            // The name it has in your Address Book (iOS 00767a4).
+            val saved = remember(addressBook, resolvedAddress, trimmed) {
+                AddressBookManager.shared?.entry(resolvedAddress ?: trimmed)
+            }
+            if (saved != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.Book, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
+                    Text(saved.name, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
             if (trimmed.isNotEmpty()) {
                 SendRecipientStatusLine(
                     input = trimmed,

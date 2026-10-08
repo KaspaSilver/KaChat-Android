@@ -53,7 +53,6 @@
     <string name="connection_settings">সংযোগ সেটিংস</string>
     <string name="connection_status">সংযোগ স্থিতি</string>
     <string name="contact_has_requested_permission_to_communicate">কন্টাক্ট যোগাযোগের অনুমতি চেয়েছে</string>
-    <string name="contacts">কন্টাক্ট</string>
     <string name="controls_how_much_photos_are_compressed">পাঠানোর আগে ছবি কতটা সংকুচিত হবে তা নিয়ন্ত্রণ করে। উচ্চতর গুণমান স্পষ্ট দেখায় কিন্তু বেশি ফি লাগে এবং পাঠাতে বেশি সময় নেয়; নিম্নতর গুণমান দ্রুত ও সস্তায় পাঠানো যায় কিন্তু বেশি সংকুচিত দেখায়। এটি শুধুমাত্র আপনার পাঠানো ছবিগুলোকে প্রভাবিত করে, প্রাপ্ত ছবিগুলোকে নয়।</string>
     <string name="copy">কপি করুন</string>
     <string name="copy_address">ঠিকানা কপি করুন</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">ত্যাগ করুন ও মুছুন</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">এই সম্প্রচার ত্যাগ করলে এই ডিভাইসে এর জন্য ক্যাশে করা প্রতিটি বার্তা স্থায়ীভাবে মুছে যায়। এটি পূর্বাবস্থায় ফেরানো যায় না; পরে আবার যোগ দিলে কোনো ইতিহাস ছাড়াই শুরু হয়।</string>
     <string name="let_s_add_more_details_about">চলুন আপনার সম্পর্কে আরও বিস্তারিত যোগ করি</string>
-    <string name="link_from_contacts">কন্টাক্ট থেকে লিংক করুন</string>
-    <string name="linked">লিংক করা হয়েছে</string>
     <string name="log_out">লগ আউট</string>
     <string name="longer_retention_means_more_messages_stay">দীর্ঘ ধারণক্ষমতার অর্থ হলো আপনার ডিভাইসে বেশি বার্তা ক্যাশে থাকে, যা সময়ের সাথে অ্যাপকে ধীর করে দিতে পারে, বিশেষ করে ব্যস্ত রুমের জন্য।</string>
     <string name="make_active_address">সক্রিয় ঠিকানা করুন</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">এখনও কোনো লেনদেন নেই।</string>
     <string name="no_transactions_yet_tap_to_add">এখনও কোনো লেনদেন নেই। আপনার প্রথম ক্রয় বা বিক্রয় যোগ করতে + ট্যাপ করুন।</string>
     <string name="not_now">এখন নয়</string>
-    <string name="not_linked">লিংক করা নেই</string>
     <string name="notes_optional">নোট (ঐচ্ছিক)</string>
     <string name="notifications">নোটিফিকেশন</string>
     <string name="notifications_are_off_in_system_settings">সিস্টেম সেটিংসে বিজ্ঞপ্তি বন্ধ আছে</string>
@@ -248,7 +244,6 @@
     <string name="transactions">লেনদেন</string>
     <string name="try_again">আবার চেষ্টা করুন</string>
     <string name="unhide">আনহাইড করুন</string>
-    <string name="unlink">আনলিংক করুন</string>
     <string name="unread">অপঠিত</string>
     <string name="use_default">ডিফল্ট ব্যবহার করুন</string>
     <string name="valid_address">বৈধ ঠিকানা</string>
@@ -271,7 +266,6 @@
     <string name="about">সম্পর্কে</string>
     <string name="actions">কার্যক্রম</string>
     <string name="active">সক্রিয়</string>
-    <string name="autocreate_system_contacts">সিস্টেম কন্টাক্ট স্বয়ংক্রিয় তৈরি করুন</string>
     <string name="avatar">অবতার</string>
     <string name="banner">ব্যানার</string>
     <string name="bio">বায়ো</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">রিভিল লেনদেন পাঠানো হচ্ছে...</string>
     <string name="submitting_reveal_transaction_this_could_take">রিভিল লেনদেন পাঠানো হচ্ছে... চেইনে নিশ্চিত হতে কয়েক মিনিট সময় লাগতে পারে।</string>
     <string name="support_email">সাপোর্ট ইমেইল</string>
-    <string name="sync_system_contacts">সিস্টেম কন্টাক্ট সিংক করুন</string>
-    <string name="system_contact">সিস্টেম কন্টাক্ট</string>
     <string name="telegram">Telegram</string>
     <string name="total">মোট</string>
-    <string name="uses_your_device_contacts_to_match">Kaspa কন্টাক্ট মেলানো এবং সমৃদ্ধ করতে আপনার ডিভাইস কন্টাক্ট ব্যবহার করে।</string>
     <string name="verified">যাচাইকৃত</string>
     <string name="verifying_new_ownership_on_chain_this">চেইনে নতুন মালিকানা যাচাই করা হচ্ছে (এতে এক মিনিট লাগতে পারে)...</string>
     <string name="verifying_on_chain_this_can_take">চেইনে যাচাই করা হচ্ছে (এতে এক মিনিট লাগতে পারে)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">পাসফ্রেজ</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">এই ডিভাইসে বর্তমান অ্যাকাউন্টের কী ব্যাকআপ করা যায়নি, তাই কিছুই বদলানো হয়নি। আবার চেষ্টা করুন।</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">%1$s-কে কল করবেন?</string>
-    <string name="contacts_call_confirm_voice">ভয়েস</string>
-    <string name="contacts_call_confirm_video">ভিডিও</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">নতুন বার্তা</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">এই নামে কোনো .kachat নাম নেই।</string>
     <string name="kn_detail_grace_resolves">মেয়াদ শেষ। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত এটি এখনও মালিকের ঠিকানায় রিজলভ হয়, এবং মালিক এখনও এটি নবায়ন করতে পারেন।</string>
     <string name="kn_detail_grace_mine_resolves">মেয়াদ শেষ - রাখতে নবায়ন করুন। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত এটি এখনও আপনার ঠিকানায় রিজলভ হয় এবং অন্য কেউ এটি নিতে পারবে না।</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">ঠিকানা বই</string>
+    <string name="ab_add_to_address_book">ঠিকানা বইয়ে যোগ করুন</string>
+    <string name="ab_search_prompt">নাম ও ঠিকানা খুঁজুন</string>
+    <string name="ab_empty_body">আপনি যে Kaspa ঠিকানাগুলো ব্যবহার করেন সেগুলো চেনা নামে সংরক্ষণ করুন। এগুলো KaChat-এ থাকে, শুধু এই ওয়ালেটের জন্য, এবং কখনো আপনার ফোনের কন্টাক্টসে যায় না।</string>
+    <string name="ab_add_address">ঠিকানা যোগ করুন</string>
+    <string name="ab_copied">কপি হয়েছে</string>
+    <string name="ab_share_address">ঠিকানা শেয়ার করুন</string>
+    <string name="ab_edit">সম্পাদনা</string>
+    <string name="ab_delete_from">ঠিকানা বই থেকে মুছুন</string>
+    <string name="ab_delete_confirm">ঠিকানা বই থেকে %1$s মুছবেন?</string>
+    <string name="ab_not_in_book">আপনার ঠিকানা বইয়ে নেই</string>
+    <string name="ab_note_optional">নোট (ঐচ্ছিক)</string>
+    <string name="ab_editor_footer">শুধু এই ওয়ালেটের জন্য KaChat-এ সংরক্ষিত। কখনো আপনার ফোনের কন্টাক্টসে যোগ হয় না।</string>
+    <string name="ab_remove_from">ঠিকানা বই থেকে সরান</string>
+    <string name="ab_edit_address">ঠিকানা সম্পাদনা</string>
+    <string name="ab_picker_empty_body">Kaspa Hub &gt; ঠিকানা বই থেকে ঠিকানা যোগ করুন।</string>
+    <string name="ab_err_no_wallet">প্রথমে একটি ওয়ালেট খুলুন।</string>
+    <string name="ab_err_empty_name">একটি নাম লিখুন।</string>
+    <string name="ab_err_invalid_address">একটি বৈধ Kaspa ঠিকানা লিখুন।</string>
+    <string name="ab_saved_toast">ঠিকানা বইয়ে সংরক্ষিত।</string>
+    <string name="ab_removed_toast">ঠিকানা বই থেকে সরানো হয়েছে।</string>
 </resources>

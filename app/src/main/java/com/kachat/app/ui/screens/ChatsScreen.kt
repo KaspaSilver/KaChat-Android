@@ -270,12 +270,6 @@ fun ChatsScreen(
         chatViewModel.refreshKnsAvatarsForAllContacts()
     }
 
-    // Auto-link/autocreate system contacts, same trigger point — matches iOS's
-    // SystemContactsService refresh running on every app foreground.
-    LaunchedEffect(Unit) {
-        chatViewModel.syncSystemContacts()
-    }
-
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* nothing to do either way — notifications just won't show if denied */ }
@@ -1332,7 +1326,6 @@ internal fun ConversationRow(
     ) {
         ContactAvatar(
             imageUrl = convo.contact.knsAvatarUrl,
-            deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
             backupPhotoBase64 = convo.contact.backupPhotoBase64,
             fallbackText = convo.contact.avatarFallbackText,
             size = 48.dp,
@@ -1443,17 +1436,12 @@ internal fun ConversationRow(
  * contact is shown:
  *
  *   1. [imageUrl] — the contact's KNS profile photo (a remote https URL), when they have one.
- *   2. [deviceContactPhotoUri] — the photo from the device address book for a linked phone
- *      contact (a local `content://` URI; see [com.kachat.app.models.ContactEntity.systemContactPhotoUri]).
+ *   2. [backupPhotoBase64] — the photo carried in the chat backup (e.g. one set on desktop).
  *   3. the person glyph.
  *
- * Both image steps go through Coil, so the memory/disk caches and the off-main-thread decode are
- * the same for a device photo as for a KNS avatar. A candidate that fails to load falls through to
- * the next one rather than dead-ending on the glyph — that's what makes a broken/expired KNS URL
- * still show the device photo.
- *
- * Call sites should pass BOTH sources rather than pre-collapsing them, so the fallback order stays
- * defined here and can't drift per screen.
+ * KaChat no longer reads the phone's Contacts (iOS 00767a4), so there is no Contacts-app photo.
+ * The image goes through Coil (memory/disk caches, off-main-thread decode); one that fails to
+ * load falls through to the backup photo rather than dead-ending on the glyph.
  *
  * On testnet identity is `.kachat`: for an [address] the first step is its `.kachat` avatar (from
  * its profile's social link, looked up on this device), never the KNS [imageUrl] - one change for
@@ -1468,7 +1456,6 @@ fun ContactAvatar(
     modifier: Modifier = Modifier,
     backgroundColor: Color = LocalAppColors.current.surface,
     fontSize: TextUnit = 16.sp,
-    deviceContactPhotoUri: String? = null,
     backupPhotoBase64: String? = null,
     /** Whose avatar this is (a `kaspa:` / `kaspatest:` address), for the testnet `.kachat` rule. */
     address: String? = null
@@ -1478,11 +1465,8 @@ fun ContactAvatar(
     } else {
         imageUrl
     }
-    val candidates = remember(shownUrl, deviceContactPhotoUri) {
-        listOfNotNull(
-            shownUrl?.takeIf { it.isNotBlank() },
-            deviceContactPhotoUri?.takeIf { it.isNotBlank() }
-        )
+    val candidates = remember(shownUrl) {
+        listOfNotNull(shownUrl?.takeIf { it.isNotBlank() })
     }
     // Cross-platform backup photo (base64 JPEG); the last fallback before the glyph. Decoded off
     // the main thread and kept app-wide, so opening a list decodes each photo once rather than

@@ -19,7 +19,11 @@ data class ChatHistoryArchive(
     // Deletion tombstones (optional; older archives omit it): addresses whose chats the user
     // deleted. A restore - local file or Nextcloud - must never resurrect
     // them, even on a fresh install with no local tombstones. Field name matches iOS.
-    val deletedContactAddresses: List<String>? = null
+    val deletedContactAddresses: List<String>? = null,
+    // Address Book (optional; older archives omit it): this wallet's saved addresses, and the
+    // deleted ones so a merge or restore never brings them back. NEXTCLOUD_SYNC.md §5, iOS 00767a4.
+    val addressBook: List<com.kachat.app.services.ArchiveAddressBookEntry>? = null,
+    val addressBookDeleted: List<com.kachat.app.services.ArchiveAddressBookTombstone>? = null
 ) {
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1

@@ -180,8 +180,6 @@ class AppSettingsRepository @Inject constructor(
         val KEY_PORTFOLIO_VALUES_HIDDEN = booleanPreferencesKey("portfolio_values_hidden")
 
         // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
-        val KEY_SYNC_SYSTEM_CONTACTS = booleanPreferencesKey("sync_system_contacts")
-        val KEY_AUTOCREATE_SYSTEM_CONTACTS = booleanPreferencesKey("autocreate_system_contacts")
 
         val KEY_SHOW_FEE_ESTIMATE = booleanPreferencesKey("show_fee_estimate")
 
@@ -222,7 +220,9 @@ class AppSettingsRepository @Inject constructor(
         val DEFAULT_DOCK_TABS = listOf("cold_storage", "portfolio", "chats", "kaspa_hub", "profile")
         // .kachat and KaChat Stats first on a fresh install (iOS b064468, f38cac2); existing
         // users get them appended (kaspaHubSections adds any eligible tab the list lacks).
-        val DEFAULT_HUB_TABS = listOf("kachat_names", "kachat_stats", "kaposts", "broadcasts", "swap")
+        // Address Book first on a fresh install (iOS 00767a4 defaultHub); existing users get it
+        // appended like any tab their stored list lacks.
+        val DEFAULT_HUB_TABS = listOf("address_book", "kachat_names", "kachat_stats", "kaposts", "broadcasts", "swap")
         // One-time derivation of a placement from what an existing user could already SEE.
         val KEY_PLACEMENT_APPLIED = booleanPreferencesKey("dock_placement_applied")
         // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >
@@ -722,10 +722,6 @@ class AppSettingsRepository @Inject constructor(
         return shouldNotifyKaPostsAction(contentType, voteType)
     }
 
-    val syncSystemContactsEnabled: Flow<Boolean> = dataStore.data.map {
-        it[KEY_SYNC_SYSTEM_CONTACTS] ?: false
-    }
-
     val showFeeEstimate: Flow<Boolean> = dataStore.data.map {
         it[KEY_SHOW_FEE_ESTIMATE] ?: true
     }
@@ -785,10 +781,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setGroupSilent(groupId: String, enabled: Boolean) = dataStore.edit {
         val current = it[KEY_GROUP_SILENT] ?: emptySet()
         it[KEY_GROUP_SILENT] = if (enabled) current + groupId else current - groupId
-    }
-
-    val autoCreateSystemContactsEnabled: Flow<Boolean> = dataStore.data.map {
-        it[KEY_AUTOCREATE_SYSTEM_CONTACTS] ?: false
     }
 
     /** Off by default — the user must explicitly turn this on, unlike iOS's iCloud sync. */
@@ -1098,7 +1090,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setQuickReactionEmojis(value: List<String>) = dataStore.edit { it[KEY_QUICK_REACTION_EMOJIS] = Gson().toJson(value) }
     suspend fun setNotificationSoundEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_SOUND] = value }
     suspend fun setNotificationVibrationEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_VIBRATION] = value }
-    suspend fun setSyncSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_SYNC_SYSTEM_CONTACTS] = value }
     suspend fun setAddressActivityNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] = value }
     suspend fun setSpendingReceiveNotifications(value: Boolean) = dataStore.edit { it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] = value }
     suspend fun setChartPair(value: com.kachat.app.services.ChartPair?) = dataStore.edit {
@@ -1118,7 +1109,6 @@ class AppSettingsRepository @Inject constructor(
         else it.remove(KEY_KAPOSTS_DEFAULT_TIP_SOMPI)
     }
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
-    suspend fun setAutoCreateSystemContactsEnabled(value: Boolean) = dataStore.edit { it[KEY_AUTOCREATE_SYSTEM_CONTACTS] = value }
     suspend fun setPendingKnsCommit(commit: PendingKnsCommit) = dataStore.edit { it[KEY_PENDING_KNS_COMMIT] = Gson().toJson(commit) }
     suspend fun clearPendingKnsCommit() = dataStore.edit { it.remove(KEY_PENDING_KNS_COMMIT) }
     suspend fun setPaymentSyncBaseline(address: String, value: Long) = dataStore.edit { it[paymentSyncBaselineKey(address)] = value }

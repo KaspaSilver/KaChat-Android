@@ -856,15 +856,15 @@ class KaPostsViewModel @Inject constructor(
         .map { contacts -> contacts.mapNotNull { c -> c.alias?.takeIf { it.isNotBlank() }?.let { c.id to it } }.toMap() }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    /** A saved contact's own photo (linked phone contact, or the backup's photo), which every
-     *  avatar in the app lets override the KNS avatar - iOS KNSAvatarView(contactAddress:). */
-    data class ContactPhoto(val deviceContactPhotoUri: String?, val backupPhotoBase64: String?)
+    /** A saved contact's photo carried in the backup, the avatar fallback after the KNS avatar -
+     *  iOS KNSAvatarView(contactAddress:). */
+    data class ContactPhoto(val backupPhotoBase64: String?)
 
     val contactPhotos: StateFlow<Map<String, ContactPhoto>> = chatRepository.getContacts()
         .map { contacts ->
             contacts.mapNotNull { c ->
-                if (c.systemContactPhotoUri.isNullOrBlank() && c.backupPhotoBase64.isNullOrBlank()) null
-                else c.id to ContactPhoto(c.systemContactPhotoUri, c.backupPhotoBase64)
+                if (c.backupPhotoBase64.isNullOrBlank()) null
+                else c.id to ContactPhoto(c.backupPhotoBase64)
             }.toMap()
         }
         .flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())

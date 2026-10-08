@@ -95,15 +95,11 @@ class ShareShortcutsManager @Inject constructor(
     @Volatile
     private var lastPublished: List<ShortcutEntry>? = null
 
-    /**
-     * One publishable share target. Carries both avatar sources so the icon resolves through the
-     * same KNS-avatar -> device-contact-photo -> initials order the in-app `ContactAvatar` uses.
-     */
+    /** One publishable share target: its name and its KNS avatar (else initials). */
     private data class ShortcutEntry(
         val contactId: String,
         val label: String,
-        val knsAvatarUrl: String?,
-        val deviceContactPhotoUri: String?
+        val knsAvatarUrl: String?
     )
 
     /** [promoteContactId] pins that conversation to the front — used at send time, before the
@@ -120,14 +116,15 @@ class ShareShortcutsManager @Inject constructor(
             }
             .take(MAX_SHORTCUTS)
             .map { convo ->
+                // A name you gave the chat, else the Address Book's (iOS 00767a4).
                 val label = convo.contact.alias?.takeIf { it.isNotBlank() }
+                    ?: AddressBookManager.nameFor(convo.contact.id)
                     ?: convo.contact.knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
                     ?: KaspaAddress.shortDisplay(convo.contact.id)
                 ShortcutEntry(
                     contactId = convo.contact.id,
                     label = label,
-                    knsAvatarUrl = convo.contact.knsAvatarUrl?.takeIf { it.isNotBlank() },
-                    deviceContactPhotoUri = convo.contact.systemContactPhotoUri?.takeIf { it.isNotBlank() }
+                    knsAvatarUrl = convo.contact.knsAvatarUrl?.takeIf { it.isNotBlank() }
                 )
             }
             .toList()
@@ -169,13 +166,12 @@ class ShareShortcutsManager @Inject constructor(
     }
 
     /**
-     * KNS avatar, else the device address-book photo, else initials — the non-Compose mirror of
-     * `ContactAvatar`'s chain. Both image candidates go through the app's shared Coil loader, so
-     * they hit the same memory/disk caches the in-app avatars already warmed, and decoding happens
+     * KNS avatar, else initials — the non-Compose mirror of `ContactAvatar`'s chain. The image
+     * goes through the app's shared Coil loader, so it hits the same memory/disk caches the in-app avatars already warmed, and decoding happens
      * on Coil's own dispatcher (this whole method runs off the main thread from [refresh]'s scope).
      */
     private suspend fun avatarBitmap(entry: ShortcutEntry): Bitmap {
-        for (candidate in listOfNotNull(entry.knsAvatarUrl, entry.deviceContactPhotoUri)) {
+        for (candidate in listOfNotNull(entry.knsAvatarUrl)) {
             val loaded = try {
                 val request = ImageRequest.Builder(context)
                     .data(candidate)

@@ -13,7 +13,6 @@ import android.net.Uri
 import android.view.Gravity
 import android.view.WindowManager
 import android.os.Build
-import android.provider.ContactsContract
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -65,6 +64,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.CellTower
@@ -799,7 +800,6 @@ fun ChatThreadScreen(
             }
             ChatHeaderCard(
                 imageUrl = conversation?.contact?.knsAvatarUrl,
-                photoUri = conversation?.contact?.systemContactPhotoUri,
                 fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
                 name = conversation?.contact?.displayName
                     ?: com.kachat.app.models.addressDisplayName(contactId),
@@ -1609,7 +1609,6 @@ fun ChatThreadScreen(
                                 },
                                 onOpenChessGame = { gameId -> navController.navigate("chess_game/$contactId/$gameId") },
                                 contactAvatarUrl = conversation?.contact?.knsAvatarUrl,
-                                contactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 contactAvatarFallback = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
                                 contactAddress = contactId,
                                 contactDisplayName = conversation?.contact?.displayName.orEmpty(),
@@ -2254,8 +2253,6 @@ internal fun PaymentCardBubble(
 fun MessageBubble(
     message: MessageEntity,
     contactAvatarUrl: String? = null,
-    /** Device address-book photo of this contact — the fallback when they have no KNS avatar. */
-    contactPhotoUri: String? = null,
     contactAvatarFallback: String = "",
     /** The other side's address: on testnet their avatar is their .kachat one ([ContactAvatar]). */
     contactAddress: String? = null,
@@ -2457,7 +2454,7 @@ fun MessageBubble(
             verticalAlignment = Alignment.Bottom
         ) {
         if (!isSent) {
-            ContactAvatar(imageUrl = contactAvatarUrl, deviceContactPhotoUri = contactPhotoUri, fallbackText = contactAvatarFallback, size = 32.dp, address = contactAddress)
+            ContactAvatar(imageUrl = contactAvatarUrl, fallbackText = contactAvatarFallback, size = 32.dp, address = contactAddress)
             Spacer(Modifier.width(8.dp))
         }
         Column(
@@ -6037,6 +6034,9 @@ fun SpendingAddressSendFlow(
      * it, and the bars take no system insets of their own - the sheet already sits clear of them.
      */
     presentedAsSheet: Boolean = false,
+    /** Pre-fills the recipient (Address Book > Send KAS, iOS `WithdrawKaspaView(prefillAddress:)`);
+     *  it stays editable. */
+    prefillAddress: String? = null,
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -6044,7 +6044,7 @@ fun SpendingAddressSendFlow(
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
     val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
     val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
-    var recipientInput by remember(fromAddress) { mutableStateOf("") }
+    var recipientInput by remember(fromAddress) { mutableStateOf(prefillAddress.orEmpty()) }
     var amountInput by remember(fromAddress) { mutableStateOf("") }
     val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(resetKey = fromAddress, onKasTextChange = { amountInput = it })
     var showScanner by remember { mutableStateOf(false) }
@@ -9011,8 +9011,6 @@ fun SettingsScreen(
     }
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
-    val syncSystemContactsEnabled by chatViewModel.syncSystemContactsEnabled.collectAsState()
-    val autoCreateSystemContactsEnabled by chatViewModel.autoCreateSystemContactsEnabled.collectAsState()
     val exportChatHistoryState by chatViewModel.exportState.collectAsState()
     val importChatHistoryState by chatViewModel.importState.collectAsState()
     val scrollState = rememberScrollState()
@@ -9020,10 +9018,6 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    val syncContactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    val autoCreatePermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { }
     val importChatHistoryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) chatViewModel.importChatHistory(uri)
     }
@@ -9121,8 +9115,6 @@ fun SettingsScreen(
                     SettingsNavigationItem(stringResource(R.string.notifications), Icons.Outlined.NotificationsActive, onClick = { navController.navigate("settings_section/notifications") })
                     SettingsDivider(inset = IosRowTextInset)
                     SettingsNavigationItem(stringResource(R.string.chats), Icons.Outlined.Forum, onClick = { navController.navigate("settings_section/chats") })
-                    SettingsDivider(inset = IosRowTextInset)
-                    SettingsNavigationItem(stringResource(R.string.contacts), Icons.Outlined.People, onClick = { navController.navigate("settings_section/contacts") })
                     SettingsDivider(inset = IosRowTextInset)
                     SettingsNavigationItem(stringResource(R.string.storage), Icons.Outlined.Storage, onClick = { navController.navigate("settings_section/storage") })
                     SettingsDivider(inset = IosRowTextInset)
@@ -9241,25 +9233,6 @@ fun SettingsScreen(
                     quickReactionEmojis.joinToString(""),
                     onClick = { navController.navigate("quick_reaction_settings") }
                 )
-            }
-            }
-
-            if (sectionKey == "contacts") {
-            SettingsSection(title = stringResource(R.string.contacts)) {
-                SettingsSwitchItem(stringResource(R.string.sync_system_contacts), syncSystemContactsEnabled) { enabled ->
-                    chatViewModel.setSyncSystemContactsEnabled(enabled)
-                    if (enabled) syncContactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                }
-                SettingsDivider()
-                SettingsSwitchItem(stringResource(R.string.autocreate_system_contacts), autoCreateSystemContactsEnabled) { enabled ->
-                    chatViewModel.setAutoCreateSystemContactsEnabled(enabled)
-                    if (enabled) {
-                        autoCreatePermissionLauncher.launch(
-                            arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS)
-                        )
-                    }
-                }
-                SettingsFooter(stringResource(R.string.uses_your_device_contacts_to_match))
             }
             }
 
@@ -9510,7 +9483,6 @@ private fun ResyncChatPickerOverlay(
                 ) {
                     ContactAvatar(
                         imageUrl = convo.contact.knsAvatarUrl,
-                        deviceContactPhotoUri = convo.contact.systemContactPhotoUri,
                         backupPhotoBase64 = convo.contact.backupPhotoBase64,
                         fallbackText = convo.contact.avatarFallbackText,
                         size = 48.dp,
@@ -11928,7 +11900,7 @@ fun CreateChatScreen(
     var selectedMemberAddresses by remember { mutableStateOf(setOf<String>()) }
     var memberSearchText by remember { mutableStateOf("") }
     var scanningGroupRowId by remember { mutableStateOf<String?>(null) }
-    var importingGroupRowId by remember { mutableStateOf<String?>(null) }
+    var showAddressBookPicker by remember { mutableStateOf(false) }
     val isCreatingGroup by chatViewModel.isCreatingGroup.collectAsState()
     val createGroupError by chatViewModel.createGroupError.collectAsState()
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
@@ -12036,64 +12008,16 @@ fun CreateChatScreen(
     }
     LaunchedEffect(Unit) { chatViewModel.loadPickerContacts() }
 
-    val context = LocalContext.current
-    // Reads the picked contact's data via the /entities sub-path of the URI the system picker
-    // itself returns — covered by the temporary read grant that comes with that URI, so no
-    // READ_CONTACTS runtime permission is needed (matches ChatInfoScreen's "Link from Contacts"
-    // picker, which relies on the same grant for its own, narrower query).
-    val importContactMimeTypes = setOf(
-        ContactsContract.CommonDataKinds.Website.CONTENT_ITEM_TYPE,
-        ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE,
-        ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
-        ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE
-    )
-    val pickContactForImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
-        val targetGroupRowId = importingGroupRowId
-        importingGroupRowId = null
-        if (uri == null) return@rememberLauncherForActivityResult
-        val entityUri = Uri.withAppendedPath(uri, ContactsContract.Contacts.Entity.CONTENT_DIRECTORY)
-        var foundAddress: String? = null
-        var displayName: String? = null
-        context.contentResolver.query(
-            entityUri,
-            arrayOf(
-                ContactsContract.Contacts.Entity.MIMETYPE,
-                ContactsContract.Contacts.Entity.DATA1,
-                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY
-            ),
-            null, null, null
-        )?.use { cursor ->
-            val mimeIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.Entity.MIMETYPE)
-            val dataIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.Entity.DATA1)
-            val nameIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
-            while (cursor.moveToNext()) {
-                if (displayName == null) displayName = cursor.getString(nameIdx)
-                if (foundAddress != null) continue
-                val mime = cursor.getString(mimeIdx) ?: continue
-                if (mime !in importContactMimeTypes) continue
-                val value = cursor.getString(dataIdx) ?: continue
-                foundAddress = com.kachat.app.services.SystemContactsSyncService.extractKaspaAddresses(value).firstOrNull()
-            }
-        }
-        if (targetGroupRowId != null) {
-            // Group mode: write into the row that requested the import, not the single-contact
-            // address field. No inline error slot for this case besides the row's own KNS/
-            // validity status line - a contact with no address just leaves the row untouched.
-            if (foundAddress != null) {
-                groupAddressRows = groupAddressRows.map {
-                    if (it.id == targetGroupRowId) it.copy(text = foundAddress!!, knsError = null) else it
-                }
-            } else {
-                groupAddressRows = groupAddressRows.map {
-                    if (it.id == targetGroupRowId) it.copy(knsError = "No Kaspa address found in ${displayName ?: "that contact"}") else it
-                }
-            }
-        } else if (foundAddress != null) {
-            address = foundAddress!!
-            importErrorMessage = null
-        } else {
-            importErrorMessage = "No Kaspa address found in ${displayName ?: "that contact"}"
-        }
+    // The Address Book in place of importing from the phone's Contacts (iOS 00767a4): the picked
+    // address fills the field - the single-chat one, or the group's add-by-address one.
+    if (showAddressBookPicker) {
+        AddressBookPickerSheet(
+            onDismiss = { showAddressBookPicker = false },
+            onSelect = { entry ->
+                address = entry.address
+                importErrorMessage = null
+            },
+        )
     }
 
     LaunchedEffect(address) {
@@ -12377,8 +12301,8 @@ fun CreateChatScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
-                            pickContactForImportLauncher.launch(null)
+                        CreateChatActionItem(Icons.Outlined.Book, stringResource(R.string.ab_address_book)) {
+                            showAddressBookPicker = true
                         }
                         CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
                             clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
@@ -12576,8 +12500,8 @@ fun CreateChatScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    CreateChatActionItem(Icons.Default.PersonAddAlt1, "Import") {
-                        pickContactForImportLauncher.launch(null)
+                    CreateChatActionItem(Icons.Outlined.Book, stringResource(R.string.ab_address_book)) {
+                        showAddressBookPicker = true
                     }
                     CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
                         clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
@@ -13277,8 +13201,9 @@ fun ChatInfoScreen(
         knsFields.bio, knsFields.x, knsFields.website, knsFields.telegram,
         knsFields.discord, knsFields.contactEmail, knsFields.github, knsFields.redirectUrl
     ).any { !it.isNullOrBlank() }
-    val systemContactId = conversation?.contact?.systemContactId
-    val systemContactName = conversation?.contact?.systemContactName
+    // The Address Book entry of this address (iOS 00767a4: "System Contact" became it).
+    val addressBookEntries = rememberAddressBookEntries()
+    val addressBookEntry = remember(addressBookEntries, contactId) { com.kachat.app.services.AddressBookManager.shared?.entry(contactId) }
 
     var contactName by remember { mutableStateOf("") }
 
@@ -13346,31 +13271,6 @@ fun ChatInfoScreen(
             }
         }
     }
-    val pickContactLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        // PHOTO_URI rides along on the picker's one-shot URI grant (no READ_CONTACTS needed), so a
-        // manual link picks up the device address-book photo the same way the automatic scan does.
-        context.contentResolver.query(
-            uri,
-            arrayOf(
-                ContactsContract.Contacts.LOOKUP_KEY,
-                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
-                ContactsContract.Contacts.PHOTO_URI
-            ),
-            null, null, null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val lookupKey = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY))
-                val displayName = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY))
-                val photoUri = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.PHOTO_URI))
-                if (lookupKey != null && displayName != null) {
-                    contactName = displayName
-                    chatViewModel.linkSystemContact(contactId, lookupKey, displayName, photoUri)
-                }
-            }
-        }
-    }
-
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
@@ -13438,7 +13338,6 @@ fun ChatInfoScreen(
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             ContactAvatar(
                                 imageUrl = if (usesKnsProfile) knsFields?.avatarUrl else kachatAvatar,
-                                deviceContactPhotoUri = conversation?.contact?.systemContactPhotoUri,
                                 fallbackText = knsProfile?.selectedDomain ?: contactId.takeLast(8),
                                 size = 48.dp
                             )
@@ -13677,9 +13576,9 @@ fun ChatInfoScreen(
                 ) { infoSheet = "aliases" }
 
                 InfoSectionCard(
-                    title = stringResource(R.string.system_contact),
-                    icon = Icons.Default.AccountCircle,
-                ) { infoSheet = "systemContact" }
+                    title = stringResource(if (addressBookEntry == null) R.string.ab_add_to_address_book else R.string.ab_address_book),
+                    icon = if (addressBookEntry == null) Icons.Outlined.Book else Icons.Filled.Book,
+                ) { infoSheet = "addressBook" }
 
                 InfoSectionCard(
                     title = stringResource(R.string.incoming_notifications),
@@ -13933,52 +13832,19 @@ fun ChatInfoScreen(
                 }
             }
 
-            if (infoSheet == "systemContact") {
-                ActionSheetContainer(
-                    title = stringResource(R.string.system_contact),
-                    subtitle = null,
+            if (infoSheet == "addressBook") {
+                val savedToast = stringResource(R.string.ab_saved_toast)
+                val removedToast = stringResource(R.string.ab_removed_toast)
+                AddressBookEntryEditor(
+                    address = contactId,
+                    suggestedName = conversation?.contact?.alias?.takeIf { it.isNotBlank() }
+                        ?: conversation?.contact?.displayName
+                        ?: com.kachat.app.models.addressDisplayName(contactId),
+                    onDone = { result ->
+                        IosToasts.show(if (result == AddressBookEditResult.SAVED) savedToast else removedToast)
+                    },
                     onDismiss = { infoSheet = null },
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        if (systemContactId != null) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(stringResource(R.string.linked), color = LocalAppColors.current.textPrimary)
-                                Text(systemContactName ?: "", color = LocalAppColors.current.textSecondary)
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            HorizontalDivider(color = LocalAppColors.current.divider)
-                            Spacer(Modifier.height(12.dp))
-                        } else {
-                            Text(stringResource(R.string.not_linked), color = LocalAppColors.current.textSecondary)
-                            Spacer(Modifier.height(12.dp))
-                        }
-
-                        Row(
-                            modifier = Modifier.clickable { pickContactLauncher.launch(null) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.PersonAddAlt1, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.link_from_contacts), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-
-                        if (systemContactId != null) {
-                            Spacer(Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.clickable { chatViewModel.unlinkSystemContact(contactId) },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.RemoveCircleOutline, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.unlink), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
+                )
             }
 
             if (infoSheet == "notifications") {
@@ -14425,7 +14291,6 @@ private fun InfoSectionCard(
 @Composable
 private fun ChatHeaderCard(
     imageUrl: String?,
-    photoUri: String?,
     fallbackText: String,
     name: String,
     onClick: () -> Unit,
@@ -14476,7 +14341,6 @@ private fun ChatHeaderCard(
             }
             ContactAvatar(
                 imageUrl = imageUrl,
-                deviceContactPhotoUri = photoUri,
                 fallbackText = fallbackText,
                 size = 46.dp,
                 address = address,

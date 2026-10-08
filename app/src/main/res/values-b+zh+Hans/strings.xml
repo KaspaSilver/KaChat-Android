@@ -53,7 +53,6 @@
     <string name="connection_settings">连接设置</string>
     <string name="connection_status">连接状态</string>
     <string name="contact_has_requested_permission_to_communicate">联系人已请求通信权限</string>
-    <string name="contacts">联系人</string>
     <string name="controls_how_much_photos_are_compressed">控制发送前照片的压缩程度。质量越高看起来越清晰,但费用更高、发送时间更长;质量越低发送更快更便宜,但看起来更压缩。这只影响您发送的照片,不影响您接收的照片。</string>
     <string name="copy">复制</string>
     <string name="copy_address">复制地址</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">离开并删除</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">离开此广播将永久删除此设备上为其缓存的每条消息。此操作无法撤销;之后重新加入将没有历史记录。</string>
     <string name="let_s_add_more_details_about">让我们添加更多关于您的详细信息</string>
-    <string name="link_from_contacts">从联系人关联</string>
-    <string name="linked">已关联</string>
     <string name="log_out">退出登录</string>
     <string name="longer_retention_means_more_messages_stay">更长的保留时间意味着更多消息会保留在您设备的缓存中,这可能会随着时间推移拖慢应用速度,尤其是在活跃的房间中。</string>
     <string name="make_active_address">设为活动地址</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">暂无交易。</string>
     <string name="no_transactions_yet_tap_to_add">暂无交易。点击 + 添加您的第一笔买入或卖出。</string>
     <string name="not_now">暂不</string>
-    <string name="not_linked">未关联</string>
     <string name="notes_optional">备注(可选)</string>
     <string name="notifications">通知</string>
     <string name="notifications_are_off_in_system_settings">通知在系统设置中已关闭</string>
@@ -248,7 +244,6 @@
     <string name="transactions">交易</string>
     <string name="try_again">重试</string>
     <string name="unhide">取消隐藏</string>
-    <string name="unlink">取消关联</string>
     <string name="unread">未读</string>
     <string name="use_default">使用默认值</string>
     <string name="valid_address">有效地址</string>
@@ -271,7 +266,6 @@
     <string name="about">关于</string>
     <string name="actions">操作</string>
     <string name="active">活跃</string>
-    <string name="autocreate_system_contacts">自动创建系统联系人</string>
     <string name="avatar">阿凡达</string>
     <string name="banner">横幅</string>
     <string name="bio">简介</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">正在发送揭示交易...</string>
     <string name="submitting_reveal_transaction_this_could_take">正在发送揭示交易...在链上确认可能需要几分钟。</string>
     <string name="support_email">支持邮箱</string>
-    <string name="sync_system_contacts">同步系统联系人</string>
-    <string name="system_contact">系统联系人</string>
     <string name="telegram">Telegram</string>
     <string name="total">总计</string>
-    <string name="uses_your_device_contacts_to_match">使用设备联系人来匹配和补充 Kaspa 联系人。</string>
     <string name="verified">已验证</string>
     <string name="verifying_new_ownership_on_chain_this">正在链上验证新所有权(可能需要一分钟)...</string>
     <string name="verifying_on_chain_this_can_take">正在链上验证(可能需要一分钟)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">密码短语</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">无法在此设备上备份当前账户的密钥，因此未做任何更改。请重试。</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">呼叫 %1$s？</string>
-    <string name="contacts_call_confirm_voice">语音</string>
-    <string name="contacts_call_confirm_video">视频</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">新消息</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">没有这个名称的 .kachat 名称。</string>
     <string name="kn_detail_grace_resolves">已过期。在宽限期结束前，它仍解析到其所有者，所有者仍可续期。</string>
     <string name="kn_detail_grace_mine_resolves">已过期 - 续期以保留它。在宽限期结束前，它仍解析到你，其他人无法获取。</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">地址簿</string>
+    <string name="ab_add_to_address_book">添加到地址簿</string>
+    <string name="ab_search_prompt">搜索名称和地址</string>
+    <string name="ab_empty_body">用你认得出的名字保存常用的 Kaspa 地址。它们只保存在 KaChat 中，仅限这个钱包，绝不会进入手机通讯录。</string>
+    <string name="ab_add_address">添加地址</string>
+    <string name="ab_copied">已复制</string>
+    <string name="ab_share_address">分享地址</string>
+    <string name="ab_edit">编辑</string>
+    <string name="ab_delete_from">从地址簿删除</string>
+    <string name="ab_delete_confirm">要从地址簿删除 %1$s 吗？</string>
+    <string name="ab_not_in_book">不在你的地址簿中</string>
+    <string name="ab_note_optional">备注（可选）</string>
+    <string name="ab_editor_footer">仅为这个钱包保存在 KaChat 中。绝不会添加到手机通讯录。</string>
+    <string name="ab_remove_from">从地址簿移除</string>
+    <string name="ab_edit_address">编辑地址</string>
+    <string name="ab_picker_empty_body">在 Kaspa Hub &gt; 地址簿 中添加地址。</string>
+    <string name="ab_err_no_wallet">请先打开一个钱包。</string>
+    <string name="ab_err_empty_name">请输入名称。</string>
+    <string name="ab_err_invalid_address">请输入有效的 Kaspa 地址。</string>
+    <string name="ab_saved_toast">已保存到地址簿。</string>
+    <string name="ab_removed_toast">已从地址簿移除。</string>
 </resources>

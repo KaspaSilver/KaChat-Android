@@ -141,13 +141,11 @@ class DiagnosticsExportService @Inject constructor(
             "activeAddress" to (settingsRepository.activeAddress.first()
                 ?: runCatching { walletManager.getAddress() }.getOrDefault("none")),
             "notificationsEnabled" to settingsRepository.notificationsEnabled.first().toString(),
-            "syncSystemContactsEnabled" to settingsRepository.syncSystemContactsEnabled.first().toString(),
             // Calls: whether this side can host one, and why not when it cannot.
             "nextcloudConnected" to (nextcloudService.account.value != null).toString(),
             "nextcloudServer" to (nextcloudService.account.value?.server ?: "none"),
             "talkCallsAvailable" to nextcloudService.talkCallsAvailable.value.toString(),
             "talkAvailabilityReason" to nextcloudService.talkAvailabilityReason.value,
-            "autoCreateSystemContactsEnabled" to settingsRepository.autoCreateSystemContactsEnabled.first().toString(),
             "backupRetention" to settingsRepository.backupRetention.first().name,
             "broadcastPopularEnabled" to settingsRepository.broadcastPopularEnabled.first().toString(),
             "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString(),

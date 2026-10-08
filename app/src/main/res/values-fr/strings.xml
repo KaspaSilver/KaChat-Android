@@ -53,7 +53,6 @@
     <string name="connection_settings">Paramètres de connexion</string>
     <string name="connection_status">Etat de la connexion</string>
     <string name="contact_has_requested_permission_to_communicate">Le contact a demandé la permission de communiquer</string>
-    <string name="contacts">Contacts</string>
     <string name="controls_how_much_photos_are_compressed">Controle la compression des photos avant leur envoi. Une qualite plus elevee est plus nette mais coute des frais plus eleves et met plus de temps a s\'envoyer; une qualite plus basse s\'envoie plus vite et moins cher mais parait plus compressee. Cela n\'affecte que les photos que vous envoyez, pas celles que vous recevez.</string>
     <string name="copy">Copier</string>
     <string name="copy_address">Copier l\'adresse</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">Quitter et supprimer</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Quitter cette diffusion supprime definitivement chaque message mis en cache pour elle sur cet appareil. Cela ne peut pas etre annule; la rejoindre plus tard recommence sans historique.</string>
     <string name="let_s_add_more_details_about">Ajoutons plus de details sur vous</string>
-    <string name="link_from_contacts">Lier depuis les contacts</string>
-    <string name="linked">Lié</string>
     <string name="log_out">Déconnexion</string>
     <string name="longer_retention_means_more_messages_stay">Une retention plus longue signifie que plus de messages restent en cache sur votre appareil, ce qui peut ralentir l\'application avec le temps, surtout pour les salons tres actifs.</string>
     <string name="make_active_address">Definir comme adresse active</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">Aucune transaction pour l\'instant.</string>
     <string name="no_transactions_yet_tap_to_add">Aucune transaction pour l\'instant. Touchez + pour ajouter votre premier achat ou vente.</string>
     <string name="not_now">Pas maintenant</string>
-    <string name="not_linked">Non lié</string>
     <string name="notes_optional">Notes (optionnel)</string>
     <string name="notifications">Notifications</string>
     <string name="notifications_are_off_in_system_settings">Les notifications sont desactivees dans les parametres systeme</string>
@@ -248,7 +244,6 @@
     <string name="transactions">Transactions</string>
     <string name="try_again">Reessayer</string>
     <string name="unhide">Ne plus masquer</string>
-    <string name="unlink">Dissocier</string>
     <string name="unread">Non lu</string>
     <string name="use_default">Utiliser par defaut</string>
     <string name="valid_address">Adresse valide</string>
@@ -271,7 +266,6 @@
     <string name="about">À propos</string>
     <string name="actions">Actions</string>
     <string name="active">Actif</string>
-    <string name="autocreate_system_contacts">Création automatique des contacts du téléphone</string>
     <string name="avatar">Avatar</string>
     <string name="banner">Bannière</string>
     <string name="bio">Biographie</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">Envoi de la transaction de revelation...</string>
     <string name="submitting_reveal_transaction_this_could_take">Envoi de la transaction de revelation... cela peut prendre quelques minutes le temps de la confirmation sur la chaine.</string>
     <string name="support_email">E-mail de support</string>
-    <string name="sync_system_contacts">Synchroniser la liste de contacts du téléphone</string>
-    <string name="system_contact">Contact du téléphone</string>
     <string name="telegram">Telegram</string>
     <string name="total">Total</string>
-    <string name="uses_your_device_contacts_to_match">Utilise vos contacts d\'appareil pour associer et enrichir les contacts Kaspa.</string>
     <string name="verified">Vérifié</string>
     <string name="verifying_new_ownership_on_chain_this">Verification de la nouvelle propriete sur la chaine (cela peut prendre une minute)...</string>
     <string name="verifying_on_chain_this_can_take">Verification sur la chaine (cela peut prendre une minute)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">Phrase secrète</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Les clés du compte actuel n’ont pas pu être sauvegardées sur cet appareil, rien n’a donc été modifié. Réessayez.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">Appeler %1$s ?</string>
-    <string name="contacts_call_confirm_voice">Vocal</string>
-    <string name="contacts_call_confirm_video">Vidéo</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">Nouveau message</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">Aucun nom .kachat de ce nom.</string>
     <string name="kn_detail_grace_resolves">Expiré. Il pointe toujours vers son propriétaire jusqu\'à la fin de la période de grâce, et le propriétaire peut encore le renouveler.</string>
     <string name="kn_detail_grace_mine_resolves">Expiré - renouvelez-le pour le garder. Jusqu\'à la fin de la période de grâce, il pointe toujours vers vous et personne d\'autre ne peut le prendre.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Carnet d\'adresses</string>
+    <string name="ab_add_to_address_book">Ajouter au carnet d\'adresses</string>
+    <string name="ab_search_prompt">Rechercher des noms et des adresses</string>
+    <string name="ab_empty_body">Enregistrez les adresses Kaspa que vous utilisez sous un nom que vous reconnaîtrez. Elles restent dans KaChat, pour ce portefeuille uniquement, et ne vont jamais dans les contacts de votre téléphone.</string>
+    <string name="ab_add_address">Ajouter une adresse</string>
+    <string name="ab_copied">Copié</string>
+    <string name="ab_share_address">Partager l\'adresse</string>
+    <string name="ab_edit">Modifier</string>
+    <string name="ab_delete_from">Supprimer du carnet d\'adresses</string>
+    <string name="ab_delete_confirm">Supprimer %1$s de votre carnet d\'adresses ?</string>
+    <string name="ab_not_in_book">Absent de votre carnet d\'adresses</string>
+    <string name="ab_note_optional">Note (facultatif)</string>
+    <string name="ab_editor_footer">Enregistré dans KaChat pour ce portefeuille uniquement. Jamais ajouté aux contacts de votre téléphone.</string>
+    <string name="ab_remove_from">Retirer du carnet d\'adresses</string>
+    <string name="ab_edit_address">Modifier l\'adresse</string>
+    <string name="ab_picker_empty_body">Ajoutez des adresses dans Kaspa Hub &gt; Carnet d\'adresses.</string>
+    <string name="ab_err_no_wallet">Ouvrez d\'abord un portefeuille.</string>
+    <string name="ab_err_empty_name">Saisissez un nom.</string>
+    <string name="ab_err_invalid_address">Saisissez une adresse Kaspa valide.</string>
+    <string name="ab_saved_toast">Enregistré dans le carnet d\'adresses.</string>
+    <string name="ab_removed_toast">Retiré du carnet d\'adresses.</string>
 </resources>

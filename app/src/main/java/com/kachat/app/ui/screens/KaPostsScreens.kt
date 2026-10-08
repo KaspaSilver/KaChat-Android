@@ -2254,7 +2254,6 @@ fun KaPostCell(
                     fallbackText = name,
                     size = 40.dp,
                     // A saved contact's own photo overrides the KNS avatar, as everywhere else.
-                    deviceContactPhotoUri = contactPhoto?.deviceContactPhotoUri,
                     backupPhotoBase64 = contactPhoto?.backupPhotoBase64,
                     address = post.posterAddress,
                 )
@@ -4744,7 +4743,6 @@ fun KaPostsProfileOverlay(
                                     imageUrl = profileAvatarUrl,
                                     fallbackText = name,
                                     size = 76.dp,
-                                    deviceContactPhotoUri = profilePhoto?.deviceContactPhotoUri,
                                     backupPhotoBase64 = profilePhoto?.backupPhotoBase64,
                                     // The .kachat avatar - your own in your header too (iOS 3d6fb7c).
                                     address = address,
@@ -5352,7 +5350,6 @@ fun KaPostsNotificationsOverlay(
                                 imageUrl = actorAvatar,
                                 fallbackText = actorName,
                                 size = 38.dp,
-                                deviceContactPhotoUri = actorPhoto?.deviceContactPhotoUri,
                                 backupPhotoBase64 = actorPhoto?.backupPhotoBase64,
                                 address = item.actorAddress,
                             )

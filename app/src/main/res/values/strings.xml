@@ -149,7 +149,6 @@
     <string name="connection_settings">Connection Settings</string>
     <string name="connection_status">Connection Status</string>
     <string name="contact_has_requested_permission_to_communicate">Contact has requested permission to communicate</string>
-    <string name="contacts">Contacts</string>
     <string name="controls_how_much_photos_are_compressed">Controls how much photos are compressed before sending. Higher quality looks clearer but costs a larger fee and takes longer to send; lower quality sends faster and cheaper but looks more compressed. This only affects photos you send, not ones you receive.</string>
     <string name="copy">Copy</string>
     <string name="copy_address">Copy Address</string>
@@ -231,8 +230,6 @@
     <string name="leave_delete">Leave &amp; Delete</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this public chat permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
     <string name="let_s_add_more_details_about">Let\'s add more details about yourself</string>
-    <string name="link_from_contacts">Link from Contacts</string>
-    <string name="linked">Linked</string>
     <string name="local_storage_used">Local storage used</string>
     <string name="log_out">Log Out</string>
     <string name="longer_retention_means_more_messages_stay">Longer retention means more messages stay cached on your device, which can slow the app down over time, especially for busy rooms.</string>
@@ -266,7 +263,6 @@
     <string name="no_transactions_yet_tap_to_add">No transactions yet. Tap + to add your first buy or sell.</string>
     <string name="no_utxos">No UTXOs.</string>
     <string name="not_now">Not Now</string>
-    <string name="not_linked">Not linked</string>
     <string name="notes_optional">Notes (optional)</string>
     <string name="notifications">Notifications</string>
     <string name="notifications_are_off_in_system_settings">Notifications are off in system settings</string>
@@ -372,7 +368,6 @@
     <string name="transactions">Transactions</string>
     <string name="try_again">Try Again</string>
     <string name="unhide">Unhide</string>
-    <string name="unlink">Unlink</string>
     <string name="unread">Unread</string>
     <string name="use_automatic_selection">Use Automatic Selection</string>
     <string name="use_default">Use Default</string>
@@ -396,7 +391,6 @@
     <string name="about">About</string>
     <string name="actions">Actions</string>
     <string name="active">Active</string>
-    <string name="autocreate_system_contacts">Autocreate system contacts</string>
     <string name="avatar">Avatar</string>
     <string name="banner">Banner</string>
     <string name="bio">Bio</string>
@@ -477,11 +471,8 @@
     <string name="submitting_reveal_transaction">Submitting reveal transaction...</string>
     <string name="submitting_reveal_transaction_this_could_take">Submitting reveal transaction... this could take a few minutes while it confirms on-chain.</string>
     <string name="support_email">Support Email</string>
-    <string name="sync_system_contacts">Sync system contacts</string>
-    <string name="system_contact">System Contact</string>
     <string name="telegram">Telegram</string>
     <string name="total">Total</string>
-    <string name="uses_your_device_contacts_to_match">Uses your device contacts to match and enrich Kaspa contacts.</string>
     <string name="verified">Verified</string>
     <string name="verifying_new_ownership_on_chain_this">Verifying new ownership on-chain (this can take a minute)...</string>
     <string name="verifying_on_chain_this_can_take">Verifying on-chain (this can take a minute)...</string>
@@ -558,12 +549,6 @@
     <string name="send_to">Send to</string>
     <string name="couldnt_send_saved_as_draft">Couldn\'t send. Saved as a draft in this chat.</string>
 
-    <!-- Calling from the phone's own Contacts app -->
-    <string name="contacts_action_voice_call">Voice call</string>
-    <string name="contacts_action_video_call">Video call</string>
-    <string name="contacts_call_needs_microphone">KaChat needs the microphone to make a call.</string>
-    <string name="contacts_call_contact_missing">That contact is no longer in KaChat.</string>
-    <string name="contacts_call_not_enabled">Calls are turned off for this contact in KaChat.</string>
     <string name="user_info">User Info</string>
     <string name="share">Share</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
@@ -1148,10 +1133,6 @@
     <string name="seed_phrase_passphrase_label">Passphrase</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">The current account\'s keys couldn\'t be backed up on this device, so nothing was changed. Try again.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">Call %1$s?</string>
-    <string name="contacts_call_confirm_voice">Voice</string>
-    <string name="contacts_call_confirm_video">Video</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">New message</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1334,4 +1315,26 @@
     <string name="kn_err_no_name">No .kachat name by that name.</string>
     <string name="kn_detail_grace_resolves">Expired. It still resolves to its owner until the grace period ends, and the owner can still renew it.</string>
     <string name="kn_detail_grace_mine_resolves">Expired - renew to keep it. Until the grace period ends it still resolves to you and nobody else can take it.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Address Book</string>
+    <string name="ab_add_to_address_book">Add to Address Book</string>
+    <string name="ab_search_prompt">Search names and addresses</string>
+    <string name="ab_empty_body">Save the Kaspa addresses you use with a name you\'ll recognize. They stay in KaChat, for this wallet only, and never go into your phone\'s Contacts.</string>
+    <string name="ab_add_address">Add Address</string>
+    <string name="ab_copied">Copied</string>
+    <string name="ab_share_address">Share Address</string>
+    <string name="ab_edit">Edit</string>
+    <string name="ab_delete_from">Delete from Address Book</string>
+    <string name="ab_delete_confirm">Delete %1$s from your Address Book?</string>
+    <string name="ab_not_in_book">Not in your Address Book</string>
+    <string name="ab_note_optional">Note (optional)</string>
+    <string name="ab_editor_footer">Saved in KaChat for this wallet only. Never added to your phone\'s Contacts.</string>
+    <string name="ab_remove_from">Remove from Address Book</string>
+    <string name="ab_edit_address">Edit Address</string>
+    <string name="ab_picker_empty_body">Add addresses in Kaspa Hub &gt; Address Book.</string>
+    <string name="ab_err_no_wallet">Open a wallet first.</string>
+    <string name="ab_err_empty_name">Enter a name.</string>
+    <string name="ab_err_invalid_address">Enter a valid Kaspa address.</string>
+    <string name="ab_saved_toast">Saved to Address Book.</string>
+    <string name="ab_removed_toast">Removed from Address Book.</string>
 </resources>

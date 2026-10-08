@@ -53,7 +53,6 @@
     <string name="connection_settings">إعدادات الاتصال</string>
     <string name="connection_status">حالة الاتصال</string>
     <string name="contact_has_requested_permission_to_communicate">طلبت جهة الاتصال إذن التواصل</string>
-    <string name="contacts">جهات الاتصال</string>
     <string name="controls_how_much_photos_are_compressed">يتحكم في مقدار ضغط الصور قبل إرسالها. الجودة الأعلى تبدو أوضح لكنها تكلف رسومًا أعلى وتستغرق وقتًا أطول للإرسال؛ الجودة الأقل ترسل بشكل أسرع وأرخص لكنها تبدو أكثر ضغطًا. هذا يؤثر فقط على الصور التي ترسلها، وليس التي تستقبلها.</string>
     <string name="copy">نسخ</string>
     <string name="copy_address">نسخ العنوان</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">مغادرة وحذف</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">مغادرة هذا البث تحذف نهائيًا كل رسالة مخزنة مؤقتًا له على هذا الجهاز. لا يمكن التراجع عن هذا؛ الانضمام مرة أخرى لاحقًا يبدأ بدون سجل.</string>
     <string name="let_s_add_more_details_about">لنضف المزيد من التفاصيل عنك</string>
-    <string name="link_from_contacts">ربط من جهات الاتصال</string>
-    <string name="linked">مرتبط</string>
     <string name="log_out">تسجيل الخروج</string>
     <string name="longer_retention_means_more_messages_stay">الاحتفاظ لفترة أطول يعني بقاء المزيد من الرسائل مخزنة مؤقتًا على جهازك، مما قد يبطئ التطبيق بمرور الوقت، خاصة للغرف النشطة.</string>
     <string name="make_active_address">جعله العنوان النشط</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">لا توجد معاملات بعد.</string>
     <string name="no_transactions_yet_tap_to_add">لا توجد معاملات بعد. اضغط + لإضافة أول عملية شراء أو بيع.</string>
     <string name="not_now">ليس الآن</string>
-    <string name="not_linked">غير مرتبط</string>
     <string name="notes_optional">ملاحظات (اختياري)</string>
     <string name="notifications">الإشعارات</string>
     <string name="notifications_are_off_in_system_settings">الإشعارات معطلة في إعدادات النظام</string>
@@ -248,7 +244,6 @@
     <string name="transactions">المعاملات</string>
     <string name="try_again">إعادة المحاولة</string>
     <string name="unhide">إظهار</string>
-    <string name="unlink">إلغاء الربط</string>
     <string name="unread">غير مقروء</string>
     <string name="use_default">استخدام الافتراضي</string>
     <string name="valid_address">عنوان صالح</string>
@@ -271,7 +266,6 @@
     <string name="about">حول</string>
     <string name="actions">إجراءات</string>
     <string name="active">نشط</string>
-    <string name="autocreate_system_contacts">إنشاء جهات اتصال النظام تلقائياً</string>
     <string name="avatar">الصورة الرمزية</string>
     <string name="banner">راية</string>
     <string name="bio">السيرة الذاتية</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">جارٍ إرسال معاملة الكشف...</string>
     <string name="submitting_reveal_transaction_this_could_take">جارٍ إرسال معاملة الكشف... قد يستغرق هذا بضع دقائق أثناء التأكيد على السلسلة.</string>
     <string name="support_email">بريد الدعم</string>
-    <string name="sync_system_contacts">مزامنة جهات اتصال النظام</string>
-    <string name="system_contact">جهة اتصال النظام</string>
     <string name="telegram">Telegram</string>
     <string name="total">الإجمالي</string>
-    <string name="uses_your_device_contacts_to_match">يستخدم جهات اتصال جهازك لمطابقة وإثراء جهات اتصال Kaspa.</string>
     <string name="verified">موثق</string>
     <string name="verifying_new_ownership_on_chain_this">جارٍ التحقق من الملكية الجديدة على السلسلة (قد يستغرق دقيقة)...</string>
     <string name="verifying_on_chain_this_can_take">جارٍ التحقق على السلسلة (قد يستغرق دقيقة)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">عبارة المرور</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">تعذّر نسخ مفاتيح الحساب الحالي احتياطيًا على هذا الجهاز، لذا لم يتغير شيء. حاول مرة أخرى.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">تتصل بـ %1$s؟</string>
-    <string name="contacts_call_confirm_voice">صوت</string>
-    <string name="contacts_call_confirm_video">فيديو</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">رسالة جديدة</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1125,4 +1112,26 @@
     <string name="kn_err_no_name">لا يوجد اسم ‎.kachat‎ بهذا الاسم.</string>
     <string name="kn_detail_grace_resolves">منتهي الصلاحية. لا يزال يشير إلى مالكه حتى تنتهي فترة السماح، ولا يزال بإمكان المالك تجديده.</string>
     <string name="kn_detail_grace_mine_resolves">منتهي الصلاحية - جدّده للاحتفاظ به. حتى تنتهي فترة السماح، لا يزال يشير إليك ولا يمكن لأي شخص آخر أخذه.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">دفتر العناوين</string>
+    <string name="ab_add_to_address_book">إضافة إلى دفتر العناوين</string>
+    <string name="ab_search_prompt">ابحث في الأسماء والعناوين</string>
+    <string name="ab_empty_body">احفظ عناوين Kaspa التي تستخدمها باسم تتعرف عليه. تبقى في KaChat، لهذه المحفظة فقط، ولا تُضاف أبدًا إلى جهات اتصال هاتفك.</string>
+    <string name="ab_add_address">إضافة عنوان</string>
+    <string name="ab_copied">تم النسخ</string>
+    <string name="ab_share_address">مشاركة العنوان</string>
+    <string name="ab_edit">تعديل</string>
+    <string name="ab_delete_from">حذف من دفتر العناوين</string>
+    <string name="ab_delete_confirm">حذف %1$s من دفتر العناوين؟</string>
+    <string name="ab_not_in_book">ليس في دفتر العناوين</string>
+    <string name="ab_note_optional">ملاحظة (اختياري)</string>
+    <string name="ab_editor_footer">محفوظ في KaChat لهذه المحفظة فقط. لا يُضاف أبدًا إلى جهات اتصال هاتفك.</string>
+    <string name="ab_remove_from">إزالة من دفتر العناوين</string>
+    <string name="ab_edit_address">تعديل العنوان</string>
+    <string name="ab_picker_empty_body">أضف العناوين من Kaspa Hub &gt; دفتر العناوين.</string>
+    <string name="ab_err_no_wallet">افتح محفظة أولًا.</string>
+    <string name="ab_err_empty_name">أدخل اسمًا.</string>
+    <string name="ab_err_invalid_address">أدخل عنوان Kaspa صالحًا.</string>
+    <string name="ab_saved_toast">تم الحفظ في دفتر العناوين.</string>
+    <string name="ab_removed_toast">تمت الإزالة من دفتر العناوين.</string>
 </resources>

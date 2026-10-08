@@ -10,17 +10,4 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
-
-    <!-- CallFromContactsActivity: no window of its own, only the "Call <name>?" sheet over the
-         Contacts app. AppCompat-based for the same reason as above (setContent goes through
-         AppCompatActivity.setContentView), and so the per-app language applies to its strings. -->
-    <style name="Theme.KaChat.Translucent" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:backgroundDimEnabled">false</item>
-        <item name="android:windowAnimationStyle">@null</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-    </style>
 </resources>

@@ -149,14 +149,4 @@ class ChatViewModelTest {
         assertFalse(ChatViewModel.canAutoUpdateAliasToDomain("oldname.kas", knsName = "oldname.kas"))
         assertFalse(ChatViewModel.canAutoUpdateAliasToDomain("chosen.kas", knsName = "chosen.kas"))
     }
-
-    @Test
-    fun `a contact linked to a system contact is never auto-overwritten, even with no alias`() {
-        assertFalse(ChatViewModel.canAutoUpdateAliasToDomain(null, systemContactId = "lookup-key-1"))
-    }
-
-    @Test
-    fun `a contact linked to a system contact is never auto-overwritten, even if the alias looks like a kns domain`() {
-        assertFalse(ChatViewModel.canAutoUpdateAliasToDomain("oldname.kas", systemContactId = "lookup-key-1"))
-    }
 }

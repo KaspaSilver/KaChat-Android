@@ -53,7 +53,6 @@
     <string name="connection_settings">Verbindungseinstellungen</string>
     <string name="connection_status">Verbindungsstatus</string>
     <string name="contact_has_requested_permission_to_communicate">Kontakt hat um Kommunikationserlaubnis gebeten</string>
-    <string name="contacts">Kontakte</string>
     <string name="controls_how_much_photos_are_compressed">Steuert, wie stark Fotos vor dem Senden komprimiert werden. Höhere Qualität sieht klarer aus, kostet aber eine höhere Gebühr und dauert länger zum Senden.</string>
     <string name="copy">Kopieren</string>
     <string name="copy_address">Adresse kopieren</string>
@@ -128,8 +127,6 @@
     <string name="leave_delete">Verlassen &amp; löschen</string>
     <string name="leaving_this_broadcast_permanently_deletes_every">Das Verlassen dieses Broadcasts löscht dauerhaft jede dafür auf diesem Gerät zwischengespeicherte Nachricht. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="let_s_add_more_details_about">Lass uns mehr Details über dich hinzufügen</string>
-    <string name="link_from_contacts">Aus Kontakten verknüpfen</string>
-    <string name="linked">Verknüpft</string>
     <string name="log_out">Abmelden</string>
     <string name="longer_retention_means_more_messages_stay">Längere Aufbewahrung bedeutet, dass mehr Nachrichten auf deinem Gerät zwischengespeichert bleiben, was die App mit der Zeit verlangsamt.</string>
     <string name="make_active_address">Als aktive Adresse festlegen</string>
@@ -153,7 +150,6 @@
     <string name="no_transactions_yet">Noch keine Transaktionen.</string>
     <string name="no_transactions_yet_tap_to_add">Noch keine Transaktionen. Tippe auf +, um deinen ersten Kauf oder Verkauf hinzufügen.</string>
     <string name="not_now">Nicht jetzt</string>
-    <string name="not_linked">Nicht verknüpft</string>
     <string name="notes_optional">Notizen (optional)</string>
     <string name="notifications">Benachrichtigungen</string>
     <string name="notifications_are_off_in_system_settings">Benachrichtigungen sind in den Systemeinstellungen deaktiviert</string>
@@ -248,7 +244,6 @@
     <string name="transactions">Transaktionen</string>
     <string name="try_again">Erneut versuchen</string>
     <string name="unhide">Einblenden</string>
-    <string name="unlink">Verknüpfung aufheben</string>
     <string name="unread">Ungelesen</string>
     <string name="use_default">Standard verwenden</string>
     <string name="valid_address">Gültige Adresse</string>
@@ -271,7 +266,6 @@
     <string name="about">Über</string>
     <string name="actions">Aktionen</string>
     <string name="active">Aktiv</string>
-    <string name="autocreate_system_contacts">Systemkontakte automatisch erstellen</string>
     <string name="avatar">Avatar</string>
     <string name="banner">Banner</string>
     <string name="bio">Bio</string>
@@ -344,11 +338,8 @@
     <string name="submitting_reveal_transaction">Enthüllungstransaktion wird gesendet...</string>
     <string name="submitting_reveal_transaction_this_could_take">Enthüllungstransaktion wird gesendet... dies kann einige Minuten dauern, bis sie on-chain bestätigt ist.</string>
     <string name="support_email">Support-E-Mail</string>
-    <string name="sync_system_contacts">Systemkontakte synchronisieren</string>
-    <string name="system_contact">Systemkontakt</string>
     <string name="telegram">Telegram</string>
     <string name="total">Gesamt</string>
-    <string name="uses_your_device_contacts_to_match">Verwendet deine Gerätekontakte, um Kaspa-Kontakte abzugleichen und zu ergänzen.</string>
     <string name="verified">Verifiziert</string>
     <string name="verifying_new_ownership_on_chain_this">Neuer Besitz wird on-chain überprüft (dies kann eine Minute dauern)...</string>
     <string name="verifying_on_chain_this_can_take">Wird on-chain überprüft (dies kann eine Minute dauern)...</string>
@@ -972,10 +963,6 @@
     <string name="seed_phrase_passphrase_label">Passphrase</string>
     <!-- Wallet: import / create stop if the saved accounts can't be kept (iOS 9758568, IOS-016) -->
     <string name="current_account_keys_not_backed_up">Die Schlüssel des aktuellen Kontos konnten auf diesem Gerät nicht gesichert werden, daher wurde nichts geändert. Versuch es noch einmal.</string>
-    <!-- Call from the Contacts app: confirm before placing (audit AND-002) -->
-    <string name="contacts_call_confirm_title">%1$s anrufen?</string>
-    <string name="contacts_call_confirm_voice">Audio</string>
-    <string name="contacts_call_confirm_video">Video</string>
     <!-- 1:1 notification body for an envelope with no preview (iOS; audit AND-007) -->
     <string name="dm_notif_new_message">Neue Nachricht</string>
     <!-- 1:1 notification body for a video or other file (iOS wording; audit AND-007) -->
@@ -1122,4 +1109,26 @@
     <string name="kn_err_no_name">Kein .kachat-Name mit diesem Namen.</string>
     <string name="kn_detail_grace_resolves">Abgelaufen. Bis zum Ende der Kulanzfrist wird er weiterhin zum Inhaber aufgelöst, und der Inhaber kann ihn noch verlängern.</string>
     <string name="kn_detail_grace_mine_resolves">Abgelaufen - verlängere ihn, um ihn zu behalten. Bis zum Ende der Kulanzfrist wird er weiterhin zu dir aufgelöst, und niemand sonst kann ihn nehmen.</string>
+    <!-- Address Book (iOS 00767a4) -->
+    <string name="ab_address_book">Adressbuch</string>
+    <string name="ab_add_to_address_book">Zum Adressbuch hinzufügen</string>
+    <string name="ab_search_prompt">Namen und Adressen suchen</string>
+    <string name="ab_empty_body">Speichere die Kaspa-Adressen, die du nutzt, unter einem Namen, den du wiedererkennst. Sie bleiben in KaChat, nur für diese Wallet, und landen nie in den Kontakten deines Telefons.</string>
+    <string name="ab_add_address">Adresse hinzufügen</string>
+    <string name="ab_copied">Kopiert</string>
+    <string name="ab_share_address">Adresse teilen</string>
+    <string name="ab_edit">Bearbeiten</string>
+    <string name="ab_delete_from">Aus dem Adressbuch löschen</string>
+    <string name="ab_delete_confirm">%1$s aus deinem Adressbuch löschen?</string>
+    <string name="ab_not_in_book">Nicht in deinem Adressbuch</string>
+    <string name="ab_note_optional">Notiz (optional)</string>
+    <string name="ab_editor_footer">Nur für diese Wallet in KaChat gespeichert. Wird nie zu den Kontakten deines Telefons hinzugefügt.</string>
+    <string name="ab_remove_from">Aus dem Adressbuch entfernen</string>
+    <string name="ab_edit_address">Adresse bearbeiten</string>
+    <string name="ab_picker_empty_body">Füge Adressen unter Kaspa Hub &gt; Adressbuch hinzu.</string>
+    <string name="ab_err_no_wallet">Öffne zuerst eine Wallet.</string>
+    <string name="ab_err_empty_name">Gib einen Namen ein.</string>
+    <string name="ab_err_invalid_address">Gib eine gültige Kaspa-Adresse ein.</string>
+    <string name="ab_saved_toast">Im Adressbuch gespeichert.</string>
+    <string name="ab_removed_toast">Aus dem Adressbuch entfernt.</string>
 </resources>
