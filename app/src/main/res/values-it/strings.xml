@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Scegli persone dalla rubrica, o aggiungi chiunque tramite indirizzo Kaspa o dominio.</string>
     <string name="ab_members_intro">Aggiungi persone al gruppo. Come admin del gruppo, decidi tu chi ne fa parte.</string>
     <string name="ab_members_empty">Ancora nessun membro. Aggiungi persone dalla rubrica o tramite indirizzo qui sotto.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Importa o esporta</string>
+    <string name="ab_import_or_export">Importa o esporta</string>
+    <string name="ab_import_file">Importa file</string>
+    <string name="ab_export_file">Esporta file</string>
+    <string name="ab_import_file_sub">Aggiungi indirizzi da un\'esportazione della rubrica.</string>
+    <string name="ab_export_file_sub">Salva questa rubrica, con le sue foto, in un file.</string>
+    <string name="ab_nc_import_sub">Scegli un\'esportazione della rubrica dal tuo Nextcloud.</string>
+    <string name="ab_nc_export_sub">Salvala nella cartella KaChat del tuo Nextcloud, per importarla su qualsiasi dispositivo.</string>
+    <string name="ab_nc_connect_hint">Collega Nextcloud in Impostazioni &gt; Spazio per salvarla anche lì e importarla su un altro dispositivo.</string>
+    <string name="ab_couldnt_read_file">Impossibile leggere quel file.</string>
+    <string name="ab_nothing_to_export">Ancora niente da esportare. Aggiungi prima un indirizzo.</string>
+    <string name="ab_export_failed">Esportazione non riuscita. Impossibile scrivere il file.</string>
+    <string name="ab_already_up_to_date">Già aggiornata. Tutti gli indirizzi del file sono salvati.</string>
+    <string name="ab_imported_counts">Importati: %1$d aggiunti, %2$d aggiornati.</string>
+    <string name="ab_err_not_an_export">Quel file non è un\'esportazione della rubrica KaChat.</string>
+    <string name="ab_err_export_empty">Quell\'esportazione non contiene indirizzi.</string>
 </resources>

@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Выберите людей из адресной книги или добавьте любого по адресу Kaspa или домену.</string>
     <string name="ab_members_intro">Добавьте людей в группу. Как администратор группы, вы управляете составом.</string>
     <string name="ab_members_empty">Участников пока нет. Добавьте людей из адресной книги или по адресу ниже.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Импорт или экспорт</string>
+    <string name="ab_import_or_export">Импорт или экспорт</string>
+    <string name="ab_import_file">Импорт из файла</string>
+    <string name="ab_export_file">Экспорт в файл</string>
+    <string name="ab_import_file_sub">Добавить адреса из экспорта адресной книги.</string>
+    <string name="ab_export_file_sub">Сохранить эту адресную книгу вместе с фото в файл.</string>
+    <string name="ab_nc_import_sub">Выберите экспорт адресной книги в своём Nextcloud.</string>
+    <string name="ab_nc_export_sub">Сохранить в папку KaChat в Nextcloud, чтобы импортировать на любом устройстве.</string>
+    <string name="ab_nc_connect_hint">Подключите Nextcloud в Настройки &gt; Хранилище, чтобы сохранять туда и импортировать на другом устройстве.</string>
+    <string name="ab_couldnt_read_file">Не удалось прочитать этот файл.</string>
+    <string name="ab_nothing_to_export">Пока нечего экспортировать. Сначала добавьте адрес.</string>
+    <string name="ab_export_failed">Экспорт не удался. Не получилось записать файл.</string>
+    <string name="ab_already_up_to_date">Уже актуально. Все адреса из файла сохранены.</string>
+    <string name="ab_imported_counts">Импортировано: добавлено %1$d, обновлено %2$d.</string>
+    <string name="ab_err_not_an_export">Это не экспорт адресной книги KaChat.</string>
+    <string name="ab_err_export_empty">В этом экспорте нет адресов.</string>
 </resources>

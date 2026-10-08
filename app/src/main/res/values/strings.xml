@@ -1356,4 +1356,21 @@
     <string name="ab_members_footer">Pick people from your Address Book, or add anyone by Kaspa address or domain.</string>
     <string name="ab_members_intro">Add people to the group. You control the membership as the group admin.</string>
     <string name="ab_members_empty">No members added yet. Add people from your Address Book or by address below.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Import or export</string>
+    <string name="ab_import_or_export">Import or Export</string>
+    <string name="ab_import_file">Import File</string>
+    <string name="ab_export_file">Export File</string>
+    <string name="ab_import_file_sub">Add addresses from an Address Book export.</string>
+    <string name="ab_export_file_sub">Save this Address Book, with its photos, to a file.</string>
+    <string name="ab_nc_import_sub">Pick an Address Book export from your Nextcloud.</string>
+    <string name="ab_nc_export_sub">Save it to the KaChat folder in your Nextcloud, to import on any device.</string>
+    <string name="ab_nc_connect_hint">Connect Nextcloud in Settings &gt; Storage to also save it there and import it on another device.</string>
+    <string name="ab_couldnt_read_file">Couldn\'t read that file.</string>
+    <string name="ab_nothing_to_export">Nothing to export yet. Add an address first.</string>
+    <string name="ab_export_failed">Export failed. Couldn\'t write the file.</string>
+    <string name="ab_already_up_to_date">Already up to date. Every address in the file is saved.</string>
+    <string name="ab_imported_counts">Imported: %1$d added, %2$d updated.</string>
+    <string name="ab_err_not_an_export">That file isn\'t a KaChat Address Book export.</string>
+    <string name="ab_err_export_empty">That Address Book export has no addresses.</string>
 </resources>

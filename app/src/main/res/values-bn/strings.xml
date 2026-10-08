@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">আপনার ঠিকানা বই থেকে লোক বেছে নিন, অথবা Kaspa ঠিকানা বা ডোমেইন দিয়ে যে কাউকে যোগ করুন।</string>
     <string name="ab_members_intro">গ্রুপে লোক যোগ করুন। গ্রুপ অ্যাডমিন হিসেবে সদস্যপদ আপনার নিয়ন্ত্রণে।</string>
     <string name="ab_members_empty">এখনো কোনো সদস্য যোগ হয়নি। নিচে ঠিকানা বই থেকে বা ঠিকানা দিয়ে লোক যোগ করুন।</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">ইমপোর্ট বা এক্সপোর্ট</string>
+    <string name="ab_import_or_export">ইমপোর্ট বা এক্সপোর্ট</string>
+    <string name="ab_import_file">ফাইল ইমপোর্ট</string>
+    <string name="ab_export_file">ফাইল এক্সপোর্ট</string>
+    <string name="ab_import_file_sub">ঠিকানা বইয়ের এক্সপোর্ট থেকে ঠিকানা যোগ করুন।</string>
+    <string name="ab_export_file_sub">এই ঠিকানা বই, ছবিসহ, একটি ফাইলে সংরক্ষণ করুন।</string>
+    <string name="ab_nc_import_sub">আপনার Nextcloud থেকে একটি ঠিকানা বই এক্সপোর্ট বেছে নিন।</string>
+    <string name="ab_nc_export_sub">আপনার Nextcloud-এর KaChat ফোল্ডারে সংরক্ষণ করুন, যেকোনো ডিভাইসে ইমপোর্ট করতে।</string>
+    <string name="ab_nc_connect_hint">সেটিংস &gt; স্টোরেজ-এ Nextcloud যুক্ত করুন, যাতে সেখানেও সংরক্ষণ করে অন্য ডিভাইসে ইমপোর্ট করা যায়।</string>
+    <string name="ab_couldnt_read_file">ফাইলটি পড়া গেল না।</string>
+    <string name="ab_nothing_to_export">এখনো এক্সপোর্ট করার কিছু নেই। আগে একটি ঠিকানা যোগ করুন।</string>
+    <string name="ab_export_failed">এক্সপোর্ট ব্যর্থ। ফাইল লেখা গেল না।</string>
+    <string name="ab_already_up_to_date">ইতিমধ্যে হালনাগাদ। ফাইলের সব ঠিকানা সংরক্ষিত আছে।</string>
+    <string name="ab_imported_counts">ইমপোর্ট হয়েছে: %1$d যোগ, %2$d হালনাগাদ।</string>
+    <string name="ab_err_not_an_export">এটি KaChat ঠিকানা বইয়ের এক্সপোর্ট নয়।</string>
+    <string name="ab_err_export_empty">এই এক্সপোর্টে কোনো ঠিকানা নেই।</string>
 </resources>

@@ -1184,4 +1184,21 @@
     <string name="ab_members_footer">افراد را از دفترچه نشانی انتخاب کنید، یا هر کسی را با نشانی Kaspa یا دامنه اضافه کنید.</string>
     <string name="ab_members_intro">افرادی را به گروه اضافه کنید. شما به‌عنوان مدیر گروه عضویت را کنترل می‌کنید.</string>
     <string name="ab_members_empty">هنوز عضوی اضافه نشده. در پایین افراد را از دفترچه نشانی یا با نشانی اضافه کنید.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">وارد یا صادر کردن</string>
+    <string name="ab_import_or_export">وارد یا صادر کردن</string>
+    <string name="ab_import_file">وارد کردن فایل</string>
+    <string name="ab_export_file">صادر کردن فایل</string>
+    <string name="ab_import_file_sub">نشانی‌ها را از یک فایل صادرشده دفترچه نشانی اضافه کنید.</string>
+    <string name="ab_export_file_sub">این دفترچه نشانی را همراه عکس‌هایش در یک فایل ذخیره کنید.</string>
+    <string name="ab_nc_import_sub">یک فایل صادرشده دفترچه نشانی را از Nextcloud انتخاب کنید.</string>
+    <string name="ab_nc_export_sub">آن را در پوشه KaChat در Nextcloud ذخیره کنید تا روی هر دستگاهی وارد شود.</string>
+    <string name="ab_nc_connect_hint">Nextcloud را در تنظیمات &gt; فضای ذخیره‌سازی وصل کنید تا آنجا هم ذخیره و روی دستگاه دیگری وارد شود.</string>
+    <string name="ab_couldnt_read_file">خواندن آن فایل ممکن نشد.</string>
+    <string name="ab_nothing_to_export">هنوز چیزی برای صادر کردن نیست. ابتدا یک نشانی اضافه کنید.</string>
+    <string name="ab_export_failed">صدور ناموفق بود. نوشتن فایل ممکن نشد.</string>
+    <string name="ab_already_up_to_date">به‌روز است. همه نشانی‌های فایل ذخیره شده‌اند.</string>
+    <string name="ab_imported_counts">وارد شد: %1$d افزوده، %2$d به‌روزرسانی.</string>
+    <string name="ab_err_not_an_export">آن فایل یک فایل صادرشده دفترچه نشانی KaChat نیست.</string>
+    <string name="ab_err_export_empty">این فایل صادرشده هیچ نشانی‌ای ندارد.</string>
 </resources>

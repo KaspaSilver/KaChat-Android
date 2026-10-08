@@ -757,7 +757,9 @@ class PortfolioViewModel @Inject constructor(
             return
         }
         try {
-            onReady(repository.exportCsv(rows))
+            // Named after the portfolio as named in the app (iOS 87b2a0b).
+            val name = portfolios.value.firstOrNull { it.id == activePortfolioId.value }?.name
+            onReady(repository.exportCsv(rows, PortfolioRepository.exportBaseName(name)))
         } catch (e: Exception) {
             Log.w("PortfolioViewModel", "CSV export failed", e)
             onUnavailable("Export failed. Please try again")

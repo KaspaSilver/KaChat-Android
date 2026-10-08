@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Adres defterinden kişi seç ya da herkesi Kaspa adresi veya alan adıyla ekle.</string>
     <string name="ab_members_intro">Gruba kişi ekle. Grup yöneticisi olarak üyeliği sen yönetirsin.</string>
     <string name="ab_members_empty">Henüz üye yok. Aşağıdan adres defterinden veya adresle kişi ekle.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">İçe veya dışa aktar</string>
+    <string name="ab_import_or_export">İçe veya Dışa Aktar</string>
+    <string name="ab_import_file">Dosya İçe Aktar</string>
+    <string name="ab_export_file">Dosya Dışa Aktar</string>
+    <string name="ab_import_file_sub">Bir Adres Defteri dışa aktarımından adres ekle.</string>
+    <string name="ab_export_file_sub">Bu Adres Defterini fotoğraflarıyla bir dosyaya kaydet.</string>
+    <string name="ab_nc_import_sub">Nextcloud\'undan bir Adres Defteri dışa aktarımı seç.</string>
+    <string name="ab_nc_export_sub">Herhangi bir cihazda içe aktarmak için Nextcloud\'undaki KaChat klasörüne kaydet.</string>
+    <string name="ab_nc_connect_hint">Oraya da kaydedip başka bir cihazda içe aktarmak için Ayarlar &gt; Depolama\'da Nextcloud\'u bağla.</string>
+    <string name="ab_couldnt_read_file">Bu dosya okunamadı.</string>
+    <string name="ab_nothing_to_export">Henüz dışa aktaracak bir şey yok. Önce bir adres ekle.</string>
+    <string name="ab_export_failed">Dışa aktarma başarısız. Dosya yazılamadı.</string>
+    <string name="ab_already_up_to_date">Zaten güncel. Dosyadaki tüm adresler kayıtlı.</string>
+    <string name="ab_imported_counts">İçe aktarıldı: %1$d eklendi, %2$d güncellendi.</string>
+    <string name="ab_err_not_an_export">Bu dosya bir KaChat Adres Defteri dışa aktarımı değil.</string>
+    <string name="ab_err_export_empty">Bu dışa aktarımda adres yok.</string>
 </resources>

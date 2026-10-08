@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">从地址簿中选择，或通过 Kaspa 地址或域名添加任何人。</string>
     <string name="ab_members_intro">向群组添加成员。作为群组管理员，由你管理成员。</string>
     <string name="ab_members_empty">还没有成员。请在下方从地址簿或通过地址添加。</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">导入或导出</string>
+    <string name="ab_import_or_export">导入或导出</string>
+    <string name="ab_import_file">导入文件</string>
+    <string name="ab_export_file">导出到文件</string>
+    <string name="ab_import_file_sub">从地址簿导出文件中添加地址。</string>
+    <string name="ab_export_file_sub">将此地址簿连同照片保存到文件。</string>
+    <string name="ab_nc_import_sub">从你的 Nextcloud 中选择一个地址簿导出文件。</string>
+    <string name="ab_nc_export_sub">保存到 Nextcloud 的 KaChat 文件夹，可在任何设备上导入。</string>
+    <string name="ab_nc_connect_hint">在 设置 &gt; 存储 中连接 Nextcloud，即可同时保存到那里并在其他设备上导入。</string>
+    <string name="ab_couldnt_read_file">无法读取该文件。</string>
+    <string name="ab_nothing_to_export">还没有可导出的内容。请先添加一个地址。</string>
+    <string name="ab_export_failed">导出失败。无法写入文件。</string>
+    <string name="ab_already_up_to_date">已是最新。文件中的地址都已保存。</string>
+    <string name="ab_imported_counts">已导入：新增 %1$d 个，更新 %2$d 个。</string>
+    <string name="ab_err_not_an_export">该文件不是 KaChat 地址簿导出文件。</string>
+    <string name="ab_err_export_empty">该导出文件中没有地址。</string>
 </resources>

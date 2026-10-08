@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Choisissez des personnes dans votre carnet d\'adresses, ou ajoutez n\'importe qui par adresse Kaspa ou domaine.</string>
     <string name="ab_members_intro">Ajoutez des personnes au groupe. En tant qu\'administrateur, vous gérez les membres.</string>
     <string name="ab_members_empty">Aucun membre pour l\'instant. Ajoutez des personnes depuis votre carnet d\'adresses ou par adresse ci-dessous.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Importer ou exporter</string>
+    <string name="ab_import_or_export">Importer ou exporter</string>
+    <string name="ab_import_file">Importer un fichier</string>
+    <string name="ab_export_file">Exporter un fichier</string>
+    <string name="ab_import_file_sub">Ajoutez des adresses depuis un export du carnet d\'adresses.</string>
+    <string name="ab_export_file_sub">Enregistrez ce carnet d\'adresses, avec ses photos, dans un fichier.</string>
+    <string name="ab_nc_import_sub">Choisissez un export du carnet d\'adresses dans votre Nextcloud.</string>
+    <string name="ab_nc_export_sub">Enregistrez-le dans le dossier KaChat de votre Nextcloud pour l\'importer sur n\'importe quel appareil.</string>
+    <string name="ab_nc_connect_hint">Connectez Nextcloud dans Réglages &gt; Stockage pour l\'y enregistrer aussi et l\'importer sur un autre appareil.</string>
+    <string name="ab_couldnt_read_file">Impossible de lire ce fichier.</string>
+    <string name="ab_nothing_to_export">Rien à exporter pour l\'instant. Ajoutez d\'abord une adresse.</string>
+    <string name="ab_export_failed">Échec de l\'export. Impossible d\'écrire le fichier.</string>
+    <string name="ab_already_up_to_date">Déjà à jour. Toutes les adresses du fichier sont enregistrées.</string>
+    <string name="ab_imported_counts">Importé : %1$d ajoutées, %2$d mises à jour.</string>
+    <string name="ab_err_not_an_export">Ce fichier n\'est pas un export du carnet d\'adresses KaChat.</string>
+    <string name="ab_err_export_empty">Cet export ne contient aucune adresse.</string>
 </resources>

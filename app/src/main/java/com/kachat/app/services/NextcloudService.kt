@@ -668,8 +668,15 @@ class NextcloudService @Inject constructor(
      * Uploads [bytes] as [filename] into the KaChat folder ([backupFolderPath] - the same folder
      * the chat backup lives in), creating the folder chain if it isn't there yet, and returns the
      * stored path. A file of the same name is replaced - exports carry a timestamp in their name.
+     * [keepSpaces] keeps a name the user gave (a portfolio's, "KaChat Address Book") readable in
+     * Nextcloud instead of turning its spaces into underscores (iOS 87b2a0b).
      */
-    suspend fun uploadToKaChatFolder(bytes: ByteArray, filename: String, contentType: String): String = withContext(Dispatchers.IO) {
+    suspend fun uploadToKaChatFolder(
+        bytes: ByteArray,
+        filename: String,
+        contentType: String,
+        keepSpaces: Boolean = false,
+    ): String = withContext(Dispatchers.IO) {
         val account = requireAccount()
         val folder = backupFolderPath.trim('/')
         // Level by level: MKCOL is not recursive, and 405 means the level already exists.
@@ -683,7 +690,8 @@ class NextcloudService @Inject constructor(
                 if (!response.isSuccessful && response.code != 405) throw IOException("Nextcloud returned HTTP ${response.code}.")
             }
         }
-        val storedName = filename.replace(Regex("[^A-Za-z0-9._-]"), "_").takeIf { it.isNotBlank() } ?: "file"
+        val disallowed = if (keepSpaces) Regex("[^A-Za-z0-9._ -]") else Regex("[^A-Za-z0-9._-]")
+        val storedName = filename.replace(disallowed, "_").takeIf { it.isNotBlank() } ?: "file"
         val path = if (folder.isEmpty()) storedName else "$folder/$storedName"
         val mediaType = contentType.toMediaTypeOrNull() ?: "application/octet-stream".toMediaType()
         val put = Request.Builder().url(davUrl(account, path)).put(bytes.toRequestBody(mediaType))

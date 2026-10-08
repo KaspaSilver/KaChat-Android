@@ -39,6 +39,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -95,6 +100,7 @@ import androidx.compose.ui.unit.sp
 import com.kachat.app.R
 import com.kachat.app.services.AddressBookEntry
 import com.kachat.app.services.AddressBookManager
+import com.kachat.app.services.NextcloudService
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaAddress
@@ -142,11 +148,20 @@ fun AddressBookScreen(
     val colors = LocalAppColors.current
     var search by rememberSaveable { mutableStateOf("") }
     val shown = remember(entries, search) { AddressBookManager.shared?.search(search) ?: emptyList() }
+    var showImportExport by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = colors.background,
         topBar = {
             MainPageHeader(title = stringResource(R.string.ab_address_book), onBack = onBack) {
+                // Import or Export (iOS 87b2a0b), beside +.
+                IconButton(onClick = { showImportExport = true }) {
+                    Icon(
+                        Icons.Default.ImportExport,
+                        contentDescription = stringResource(R.string.ab_import_export_a11y),
+                        tint = KaspaTeal,
+                    )
+                }
                 IconButton(onClick = { showAdd = true }) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.ab_add_address), tint = KaspaTeal)
                 }
@@ -202,6 +217,198 @@ fun AddressBookScreen(
 
     if (showAdd) {
         AddressBookEntryEditor(address = null, onDone = {}, onDismiss = { showAdd = false })
+    }
+    AddressBookImportExport(show = showImportExport, onDismiss = { showImportExport = false })
+}
+
+/** Reaches the app's [NextcloudService] from the Address Book's composables. */
+@dagger.hilt.EntryPoint
+@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+interface AddressBookDeps {
+    fun nextcloud(): NextcloudService
+}
+
+/**
+ * The Address Book's Import or Export half sheet (iOS AddressBookView, 87b2a0b): Import File,
+ * Export File, and - with Nextcloud connected - Import from Nextcloud / Export to Nextcloud
+ * (else a line saying where to connect it). The file is plain JSON, "KaChat Address Book
+ * <time>.json" ([AddressBookManager.exportData]), so it moves both ways between iOS and Android.
+ */
+@Composable
+private fun AddressBookImportExport(show: Boolean, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val colors = LocalAppColors.current
+    val scope = rememberCoroutineScope()
+    val nextcloud = remember {
+        runCatching {
+            dagger.hilt.android.EntryPointAccessors
+                .fromApplication(context.applicationContext, AddressBookDeps::class.java).nextcloud()
+        }.getOrNull()
+    }
+    val ncAccount by (nextcloud?.account ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsState()
+    val connected = ncAccount != null
+    var showNextcloudImporter by remember { mutableStateOf(false) }
+
+    fun runImport(data: ByteArray) {
+        scope.launch {
+            val book = AddressBookManager.shared ?: return@launch
+            try {
+                val (added, updated) = withContext(Dispatchers.IO) { book.importExport(data) }
+                if (added + updated == 0) IosToasts.show(context.getString(R.string.ab_already_up_to_date))
+                else IosToasts.show(context.getString(R.string.ab_imported_counts, added, updated))
+            } catch (e: AddressBookManager.ImportException) {
+                IosToasts.error(
+                    context.getString(
+                        when (e.reason) {
+                            AddressBookManager.ImportError.NOT_AN_ADDRESS_BOOK -> R.string.ab_err_not_an_export
+                            AddressBookManager.ImportError.EMPTY -> R.string.ab_err_export_empty
+                        }
+                    )
+                )
+            } catch (e: AddressBookManager.SaveException) {
+                IosToasts.error(context.getString(R.string.ab_err_no_wallet))
+            }
+        }
+    }
+
+    /** The export's bytes, or null (with a toast) when there is nothing to write or it fails. */
+    fun exportBytes(): ByteArray? {
+        val book = AddressBookManager.shared
+        if (book == null || book.entries.value.isEmpty()) {
+            IosToasts.error(context.getString(R.string.ab_nothing_to_export))
+            return null
+        }
+        return runCatching { book.exportData() }.getOrElse {
+            IosToasts.error(context.getString(R.string.ab_export_failed))
+            null
+        }
+    }
+
+    val fileImporter = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val data = withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+            }
+            if (data == null) IosToasts.error(context.getString(R.string.ab_couldnt_read_file))
+            else runImport(data)
+        }
+    }
+
+    fun exportToFile() {
+        val data = exportBytes() ?: return
+        scope.launch {
+            val uri = withContext(Dispatchers.IO) {
+                runCatching {
+                    val dir = java.io.File(context.cacheDir, "address_book_exports").apply { mkdirs() }
+                    val file = java.io.File(dir, AddressBookManager.exportFileName()).apply { writeBytes(data) }
+                    androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                }.getOrNull()
+            }
+            if (uri == null) {
+                IosToasts.error(context.getString(R.string.ab_export_failed))
+                return@launch
+            }
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/json"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = android.content.ClipData.newRawUri(uri.lastPathSegment, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            try {
+                context.startActivity(Intent.createChooser(intent, null))
+            } catch (e: android.content.ActivityNotFoundException) {
+                IosToasts.error(context.getString(R.string.ab_export_failed))
+            }
+        }
+    }
+
+    fun exportToNextcloud() {
+        val service = nextcloud ?: return
+        val data = exportBytes() ?: return
+        scope.launch {
+            try {
+                val path = service.uploadToKaChatFolder(
+                    data, AddressBookManager.exportFileName(), "application/json", keepSpaces = true
+                )
+                IosToasts.show(context.getString(R.string.pnc_saved_to, path))
+            } catch (e: Exception) {
+                IosToasts.error(
+                    context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again"))
+                )
+            }
+        }
+    }
+
+    if (show) {
+        ActionSheetContainer(
+            title = stringResource(R.string.ab_import_or_export),
+            subtitle = null,
+            onDismiss = onDismiss,
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.FileDownload,
+                title = stringResource(R.string.ab_import_file),
+                subtitle = stringResource(R.string.ab_import_file_sub),
+            ) {
+                onDismiss()
+                fileImporter.launch(arrayOf("application/json", "text/json", "text/plain", "application/octet-stream"))
+            }
+            ActionSheetRow(
+                icon = Icons.Default.FileUpload,
+                title = stringResource(R.string.ab_export_file),
+                subtitle = stringResource(R.string.ab_export_file_sub),
+            ) {
+                onDismiss()
+                exportToFile()
+            }
+            if (connected) {
+                ActionSheetRow(
+                    icon = Icons.Default.CloudDownload,
+                    title = stringResource(R.string.pnc_import),
+                    subtitle = stringResource(R.string.ab_nc_import_sub),
+                ) {
+                    onDismiss()
+                    showNextcloudImporter = true
+                }
+                ActionSheetRow(
+                    icon = Icons.Default.CloudUpload,
+                    title = stringResource(R.string.pnc_export),
+                    subtitle = stringResource(R.string.ab_nc_export_sub),
+                ) {
+                    onDismiss()
+                    exportToNextcloud()
+                }
+            } else {
+                Text(
+                    stringResource(R.string.ab_nc_connect_hint),
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                )
+            }
+        }
+    }
+
+    if (showNextcloudImporter && nextcloud != null) {
+        NextcloudFileSelectDialog(
+            service = nextcloud,
+            allowedExtensions = setOf("json"),
+            onDismiss = { showNextcloudImporter = false },
+            onPick = { file ->
+                showNextcloudImporter = false
+                scope.launch {
+                    try {
+                        runImport(nextcloud.downloadFile(file.path, maxBytes = 50_000_000L))
+                    } catch (e: Exception) {
+                        IosToasts.error(
+                            context.getString(R.string.pnc_import_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again"))
+                        )
+                    }
+                }
+            },
+        )
     }
 }
 

@@ -622,8 +622,9 @@ private fun PortfolioTransactionsContent(
                                                         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                                                     } ?: throw java.io.IOException("Couldn't write the CSV file")
                                                     val name = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.endsWith(".csv") }
-                                                        ?: "kachat-portfolio-${System.currentTimeMillis()}.csv"
-                                                    val path = viewModel.nextcloud.uploadToKaChatFolder(bytes, name, "text/csv")
+                                                        ?: "KaChat Portfolio ${System.currentTimeMillis()}.csv"
+                                                    // keepSpaces: the portfolio's name stays readable in Nextcloud (iOS 87b2a0b).
+                                                    val path = viewModel.nextcloud.uploadToKaChatFolder(bytes, name, "text/csv", keepSpaces = true)
                                                     context.getString(R.string.pnc_saved_to, path) to false
                                                 } catch (e: Exception) {
                                                     context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again")) to true

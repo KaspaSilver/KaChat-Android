@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Escolha pessoas do seu livro de endereços ou adicione qualquer um por endereço Kaspa ou domínio.</string>
     <string name="ab_members_intro">Adicione pessoas ao grupo. Como administrador, você controla quem participa.</string>
     <string name="ab_members_empty">Nenhum membro ainda. Adicione pessoas do livro de endereços ou por endereço abaixo.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Importar ou exportar</string>
+    <string name="ab_import_or_export">Importar ou exportar</string>
+    <string name="ab_import_file">Importar arquivo</string>
+    <string name="ab_export_file">Exportar arquivo</string>
+    <string name="ab_import_file_sub">Adicione endereços de uma exportação do livro de endereços.</string>
+    <string name="ab_export_file_sub">Salve este livro de endereços, com as fotos, em um arquivo.</string>
+    <string name="ab_nc_import_sub">Escolha uma exportação do livro de endereços no seu Nextcloud.</string>
+    <string name="ab_nc_export_sub">Salve na pasta KaChat do seu Nextcloud para importar em qualquer dispositivo.</string>
+    <string name="ab_nc_connect_hint">Conecte o Nextcloud em Ajustes &gt; Armazenamento para salvar lá também e importar em outro dispositivo.</string>
+    <string name="ab_couldnt_read_file">Não foi possível ler esse arquivo.</string>
+    <string name="ab_nothing_to_export">Nada para exportar ainda. Adicione um endereço primeiro.</string>
+    <string name="ab_export_failed">Falha na exportação. Não foi possível gravar o arquivo.</string>
+    <string name="ab_already_up_to_date">Já está atualizado. Todos os endereços do arquivo estão salvos.</string>
+    <string name="ab_imported_counts">Importado: %1$d adicionados, %2$d atualizados.</string>
+    <string name="ab_err_not_an_export">Esse arquivo não é uma exportação do livro de endereços do KaChat.</string>
+    <string name="ab_err_export_empty">Essa exportação não tem endereços.</string>
 </resources>

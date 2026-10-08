@@ -3,6 +3,7 @@
     <cache-path name="chat_exports" path="chat_exports/" />
     <cache-path name="diagnostics_exports" path="diagnostics_exports/" />
     <cache-path name="portfolio_exports" path="portfolio_exports/" />
+    <cache-path name="address_book_exports" path="address_book_exports/" />
     <cache-path name="camera_captures" path="camera_captures/" />
     <!-- Crash reports the app recorded about itself (CrashRecorder) - shared from the
          next-launch notice so a report can leave a phone with no computer attached. -->

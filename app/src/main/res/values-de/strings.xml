@@ -1150,4 +1150,21 @@
     <string name="ab_members_footer">Wähle Personen aus deinem Adressbuch oder füge jeden per Kaspa-Adresse oder Domain hinzu.</string>
     <string name="ab_members_intro">Füge Personen zur Gruppe hinzu. Als Gruppenadmin bestimmst du die Mitgliedschaft.</string>
     <string name="ab_members_empty">Noch keine Mitglieder. Füge unten Personen aus deinem Adressbuch oder per Adresse hinzu.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Importieren oder exportieren</string>
+    <string name="ab_import_or_export">Importieren oder Exportieren</string>
+    <string name="ab_import_file">Datei importieren</string>
+    <string name="ab_export_file">Datei exportieren</string>
+    <string name="ab_import_file_sub">Adressen aus einem Adressbuch-Export hinzufügen.</string>
+    <string name="ab_export_file_sub">Dieses Adressbuch samt Fotos in einer Datei speichern.</string>
+    <string name="ab_nc_import_sub">Wähle einen Adressbuch-Export aus deiner Nextcloud.</string>
+    <string name="ab_nc_export_sub">Im KaChat-Ordner deiner Nextcloud speichern, um es auf jedem Gerät zu importieren.</string>
+    <string name="ab_nc_connect_hint">Verbinde Nextcloud unter Einstellungen &gt; Speicher, um es auch dort zu speichern und auf einem anderen Gerät zu importieren.</string>
+    <string name="ab_couldnt_read_file">Die Datei konnte nicht gelesen werden.</string>
+    <string name="ab_nothing_to_export">Noch nichts zu exportieren. Füge zuerst eine Adresse hinzu.</string>
+    <string name="ab_export_failed">Export fehlgeschlagen. Die Datei konnte nicht geschrieben werden.</string>
+    <string name="ab_already_up_to_date">Bereits aktuell. Jede Adresse aus der Datei ist gespeichert.</string>
+    <string name="ab_imported_counts">Importiert: %1$d hinzugefügt, %2$d aktualisiert.</string>
+    <string name="ab_err_not_an_export">Diese Datei ist kein KaChat-Adressbuch-Export.</string>
+    <string name="ab_err_export_empty">Dieser Adressbuch-Export enthält keine Adressen.</string>
 </resources>

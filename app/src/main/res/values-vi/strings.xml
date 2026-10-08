@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Chọn người từ sổ địa chỉ, hoặc thêm bất kỳ ai bằng địa chỉ Kaspa hay tên miền.</string>
     <string name="ab_members_intro">Thêm người vào nhóm. Là quản trị viên, bạn quản lý thành viên.</string>
     <string name="ab_members_empty">Chưa có thành viên. Thêm người từ sổ địa chỉ hoặc bằng địa chỉ bên dưới.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Nhập hoặc xuất</string>
+    <string name="ab_import_or_export">Nhập hoặc xuất</string>
+    <string name="ab_import_file">Nhập tệp</string>
+    <string name="ab_export_file">Xuất tệp</string>
+    <string name="ab_import_file_sub">Thêm địa chỉ từ một bản xuất sổ địa chỉ.</string>
+    <string name="ab_export_file_sub">Lưu sổ địa chỉ này, kèm ảnh, vào một tệp.</string>
+    <string name="ab_nc_import_sub">Chọn một bản xuất sổ địa chỉ từ Nextcloud của bạn.</string>
+    <string name="ab_nc_export_sub">Lưu vào thư mục KaChat trên Nextcloud để nhập trên mọi thiết bị.</string>
+    <string name="ab_nc_connect_hint">Kết nối Nextcloud trong Cài đặt &gt; Lưu trữ để lưu ở đó và nhập trên thiết bị khác.</string>
+    <string name="ab_couldnt_read_file">Không đọc được tệp đó.</string>
+    <string name="ab_nothing_to_export">Chưa có gì để xuất. Hãy thêm một địa chỉ trước.</string>
+    <string name="ab_export_failed">Xuất thất bại. Không ghi được tệp.</string>
+    <string name="ab_already_up_to_date">Đã cập nhật. Mọi địa chỉ trong tệp đều đã được lưu.</string>
+    <string name="ab_imported_counts">Đã nhập: thêm %1$d, cập nhật %2$d.</string>
+    <string name="ab_err_not_an_export">Tệp đó không phải bản xuất sổ địa chỉ KaChat.</string>
+    <string name="ab_err_export_empty">Bản xuất đó không có địa chỉ nào.</string>
 </resources>

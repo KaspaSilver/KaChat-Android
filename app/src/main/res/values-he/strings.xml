@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">בחרו אנשים מפנקס הכתובות, או הוסיפו כל אחד לפי כתובת Kaspa או דומיין.</string>
     <string name="ab_members_intro">הוסיפו אנשים לקבוצה. כמנהלי הקבוצה, אתם שולטים בחברות.</string>
     <string name="ab_members_empty">עדיין לא נוספו חברים. הוסיפו אנשים מפנקס הכתובות או לפי כתובת למטה.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">ייבוא או ייצוא</string>
+    <string name="ab_import_or_export">ייבוא או ייצוא</string>
+    <string name="ab_import_file">ייבוא קובץ</string>
+    <string name="ab_export_file">ייצוא קובץ</string>
+    <string name="ab_import_file_sub">הוספת כתובות מייצוא של פנקס הכתובות.</string>
+    <string name="ab_export_file_sub">שמירת פנקס הכתובות הזה, עם התמונות, בקובץ.</string>
+    <string name="ab_nc_import_sub">בחרו ייצוא של פנקס הכתובות מה-Nextcloud שלכם.</string>
+    <string name="ab_nc_export_sub">שמרו בתיקיית KaChat ב-Nextcloud כדי לייבא בכל מכשיר.</string>
+    <string name="ab_nc_connect_hint">חברו Nextcloud בהגדרות &gt; אחסון כדי לשמור גם שם ולייבא במכשיר אחר.</string>
+    <string name="ab_couldnt_read_file">לא ניתן לקרוא את הקובץ.</string>
+    <string name="ab_nothing_to_export">אין עדיין מה לייצא. הוסיפו קודם כתובת.</string>
+    <string name="ab_export_failed">הייצוא נכשל. לא ניתן לכתוב את הקובץ.</string>
+    <string name="ab_already_up_to_date">כבר מעודכן. כל הכתובות בקובץ שמורות.</string>
+    <string name="ab_imported_counts">יובאו: %1$d נוספו, %2$d עודכנו.</string>
+    <string name="ab_err_not_an_export">הקובץ אינו ייצוא של פנקס הכתובות של KaChat.</string>
+    <string name="ab_err_export_empty">בייצוא הזה אין כתובות.</string>
 </resources>

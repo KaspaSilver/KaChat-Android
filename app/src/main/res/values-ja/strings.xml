@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">アドレス帳から選ぶか、Kaspaアドレスやドメインで誰でも追加できます。</string>
     <string name="ab_members_intro">グループに人を追加します。グループ管理者としてメンバーを管理できます。</string>
     <string name="ab_members_empty">まだメンバーがいません。下のアドレス帳かアドレスで追加してください。</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">インポートまたはエクスポート</string>
+    <string name="ab_import_or_export">インポートまたはエクスポート</string>
+    <string name="ab_import_file">ファイルをインポート</string>
+    <string name="ab_export_file">ファイルにエクスポート</string>
+    <string name="ab_import_file_sub">アドレス帳のエクスポートからアドレスを追加します。</string>
+    <string name="ab_export_file_sub">このアドレス帳を写真ごとファイルに保存します。</string>
+    <string name="ab_nc_import_sub">Nextcloud からアドレス帳のエクスポートを選びます。</string>
+    <string name="ab_nc_export_sub">Nextcloud の KaChat フォルダに保存し、どのデバイスでもインポートできます。</string>
+    <string name="ab_nc_connect_hint">設定 &gt; ストレージで Nextcloud を接続すると、そこにも保存して別のデバイスでインポートできます。</string>
+    <string name="ab_couldnt_read_file">そのファイルを読み込めませんでした。</string>
+    <string name="ab_nothing_to_export">まだエクスポートするものがありません。先にアドレスを追加してください。</string>
+    <string name="ab_export_failed">エクスポートに失敗しました。ファイルを書き込めませんでした。</string>
+    <string name="ab_already_up_to_date">すでに最新です。ファイルのアドレスはすべて保存済みです。</string>
+    <string name="ab_imported_counts">インポート完了：追加 %1$d 件、更新 %2$d 件。</string>
+    <string name="ab_err_not_an_export">そのファイルは KaChat アドレス帳のエクスポートではありません。</string>
+    <string name="ab_err_export_empty">そのエクスポートにはアドレスがありません。</string>
 </resources>

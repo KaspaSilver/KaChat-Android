@@ -849,11 +849,16 @@ class PortfolioRepository @Inject constructor(
      * timezone. Fee / Fee Currency are written as zero/USD — the ledger doesn't keep fee as a
      * separate line item; any fee captured at import time is already folded into Total value
      * (USD).
+     *
+     * The file is named after the portfolio as named in the app ("Long Term 2026-10-08T18-37-50Z
+     * .csv", [baseName] from [exportBaseName]), so it is recognizable in Files and Nextcloud
+     * (iOS 87b2a0b). The time is ISO 8601 in whole seconds with ':' as '-', as iOS writes it.
      */
-    fun exportCsv(transactions: List<PortfolioTransactionEntity>): Uri {
+    fun exportCsv(transactions: List<PortfolioTransactionEntity>, baseName: String = DEFAULT_EXPORT_NAME): Uri {
         val exportDir = File(context.cacheDir, "portfolio_exports").apply { mkdirs() }
-        val fileTimestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()).replace(":", "-")
-        val csvFile = File(exportDir, "kachat-portfolio-$fileTimestamp.csv")
+        val fileTimestamp = DateTimeFormatter.ISO_INSTANT
+            .format(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)).replace(":", "-")
+        val csvFile = File(exportDir, "$baseName $fileTimestamp.csv")
 
         val dateFormat = makeDateFormat(TimeZone.getTimeZone("UTC"))
         val csv = buildString {
@@ -975,6 +980,33 @@ class PortfolioRepository @Inject constructor(
     }
 
     companion object {
+        /** The CSV export's name when the portfolio has none (iOS 87b2a0b). */
+        const val DEFAULT_EXPORT_NAME = "KaChat Portfolio"
+
+        /**
+         * The export's file name: the name given to the portfolio in the app, so it is
+         * recognizable in Files and Nextcloud; [DEFAULT_EXPORT_NAME] if it has none. Characters a
+         * file name can't hold are dropped; at most 60 characters (iOS
+         * `PortfolioViewModel.exportBaseName`, 87b2a0b).
+         */
+        fun exportBaseName(portfolioName: String?): String {
+            val cleaned = portfolioName.orEmpty()
+                .filterNot { it in "/\\:?*\"<>|" || Character.isISOControl(it) }
+                .trim()
+            if (cleaned.isEmpty()) return DEFAULT_EXPORT_NAME
+            // 60 characters as a person counts them (never half an emoji).
+            val breaks = java.text.BreakIterator.getCharacterInstance().apply { setText(cleaned) }
+            var end = 0
+            var count = 0
+            while (count < 60) {
+                val next = breaks.next()
+                if (next == java.text.BreakIterator.DONE) { end = cleaned.length; break }
+                end = next
+                count++
+            }
+            return cleaned.substring(0, end)
+        }
+
         /**
          * Splits a CSV document into records of fields (RFC 4180): commas and line breaks inside
          * double quotes belong to the field, "" inside quotes is one literal quote, and a line

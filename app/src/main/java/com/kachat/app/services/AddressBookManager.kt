@@ -329,6 +329,96 @@ class AddressBookManager @Inject constructor(
         photoVersion++
     }
 
+    // MARK: - Export / import (Address Book > import-export sheet, iOS 87b2a0b)
+
+    /** Why an import was refused; the UI localizes it (iOS `AddressBookManager.ImportError`). */
+    enum class ImportError { NOT_AN_ADDRESS_BOOK, EMPTY }
+
+    class ImportException(val reason: ImportError) : Exception(reason.name)
+
+    /**
+     * This wallet's Address Book as an export file: plain JSON, readable by any KaChat (iOS,
+     * Android, Desktop) and any wallet - `{type: "kachat-address-book", version: 1, exportedAt,
+     * walletAddress, entries}`, every entry with its assigned photo (base64 JPEG) attached. Keys
+     * sorted and dates in ISO 8601 whole seconds, as iOS's encoder writes it (NEXTCLOUD_SYNC.md §1).
+     */
+    fun exportData(): ByteArray {
+        val entries = com.google.gson.JsonArray()
+        for (e in archiveEntries()) {
+            entries.add(com.google.gson.JsonObject().apply {
+                addProperty("address", e.address)
+                addProperty("createdAt", e.createdAt)
+                addProperty("id", e.id)
+                addProperty("name", e.name)
+                addProperty("note", e.note.orEmpty())
+                e.photo?.let { addProperty("photo", it) }
+                addProperty("updatedAt", e.updatedAt)
+            })
+        }
+        val file = com.google.gson.JsonObject().apply {
+            add("entries", entries)
+            addProperty("exportedAt", isoSeconds(System.currentTimeMillis()))
+            addProperty("type", EXPORT_KIND)
+            addProperty("version", 1)
+            book.wallet?.let { addProperty("walletAddress", it) }
+        }
+        return com.google.gson.GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
+            .toJson(file).toByteArray(Charsets.UTF_8)
+    }
+
+    /**
+     * Imports an export file into this wallet's book: an address not saved here is added (even
+     * one deleted since - importing is asking for it back); one already saved takes the file's
+     * version only when that is newer. Photos come with their entry. Returns (added, updated).
+     */
+    @Synchronized
+    @Throws(SaveException::class, ImportException::class)
+    fun importExport(data: ByteArray): Pair<Int, Int> {
+        val current = book
+        val wallet = current.wallet ?: throw SaveException(SaveError.NO_WALLET)
+        val root = runCatching {
+            com.google.gson.JsonParser.parseString(String(data, Charsets.UTF_8)).asJsonObject
+        }.getOrNull() ?: throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
+        val type = runCatching { root.get("type")?.asString }.getOrNull()
+        val rawEntries = runCatching { root.getAsJsonArray("entries") }.getOrNull()
+        if (type != EXPORT_KIND || rawEntries == null) throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
+        val valid = rawEntries.mapNotNull { element ->
+            runCatching { gson.fromJson(element, ArchiveAddressBookEntry::class.java)?.toEntry() }.getOrNull()
+        }.filter { it.name.isNotBlank() && KaspaAddress.isValid(normalize(it.address)) }
+        if (valid.isEmpty()) throw ImportException(ImportError.EMPTY)
+
+        val list = current.entries.toMutableList()
+        val index = HashMap<String, Int>()
+        list.forEachIndexed { i, e -> index[normalize(e.address)] = i }
+        val deleted = current.deleted.toMutableMap()
+        var added = 0
+        var updated = 0
+        for (raw in valid) {
+            val address = normalize(raw.address)
+            val photo = raw.photo?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }.getOrNull() }
+            var incoming = raw.copy(address = address, photo = null)
+            val i = index[address]
+            if (i != null) {
+                val have = list[i]
+                if (incoming.updatedAt <= have.updatedAt) continue
+                list[i] = have.copy(name = incoming.name, note = incoming.note, updatedAt = incoming.updatedAt)
+                if (photo != null) writePhoto(photo, address) else deletePhoto(address)
+                updated++
+            } else {
+                if (list.any { it.id == incoming.id }) incoming = incoming.copy(id = UUID.randomUUID().toString().uppercase())
+                list.add(incoming)
+                index[address] = list.size - 1
+                if (photo != null) writePhoto(photo, address)
+                added++
+            }
+            deleted.remove(address)
+        }
+        publish(Book(wallet, sorted(list), deleted))
+        persist()
+        if (added + updated > 0) didChange()
+        return added to updated
+    }
+
     // MARK: - Backup
 
     /** What the chat backup carries for this wallet: each entry with its assigned photo (base64
@@ -418,6 +508,14 @@ class AddressBookManager @Inject constructor(
         private const val ENTRIES_KEY_PREFIX = "kachat_address_book_wallet_"
         private const val DELETED_KEY_PREFIX = "kachat_address_book_deleted_wallet_"
         private const val MIGRATED_KEY_PREFIX = "kachat_address_book_migrated_v1_wallet_"
+
+        /** The export file's `type` (iOS `AddressBookManager.ExportFile.kind`). */
+        const val EXPORT_KIND = "kachat-address-book"
+
+        /** The export's file name, with the time so several exports don't overwrite each other:
+         *  "KaChat Address Book 2026-10-08T18-37-50Z.json", exactly as iOS names it. */
+        fun exportFileName(epochMs: Long = System.currentTimeMillis()): String =
+            "KaChat Address Book ${isoSeconds(epochMs).replace(":", "-")}.json"
 
         @Volatile private var instance: AddressBookManager? = null
 

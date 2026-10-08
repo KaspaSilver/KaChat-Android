@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">Elige personas de tu libreta de direcciones o añade a cualquiera por dirección de Kaspa o dominio.</string>
     <string name="ab_members_intro">Añade personas al grupo. Como administrador del grupo, tú controlas quién es miembro.</string>
     <string name="ab_members_empty">Aún no hay miembros. Añade personas desde tu libreta de direcciones o por dirección abajo.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Importar o exportar</string>
+    <string name="ab_import_or_export">Importar o exportar</string>
+    <string name="ab_import_file">Importar archivo</string>
+    <string name="ab_export_file">Exportar archivo</string>
+    <string name="ab_import_file_sub">Añade direcciones desde una exportación de la libreta.</string>
+    <string name="ab_export_file_sub">Guarda esta libreta de direcciones, con sus fotos, en un archivo.</string>
+    <string name="ab_nc_import_sub">Elige una exportación de la libreta desde tu Nextcloud.</string>
+    <string name="ab_nc_export_sub">Guárdala en la carpeta KaChat de tu Nextcloud para importarla en cualquier dispositivo.</string>
+    <string name="ab_nc_connect_hint">Conecta Nextcloud en Ajustes &gt; Almacenamiento para guardarla también allí e importarla en otro dispositivo.</string>
+    <string name="ab_couldnt_read_file">No se pudo leer ese archivo.</string>
+    <string name="ab_nothing_to_export">Aún no hay nada que exportar. Añade primero una dirección.</string>
+    <string name="ab_export_failed">La exportación falló. No se pudo escribir el archivo.</string>
+    <string name="ab_already_up_to_date">Ya está al día. Todas las direcciones del archivo están guardadas.</string>
+    <string name="ab_imported_counts">Importado: %1$d añadidas, %2$d actualizadas.</string>
+    <string name="ab_err_not_an_export">Ese archivo no es una exportación de la libreta de KaChat.</string>
+    <string name="ab_err_export_empty">Esa exportación no tiene direcciones.</string>
 </resources>

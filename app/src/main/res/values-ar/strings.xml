@@ -1153,4 +1153,21 @@
     <string name="ab_members_footer">اختر أشخاصًا من دفتر العناوين، أو أضف أي شخص بعنوان Kaspa أو نطاق.</string>
     <string name="ab_members_intro">أضف أشخاصًا إلى المجموعة. أنت تتحكم في العضوية بصفتك مشرف المجموعة.</string>
     <string name="ab_members_empty">لم تتم إضافة أعضاء بعد. أضف أشخاصًا من دفتر العناوين أو بالعنوان أدناه.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">استيراد أو تصدير</string>
+    <string name="ab_import_or_export">استيراد أو تصدير</string>
+    <string name="ab_import_file">استيراد ملف</string>
+    <string name="ab_export_file">تصدير ملف</string>
+    <string name="ab_import_file_sub">أضف عناوين من ملف تصدير دفتر العناوين.</string>
+    <string name="ab_export_file_sub">احفظ دفتر العناوين هذا مع صوره في ملف.</string>
+    <string name="ab_nc_import_sub">اختر ملف تصدير دفتر العناوين من Nextcloud.</string>
+    <string name="ab_nc_export_sub">احفظه في مجلد KaChat على Nextcloud لاستيراده على أي جهاز.</string>
+    <string name="ab_nc_connect_hint">اربط Nextcloud من الإعدادات &gt; التخزين لحفظه هناك أيضًا واستيراده على جهاز آخر.</string>
+    <string name="ab_couldnt_read_file">تعذّرت قراءة هذا الملف.</string>
+    <string name="ab_nothing_to_export">لا يوجد ما يُصدَّر بعد. أضف عنوانًا أولًا.</string>
+    <string name="ab_export_failed">فشل التصدير. تعذّرت كتابة الملف.</string>
+    <string name="ab_already_up_to_date">محدّث بالفعل. كل العناوين في الملف محفوظة.</string>
+    <string name="ab_imported_counts">تم الاستيراد: أُضيف %1$d، وحُدّث %2$d.</string>
+    <string name="ab_err_not_an_export">هذا الملف ليس تصديرًا لدفتر عناوين KaChat.</string>
+    <string name="ab_err_export_empty">لا يحتوي ملف التصدير هذا على أي عناوين.</string>
 </resources>

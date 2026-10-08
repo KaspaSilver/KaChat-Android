@@ -1020,4 +1020,21 @@
     <string name="ab_members_footer">Pilih orang dari Buku Alamat, atau tambahkan siapa saja lewat alamat Kaspa atau domain.</string>
     <string name="ab_members_intro">Tambahkan orang ke grup. Sebagai admin grup, Anda yang mengatur keanggotaan.</string>
     <string name="ab_members_empty">Belum ada anggota. Tambahkan orang dari Buku Alamat atau lewat alamat di bawah.</string>
+    <!-- Address Book import / export (iOS 87b2a0b) -->
+    <string name="ab_import_export_a11y">Impor atau ekspor</string>
+    <string name="ab_import_or_export">Impor atau Ekspor</string>
+    <string name="ab_import_file">Impor File</string>
+    <string name="ab_export_file">Ekspor File</string>
+    <string name="ab_import_file_sub">Tambahkan alamat dari ekspor Buku Alamat.</string>
+    <string name="ab_export_file_sub">Simpan Buku Alamat ini, beserta fotonya, ke file.</string>
+    <string name="ab_nc_import_sub">Pilih ekspor Buku Alamat dari Nextcloud Anda.</string>
+    <string name="ab_nc_export_sub">Simpan ke folder KaChat di Nextcloud Anda, untuk diimpor di perangkat mana pun.</string>
+    <string name="ab_nc_connect_hint">Hubungkan Nextcloud di Pengaturan &gt; Penyimpanan agar bisa disimpan di sana dan diimpor di perangkat lain.</string>
+    <string name="ab_couldnt_read_file">File itu tidak bisa dibaca.</string>
+    <string name="ab_nothing_to_export">Belum ada yang bisa diekspor. Tambahkan alamat dulu.</string>
+    <string name="ab_export_failed">Ekspor gagal. File tidak bisa ditulis.</string>
+    <string name="ab_already_up_to_date">Sudah terbaru. Semua alamat di file sudah tersimpan.</string>
+    <string name="ab_imported_counts">Diimpor: %1$d ditambahkan, %2$d diperbarui.</string>
+    <string name="ab_err_not_an_export">File itu bukan ekspor Buku Alamat KaChat.</string>
+    <string name="ab_err_export_empty">Ekspor itu tidak berisi alamat.</string>
 </resources>
