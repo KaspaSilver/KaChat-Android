@@ -690,7 +690,9 @@ class NextcloudService @Inject constructor(
                 if (!response.isSuccessful && response.code != 405) throw IOException("Nextcloud returned HTTP ${response.code}.")
             }
         }
-        val disallowed = if (keepSpaces) Regex("[^A-Za-z0-9._ -]") else Regex("[^A-Za-z0-9._-]")
+        // iOS sanitizedMediaFilename: letters, marks and digits of any script stay (CharacterSet
+        // .alphanumerics), plus "._-" and, with keepSpaces, the space.
+        val disallowed = if (keepSpaces) Regex("[^\\p{L}\\p{M}\\p{N}._ -]") else Regex("[^\\p{L}\\p{M}\\p{N}._-]")
         val storedName = filename.replace(disallowed, "_").takeIf { it.isNotBlank() } ?: "file"
         val path = if (folder.isEmpty()) storedName else "$folder/$storedName"
         val mediaType = contentType.toMediaTypeOrNull() ?: "application/octet-stream".toMediaType()

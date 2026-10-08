@@ -382,9 +382,13 @@ class AddressBookManager @Inject constructor(
         val type = runCatching { root.get("type")?.asString }.getOrNull()
         val rawEntries = runCatching { root.getAsJsonArray("entries") }.getOrNull()
         if (type != EXPORT_KIND || rawEntries == null) throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
-        val valid = rawEntries.mapNotNull { element ->
+        // Like iOS's Codable decode, one entry that can't be read makes the whole file "not an
+        // Address Book export"; readable entries with no name or a bad address are then skipped.
+        val decoded = rawEntries.map { element ->
             runCatching { gson.fromJson(element, ArchiveAddressBookEntry::class.java)?.toEntry() }.getOrNull()
-        }.filter { it.name.isNotBlank() && KaspaAddress.isValid(normalize(it.address)) }
+                ?: throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
+        }
+        val valid = decoded.filter { it.name.isNotBlank() && KaspaAddress.isValid(normalize(it.address)) }
         if (valid.isEmpty()) throw ImportException(ImportError.EMPTY)
 
         val list = current.entries.toMutableList()
