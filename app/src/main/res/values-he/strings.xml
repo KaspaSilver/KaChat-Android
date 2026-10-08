@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">הזינו כתובת Kaspa תקינה.</string>
     <string name="ab_saved_toast">נשמר בפנקס הכתובות.</string>
     <string name="ab_removed_toast">הוסר מפנקס הכתובות.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">החלפת תמונה</string>
+    <string name="ab_remove_photo">הסרת תמונה</string>
+    <string name="ab_photo_failed">לא ניתן להשתמש בתמונה הזו.</string>
+    <string name="ab_photo_footer">בלי תמונה משלך, כאן מוצג האווטאר שהוגדר בפרופיל שלהם.</string>
+    <string name="ab_photos_title">תמונות פנקס הכתובות</string>
+    <string name="ab_photos_remove">הסרת תמונות פנקס הכתובות</string>
+    <string name="ab_photos_remove_question">להסיר את תמונות פנקס הכתובות?</string>
+    <string name="ab_photos_footer">תמונות שהקצית לכתובות שמורות, לכל הארנקים במכשיר הזה. הן נשמרות עד שתסירו אותן, ונכללות בגיבוי הצ\'אטים.</string>
+    <string name="ab_photos_frees">משחרר %1$s. הכתובות השמורות שומרות על השמות שלהן ומציגות במקום זאת את האווטאר שהבעלים הגדירו.</string>
 </resources>

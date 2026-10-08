@@ -1131,4 +1131,14 @@
     <string name="ab_err_invalid_address">Gib eine gültige Kaspa-Adresse ein.</string>
     <string name="ab_saved_toast">Im Adressbuch gespeichert.</string>
     <string name="ab_removed_toast">Aus dem Adressbuch entfernt.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Foto ändern</string>
+    <string name="ab_remove_photo">Foto entfernen</string>
+    <string name="ab_photo_failed">Dieses Foto ließ sich nicht verwenden.</string>
+    <string name="ab_photo_footer">Ohne eigenes Foto siehst du hier den Avatar, den die Person in ihrem Profil festgelegt hat.</string>
+    <string name="ab_photos_title">Adressbuch-Fotos</string>
+    <string name="ab_photos_remove">Adressbuch-Fotos entfernen</string>
+    <string name="ab_photos_remove_question">Adressbuch-Fotos entfernen?</string>
+    <string name="ab_photos_footer">Fotos, die du gespeicherten Adressen zugewiesen hast, für alle Wallets auf diesem Gerät. Sie bleiben, bis du sie entfernst, und sind in deinem Chat-Backup enthalten.</string>
+    <string name="ab_photos_frees">Gibt %1$s frei. Gespeicherte Adressen behalten ihre Namen und zeigen stattdessen den Avatar, den ihr Inhaber festgelegt hat.</string>
 </resources>

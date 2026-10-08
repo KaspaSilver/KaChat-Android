@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">有効なKaspaアドレスを入力してください。</string>
     <string name="ab_saved_toast">アドレス帳に保存しました。</string>
     <string name="ab_removed_toast">アドレス帳から削除しました。</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">写真を変更</string>
+    <string name="ab_remove_photo">写真を削除</string>
+    <string name="ab_photo_failed">その写真は使えませんでした。</string>
+    <string name="ab_photo_footer">自分で写真を設定しない場合、相手がプロフィールに設定したアバターが表示されます。</string>
+    <string name="ab_photos_title">アドレス帳の写真</string>
+    <string name="ab_photos_remove">アドレス帳の写真を削除</string>
+    <string name="ab_photos_remove_question">アドレス帳の写真を削除しますか？</string>
+    <string name="ab_photos_footer">保存したアドレスに設定した写真です（このデバイスのすべてのウォレット分）。削除するまで残り、チャットのバックアップにも含まれます。</string>
+    <string name="ab_photos_frees">%1$s が空きます。保存したアドレスの名前はそのままで、代わりに持ち主が設定したアバターが表示されます。</string>
 </resources>

@@ -9255,6 +9255,66 @@ fun SettingsScreen(
                 )
             }
 
+            // Your own data, not cache: photos you assigned in the Address Book (iOS cda0d99). Kept
+            // apart from Cache, whose "clear" must never delete anything you'd miss.
+            run {
+                val addressBook = com.kachat.app.services.AddressBookManager.shared
+                var addressBookPhotoBytes by remember { mutableStateOf<Long?>(null) }
+                var confirmRemoveAddressBookPhotos by remember { mutableStateOf(false) }
+                val photoVersion = addressBook?.photoVersion ?: 0
+                LaunchedEffect(photoVersion) {
+                    addressBookPhotoBytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        addressBook?.photosBytesOnDevice() ?: 0L
+                    }
+                }
+                SettingsSection(title = null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 52.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.Book, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(stringResource(R.string.ab_photos_title), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        val bytes = addressBookPhotoBytes
+                        if (bytes != null) {
+                            Text(android.text.format.Formatter.formatShortFileSize(context, bytes), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyLarge)
+                        } else {
+                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(16.dp), color = LocalAppColors.current.textSecondary, strokeWidth = 2.dp)
+                        }
+                    }
+                    if ((addressBookPhotoBytes ?: 0L) > 0L) {
+                        SettingsDivider()
+                        Text(
+                            stringResource(R.string.ab_photos_remove),
+                            color = LocalAppColors.current.danger,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { confirmRemoveAddressBookPhotos = true }
+                                .heightIn(min = 52.dp)
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                        )
+                    }
+                }
+                SettingsFooter(stringResource(R.string.ab_photos_footer))
+                if (confirmRemoveAddressBookPhotos) {
+                    ConfirmActionSheet(
+                        title = stringResource(R.string.ab_photos_remove_question),
+                        confirmTitle = stringResource(R.string.remove),
+                        confirmSubtitle = stringResource(
+                            R.string.ab_photos_frees,
+                            android.text.format.Formatter.formatShortFileSize(context, addressBookPhotoBytes ?: 0L)
+                        ),
+                        confirmIcon = Icons.Default.Delete,
+                        onConfirm = { addressBook?.removeAllPhotos() },
+                        onDismiss = { confirmRemoveAddressBookPhotos = false },
+                    )
+                }
+            }
+
             // Kept apart from the rest of Storage on purpose: message retention and cloud sync
             // decide what happens to things you would miss, and this decides what happens to
             // things you would not.

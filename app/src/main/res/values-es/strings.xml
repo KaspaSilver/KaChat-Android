@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Escribe una dirección de Kaspa válida.</string>
     <string name="ab_saved_toast">Guardado en la libreta de direcciones.</string>
     <string name="ab_removed_toast">Quitado de la libreta de direcciones.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Cambiar foto</string>
+    <string name="ab_remove_photo">Quitar foto</string>
+    <string name="ab_photo_failed">No se pudo usar esa foto.</string>
+    <string name="ab_photo_footer">Sin una foto tuya, aquí se muestra el avatar que eligió en su perfil.</string>
+    <string name="ab_photos_title">Fotos de la libreta de direcciones</string>
+    <string name="ab_photos_remove">Quitar fotos de la libreta de direcciones</string>
+    <string name="ab_photos_remove_question">¿Quitar las fotos de la libreta de direcciones?</string>
+    <string name="ab_photos_footer">Fotos que asignaste a direcciones guardadas, para todas las carteras de este dispositivo. Se conservan hasta que las quites y se incluyen en tu copia de seguridad de chats.</string>
+    <string name="ab_photos_frees">Libera %1$s. Las direcciones guardadas conservan sus nombres y muestran en su lugar el avatar que eligió su dueño.</string>
 </resources>

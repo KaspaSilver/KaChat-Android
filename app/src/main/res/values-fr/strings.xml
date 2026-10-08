@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Saisissez une adresse Kaspa valide.</string>
     <string name="ab_saved_toast">Enregistré dans le carnet d\'adresses.</string>
     <string name="ab_removed_toast">Retiré du carnet d\'adresses.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Changer la photo</string>
+    <string name="ab_remove_photo">Retirer la photo</string>
+    <string name="ab_photo_failed">Impossible d\'utiliser cette photo.</string>
+    <string name="ab_photo_footer">Sans photo de votre choix, on voit ici l\'avatar défini sur son profil.</string>
+    <string name="ab_photos_title">Photos du carnet d\'adresses</string>
+    <string name="ab_photos_remove">Retirer les photos du carnet d\'adresses</string>
+    <string name="ab_photos_remove_question">Retirer les photos du carnet d\'adresses ?</string>
+    <string name="ab_photos_footer">Les photos que vous avez attribuées aux adresses enregistrées, pour tous les portefeuilles de cet appareil. Elles restent jusqu\'à ce que vous les retiriez et sont incluses dans votre sauvegarde des discussions.</string>
+    <string name="ab_photos_frees">Libère %1$s. Les adresses enregistrées gardent leur nom et affichent à la place l\'avatar choisi par leur propriétaire.</string>
 </resources>

@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">أدخل عنوان Kaspa صالحًا.</string>
     <string name="ab_saved_toast">تم الحفظ في دفتر العناوين.</string>
     <string name="ab_removed_toast">تمت الإزالة من دفتر العناوين.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">تغيير الصورة</string>
+    <string name="ab_remove_photo">إزالة الصورة</string>
+    <string name="ab_photo_failed">تعذّر استخدام هذه الصورة.</string>
+    <string name="ab_photo_footer">بدون صورة تختارها، يظهر هنا الرمز الذي وضعه صاحب العنوان في ملفه الشخصي.</string>
+    <string name="ab_photos_title">صور دفتر العناوين</string>
+    <string name="ab_photos_remove">إزالة صور دفتر العناوين</string>
+    <string name="ab_photos_remove_question">إزالة صور دفتر العناوين؟</string>
+    <string name="ab_photos_footer">الصور التي خصصتها للعناوين المحفوظة، لكل المحافظ على هذا الجهاز. تبقى حتى تزيلها، وهي مضمّنة في النسخة الاحتياطية للمحادثات.</string>
+    <string name="ab_photos_frees">يحرّر %1$s. تحتفظ العناوين المحفوظة بأسمائها، وتعرض بدلًا من ذلك الصورة التي وضعها أصحابها.</string>
 </resources>

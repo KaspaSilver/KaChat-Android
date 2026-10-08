@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">एक मान्य Kaspa पता दर्ज करें।</string>
     <string name="ab_saved_toast">एड्रेस बुक में सहेजा गया।</string>
     <string name="ab_removed_toast">एड्रेस बुक से हटाया गया।</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">फ़ोटो बदलें</string>
+    <string name="ab_remove_photo">फ़ोटो हटाएँ</string>
+    <string name="ab_photo_failed">वह फ़ोटो इस्तेमाल नहीं हो सकी।</string>
+    <string name="ab_photo_footer">आपकी अपनी फ़ोटो न होने पर, यहाँ वह अवतार दिखता है जो उन्होंने अपनी प्रोफ़ाइल पर लगाया है।</string>
+    <string name="ab_photos_title">एड्रेस बुक फ़ोटो</string>
+    <string name="ab_photos_remove">एड्रेस बुक फ़ोटो हटाएँ</string>
+    <string name="ab_photos_remove_question">एड्रेस बुक फ़ोटो हटाएँ?</string>
+    <string name="ab_photos_footer">सहेजे गए पतों को आपकी दी हुई फ़ोटो, इस डिवाइस के सभी वॉलेट के लिए। आप हटाएँ तब तक रहती हैं, और आपके चैट बैकअप में शामिल होती हैं।</string>
+    <string name="ab_photos_frees">%1$s खाली होगा। सहेजे गए पतों के नाम बने रहेंगे; बदले में उनके मालिक का लगाया अवतार दिखेगा।</string>
 </resources>

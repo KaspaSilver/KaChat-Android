@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Digite um endereço Kaspa válido.</string>
     <string name="ab_saved_toast">Salvo no livro de endereços.</string>
     <string name="ab_removed_toast">Removido do livro de endereços.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Alterar foto</string>
+    <string name="ab_remove_photo">Remover foto</string>
+    <string name="ab_photo_failed">Não foi possível usar essa foto.</string>
+    <string name="ab_photo_footer">Sem uma foto escolhida por você, aparece aqui o avatar que a pessoa definiu no perfil.</string>
+    <string name="ab_photos_title">Fotos do livro de endereços</string>
+    <string name="ab_photos_remove">Remover fotos do livro de endereços</string>
+    <string name="ab_photos_remove_question">Remover as fotos do livro de endereços?</string>
+    <string name="ab_photos_footer">Fotos que você atribuiu a endereços salvos, para todas as carteiras deste dispositivo. Ficam até você removê-las e estão incluídas no backup das conversas.</string>
+    <string name="ab_photos_frees">Libera %1$s. Os endereços salvos mantêm os nomes e passam a mostrar o avatar definido pelo dono.</string>
 </resources>

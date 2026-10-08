@@ -1165,4 +1165,14 @@
     <string name="ab_err_invalid_address">یک نشانی معتبر Kaspa وارد کنید.</string>
     <string name="ab_saved_toast">در دفترچه نشانی ذخیره شد.</string>
     <string name="ab_removed_toast">از دفترچه نشانی برداشته شد.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">تغییر عکس</string>
+    <string name="ab_remove_photo">حذف عکس</string>
+    <string name="ab_photo_failed">نشد از آن عکس استفاده کرد.</string>
+    <string name="ab_photo_footer">بدون عکسی از خودتان، اینجا آواتاری نمایش داده می‌شود که آن شخص در نمایه‌اش گذاشته است.</string>
+    <string name="ab_photos_title">عکس‌های دفترچه نشانی</string>
+    <string name="ab_photos_remove">حذف عکس‌های دفترچه نشانی</string>
+    <string name="ab_photos_remove_question">عکس‌های دفترچه نشانی حذف شوند؟</string>
+    <string name="ab_photos_footer">عکس‌هایی که به نشانی‌های ذخیره‌شده داده‌اید، برای همه کیف پول‌های این دستگاه. تا وقتی حذفشان نکنید می‌مانند و در پشتیبان گفتگوهای شما هستند.</string>
+    <string name="ab_photos_frees">%1$s آزاد می‌شود. نشانی‌های ذخیره‌شده نامشان را نگه می‌دارند و به جای آن آواتاری را نشان می‌دهند که صاحبشان گذاشته است.</string>
 </resources>

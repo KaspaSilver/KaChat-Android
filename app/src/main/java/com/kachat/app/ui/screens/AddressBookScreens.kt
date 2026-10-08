@@ -2,6 +2,17 @@ package com.kachat.app.ui.screens
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -259,8 +270,34 @@ private fun AddressBookEmptyState(
  * (iOS `AddressBookAvatar`).
  */
 @Composable
-fun AddressBookAvatar(address: String, size: Dp = 44.dp) {
-    ContactAvatar(imageUrl = null, fallbackText = "", size = size, address = address)
+fun AddressBookAvatar(
+    address: String,
+    size: Dp = 44.dp,
+    /** The editor's not-yet-saved choice: a new photo... */
+    pendingBitmap: android.graphics.Bitmap? = null,
+    /** ...or "removed". Neither: what is saved. */
+    pendingRemoved: Boolean = false,
+) {
+    val book = AddressBookManager.shared
+    val version = book?.photoVersion ?: 0
+    val saved = remember(address, version) { book?.photo(address) }
+    val assigned = when {
+        pendingBitmap != null -> pendingBitmap
+        pendingRemoved -> null
+        else -> saved
+    }
+    if (assigned != null) {
+        androidx.compose.foundation.Image(
+            bitmap = assigned.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(size).clip(CircleShape),
+        )
+    } else {
+        // Exactly the avatar the address set on its own profile - no backup photo of the chat
+        // contact (iOS `includeBackupPhoto: false`).
+        ContactAvatar(imageUrl = null, fallbackText = "", size = size, address = address)
+    }
 }
 
 /** One saved address in a list: avatar, name, short address. */
@@ -524,6 +561,32 @@ fun AddressBookEntryEditor(
     var note by remember { mutableStateOf(initial?.note.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
+    // null: keep what is saved; a photo: use it; removed: remove the photo.
+    var pendingBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var pendingJpeg by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingRemoved by remember { mutableStateOf(false) }
+    val showsAssignedPhoto = when {
+        pendingBitmap != null -> true
+        pendingRemoved -> false
+        else -> book.photoVersion.let { book.hasPhoto(address ?: addressInput) }
+    }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val photoFailed = stringResource(R.string.ab_photo_failed)
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val jpeg = withContext(Dispatchers.IO) { AddressBookManager.preparedPhoto(context, uri) }
+            val shown = jpeg?.let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) }
+            if (jpeg == null || shown == null) {
+                error = photoFailed
+                return@launch
+            }
+            pendingBitmap = shown
+            pendingJpeg = jpeg
+            pendingRemoved = false
+        }
+    }
     val errNoWallet = stringResource(R.string.ab_err_no_wallet)
     val errEmptyName = stringResource(R.string.ab_err_empty_name)
     val errInvalid = stringResource(R.string.ab_err_invalid_address)
@@ -541,7 +604,12 @@ fun AddressBookEntryEditor(
                         enabled = name.isNotBlank() && effectiveAddress.isNotEmpty(),
                         onClick = {
                             try {
-                                book.save(effectiveAddress, name, note)
+                                val photo = when {
+                                    pendingJpeg != null -> AddressBookManager.PhotoChange.Set(pendingJpeg!!)
+                                    pendingRemoved -> AddressBookManager.PhotoChange.Removed
+                                    else -> AddressBookManager.PhotoChange.Unchanged
+                                }
+                                book.save(effectiveAddress, name, note, photo)
                                 onDone(AddressBookEditResult.SAVED)
                                 close()
                             } catch (e: AddressBookManager.SaveException) {
@@ -564,6 +632,41 @@ fun AddressBookEntryEditor(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Spacer(Modifier.height(4.dp))
+                Column {
+                    SettingsSection(title = null) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            AddressBookAvatar(effectiveAddress, size = 84.dp, pendingBitmap = pendingBitmap, pendingRemoved = pendingRemoved)
+                            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                CreateChatActionItem(
+                                    Icons.Default.Photo,
+                                    stringResource(if (showsAssignedPhoto) R.string.ab_change_photo else R.string.choose_photo),
+                                ) {
+                                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                }
+                                if (showsAssignedPhoto) {
+                                    Row(
+                                        modifier = Modifier.clickable {
+                                            pendingRemoved = true
+                                            pendingBitmap = null
+                                            pendingJpeg = null
+                                        },
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(Icons.Default.Delete, null, tint = colors.danger, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.ab_remove_photo), color = colors.danger, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    SettingsFooter(stringResource(R.string.ab_photo_footer))
+                }
+
                 SettingsSection(title = stringResource(R.string.name)) {
                     AddressBookFormField(name, { name = it }, stringResource(R.string.name), capitalization = KeyboardCapitalization.Words)
                 }

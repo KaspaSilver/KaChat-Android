@@ -1001,4 +1001,14 @@
     <string name="ab_err_invalid_address">Masukkan alamat Kaspa yang valid.</string>
     <string name="ab_saved_toast">Disimpan ke Buku Alamat.</string>
     <string name="ab_removed_toast">Dihapus dari Buku Alamat.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Ganti Foto</string>
+    <string name="ab_remove_photo">Hapus Foto</string>
+    <string name="ab_photo_failed">Foto itu tidak bisa digunakan.</string>
+    <string name="ab_photo_footer">Tanpa foto pilihan Anda, di sini tampil avatar yang mereka pasang di profilnya.</string>
+    <string name="ab_photos_title">Foto Buku Alamat</string>
+    <string name="ab_photos_remove">Hapus Foto Buku Alamat</string>
+    <string name="ab_photos_remove_question">Hapus foto Buku Alamat?</string>
+    <string name="ab_photos_footer">Foto yang Anda tetapkan untuk alamat tersimpan, untuk semua dompet di perangkat ini. Foto tetap ada sampai Anda menghapusnya, dan disertakan dalam cadangan obrolan.</string>
+    <string name="ab_photos_frees">Membebaskan %1$s. Alamat tersimpan tetap memakai namanya dan menampilkan avatar yang dipasang pemiliknya.</string>
 </resources>

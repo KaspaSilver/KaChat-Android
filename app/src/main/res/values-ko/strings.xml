@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">올바른 Kaspa 주소를 입력하세요.</string>
     <string name="ab_saved_toast">주소록에 저장했습니다.</string>
     <string name="ab_removed_toast">주소록에서 제거했습니다.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">사진 변경</string>
+    <string name="ab_remove_photo">사진 제거</string>
+    <string name="ab_photo_failed">그 사진을 사용할 수 없습니다.</string>
+    <string name="ab_photo_footer">직접 지정한 사진이 없으면 그 사람이 프로필에 설정한 아바타가 표시됩니다.</string>
+    <string name="ab_photos_title">주소록 사진</string>
+    <string name="ab_photos_remove">주소록 사진 제거</string>
+    <string name="ab_photos_remove_question">주소록 사진을 제거할까요?</string>
+    <string name="ab_photos_footer">저장한 주소에 지정한 사진으로, 이 기기의 모든 지갑에 해당합니다. 직접 제거할 때까지 유지되며 채팅 백업에 포함됩니다.</string>
+    <string name="ab_photos_frees">%1$s 확보됩니다. 저장한 주소의 이름은 유지되고, 대신 주인이 설정한 아바타가 표시됩니다.</string>
 </resources>

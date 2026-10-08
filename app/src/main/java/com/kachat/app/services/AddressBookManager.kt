@@ -37,6 +37,9 @@ data class AddressBookEntry(
     val note: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    /** The assigned photo as base64 JPEG - only on the way to or from the backup. On the device it
+     *  is a file ([AddressBookManager.photo]), so this stays null everywhere else. */
+    val photo: String? = null,
 )
 
 /** A deleted Address Book entry, kept so a backup merge from another device never brings it back. */
@@ -57,6 +60,12 @@ data class AddressBookTombstone(val address: String, val deletedAt: Long)
  *
  * A saved name is also how KaChat shows that address when you haven't named the chat contact
  * yourself ([com.kachat.app.models.addressDisplayName]).
+ *
+ * An entry's picture is either a photo you assign to it, or else exactly the avatar that address
+ * set on its own profile (iOS cda0d99). Assigned photos are your data, not cache: they live in the
+ * app's files (not the cache directory, so the system never purges them) under
+ * AddressBookPhotos/<wallet hash>/<address hash>.jpg, travel in the backup as `photo`, and
+ * Settings > Storage shows the space they take and can remove them.
  */
 @Singleton
 class AddressBookManager @Inject constructor(
@@ -82,6 +91,12 @@ class AddressBookManager @Inject constructor(
 
     /** Snapshot state, so a composable that reads a name through [nameFor] re-renders on edits. */
     private var book by mutableStateOf(Book(null, emptyList(), emptyMap()))
+
+    /** Bumped whenever an assigned photo changes, so pictures re-read it. */
+    var photoVersion by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+
+    private val photoCache = android.util.LruCache<String, android.graphics.Bitmap>(200)
 
     private val _entries = MutableStateFlow<List<AddressBookEntry>>(emptyList())
     /** This wallet's entries, sorted by name. */
@@ -112,6 +127,8 @@ class AddressBookManager @Inject constructor(
             deleted[a] = maxOf(deleted[a] ?: Long.MIN_VALUE, t.deletedAt)
         }
         publish(Book(wallet, sorted(stored), deleted))
+        photoCache.evictAll()
+        photoVersion++
         return wallet
     }
 
@@ -176,10 +193,18 @@ class AddressBookManager @Inject constructor(
 
     enum class SaveError { NO_WALLET, EMPTY_NAME, INVALID_ADDRESS }
 
+    /** What a save does to the entry's assigned photo. */
+    sealed class PhotoChange {
+        object Unchanged : PhotoChange()
+        /** JPEG bytes, already scaled down ([preparedPhoto]). */
+        class Set(val jpeg: ByteArray) : PhotoChange()
+        object Removed : PhotoChange()
+    }
+
     /** Adds [address], or updates its entry when it is already saved. */
     @Synchronized
     @Throws(SaveException::class)
-    fun save(address: String, name: String, note: String = ""): AddressBookEntry {
+    fun save(address: String, name: String, note: String = "", photo: PhotoChange = PhotoChange.Unchanged): AddressBookEntry {
         val current = book
         val wallet = current.wallet ?: throw SaveException(SaveError.NO_WALLET)
         val normalized = normalize(address)
@@ -192,6 +217,11 @@ class AddressBookManager @Inject constructor(
         val saved = existing?.copy(name = cleanName, note = cleanNote, updatedAt = now)
             ?: AddressBookEntry(address = normalized, name = cleanName, note = cleanNote, createdAt = now, updatedAt = now)
         val list = current.entries.filterNot { normalize(it.address) == normalized } + saved
+        when (photo) {
+            PhotoChange.Unchanged -> Unit
+            is PhotoChange.Set -> writePhoto(photo.jpeg, normalized)
+            PhotoChange.Removed -> deletePhoto(normalized)
+        }
         publish(Book(wallet, sorted(list), current.deleted - normalized))
         persist()
         didChange()
@@ -211,14 +241,103 @@ class AddressBookManager @Inject constructor(
                 current.deleted + (normalized to System.currentTimeMillis()),
             )
         )
+        deletePhoto(normalized)
         persist()
         didChange()
     }
 
+    // MARK: - Assigned photos
+
+    /** The photo you assigned to [address], if any. */
+    fun photo(address: String?): android.graphics.Bitmap? {
+        if (address.isNullOrBlank()) return null
+        val file = photoFile(normalize(address)) ?: return null
+        photoCache.get(file.path)?.let { return it }
+        if (!file.exists()) return null
+        val bitmap = runCatching { android.graphics.BitmapFactory.decodeFile(file.path) }.getOrNull() ?: return null
+        photoCache.put(file.path, bitmap)
+        return bitmap
+    }
+
+    fun hasPhoto(address: String?): Boolean {
+        if (address.isNullOrBlank()) return false
+        return photoFile(normalize(address))?.exists() == true
+    }
+
+    /** Space the assigned photos of every wallet on this device take (Settings > Storage). */
+    fun photosBytesOnDevice(): Long =
+        photosRoot().walkTopDown().filter { it.isFile }.sumOf { it.length() }
+
+    /**
+     * Settings > Storage > Remove: deletes the assigned photos of every wallet on this device.
+     * Each affected entry counts as edited, so the removal also reaches the backup instead of the
+     * photo coming back from it.
+     */
+    @Synchronized
+    fun removeAllPhotos() {
+        val now = System.currentTimeMillis()
+        val current = book
+        val wallets = prefs.all.keys.filter { it.startsWith(ENTRIES_KEY_PREFIX) }.map { it.removePrefix(ENTRIES_KEY_PREFIX) }
+        for (wallet in wallets) {
+            if (wallet == current.wallet) {
+                val touched = current.entries.map { if (hasPhoto(it.address)) it.copy(updatedAt = now) else it }
+                publish(Book(wallet, touched, current.deleted))
+                persist()
+                continue
+            }
+            val dir = photosDirectory(wallet)
+            val stored = readEntries(wallet)
+            if (stored.isEmpty()) continue
+            val touched = stored.map {
+                if (java.io.File(dir, photoFileName(it.address)).exists()) it.copy(updatedAt = now) else it
+            }
+            prefs.edit().putString(ENTRIES_KEY_PREFIX + wallet, gson.toJson(touched)).apply()
+        }
+        photosRoot().deleteRecursively()
+        photoCache.evictAll()
+        photoVersion++
+        if (current.wallet != null) didChange()
+    }
+
+    private fun photosRoot(): java.io.File = java.io.File(context.filesDir, "AddressBookPhotos")
+
+    /** One folder per wallet, named by a hash of its address (no address in a file path). */
+    private fun photosDirectory(wallet: String): java.io.File = java.io.File(photosRoot(), hashName(wallet))
+
+    private fun photoFile(normalizedAddress: String): java.io.File? {
+        val wallet = book.wallet ?: return null
+        return java.io.File(photosDirectory(wallet), photoFileName(normalizedAddress))
+    }
+
+    private fun writePhoto(jpeg: ByteArray, normalizedAddress: String) {
+        val file = photoFile(normalizedAddress) ?: return
+        runCatching {
+            file.parentFile?.mkdirs()
+            val tmp = java.io.File(file.parentFile, file.name + ".tmp")
+            tmp.writeBytes(jpeg)
+            if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
+        }.onFailure { Log.w(TAG, "Could not save an Address Book photo", it) }
+        photoCache.remove(file.path)
+        photoVersion++
+    }
+
+    private fun deletePhoto(normalizedAddress: String) {
+        val file = photoFile(normalizedAddress) ?: return
+        if (!file.exists()) return
+        file.delete()
+        photoCache.remove(file.path)
+        photoVersion++
+    }
+
     // MARK: - Backup
 
-    /** What the chat backup carries for this wallet. */
-    fun archiveEntries(): List<ArchiveAddressBookEntry> = book.entries.map { it.toArchive() }
+    /** What the chat backup carries for this wallet: each entry with its assigned photo (base64
+     *  JPEG) attached. */
+    fun archiveEntries(): List<ArchiveAddressBookEntry> = book.entries.map { entry ->
+        val photo = photoFile(normalize(entry.address))?.takeIf { it.exists() }
+            ?.let { runCatching { android.util.Base64.encodeToString(it.readBytes(), android.util.Base64.NO_WRAP) }.getOrNull() }
+        entry.copy(photo = photo).toArchive()
+    }
 
     fun archiveTombstones(): List<ArchiveAddressBookTombstone> =
         book.deleted.map { ArchiveAddressBookTombstone(it.key, isoSeconds(it.value)) }.sortedBy { it.address }
@@ -236,7 +355,22 @@ class AddressBookManager @Inject constructor(
         val incomingTombs = tombstones.mapNotNull { t -> parseDate(t.deletedAt)?.let { AddressBookTombstone(t.address, it) } }
         val localTombs = current.deleted.map { AddressBookTombstone(it.key, it.value) }
         val merged = merge(listOf(current.entries, incoming), listOf(localTombs, incomingTombs))
-        publish(Book(wallet, merged.first, merged.second.associate { normalize(it.address) to it.deletedAt }))
+        // The winning entry decides the photo: one that came with a photo writes it; an incoming
+        // winner without one removes ours (it was removed where that edit was made).
+        val before = current.byAddress
+        val kept = merged.first.map { e ->
+            val address = normalize(e.address)
+            val data = e.photo?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }.getOrNull() }
+            val local = before[address]
+            when {
+                data != null -> writePhoto(data, address)
+                local != null && local.updatedAt < e.updatedAt -> deletePhoto(address)
+                local == null -> deletePhoto(address)
+            }
+            e.copy(photo = null)
+        }
+        for (t in merged.second) deletePhoto(normalize(t.address))
+        publish(Book(wallet, kept, merged.second.associate { normalize(it.address) to it.deletedAt }))
         persist()
     }
 
@@ -359,6 +493,48 @@ class AddressBookManager @Inject constructor(
 
         private const val APPLE_REFERENCE_EPOCH_S = 978_307_200.0
 
+        private fun hashName(s: String): String =
+            java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
+                .take(16).joinToString("") { "%02x".format(it) }
+
+        private fun photoFileName(address: String): String = hashName(normalize(address)) + ".jpg"
+
+        /**
+         * A picked image as the JPEG an entry keeps: at most 384 px on its longer side (an avatar
+         * is never drawn bigger), quality 0.8 - tens of KB, so the backup stays small. Null when
+         * it can't be read.
+         */
+        fun preparedPhoto(context: Context, uri: android.net.Uri): ByteArray? = runCatching {
+            val maxSide = 384
+            val source: android.graphics.Bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
+                // ImageDecoder applies the photo's EXIF orientation.
+                val src = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                android.graphics.ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
+                    val w = info.size.width
+                    val h = info.size.height
+                    val scale = minOf(1f, maxSide.toFloat() / maxOf(w, h))
+                    decoder.setTargetSize((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
+                    decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            } else {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+                com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = maxSide * 2) ?: return null
+            }
+            if (source.width <= 0 || source.height <= 0) return null
+            val scale = minOf(1f, maxSide.toFloat() / maxOf(source.width, source.height))
+            val scaled = if (scale < 1f) {
+                android.graphics.Bitmap.createScaledBitmap(
+                    source,
+                    Math.round(source.width * scale).coerceAtLeast(1),
+                    Math.round(source.height * scale).coerceAtLeast(1),
+                    true
+                )
+            } else source
+            val out = java.io.ByteArrayOutputStream()
+            scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+            out.toByteArray()
+        }.getOrNull()
+
         fun AddressBookEntry.toArchive(): ArchiveAddressBookEntry = ArchiveAddressBookEntry(
             id = id,
             address = normalize(address),
@@ -366,6 +542,7 @@ class AddressBookManager @Inject constructor(
             note = note,
             createdAt = isoSeconds(createdAt),
             updatedAt = isoSeconds(updatedAt),
+            photo = photo?.takeIf { it.isNotBlank() },
         )
 
         fun ArchiveAddressBookEntry.toEntry(): AddressBookEntry? {
@@ -379,6 +556,7 @@ class AddressBookManager @Inject constructor(
                 note = note.orEmpty(),
                 createdAt = parseDate(createdAt) ?: updated,
                 updatedAt = updated,
+                photo = photo?.takeIf { it.isNotBlank() },
             )
         }
     }
@@ -386,7 +564,8 @@ class AddressBookManager @Inject constructor(
 
 /**
  * An Address Book entry as the chat backup carries it: `{id, address, name, note, createdAt,
- * updatedAt}`, dates in ISO 8601 (iOS `AddressBookEntry` in `ChatHistoryArchive.addressBook`).
+ * updatedAt, photo?}`, dates in ISO 8601, `photo` the assigned photo as base64 JPEG (absent when
+ * the entry shows the address's own avatar) - iOS `AddressBookEntry` in `ChatHistoryArchive`.
  */
 data class ArchiveAddressBookEntry(
     val id: String?,
@@ -395,6 +574,7 @@ data class ArchiveAddressBookEntry(
     val note: String?,
     val createdAt: String?,
     val updatedAt: String?,
+    val photo: String? = null,
 )
 
 /** `{address, deletedAt}` in the archive's `addressBookDeleted`. */

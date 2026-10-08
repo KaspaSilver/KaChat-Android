@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">একটি বৈধ Kaspa ঠিকানা লিখুন।</string>
     <string name="ab_saved_toast">ঠিকানা বইয়ে সংরক্ষিত।</string>
     <string name="ab_removed_toast">ঠিকানা বই থেকে সরানো হয়েছে।</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">ছবি বদলান</string>
+    <string name="ab_remove_photo">ছবি সরান</string>
+    <string name="ab_photo_failed">ওই ছবিটি ব্যবহার করা গেল না।</string>
+    <string name="ab_photo_footer">আপনার নিজের কোনো ছবি না থাকলে, এখানে তাদের প্রোফাইলে সেট করা অবতার দেখায়।</string>
+    <string name="ab_photos_title">ঠিকানা বইয়ের ছবি</string>
+    <string name="ab_photos_remove">ঠিকানা বইয়ের ছবি সরান</string>
+    <string name="ab_photos_remove_question">ঠিকানা বইয়ের ছবি সরাবেন?</string>
+    <string name="ab_photos_footer">সংরক্ষিত ঠিকানাগুলোর জন্য আপনার দেওয়া ছবি, এই ডিভাইসের সব ওয়ালেটের জন্য। আপনি না সরানো পর্যন্ত থাকে, এবং আপনার চ্যাট ব্যাকআপে অন্তর্ভুক্ত থাকে।</string>
+    <string name="ab_photos_frees">%1$s খালি হবে। সংরক্ষিত ঠিকানাগুলোর নাম থাকবে; বদলে মালিকের সেট করা অবতার দেখাবে।</string>
 </resources>

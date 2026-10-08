@@ -22,9 +22,10 @@ import javax.inject.Singleton
  * re-derived on demand, so clearing costs a little bandwidth and nothing else - which is exactly
  * what makes it safe to offer as a button.
  *
- * The rows are iOS CacheManager's (5e408f7) - Profiles, Web Responses, Temporary Files - except
- * iOS's Contact Photos: Android never copies address-book photos, it shows them from the address
- * book itself (`ContactEntity.systemContactPhotoUri`), so there is nothing of them to measure.
+ * The rows are iOS CacheManager's (5e408f7, cda0d99) - Profiles, Web Responses, Temporary Files.
+ * iOS's Contact Photos row is retired there along with the phone's Contacts; Android never had it
+ * (it never copied address-book photos, so there is no leftover folder to delete). Photos you
+ * assign in the Address Book are your data, not cache: Settings > Storage > Address Book Photos.
  */
 @Singleton
 class CacheManager @Inject constructor(

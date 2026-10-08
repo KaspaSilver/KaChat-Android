@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Введите правильный адрес Kaspa.</string>
     <string name="ab_saved_toast">Сохранено в адресной книге.</string>
     <string name="ab_removed_toast">Удалено из адресной книги.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Изменить фото</string>
+    <string name="ab_remove_photo">Убрать фото</string>
+    <string name="ab_photo_failed">Не удалось использовать это фото.</string>
+    <string name="ab_photo_footer">Без вашего фото здесь показывается аватар, который владелец указал в своём профиле.</string>
+    <string name="ab_photos_title">Фото адресной книги</string>
+    <string name="ab_photos_remove">Убрать фото адресной книги</string>
+    <string name="ab_photos_remove_question">Убрать фото адресной книги?</string>
+    <string name="ab_photos_footer">Фото, которые вы назначили сохранённым адресам, для всех кошельков на этом устройстве. Они хранятся, пока вы их не уберёте, и входят в резервную копию чатов.</string>
+    <string name="ab_photos_frees">Освободит %1$s. Сохранённые адреса сохранят имена и будут показывать аватар, указанный владельцем.</string>
 </resources>

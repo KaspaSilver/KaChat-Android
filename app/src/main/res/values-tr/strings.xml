@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Geçerli bir Kaspa adresi gir.</string>
     <string name="ab_saved_toast">Adres defterine kaydedildi.</string>
     <string name="ab_removed_toast">Adres defterinden kaldırıldı.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Fotoğrafı Değiştir</string>
+    <string name="ab_remove_photo">Fotoğrafı Kaldır</string>
+    <string name="ab_photo_failed">Bu fotoğraf kullanılamadı.</string>
+    <string name="ab_photo_footer">Kendi fotoğrafın yoksa burada kişinin profilinde ayarladığı avatar görünür.</string>
+    <string name="ab_photos_title">Adres Defteri Fotoğrafları</string>
+    <string name="ab_photos_remove">Adres Defteri Fotoğraflarını Kaldır</string>
+    <string name="ab_photos_remove_question">Adres defteri fotoğrafları kaldırılsın mı?</string>
+    <string name="ab_photos_footer">Kayıtlı adreslere atadığın fotoğraflar, bu cihazdaki tüm cüzdanlar için. Sen kaldırana kadar kalırlar ve sohbet yedeğine dahildirler.</string>
+    <string name="ab_photos_frees">%1$s boşaltır. Kayıtlı adresler adlarını korur ve onun yerine sahibinin ayarladığı avatarı gösterir.</string>
 </resources>

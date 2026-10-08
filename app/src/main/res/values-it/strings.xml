@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Inserisci un indirizzo Kaspa valido.</string>
     <string name="ab_saved_toast">Salvato nella rubrica.</string>
     <string name="ab_removed_toast">Rimosso dalla rubrica.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Cambia foto</string>
+    <string name="ab_remove_photo">Rimuovi foto</string>
+    <string name="ab_photo_failed">Impossibile usare quella foto.</string>
+    <string name="ab_photo_footer">Senza una tua foto, qui vedi l\'avatar impostato nel suo profilo.</string>
+    <string name="ab_photos_title">Foto della rubrica</string>
+    <string name="ab_photos_remove">Rimuovi le foto della rubrica</string>
+    <string name="ab_photos_remove_question">Rimuovere le foto della rubrica?</string>
+    <string name="ab_photos_footer">Le foto che hai assegnato agli indirizzi salvati, per tutti i wallet su questo dispositivo. Restano finché non le rimuovi e sono incluse nel backup delle chat.</string>
+    <string name="ab_photos_frees">Libera %1$s. Gli indirizzi salvati mantengono il nome e mostrano invece l\'avatar scelto dal proprietario.</string>
 </resources>

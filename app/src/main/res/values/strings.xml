@@ -1337,4 +1337,14 @@
     <string name="ab_err_invalid_address">Enter a valid Kaspa address.</string>
     <string name="ab_saved_toast">Saved to Address Book.</string>
     <string name="ab_removed_toast">Removed from Address Book.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Change Photo</string>
+    <string name="ab_remove_photo">Remove Photo</string>
+    <string name="ab_photo_failed">Couldn\'t use that photo.</string>
+    <string name="ab_photo_footer">Without a photo of your own, this shows the avatar they set on their profile.</string>
+    <string name="ab_photos_title">Address Book Photos</string>
+    <string name="ab_photos_remove">Remove Address Book Photos</string>
+    <string name="ab_photos_remove_question">Remove Address Book Photos?</string>
+    <string name="ab_photos_footer">Photos you assigned to saved addresses, for every wallet on this device. They\'re kept until you remove them, and they\'re included in your chat backup.</string>
+    <string name="ab_photos_frees">Frees %1$s. Saved addresses keep their names; they show the avatar their owner set instead.</string>
 </resources>

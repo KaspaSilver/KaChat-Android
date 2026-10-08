@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">请输入有效的 Kaspa 地址。</string>
     <string name="ab_saved_toast">已保存到地址簿。</string>
     <string name="ab_removed_toast">已从地址簿移除。</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">更换照片</string>
+    <string name="ab_remove_photo">移除照片</string>
+    <string name="ab_photo_failed">无法使用这张照片。</string>
+    <string name="ab_photo_footer">没有你自己设定的照片时，这里显示对方在个人资料中设置的头像。</string>
+    <string name="ab_photos_title">地址簿照片</string>
+    <string name="ab_photos_remove">移除地址簿照片</string>
+    <string name="ab_photos_remove_question">要移除地址簿照片吗？</string>
+    <string name="ab_photos_footer">你为已保存地址指定的照片，涵盖这台设备上的所有钱包。在你移除前会一直保留，并包含在聊天备份中。</string>
+    <string name="ab_photos_frees">将释放 %1$s。已保存的地址保留名称，改为显示其所有者设置的头像。</string>
 </resources>

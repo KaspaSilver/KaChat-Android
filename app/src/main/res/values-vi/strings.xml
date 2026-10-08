@@ -1134,4 +1134,14 @@
     <string name="ab_err_invalid_address">Nhập một địa chỉ Kaspa hợp lệ.</string>
     <string name="ab_saved_toast">Đã lưu vào sổ địa chỉ.</string>
     <string name="ab_removed_toast">Đã gỡ khỏi sổ địa chỉ.</string>
+    <!-- Address Book photos (iOS cda0d99) -->
+    <string name="ab_change_photo">Đổi ảnh</string>
+    <string name="ab_remove_photo">Gỡ ảnh</string>
+    <string name="ab_photo_failed">Không dùng được ảnh đó.</string>
+    <string name="ab_photo_footer">Nếu bạn không đặt ảnh, nơi này hiển thị ảnh đại diện mà họ đặt trên hồ sơ.</string>
+    <string name="ab_photos_title">Ảnh sổ địa chỉ</string>
+    <string name="ab_photos_remove">Gỡ ảnh sổ địa chỉ</string>
+    <string name="ab_photos_remove_question">Gỡ ảnh sổ địa chỉ?</string>
+    <string name="ab_photos_footer">Ảnh bạn gán cho các địa chỉ đã lưu, cho mọi ví trên thiết bị này. Ảnh được giữ cho đến khi bạn gỡ và có trong bản sao lưu trò chuyện.</string>
+    <string name="ab_photos_frees">Giải phóng %1$s. Các địa chỉ đã lưu vẫn giữ tên và sẽ hiển thị ảnh đại diện do chủ sở hữu đặt.</string>
 </resources>
