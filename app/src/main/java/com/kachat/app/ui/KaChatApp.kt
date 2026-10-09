@@ -1088,7 +1088,21 @@ fun MainShell(
                                                 Screen.KaPosts -> dockKaPostsUnseen
                                                 else -> 0
                                             }
-                                            if (badgeCount > 0) {
+                                            if (badgeCount > 0 && screen == Screen.Profile) {
+                                                // Profile: a red DOT while the bell holds anything
+                                                // unread - the bell itself is a dot, so the dock
+                                                // says the same thing. KaPosts keeps its count.
+                                                // The entries/lastSeen flows above recompose this
+                                                // from any tab, on tab switches and at launch.
+                                                Box(
+                                                    modifier = Modifier
+                                                        .align(Alignment.TopEnd)
+                                                        .offset(x = 4.dp, y = (-2).dp)
+                                                        .size(10.dp)
+                                                        .clip(RoundedCornerShape(50))
+                                                        .background(Color(0xFFE0245E)),
+                                                )
+                                            } else if (badgeCount > 0) {
                                                 // A BOX with a minimum square size, not a Text
                                                 // with padding. Padding alone gave a one-digit
                                                 // badge its text's width plus 8dp against its
