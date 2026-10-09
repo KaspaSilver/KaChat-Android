@@ -66,9 +66,10 @@ import kotlinx.coroutines.launch
  * the bell's dot), as iOS's onAppear does.
  *
  * Every row opens what it is about, the same way the matching notification's tap does: a wallet
- * receipt the wallet screen (Portfolio when it is in the dock, otherwise Profile - iOS
- * `.openPortfolio` / `routeToWalletTab(.portfolio)`; a receipt row carries no address), a .kachat
- * row the name. Rows of the sources an older build recorded (KaPosts, group mentions, public
+ * receipt the History of the address that got the Kaspa (the own-address sheet a tapped banner
+ * opens - iOS 95e2cba `.openOwnAddress`), or, for a receipt saved before rows carried their
+ * address, the wallet screen (Portfolio when it is in the dock, otherwise Profile - iOS
+ * `.openPortfolio` / `routeToWalletTab(.portfolio)`); a .kachat row the name. Rows of the sources an older build recorded (KaPosts, group mentions, public
  * chats) are dropped on load, but keep their routes as iOS does.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,8 +116,15 @@ fun GlobalNotificationSheet(
                 val channel = KaChatLink.sanitizeChannelName(target) ?: return
                 dismiss { navController.navigate("broadcast_channel/$channel") }
             }
-            // Receipts carry no target of their own - the wallet screen is the subject.
+            // A receipt opens the History of the address that got the Kaspa (chatting, spending
+            // or cold storage - MainShell's own-address sheet works out which), as a tapped banner
+            // does (iOS 95e2cba). Entries recorded before receipts carried their address fall back
+            // to the wallet screen.
             "wallet" -> dismiss {
+                if (target.isNotEmpty()) {
+                    com.kachat.app.ui.OwnAddressRoute.pending.value = target
+                    return@dismiss
+                }
                 val inDock = resolveDock(dockRoutes, hiddenTabs, childMode).any { it == Screen.Portfolio }
                 if (inDock) {
                     val popped = navController.popBackStack(route = Screen.Portfolio.route, inclusive = false, saveState = true)

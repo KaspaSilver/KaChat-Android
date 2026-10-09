@@ -615,6 +615,14 @@ fun MainShell(
             onPendingOwnAddressHandled()
         }
     }
+    // A bell "Received" / "Balance increased" row that carries its address: the same sheet
+    // (iOS 95e2cba, OwnAddressRoute.pending + .openOwnAddress).
+    val pendingBellOwnAddress by OwnAddressRoute.pending.collectAsState()
+    LaunchedEffect(pendingBellOwnAddress) {
+        val address = pendingBellOwnAddress ?: return@LaunchedEffect
+        ownAddressSheet = address
+        OwnAddressRoute.pending.value = null
+    }
     ownAddressSheet?.let { address ->
         // keyed so a second tap on another address resolves afresh rather than reusing the first
         key(address) {
@@ -1950,6 +1958,14 @@ fun MainShell(
             },
         )
     }
+}
+
+/**
+ * The own address a tapped Profile-bell wallet row asks [MainShell] to open in its History sheet
+ * (iOS 95e2cba `OwnAddressRoute.pending`). MainShell takes it and clears it.
+ */
+object OwnAddressRoute {
+    val pending = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }
 
 /**

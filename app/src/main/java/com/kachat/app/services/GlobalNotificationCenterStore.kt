@@ -35,7 +35,9 @@ class GlobalNotificationCenterStore @Inject constructor(
         val title: String,
         val body: String,
         val timestampMs: Long,
-        /** group id / channel name / post txid / .kachat name - what tapping the row relates to. */
+        /** group id / channel name / post txid / .kachat name / the own address a wallet receipt
+         *  hit (iOS 95e2cba) - what tapping the row relates to. Null on wallet rows saved before
+         *  receipts carried their address; those open Portfolio. */
         val targetId: String?,
     )
 

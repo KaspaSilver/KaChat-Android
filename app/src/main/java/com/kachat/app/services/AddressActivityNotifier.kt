@@ -291,8 +291,9 @@ class AddressActivityNotifier @Inject constructor(
             // tap always opens that address's History (iOS 13046ad).
             address = address
         )
-        // Also list it in the Profile notifications bell.
-        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), null)
+        // Also list it in the Profile notifications bell; the row opens the same address's
+        // History (iOS 95e2cba).
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), address)
         Log.i(TAG, "Notified external receive $dedupeKey")
     }
 
@@ -308,7 +309,8 @@ class AddressActivityNotifier @Inject constructor(
             // tap always opens that address's History (iOS 13046ad).
             address = address
         )
-        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), null)
+        // the bell's row opens the same address's History (iOS 95e2cba)
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), address)
     }
 
     /** Which wallet screen the notification's tap should open - mirrors iOS's `kindKey(for:)`,
