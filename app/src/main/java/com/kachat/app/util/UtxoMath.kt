@@ -54,6 +54,57 @@ object UtxoMath {
     /** The total amount of these UTXOs; throws on invalid data. */
     fun List<UtxoEntry>.totalAmount(): Long = total(map { it.utxoEntry.amount })
 
+    /** iOS `checkedFromNetwork()`'s error text. */
+    const val ABOVE_SUPPLY_MESSAGE = "Invalid UTXO data: amount above the Kaspa supply"
+
+    /**
+     * A node's or REST API's answer as the app may use it: no coin can hold more than Kaspa's
+     * whole supply, and neither can all of them together. A response that breaks that is a broken
+     * or hostile peer's, refused where it's decoded (throws [IllegalStateException] with
+     * [ABOVE_SUPPLY_MESSAGE]), so every plain `+` over UTXOs further on (balances, contact sums,
+     * Max) stays far from overflowing (iOS 283cd28, IOS-020).
+     */
+    fun <T> checkedFromNetwork(utxos: List<T>, amount: (T) -> Long): List<T> {
+        if (checkedTotal(utxos.map(amount)) == null) throw IllegalStateException(ABOVE_SUPPLY_MESSAGE)
+        return utxos
+    }
+
+    /** [checkedFromNetwork] for the REST API's UTXOs. */
+    fun List<UtxoEntry>.checkedFromNetwork(): List<UtxoEntry> = checkedFromNetwork(this) { it.utxoEntry.amount }
+
+    /**
+     * The Gson hook that applies [checkedFromNetwork] to every `List<UtxoEntry>` a Retrofit client
+     * decodes (the REST API's `GET /addresses/{a}/utxos`): the answer is refused as it is read,
+     * before any caller can add it up (iOS 283cd28, IOS-020). Every other type passes through.
+     */
+    object RestUtxoGuard : com.google.gson.TypeAdapterFactory {
+        override fun <T : Any?> create(gson: com.google.gson.Gson, type: com.google.gson.reflect.TypeToken<T>): com.google.gson.TypeAdapter<T>? {
+            if (!List::class.java.isAssignableFrom(type.rawType)) return null
+            val parameterized = type.type as? java.lang.reflect.ParameterizedType ?: return null
+            val arg = parameterized.actualTypeArguments.singleOrNull()?.let {
+                if (it is java.lang.reflect.WildcardType) it.upperBounds.singleOrNull() else it
+            }
+            if (arg != UtxoEntry::class.java) return null
+            val delegate = gson.getDelegateAdapter(this, type)
+            return object : com.google.gson.TypeAdapter<T>() {
+                override fun write(out: com.google.gson.stream.JsonWriter, value: T) = delegate.write(out, value)
+                override fun read(reader: com.google.gson.stream.JsonReader): T {
+                    val value = delegate.read(reader)
+                    @Suppress("UNCHECKED_CAST")
+                    val list = (value as? List<UtxoEntry>) ?: return value
+                    // Gson leaves an absent field null whatever its Kotlin type: a coin with no
+                    // entry is refused like one with a nonsense amount.
+                    @Suppress("SENSELESS_COMPARISON")
+                    val broken = list.any { it == null || it.utxoEntry == null }
+                    if (broken || checkedTotal(list.map { it.utxoEntry.amount }) == null) {
+                        throw com.google.gson.JsonParseException(ABOVE_SUPPLY_MESSAGE)
+                    }
+                    return value
+                }
+            }
+        }
+    }
+
     /**
      * Whether a coinbase output at [blockDaaScore] is spendable at [virtualDaaScore]:
      * `blockDaaScore + maturity < virtualDaaScore`. A negative score (a uint64 past Long.MAX) or a

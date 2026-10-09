@@ -282,7 +282,9 @@ class KaspadConnection internal constructor(
             extract = { it.getUtxosByAddressesResponse }
         )
         if (response.hasError()) throw IllegalStateException(response.error.message)
-        return response.entriesList
+        // more than the Kaspa supply (a coin, or all of them) is a broken or hostile node's:
+        // refused here, where it's decoded (iOS 283cd28, IOS-020)
+        return com.kachat.app.util.UtxoMath.checkedFromNetwork(response.entriesList) { it.utxoEntry.amount }
     }
 
     /**

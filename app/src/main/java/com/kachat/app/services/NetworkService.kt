@@ -41,6 +41,11 @@ class NetworkService @Inject constructor(
     private val _broadcastIndexerApi = MutableStateFlow<BroadcastIndexerApi?>(null)
     val broadcastIndexerApi: StateFlow<BroadcastIndexerApi?> = _broadcastIndexerApi
 
+    // Declared before init: the settings observers build the clients with it right away.
+    private val restGson = com.google.gson.GsonBuilder()
+        .registerTypeAdapterFactory(com.kachat.app.util.UtxoMath.RestUtxoGuard)
+        .create()
+
     init {
         observeSettings()
     }
@@ -120,7 +125,8 @@ class NetworkService @Inject constructor(
             Retrofit.Builder()
                 .baseUrl(sanitizedUrl)
                 .client(okHttpClient)
-                .addConverterFactory(GsonConverterFactory.create())
+                // UTXO answers above the Kaspa supply are refused as they're decoded (iOS 283cd28, IOS-020)
+                .addConverterFactory(GsonConverterFactory.create(restGson))
                 .build()
                 .create(T::class.java)
         } catch (e: Exception) {
