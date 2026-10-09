@@ -78,8 +78,9 @@ import javax.inject.Singleton
  *      upload this device makes (automatic or manual), so a device never re-imports its own
  *      write. Together with the short upload debounce this makes two phones with their chats
  *      open a near-live mirror: a message sent on one appears on the other within seconds.
- *   5. **Automatic restore** — when a wallet becomes active with Nextcloud connected (app start,
- *      wallet switch) and when an account is first connected, the shared file (if it exists) is
+ *   5. **Automatic restore** — only while Automatic Sync is on (as on iOS): when a wallet becomes
+ *      active with Nextcloud connected (app start, wallet switch), when an account is first
+ *      connected, and when the toggle is turned on, the shared file (if it exists) is
  *      imported silently through the same additive, txId-deduped import the manual restore uses.
  *      Once per wallet ([restoreDoneKey], set only on a successful import; a missing file leaves
  *      it unset so a backup appearing later still restores). Skipped while any manual
@@ -229,21 +230,35 @@ class NextcloudSyncService @Inject constructor(
             }
         }
 
-        // Automatic restore. The account flow (not the raw address flow) is the primary trigger
-        // because NextcloudService has already finished loading the wallet's scoped credentials
-        // by the time it emits — connecting an account, app start with a connected wallet, and
-        // wallet switches between connected accounts all land here. A null emission means
-        // disconnect/logout: drop any pending debounced upload with it.
+        // A null account emission means disconnect/logout: drop any pending debounced upload
+        // with it.
         scope.launch {
             nextcloudService.account.collect { account ->
                 if (account == null) {
                     debounceJob?.cancel()
                     debounceJob = null
                     debounceWallet = null
-                } else {
-                    val address = walletManager.activeAddressFlow.value
-                    if (address != null) launch { maybeAutoRestore(address) }
                 }
+            }
+        }
+
+        // Automatic restore - only while Automatic Sync is on, as on iOS (NextcloudService
+        // scheduleAutoRestoreIfNeeded: connected + autoBackupEnabled; it is armed at wallet
+        // activation and when the toggle turns on). Armed whenever a wallet is active with an
+        // account connected AND its toggle on: app start, connecting an account (the toggle
+        // resolves just after the account, so this waits for it), a wallet switch, and turning
+        // the toggle on. The account is part of the key so a wallet switch re-arms once the new
+        // wallet's account has loaded, even when the address emitted first. A manual restore
+        // (Settings) never comes through here and works whatever the toggle says.
+        scope.launch {
+            combine(
+                nextcloudService.account,
+                nextcloudService.autoBackupEnabled,
+                walletManager.activeAddressFlow
+            ) { account, auto, address ->
+                if (account != null && auto && address != null) address to account else null
+            }.distinctUntilChanged().collect { armed ->
+                if (armed != null) launch { maybeAutoRestore(armed.first) }
             }
         }
 
@@ -267,15 +282,12 @@ class NextcloudSyncService @Inject constructor(
 
         // A wallet switch cancels the previous wallet's pending debounce outright (its upload
         // path would drop the work anyway via re-checks, but there is no reason to keep the
-        // timer alive), and gives the incoming wallet a restore chance even when the account
-        // flow happens not to re-emit (two wallets with byte-identical stored accounts).
+        // timer alive). The incoming wallet's restore chance comes from the observer above,
+        // whose key carries the address.
         scope.launch {
             walletManager.activeAddressFlow.collect { address ->
                 val pending = debounceWallet
                 if (pending != null && pending != address) cancelPendingDebounce(pending)
-                if (address != null && nextcloudService.isConnected) {
-                    launch { maybeAutoRestore(address) }
-                }
             }
         }
     }
@@ -458,6 +470,8 @@ class NextcloudSyncService @Inject constructor(
      * txId-deduped import the manual restore uses ([ChatHistoryExportImportService.importChatHistory]),
      * so racing the chain sync or an upload is harmless by construction. Guards:
      *
+     *   * only while the wallet's Automatic Sync toggle is on (iOS); the manual restore in
+     *     Settings goes through [BackupRestoreCoordinator] instead and ignores the toggle;
      *   * once per wallet ([restoreDoneKey], set only after a successful import). A missing
      *     file does NOT set it — if a backup appears later (first sync from another device),
      *     the next wallet activation picks it up;
@@ -472,14 +486,16 @@ class NextcloudSyncService @Inject constructor(
      */
     private suspend fun maybeAutoRestore(address: String) {
         try {
-            if (walletManager.activeAddressFlow.value != address) return
-            if (!nextcloudService.isConnected) return
+            // Automatic Sync on (iOS scheduleAutoRestoreIfNeeded / runAutoRestore guard
+            // isConnected + autoBackupEnabled). The stored read covers a wallet switch whose
+            // toggle state has not swapped in yet.
+            if (!isAutoSyncActive(address)) return
+            if (!nextcloudService.isAutoBackupEnabledFor(address)) return
             if (dataStore.data.first()[restoreDoneKey(address)] == true) return
             if (backupRestoreCoordinator.isRunning) return
 
             syncMutex.withLock {
-                if (walletManager.activeAddressFlow.value != address) return
-                if (!nextcloudService.isConnected) return
+                if (!isAutoSyncActive(address)) return
                 if (backupRestoreCoordinator.isRunning) return
 
                 // No file yet is not an error, and does NOT mark restore done.

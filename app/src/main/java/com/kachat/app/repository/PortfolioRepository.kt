@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +62,8 @@ class PortfolioRepository @Inject constructor(
     // Every ledger-row and fee write goes through it: stamped for Nextcloud sync, deletions
     // recorded, the backup marked dirty (iOS PortfolioViewModel.persist / persistFees).
     private val ledgerStore: com.kachat.app.services.PortfolioLedgerStore,
+    // The app currency, for a price backfill no screen started (after a restore).
+    private val settings: AppSettingsRepository,
 ) {
     /**
      * Whichever portfolio is currently active within whichever wallet is currently active —
@@ -601,6 +604,33 @@ class PortfolioRepository @Inject constructor(
      *  purpose, so closing the progress dialog (or leaving the screen) never kills the backfill. */
     private val priceBackfillScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** The backfill [resumePriceBackfill] started, while it runs - one at a time, like iOS's
+     *  single `priceBackfillTask`. */
+    private var resumedBackfill: Job? = null
+
+    /**
+     * Prices [walletAddress]'s rows still waiting for a price (either marker, [isPricePending])
+     * and its unpriced fees, in the app currency, through the same [backfillHistoricalPrices] an
+     * import uses. Called after a Nextcloud restore that changed this wallet's portfolios: a row
+     * synced from another device while its price was still loading gets priced here (iOS
+     * `PortfolioViewModel.reloadFromStore` -> `startPriceBackfillIfNeeded`, 11f1548). A no-op when
+     * nothing is pending or one is already running.
+     */
+    @Synchronized
+    fun resumePriceBackfill(walletAddress: String) {
+        if (walletAddress.isEmpty() || resumedBackfill?.isActive == true) return
+        resumedBackfill = priceBackfillScope.launch {
+            val pendingIdsByDay = database.portfolioDao().getAllTransactionsForWalletOnce(walletAddress)
+                .filter { isPricePending(it.notes) }
+                .groupBy({ utcDayStartMillis(it.timestampMillis) }, { it.id })
+            val pendingFeeDays = loadFees(walletAddress).filter { it.fiatValue == null }
+                .map { utcDayStartMillis(it.timestampMillis) }.toSet()
+            if (pendingIdsByDay.isEmpty() && pendingFeeDays.isEmpty()) return@launch
+            val currency = settings.currency.first()
+            backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays)
+        }
+    }
+
     /**
      * Fetches [address]'s on-chain transaction history and adds new buy/sell rows into the
      * active portfolio — every received transaction becomes a buy, every sent transaction
@@ -763,7 +793,7 @@ class PortfolioRepository @Inject constructor(
                 // Re-check the marker so a price the user already set by hand mid-backfill is
                 // never overwritten. A priced row is an edit like any other (stamped, synced).
                 ledgerStore.saveTransactions(currentRows.mapNotNull { row ->
-                    if (row.id in idsForDay && row.notes == PRICE_UNAVAILABLE_NOTE) {
+                    if (row.id in idsForDay && isPricePending(row.notes)) {
                         val amountKas = row.amountSompi / 100_000_000.0
                         row.copy(fiatValue = amountKas * dayPrice, notes = null)
                     } else null
@@ -1104,6 +1134,14 @@ fun addressImportToastMessage(result: AddressImportResult, feesCounted: (Int) ->
 
 /** Marks a [PortfolioTransactionEntity.notes] value as "auto-imported but couldn't be priced" — checked by [com.kachat.app.ui.screens.PortfolioScreen]'s transaction row to show a warning icon flagging rows that still need the user to fill in a price. */
 const val PRICE_UNAVAILABLE_NOTE = "Price unavailable — set manually"
+
+/** iOS's current price-pending marker (`PortfolioAddressImporter.priceUnavailableNote`); a row
+ *  restored from an iOS device's backup can carry it. */
+const val IOS_PRICE_LOADING_NOTE = "Price loading, will fill in automatically"
+
+/** True when [notes] marks a row whose price is still pending, either marker (iOS
+ *  `PortfolioAddressImporter.isPricePending`). */
+fun isPricePending(notes: String?): Boolean = notes == PRICE_UNAVAILABLE_NOTE || notes == IOS_PRICE_LOADING_NOTE
 
 sealed class PortfolioAddressImportError(message: String) : Exception(message) {
     object InvalidAddress : PortfolioAddressImportError("That doesn't look like a valid Kaspa address.")

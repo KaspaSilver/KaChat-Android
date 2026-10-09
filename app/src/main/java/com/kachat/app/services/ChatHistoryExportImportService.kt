@@ -62,7 +62,9 @@ class ChatHistoryExportImportService @Inject constructor(
     private val groupRepository: GroupRepository,
     private val walletManager: WalletManager,
     private val addressBookManager: AddressBookManager,
-    private val portfolioLedgerStore: PortfolioLedgerStore
+    private val portfolioLedgerStore: PortfolioLedgerStore,
+    // Lazy: only a restore that changed the portfolios reaches it (the price backfill).
+    private val portfolioRepository: dagger.Lazy<com.kachat.app.repository.PortfolioRepository>
 ) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -267,12 +269,15 @@ class ChatHistoryExportImportService @Inject constructor(
                 tombstones = archive.addressBookDeleted.orEmpty()
             )
             // so are the portfolios (iOS 11f1548)
-            portfolioLedgerStore.importFromArchive(
+            val portfoliosChanged = portfolioLedgerStore.importFromArchive(
                 currentWallet,
                 PortfolioSync.fromArchive(
                     archive.portfolios, archive.portfolioTransactions, archive.portfolioFees, archive.portfolioDeleted
                 )
             )
+            // Rows (and fees) that arrived still waiting for a price get priced now, as iOS's
+            // reload after a restore restarts its backfill (PortfolioViewModel.reloadFromStore).
+            if (portfoliosChanged) portfolioRepository.get().resumePriceBackfill(currentWallet)
         }
         if (archive.conversations.all { it.messages.isEmpty() }) {
             throw UnreadableBackupException("This file has no chat history to import")

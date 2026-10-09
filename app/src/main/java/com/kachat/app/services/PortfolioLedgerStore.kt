@@ -213,13 +213,16 @@ class PortfolioLedgerStore @Inject constructor(
      * writes the result as it is (iOS `PortfolioViewModel.importFromArchive`). An archive that
      * adds nothing writes nothing. A portfolio this device already has keeps its own id spelling,
      * so its rows, fees and the active selection stay attached.
+     *
+     * Returns true when it wrote the merged result (the caller then resumes the price backfill,
+     * as iOS's reload after a restore does), false when there was nothing to change.
      */
-    suspend fun importFromArchive(walletAddress: String, incoming: PortfolioSync) {
-        if (walletAddress.isEmpty() || incoming.isEmpty) return
+    suspend fun importFromArchive(walletAddress: String, incoming: PortfolioSync): Boolean {
+        if (walletAddress.isEmpty() || incoming.isEmpty) return false
         val local = syncState(walletAddress)
         val merged = PortfolioSync.merge(listOf(local, incoming))
         // compared in the merge's own order, so an archive that adds nothing writes nothing
-        if (merged == PortfolioSync.merge(listOf(local)) || merged.portfolios.isEmpty()) return
+        if (merged == PortfolioSync.merge(listOf(local)) || merged.portfolios.isEmpty()) return false
 
         val defDao = database.portfolioDefinitionDao()
         val rowDao = database.portfolioDao()
@@ -265,6 +268,7 @@ class PortfolioLedgerStore @Inject constructor(
         }
         synchronized(tombstoneLock) { saveTombstones(walletAddress, merged.tombstones) }
         Log.i(TAG, "Merged the backup's portfolios: ${merged.portfolios.size} portfolios, ${merged.transactions.size} rows")
+        return true
     }
 
     /** A portfolio edit: the backup owes an upload, like a message. */
