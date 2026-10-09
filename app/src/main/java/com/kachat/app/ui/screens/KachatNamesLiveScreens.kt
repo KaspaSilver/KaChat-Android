@@ -947,7 +947,8 @@ private fun AmountField(value: String, onValueChange: (String) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         androidx.compose.foundation.text.BasicTextField(
             value = value,
-            onValueChange = onValueChange,
+            // cleaned as it's typed, like the Send screens (iOS cee1966, IOS-062)
+            onValueChange = { onValueChange(KaspaUnit.sanitizeAmountInput(it)) },
             singleLine = true,
             textStyle = TextStyle(color = colors.textPrimary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold),
             cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
