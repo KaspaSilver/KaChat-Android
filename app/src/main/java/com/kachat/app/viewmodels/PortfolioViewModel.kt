@@ -847,7 +847,7 @@ class PortfolioViewModel @Inject constructor(
                 compareBy<PortfolioTransactionEntity> { it.timestampMillis }.thenBy { if (it.type == "buy") 0 else 1 }
             )
             for (tx in ordered) {
-                val pending = tx.notes == com.kachat.app.repository.PRICE_UNAVAILABLE_NOTE
+                val pending = com.kachat.app.repository.isPricePending(tx.notes)
                 when (tx.type) {
                     "buy" -> {
                         if (tx.amountSompi <= 0) continue

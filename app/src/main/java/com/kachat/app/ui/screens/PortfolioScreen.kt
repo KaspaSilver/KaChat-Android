@@ -148,7 +148,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.kachat.app.R
 import com.kachat.app.models.PortfolioTransactionEntity
-import com.kachat.app.repository.PRICE_UNAVAILABLE_NOTE
+import com.kachat.app.repository.isPricePending
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.services.KaspaNetworkStatsService
@@ -2282,7 +2282,8 @@ private fun TransactionRow(
         else -> LocalAppColors.current.danger
     }
     val amountKas = tx.amountSompi / 100_000_000.0
-    val needsPrice = tx.notes == PRICE_UNAVAILABLE_NOTE
+    // Either marker - a row synced from an iPhone carries iOS's (iOS PortfolioTransactionsView).
+    val needsPrice = isPricePending(tx.notes)
     val dateStr = remember(tx.timestampMillis) {
         SimpleDateFormat("MMM d, yyyy", Locale.US).format(Date(tx.timestampMillis))
     }

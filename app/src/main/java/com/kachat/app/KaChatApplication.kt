@@ -137,6 +137,13 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var addressBookManager: com.kachat.app.services.AddressBookManager
 
+    // Portfolio rows still waiting for a price resume pricing whenever a wallet loads (iOS
+    // PortfolioViewModel.setCurrentWallet, run by WalletManager on every wallet load) - built at
+    // startup so its active-wallet observer runs from launch, not first when a screen with
+    // portfolio numbers opens.
+    @Inject
+    lateinit var portfolioRepository: com.kachat.app.repository.PortfolioRepository
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory()).build()
 

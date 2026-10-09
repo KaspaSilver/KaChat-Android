@@ -608,17 +608,22 @@ class PortfolioRepository @Inject constructor(
      *  single `priceBackfillTask`. */
     private var resumedBackfill: Job? = null
 
+    /** The wallet [resumedBackfill] is pricing. */
+    private var resumedBackfillWallet: String? = null
+
     /**
      * Prices [walletAddress]'s rows still waiting for a price (either marker, [isPricePending])
      * and its unpriced fees, in the app currency, through the same [backfillHistoricalPrices] an
-     * import uses. Called after a Nextcloud restore that changed this wallet's portfolios: a row
-     * synced from another device while its price was still loading gets priced here (iOS
-     * `PortfolioViewModel.reloadFromStore` -> `startPriceBackfillIfNeeded`, 11f1548). A no-op when
-     * nothing is pending or one is already running.
+     * import uses. Called when a wallet's portfolio loads ([onWalletLoaded]) and after a Nextcloud
+     * restore that changed this wallet's portfolios: a row synced from another device while its
+     * price was still loading, or left unpriced by an import the app was closed during, gets
+     * priced here (iOS `PortfolioViewModel.setCurrentWallet` / `reloadFromStore` ->
+     * `startPriceBackfillIfNeeded`). A no-op when nothing is pending or one is already running.
      */
     @Synchronized
     fun resumePriceBackfill(walletAddress: String) {
         if (walletAddress.isEmpty() || resumedBackfill?.isActive == true) return
+        resumedBackfillWallet = walletAddress
         resumedBackfill = priceBackfillScope.launch {
             val pendingIdsByDay = database.portfolioDao().getAllTransactionsForWalletOnce(walletAddress)
                 .filter { isPricePending(it.notes) }
@@ -629,6 +634,23 @@ class PortfolioRepository @Inject constructor(
             val currency = settings.currency.first()
             backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays)
         }
+    }
+
+    /**
+     * A wallet's portfolio loading - app start, account switch, logout ([WalletManager.activeAddressFlow]
+     * fires on every wallet load; null with no wallet). A backfill still pricing another wallet's
+     * rows stops first, then this wallet's pending rows and fees resume pricing (iOS
+     * `PortfolioViewModel.setCurrentWallet`: cancel `priceBackfillTask`, load, then
+     * `startPriceBackfillIfNeeded`).
+     */
+    @Synchronized
+    private fun onWalletLoaded(walletAddress: String?) {
+        if (resumedBackfillWallet != walletAddress) {
+            resumedBackfill?.cancel()
+            resumedBackfill = null
+            resumedBackfillWallet = null
+        }
+        if (!walletAddress.isNullOrEmpty()) resumePriceBackfill(walletAddress)
     }
 
     /**
@@ -750,7 +772,7 @@ class PortfolioRepository @Inject constructor(
      * A recorded Retry-After window ([throttledUntilMillis]) is waited out before each attempt —
      * the old inline loop's blind 1.2s retry always landed inside the ~59s window and failed —
      * and plain failures back off exponentially per day, [MAX_BACKFILL_ATTEMPTS_PER_DAY] tries
-     * each. Rows the user has manually priced meanwhile (note no longer [PRICE_UNAVAILABLE_NOTE])
+     * each. Rows the user has manually priced meanwhile (note no longer pending, [isPricePending])
      * are left alone.
      */
     private suspend fun backfillHistoricalPrices(
@@ -982,13 +1004,22 @@ class PortfolioRepository @Inject constructor(
             // written, and a CSV row has no on-chain source - price them by their date like any
             // other (iOS 98f5009).
             val pendingIdsByDay = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
-                .filter { it.notes == PRICE_UNAVAILABLE_NOTE }
+                .filter { isPricePending(it.notes) }
                 .groupBy({ utcDayStartMillis(it.timestampMillis) }, { it.id })
             if (pendingIdsByDay.isNotEmpty()) {
                 priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency) }
             }
         }
         return imported
+    }
+
+    init {
+        // Every wallet load resumes that wallet's price backfill (see [onWalletLoaded]). Last in
+        // the class on purpose: the backfill runs on another thread and reads properties declared
+        // above, which must all be initialized before it can start.
+        priceBackfillScope.launch {
+            walletManager.activeAddressFlow.collect { onWalletLoaded(it) }
+        }
     }
 
     companion object {
