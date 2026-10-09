@@ -11,7 +11,8 @@ import java.util.Base64
  */
 object KaPostsProtocol {
     // `kchat:` migration: KaPosts now writes the `kchat:1:<action>:` root (was `k:1:`). Reads come
-    // pre-parsed from the K indexer (dual-reads server-side), so only the write shape changes.
+    // pre-parsed from the K indexer, which indexes `kchat:1:` only: legacy `k:1:` posts written
+    // before the migration are not indexed (the owner accepted that loss, audit XP-006).
     const val PREFIX = "kchat:1:"
 
     /**
@@ -149,8 +150,9 @@ object KaPostsProtocol {
      * Parses a decoded transaction payload, or null for anything that is not a KaPosts message -
      * votes, follows and unquotes carry no text, and other apps' payloads share the chain.
      *
-     * Reads the legacy `k:1:` root as well as today's `kchat:1:`, matching the indexer's own
-     * dual-read: posts written before the migration are still perfectly good posts.
+     * Reads the legacy `k:1:` root as well as today's `kchat:1:`: posts written before the
+     * migration are still perfectly good posts when read straight off the chain. The indexer does
+     * NOT do this; it indexes `kchat:1:` only (audit XP-006).
      */
     fun parseChainPayload(payload: String): ChainPost? {
         val root = listOf(PREFIX, "k:1:").firstOrNull { payload.startsWith(it) } ?: return null
