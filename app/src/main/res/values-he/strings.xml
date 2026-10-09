@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">לא ניתן עוד לקבל את ההצעה הזו.</string>
     <string name="kn_offer_only_owner">רק בעל השם יכול לקבל או לדחות את ההצעה הזו.</string>
     <string name="kn_offers_tap_to_accept_decline">הקישו על הצעה כדי לקבל או לדחות אותה. הצעות שפג תוקפן חוזרות לקונים.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">עמלת הרשת עלתה ל-%1$s מאז שאישרת. לא נשלח דבר. בדוק את העמלה החדשה ואשר שוב.</string>
 </resources>

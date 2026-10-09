@@ -334,6 +334,8 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.OfferTooLong -> getString(R.string.kn_err_offer_max_days)
         // localized on iOS too (4f5d95e)
         is KachatNamesActions.ActionError.PriceChanged -> getString(R.string.kn_err_price_changed, KaspaUnit.amount(e.price))
+        // localized on iOS too (7e2b6cd, 218dc42)
+        is KachatNamesActions.ActionError.FeeChanged -> getString(R.string.kn_err_fee_changed, KaspaUnit.amount(e.fee))
         // localized on iOS too (71128c4)
         is KachatNamesActions.ActionError.ExpiredTooLongToRenew -> getString(R.string.kn_err_renew_expired_too_long)
         is KachatNamesActions.ActionError.OfferNameNotActive -> getString(R.string.kn_err_offer_name_not_active)
@@ -2299,6 +2301,8 @@ fun KachatTxSheet(
     val context = LocalContext.current
     val view = LocalView.current
     var plan by remember { mutableStateOf<Plan?>(null) }
+    // The fee rate `plan` was built at: the send uses exactly this (iOS 7e2b6cd, IOS-061).
+    var planFeerate by remember { mutableStateOf<Double?>(null) }
     var planError by remember { mutableStateOf<String?>(null) }
     var building by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
@@ -2343,11 +2347,12 @@ fun KachatTxSheet(
         building = true
         delay(300)
         try {
-            val built = vm.actions.plan(op, feeChoice())
+            val built = vm.actions.planWithRate(op, feeChoice())
             // A newer choice replaced this build while it ran: its plan is for the old choice,
             // and the new build owns the sheet now (iOS 5e707f4).
             ensureActive()
-            plan = built
+            plan = built.first
+            planFeerate = built.second
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -2366,8 +2371,12 @@ fun KachatTxSheet(
         sendError = null
         vm.launch {
             try {
-                // never pays more than the price shown, at the fee shown (iOS 4f5d95e, e426432)
-                val id = vm.actions.perform(op, maxPrice = plan?.priceFee, fee = fee)
+                // never pays more than the price shown, and sends at the fee rate shown (refused if
+                // the rebuilt fee is higher; iOS 4f5d95e, e426432, 7e2b6cd)
+                val id = vm.actions.perform(
+                    op, maxPrice = plan?.priceFee, fee = fee,
+                    exactFeerate = planFeerate, maxNetworkFee = plan?.networkFee
+                )
                 txId = id
                 view.successHaptic()
                 onDone(id)
@@ -2376,8 +2385,8 @@ fun KachatTxSheet(
                 throw e
             } catch (e: Exception) {
                 sendError = context.kachatErrorText(e)
-                // the price moved: show the new plan so the person can confirm it
-                if (e is KachatNamesActions.ActionError.PriceChanged) rebuilds++
+                // the price or the fee moved: show the new plan so the person can confirm it
+                if (e is KachatNamesActions.ActionError.PriceChanged || e is KachatNamesActions.ActionError.FeeChanged) rebuilds++
             }
             sending = false
         }

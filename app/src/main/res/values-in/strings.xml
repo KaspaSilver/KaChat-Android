@@ -1053,4 +1053,6 @@
     <string name="kn_offer_cant_accept">Penawaran ini tidak bisa diterima lagi.</string>
     <string name="kn_offer_only_owner">Hanya pemilik nama yang bisa menerima atau menolak penawaran ini.</string>
     <string name="kn_offers_tap_to_accept_decline">Ketuk penawaran untuk menerima atau menolaknya. Penawaran yang kedaluwarsa kembali ke pembelinya.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">Biaya jaringan naik menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa biaya baru dan konfirmasi lagi.</string>
 </resources>

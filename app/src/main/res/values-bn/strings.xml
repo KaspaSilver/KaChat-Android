@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">এই অফার আর গ্রহণ করা যাবে না।</string>
     <string name="kn_offer_only_owner">শুধু নামের মালিক এই অফার গ্রহণ বা প্রত্যাখ্যান করতে পারেন।</string>
     <string name="kn_offers_tap_to_accept_decline">গ্রহণ বা প্রত্যাখ্যান করতে একটি অফারে ট্যাপ করুন। মেয়াদোত্তীর্ণ অফার ক্রেতার কাছে ফিরে যায়।</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">আপনি নিশ্চিত করার পর নেটওয়ার্ক ফি বেড়ে %1$s হয়েছে। কিছুই পাঠানো হয়নি। নতুন ফি দেখে আবার নিশ্চিত করুন।</string>
 </resources>

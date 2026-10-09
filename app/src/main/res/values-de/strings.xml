@@ -1183,4 +1183,6 @@
     <string name="kn_offer_cant_accept">Dieses Angebot kann nicht mehr angenommen werden.</string>
     <string name="kn_offer_only_owner">Nur der Inhaber des Namens kann dieses Angebot annehmen oder ablehnen.</string>
     <string name="kn_offers_tap_to_accept_decline">Tippe auf ein Angebot, um es anzunehmen oder abzulehnen. Abgelaufene Angebote gehen an ihre Käufer zurück.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">Die Netzwerkgebühr ist seit deiner Bestätigung auf %1$s gestiegen. Es wurde nichts gesendet. Prüfe die neue Gebühr und bestätige erneut.</string>
 </resources>

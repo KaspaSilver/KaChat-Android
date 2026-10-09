@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">Không thể chấp nhận đề nghị này nữa.</string>
     <string name="kn_offer_only_owner">Chỉ chủ sở hữu tên mới có thể chấp nhận hoặc từ chối đề nghị này.</string>
     <string name="kn_offers_tap_to_accept_decline">Chạm vào một đề nghị để chấp nhận hoặc từ chối. Đề nghị hết hạn sẽ trả lại người mua.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">Phí mạng đã tăng lên %1$s kể từ khi bạn xác nhận. Chưa có gì được gửi. Hãy xem phí mới và xác nhận lại.</string>
 </resources>

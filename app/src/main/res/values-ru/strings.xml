@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">Это предложение больше нельзя принять.</string>
     <string name="kn_offer_only_owner">Принять или отклонить это предложение может только владелец имени.</string>
     <string name="kn_offers_tap_to_accept_decline">Нажмите на предложение, чтобы принять или отклонить его. Истёкшие предложения возвращаются покупателям.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">С момента подтверждения комиссия сети выросла до %1$s. Ничего не отправлено. Проверьте новую комиссию и подтвердите снова.</string>
 </resources>

@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">此报价已无法接受。</string>
     <string name="kn_offer_only_owner">只有该名称的所有者才能接受或拒绝此报价。</string>
     <string name="kn_offers_tap_to_accept_decline">点按报价即可接受或拒绝。过期的报价会退回给买家。</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">确认后网络费用已涨到 %1$s。没有发送任何内容。请查看新费用并再次确认。</string>
 </resources>

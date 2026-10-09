@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">Esta oferta não pode mais ser aceita.</string>
     <string name="kn_offer_only_owner">Só o dono do nome pode aceitar ou recusar esta oferta.</string>
     <string name="kn_offers_tap_to_accept_decline">Toque em uma oferta para aceitá-la ou recusá-la. Ofertas expiradas voltam aos compradores.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">A taxa de rede subiu para %1$s desde que você confirmou. Nada foi enviado. Confira a nova taxa e confirme novamente.</string>
 </resources>

@@ -315,10 +315,13 @@ object Mass {
         return if (harmonicOuts > arithmeticIns) harmonicOuts - arithmeticIns else 0
     }
 
-    /** The relay fee the CLI pays: ceil(max(compute, normalized transient) * feerate). */
+    /** The relay fee the CLI pays: ceil(max(compute, normalized transient) * feerate). Total: the
+     *  rate is made safe first ([KachatNames.safeFeerate]), so the product is always a small finite
+     *  number - never NaN, infinity or past a Long (iOS 7e2b6cd, IOS-061). */
     fun networkFee(tx: Tx, feerate: Double): Long {
         val feeMass = maxOf(computeMass(tx), normalizedTransient(tx))
-        val rate = maxOf(feerate, KachatNames.MIN_FEERATE)
-        return ceil(feeMass.toDouble() * rate).toLong()
+        val fee = ceil(feeMass.toDouble() * KachatNames.safeFeerate(feerate))
+        if (!fee.isFinite() || fee < 0 || fee >= 9.0e18) return 9.0e18.toLong()
+        return fee.toLong()
     }
 }

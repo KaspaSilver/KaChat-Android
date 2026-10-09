@@ -1389,4 +1389,6 @@
     <string name="kn_offer_cant_accept">This offer can\'t be accepted any more.</string>
     <string name="kn_offer_only_owner">Only the name\'s owner can accept or decline this offer.</string>
     <string name="kn_offers_tap_to_accept_decline">Tap an offer to accept or decline it. Expired offers go back to their buyers.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">The network fee went up to %1$s since you confirmed. Nothing was sent. Check the new fee and confirm again.</string>
 </resources>

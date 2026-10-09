@@ -205,6 +205,10 @@ class KachatNamesActions @Inject constructor(
         /** the transaction would pay more than the price the person confirmed (iOS 4f5d95e, c8f1086) */
         class PriceChanged(val price: Long) :
             ActionError("The price changed to $price sompi since you confirmed. Nothing was sent. Check the new price and confirm again.")
+
+        /** the rebuilt transaction's network fee is above the one the person saw (iOS 7e2b6cd, IOS-061) */
+        class FeeChanged(val fee: Long) :
+            ActionError("The network fee went up to $fee sompi since you confirmed. Nothing was sent. Check the new fee and confirm again.")
     }
 
     // Wallet
@@ -359,9 +363,11 @@ class KachatNamesActions @Inject constructor(
     suspend fun refreshFeeEstimate(): FeeEstimate? {
         try {
             val (priority, normal) = service.nodeFeeEstimate()
-            val estimate = FeeEstimate(normal.feerate, normal.seconds, priority.feerate, priority.seconds)
-            _feeEstimate.value = estimate
-            return estimate
+            val estimate = sane(FeeEstimate(normal.feerate, normal.seconds, priority.feerate, priority.seconds))
+            if (estimate != null) {
+                _feeEstimate.value = estimate
+                return estimate
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -379,9 +385,23 @@ class KachatNamesActions @Inject constructor(
         val priority = (r.priorityBucket as com.kachat.app.services.FeeBucket?) ?: return _feeEstimate.value
         @Suppress("USELESS_CAST")
         val normal = (r.normalBuckets as List<com.kachat.app.services.FeeBucket>?)?.firstOrNull() ?: priority
-        val estimate = FeeEstimate(normal.feerate, normal.estimatedSeconds, priority.feerate, priority.estimatedSeconds)
+        val estimate = sane(FeeEstimate(normal.feerate, normal.estimatedSeconds, priority.feerate, priority.estimatedSeconds))
+            ?: return _feeEstimate.value
         _feeEstimate.value = estimate
         return estimate
+    }
+
+    /** An estimate only if every rate is a real, non-negative number at most [KachatNames.MAX_FEERATE]:
+     *  one node (any pool node, or the REST API) answering NaN, infinity or 1e300 is ignored rather
+     *  than paid (iOS 7e2b6cd, IOS-061). */
+    private fun sane(e: FeeEstimate): FeeEstimate? {
+        for (rate in listOf(e.normal, e.priority)) {
+            if (!rate.isFinite() || rate < 0 || rate > KachatNames.MAX_FEERATE) return null
+        }
+        return FeeEstimate(
+            e.normal, if (e.normalSeconds.isFinite()) maxOf(0.0, e.normalSeconds) else 0.0,
+            e.priority, if (e.prioritySeconds.isFinite()) maxOf(0.0, e.prioritySeconds) else 0.0
+        )
     }
 
     /** The rate a speed pays: the network's Normal rate (never under the relay floor) times the
@@ -389,7 +409,7 @@ class KachatNamesActions @Inject constructor(
     suspend fun feerate(tier: ColdFeeTier): Double {
         val estimate = refreshFeeEstimate()
         val base = estimate?.let { maxOf(KachatNames.MIN_FEERATE, it.normal) } ?: UNKNOWN_FEERATE
-        return base * tier.multiplier.toDouble()
+        return KachatNames.safeFeerate(base * tier.multiplier.toDouble())
     }
 
     /** The rate for a choice; null keeps the old default (the priority rate). A typed total is
@@ -400,15 +420,17 @@ class KachatNamesActions @Inject constructor(
         is FeeChoice.CustomTotal -> {
             val probe = build(op, s, KachatNames.MIN_FEERATE).first
             val mass = maxOf(1.0, probe.costs.minFee.toDouble() / KachatNames.MIN_FEERATE)
-            maxOf(KachatNames.MIN_FEERATE, choice.sompi.toDouble() / mass)
+            KachatNames.safeFeerate(choice.sompi.toDouble() / mass)
         }
     }
 
-    /** `max(100, the priority fee rate)` in sompi per gram; [UNKNOWN_FEERATE] when it can't be read. */
+    /** `max(100, the priority fee rate)` in sompi per gram; [UNKNOWN_FEERATE] when it can't be read.
+     *  The rate for a transaction sent without a sheet (nobody saw its fee): the priority rate,
+     *  capped at [BACKGROUND_MAX_FEERATE] (iOS 7e2b6cd, IOS-061). */
     suspend fun feerate(): Double {
         val e = refreshFeeEstimate()
         if (e == null || e.priority <= 0) return UNKNOWN_FEERATE
-        return maxOf(KachatNames.MIN_FEERATE, e.priority)
+        return minOf(KachatNames.safeFeerate(e.priority), BACKGROUND_MAX_FEERATE)
     }
 
     private class Context3(val builder: Builder, val env: Env, val wallet: List<Utxo>)
@@ -483,9 +505,14 @@ class KachatNamesActions @Inject constructor(
 
     /** Builds [op] against live UTXOs without submitting anything: the fee and outputs a sheet
      *  shows before the person confirms. */
-    suspend fun plan(op: Operation, fee: FeeChoice? = null): Plan = withContext(Dispatchers.IO) {
+    suspend fun plan(op: Operation, fee: FeeChoice? = null): Plan = planWithRate(op, fee).first
+
+    /** The plan and the fee rate it was built at - the rate `perform(exactFeerate)` then sends at,
+     *  so the fee sent is the fee shown (iOS 7e2b6cd, IOS-061). */
+    suspend fun planWithRate(op: Operation, fee: FeeChoice? = null): Pair<Plan, Double> = withContext(Dispatchers.IO) {
         val s = signer(op)
-        build(op, s, feerate(fee, op, s)).first
+        val rate = feerate(fee, op, s)
+        build(op, s, rate).first to rate
     }
 
     private suspend fun build(op: Operation, s: Signer, rate: Double? = null): Pair<Plan, Env> {
@@ -569,11 +596,18 @@ class KachatNamesActions @Inject constructor(
      * `priceFee`): a register, extend or renew never pays more (iOS 4f5d95e; registry v4's prices
      * are fixed, so it never has to, iOS c8f1086). [fee] is the fee the person chose (null: the
      * priority rate, for the transactions the app sends by itself); the plan is rebuilt at it.
-     * After sending, [follow] watches it into a block (iOS e426432).
+     * After sending, [follow] watches it into a block (iOS e426432). [exactFeerate] (from
+     * [planWithRate]) sends at the rate the person saw instead of reading it again; [maxNetworkFee]
+     * refuses a rebuild whose network fee is above the one shown (the inputs can change between
+     * the two builds), like [maxPrice] does for the price (iOS 7e2b6cd, IOS-061).
      */
-    suspend fun perform(op: Operation, maxPrice: Long? = null, fee: FeeChoice? = null): String = withContext(Dispatchers.IO) {
+    suspend fun perform(
+        op: Operation, maxPrice: Long? = null, fee: FeeChoice? = null,
+        exactFeerate: Double? = null, maxNetworkFee: Long? = null
+    ): String = withContext(Dispatchers.IO) {
         val s = signer(op)
-        val (txId, plan) = submit(op, s, maxPrice, feerate(fee, op, s))
+        val rate = if (exactFeerate != null) KachatNames.safeFeerate(exactFeerate) else feerate(fee, op, s)
+        val (txId, plan) = submit(op, s, maxPrice, rate, maxNetworkFee)
         // An offer you withdrew or refunded yourself isn't news in the Profile bell; the ones this
         // app returns on its own (expired, made to an earlier owner) are (iOS 86471dd).
         when (op) {
@@ -597,9 +631,13 @@ class KachatNamesActions @Inject constructor(
      * Signs and submits [op], rebuilt against live UTXOs. It never pays more than [maxPrice], the
      * price the person confirmed (iOS c8f1086: no price shard to lose, so no retry on another).
      */
-    private suspend fun submit(op: Operation, s: Signer, maxPrice: Long?, rate: Double?): Pair<String, Plan> {
+    private suspend fun submit(op: Operation, s: Signer, maxPrice: Long?, rate: Double?, maxNetworkFee: Long? = null): Pair<String, Plan> {
         val (plan, env) = build(op, s, rate)
         checkPriceCap(plan.priceFee, maxPrice)
+        // A few percent of slack: the same rate on a rebuild with other inputs can weigh a little more.
+        if (maxNetworkFee != null && plan.networkFee > maxNetworkFee + maxNetworkFee / 20 + 1_000) {
+            throw ActionError.FeeChanged(plan.networkFee)
+        }
         val txId = service.signAndSubmit(plan, s.privateKey, env)
         val o = plan.newOffer
         if (op is Operation.Offer && o != null) {
@@ -1085,9 +1123,11 @@ class KachatNamesActions @Inject constructor(
     private fun feeTierOf(p: PendingRegistration): ColdFeeTier? =
         p.feeTier?.let { raw -> ColdFeeTier.entries.firstOrNull { it.label == raw } }
 
-    /** The rate the registration's chosen speed pays now (its claim-time choice), else Priority. */
+    /** The rate the registration's chosen speed pays now (its claim-time choice), else Priority.
+     *  The register goes out by itself a minute after the claim: the chosen speed, but never above
+     *  the background cap - its fee is not shown again (iOS 7e2b6cd, IOS-061). */
     private suspend fun registrationFeerate(p: PendingRegistration): Double =
-        feeTierOf(p)?.let { feerate(it) } ?: feerate()
+        feeTierOf(p)?.let { minOf(feerate(it), BACKGROUND_MAX_FEERATE) } ?: feerate()
 
     /** Applies [change] to the newest copy of [p] and saves it. */
     private fun set(p: PendingRegistration, change: (PendingRegistration) -> PendingRegistration) {
@@ -1425,6 +1465,11 @@ class KachatNamesActions @Inject constructor(
          *  what a busy network drops (testnet-10 asked 115-894 sompi/gram on 2026-10-07). Still a
          *  tiny fee on these small transactions (iOS b219bb0). */
         const val UNKNOWN_FEERATE: Double = KachatNames.MIN_FEERATE * 10
+
+        /** The most a transaction sent without a sheet pays per gram (the claim driver, returning
+         *  expired offers, declining, withdrawing, freeing an expired name): 20x the floor, above the
+         *  busiest rate seen, and a few hundredths of a KAS on these transactions (iOS 7e2b6cd, IOS-061). */
+        const val BACKGROUND_MAX_FEERATE: Double = KachatNames.MIN_FEERATE * 20
 
         /** A commit this young isn't looked for in the mempools yet: give it time to show up. */
         const val COMMIT_SHOW_UP_MS: Long = 30_000

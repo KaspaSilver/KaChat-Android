@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">Cette offre ne peut plus être acceptée.</string>
     <string name="kn_offer_only_owner">Seul le propriétaire du nom peut accepter ou refuser cette offre.</string>
     <string name="kn_offers_tap_to_accept_decline">Touchez une offre pour l\'accepter ou la refuser. Les offres expirées retournent à leurs acheteurs.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">Les frais de réseau sont passés à %1$s depuis votre confirmation. Rien n’a été envoyé. Vérifiez les nouveaux frais et confirmez à nouveau.</string>
 </resources>

@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">لم يعد بالإمكان قبول هذا العرض.</string>
     <string name="kn_offer_only_owner">مالك الاسم وحده يمكنه قبول هذا العرض أو رفضه.</string>
     <string name="kn_offers_tap_to_accept_decline">اضغط عرضًا لقبوله أو رفضه. العروض المنتهية تعود إلى أصحابها.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">ارتفعت رسوم الشبكة إلى %1$s منذ تأكيدك. لم يُرسل شيء. راجع الرسوم الجديدة وأكّد مرة أخرى.</string>
 </resources>

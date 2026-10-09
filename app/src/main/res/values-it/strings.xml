@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">Questa offerta non può più essere accettata.</string>
     <string name="kn_offer_only_owner">Solo il proprietario del nome può accettare o rifiutare questa offerta.</string>
     <string name="kn_offers_tap_to_accept_decline">Tocca un\'offerta per accettarla o rifiutarla. Le offerte scadute tornano agli acquirenti.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">La commissione di rete è salita a %1$s da quando hai confermato. Non è stato inviato nulla. Controlla la nuova commissione e conferma di nuovo.</string>
 </resources>

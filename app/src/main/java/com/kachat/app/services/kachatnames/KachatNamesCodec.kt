@@ -69,6 +69,16 @@ object KachatNames {
     const val TARGET_CHANGE: Long = 100_000_000L
     /** Relay floor after Toccata: 100 sompi per gram of max(compute, normalized transient). */
     const val MIN_FEERATE: Double = 100.0
+    /** The most any name transaction pays per gram: 1000x the floor (the busiest testnet-10 seen,
+     *  2026-10-07, asked 894). A fee estimate above it is treated as unknown (iOS 7e2b6cd, IOS-061). */
+    const val MAX_FEERATE: Double = MIN_FEERATE * 1000
+
+    /** A fee rate that is always safe to multiply: never NaN, infinite or negative, and within
+     *  [MIN_FEERATE, MAX_FEERATE] - so a bad value from a node can neither crash nor drain (IOS-061). */
+    fun safeFeerate(rate: Double): Double {
+        if (!rate.isFinite() || rate <= 0) return MIN_FEERATE
+        return minOf(maxOf(rate, MIN_FEERATE), MAX_FEERATE)
+    }
     /** register, extend and renew sum at most 8 inputs and 8 outputs (the contracts' bounded loops). */
     const val MAX_INPUTS_FEE_ENTRY = 8
     /** Every other operation: keep transactions small anyway. */

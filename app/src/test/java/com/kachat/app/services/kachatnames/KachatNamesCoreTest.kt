@@ -302,6 +302,12 @@ class KachatNamesCoreTest {
         val r = Report()
         val m = manifest()
         val p = m.params
+        // IOS-061 (iOS 7e2b6cd): a fee rate from a node can be anything; the maths never traps and never exceeds the cap
+        r.eq(KachatNames.safeFeerate(Double.NaN), KachatNames.MIN_FEERATE, "NaN fee rate -> the floor")
+        r.eq(KachatNames.safeFeerate(Double.POSITIVE_INFINITY), KachatNames.MIN_FEERATE, "infinite fee rate -> the floor")
+        r.eq(KachatNames.safeFeerate(-5.0), KachatNames.MIN_FEERATE, "negative fee rate -> the floor")
+        r.eq(KachatNames.safeFeerate(1e300), KachatNames.MAX_FEERATE, "1e300 fee rate -> the ceiling")
+        r.eq(KachatNames.safeFeerate(500.0), 500.0, "a normal fee rate is kept")
         val y = p.periodMs
         r.eq(y, 86_400_000L, "periodMs from the manifest (24 hours)")
         r.eq(p.renewWindowMs, 7_200_000L, "renewWindowMs from the manifest (2 hours)")

@@ -1186,4 +1186,6 @@
     <string name="kn_offer_cant_accept">このオファーはもう承諾できません。</string>
     <string name="kn_offer_only_owner">このオファーを承諾・辞退できるのは名前の所有者だけです。</string>
     <string name="kn_offers_tap_to_accept_decline">オファーをタップして承諾または辞退します。期限切れのオファーは買い手に戻ります。</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">確認後にネットワーク手数料が%1$sに上がりました。何も送信されていません。新しい手数料を確認して、もう一度確定してください。</string>
 </resources>

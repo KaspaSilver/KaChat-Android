@@ -1217,4 +1217,6 @@
     <string name="kn_offer_cant_accept">این پیشنهاد دیگر قابل پذیرش نیست.</string>
     <string name="kn_offer_only_owner">فقط مالک نام می‌تواند این پیشنهاد را بپذیرد یا رد کند.</string>
     <string name="kn_offers_tap_to_accept_decline">برای پذیرش یا رد، روی یک پیشنهاد بزنید. پیشنهادهای منقضی‌شده به خریدارانشان برمی‌گردند.</string>
+    <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
+    <string name="kn_err_fee_changed">کارمزد شبکه از زمان تأیید شما به %1$s رسید. چیزی ارسال نشد. کارمزد جدید را ببینید و دوباره تأیید کنید.</string>
 </resources>
