@@ -799,10 +799,17 @@ class ChatViewModel @Inject constructor(
      */
     /**
      * Makes sure a contact row exists for [contactId] before opening their thread - a broadcast
-     * sender or a group member viewed through User Info may never have been one.
+     * sender or a group member viewed through User Info may never have been one. A deliberate
+     * add, as iOS ChatInfoView's openChatWithContact (`addContact` without isAutoAdded): it also
+     * undoes an earlier deletion of that chat. Nothing changes when the contact already exists.
      */
     fun ensureContactExists(contactId: String) {
-        viewModelScope.launch { getOrCreateContact(contactId) }
+        viewModelScope.launch {
+            if (chatRepository.getContact(contactId) != null) return@launch
+            // A deliberate add is of the network the app runs on (see addContact).
+            if (!com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(contactId.trim())) return@launch
+            chatRepository.addContact(getOrCreateContact(contactId), deliberate = true)
+        }
     }
 
     /** A profile link's person: their contact, auto-added exactly as a tapped public chat sender's
@@ -1589,6 +1596,8 @@ class ChatViewModel @Inject constructor(
         _createGroupError.value = null
         viewModelScope.launch {
             try {
+                // A member who is not a contact yet is added deliberately: the user typed them
+                // in, as iOS's group creation does (addContact without isAutoAdded).
                 val contacts = trimmedAddresses.map { address ->
                     chatRepository.getContact(address) ?: ContactEntity(
                         id = address,
@@ -1596,7 +1605,7 @@ class ChatViewModel @Inject constructor(
                         alias = null,
                         knsName = null,
                         publicKeyHex = null
-                    ).also { chatRepository.addContact(it) }
+                    ).also { chatRepository.addContact(it, deliberate = true) }
                 }
                 val group = groupRepository.createGroup(trimmedName, contacts)
                 // Best effort: a failed photo send must not undo a group that was created

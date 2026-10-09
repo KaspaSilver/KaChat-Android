@@ -49,8 +49,13 @@ interface ContactDao {
     @Query("DELETE FROM deleted_contacts WHERE contactId = :contactId AND walletAddress = :walletAddress")
     suspend fun deleteDeletedContact(contactId: String, walletAddress: String)
 
-    /** Every tombstoned contact address for this wallet — exported with chat-history backups so a restore anywhere skips deleted chats. */
-    @Query("SELECT contactId FROM deleted_contacts WHERE walletAddress = :walletAddress")
+    /** Lifts [contactId]'s tombstone: the chat is live again, the row stays as its history floor
+     *  (see [DeletedContactEntity.lifted]). */
+    @Query("UPDATE deleted_contacts SET lifted = 1 WHERE contactId = :contactId AND walletAddress = :walletAddress")
+    suspend fun liftDeletedContact(contactId: String, walletAddress: String)
+
+    /** Every contact address of this wallet whose chat is still deleted (not lifted) — exported with chat-history backups so a restore anywhere skips deleted chats. */
+    @Query("SELECT contactId FROM deleted_contacts WHERE walletAddress = :walletAddress AND lifted = 0")
     suspend fun getAllDeletedContactIds(walletAddress: String): List<String>
 
     /** Every deletion tombstone for this wallet, gone — used when wiping an entire account, so a same-address re-import later starts genuinely clean. */

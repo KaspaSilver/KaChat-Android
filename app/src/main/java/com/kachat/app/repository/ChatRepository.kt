@@ -434,11 +434,13 @@ class ChatRepository @Inject constructor(
      * Records a tombstone first so a future re-handshake's full-history re-sync can't silently
      * resurrect the deleted conversation (see [DeletedContactEntity]'s doc comment).
      *
-     * The tombstone row outlives a reopening: when a post-deletion handshake or message brings
-     * the chat back, the row stays as its history floor, so what came BEFORE the deletion stays
-     * deleted - your own old messages included, which would otherwise make the new request read
-     * as a chat you had already accepted (iOS 4b00a5f isDeletedAsOf). Only a deliberate add
-     * ([addContact] with `deliberate`) lifts the floor and restores everything.
+     * The tombstone row outlives a reopening: a handshake from them that post-dates the deletion
+     * lifts it ([DeletedContactEntity.lifted]) and the row stays as its history floor, so what
+     * came BEFORE the deletion stays deleted - your own old messages included, which would
+     * otherwise make the new request read as a chat you had already accepted (iOS 4b00a5f
+     * isDeletedAsOf). An automatic add (a KaPosts tip, chess, names) does not lift it: the chat
+     * still counts as deleted for backups. Only a deliberate add ([addContact] with
+     * `deliberate`) drops the row and restores everything.
      */
     suspend fun deleteChat(contactId: String) {
         val myAddress = walletManager.getAddress()
@@ -478,12 +480,21 @@ class ChatRepository @Inject constructor(
      * land at the same block_time — see [DeletedContactEntity.deletedAtTxIds]'s doc comment for why
      * a plain `blockTime <= deletedAt` check isn't safe on its own against Kaspa's non-strictly-
      * monotonic per-sender block_time.
+     *
+     * Mirrors iOS `ContactsManager.isDeletedAsOf` (4b00a5f): a lifted row is still a floor; a
+     * [blockTime] of 0 (no time in hand) is suppressed only while the chat is still deleted; and
+     * at the deletion instant itself a blank [txId], or a tombstone that recorded no ids, is
+     * suppressed.
      */
     private fun isTombstoned(deleted: DeletedContactEntity?, txId: String, blockTime: Long): Boolean {
         if (deleted == null) return false
+        if (blockTime <= 0L) return !deleted.lifted
         if (blockTime < deleted.deletedAt) return true
         if (blockTime == deleted.deletedAt) {
-            return deleted.deletedAtTxIds.split(",").contains(txId)
+            if (txId.isBlank()) return true
+            val ids = deleted.deletedAtTxIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (ids.isEmpty()) return true
+            return txId in ids
         }
         return false
     }
@@ -495,14 +506,12 @@ class ChatRepository @Inject constructor(
 
     /**
      * Whether a backed-up message of a chat that is live again predates its deletion and must
-     * stay deleted (iOS 4b00a5f, `isDeletedAsOf` in the Nextcloud import). Same test as
-     * [isTombstoned], except that a message with no time in hand is kept: the chat is live, and
-     * iOS only suppresses those while it is still deleted.
+     * stay deleted (iOS 4b00a5f, `isDeletedAsOf` in the Nextcloud import). The same test as
+     * [isTombstoned]: the import only gets here for a chat that is not still deleted, so a
+     * message with no time in hand is kept, as on iOS.
      */
-    fun isBelowDeletionFloor(floor: DeletedContactEntity?, txId: String, blockTime: Long): Boolean {
-        if (floor == null || blockTime <= 0L) return false
-        return isTombstoned(floor, txId, blockTime)
-    }
+    fun isBelowDeletionFloor(floor: DeletedContactEntity?, txId: String, blockTime: Long): Boolean =
+        isTombstoned(floor, txId, blockTime)
 
     /**
      * Never one of the user's OWN accounts. Nothing stopped this before: the row is keyed by
@@ -515,7 +524,9 @@ class ChatRepository @Inject constructor(
      * interrupting anyone over, and the address is already reachable through the account switcher.
      */
     /**
-     * @param deliberate the user typed this address in themselves (Create Chat). Another of the
+     * @param deliberate the user chose to add this address themselves - Create Chat, Open Chat on
+     *   Chat Info / User Info for someone not yet a contact, a new group's members - where iOS
+     *   calls `addContact` with `isAutoAdded: false`. Another of the
      *   user's OWN accounts is refused only for the auto-add paths: tipping or opening a KaPost
      *   written from your second account would otherwise add its author silently. A deliberate
      *   add is different - chatting between your own accounts is a real thing to do (moving
@@ -672,22 +683,19 @@ class ChatRepository @Inject constructor(
 
     /**
      * Every chat of the active wallet that is still deleted — carried in backups so restores skip
-     * deleted chats. A chat reopened after its deletion is live again (iOS lifts the tombstone,
-     * 4b00a5f): its tombstone row stays only as the history floor (see [deleteChat]), so it is
-     * backed up like any other chat instead.
+     * deleted chats. A chat whose tombstone was lifted ([DeletedContactEntity.lifted], iOS
+     * 4b00a5f) is live again: its row stays only as the history floor (see [deleteChat]), so it
+     * is backed up like any other chat instead. A contact an automatic add recreated does not
+     * lift it: that chat still counts as deleted, as on iOS.
      */
-    suspend fun getAllDeletedContactIds(): List<String> {
-        val myAddress = walletManager.getAddress()
-        val live = database.contactDao().getContacts(myAddress).first().map { it.id }.toSet()
-        return database.contactDao().getAllDeletedContactIds(myAddress).filter { it !in live }
-    }
+    suspend fun getAllDeletedContactIds(): List<String> =
+        database.contactDao().getAllDeletedContactIds(walletManager.getAddress())
 
-    /** Whether the chat with [contactId] is still deleted — restores must never resurrect it. A
-     *  chat reopened after the deletion is not (its tombstone is only a floor now). */
+    /** Whether the chat with [contactId] is still deleted (iOS `isAddressDeleted`) — restores
+     *  must never resurrect it. A lifted one is not (its tombstone is only a floor now). */
     suspend fun hasDeletionTombstone(contactId: String): Boolean {
-        val myAddress = walletManager.getAddress()
-        if (database.contactDao().getDeletedContact(contactId, myAddress) == null) return false
-        return database.contactDao().getContact(contactId, myAddress) == null
+        val deleted = database.contactDao().getDeletedContact(contactId, walletManager.getAddress())
+        return deleted != null && !deleted.lifted
     }
 
     /**
@@ -1194,10 +1202,13 @@ class ChatRepository @Inject constructor(
         }
     }
 
+    /** Your chat with yourself exists for every account and cannot be deleted: any earlier
+     *  deletion of it is lifted - kept as its history floor, as iOS `ensureSelfConversation`
+     *  does through `clearDeletionTombstone` (4b00a5f) - and the contact is created if missing. */
     suspend fun ensureSelfConversation(myAddress: String? = runCatching { walletManager.getAddress() }.getOrNull()) {
         val address = myAddress?.takeIf { it.isNotEmpty() } ?: return
+        database.contactDao().liftDeletedContact(address, address)
         if (database.contactDao().getContact(address, address) != null) return
-        database.contactDao().deleteDeletedContact(address, address)
         database.contactDao().insert(ContactEntity(id = address, walletAddress = address, alias = null, knsName = null, publicKeyHex = null))
     }
 
@@ -1543,10 +1554,6 @@ class ChatRepository @Inject constructor(
             Log.i("ChatRepository", "Handshake ${handshake.txId.take(16)} has no resolvable sender yet - will retry")
             return false
         }
-        // A rejected (blocked) address stays blocked: a handshake from them is ignored, not a way
-        // back in. Only the user writing to them lifts it (acceptChat).
-        if (chatRequestStore.isBlocked(sender)) return true
-
         // A deleted contact's tombstone outlives the contact row itself. This still matters even
         // with the block_time sync cursor above: the very first sync for a *newly re-created*
         // contact (e.g. a fresh handshake after deletion) has no cursor yet, so that one fetch can
@@ -1554,6 +1561,17 @@ class ChatRepository @Inject constructor(
         // Only a handshake sent *after* the deletion creates a real contact/conversation.
         val deleted = database.contactDao().getDeletedContact(sender, myAddress)
         if (isTombstoned(deleted, handshake.txId, handshake.blockTime)) return true
+        // Past the gate on a post-deletion handshake: they have re-initiated and we let it
+        // through, so the chat is live again - the tombstone is lifted, kept only as the history
+        // floor (iOS 4b00a5f clearDeletionTombstone, which runs before the block check too).
+        if (deleted != null && !deleted.lifted) {
+            Log.i("ChatRepository", "New handshake from a deleted contact - reopening ${sender.takeLast(10)}")
+            database.contactDao().liftDeletedContact(sender, myAddress)
+        }
+
+        // A rejected (blocked) address stays blocked: a handshake from them is ignored, not a way
+        // back in. Only the user writing to them lifts it (acceptChat).
+        if (chatRequestStore.isBlocked(sender)) return true
 
         val encryptedBytes = handshake.messagePayload.hexToBytes()
         val encryptedMessage = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes)

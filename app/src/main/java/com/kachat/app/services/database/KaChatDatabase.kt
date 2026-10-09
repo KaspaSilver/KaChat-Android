@@ -45,7 +45,7 @@ import com.kachat.app.models.SwapTransactionEntity
         ReactionEntity::class,
         MessageEditEntity::class,
     ],
-    version = 40,
+    version = 41,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -474,6 +474,26 @@ abstract class KaChatDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_message_edits_walletAddress_contactId` ON `message_edits` (`walletAddress`, `contactId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_message_edits_walletAddress_groupId` ON `message_edits` (`walletAddress`, `groupId`)")
+            }
+        }
+
+        /**
+         * v40 -> v41: `deleted_contacts.lifted` - a deleted chat that is live again, its row kept
+         * only as the history floor (see [com.kachat.app.models.DeletedContactEntity.lifted]).
+         * Until now a chat counted as reopened once its contact row existed again, so every
+         * existing row whose contact is back starts lifted: those chats are backed up today, and
+         * starting them as deleted would drop them from the next backup.
+         */
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!columnExists(db, "deleted_contacts", "lifted")) {
+                    db.execSQL("ALTER TABLE `deleted_contacts` ADD COLUMN `lifted` INTEGER NOT NULL DEFAULT 0")
+                }
+                db.execSQL(
+                    "UPDATE `deleted_contacts` SET `lifted` = 1 WHERE EXISTS (SELECT 1 FROM `contacts` " +
+                        "WHERE `contacts`.`id` = `deleted_contacts`.`contactId` " +
+                        "AND `contacts`.`walletAddress` = `deleted_contacts`.`walletAddress`)"
+                )
             }
         }
 

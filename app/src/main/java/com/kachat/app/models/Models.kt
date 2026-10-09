@@ -266,13 +266,23 @@ val ContactEntity.avatarFallbackText: String
  * land at the exact same block_time as the tombstoned one and would otherwise be wrongly filtered
  * out forever. `isTombstoned` only treats an exact `blockTime == deletedAt` match as "old" when the
  * transaction id is also one of these — a different id at that same timestamp is treated as new.
+ * When no ids were recorded (an empty value), or the id in hand is blank, the deletion instant
+ * itself is suppressed, as iOS's `isDeletedAsOf` does.
+ *
+ * [lifted] — the chat is live again, but the row stays as its history floor (iOS 4b00a5f: an
+ * address that left `deletedAddresses` but kept `deletedAtByAddress`). Set only where iOS lifts
+ * it: a handshake from them that post-dates the deletion, and your chat with yourself. While it
+ * is false the chat still counts as deleted - backups leave it out and carry its tombstone - even
+ * if an automatic add (a KaPosts tip, chess, names) has recreated the contact. Either way,
+ * activity from before [deletedAt] stays deleted. A deliberate add drops the row altogether.
  */
 @Entity(tableName = "deleted_contacts", primaryKeys = ["contactId", "walletAddress"])
 data class DeletedContactEntity(
     val contactId: String,
     val walletAddress: String,
     val deletedAt: Long = System.currentTimeMillis(),
-    val deletedAtTxIds: String = ""
+    val deletedAtTxIds: String = "",
+    val lifted: Boolean = false
 )
 
 /**
