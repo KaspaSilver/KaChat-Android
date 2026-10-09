@@ -18,7 +18,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -40,6 +42,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToLong
 
 /**
@@ -543,6 +546,16 @@ class PortfolioRepository @Inject constructor(
         priceHistoryPrefs.edit().putString(historicalPriceCacheKey(dayStartMillis, currency), price.toString()).apply()
     }
 
+    /** [persistHistoricalPrice] for a whole fetched range in one write, today skipped. */
+    private fun persistHistoricalPrices(pricesByDay: Map<Long, Double>, currency: String) {
+        val today = utcDayStartMillis(System.currentTimeMillis())
+        val finished = pricesByDay.filterKeys { it < today }
+        if (finished.isEmpty()) return
+        val editor = priceHistoryPrefs.edit()
+        for ((day, price) in finished) editor.putString(historicalPriceCacheKey(day, currency), price.toString())
+        editor.apply()
+    }
+
     /**
      * Daily-granularity snapshot price CoinGecko recorded for [dayStartMillis] (pass a UTC
      * day-start timestamp) — used by "Add Kaspa Address" to price auto-imported transactions.
@@ -552,9 +565,7 @@ class PortfolioRepository @Inject constructor(
      * Served from the persistent per-day cache first (see [readPersistedHistoricalPrice]).
      * A 429/5xx gets the same Retry-After treatment as [getCurrentPriceUsd]: one in-place
      * retry when the window fits [MAX_INLINE_RETRY_SECONDS], otherwise the window is recorded
-     * in [throttledUntilMillis] so callers (the import backfill) can wait it out instead of
-     * burning attempts inside it — the raw one-shot fetch this used to be was the main reason
-     * address imports came back mostly unpriced.
+     * in [throttledUntilMillis] and this returns null.
      */
     suspend fun getHistoricalPrice(dayStartMillis: Long, currency: String = "usd"): Double? {
         readPersistedHistoricalPrice(dayStartMillis, currency)?.let { return it }
@@ -600,41 +611,49 @@ class PortfolioRepository @Inject constructor(
         }
     }
 
-    /** Runs price backfill after an address import — outlives the import dialog's coroutine on
-     *  purpose, so closing the progress dialog (or leaving the screen) never kills the backfill. */
+    /** Runs the background price backfill — outlives the import dialog's coroutine on purpose,
+     *  so closing the progress dialog (or leaving the screen) never kills the backfill. */
     private val priceBackfillScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** The backfill [resumePriceBackfill] started, while it runs - one at a time, like iOS's
-     *  single `priceBackfillTask`. */
-    private var resumedBackfill: Job? = null
+    /** The one background price-backfill loop ([startPriceBackfillIfNeeded]) while it runs - iOS's
+     *  single `priceBackfillTask`. Cancelled on a wallet switch so a pass never writes into the
+     *  wrong ledger. */
+    private var priceBackfillJob: Job? = null
 
-    /** The wallet [resumedBackfill] is pricing. */
-    private var resumedBackfillWallet: String? = null
+    /** The wallet [priceBackfillJob] is pricing. */
+    private var priceBackfillWallet: String? = null
 
     /**
      * Prices [walletAddress]'s rows still waiting for a price (either marker, [isPricePending])
-     * and its unpriced fees, in the app currency, through the same [backfillHistoricalPrices] an
-     * import uses. Called when a wallet's portfolio loads ([onWalletLoaded]) and after a Nextcloud
-     * restore that changed this wallet's portfolios: a row synced from another device while its
-     * price was still loading, or left unpriced by an import the app was closed during, gets
-     * priced here (iOS `PortfolioViewModel.setCurrentWallet` / `reloadFromStore` ->
-     * `startPriceBackfillIfNeeded`). A no-op when nothing is pending or one is already running.
+     * and its unpriced fees, in the app currency (iOS `PortfolioViewModel.startPriceBackfillIfNeeded`).
+     * Runs a pass now and repeats it after 30 s, 2 min and 5 min, stopping as soon as nothing is
+     * pending, the wallet is no longer the active one, or the loop is cancelled - each pass is
+     * [runPriceBackfillPass]. Started after an address import, a CSV import, a wallet load
+     * ([onWalletLoaded]) and a Nextcloud restore that changed this wallet's portfolios. One loop
+     * at a time: starting it while it runs is a no-op, and the running loop picks up newly
+     * pending rows on its next pass.
      */
     @Synchronized
-    fun resumePriceBackfill(walletAddress: String) {
-        if (walletAddress.isEmpty() || resumedBackfill?.isActive == true) return
-        resumedBackfillWallet = walletAddress
-        resumedBackfill = priceBackfillScope.launch {
-            val pendingIdsByDay = database.portfolioDao().getAllTransactionsForWalletOnce(walletAddress)
-                .filter { isPricePending(it.notes) }
-                .groupBy({ utcDayStartMillis(it.timestampMillis) }, { it.id })
-            val pendingFeeDays = loadFees(walletAddress).filter { it.fiatValue == null }
-                .map { utcDayStartMillis(it.timestampMillis) }.toSet()
-            if (pendingIdsByDay.isEmpty() && pendingFeeDays.isEmpty()) return@launch
-            val currency = settings.currency.first()
-            backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays)
+    fun startPriceBackfillIfNeeded(walletAddress: String) {
+        if (walletAddress.isEmpty() || priceBackfillJob?.isActive == true) return
+        priceBackfillWallet = walletAddress
+        priceBackfillJob = priceBackfillScope.launch {
+            for (delayMillis in PRICE_BACKFILL_PASS_DELAYS_MILLIS) {
+                if (delayMillis > 0) delay(delayMillis)
+                if (!isActive || !isActiveWallet(walletAddress) || !hasPendingPriceRows(walletAddress)) break
+                runPriceBackfillPass(walletAddress)
+            }
         }
     }
+
+    /** The wallet whose portfolio is loaded now (iOS `activeWalletAddress`). */
+    private fun isActiveWallet(walletAddress: String): Boolean =
+        walletManager.activeAddressFlow.value == walletAddress
+
+    /** Any row waiting for a price, or any unpriced fee (iOS `hasPendingPriceRows`). */
+    private suspend fun hasPendingPriceRows(walletAddress: String): Boolean =
+        database.portfolioDao().getAllTransactionsForWalletOnce(walletAddress).any { isPricePending(it.notes) }
+            || loadFees(walletAddress).any { it.fiatValue == null }
 
     /**
      * A wallet's portfolio loading - app start, account switch, logout ([WalletManager.activeAddressFlow]
@@ -645,12 +664,12 @@ class PortfolioRepository @Inject constructor(
      */
     @Synchronized
     private fun onWalletLoaded(walletAddress: String?) {
-        if (resumedBackfillWallet != walletAddress) {
-            resumedBackfill?.cancel()
-            resumedBackfill = null
-            resumedBackfillWallet = null
+        if (priceBackfillWallet != walletAddress) {
+            priceBackfillJob?.cancel()
+            priceBackfillJob = null
+            priceBackfillWallet = null
         }
-        if (!walletAddress.isNullOrEmpty()) resumePriceBackfill(walletAddress)
+        if (!walletAddress.isNullOrEmpty()) startPriceBackfillIfNeeded(walletAddress)
     }
 
     /**
@@ -666,9 +685,9 @@ class PortfolioRepository @Inject constructor(
      * per-day cache when the day is already known, otherwise with fiatValue 0.0 and
      * [PRICE_UNAVAILABLE_NOTE] — so the ledger (and the portfolio's KAS balance) appears the
      * moment the on-chain history lands, and the remaining days' prices backfill in the
-     * background via [backfillHistoricalPrices] as each CoinGecko fetch succeeds. A day whose
-     * price never arrives (persistent offline, CoinGecko has no data) simply keeps its
-     * flagging note for the user to price manually; nothing is dropped or rolled back.
+     * background ([startPriceBackfillIfNeeded]). A day whose price never arrives (persistent
+     * offline, CoinGecko has no data) simply keeps its flagging note for the user to price
+     * manually; nothing is dropped or rolled back.
      */
     suspend fun importAddress(address: String, currency: String = "usd", onProgress: (String) -> Unit): AddressImportResult {
         val trimmed = address.trim()
@@ -722,13 +741,10 @@ class PortfolioRepository @Inject constructor(
         if (feeCandidates.isNotEmpty()) {
             updateFees(walletAddress) { it + feeCandidates }
         }
-        val pendingFeeDays = feeCandidates.filter { it.fiatValue == null }
-            .map { utcDayStartMillis(it.timestampMillis) }.toSet()
 
         onProgress("Saving ${candidates.size} transaction${if (candidates.size == 1) "" else "s"}…")
         var importedCount = 0
         var pendingPriceCount = 0
-        val pendingIdsByDay = mutableMapOf<Long, MutableList<String>>()
         val importedRows = ArrayList<PortfolioTransactionEntity>(candidates.size)
         for (candidate in candidates) {
             // Days already in the persistent cache price instantly and for free — only genuinely
@@ -751,80 +767,101 @@ class PortfolioRepository @Inject constructor(
                 )
             )
             importedCount++
-            if (cachedPrice == null) {
-                pendingPriceCount++
-                pendingIdsByDay.getOrPut(candidate.dayStartMillis) { mutableListOf() }.add(id)
-            }
+            if (cachedPrice == null) pendingPriceCount++
         }
         ledgerStore.saveTransactions(importedRows)
 
-        if (pendingIdsByDay.isNotEmpty() || pendingFeeDays.isNotEmpty()) {
-            priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays) }
-        }
+        // Rows and fees the cache couldn't price land with the right balance and a "price
+        // loading" note - the backfill fills their prices in behind, so the import never blocks
+        // (or fails) on CoinGecko's rate limit.
+        startPriceBackfillIfNeeded(walletAddress)
 
         return AddressImportResult(importedCount, pendingPriceCount, feeCandidates.size, historyComplete = historyResult.complete)
     }
 
     /**
-     * Prices imported-but-unpriced rows day by day, updating each day's rows as its price lands.
-     * One historical-price fetch per unique day (CoinGecko's history endpoint is daily-granularity
-     * anyway), paced [PRICE_REQUEST_SPACING_MILLIS] apart to stay under the free tier's limit.
-     * A recorded Retry-After window ([throttledUntilMillis]) is waited out before each attempt —
-     * the old inline loop's blind 1.2s retry always landed inside the ~59s window and failed —
-     * and plain failures back off exponentially per day, [MAX_BACKFILL_ATTEMPTS_PER_DAY] tries
-     * each. Rows the user has manually priced meanwhile (note no longer pending, [isPricePending])
-     * are left alone.
+     * One backfill pass (iOS `PortfolioViewModel.runPriceBackfillPass`): every row of the wallet
+     * still waiting for a price, from an address import or a CSV re-import of one (only its date
+     * is needed), and every unpriced fee. Their days go first through [resolveDailyPrices] (the
+     * persistent day cache plus at most one range request); the days it can't cover take the
+     * paced per-day fallback ([resolveDailyPriceSingle]), newest first and at most
+     * [MAX_FALLBACK_DAYS_PER_PASS] of them so one pass stays bounded - the rest wait for the next
+     * pass. The prices found are written at the end of the pass, unless the loop was cancelled or
+     * the wallet is no longer the active one. A row the user priced by hand meanwhile (note no
+     * longer pending) is left alone.
      */
-    private suspend fun backfillHistoricalPrices(
-        walletAddress: String,
-        pendingIdsByDay: Map<Long, List<String>>,
-        currency: String,
-        /** Days of fee records still unpriced - priced in the same pass as the rows. */
-        pendingFeeDays: Set<Long> = emptySet(),
-    ) {
-        val days = (pendingIdsByDay.keys + pendingFeeDays).sorted()
-        for ((index, day) in days.withIndex()) {
-            var price: Double? = null
-            var backoffMillis = 3_000L
-            for (attempt in 0 until MAX_BACKFILL_ATTEMPTS_PER_DAY) {
-                // Don't spend an attempt inside a known throttle window — wait it out instead.
-                throttledUntilMillis?.let { until ->
-                    val wait = until - System.currentTimeMillis()
-                    if (wait > 0) delay(wait + 1_000L)
-                }
-                price = getHistoricalPrice(day, currency)
-                if (price != null) break
-                if (attempt < MAX_BACKFILL_ATTEMPTS_PER_DAY - 1 && throttledUntilMillis == null) {
-                    delay(backoffMillis)
-                    backoffMillis = minOf(backoffMillis * 2, 60_000L)
-                }
+    private suspend fun runPriceBackfillPass(walletAddress: String) {
+        val currency = settings.currency.first()
+        val pending = database.portfolioDao().getAllTransactionsForWalletOnce(walletAddress)
+            .filter { isPricePending(it.notes) }
+        val pendingFees = loadFees(walletAddress).filter { it.fiatValue == null }
+        if (pending.isEmpty() && pendingFees.isEmpty()) return
+        val days = (pending.map { utcDayStartMillis(it.timestampMillis) } +
+            pendingFees.map { utcDayStartMillis(it.timestampMillis) }).toSet()
+
+        val prices = resolveDailyPrices(days, currency).toMutableMap()
+        val missing = days.sortedDescending().filter { prices[it] == null }
+        for (day in missing.take(MAX_FALLBACK_DAYS_PER_PASS)) {
+            if (!currentCoroutineContext().isActive || !isActiveWallet(walletAddress)) break
+            resolveDailyPriceSingle(day, currency)?.let { prices[day] = it }
+            delay(PRICE_REQUEST_SPACING_MILLIS)
+        }
+
+        if (prices.isEmpty() || !currentCoroutineContext().isActive || !isActiveWallet(walletAddress)) return
+        // Re-read the rows so a price the user already set by hand mid-pass is never overwritten.
+        // A priced row is an edit like any other (stamped, synced).
+        ledgerStore.saveTransactions(
+            database.portfolioDao().getAllTransactionsForWalletOnce(walletAddress).mapNotNull { row ->
+                if (!isPricePending(row.notes)) return@mapNotNull null
+                val price = prices[utcDayStartMillis(row.timestampMillis)] ?: return@mapNotNull null
+                row.copy(fiatValue = row.amountSompi / 100_000_000.0 * price, notes = null)
             }
-            if (price != null) {
-                val dayPrice = price
-                if (day in pendingFeeDays) {
-                    updateFees(walletAddress) { fees ->
-                        fees.map { fee ->
-                            if (fee.fiatValue == null && utcDayStartMillis(fee.timestampMillis) == day) {
-                                fee.copy(fiatValue = fee.amountKas * dayPrice)
-                            } else fee
-                        }
-                    }
-                }
-                val idsForDay = pendingIdsByDay[day]?.toSet() ?: emptySet()
-                val currentRows = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
-                // Re-check the marker so a price the user already set by hand mid-backfill is
-                // never overwritten. A priced row is an edit like any other (stamped, synced).
-                ledgerStore.saveTransactions(currentRows.mapNotNull { row ->
-                    if (row.id in idsForDay && isPricePending(row.notes)) {
-                        val amountKas = row.amountSompi / 100_000_000.0
-                        row.copy(fiatValue = amountKas * dayPrice, notes = null)
-                    } else null
-                })
-            }
-            if (index < days.size - 1) {
-                delay(PRICE_REQUEST_SPACING_MILLIS)
+        )
+        updateFees(walletAddress) { fees ->
+            fees.map { fee ->
+                val price = if (fee.fiatValue == null) prices[utcDayStartMillis(fee.timestampMillis)] else null
+                if (price != null) fee.copy(fiatValue = fee.amountKas * price) else fee
             }
         }
+    }
+
+    /**
+     * Historical prices for a set of UTC days (iOS `PortfolioAddressImporter.resolveDailyPrices`):
+     * the persistent day cache first, then ONE market_chart range request ([getPriceHistory])
+     * reaching back to the oldest uncached day, at most 365 days (the keyless tier's limit). The
+     * last sample of each UTC day is that day's price; the whole fetched range joins the cache, so
+     * later passes and imports price those days without a request. Days it can't cover (older
+     * than a year, or the request failed) are left out for the per-day fallback.
+     */
+    private suspend fun resolveDailyPrices(days: Collection<Long>, currency: String): Map<Long, Double> {
+        val unique = days.toSortedSet()
+        if (unique.isEmpty()) return emptyMap()
+        val resolved = mutableMapOf<Long, Double>()
+        for (day in unique) readPersistedHistoricalPrice(day, currency)?.let { resolved[day] = it }
+        val missing = unique.filter { it !in resolved }
+        val oldestMissing = missing.firstOrNull() ?: return resolved
+
+        val daysBack = maxOf(1, ceil((System.currentTimeMillis() - oldestMissing) / 86_400_000.0).toInt() + 1)
+        val points = getPriceHistory(minOf(daysBack, 365), currency)
+        if (points.isEmpty()) return resolved
+
+        val byDay = HashMap<Long, Double>()
+        for ((timestampMillis, price) in points) byDay[utcDayStartMillis(timestampMillis)] = price
+        persistHistoricalPrices(byDay, currency)
+        for (day in missing) byDay[day]?.let { resolved[day] = it }
+        return resolved
+    }
+
+    /**
+     * One day's price through the per-day history endpoint, for a day [resolveDailyPrices]
+     * couldn't cover (iOS `PortfolioAddressImporter.resolveDailyPriceSingle`): cache first, then
+     * [getHistoricalPrice] (with its own Retry-After retry), then one more try
+     * [PRICE_REQUEST_SPACING_MILLIS] later if that failed. A price found joins the cache.
+     */
+    private suspend fun resolveDailyPriceSingle(dayStartMillis: Long, currency: String): Double? {
+        getHistoricalPrice(dayStartMillis, currency)?.let { return it }
+        delay(PRICE_REQUEST_SPACING_MILLIS)
+        return getHistoricalPrice(dayStartMillis, currency)
     }
 
     // -------------------------------------------------------------------------
@@ -927,7 +964,7 @@ class PortfolioRepository @Inject constructor(
      * portfolios' transactions) — otherwise a row could get silently reassigned or overwritten
      * across portfolios just because two unrelated ledgers happen to share a timestamp.
      */
-    suspend fun importCsv(uri: Uri, currency: String = "usd"): Int {
+    suspend fun importCsv(uri: Uri): Int {
         val portfolioId = currentPortfolioId() ?: return 0
         val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: return 0
         // Whole records, not lines: a note can hold line breaks, which the export writes inside
@@ -1003,12 +1040,7 @@ class PortfolioRepository @Inject constructor(
             // A re-imported export can carry rows whose price was still loading when it was
             // written, and a CSV row has no on-chain source - price them by their date like any
             // other (iOS 98f5009).
-            val pendingIdsByDay = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
-                .filter { isPricePending(it.notes) }
-                .groupBy({ utcDayStartMillis(it.timestampMillis) }, { it.id })
-            if (pendingIdsByDay.isNotEmpty()) {
-                priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency) }
-            }
+            startPriceBackfillIfNeeded(walletAddress)
         }
         return imported
     }
@@ -1123,12 +1155,16 @@ class PortfolioRepository @Inject constructor(
          *  CoinGecko's last year on top (see getAllTimeHistory). Not a day count - a marker. */
         const val ALL_TIME_DAYS = 0
 
-        /** Spacing between sequential historical-price fetches during an import's backfill. */
+        /** Spacing between the price backfill's per-day historical-price requests (iOS
+         *  `PortfolioAddressImporter.priceRequestSpacingNanoseconds`). */
         const val PRICE_REQUEST_SPACING_MILLIS = 1_200L
 
-        /** Attempts per day before the backfill moves on and leaves that day's rows flagged for
-         *  manual pricing — each attempt already waits out any known throttle window first. */
-        const val MAX_BACKFILL_ATTEMPTS_PER_DAY = 4
+        /** When the price backfill's passes run: right away, then 30 s, 2 min and 5 min later,
+         *  each only while something is still pending (iOS `startPriceBackfillIfNeeded`). */
+        val PRICE_BACKFILL_PASS_DELAYS_MILLIS = longArrayOf(0L, 30_000L, 120_000L, 300_000L)
+
+        /** Days one backfill pass prices through the per-day fallback (iOS `missing.prefix(30)`). */
+        const val MAX_FALLBACK_DAYS_PER_PASS = 30
     }
 }
 

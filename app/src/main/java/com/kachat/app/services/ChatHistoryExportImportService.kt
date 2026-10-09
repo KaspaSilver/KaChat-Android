@@ -277,7 +277,7 @@ class ChatHistoryExportImportService @Inject constructor(
             )
             // Rows (and fees) that arrived still waiting for a price get priced now, as iOS's
             // reload after a restore restarts its backfill (PortfolioViewModel.reloadFromStore).
-            if (portfoliosChanged) portfolioRepository.get().resumePriceBackfill(currentWallet)
+            if (portfoliosChanged) portfolioRepository.get().startPriceBackfillIfNeeded(currentWallet)
         }
         if (archive.conversations.all { it.messages.isEmpty() }) {
             throw UnreadableBackupException("This file has no chat history to import")

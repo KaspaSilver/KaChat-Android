@@ -768,7 +768,7 @@ class PortfolioViewModel @Inject constructor(
     fun importCsv(uri: Uri, onResult: (Result<Int>) -> Unit) {
         viewModelScope.launch {
             try {
-                onResult(Result.success(repository.importCsv(uri, currency.value)))
+                onResult(Result.success(repository.importCsv(uri)))
             } catch (e: Exception) {
                 Log.w("PortfolioViewModel", "CSV import failed", e)
                 onResult(Result.failure(e))
