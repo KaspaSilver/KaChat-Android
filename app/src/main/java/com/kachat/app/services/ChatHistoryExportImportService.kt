@@ -280,6 +280,10 @@ class ChatHistoryExportImportService @Inject constructor(
                 onConversationProgress?.invoke(progressDone, progressTotal)
                 continue
             }
+            // A chat reopened after a deletion keeps what came before it deleted: its floor
+            // (iOS 4b00a5f). The old messages, your own sent ones included, would otherwise make
+            // the new request read as a chat you had already accepted.
+            val deletionFloor = chatRepository.deletionFloor(contactAddress)
 
             val importedPhoto = conversation.contactPhoto?.takeIf { it.isNotBlank() }
             val existingContact = chatRepository.getContact(contactAddress)
@@ -324,6 +328,7 @@ class ChatHistoryExportImportService @Inject constructor(
                     Log.i(TAG, "Import skipped phantom archive row (txId=${archiveTxId.take(20).ifEmpty { "<blank>" }})")
                     continue
                 }
+                if (chatRepository.isBelowDeletionFloor(deletionFloor, archiveTxId, archiveMessage.blockTime)) continue
                 if (restoredTxIds.add(archiveTxId)) importedCount++
                 restoredAny = true
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)

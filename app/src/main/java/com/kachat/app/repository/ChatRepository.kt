@@ -433,6 +433,12 @@ class ChatRepository @Inject constructor(
      * reversible "archive". Talking to them again requires a fresh handshake, same as a stranger.
      * Records a tombstone first so a future re-handshake's full-history re-sync can't silently
      * resurrect the deleted conversation (see [DeletedContactEntity]'s doc comment).
+     *
+     * The tombstone row outlives a reopening: when a post-deletion handshake or message brings
+     * the chat back, the row stays as its history floor, so what came BEFORE the deletion stays
+     * deleted - your own old messages included, which would otherwise make the new request read
+     * as a chat you had already accepted (iOS 4b00a5f isDeletedAsOf). Only a deliberate add
+     * ([addContact] with `deliberate`) lifts the floor and restores everything.
      */
     suspend fun deleteChat(contactId: String) {
         val myAddress = walletManager.getAddress()
@@ -454,6 +460,9 @@ class ChatRepository @Inject constructor(
                 deletedAtTxIds = lastKnownTxIds.joinToString(",")
             )
         )
+        // A deleted chat is no longer one you accepted: if they start a new one, it's a Message
+        // Request like any stranger's. A block stays (iOS 4b00a5f).
+        chatRequestStore.forgetChatAcceptance(contactId, myAddress)
         database.messageDao().deleteAllForContact(contactId, myAddress)
         database.reactionDao().deleteAllForContact(contactId, myAddress)
         database.messageEditDao().deleteAllForContact(contactId, myAddress)
@@ -477,6 +486,22 @@ class ChatRepository @Inject constructor(
             return deleted.deletedAtTxIds.split(",").contains(txId)
         }
         return false
+    }
+
+    /** [contactId]'s deletion tombstone - for a chat reopened after a delete, its history floor
+     *  (see [deleteChat]) - or null when it was never deleted. */
+    suspend fun deletionFloor(contactId: String): DeletedContactEntity? =
+        database.contactDao().getDeletedContact(contactId, walletManager.getAddress())
+
+    /**
+     * Whether a backed-up message of a chat that is live again predates its deletion and must
+     * stay deleted (iOS 4b00a5f, `isDeletedAsOf` in the Nextcloud import). Same test as
+     * [isTombstoned], except that a message with no time in hand is kept: the chat is live, and
+     * iOS only suppresses those while it is still deleted.
+     */
+    fun isBelowDeletionFloor(floor: DeletedContactEntity?, txId: String, blockTime: Long): Boolean {
+        if (floor == null || blockTime <= 0L) return false
+        return isTombstoned(floor, txId, blockTime)
     }
 
     /**
@@ -503,6 +528,14 @@ class ChatRepository @Inject constructor(
         if (refused) {
             Log.w("ChatRepository", "Refusing to add one of the user's own accounts as a contact")
             return false
+        }
+        // A deliberate add explicitly un-does a prior delete's tombstone, floor included: the
+        // tombstone only stops silent resurrection from incoming activity, not the user choosing
+        // to message this address again (iOS ContactsManager.addContact). Its cursors go too, so
+        // the history the floor kept out is read again on the next sync.
+        if (deliberate && database.contactDao().getDeletedContact(contact.id, contact.walletAddress) != null) {
+            database.contactDao().deleteDeletedContact(contact.id, contact.walletAddress)
+            database.messageDao().deleteSyncCursorsForContact(contact.id, contact.walletAddress)
         }
         val previous = database.contactDao().getContact(contact.id, contact.walletAddress)
         database.contactDao().insert(contact)
@@ -637,13 +670,25 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    /** Every tombstoned contact address for the active wallet — carried in backups so restores skip deleted chats. */
-    suspend fun getAllDeletedContactIds(): List<String> =
-        database.contactDao().getAllDeletedContactIds(walletManager.getAddress())
+    /**
+     * Every chat of the active wallet that is still deleted — carried in backups so restores skip
+     * deleted chats. A chat reopened after its deletion is live again (iOS lifts the tombstone,
+     * 4b00a5f): its tombstone row stays only as the history floor (see [deleteChat]), so it is
+     * backed up like any other chat instead.
+     */
+    suspend fun getAllDeletedContactIds(): List<String> {
+        val myAddress = walletManager.getAddress()
+        val live = database.contactDao().getContacts(myAddress).first().map { it.id }.toSet()
+        return database.contactDao().getAllDeletedContactIds(myAddress).filter { it !in live }
+    }
 
-    /** Whether the user deleted the chat with [contactId] — restores must never resurrect it. */
-    suspend fun hasDeletionTombstone(contactId: String): Boolean =
-        database.contactDao().getDeletedContact(contactId, walletManager.getAddress()) != null
+    /** Whether the chat with [contactId] is still deleted — restores must never resurrect it. A
+     *  chat reopened after the deletion is not (its tombstone is only a floor now). */
+    suspend fun hasDeletionTombstone(contactId: String): Boolean {
+        val myAddress = walletManager.getAddress()
+        if (database.contactDao().getDeletedContact(contactId, myAddress) == null) return false
+        return database.contactDao().getContact(contactId, myAddress) == null
+    }
 
     /**
      * 5.2, once per account (iOS 509c0fe): a contact whose name is just a .kas domain goes back to

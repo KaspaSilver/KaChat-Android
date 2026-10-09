@@ -128,6 +128,18 @@ class ChatRequestStore @Inject constructor(
         }
     }
 
+    /**
+     * Deleting a chat forgets that it was accepted (or Private): a new chat from that person,
+     * after the deletion, lands in Message Requests. A block stays as it was (iOS 4b00a5f
+     * forgetChatAcceptance).
+     */
+    fun forgetChatAcceptance(address: String, wallet: String? = activeWallet()) {
+        val k = address.lowercase()
+        val current = state(wallet)
+        if (!current.accepted.contains(k) && !current.privateChats.contains(k)) return
+        update(wallet) { it.copy(accepted = it.accepted - k, privateChats = it.privateChats - k) }
+    }
+
     fun markInboxTagged(address: String) {
         val k = address.lowercase()
         update { it.copy(inboxTagged = it.inboxTagged + k) }
