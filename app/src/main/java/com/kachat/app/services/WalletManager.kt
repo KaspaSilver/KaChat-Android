@@ -57,10 +57,47 @@ class WalletManager @Inject constructor(
                 .all { p ->
                     written.any { w ->
                         com.kachat.app.util.KaspaNetwork.isSameAccount(w.address, p.address) &&
-                            w.mnemonic == p.mnemonic && (w.passphrase ?: "") == (p.passphrase ?: "")
+                            w.mnemonic == p.mnemonic && (w.passphrase ?: "") == (p.passphrase ?: "") &&
+                            passphraseFormOf(w) == passphraseFormOf(p)
                     }
                 }
         }
+
+        /**
+         * The one place a BIP39 seed is made (audit XP-013). BIP39 says
+         * seed = PBKDF2(NFKD(mnemonic), "mnemonic" + NFKD(passphrase)), as iOS, Desktop and the
+         * extension do; bitcoinj's [MnemonicCode.toSeed] hashes the strings as given, so the
+         * normalization happens here. [PassphraseForm.RAW] is the pre-fix Android derivation
+         * (the passphrase exactly as typed), kept only for accounts saved before the fix whose
+         * passphrase NFKD changes, so their addresses never move.
+         */
+        internal fun seedFor(
+            words: List<String>,
+            passphrase: String,
+            form: PassphraseForm = PassphraseForm.NFKD
+        ): ByteArray = when (form) {
+            PassphraseForm.NFKD -> MnemonicCode.toSeed(words.map { nfkd(it) }, nfkd(passphrase))
+            PassphraseForm.RAW -> MnemonicCode.toSeed(words, passphrase)
+        }
+
+        internal fun nfkd(text: String): String =
+            java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKD)
+
+        /**
+         * How [account]'s seed is made. Its [Account.passphraseForm] flag when set. A record
+         * without the flag was saved before the fix: if NFKD leaves its passphrase unchanged
+         * (no passphrase, ASCII, or already decomposed) both forms give the same seed, so it is
+         * standard; otherwise it keeps the raw derivation it was created with.
+         */
+        internal fun passphraseFormOf(account: Account): PassphraseForm =
+            when (account.passphraseForm) {
+                PassphraseForm.RAW.stored -> PassphraseForm.RAW
+                PassphraseForm.NFKD.stored -> PassphraseForm.NFKD
+                else -> {
+                    val pass = account.passphrase ?: ""
+                    if (pass == nfkd(pass)) PassphraseForm.NFKD else PassphraseForm.RAW
+                }
+            }
 
         private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         private const val KEY_ALIAS = "kachat_wallet_key"
@@ -122,8 +159,21 @@ class WalletManager @Inject constructor(
         // create and every plain import; nonzero only when the user picked a different address in
         // the import wizard's "Change Chatting Address" step. Same Gson zero-default behavior as
         // the two spending indices above.
-        val chattingAddressIndex: Int = 0
+        val chattingAddressIndex: Int = 0,
+        // [PassphraseForm.stored]: how the BIP39 seed is made from [passphrase] (audit XP-013).
+        // "nfkd" on every record saved since the fix; "raw" on a record saved before it whose
+        // passphrase NFKD changes. Null only on records from before the field existed, until the
+        // one-time stamp in init; [passphraseFormOf] resolves those the same way.
+        val passphraseForm: String? = null
     )
+
+    /** How a passphrase enters the BIP39 seed - see [seedFor]. */
+    enum class PassphraseForm(val stored: String) {
+        /** BIP39: NFKD-normalized. Every account saved since audit XP-013's fix. */
+        NFKD("nfkd"),
+        /** The passphrase exactly as typed: Android before the fix. Legacy records only. */
+        RAW("raw"),
+    }
 
     private val gson = Gson()
 
@@ -177,6 +227,34 @@ class WalletManager @Inject constructor(
      * Invalidated by [saveAccounts] and [wipe], which are the only two things that write it.
      */
     @Volatile private var accountsCache: List<Account>? = null
+
+    init {
+        stampLegacyPassphraseForms()
+    }
+
+    /**
+     * One-time, on the first launch after audit XP-013's fix: flags every saved record with the
+     * passphrase form it was created with, so a record from before the fix keeps deriving the
+     * same addresses ("raw" when NFKD changes its passphrase, "nfkd" otherwise) however it is
+     * rewritten later. Leaves the stored list alone if it can't be read.
+     */
+    private fun stampLegacyPassphraseForms() {
+        try {
+            val json = sharedPrefs.getString(PREF_ACCOUNTS, null) ?: return
+            val parsed: List<Account?> = gson.fromJson<List<Account?>>(json, ACCOUNTS_TYPE) ?: return
+            if (parsed.any { it == null }) return
+            val records = parsed.filterNotNull()
+            if (records.none { it.passphraseForm == null }) return
+            val stamped = records.map {
+                if (it.passphraseForm != null) it else it.copy(passphraseForm = passphraseFormOf(it).stored)
+            }
+            sharedPrefs.edit().putString(PREF_ACCOUNTS, gson.toJson(stamped)).apply()
+            accountsCache = null
+        } catch (e: Exception) {
+            // Unflagged records still resolve correctly through passphraseFormOf.
+            android.util.Log.w("WalletManager", "passphrase form stamp skipped", e)
+        }
+    }
 
     private fun getAccounts(): List<Account> {
         accountsCache?.let { return it }
@@ -437,7 +515,16 @@ class WalletManager @Inject constructor(
         // The accounts already here must be kept before the list is rewritten (IOS-016).
         val previous = accountsForReplacingWrite()
         val accounts = previous.toMutableList()
-        accounts.add(Account(name, address, mnemonic.joinToString(" "), passphrase = passphrase))
+        // Stored in NFKD with the "nfkd" flag, as Desktop stores it (audit XP-013).
+        accounts.add(
+            Account(
+                name,
+                address,
+                mnemonic.joinToString(" "),
+                passphrase = nfkd(passphrase),
+                passphraseForm = PassphraseForm.NFKD.stored
+            )
+        )
         saveAccountsKeepingExisting(accounts, previous, address)
         stampAccountAddedAt(address)
         setActiveAccount(address)
@@ -516,9 +603,11 @@ class WalletManager @Inject constructor(
                 mnemonic = mnemonic.joinToString(" "),
                 spendingAddressIndex = existing?.spendingAddressIndex ?: 0,
                 maxSpendingAddressIndex = existing?.maxSpendingAddressIndex ?: 0,
-                passphrase = passphrase,
+                // Stored in NFKD with the "nfkd" flag, as Desktop stores it (audit XP-013).
+                passphrase = nfkd(passphrase),
                 sourceFamily = family.name,
-                chattingAddressIndex = chattingAddressIndex
+                chattingAddressIndex = chattingAddressIndex,
+                passphraseForm = PassphraseForm.NFKD.stored
             )
         )
         saveAccountsKeepingExisting(accounts, previous, address)
@@ -572,9 +661,10 @@ class WalletManager @Inject constructor(
     private fun identityBaseNode(
         mnemonic: List<String>,
         passphrase: String,
-        family: WalletSourceFamily
+        family: WalletSourceFamily,
+        form: PassphraseForm = PassphraseForm.NFKD
     ): DeterministicKey {
-        val seed = MnemonicCode.toSeed(mnemonic, passphrase)
+        val seed = seedFor(mnemonic, passphrase, form)
         val master = HDKeyDerivation.createMasterPrivateKey(seed)
         val purpose = HDKeyDerivation.deriveChildKey(master, ChildNumber(44, true))
         return when (family) {
@@ -690,9 +780,10 @@ class WalletManager @Inject constructor(
         mnemonic: List<String>,
         passphrase: String,
         family: WalletSourceFamily,
-        index: Int
+        index: Int,
+        form: PassphraseForm = PassphraseForm.NFKD
     ): String {
-        val base = identityBaseNode(mnemonic, passphrase, family)
+        val base = identityBaseNode(mnemonic, passphrase, family, form)
         val privateKey = identityPrivateKeyBytes(base, index, family)
             ?: throw IllegalStateException("This wallet type has no address at index $index.")
         return addressFromPrivateKeyBytes(privateKey)
@@ -705,11 +796,16 @@ class WalletManager @Inject constructor(
      * never collide with any family's identity path no matter how far its own addressIndex
      * advances. Identity keys no longer come through here — see [identityBaseNode].
      */
-    private fun deriveKey(mnemonic: List<String>, accountIndex: Int = 1, addressIndex: Int = 0, passphrase: String = ""): DeterministicKey {
-        // The optional BIP39 passphrase feeds bitcoinj's PBKDF2 seed derivation. Empty string =
-        // no passphrase = the account's historical derivation. Every identity/spending/private-key
-        // call funnels through here, so this one parameter makes the whole account passphrase-aware.
-        val seed = MnemonicCode.toSeed(mnemonic, passphrase)
+    private fun deriveKey(
+        mnemonic: List<String>,
+        accountIndex: Int = 1,
+        addressIndex: Int = 0,
+        passphrase: String = "",
+        form: PassphraseForm = PassphraseForm.NFKD
+    ): DeterministicKey {
+        // The optional BIP39 passphrase feeds the PBKDF2 seed derivation ([seedFor]). Empty
+        // string = no passphrase = the account's historical derivation.
+        val seed = seedFor(mnemonic, passphrase, form)
         val masterKey = HDKeyDerivation.createMasterPrivateKey(seed)
 
         val key44h = HDKeyDerivation.deriveChildKey(masterKey, ChildNumber(44, true))
@@ -727,6 +823,10 @@ class WalletManager @Inject constructor(
 
     /** The active account's BIP39 passphrase (empty when it has none), used to re-derive its keys. */
     private fun activePassphrase(): String = getActiveAccount()?.passphrase ?: ""
+
+    /** How the active account's seed is made from its passphrase (audit XP-013). */
+    private fun activePassphraseForm(): PassphraseForm =
+        getActiveAccount()?.let { passphraseFormOf(it) } ?: PassphraseForm.NFKD
 
     /** The active account's identity derivation family (KASPA_STANDARD for every account that
      *  predates the import source-wallet chooser). */
@@ -776,7 +876,7 @@ class WalletManager @Inject constructor(
         val account = getActiveAccount() ?: throw IllegalStateException("No active account")
         val mnemonic = account.mnemonic.split(" ")
         val family = WalletSourceFamily.fromRaw(account.sourceFamily)
-        val baseNode = identityBaseNode(mnemonic, account.passphrase ?: "", family)
+        val baseNode = identityBaseNode(mnemonic, account.passphrase ?: "", family, passphraseFormOf(account))
         return identityPrivateKeyBytes(baseNode, account.chattingAddressIndex, family)
             ?: throw IllegalStateException("This wallet type has no address at index ${account.chattingAddressIndex}.")
     }
@@ -831,7 +931,7 @@ class WalletManager @Inject constructor(
                 .firstOrNull { it.walletAddress == walletAddress && it.index == index }
                 ?.let { return it.address }
         }
-        val address = addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()))
+        val address = addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()))
         if (walletAddress != null) cacheSpendingAddresses(walletAddress, mapOf(index to address))
         return address
     }
@@ -844,7 +944,7 @@ class WalletManager @Inject constructor(
      * `spendingChangeKey()` optimization.
      */
     private fun spendingChainKey(): DeterministicKey {
-        val seed = MnemonicCode.toSeed(activeMnemonicWords(), activePassphrase())
+        val seed = seedFor(activeMnemonicWords(), activePassphrase(), activePassphraseForm())
         val masterKey = HDKeyDerivation.createMasterPrivateKey(seed)
         val key44h = HDKeyDerivation.deriveChildKey(masterKey, ChildNumber(44, true))
         val keyKaspaH = HDKeyDerivation.deriveChildKey(key44h, ChildNumber(111111, true))
@@ -977,7 +1077,7 @@ class WalletManager @Inject constructor(
     }
 
     fun getSpendingPrivateKeyBytes(index: Int): ByteArray =
-        deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase()).privKeyBytes
+        deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()).privKeyBytes
 
     /** The spending address a "Pay in Kaspa" send should currently source funds from/top up. */
     fun currentSpendingAddress(): String {
@@ -1052,7 +1152,7 @@ class WalletManager @Inject constructor(
         val account = getActiveAccount() ?: return emptyList()
         val family = WalletSourceFamily.fromRaw(account.sourceFamily)
         val baseNode = try {
-            identityBaseNode(account.mnemonic.split(" "), account.passphrase ?: "", family)
+            identityBaseNode(account.mnemonic.split(" "), account.passphrase ?: "", family, passphraseFormOf(account))
         } catch (e: Exception) {
             return emptyList()
         }
@@ -1086,7 +1186,7 @@ class WalletManager @Inject constructor(
         if (index == account.chattingAddressIndex) return account.address
         val family = WalletSourceFamily.fromRaw(account.sourceFamily)
         val mnemonic = account.mnemonic.split(" ")
-        val newAddress = deriveIdentityAddress(mnemonic, account.passphrase ?: "", family, index)
+        val newAddress = deriveIdentityAddress(mnemonic, account.passphrase ?: "", family, index, passphraseFormOf(account))
         val switched = account.copy(address = newAddress, chattingAddressIndex = index)
         // Drop both the old entry and any pre-existing entry for the new address, then insert the
         // switched account at the top — the same "remove, re-insert at 0" shape importWallet uses.
