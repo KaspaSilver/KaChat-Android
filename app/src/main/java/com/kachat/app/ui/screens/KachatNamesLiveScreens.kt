@@ -2903,9 +2903,20 @@ fun KachatLiveNameDetailScreen(
                                 }
                             }
                             if (!ownedByWallet && ownerAddress != null) {
+                                val messageLabel = stringResource(R.string.kl_message)
                                 Spacer(Modifier.width(8.dp))
-                                KachatButton(stringResource(R.string.kl_message), icon = Icons.Outlined.Forum) {
-                                    vm.message(ownerAddress, onOpenChat)
+                                // A fixed round button: as a "Message" label it was squeezed by the
+                                // address beside it (which never shrinks) into a tall, empty capsule (iOS 395863e).
+                                Box(
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(KaspaTeal.copy(alpha = 0.18f))
+                                        .clickable(role = androidx.compose.ui.semantics.Role.Button) { vm.message(ownerAddress, onOpenChat) }
+                                        .semantics { contentDescription = messageLabel },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Outlined.Forum, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
                                 }
                             }
                         }
