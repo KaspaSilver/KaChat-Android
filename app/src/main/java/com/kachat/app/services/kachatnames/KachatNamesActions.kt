@@ -209,6 +209,10 @@ class KachatNamesActions @Inject constructor(
         /** the rebuilt transaction's network fee is above the one the person saw (iOS 7e2b6cd, IOS-061) */
         class FeeChanged(val fee: Long) :
             ActionError("The network fee went up to $fee sompi since you confirmed. Nothing was sent. Check the new fee and confirm again.")
+
+        /** registry v5: registering opens at the migration deadline, once the old registry's names
+         *  are imported (iOS dd836cb) */
+        class RegistrationNotOpen(val opensMs: Long) : ActionError(registrationNotOpenNote(opensMs))
     }
 
     // Wallet
@@ -894,6 +898,7 @@ class KachatNamesActions @Inject constructor(
     suspend fun quote(name: String, years: Long, gap: GapInfo, feeTier: ColdFeeTier = ColdFeeTier.NORMAL): Quote = withContext(Dispatchers.IO) {
         val s = signer()
         val m = registry.prepare()
+        requireRegistrationOpen(m)
         val c = context(s, feerate(feeTier))
         val b = c.builder
         val env = c.env
@@ -953,6 +958,8 @@ class KachatNamesActions @Inject constructor(
         val s = signer()
         val name = Codec.normalize(raw)
         Codec.validate(name)
+        // never a commit that couldn't be registered: v5 opens register at its migration deadline (iOS dd836cb)
+        requireRegistrationOpen(registry.prepare())
         // Claims can run side by side: no one-at-a-time rule any more (iOS b219bb0).
         loadPending(s.address)
         registry.refresh()
@@ -1273,6 +1280,14 @@ class KachatNamesActions @Inject constructor(
             val salt = loadSalt(p.id, s.address) ?: throw ActionError.NoSalt()
             registry.refresh()
             val m = registry.prepare()
+            // A commit isn't bound to a registry: one sent before a migration registers on the new
+            // registry once its deadline passes. Until then it waits, saying why (iOS dd836cb).
+            try {
+                requireRegistrationOpen(m)
+            } catch (e: ActionError.RegistrationNotOpen) {
+                set(p) { it.copy(lastError = e.message) }
+                return
+            }
             val gap = when (val step = registerStep(registry.lookup(p.name), s.me, registry.graceMs)) {
                 // An expired name is free to claim: this registration frees the old record first
                 // (anyone may; its bond goes back to the old owner and the freed deposit comes to
@@ -1510,6 +1525,20 @@ class KachatNamesActions @Inject constructor(
         /** The driver's note while it frees an expired old record of the name; English like the
          *  driver's other messages, localized by the screens (`kachatPendingError`, iOS eea52b2). */
         fun freeingName(name: String): String = "Freeing $name.kachat for you..."
+
+        /** Why a claim waits on registry v5 before its migration deadline (English; the screens
+         *  localize it, with the time, from [opensMs]; iOS dd836cb). */
+        fun registrationNotOpenNote(opensMs: Long): String =
+            "Names are moving to the new registry. New names can be claimed from $opensMs."
+
+        /**
+         * Registry v5 refuses `register` until the migration deadline; checked against the wall
+         * clock with the 3-minute margin `registerNow` takes off it (iOS dd836cb).
+         */
+        fun requireRegistrationOpen(m: Manifest, nowMs: Long = KachatNames.nowMs()) {
+            val deadline = m.params.migration?.deadlineMs ?: return
+            if (nowMs - 180_000L < deadline) throw ActionError.RegistrationNotOpen(deadline + 180_000L)
+        }
 
         /** The `kaspatest:` address of a P2PK output script (`<32-byte key> OP_CHECKSIG`). */
         fun p2pkAddress(script: ByteArray): String? {

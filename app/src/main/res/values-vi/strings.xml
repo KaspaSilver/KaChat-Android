@@ -1192,4 +1192,8 @@
     <string name="ab_err_import_all_mainnet">Mọi địa chỉ trong tệp đó đều là địa chỉ Mainnet. KaChat đang ở Testnet.</string>
     <string name="ab_err_import_all_testnet">Mọi địa chỉ trong tệp đó đều là địa chỉ Testnet. KaChat đang ở Mainnet.</string>
     <string name="ab_import_skipped_other_network">Đã bỏ qua %1$d địa chỉ của mạng khác.</string>
+    <!-- .kachat registry v5 migration (iOS dd836cb) -->
+    <string name="kn_registration_not_open">Các tên đang được chuyển sang sổ đăng ký mới. Bạn có thể nhận tên mới từ %1$s.</string>
+    <string name="kn_registration_not_open_note">Trước tiên, mọi tên từ sổ đăng ký cũ được chuyển sang với cùng chủ sở hữu và hạn dùng.</string>
+    <string name="kn_ev_imported">Đã chuyển sang sổ đăng ký mới</string>
 </resources>

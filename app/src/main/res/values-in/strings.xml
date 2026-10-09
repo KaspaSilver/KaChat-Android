@@ -1059,4 +1059,8 @@
     <string name="ab_err_import_all_mainnet">Semua alamat dalam file itu adalah alamat Mainnet. KaChat ada di Testnet.</string>
     <string name="ab_err_import_all_testnet">Semua alamat dalam file itu adalah alamat Testnet. KaChat ada di Mainnet.</string>
     <string name="ab_import_skipped_other_network">%1$d dari jaringan lain dilewati.</string>
+    <!-- .kachat registry v5 migration (iOS dd836cb) -->
+    <string name="kn_registration_not_open">Nama sedang dipindahkan ke registri baru. Nama baru bisa diklaim mulai %1$s.</string>
+    <string name="kn_registration_not_open_note">Setiap nama dari registri lama dipindahkan lebih dulu dengan pemilik dan masa berlaku yang sama.</string>
+    <string name="kn_ev_imported">Dipindahkan ke registri baru</string>
 </resources>

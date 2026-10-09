@@ -1192,4 +1192,8 @@
     <string name="ab_err_import_all_mainnet">Bu dosyadaki tüm adresler Mainnet adresi. KaChat Testnet\'te.</string>
     <string name="ab_err_import_all_testnet">Bu dosyadaki tüm adresler Testnet adresi. KaChat Mainnet\'te.</string>
     <string name="ab_import_skipped_other_network">Diğer ağdan %1$d adres atlandı.</string>
+    <!-- .kachat registry v5 migration (iOS dd836cb) -->
+    <string name="kn_registration_not_open">İsimler yeni kayıt defterine taşınıyor. Yeni isimler %1$s tarihinden itibaren alınabilir.</string>
+    <string name="kn_registration_not_open_note">Önce eski kayıt defterindeki her isim aynı sahip ve aynı bitiş tarihiyle taşınır.</string>
+    <string name="kn_ev_imported">Yeni kayıt defterine taşındı</string>
 </resources>

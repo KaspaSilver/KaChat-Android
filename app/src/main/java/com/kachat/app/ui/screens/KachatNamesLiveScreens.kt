@@ -28,6 +28,8 @@ import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.PanTool
 import androidx.compose.material.icons.outlined.Cancel
@@ -157,6 +159,8 @@ object KachatLive {
         "renew" -> Icons.Default.Refresh
         "release" -> Icons.AutoMirrored.Filled.Undo
         "reclaim" -> Icons.Default.Recycling
+        // registry v5's import from the old registry (iOS dd836cb `arrow.down.doc`)
+        "import" -> Icons.Outlined.FileDownload
         else -> Icons.Outlined.PanTool
     }
 
@@ -172,6 +176,7 @@ object KachatLive {
         "renew" -> R.string.kn_ev_renewed
         "release" -> R.string.kn_ev_released
         "reclaim" -> R.string.kn_ev_reclaimed
+        "import" -> R.string.kn_ev_imported
         "offer" -> R.string.kn_ev_offer_made
         "offer_withdraw" -> R.string.kn_ev_offer_withdrawn
         "offer_refund" -> R.string.kn_ev_offer_refunded
@@ -336,6 +341,8 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.PriceChanged -> getString(R.string.kn_err_price_changed, KaspaUnit.amount(e.price))
         // localized on iOS too (7e2b6cd, 218dc42)
         is KachatNamesActions.ActionError.FeeChanged -> getString(R.string.kn_err_fee_changed, KaspaUnit.amount(e.fee))
+        // localized on iOS too (dd836cb)
+        is KachatNamesActions.ActionError.RegistrationNotOpen -> getString(R.string.kn_registration_not_open, KachatLive.day(e.opensMs))
         // localized on iOS too (71128c4)
         is KachatNamesActions.ActionError.ExpiredTooLongToRenew -> getString(R.string.kn_err_renew_expired_too_long)
         is KachatNamesActions.ActionError.OfferNameNotActive -> getString(R.string.kn_err_offer_name_not_active)
@@ -355,6 +362,10 @@ fun Context.kachatErrorText(e: Throwable): String {
 /** A registration's `lastError`: the driver's own messages are localized (iOS 1ed6e57). */
 fun Context.kachatPendingError(m: String): String {
     FREEING_NAME.matchEntire(m)?.let { return getString(R.string.kn_freeing_name, it.groupValues[1]) }
+    // a commit waiting for registry v5's migration deadline (iOS dd836cb)
+    REGISTRATION_NOT_OPEN.matchEntire(m)?.groupValues?.get(1)?.toLongOrNull()?.let {
+        return getString(R.string.kn_registration_not_open, KachatLive.day(it))
+    }
     return when (m) {
         "The commit never reached the chain." -> getString(R.string.kn_err_commit_never)
         "The commit is no longer on chain." -> getString(R.string.kn_err_commit_gone)
@@ -367,6 +378,9 @@ fun Context.kachatPendingError(m: String): String {
 
 /** [KachatNamesActions.freeingName] (iOS eea52b2). */
 private val FREEING_NAME = Regex("Freeing (.+) for you\\.\\.\\.")
+
+/** [KachatNamesActions.registrationNotOpenNote] (iOS dd836cb). */
+private val REGISTRATION_NOT_OPEN = Regex("Names are moving to the new registry\\. New names can be claimed from (\\d+)\\.")
 
 /** iOS `Haptics.success()`. */
 private fun android.view.View.successHaptic() = com.kachat.app.util.Haptics.perform(this, com.kachat.app.util.IosHaptic.SUCCESS)
@@ -2514,6 +2528,8 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     var years by remember { mutableLongStateOf(1L) }
     var quote by remember { mutableStateOf<KachatNamesActions.Quote?>(null) }
     var quoteError by remember { mutableStateOf<String?>(null) }
+    // Registry v5 before its migration deadline: why claiming waits, and until when (iOS dd836cb).
+    var notOpen by remember { mutableStateOf<String?>(null) }
     var starting by remember { mutableStateOf(false) }
     var startError by remember { mutableStateOf<String?>(null) }
     // The fee speed for the commit and the register (iOS e426432).
@@ -2559,6 +2575,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     LaunchedEffect(years, feeTier) {
         quote = null
         quoteError = null
+        notOpen = null
         try {
             val built = vm.actions.quote(target.name, years, target.gap, feeTier)
             // a newer choice of years replaced this build: it owns the sheet (iOS 5e707f4)
@@ -2569,7 +2586,9 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         } catch (e: Exception) {
             // cancelled on the way out: not an error to show (iOS 5e707f4)
             ensureActive()
-            quoteError = context.kachatErrorText(e)
+            // before registry v5's migration deadline: a notice, not an error (iOS dd836cb)
+            if (e is KachatNamesActions.ActionError.RegistrationNotOpen) notOpen = context.kachatErrorText(e)
+            else quoteError = context.kachatErrorText(e)
         }
     }
 
@@ -2642,6 +2661,20 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                                 KachatSegmented((1..count).map { yearsText(it, manifest?.params) }, (years - 1).toInt(), inset = false) { years = (it + 1).toLong() }
                             }
 
+                            notOpen?.let { note ->
+                                KachatCard {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                        Icon(
+                                            Icons.Outlined.Schedule, contentDescription = null,
+                                            tint = colors.warning, modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(note, color = colors.textPrimary, fontSize = 15.sp)
+                                    }
+                                    Text(stringResource(R.string.kn_registration_not_open_note), color = colors.textSecondary, fontSize = 12.sp)
+                                }
+                            }
+
                             KachatCard {
                                 val q = quote
                                 val qe = quoteError
@@ -2657,6 +2690,10 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                                         KachatCardRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true)
                                     }
                                     qe != null -> Text(qe, color = colors.danger)
+                                    notOpen != null -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(stringResource(R.string.kl_total), color = colors.textPrimary, modifier = Modifier.weight(1f))
+                                        Text("-", color = colors.textSecondary)
+                                    }
                                     else -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text(stringResource(R.string.kl_total), color = colors.textPrimary, modifier = Modifier.weight(1f))
                                         IosActivityIndicator(color = KaspaTeal, modifier = Modifier.size(18.dp))

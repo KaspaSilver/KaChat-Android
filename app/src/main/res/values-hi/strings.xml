@@ -1192,4 +1192,8 @@
     <string name="ab_err_import_all_mainnet">इस फ़ाइल का हर पता Mainnet का है। KaChat Testnet पर है।</string>
     <string name="ab_err_import_all_testnet">इस फ़ाइल का हर पता Testnet का है। KaChat Mainnet पर है।</string>
     <string name="ab_import_skipped_other_network">दूसरे नेटवर्क के %1$d छोड़ दिए गए।</string>
+    <!-- .kachat registry v5 migration (iOS dd836cb) -->
+    <string name="kn_registration_not_open">नाम नए रजिस्ट्री में ले जाए जा रहे हैं। नए नाम %1$s से क्लेम किए जा सकेंगे।</string>
+    <string name="kn_registration_not_open_note">पहले पुरानी रजिस्ट्री का हर नाम उसी मालिक और उसी समाप्ति तिथि के साथ आता है।</string>
+    <string name="kn_ev_imported">नई रजिस्ट्री में ले जाया गया</string>
 </resources>

@@ -1192,4 +1192,8 @@
     <string name="ab_err_import_all_mainnet">Todas las direcciones de ese archivo son de Mainnet. KaChat está en Testnet.</string>
     <string name="ab_err_import_all_testnet">Todas las direcciones de ese archivo son de Testnet. KaChat está en Mainnet.</string>
     <string name="ab_import_skipped_other_network">Se omitieron %1$d de la otra red.</string>
+    <!-- .kachat registry v5 migration (iOS dd836cb) -->
+    <string name="kn_registration_not_open">Los nombres se están trasladando al nuevo registro. Podrás reclamar nombres nuevos a partir del %1$s.</string>
+    <string name="kn_registration_not_open_note">Primero, cada nombre del registro antiguo pasa con el mismo propietario y la misma fecha de vencimiento.</string>
+    <string name="kn_ev_imported">Trasladado al nuevo registro</string>
 </resources>
