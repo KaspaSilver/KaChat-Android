@@ -1588,7 +1588,8 @@ class ChatViewModel @Inject constructor(
         }
         val invalid = trimmedAddresses.firstOrNull { !com.kachat.app.util.KaspaAddress.isValid(it) }
         if (invalid != null) {
-            _createGroupError.value = "Invalid address: $invalid"
+            // iOS AddContactView.createGroupChat: KasiaError.invalidAddress's text.
+            _createGroupError.value = "Invalid Kaspa address format."
             return
         }
         // A member is added deliberately, and a deliberate add is of the network the app runs on:
