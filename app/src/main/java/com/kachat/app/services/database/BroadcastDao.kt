@@ -76,6 +76,11 @@ interface BroadcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: BroadcastMessageEntity)
 
+    /** Every row that came from the chain or an indexer (not a pending/failed send of ours) -
+     *  for the one-time sender re-verification (audit XP-012). */
+    @Query("SELECT * FROM broadcast_messages WHERE deliveryStatus = 'sent' AND id NOT LIKE 'pending_%'")
+    suspend fun getAllSentMessages(): List<BroadcastMessageEntity>
+
     /** One message row by id — used to look a failed reaction's own message row back up for retry (see BroadcastRepository.retryReactionMessage). */
     @Query("SELECT * FROM broadcast_messages WHERE id = :id LIMIT 1")
     suspend fun getMessage(id: String): BroadcastMessageEntity?

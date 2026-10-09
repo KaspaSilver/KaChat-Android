@@ -249,7 +249,46 @@ interface KaspaRestApi {
 
     @GET("info/fee-estimate")
     suspend fun getFeeEstimate(): FeeEstimateResponse
+
+    /** One transaction's input-0 owner and output-0 address, for public-chat sender
+     *  verification (audit XP-012). Its own lean DTO: every field nullable. */
+    @GET("transactions/{txId}")
+    suspend fun getTransactionSenderShape(
+        @Path("txId") txId: String,
+        @Query("inputs") inputs: Boolean = true,
+        @Query("outputs") outputs: Boolean = true,
+        @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "light"
+    ): SenderShapeTransaction
+
+    /** [getTransactionSenderShape] for many transactions in one round trip. */
+    @POST("transactions/search")
+    suspend fun searchTransactionSenderShapes(
+        @Body request: TransactionSearchRequest,
+        @Query("fields") fields: String = "transaction_id,inputs,outputs",
+        @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "light"
+    ): List<SenderShapeTransaction>
 }
+
+data class TransactionSearchRequest(
+    @SerializedName("transactionIds") val transactionIds: List<String>
+)
+
+/** Just what public-chat sender verification reads from a REST transaction (audit XP-012). */
+data class SenderShapeTransaction(
+    @SerializedName("transaction_id") val transactionId: String?,
+    val inputs: List<SenderShapeInput>?,
+    val outputs: List<SenderShapeOutput>?,
+)
+
+data class SenderShapeInput(
+    val index: Int?,
+    @SerializedName("previous_outpoint_address") val previousOutpointAddress: String?,
+)
+
+data class SenderShapeOutput(
+    val index: Int?,
+    @SerializedName("script_public_key_address") val scriptPublicKeyAddress: String?,
+)
 
 // Real shape confirmed against api.kaspa.org (matches rusty-kaspa's FeerateEstimate JSON):
 // {"priorityBucket":{"feerate":100,"estimatedSeconds":...},"normalBuckets":[...],"lowBuckets":[...]}

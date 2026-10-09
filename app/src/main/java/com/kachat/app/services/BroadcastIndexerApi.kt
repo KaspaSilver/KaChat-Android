@@ -27,6 +27,8 @@ data class BroadcastHistoryResponse(
 data class BroadcastHistoryRow(
     val txId: String?,
     val channel: String?,
+    // The indexer's guess, never stored: the sender is verified from the transaction instead
+    // (input 0's address == output 0's, BroadcastSenderVerifier, audit XP-012).
     val senderAddress: String?,
     val content: String?,
     val blockTime: Long?,

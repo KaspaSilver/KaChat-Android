@@ -40,6 +40,9 @@ class BroadcastRepository @Inject constructor(
     private val walletService: WalletService,
     private val networkService: NetworkService,
     private val settings: com.kachat.app.repository.AppSettingsRepository,
+    // Public-chat authorship (audit XP-012): the indexer's senderAddress is only its guess, so
+    // every row it serves is verified (input 0's address == output 0's) before it is stored.
+    private val senderVerifier: com.kachat.app.services.BroadcastSenderVerifier,
 ) {
     /** Channels joined by whichever account is currently active — re-emits automatically on account switch. */
     fun getJoinedChannels(): Flow<List<BroadcastChannelEntity>> {
@@ -320,6 +323,15 @@ class BroadcastRepository @Inject constructor(
          *  messages" adds. iOS's `roomWindowSize`. */
         const val ROOM_WINDOW_SIZE = 400
 
+        /** Deep backfill re-runs while some rows' senders are still unverified (XP-012). */
+        private const val DEEP_UNVERIFIED_RETRIES = 3
+
+        /** Launches [reverifyCachedSenders] may wait for the REST API before giving up (XP-012). */
+        const val REVERIFY_MAX_ATTEMPTS = 3
+
+        /** Cached rows checked per pass step - one REST search request. */
+        private const val REVERIFY_CHUNK = 100
+
         /** Which senders are hidden in [channelName]: room-scoped rows plus legacy every-room ("") rows. */
         fun hiddenAddressesIn(channelName: String, rows: List<HiddenBroadcastSenderEntity>): Set<String> =
             rows.filter { it.channelName.isEmpty() || it.channelName == channelName }
@@ -353,6 +365,10 @@ class BroadcastRepository @Inject constructor(
      *  page happened to succeed in one go (iOS deepBackfillResume). */
     private val deepBackfillResume = mutableMapOf<String, Pair<Long, Int>>()
 
+    /** How many times a room's deep backfill was re-run because some rows' senders could not be
+     *  verified yet (audit XP-012). Session-only. */
+    private val deepUnverifiedRetries = mutableMapOf<String, Int>()
+
     /** Fetches history for [channelName] and merges it into the local cache. The FIRST call per
      *  channel per launch pages backwards (`before` = oldest blockTime seen) through the
      *  indexer's whole 30-day window — a single newest page (200 rows) meant busy rooms never
@@ -378,39 +394,118 @@ class BroadcastRepository @Inject constructor(
             android.util.Log.w("BroadcastRepository", "Sweep fetch failed for $channelName", e)
             return emptyList()
         }
-        val fresh = mutableListOf<BroadcastMessageEntity>()
-        for (message in page.messages.orEmpty()) {
-            val txId = message.txId ?: continue
-            val sender = message.senderAddress ?: continue
-            val content = message.content ?: continue
-            if (sender in hidden) continue
-            // Neither a reaction nor an edit is a message anyone reads; the room's own
-            // backfill is what persists them.
-            if (MessageReaction.parseOrNull(content) != null) continue
-            if (com.kachat.app.util.MessageEdit.parseOrNull(content) != null) continue
+        // Neither a reaction nor an edit is a message anyone reads; the room's own backfill is
+        // what persists them.
+        val wanted = page.messages.orEmpty().filter { message ->
+            val content = message.content ?: return@filter false
+            MessageReaction.parseOrNull(content) == null && com.kachat.app.util.MessageEdit.parseOrNull(content) == null
+        }
+        // Hidden is judged on the VERIFIED sender, never on the indexer's guess.
+        return admitIndexerRows(channelName, wanted, skipSender = { it in hidden }).inserted
+    }
+
+    /** What [admitIndexerRows] stored, and how many rows it could not verify yet. */
+    private data class Admitted(val inserted: List<BroadcastMessageEntity>, val unknown: Int)
+
+    /**
+     * Merges indexer rows into the store with their sender VERIFIED (audit XP-012): the
+     * indexer's `senderAddress` is ignored; a new row is stored only when input 0 spends from the
+     * address output 0 pays, under that address. Forged rows are dropped; rows the REST API
+     * can't answer for yet are skipped and asked again on a later poll.
+     *
+     * A row already in the store was stored by a verified path (this one, the live scan, or this
+     * phone's own send; older cached rows are re-checked once by [reverifyCachedSenders]), so it
+     * keeps its sender and only takes the indexer's chain time: a row this phone sent carries its
+     * own clock until the chain's time reaches it, the block scan may never have seen the block,
+     * and the chess arena orders seats and runs its clocks by the indexer's time (iOS 29bf054).
+     */
+    private suspend fun admitIndexerRows(
+        channelName: String,
+        rows: List<com.kachat.app.services.BroadcastHistoryRow>,
+        skipSender: (String) -> Boolean = { false },
+    ): Admitted {
+        val toVerify = ArrayList<com.kachat.app.services.BroadcastHistoryRow>()
+        for (row in rows) {
+            val txId = row.txId?.takeIf { it.isNotBlank() } ?: continue
+            if (row.content == null) continue
             val existing = database.broadcastDao().getMessage(txId)
             if (existing != null) {
-                // A row this phone sent carries its own clock until the chain's time reaches it,
-                // and the block scan may never have seen the block. The indexer's time is what
-                // every other phone holds, and the chess arena orders seats and runs its clocks
-                // by it, so take it (iOS 29bf054). Not "fresh": nothing to banner.
-                val chainTime = message.blockTime
-                if (chainTime != null && chainTime != existing.blockTimestamp) {
+                val chainTime = row.blockTime
+                if (chainTime != null && (chainTime != existing.blockTimestamp || existing.deliveryStatus != "sent")) {
                     database.broadcastDao().insertMessage(existing.copy(blockTimestamp = chainTime, deliveryStatus = "sent"))
                 }
                 continue
             }
-            val row = BroadcastMessageEntity(
-                id = txId,
-                channelName = channelName,
-                senderAddress = sender,
-                content = content,
-                blockTimestamp = message.blockTime ?: System.currentTimeMillis(),
-            )
-            database.broadcastDao().insertMessage(row)
-            fresh += row
+            toVerify += row
         }
-        return fresh
+        if (toVerify.isEmpty()) return Admitted(emptyList(), 0)
+        val verdicts = senderVerifier.verifyRows(toVerify.mapNotNull { it.txId }, channelName)
+        val inserted = mutableListOf<BroadcastMessageEntity>()
+        var unknown = 0
+        for (row in toVerify) {
+            val txId = row.txId ?: continue
+            val judged = verdicts[txId]
+            when (judged.verdict) {
+                com.kachat.app.services.BroadcastSenderVerifier.Verdict.VERIFIED -> {
+                    val sender = judged.senderAddress ?: continue
+                    if (skipSender(sender)) continue
+                    val entity = BroadcastMessageEntity(
+                        id = txId,
+                        channelName = channelName,
+                        senderAddress = sender,
+                        content = row.content ?: continue,
+                        blockTimestamp = row.blockTime ?: System.currentTimeMillis(),
+                        deliveryStatus = "sent"
+                    )
+                    database.broadcastDao().insertMessage(entity)
+                    inserted += entity
+                }
+                com.kachat.app.services.BroadcastSenderVerifier.Verdict.FORGED -> Unit // logged by the verifier
+                com.kachat.app.services.BroadcastSenderVerifier.Verdict.UNKNOWN -> unknown += 1
+            }
+        }
+        return Admitted(inserted, unknown)
+    }
+
+    /**
+     * One pass over the cached public-chat rows stored before sender verification existed
+     * (audit XP-012): those took output 0's address (live scan) or the indexer's guess as the
+     * sender. Each is checked against the chain once: verified rows keep (or get corrected to)
+     * the real sender, forged rows are deleted. Rows the REST API answers for but doesn't know are
+     * deleted too (retry, then drop). If the REST API can't be reached the pass is tried again on
+     * a later launch, up to [REVERIFY_MAX_ATTEMPTS] times, after which unverifiable rows go.
+     * Returns true once the pass is complete.
+     */
+    suspend fun reverifyCachedSenders(attempt: Int): Boolean {
+        val rows = database.broadcastDao().getAllSentMessages()
+        if (rows.isEmpty()) return true
+        // The last allowed attempt settles every row, reachable REST API or not.
+        val giveUp = attempt >= REVERIFY_MAX_ATTEMPTS - 1
+        var complete = true
+        for (chunk in rows.chunked(REVERIFY_CHUNK)) {
+            val verdicts = senderVerifier.verifyRows(chunk.map { it.id }, channel = "cached")
+            if (verdicts.lookupFailed && !giveUp) {
+                complete = false
+                continue
+            }
+            for (row in chunk) {
+                val judged = verdicts[row.id]
+                when (judged.verdict) {
+                    com.kachat.app.services.BroadcastSenderVerifier.Verdict.VERIFIED -> {
+                        val sender = judged.senderAddress ?: continue
+                        if (sender != row.senderAddress) {
+                            database.broadcastDao().insertMessage(row.copy(senderAddress = sender))
+                        }
+                    }
+                    com.kachat.app.services.BroadcastSenderVerifier.Verdict.FORGED -> database.broadcastDao().deleteMessage(row.id)
+                    com.kachat.app.services.BroadcastSenderVerifier.Verdict.UNKNOWN -> {
+                        if (!verdicts.wasAnswered(row.id) && !giveUp) complete = false
+                        else database.broadcastDao().deleteMessage(row.id)
+                    }
+                }
+            }
+        }
+        return complete
     }
 
     suspend fun backfillFromIndexer(channelName: String): Int {
@@ -420,6 +515,7 @@ class BroadcastRepository @Inject constructor(
         val api = (override?.let { networkService.broadcastIndexerApiFor(it) }
             ?: networkService.broadcastIndexerApi.value) ?: return -1
         var fetched = 0
+        var unverified = 0
         val deep = channelName !in deepBackfilledChannels
         // Picking up an interrupted pager: everything newer than the recorded cursor is already
         // in the store from the attempt that recorded it.
@@ -440,19 +536,8 @@ class BroadcastRepository @Inject constructor(
                 pagesLeft -= 1
                 val response = api.getBroadcasts(channel = channelName, limit = pageLimit, before = before)
                 val messages = response.messages.orEmpty()
-                for (row in messages) {
-                    if (row.txId.isNullOrBlank() || row.senderAddress.isNullOrBlank() || row.content == null) continue
-                    database.broadcastDao().insertMessage(
-                        BroadcastMessageEntity(
-                            id = row.txId,
-                            channelName = channelName,
-                            senderAddress = row.senderAddress,
-                            content = row.content,
-                            blockTimestamp = row.blockTime ?: System.currentTimeMillis(),
-                            deliveryStatus = "sent"
-                        )
-                    )
-                }
+                // Stored only with a verified sender (audit XP-012).
+                unverified += admitIndexerRows(channelName, messages).unknown
                 fetched += messages.size
                 if (!deep || response.hasMore != true || messages.isEmpty()) break
                 val oldest = messages.mapNotNull { it.blockTime }.minOrNull() ?: break
@@ -464,8 +549,17 @@ class BroadcastRepository @Inject constructor(
             // Marked done only once the pager actually finishes; a failed one keeps its resume
             // cursor (see the catch) and the next 8s poll continues from there.
             if (deep) {
-                deepBackfilledChannels.add(channelName)
                 deepBackfillResume.remove(channelName)
+                // Rows whose sender could not be verified yet (the REST API had no answer) were
+                // left out: page the history again on a later poll - rows already stored cost no
+                // lookup - a few times before settling for what verified.
+                val retries = deepUnverifiedRetries[channelName] ?: 0
+                if (unverified > 0 && retries < DEEP_UNVERIFIED_RETRIES) {
+                    deepUnverifiedRetries[channelName] = retries + 1
+                } else {
+                    deepBackfilledChannels.add(channelName)
+                    deepUnverifiedRetries.remove(channelName)
+                }
             }
             fetched
         } catch (e: Exception) {
@@ -496,6 +590,8 @@ class BroadcastRepository @Inject constructor(
         )
         try {
             val txId = walletService.sendBroadcast(channelName, content, feeRateOverride = feeRateOverride).txId
+            // Signed here, so its sender is known when it comes back from the chain (XP-012).
+            senderVerifier.rememberOwnBroadcast(txId, myAddress)
             database.broadcastDao().deleteMessage(pendingId)
             database.broadcastDao().insertMessage(
                 BroadcastMessageEntity(
@@ -519,6 +615,7 @@ class BroadcastRepository @Inject constructor(
         database.broadcastDao().updateMessageStatus(message.id, "pending")
         try {
             val txId = walletService.sendBroadcast(message.channelName, message.content).txId
+            senderVerifier.rememberOwnBroadcast(txId, message.senderAddress)
             database.broadcastDao().deleteMessage(message.id)
             database.broadcastDao().insertMessage(
                 BroadcastMessageEntity(

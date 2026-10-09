@@ -79,6 +79,9 @@ class BroadcastScanningService @Inject constructor(
     // Metered gate — see reevaluate(): on cellular the full-block stream only runs for wanted
     // channels that have NO other delivery path, and only while the app is foregrounded.
     private val meteredNetwork: MeteredNetwork,
+    // Public-chat authorship (audit XP-012): a post is stored only once input 0's address is
+    // known to equal output 0's - see BroadcastSenderVerifier.
+    private val senderVerifier: BroadcastSenderVerifier,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var scanJob: Job? = null
@@ -133,6 +136,22 @@ class BroadcastScanningService @Inject constructor(
         }
         scope.launch {
             meteredNetwork.isMeteredFlow.collect { reevaluate() }
+        }
+        // Rows cached before public-chat sender verification existed took output 0's address
+        // (or the indexer's guess) as the sender: re-check them against the chain once (XP-012).
+        scope.launch {
+            val attempt = senderVerifier.cachedReverifyAttempt() ?: return@launch
+            delay(REVERIFY_START_DELAY_MS)
+            senderVerifier.awaitRestApi(REVERIFY_REST_WAIT_MS)
+            val complete = try {
+                broadcastRepository.reverifyCachedSenders(attempt)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("BroadcastScanningService", "Cached public-chat sender re-check failed", e)
+                false
+            }
+            senderVerifier.recordCachedReverify(complete)
         }
     }
 
@@ -370,72 +389,118 @@ class BroadcastScanningService @Inject constructor(
             val payloadBytes = tx.payload.hexToBytesOrNull() ?: continue
             if (!MessageProtocol.isKaChatPayload(payloadBytes)) continue
             val parsed = MessageProtocol.parseBcastPayload(payloadBytes) ?: continue
+
+            // Output 0 alone is NOT the sender (audit XP-012): anyone can pay someone else's
+            // address with a bcast payload. The sender is the address input 0 spends from, and
+            // the post counts only when output 0 pays that same address. The outputs are kept so
+            // a later post spending one of them resolves locally.
+            val outputAddresses = tx.outputsList.map { output ->
+                KaspaAddress.addressFromScriptPublicKey(output.scriptPublicKey.scriptPublicKey)
+                    ?: output.takeIf { it.hasVerboseData() }?.verboseData?.scriptPublicKeyAddress?.takeIf { it.isNotBlank() }
+            }
+            senderVerifier.rememberOutputs(txId, outputAddresses)
             if (!isChannelWanted(parsed.channel)) continue
 
-            // A broadcast is a self-stash transaction — its own output's scriptPublicKey
-            // directly encodes the sender's address, no separate lookup needed.
-            val senderAddress = tx.outputsList.firstOrNull()
-                ?.let { KaspaAddress.addressFromScriptPublicKey(it.scriptPublicKey.scriptPublicKey) }
-                ?: continue
-            if (isSenderHidden(senderAddress, parsed.channel)) continue
-
-            val blockTimestampMillis = if (block.hasHeader()) block.header.timestamp else System.currentTimeMillis()
-
-            database.broadcastDao().insertMessage(
-                BroadcastMessageEntity(
-                    id = txId,
-                    channelName = parsed.channel,
-                    senderAddress = senderAddress,
-                    content = parsed.content,
-                    blockTimestamp = blockTimestampMillis
-                )
+            val input0 = tx.inputsList.firstOrNull()
+            val hit = BroadcastSenderVerifier.LiveHit(
+                txId = txId,
+                channel = parsed.channel,
+                outputAddress = outputAddresses.firstOrNull(),
+                // The spent UTXO, when the node attaches it to the input (newer nodes may).
+                inputAddress = input0?.takeIf { it.hasVerboseData() && it.verboseData.hasUtxoEntry() }
+                    ?.verboseData?.utxoEntry?.scriptPublicKey?.scriptPublicKey
+                    ?.let { KaspaAddress.addressFromScriptPublicKey(it) },
+                inputOutpoint = input0?.takeIf { it.hasPreviousOutpoint() }?.previousOutpoint
+                    ?.let { it.transactionId.lowercase() to it.index },
             )
-
-            // Global notification center (Profile bell): neither a reaction nor an edit ever
-            // surfaces as a row.
-            if (MessageReaction.parseOrNull(parsed.content) == null &&
-                com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) == null) {
-                notificationCenter.recordBroadcastIfLive(
-                    channel = parsed.channel,
-                    senderAddress = senderAddress,
-                    senderName = KaspaAddress.shortDisplay(senderAddress),
-                    content = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content,
-                    txId = txId,
-                    blockTimeMs = blockTimestampMillis,
-                )
-            }
-
-            // An edit is never announced - it changes an earlier message in place. Claim the
-            // txId so a racing push cannot banner what this deliberately did not.
-            //
-            // Otherwise: the remote push is the only banner source while push is active,
-            // foreground or background - see PushState. A room the push server does not index
-            // notifies nothing; that is the trade, made on purpose and the same one iOS makes.
-            // Only a device with no push at all banners from the scan. The chess arena is
-            // machinery, never a chat: it never notifies (iOS serviceChannels).
-            if (com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) != null) {
-                notificationHelper.claimWithoutNotifying(txId)
-            } else if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive &&
-                parsed.channel !in ChessTournamentService.SERVICE_CHANNELS) {
-                // A reaction's raw JSON must never surface in a notification — humanize it.
-                // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
-                // message" too, rather than showing the raw reply JSON (see MessageReply).
-                val reaction = MessageReaction.parseOrNull(parsed.content)
-                val displayContent = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content
-                val notificationText = when {
-                    reaction != null -> "Reacted ${reaction.emoji}"
-                    VoiceMessage.parseOrNull(displayContent) != null -> "🎤 Audio message"
-                    else -> displayContent
+            val blockTimestampMillis = if (block.hasHeader()) block.header.timestamp else System.currentTimeMillis()
+            val settled = senderVerifier.settleLive(hit)
+            when (settled.verdict) {
+                BroadcastSenderVerifier.Verdict.VERIFIED ->
+                    storeVerifiedHit(txId, parsed, settled.senderAddress ?: continue, blockTimestampMillis)
+                BroadcastSenderVerifier.Verdict.FORGED -> senderVerifier.logDropped(txId, parsed.channel, settled)
+                // Not known locally: ask the REST API off the block loop (retries for ~95 s), so
+                // one slow lookup never holds up the stream. Stored only if it comes back verified.
+                BroadcastSenderVerifier.Verdict.UNKNOWN -> scope.launch {
+                    val judged = senderVerifier.verifyLive(hit)
+                    val sender = judged.senderAddress
+                    if (judged.verdict == BroadcastSenderVerifier.Verdict.VERIFIED && sender != null) {
+                        storeVerifiedHit(txId, parsed, sender, blockTimestampMillis)
+                    } else {
+                        senderVerifier.logDropped(txId, parsed.channel, judged)
+                    }
                 }
-                notificationHelper.showBroadcast(
-                    channelName = parsed.channel,
-                    title = "#${parsed.channel}",
-                    text = notificationText,
-                    dedupeTxId = txId
-                )
             }
         }
 
+        pruneIfDue()
+    }
+
+    /** Stores one live post whose [senderAddress] is VERIFIED, and notifies as before. */
+    private suspend fun storeVerifiedHit(
+        txId: String,
+        parsed: MessageProtocol.BroadcastMessage,
+        senderAddress: String,
+        blockTimestampMillis: Long,
+    ) {
+        if (isSenderHidden(senderAddress, parsed.channel)) return
+
+        database.broadcastDao().insertMessage(
+            BroadcastMessageEntity(
+                id = txId,
+                channelName = parsed.channel,
+                senderAddress = senderAddress,
+                content = parsed.content,
+                blockTimestamp = blockTimestampMillis
+            )
+        )
+
+        // Global notification center (Profile bell): neither a reaction nor an edit ever
+        // surfaces as a row.
+        if (MessageReaction.parseOrNull(parsed.content) == null &&
+            com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) == null) {
+            notificationCenter.recordBroadcastIfLive(
+                channel = parsed.channel,
+                senderAddress = senderAddress,
+                senderName = KaspaAddress.shortDisplay(senderAddress),
+                content = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content,
+                txId = txId,
+                blockTimeMs = blockTimestampMillis,
+            )
+        }
+
+        // An edit is never announced - it changes an earlier message in place. Claim the
+        // txId so a racing push cannot banner what this deliberately did not.
+        //
+        // Otherwise: the remote push is the only banner source while push is active,
+        // foreground or background - see PushState. A room the push server does not index
+        // notifies nothing; that is the trade, made on purpose and the same one iOS makes.
+        // Only a device with no push at all banners from the scan. The chess arena is
+        // machinery, never a chat: it never notifies (iOS serviceChannels).
+        if (com.kachat.app.util.MessageEdit.parseOrNull(parsed.content) != null) {
+            notificationHelper.claimWithoutNotifying(txId)
+        } else if (isChannelNotifyEnabled(parsed.channel) && !pushState.isActive &&
+            parsed.channel !in ChessTournamentService.SERVICE_CHANNELS) {
+            // A reaction's raw JSON must never surface in a notification — humanize it.
+            // Otherwise unwrap a reply first so a voice reply's notification says "🎤 Audio
+            // message" too, rather than showing the raw reply JSON (see MessageReply).
+            val reaction = MessageReaction.parseOrNull(parsed.content)
+            val displayContent = MessageReply.parseOrNull(parsed.content)?.text ?: parsed.content
+            val notificationText = when {
+                reaction != null -> "Reacted ${reaction.emoji}"
+                VoiceMessage.parseOrNull(displayContent) != null -> "🎤 Audio message"
+                else -> displayContent
+            }
+            notificationHelper.showBroadcast(
+                channelName = parsed.channel,
+                title = "#${parsed.channel}",
+                text = notificationText,
+                dedupeTxId = txId
+            )
+        }
+    }
+
+    private suspend fun pruneIfDue() {
         // Pruning on every single block would hammer the DB — Kaspa blocks arrive fast. Gate it
         // instead to roughly half the shortest retention any joined channel is currently
         // configured for (floor/ceiling below) — a fixed hourly gate would silently ignore a
@@ -476,6 +541,9 @@ class BroadcastScanningService @Inject constructor(
         private const val SWEEP_BANNER_WINDOW_MS = 3 * 60 * 1000L
 
         private const val RETRY_DELAY_MS = 5_000L
+        /** The cached-row sender re-check waits for startup to settle, then for the REST client. */
+        private const val REVERIFY_START_DELAY_MS = 10_000L
+        private const val REVERIFY_REST_WAIT_MS = 60_000L
         // Floor: never sweep more often than this even if every channel is set to a tiny retention.
         private const val MIN_PRUNE_INTERVAL_MILLIS = 5_000L
         // Ceiling: never wait longer than this between sweeps, matching the old fixed cadence for
