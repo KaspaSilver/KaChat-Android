@@ -452,12 +452,24 @@ class AddressBookManager @Inject constructor(
     /**
      * A restore: per address the newest event wins - an entry edited after it was deleted
      * elsewhere comes back, one deleted after its last edit stays deleted.
+     *
+     * [walletAddress] is the wallet the archive was matched against (the active one). The book
+     * of a newly active wallet is loaded on this manager's own coroutine, so a restore that runs
+     * first - the automatic one at wallet activation - loads it here rather than filling the
+     * previous wallet's book, or none (iOS loads it synchronously on the wallet switch).
      */
     @Synchronized
-    fun importFromArchive(entries: List<ArchiveAddressBookEntry>, tombstones: List<ArchiveAddressBookTombstone>) {
+    fun importFromArchive(
+        walletAddress: String,
+        entries: List<ArchiveAddressBookEntry>,
+        tombstones: List<ArchiveAddressBookTombstone>,
+    ) {
+        if (entries.isEmpty() && tombstones.isEmpty()) return
+        val target = normalize(walletAddress)
+        if (target.isEmpty()) return
+        if (book.wallet != target) loadBook(walletAddress)
         val current = book
         val wallet = current.wallet ?: return
-        if (entries.isEmpty() && tombstones.isEmpty()) return
         val incoming = entries.mapNotNull { it.toEntry() }
         val incomingTombs = tombstones.mapNotNull { t -> parseDate(t.deletedAt)?.let { AddressBookTombstone(t.address, it) } }
         val localTombs = current.deleted.map { AddressBookTombstone(it.key, it.value) }
@@ -650,8 +662,26 @@ class AddressBookManager @Inject constructor(
             out.toByteArray()
         }.getOrNull()
 
+        private val UUID_PATTERN =
+            Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+        /**
+         * The entry's `id` as iOS decodes it: a UUID (iOS `AddressBookEntry.id: UUID`), written
+         * uppercase as iOS's encoder writes it. One entry whose id isn't a UUID makes iOS drop
+         * the whole `addressBook` array - its merge then uploads the file without this device's
+         * entries, and its restore refuses the archive - so an id read from an export file or an
+         * older build that isn't one is replaced by one derived from the address (stable, and
+         * the merge keys by address anyway).
+         */
+        internal fun archiveEntryId(id: String?, address: String): String {
+            val raw = id?.trim().orEmpty()
+            if (UUID_PATTERN.matches(raw)) return raw.uppercase()
+            return UUID.nameUUIDFromBytes("kachat-address-book:${normalize(address)}".toByteArray(Charsets.UTF_8))
+                .toString().uppercase()
+        }
+
         fun AddressBookEntry.toArchive(): ArchiveAddressBookEntry = ArchiveAddressBookEntry(
-            id = id,
+            id = archiveEntryId(id, address),
             address = normalize(address),
             name = name,
             note = note,

@@ -251,8 +251,10 @@ class ChatHistoryExportImportService @Inject constructor(
         // The Address Book is per wallet: only this wallet's archive (or an unstamped one) fills
         // it (iOS 00767a4).
         val archiveWallet = archive.walletAddress.orEmpty().trim().lowercase()
-        if (archiveWallet.isEmpty() || archiveWallet == walletManager.getAddress().lowercase()) {
+        val currentWallet = walletManager.getAddress()
+        if (archiveWallet.isEmpty() || archiveWallet == currentWallet.lowercase()) {
             addressBookManager.importFromArchive(
+                walletAddress = currentWallet,
                 entries = archive.addressBook.orEmpty(),
                 tombstones = archive.addressBookDeleted.orEmpty()
             )
