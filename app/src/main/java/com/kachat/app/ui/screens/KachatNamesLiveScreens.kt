@@ -2044,9 +2044,10 @@ fun KachatBusyNetworkNotice() {
 /**
  * Every action's sheet, in the Send screens' style (iOS e426432 `KachatTxSheet`): what it does (a
  * card), its inputs (cards), the network fee with Normal / Fast / Priority or a custom amount (and a
- * notice when the network is busy), the cost, and slide to confirm - an extra warning for the
- * destructive ones - then the device lock, then the transaction. Ends on a receipt that follows it
- * into a block ([KachatTxDoneSheet]).
+ * notice when the network is busy), the cost, and slide to confirm - the destructive ones show
+ * their warning in red above it; the slide itself is the confirmation (iOS e67074c) - then the
+ * device lock, then the transaction. Ends on a receipt that follows it into a block
+ * ([KachatTxDoneSheet]).
  */
 @Composable
 fun KachatTxSheet(
@@ -2076,7 +2077,6 @@ fun KachatTxSheet(
     var planError by remember { mutableStateOf<String?>(null) }
     var building by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
-    var confirmWarning by remember { mutableStateOf(false) }
     var txId by remember { mutableStateOf<String?>(null) }
     var done by remember { mutableStateOf<KachatTxDone?>(null) }
     var sendError by remember { mutableStateOf<String?>(null) }
@@ -2231,12 +2231,14 @@ fun KachatTxSheet(
             }
 
             if (txId == null) {
+                // The slide is the confirmation: no second prompt, even for the destructive ones
+                // (their warning is the red card above).
                 Box(Modifier.padding(top = 4.dp)) {
                     SendActionButton(
                         title = confirmTitle,
                         isBusy = sending,
                         isEnabled = plan != null && !building,
-                        onSend = { if (warning != null) confirmWarning = true else authorize() },
+                        onSend = { authorize() },
                     )
                 }
             }
@@ -2251,22 +2253,6 @@ fun KachatTxSheet(
 
     // Closing the finished-transaction sheet closes the action too (iOS onDismiss: dismiss()).
     done?.let { KachatTxDoneSheet(it, onDismiss = { done = null; onClose() }, vm = vm) }
-
-    if (confirmWarning && warning != null) {
-        IosAlertDialog(
-            onDismissRequest = { confirmWarning = false },
-            title = { Text(title) },
-            text = { Text(warning) },
-            confirmButton = {
-                TextButton(onClick = { confirmWarning = false; authorize() }) {
-                    Text(confirmTitle, color = colors.danger, fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmWarning = false }) { Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.SemiBold) }
-            }
-        )
-    }
 }
 
 // MARK: - Claim
