@@ -1212,4 +1212,6 @@
     <string name="kachat_names_not_live_here">.kachat adları bu ağda henüz etkin değil</string>
     <!-- Nextcloud sync carries portfolios -->
     <string name="nextcloud_sync_address_book_portfolios">Adres Defteriniz ve portföyleriniz aynı yedektedir ve cihazlarınız arasında aynı şekilde eşitlenir.</string>
+    <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
+    <string name="kn_grace_ends">Ek süre bitişi %1$s</string>
 </resources>

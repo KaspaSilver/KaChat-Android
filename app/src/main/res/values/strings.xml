@@ -1414,4 +1414,6 @@
     <string name="kachat_names_not_live_here">.kachat names aren\'t live on this network yet</string>
     <!-- Nextcloud sync carries portfolios -->
     <string name="nextcloud_sync_address_book_portfolios">Your Address Book and portfolios are in the same backup and sync between your devices the same way.</string>
+    <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
+    <string name="kn_grace_ends">Grace ends %1$s</string>
 </resources>

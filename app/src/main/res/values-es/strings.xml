@@ -1212,4 +1212,6 @@
     <string name="kachat_names_not_live_here">Los nombres .kachat aún no están activos en esta red</string>
     <!-- Nextcloud sync carries portfolios -->
     <string name="nextcloud_sync_address_book_portfolios">Tu libreta de direcciones y tus portafolios están en la misma copia y se sincronizan igual entre tus dispositivos.</string>
+    <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
+    <string name="kn_grace_ends">La gracia termina %1$s</string>
 </resources>

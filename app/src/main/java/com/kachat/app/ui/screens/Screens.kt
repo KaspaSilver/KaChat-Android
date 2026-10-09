@@ -4693,7 +4693,13 @@ fun KnsDomainCard(domain: com.kachat.app.services.KnsAsset, isPrimary: Boolean =
 /** The teal name card, for any name service: the name, and an optional corner badge ("Primary"
  *  on KNS, "Settling" on a `.kaspa` name still inside its settling window) - iOS DomainNameCardView. */
 @Composable
-fun DomainNameCard(title: String, badge: String? = null, modifier: Modifier = Modifier) {
+fun DomainNameCard(
+    title: String,
+    badge: String? = null,
+    modifier: Modifier = Modifier,
+    /** A small line in the bottom-right corner (Your Domains > .kachat: when it expires, iOS 72b7dc7). */
+    footnote: String? = null,
+) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -4722,6 +4728,18 @@ fun DomainNameCard(title: String, badge: String? = null, modifier: Modifier = Mo
                     .clip(RoundedCornerShape(50))
                     .background(Color.Black.copy(alpha = 0.35f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+        if (footnote != null) {
+            Text(
+                footnote,
+                color = Color.Black.copy(alpha = 0.65f),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
+                maxLines = 1,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(start = 14.dp, end = 14.dp, bottom = 10.dp)
             )
         }
     }

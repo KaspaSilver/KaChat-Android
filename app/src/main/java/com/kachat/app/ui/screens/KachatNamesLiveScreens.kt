@@ -3816,6 +3816,15 @@ fun kachatNameBadge(n: NameInfo, graceMs: Long): String? = when (n.status(graceM
     Status.LAPSED -> stringResource(R.string.kn_available)
 }
 
+/** Your Domains > .kachat card's bottom-right corner: when the name expires - or, once it has,
+ *  when its grace period ends (renew before then to keep it) (iOS 72b7dc7 `expiryLine`). */
+@Composable
+fun kachatNameExpiryLine(n: NameInfo, graceMs: Long): String? = when (n.status(graceMs)) {
+    Status.ACTIVE -> stringResource(R.string.kn_expires_on, KachatLive.day(n.expiresAt))
+    Status.GRACE -> stringResource(R.string.kn_grace_ends, KachatLive.day(n.expiresAt + graceMs))
+    Status.LAPSED -> null
+}
+
 /**
  * Your Domains > .kachat: the wallet's names (iOS `KachatLiveDomainsTab`). On every network since
  * iOS 7227d69 - where the registry isn't launched (mainnet) [vm] is null and the tab is its empty
@@ -3920,7 +3929,12 @@ fun KachatLiveDomainsTab(
                         }
                     } else {
                         names.forEach { n ->
-                            DomainNameCard(title = n.display, badge = kachatNameBadge(n, vm?.graceMs ?: 0L), modifier = Modifier.clickable { onOpen(n) })
+                            DomainNameCard(
+                                title = n.display,
+                                badge = kachatNameBadge(n, vm?.graceMs ?: 0L),
+                                modifier = Modifier.clickable { onOpen(n) },
+                                footnote = kachatNameExpiryLine(n, vm?.graceMs ?: 0L),
+                            )
                         }
                     }
                     if (vm != null && myOffers.isNotEmpty()) {

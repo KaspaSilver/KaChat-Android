@@ -1212,4 +1212,6 @@
     <string name="kachat_names_not_live_here">このネットワークでは.kachatの名前はまだ利用できません</string>
     <!-- Nextcloud sync carries portfolios -->
     <string name="nextcloud_sync_address_book_portfolios">アドレス帳とポートフォリオも同じバックアップに含まれ、同じようにデバイス間で同期されます。</string>
+    <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
+    <string name="kn_grace_ends">猶予期間の終了 %1$s</string>
 </resources>

@@ -1081,4 +1081,6 @@
     <string name="kachat_names_not_live_here">Nama .kachat belum aktif di jaringan ini</string>
     <!-- Nextcloud sync carries portfolios -->
     <string name="nextcloud_sync_address_book_portfolios">Buku Alamat dan portofolio Anda ada di cadangan yang sama dan tersinkron antarperangkat dengan cara yang sama.</string>
+    <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
+    <string name="kn_grace_ends">Tenggang berakhir %1$s</string>
 </resources>
