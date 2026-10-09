@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Expirada - voltando para você</string>
     <string name="kn_offer_expired_returning_to_buyer">Expirada - voltando ao comprador</string>
     <string name="kn_offer_expired_refundable">Expirada - reembolsável agora</string>
-    <string name="kn_offers_tap_to_accept">Toque numa oferta para aceitá-la. Ofertas expiradas voltam para os compradores.</string>
     <string name="kn_err_offer_expired">Esta oferta expirou. Está voltando para o comprador.</string>
     <string name="kn_my_offers_detail">Suas ofertas. Retire quando quiser; ao expirar, ela volta para você sozinha.</string>
     <string name="kn_offer_declined_returning_to_you">Recusada - o nome mudou de dono, voltando para você</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">Pronto. Já aparece no KaChat.</string>
     <string name="kn_tx_stage_dropped">A rede ainda não a aceitou. Se nunca entrar, nada é gasto - tente de novo com uma taxa mais rápida.</string>
     <string name="kn_tap_tx_explorer">Toque na transação para abri-la no explorador.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Expira em</string>
+    <string name="kn_offer_cant_accept">Esta oferta não pode mais ser aceita.</string>
+    <string name="kn_offer_only_owner">Só o dono do nome pode aceitar ou recusar esta oferta.</string>
+    <string name="kn_offers_tap_to_accept_decline">Toque em uma oferta para aceitá-la ou recusá-la. Ofertas expiradas voltam aos compradores.</string>
 </resources>

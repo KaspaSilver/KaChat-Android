@@ -951,7 +951,6 @@
     <string name="kn_offer_expired_returning_to_you">منقضی شده - به شما برمی‌گردد</string>
     <string name="kn_offer_expired_returning_to_buyer">منقضی شده - به خریدار برمی‌گردد</string>
     <string name="kn_offer_expired_refundable">منقضی شده - اکنون قابل بازپرداخت</string>
-    <string name="kn_offers_tap_to_accept">برای پذیرش یک پیشنهاد روی آن بزنید. پیشنهادهای منقضی به خریدارانشان برمی‌گردند.</string>
     <string name="kn_err_offer_expired">این پیشنهاد منقضی شده است. به خریدار برمی‌گردد.</string>
     <string name="kn_my_offers_detail">پیشنهادهای شما. هر زمان خواستید پس بگیرید؛ پس از انقضا خودبه‌خود به شما برمی‌گردد.</string>
     <string name="kn_offer_declined_returning_to_you">رد شد - مالک نام عوض شد، به شما برمی‌گردد</string>
@@ -1213,4 +1212,9 @@
     <string name="kn_tx_stage_done">انجام شد. اکنون در KaChat دیده می‌شود.</string>
     <string name="kn_tx_stage_dropped">شبکه هنوز آن را نپذیرفته. اگر هرگز نرسد چیزی خرج نشده - با کارمزد سریع‌تر دوباره امتحان کنید.</string>
     <string name="kn_tap_tx_explorer">برای باز کردن در کاوشگر روی تراکنش بزنید.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">منقضی می‌شود تا</string>
+    <string name="kn_offer_cant_accept">این پیشنهاد دیگر قابل پذیرش نیست.</string>
+    <string name="kn_offer_only_owner">فقط مالک نام می‌تواند این پیشنهاد را بپذیرد یا رد کند.</string>
+    <string name="kn_offers_tap_to_accept_decline">برای پذیرش یا رد، روی یک پیشنهاد بزنید. پیشنهادهای منقضی‌شده به خریدارانشان برمی‌گردند.</string>
 </resources>

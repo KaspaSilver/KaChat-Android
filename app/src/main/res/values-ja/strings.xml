@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">期限切れ - あなたに返却中</string>
     <string name="kn_offer_expired_returning_to_buyer">期限切れ - 購入者に返却中</string>
     <string name="kn_offer_expired_refundable">期限切れ - 今すぐ返金可能</string>
-    <string name="kn_offers_tap_to_accept">オファーをタップして受け入れます。期限切れのオファーは購入者に返されます。</string>
     <string name="kn_err_offer_expired">このオファーは期限切れです。購入者に返却されます。</string>
     <string name="kn_my_offers_detail">あなたが出したオファーです。いつでも取り下げできます。期限が切れると自動で戻ってきます。</string>
     <string name="kn_offer_declined_returning_to_you">辞退 - 名前の所有者が変わったため、あなたに返却中</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">完了。KaChat に表示されています。</string>
     <string name="kn_tx_stage_dropped">まだネットワークに取り込まれていません。届かなければ何も使われません。より速い手数料でもう一度お試しください。</string>
     <string name="kn_tap_tx_explorer">トランザクションをタップするとエクスプローラーで開きます。</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">期限まで</string>
+    <string name="kn_offer_cant_accept">このオファーはもう承諾できません。</string>
+    <string name="kn_offer_only_owner">このオファーを承諾・辞退できるのは名前の所有者だけです。</string>
+    <string name="kn_offers_tap_to_accept_decline">オファーをタップして承諾または辞退します。期限切れのオファーは買い手に戻ります。</string>
 </resources>

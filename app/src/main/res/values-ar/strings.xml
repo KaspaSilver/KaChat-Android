@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">منتهٍ - يعود إليك</string>
     <string name="kn_offer_expired_returning_to_buyer">منتهٍ - يعود إلى المشتري</string>
     <string name="kn_offer_expired_refundable">منتهٍ - قابل للاسترداد الآن</string>
-    <string name="kn_offers_tap_to_accept">اضغط على عرض لقبوله. العروض المنتهية تعود إلى أصحابها.</string>
     <string name="kn_err_offer_expired">انتهت صلاحية هذا العرض. إنه يعود إلى المشتري.</string>
     <string name="kn_my_offers_detail">العروض التي قدّمتها. اسحب أيًّا منها في أي وقت؛ وعند انتهائه يعود إليك تلقائيًا.</string>
     <string name="kn_offer_declined_returning_to_you">مرفوض - تغيّر مالك الاسم، يعود إليك</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">تم. تظهر في KaChat الآن.</string>
     <string name="kn_tx_stage_dropped">لم تقبلها الشبكة بعد. لن يُنفق شيء إن لم تصل أبدًا - أعد المحاولة برسوم أسرع.</string>
     <string name="kn_tap_tx_explorer">اضغط المعاملة لفتحها في المستكشف.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">ينتهي خلال</string>
+    <string name="kn_offer_cant_accept">لم يعد بالإمكان قبول هذا العرض.</string>
+    <string name="kn_offer_only_owner">مالك الاسم وحده يمكنه قبول هذا العرض أو رفضه.</string>
+    <string name="kn_offers_tap_to_accept_decline">اضغط عرضًا لقبوله أو رفضه. العروض المنتهية تعود إلى أصحابها.</string>
 </resources>

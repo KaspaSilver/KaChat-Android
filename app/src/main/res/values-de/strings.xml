@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Abgelaufen – geht an dich zurück</string>
     <string name="kn_offer_expired_returning_to_buyer">Abgelaufen – geht an den Käufer zurück</string>
     <string name="kn_offer_expired_refundable">Abgelaufen – jetzt erstattbar</string>
-    <string name="kn_offers_tap_to_accept">Tippe auf ein Angebot, um es anzunehmen. Abgelaufene Angebote gehen an ihre Käufer zurück.</string>
     <string name="kn_err_offer_expired">Dieses Angebot ist abgelaufen. Es geht an den Käufer zurück.</string>
     <string name="kn_my_offers_detail">Deine Angebote. Zieh eines jederzeit zurück; nach Ablauf kommt es von selbst zu dir zurück.</string>
     <string name="kn_offer_declined_returning_to_you">Abgelehnt – der Name hat den Besitzer gewechselt, geht an dich zurück</string>
@@ -1179,4 +1178,9 @@
     <string name="kn_tx_stage_done">Fertig. Sie wird jetzt in KaChat angezeigt.</string>
     <string name="kn_tx_stage_dropped">Das Netzwerk hat sie noch nicht aufgenommen. Kommt sie nie an, wurde nichts ausgegeben - versuch es mit einer schnelleren Gebühr.</string>
     <string name="kn_tap_tx_explorer">Tippe auf die Transaktion, um sie im Explorer zu öffnen.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Läuft ab in</string>
+    <string name="kn_offer_cant_accept">Dieses Angebot kann nicht mehr angenommen werden.</string>
+    <string name="kn_offer_only_owner">Nur der Inhaber des Namens kann dieses Angebot annehmen oder ablehnen.</string>
+    <string name="kn_offers_tap_to_accept_decline">Tippe auf ein Angebot, um es anzunehmen oder abzulehnen. Abgelaufene Angebote gehen an ihre Käufer zurück.</string>
 </resources>

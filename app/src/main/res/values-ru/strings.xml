@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Истекло - возвращается вам</string>
     <string name="kn_offer_expired_returning_to_buyer">Истекло - возвращается покупателю</string>
     <string name="kn_offer_expired_refundable">Истекло - можно вернуть сейчас</string>
-    <string name="kn_offers_tap_to_accept">Нажмите на предложение, чтобы принять его. Истёкшие предложения возвращаются покупателям.</string>
     <string name="kn_err_offer_expired">Срок предложения истёк. Средства возвращаются покупателю.</string>
     <string name="kn_my_offers_detail">Ваши предложения. Отзовите любое в любой момент; после истечения срока оно вернётся к вам само.</string>
     <string name="kn_offer_declined_returning_to_you">Отклонено - у имени сменился владелец, возвращается вам</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">Готово. Теперь это видно в KaChat.</string>
     <string name="kn_tx_stage_dropped">Сеть её пока не приняла. Если она так и не пройдёт, ничего не потрачено - попробуйте снова с более быстрой комиссией.</string>
     <string name="kn_tap_tx_explorer">Нажмите на транзакцию, чтобы открыть её в обозревателе.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Истекает через</string>
+    <string name="kn_offer_cant_accept">Это предложение больше нельзя принять.</string>
+    <string name="kn_offer_only_owner">Принять или отклонить это предложение может только владелец имени.</string>
+    <string name="kn_offers_tap_to_accept_decline">Нажмите на предложение, чтобы принять или отклонить его. Истёкшие предложения возвращаются покупателям.</string>
 </resources>

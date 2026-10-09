@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Đã hết hạn - đang hoàn lại cho bạn</string>
     <string name="kn_offer_expired_returning_to_buyer">Đã hết hạn - đang hoàn lại cho người mua</string>
     <string name="kn_offer_expired_refundable">Đã hết hạn - có thể hoàn lại ngay</string>
-    <string name="kn_offers_tap_to_accept">Chạm vào một đề nghị để chấp nhận. Đề nghị hết hạn sẽ hoàn lại cho người mua.</string>
     <string name="kn_err_offer_expired">Đề nghị này đã hết hạn. Đang hoàn lại cho người mua.</string>
     <string name="kn_my_offers_detail">Các đề nghị bạn đã gửi. Rút bất cứ lúc nào; khi hết hạn sẽ tự hoàn lại cho bạn.</string>
     <string name="kn_offer_declined_returning_to_you">Bị từ chối - tên đã đổi chủ, đang hoàn lại cho bạn</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">Xong. Giờ đã hiển thị trong KaChat.</string>
     <string name="kn_tx_stage_dropped">Mạng chưa nhận giao dịch. Nếu nó không bao giờ vào, không có gì bị tiêu - hãy thử lại với phí nhanh hơn.</string>
     <string name="kn_tap_tx_explorer">Chạm vào giao dịch để mở trong trình khám phá.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Hết hạn sau</string>
+    <string name="kn_offer_cant_accept">Không thể chấp nhận đề nghị này nữa.</string>
+    <string name="kn_offer_only_owner">Chỉ chủ sở hữu tên mới có thể chấp nhận hoặc từ chối đề nghị này.</string>
+    <string name="kn_offers_tap_to_accept_decline">Chạm vào một đề nghị để chấp nhận hoặc từ chối. Đề nghị hết hạn sẽ trả lại người mua.</string>
 </resources>

@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Scaduta - torna a te</string>
     <string name="kn_offer_expired_returning_to_buyer">Scaduta - torna all’acquirente</string>
     <string name="kn_offer_expired_refundable">Scaduta - rimborsabile ora</string>
-    <string name="kn_offers_tap_to_accept">Tocca un’offerta per accettarla. Le offerte scadute tornano ai loro acquirenti.</string>
     <string name="kn_err_offer_expired">Questa offerta è scaduta. Torna all’acquirente.</string>
     <string name="kn_my_offers_detail">Le tue offerte. Ritirane una quando vuoi; alla scadenza torna a te da sola.</string>
     <string name="kn_offer_declined_returning_to_you">Rifiutata - il nome ha cambiato proprietario, torna a te</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">Fatto. Ora si vede in KaChat.</string>
     <string name="kn_tx_stage_dropped">La rete non l\'ha ancora presa. Se non arriva mai, non si spende nulla - riprova con una commissione più veloce.</string>
     <string name="kn_tap_tx_explorer">Tocca la transazione per aprirla nell\'explorer.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Scade tra</string>
+    <string name="kn_offer_cant_accept">Questa offerta non può più essere accettata.</string>
+    <string name="kn_offer_only_owner">Solo il proprietario del nome può accettare o rifiutare questa offerta.</string>
+    <string name="kn_offers_tap_to_accept_decline">Tocca un\'offerta per accettarla o rifiutarla. Le offerte scadute tornano agli acquirenti.</string>
 </resources>

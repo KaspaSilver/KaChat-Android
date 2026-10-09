@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">פג תוקף - חוזר אליכם</string>
     <string name="kn_offer_expired_returning_to_buyer">פג תוקף - חוזר לקונה</string>
     <string name="kn_offer_expired_refundable">פג תוקף - ניתן להחזר עכשיו</string>
-    <string name="kn_offers_tap_to_accept">הקישו על הצעה כדי לקבל אותה. הצעות שפג תוקפן חוזרות לקונים.</string>
     <string name="kn_err_offer_expired">פג תוקפה של ההצעה. היא חוזרת לקונה.</string>
     <string name="kn_my_offers_detail">ההצעות שלכם. אפשר למשוך אחת בכל עת; כשתוקפה פג היא חוזרת אליכם מעצמה.</string>
     <string name="kn_offer_declined_returning_to_you">נדחתה - השם עבר בעלות, חוזרת אליכם</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">הושלם. זה מופיע ב-KaChat עכשיו.</string>
     <string name="kn_tx_stage_dropped">הרשת עוד לא קיבלה אותה. אם היא לא תגיע לעולם, דבר לא נוצל - נסו שוב עם עמלה מהירה יותר.</string>
     <string name="kn_tap_tx_explorer">הקישו על העסקה כדי לפתוח אותה בסייר.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">פג תוקף בעוד</string>
+    <string name="kn_offer_cant_accept">לא ניתן עוד לקבל את ההצעה הזו.</string>
+    <string name="kn_offer_only_owner">רק בעל השם יכול לקבל או לדחות את ההצעה הזו.</string>
+    <string name="kn_offers_tap_to_accept_decline">הקישו על הצעה כדי לקבל או לדחות אותה. הצעות שפג תוקפן חוזרות לקונים.</string>
 </resources>

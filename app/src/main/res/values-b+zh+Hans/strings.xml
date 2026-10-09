@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">已过期 - 正在退还给你</string>
     <string name="kn_offer_expired_returning_to_buyer">已过期 - 正在退还给买家</string>
     <string name="kn_offer_expired_refundable">已过期 - 现在可退款</string>
-    <string name="kn_offers_tap_to_accept">点按报价即可接受。过期的报价会退还给买家。</string>
     <string name="kn_err_offer_expired">此报价已过期，正在退还给买家。</string>
     <string name="kn_my_offers_detail">你发出的报价。可随时撤回；过期后会自动退还给你。</string>
     <string name="kn_offer_declined_returning_to_you">已拒绝 - 名称已易主，正在退还给你</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">完成。现在已在 KaChat 中显示。</string>
     <string name="kn_tx_stage_dropped">网络尚未接收。如果始终未上链，不会花费任何东西——请用更快的费用重试。</string>
     <string name="kn_tap_tx_explorer">点按交易可在浏览器中打开。</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">剩余时间</string>
+    <string name="kn_offer_cant_accept">此报价已无法接受。</string>
+    <string name="kn_offer_only_owner">只有该名称的所有者才能接受或拒绝此报价。</string>
+    <string name="kn_offers_tap_to_accept_decline">点按报价即可接受或拒绝。过期的报价会退回给买家。</string>
 </resources>

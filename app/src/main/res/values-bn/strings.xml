@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">মেয়াদ শেষ - আপনার কাছে ফিরছে</string>
     <string name="kn_offer_expired_returning_to_buyer">মেয়াদ শেষ - ক্রেতার কাছে ফিরছে</string>
     <string name="kn_offer_expired_refundable">মেয়াদ শেষ - এখন ফেরতযোগ্য</string>
-    <string name="kn_offers_tap_to_accept">গ্রহণ করতে একটি অফারে ট্যাপ করুন। মেয়াদোত্তীর্ণ অফার ক্রেতার কাছে ফিরে যায়।</string>
     <string name="kn_err_offer_expired">এই অফারের মেয়াদ শেষ। এটি ক্রেতার কাছে ফিরে যাচ্ছে।</string>
     <string name="kn_my_offers_detail">আপনার দেওয়া অফার। যেকোনো সময় প্রত্যাহার করুন; মেয়াদ শেষ হলে নিজে থেকেই আপনার কাছে ফিরে আসে।</string>
     <string name="kn_offer_declined_returning_to_you">প্রত্যাখ্যাত - নামের মালিক বদলেছে, আপনার কাছে ফিরছে</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">সম্পন্ন। এখন KaChat-এ দেখা যাচ্ছে।</string>
     <string name="kn_tx_stage_dropped">নেটওয়ার্ক এখনো নেয়নি। কখনো না পৌঁছালে কিছুই খরচ হয়নি - দ্রুত ফি দিয়ে আবার চেষ্টা করুন।</string>
     <string name="kn_tap_tx_explorer">এক্সপ্লোরারে খুলতে লেনদেনে ট্যাপ করুন।</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">মেয়াদ শেষ হবে</string>
+    <string name="kn_offer_cant_accept">এই অফার আর গ্রহণ করা যাবে না।</string>
+    <string name="kn_offer_only_owner">শুধু নামের মালিক এই অফার গ্রহণ বা প্রত্যাখ্যান করতে পারেন।</string>
+    <string name="kn_offers_tap_to_accept_decline">গ্রহণ বা প্রত্যাখ্যান করতে একটি অফারে ট্যাপ করুন। মেয়াদোত্তীর্ণ অফার ক্রেতার কাছে ফিরে যায়।</string>
 </resources>

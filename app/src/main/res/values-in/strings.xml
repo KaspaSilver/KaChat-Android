@@ -798,7 +798,6 @@
     <string name="kn_offer_expired_returning_to_you">Kedaluwarsa - kembali ke Anda</string>
     <string name="kn_offer_expired_returning_to_buyer">Kedaluwarsa - kembali ke pembeli</string>
     <string name="kn_offer_expired_refundable">Kedaluwarsa - bisa dikembalikan sekarang</string>
-    <string name="kn_offers_tap_to_accept">Ketuk penawaran untuk menerimanya. Penawaran kedaluwarsa kembali ke pembelinya.</string>
     <string name="kn_err_offer_expired">Penawaran ini sudah kedaluwarsa. Dananya kembali ke pembeli.</string>
     <string name="kn_my_offers_detail">Penawaran Anda. Tarik kapan saja; setelah kedaluwarsa, dana kembali ke Anda dengan sendirinya.</string>
     <string name="kn_offer_declined_returning_to_you">Ditolak - pemilik nama berganti, dana kembali ke Anda</string>
@@ -1049,4 +1048,9 @@
     <string name="kn_tx_stage_done">Selesai. Sekarang tampil di KaChat.</string>
     <string name="kn_tx_stage_dropped">Jaringan belum menerimanya. Jika tidak pernah masuk, tidak ada yang terpakai - coba lagi dengan biaya lebih cepat.</string>
     <string name="kn_tap_tx_explorer">Ketuk transaksi untuk membukanya di explorer.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Berakhir dalam</string>
+    <string name="kn_offer_cant_accept">Penawaran ini tidak bisa diterima lagi.</string>
+    <string name="kn_offer_only_owner">Hanya pemilik nama yang bisa menerima atau menolak penawaran ini.</string>
+    <string name="kn_offers_tap_to_accept_decline">Ketuk penawaran untuk menerima atau menolaknya. Penawaran yang kedaluwarsa kembali ke pembelinya.</string>
 </resources>

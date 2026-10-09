@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Süresi doldu - sana dönüyor</string>
     <string name="kn_offer_expired_returning_to_buyer">Süresi doldu - alıcıya dönüyor</string>
     <string name="kn_offer_expired_refundable">Süresi doldu - şimdi iade edilebilir</string>
-    <string name="kn_offers_tap_to_accept">Kabul etmek için bir teklife dokun. Süresi dolan teklifler alıcılarına döner.</string>
     <string name="kn_err_offer_expired">Bu teklifin süresi doldu. Alıcıya geri dönüyor.</string>
     <string name="kn_my_offers_detail">Yaptığın teklifler. İstediğin zaman geri çek; süresi dolunca kendiliğinden sana döner.</string>
     <string name="kn_offer_declined_returning_to_you">Reddedildi - adın sahibi değişti, sana dönüyor</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">Tamam. Artık KaChat\'te görünüyor.</string>
     <string name="kn_tx_stage_dropped">Ağ henüz almadı. Hiç girmezse hiçbir şey harcanmaz - daha hızlı bir ücretle yeniden dene.</string>
     <string name="kn_tap_tx_explorer">Gezginde açmak için işleme dokun.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Bitimine</string>
+    <string name="kn_offer_cant_accept">Bu teklif artık kabul edilemez.</string>
+    <string name="kn_offer_only_owner">Bu teklifi yalnızca adın sahibi kabul edebilir veya reddedebilir.</string>
+    <string name="kn_offers_tap_to_accept_decline">Kabul etmek veya reddetmek için bir teklife dokun. Süresi dolan teklifler alıcılarına geri döner.</string>
 </resources>

@@ -920,7 +920,6 @@
     <string name="kn_offer_expired_returning_to_you">Vencida: vuelve a ti</string>
     <string name="kn_offer_expired_returning_to_buyer">Vencida: vuelve al comprador</string>
     <string name="kn_offer_expired_refundable">Vencida: reembolsable ahora</string>
-    <string name="kn_offers_tap_to_accept">Toca una oferta para aceptarla. Las ofertas vencidas vuelven a sus compradores.</string>
     <string name="kn_err_offer_expired">Esta oferta ha vencido. Vuelve al comprador.</string>
     <string name="kn_my_offers_detail">Ofertas que hiciste. Retira una cuando quieras; al vencer vuelve a ti sola.</string>
     <string name="kn_offer_declined_returning_to_you">Rechazada: el nombre cambió de dueño, vuelve a ti</string>
@@ -1182,4 +1181,9 @@
     <string name="kn_tx_stage_done">Listo. Ya se ve en KaChat.</string>
     <string name="kn_tx_stage_dropped">La red aún no la ha tomado. Si nunca entra, no se gasta nada - inténtalo con una comisión más rápida.</string>
     <string name="kn_tap_tx_explorer">Toca la transacción para abrirla en el explorador.</string>
+    <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
+    <string name="kn_offer_expires_in_label">Caduca en</string>
+    <string name="kn_offer_cant_accept">Esta oferta ya no se puede aceptar.</string>
+    <string name="kn_offer_only_owner">Solo el dueño del nombre puede aceptar o rechazar esta oferta.</string>
+    <string name="kn_offers_tap_to_accept_decline">Toca una oferta para aceptarla o rechazarla. Las ofertas caducadas vuelven a sus compradores.</string>
 </resources>
