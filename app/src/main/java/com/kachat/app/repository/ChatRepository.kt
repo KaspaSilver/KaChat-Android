@@ -1721,6 +1721,15 @@ class ChatRepository @Inject constructor(
         var syncableContacts = database.contactDao().getContactsByStatus("active", myAddress) +
             database.contactDao().getContactsByStatus("pending", myAddress)
         onlyContactIds?.let { ids -> syncableContacts = syncableContacts.filter { it.id in ids } }
+        // A chat that is still deleted (its tombstone not lifted) gets nothing fetched at all,
+        // even when an automatic add (a KaPosts tip, chess, names, an inbox sender) has
+        // recreated its contact row - iOS returns early from its contextual fetches for
+        // `isAddressDeleted`. Only a handshake from them that post-dates the deletion lifts it
+        // (processHandshake, a phase that runs before this one), and from then on the chat is
+        // fetched again; the per-message floor below still keeps what came before the deletion
+        // out. A deliberate add drops the row altogether.
+        val stillDeleted = database.contactDao().getAllDeletedContactIds(myAddress).toSet()
+        if (stillDeleted.isNotEmpty()) syncableContacts = syncableContacts.filter { it.id !in stillDeleted }
 
         var sweepSpacing = false
         if (pollShaped) {

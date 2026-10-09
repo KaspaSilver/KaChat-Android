@@ -1591,6 +1591,15 @@ class ChatViewModel @Inject constructor(
             _createGroupError.value = "Invalid address: $invalid"
             return
         }
+        // A member is added deliberately, and a deliberate add is of the network the app runs on:
+        // the other network's address is the same key on another chain, its chat is never read
+        // and is dropped on the next launch (iOS ContactsManager.addContact, IOS-063 - creating
+        // the group fails there).
+        trimmedAddresses.firstOrNull { !com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(it) }?.let { other ->
+            _createGroupError.value = com.kachat.app.util.KaspaAddress.otherNetworkMessageRes(other)
+                ?.let { appContext.getString(it) } ?: "Invalid Kaspa address format."
+            return
+        }
 
         _isCreatingGroup.value = true
         _createGroupError.value = null
