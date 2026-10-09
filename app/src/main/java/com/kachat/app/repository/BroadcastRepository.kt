@@ -462,8 +462,8 @@ class BroadcastRepository @Inject constructor(
                         blockTimestamp = row.blockTime ?: System.currentTimeMillis(),
                         deliveryStatus = "sent"
                     )
-                    database.broadcastDao().insertMessage(entity)
-                    inserted += entity
+                    // Only a missing id (iOS): the block scan may have stored it meanwhile.
+                    if (database.broadcastDao().insertMessageIfAbsent(entity) != -1L) inserted += entity
                 }
                 com.kachat.app.services.BroadcastSenderVerifier.Verdict.FORGED -> Unit // logged by the verifier
                 com.kachat.app.services.BroadcastSenderVerifier.Verdict.UNKNOWN -> unknown += 1

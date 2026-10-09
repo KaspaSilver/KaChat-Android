@@ -445,7 +445,7 @@ class BroadcastScanningService @Inject constructor(
     ) {
         if (isSenderHidden(senderAddress, parsed.channel)) return
 
-        database.broadcastDao().insertMessage(
+        database.broadcastDao().insertMessageIfAbsent(
             BroadcastMessageEntity(
                 id = txId,
                 channelName = parsed.channel,

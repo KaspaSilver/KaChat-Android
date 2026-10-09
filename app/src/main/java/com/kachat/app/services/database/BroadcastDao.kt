@@ -76,6 +76,12 @@ interface BroadcastDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: BroadcastMessageEntity)
 
+    /** Adds a chain post only when its id isn't stored yet (iOS PublicChatStore inserts only a
+     *  missing id): a delayed block-scan store never overwrites the row the indexer (or our own
+     *  send) wrote first, and its chain time. Returns -1 when the id was already there. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMessageIfAbsent(message: BroadcastMessageEntity): Long
+
     /** Every row that came from the chain or an indexer (not a pending/failed send of ours) -
      *  for the one-time sender re-verification (audit XP-012). */
     @Query("SELECT * FROM broadcast_messages WHERE deliveryStatus = 'sent' AND id NOT LIKE 'pending_%'")
