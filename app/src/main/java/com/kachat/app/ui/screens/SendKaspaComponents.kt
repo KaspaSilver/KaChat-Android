@@ -271,13 +271,6 @@ fun SendRecipientCard(
     }
 }
 
-/** "No .kas domain found" for a name typed with its ending, else "No domain found" (iOS 6ac48a7). */
-fun noDomainFoundMessage(context: android.content.Context, typed: String): String {
-    val explicit = com.kachat.app.services.NameServiceTLD.splitTypedName(typed).second
-    return if (explicit != null) context.getString(R.string.no_tld_domain_found, explicit.suffix)
-    else context.getString(R.string.no_domain_found)
-}
-
 @Composable
 private fun SendRecipientStatusLine(
     input: String,

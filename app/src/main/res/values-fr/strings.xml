@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">%1$d de vos domaines .kachat ont expiré</string>
     <string name="kachat_expired_one_body">Renouvelez %1$s avant la fin de sa période de grâce le %2$s pour le conserver.</string>
     <string name="kachat_expired_many_body">Renouvelez-les avant la fin de leurs périodes de grâce pour les conserver.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">Les noms .kachat ne sont pas encore actifs sur ce réseau</string>
 </resources>

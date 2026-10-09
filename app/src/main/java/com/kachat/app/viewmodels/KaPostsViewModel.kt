@@ -1848,7 +1848,8 @@ class KaPostsViewModel @Inject constructor(
 
     /**
      * The owner address of an @mention token, on every name service with .kachat first: the
-     * ending typed ("@bob.kas" is the .kas name), else .kachat, .kas, .k, .kaspa (iOS d0c5b09).
+     * ending typed ("@bob.kas" is the .kas name), else .kachat only - the others wait under
+     * Other domains (iOS d0c5b09, 5a5122d).
      */
     private suspend fun mentionAddress(token: String): String? =
         com.kachat.app.services.NameServicesClient.primary(nameServices.resolveEverywhere(token), token)?.address

@@ -2398,8 +2398,8 @@ fun GroupChatInfoScreen(
         }
         val addContext = androidx.compose.ui.platform.LocalContext.current
         // Resolves a typed name in the background on every service, .kachat first (the ending
-        // typed, else .kachat, .kas, .k, .kaspa). Anything that is already an address, or too
-        // short to be a name, is left alone.
+        // typed, else .kachat only - the others wait under Other domains). Anything that is
+        // already an address, or too short to be a name, is left alone.
         LaunchedEffect(addSearch) {
             addResolvedDomain = null
             addResolvedName = null
@@ -2424,7 +2424,7 @@ fun GroupChatInfoScreen(
                 addSelectResolution(primary)
             } else if (candidates.isEmpty()) {
                 // it matched no contacts by name either: a failed lookup
-                addDomainNotFound = noDomainFoundMessage(addContext, trimmed)
+                addDomainNotFound = com.kachat.app.services.NameServicesClient.notFoundMessage(addContext, trimmed, results)
             }
         }
         // Hidden when the address is already listed as a contact below, so it is never offered twice.

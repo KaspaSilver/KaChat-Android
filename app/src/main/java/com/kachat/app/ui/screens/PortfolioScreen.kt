@@ -834,6 +834,9 @@ private fun AddressEntryDialog(
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
     var knsNotFound by remember { mutableStateOf(false) }
+    // The shared not-found message for the typed name (iOS 5a5122d `notFoundText`).
+    var notFoundText by remember { mutableStateOf("") }
+    val notFoundContext = androidx.compose.ui.platform.LocalContext.current
     // The name it resolved as, and every service's answer (`OtherDomainsDropdown`).
     var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
     var nameResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
@@ -869,6 +872,7 @@ private fun AddressEntryDialog(
             knsResolvedDomain = resolution.display
             selectedTld = resolution.tld
         } else {
+            notFoundText = com.kachat.app.services.NameServicesClient.notFoundMessage(notFoundContext, input, results)
             knsNotFound = true
         }
     }
@@ -946,7 +950,7 @@ private fun AddressEntryDialog(
                             Text(shortenKaspaAddress(knsResolvedAddress ?: ""), color = LocalAppColors.current.textSecondary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1)
                         }
                         // Quiet by design — an unfinished domain isn't an error worth shouting about.
-                        knsNotFound -> Text(stringResource(R.string.no_domain_found), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        knsNotFound -> Text(notFoundText, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         isRawValid -> Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))

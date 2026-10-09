@@ -1410,4 +1410,6 @@
     <string name="kachat_expired_many_title">%1$d of your .kachat domains expired</string>
     <string name="kachat_expired_one_body">Renew %1$s before its grace period ends on %2$s to keep it.</string>
     <string name="kachat_expired_many_body">Renew them before their grace periods end to keep them.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">.kachat names aren\'t live on this network yet</string>
 </resources>

@@ -832,7 +832,7 @@ fun AddressBookEntryEditor(
         nameResolutions = results
         isResolving = false
         val primary = com.kachat.app.services.NameServicesClient.primary(results, typed)
-        if (primary != null) selectResolution(primary) else lookupError = noDomainFoundMessage(context, typed)
+        if (primary != null) selectResolution(primary) else lookupError = com.kachat.app.services.NameServicesClient.notFoundMessage(context, typed, results)
     }
     val scope = rememberCoroutineScope()
     val photoFailed = stringResource(R.string.ab_photo_failed)

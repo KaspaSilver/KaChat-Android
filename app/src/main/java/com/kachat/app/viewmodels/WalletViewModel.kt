@@ -1757,16 +1757,13 @@ class WalletViewModel @Inject constructor(
         transferPreviewJob = viewModelScope.launch {
             delay(350)
             _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = true)
-            // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-            // (iOS 79b6ac8) - the same lookup as every other address field; the others are
+            // Every name service, in priority: the ending typed, else .kachat only (iOS 5a5122d) - the same lookup as every other address field; the others are
             // offered under "Other domains" (iOS 6ac48a7).
             val isName = !KaspaAddress.isValid(trimmed) && com.kachat.app.services.NameServicesClient.looksLikeName(trimmed)
             val results = if (isName) runCatching { nameServices.resolveEverywhere(trimmed) }.getOrDefault(emptyList()) else emptyList()
             val primary = if (isName) com.kachat.app.services.NameServicesClient.primary(results, trimmed)?.takeIf { it.address != null } else null
             if (isName && primary == null) {
-                val explicit = com.kachat.app.services.NameServiceTLD.splitTypedName(trimmed).second
-                val message = if (explicit != null) appContext.getString(com.kachat.app.R.string.no_tld_domain_found, explicit.suffix)
-                else appContext.getString(com.kachat.app.R.string.no_domain_found)
+                val message = com.kachat.app.services.NameServicesClient.notFoundMessage(appContext, trimmed, results)
                 _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, errorMessage = message, nameResolutions = results)
                 return@launch
             }

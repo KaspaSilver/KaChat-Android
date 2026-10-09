@@ -2240,12 +2240,7 @@ class ChatViewModel @Inject constructor(
             } else {
                 // Deliberately does NOT set a name. A contact is only ever named when the user
                 // types one; display falls through to the domain on its own.
-                val explicit = com.kachat.app.services.NameServiceTLD.splitTypedName(typed).second
-                _knsError.value = if (explicit != null) {
-                    appContext.getString(com.kachat.app.R.string.no_tld_domain_found, explicit.suffix)
-                } else {
-                    appContext.getString(com.kachat.app.R.string.no_domain_found)
-                }
+                _knsError.value = com.kachat.app.services.NameServicesClient.notFoundMessage(appContext, typed, results)
             }
         }
     }

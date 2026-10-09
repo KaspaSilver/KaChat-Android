@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">פג תוקפם של %1$d מדומייני ה-.kachat שלך</string>
     <string name="kachat_expired_one_body">חדש את %1$s לפני שתקופת החסד מסתיימת ב-%2$s כדי לשמור עליו.</string>
     <string name="kachat_expired_many_body">חדש אותם לפני שתקופות החסד מסתיימות כדי לשמור עליהם.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">שמות .kachat עדיין לא פעילים ברשת הזו</string>
 </resources>

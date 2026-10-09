@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">.kachatドメインのうち%1$d件が期限切れになりました</string>
     <string name="kachat_expired_one_body">%1$sを保持するには、猶予期間が終わる%2$sまでに更新してください。</string>
     <string name="kachat_expired_many_body">保持するには、猶予期間が終わる前に更新してください。</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">このネットワークでは.kachatの名前はまだ利用できません</string>
 </resources>

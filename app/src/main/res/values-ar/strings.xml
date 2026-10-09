@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">انتهت صلاحية %1$d من نطاقات .kachat الخاصة بك</string>
     <string name="kachat_expired_one_body">جدّد %1$s قبل انتهاء فترة السماح في %2$s للاحتفاظ به.</string>
     <string name="kachat_expired_many_body">جدّدها قبل انتهاء فترات السماح للاحتفاظ بها.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">أسماء .kachat غير متاحة على هذه الشبكة بعد</string>
 </resources>

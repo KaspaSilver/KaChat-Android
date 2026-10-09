@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">你有 %1$d 个 .kachat 域名已过期</string>
     <string name="kachat_expired_one_body">请在 %2$s 宽限期结束前续订 %1$s 以保留它。</string>
     <string name="kachat_expired_many_body">请在宽限期结束前续订以保留它们。</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">.kachat 名称尚未在此网络上线</string>
 </resources>

@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">.kachat alan adlarınızdan %1$d tanesinin süresi doldu</string>
     <string name="kachat_expired_one_body">%1$s adını korumak için ek süresi %2$s tarihinde bitmeden yenileyin.</string>
     <string name="kachat_expired_many_body">Korumak için ek süreleri bitmeden yenileyin.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">.kachat adları bu ağda henüz etkin değil</string>
 </resources>

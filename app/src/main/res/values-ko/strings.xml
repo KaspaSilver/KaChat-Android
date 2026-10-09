@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">.kachat 도메인 %1$d개가 만료되었습니다</string>
     <string name="kachat_expired_one_body">%1$s을(를) 유지하려면 유예 기간이 끝나는 %2$s 전에 갱신하세요.</string>
     <string name="kachat_expired_many_body">유지하려면 유예 기간이 끝나기 전에 갱신하세요.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">이 네트워크에서는 아직 .kachat 이름을 사용할 수 없습니다</string>
 </resources>

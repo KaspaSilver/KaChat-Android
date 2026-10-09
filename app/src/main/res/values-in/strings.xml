@@ -1077,4 +1077,6 @@
     <string name="kachat_expired_many_title">%1$d domain .kachat Anda kedaluwarsa</string>
     <string name="kachat_expired_one_body">Perpanjang %1$s sebelum masa tenggangnya berakhir pada %2$s agar tetap milik Anda.</string>
     <string name="kachat_expired_many_body">Perpanjang sebelum masa tenggangnya berakhir agar tetap milik Anda.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">Nama .kachat belum aktif di jaringan ini</string>
 </resources>

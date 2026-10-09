@@ -93,9 +93,10 @@ enum class NameServiceTLD(val raw: String) {
          *  7227d69). KNS only if that UI were ever switched back off. */
         val defaultTab: NameServiceTLD get() = if (KachatNamesService.isEnabled) KACHAT else KAS
 
-        /** The order a bare name ("bob") is tried in: KaChat's own .kachat always first, then
-         *  KNS, dotk and Kaspa Names. The first that resolves is the answer; the rest are
-         *  offered as "Other domains". */
+        /** The order the services are listed in: KaChat's own .kachat always first, then KNS,
+         *  dotk and Kaspa Names. A bare name ("bob") resolves to .kachat only
+         *  ([NameServicesClient.primary]); the rest are offered as "Other domains", never picked
+         *  on their own (iOS 5a5122d). */
         val resolutionOrder = listOf(KACHAT, KAS, K, KASPA)
 
         /** Splits typed input into its label and the ending the person typed, if any. Longest
@@ -493,11 +494,26 @@ class NameServicesClient @Inject constructor(
         }
 
         /** The answer a typed name gets: the service the person named, if they typed an ending,
-         *  else the first in [NameServiceTLD.resolutionOrder] that resolves. */
+         *  else .kachat - and only .kachat. A bare name never falls through to another service on
+         *  its own: what it is on .kas, .k or .kaspa waits under "Other domains" for the person to
+         *  pick ([com.kachat.app.ui.screens.OtherDomainsDropdown], which opens by itself when
+         *  .kachat has nothing) (iOS 5a5122d). */
         fun primary(results: List<NameResolution>, typed: String): NameResolution? {
-            val explicit = NameServiceTLD.splitTypedName(typed).second
-            if (explicit != null) return results.firstOrNull { it.tld == explicit && it.address != null }
-            return results.firstOrNull { it.address != null }
+            val wanted = NameServiceTLD.splitTypedName(typed).second ?: NameServiceTLD.KACHAT
+            return results.firstOrNull { it.tld == wanted && it.address != null }
+        }
+
+        /** Why a typed name has no answer: the ending typed found nothing, or (a bare name) there
+         *  is no such .kachat name - or no .kachat registry on this network yet. The one
+         *  not-found message every address field shows (iOS 5a5122d). */
+        fun notFoundMessage(context: android.content.Context, typed: String, results: List<NameResolution>): String {
+            val wanted = NameServiceTLD.splitTypedName(typed).second ?: NameServiceTLD.KACHAT
+            if (wanted == NameServiceTLD.KACHAT &&
+                (results.any { it.tld == NameServiceTLD.KACHAT && it.notLive } || !NameServiceTLD.KACHAT.isLive)
+            ) {
+                return context.getString(com.kachat.app.R.string.kachat_names_not_live_here)
+            }
+            return context.getString(com.kachat.app.R.string.no_tld_domain_found, wanted.suffix)
         }
     }
 }

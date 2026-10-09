@@ -1205,4 +1205,6 @@
     <string name="kachat_expired_many_title">%1$d deiner .kachat-Domains sind abgelaufen</string>
     <string name="kachat_expired_one_body">Verlängere %1$s, bevor die Kulanzfrist am %2$s endet, um sie zu behalten.</string>
     <string name="kachat_expired_many_body">Verlängere sie, bevor ihre Kulanzfristen enden, um sie zu behalten.</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">.kachat-Namen sind in diesem Netzwerk noch nicht verfügbar</string>
 </resources>

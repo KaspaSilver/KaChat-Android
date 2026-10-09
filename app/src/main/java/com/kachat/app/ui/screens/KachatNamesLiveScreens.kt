@@ -3665,6 +3665,9 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
     var input by remember { mutableStateOf("") }
     var resolved by remember { mutableStateOf<Pair<String, ByteArray>?>(null) }
     var resolveError by remember { mutableStateOf<Int?>(null) }
+    // The shared not-found message for a typed name, shown in place of [resolveError] (iOS 5a5122d).
+    var resolveErrorText by remember { mutableStateOf<String?>(null) }
+    val resolveContext = androidx.compose.ui.platform.LocalContext.current
     var resolving by remember { mutableStateOf(false) }
     var showScanner by remember { mutableStateOf(false) }
     var showAddressBook by remember { mutableStateOf(false) }
@@ -3686,6 +3689,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         resolvedName = resolution.display
         selectedTld = resolution.tld
         resolveError = null
+        resolveErrorText = null
         true
     }
 
@@ -3693,6 +3697,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         delay(400)
         resolved = null
         resolveError = null
+        resolveErrorText = null
         resolvedName = null
         nameResolutions = emptyList()
         selectedTld = null
@@ -3705,7 +3710,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
             resolved = t to key
             return@LaunchedEffect
         }
-        // a name on any service, .kachat first (the ending typed, else .kachat, .kas, .k, .kaspa)
+        // a name on any service, .kachat first (the ending typed, else .kachat only - the others wait under Other domains)
         if (!com.kachat.app.services.NameServicesClient.looksLikeName(t)) { resolveError = R.string.kn_err_enter_address_or_domain; return@LaunchedEffect }
         resolving = true
         val results = try {
@@ -3718,7 +3723,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         if (primary != null) {
             if (!use(primary)) resolveError = R.string.kn_err_name_address_cant_own
         } else {
-            resolveError = R.string.kn_err_no_domain_by_name
+            resolveErrorText = com.kachat.app.services.NameServicesClient.notFoundMessage(resolveContext, t, results)
         }
     }
 
@@ -3779,6 +3784,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
                         Text(target.first, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     }
                 }
+                resolveErrorText != null -> Text(resolveErrorText ?: "", color = colors.danger, fontSize = 12.sp)
                 resolveError != null -> Text(stringResource(resolveError!!), color = colors.danger, fontSize = 12.sp)
             }
             if (!resolving) {

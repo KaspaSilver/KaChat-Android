@@ -1208,4 +1208,6 @@
     <string name="kachat_expired_many_title">आपके %1$d .kachat डोमेन की अवधि समाप्त हो गई</string>
     <string name="kachat_expired_one_body">%1$s को बनाए रखने के लिए %2$s को ग्रेस अवधि खत्म होने से पहले नवीनीकृत करें।</string>
     <string name="kachat_expired_many_body">उन्हें बनाए रखने के लिए ग्रेस अवधि खत्म होने से पहले नवीनीकृत करें।</string>
+    <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
+    <string name="kachat_names_not_live_here">.kachat नाम अभी इस नेटवर्क पर चालू नहीं हैं</string>
 </resources>

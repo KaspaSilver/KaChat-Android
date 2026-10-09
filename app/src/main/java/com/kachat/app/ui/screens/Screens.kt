@@ -6203,9 +6203,9 @@ fun SpendingAddressSendFlow(
         }
         isResolvingKns = true
         kotlinx.coroutines.delay(500)
-        // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-        // (iOS 79b6ac8). The resolved line names which one answered; the others are offered
-        // under "Other domains" (iOS 6ac48a7).
+        // Every name service, in priority: the ending typed, else .kachat only (the others wait
+        // under Other domains, iOS 5a5122d). The resolved line names which one answered; the
+        // others are offered under "Other domains" (iOS 6ac48a7).
         val results = viewModel.resolveEverywhere(trimmed)
         nameResolutions = results
         isResolvingKns = false
@@ -6213,7 +6213,7 @@ fun SpendingAddressSendFlow(
         if (primary?.address != null) {
             selectResolution(primary)
         } else {
-            knsError = noDomainFoundMessage(resolveContext, trimmed)
+            knsError = com.kachat.app.services.NameServicesClient.notFoundMessage(resolveContext, trimmed, results)
         }
     }
 
