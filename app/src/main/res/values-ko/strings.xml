@@ -1210,4 +1210,6 @@
     <string name="kachat_expired_many_body">유지하려면 유예 기간이 끝나기 전에 갱신하세요.</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">이 네트워크에서는 아직 .kachat 이름을 사용할 수 없습니다</string>
+    <!-- Nextcloud sync carries portfolios -->
+    <string name="nextcloud_sync_address_book_portfolios">주소록과 포트폴리오도 같은 백업에 포함되며 같은 방식으로 기기 간에 동기화됩니다.</string>
 </resources>

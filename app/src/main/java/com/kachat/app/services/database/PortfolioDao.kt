@@ -19,8 +19,22 @@ interface PortfolioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: PortfolioTransactionEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(transactions: List<PortfolioTransactionEntity>)
+
+    @Query("SELECT * FROM portfolio_transactions WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): PortfolioTransactionEntity?
+
+    /** One read of every portfolio's rows for this wallet - the Nextcloud sync's snapshot. */
+    @Query("SELECT * FROM portfolio_transactions WHERE walletAddress = :walletAddress ORDER BY timestampMillis ASC")
+    suspend fun getAllTransactionsForWalletOnce(walletAddress: String): List<PortfolioTransactionEntity>
+
     @Query("DELETE FROM portfolio_transactions WHERE id = :id")
     suspend fun delete(id: String)
+
+    /** At most a few hundred ids per call (SQLite's bound-variable limit). */
+    @Query("DELETE FROM portfolio_transactions WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 
     /** Used when a portfolio itself is deleted — removes its whole ledger. */
     @Query("SELECT COUNT(*) FROM portfolio_transactions WHERE portfolioId = :portfolioId")

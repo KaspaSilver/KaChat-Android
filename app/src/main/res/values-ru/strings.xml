@@ -1210,4 +1210,6 @@
     <string name="kachat_expired_many_body">Продлите их до окончания льготных периодов, чтобы сохранить.</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Имена .kachat в этой сети пока не работают</string>
+    <!-- Nextcloud sync carries portfolios -->
+    <string name="nextcloud_sync_address_book_portfolios">Адресная книга и портфели хранятся в той же резервной копии и так же синхронизируются между устройствами.</string>
 </resources>

@@ -61,7 +61,8 @@ class ChatHistoryExportImportService @Inject constructor(
     private val chatRepository: ChatRepository,
     private val groupRepository: GroupRepository,
     private val walletManager: WalletManager,
-    private val addressBookManager: AddressBookManager
+    private val addressBookManager: AddressBookManager,
+    private val portfolioLedgerStore: PortfolioLedgerStore
 ) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -124,6 +125,9 @@ class ChatHistoryExportImportService @Inject constructor(
                 )
             }
 
+        // Portfolios ride along (iOS 11f1548): everything but an untouched seed "Portfolio 1".
+        val portfolioArrays = portfolioLedgerStore.syncState(myAddress).forArchive().toArchiveArrays()
+
         // Groups ARE backed up again — now including decrypted message history (not just keys),
         // so message history survives even if the indexer has pruned old messages.
         return ChatHistoryArchive(
@@ -133,7 +137,11 @@ class ChatHistoryExportImportService @Inject constructor(
             groups = groupRepository.exportArchiveGroups(),
             deletedContactAddresses = deletedIds.sorted().takeIf { it.isNotEmpty() },
             addressBook = addressBookManager.archiveEntries().takeIf { it.isNotEmpty() },
-            addressBookDeleted = addressBookManager.archiveTombstones().takeIf { it.isNotEmpty() }
+            addressBookDeleted = addressBookManager.archiveTombstones().takeIf { it.isNotEmpty() },
+            portfolios = portfolioArrays.portfolios.takeIf { it.size() > 0 },
+            portfolioTransactions = portfolioArrays.transactions.takeIf { it.size() > 0 },
+            portfolioFees = portfolioArrays.fees.takeIf { it.size() > 0 },
+            portfolioDeleted = portfolioArrays.deleted.takeIf { it.size() > 0 }
         )
     }
 
@@ -257,6 +265,13 @@ class ChatHistoryExportImportService @Inject constructor(
                 walletAddress = currentWallet,
                 entries = archive.addressBook.orEmpty(),
                 tombstones = archive.addressBookDeleted.orEmpty()
+            )
+            // so are the portfolios (iOS 11f1548)
+            portfolioLedgerStore.importFromArchive(
+                currentWallet,
+                PortfolioSync.fromArchive(
+                    archive.portfolios, archive.portfolioTransactions, archive.portfolioFees, archive.portfolioDeleted
+                )
             )
         }
         if (archive.conversations.all { it.messages.isEmpty() }) {
@@ -786,6 +801,16 @@ class ChatHistoryExportImportService @Inject constructor(
             return book to deleted
         }
 
+        /**
+         * The two sides' portfolio keys, merged ([PortfolioSync.merge]) and re-encoded in the
+         * archive's own shape (iOS `mergeArchivePortfolios`). A side's unreadable element is left
+         * out; a missing key counts as empty.
+         */
+        internal fun mergeArchivePortfolios(local: JsonObject, remote: JsonObject): PortfolioSync.ArchiveArrays =
+            PortfolioSync.merge(listOf(PortfolioSync.fromArchive(local), PortfolioSync.fromArchive(remote)))
+                .forArchive()
+                .toArchiveArrays()
+
         internal fun mergeArchives(remote: JsonObject, local: JsonObject): JsonObject {
             val remoteIsNewer = exportedAtMs(remote) > exportedAtMs(local)
             val merged = LinkedHashMap<String, ConversationMerge>()
@@ -899,6 +924,17 @@ class ChatHistoryExportImportService @Inject constructor(
             val (book, bookDeleted) = mergeArchiveAddressBooks(local, remote)
             if (book.size() > 0) result.add("addressBook", book) else result.remove("addressBook")
             if (bookDeleted.size() > 0) result.add("addressBookDeleted", bookDeleted) else result.remove("addressBookDeleted")
+
+            // Portfolios: per item the newest edit or deletion wins (PortfolioSync.merge).
+            val portfolios = mergeArchivePortfolios(local, remote)
+            for ((key, values) in listOf(
+                PortfolioSync.KEY_PORTFOLIOS to portfolios.portfolios,
+                PortfolioSync.KEY_TRANSACTIONS to portfolios.transactions,
+                PortfolioSync.KEY_FEES to portfolios.fees,
+                PortfolioSync.KEY_DELETED to portfolios.deleted,
+            )) {
+                if (values.size() > 0) result.add(key, values) else result.remove(key)
+            }
             if (tombstones.isNotEmpty()) {
                 val tombstoneArray = JsonArray()
                 tombstones.forEach { tombstoneArray.add(it) }

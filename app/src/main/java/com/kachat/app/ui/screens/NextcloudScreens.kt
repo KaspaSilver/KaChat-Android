@@ -844,7 +844,9 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                         if (lastSyncedText != null) "Last synced: $lastSyncedText." else "Waiting for the first sync."
                 } else {
                     "Turn on to keep this server's backup current automatically and to mirror new messages between your devices in near real time while the app is open."
-                }) + " Automatic sync works with one cloud service at a time."
+                }) + " Automatic sync works with one cloud service at a time." +
+                    // the Address Book and portfolios ride in the same file (iOS 11f1548)
+                    "\n\n" + stringResource(R.string.nextcloud_sync_address_book_portfolios)
             )
 
             val backupInFlight = backupState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS

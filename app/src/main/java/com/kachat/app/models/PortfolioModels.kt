@@ -39,7 +39,12 @@ data class PortfolioTransactionEntity(
     // v29->v30 migration. Null for manual/CSV rows. sourceTxId exists purely so re-importing the
     // same address only adds transactions not already present for it (deduped by on-chain tx id).
     val sourceAddress: String? = null,
-    val sourceTxId: String? = null
+    val sourceTxId: String? = null,
+    /** When this row was last added or changed on any device - how Nextcloud Automatic Sync
+     *  picks between two copies (NEXTCLOUD_SYNC.md section 5, Portfolios). Stamped on save by
+     *  [com.kachat.app.services.PortfolioLedgerStore]; null for rows saved before sync existed
+     *  (v41->v42 migration). iOS `PortfolioTransaction.updatedAt`. */
+    val updatedAtMillis: Long? = null
 )
 
 /**
@@ -55,7 +60,11 @@ data class PortfolioEntity(
     val walletAddress: String,
     val name: String,
     val sortOrder: Int,
-    val createdAtMillis: Long
+    val createdAtMillis: Long,
+    /** Last created, renamed or moved on any device (Nextcloud sync); null for a list saved
+     *  before sync existed, and for the "Portfolio 1" a fresh wallet is seeded with until it is
+     *  touched (v41->v42 migration). iOS `Portfolio.updatedAt`. */
+    val updatedAtMillis: Long? = null
 )
 
 /**

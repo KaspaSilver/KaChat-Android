@@ -19,7 +19,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
@@ -58,7 +57,10 @@ class PortfolioRepository @Inject constructor(
     private val coinGeckoApi: CoinGeckoApi,
     private val walletManager: WalletManager,
     private val portfolioManager: PortfolioManager,
-    private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery
+    private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
+    // Every ledger-row and fee write goes through it: stamped for Nextcloud sync, deletions
+    // recorded, the backup marked dirty (iOS PortfolioViewModel.persist / persistFees).
+    private val ledgerStore: com.kachat.app.services.PortfolioLedgerStore,
 ) {
     /**
      * Whichever portfolio is currently active within whichever wallet is currently active —
@@ -81,41 +83,19 @@ class PortfolioRepository @Inject constructor(
 
     // -------------------------------------------------------------------------
     // Fees (iOS 61eff0f): network fees imported addresses paid, stored per wallet beside the
-    // ledger - one JSON list per wallet, like iOS's PortfolioLedgerStore fees key.
+    // ledger - one JSON list per wallet, kept by PortfolioLedgerStore (which also carries them
+    // in the Nextcloud backup).
     // -------------------------------------------------------------------------
 
-    private val feePrefs = context.getSharedPreferences("kachat_portfolio_fees", Context.MODE_PRIVATE)
-    private val feeGson = Gson()
-    /** Bumped on every save so [getFeesForActiveWallet] re-reads. */
-    private val feeVersion = MutableStateFlow(0)
-    private val feeLock = Any()
+    fun loadFees(walletAddress: String): List<PortfolioFeeRecord> = ledgerStore.loadFees(walletAddress)
 
-    private fun feesKey(walletAddress: String) = "fees_" + walletAddress.replace(":", "_")
-
-    fun loadFees(walletAddress: String): List<PortfolioFeeRecord> {
-        if (walletAddress.isEmpty()) return emptyList()
-        val json = feePrefs.getString(feesKey(walletAddress), null) ?: return emptyList()
-        return try {
-            feeGson.fromJson(json, Array<PortfolioFeeRecord>::class.java)?.toList().orEmpty()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun saveFees(walletAddress: String, fees: List<PortfolioFeeRecord>) {
-        if (walletAddress.isEmpty()) return
-        feePrefs.edit().putString(feesKey(walletAddress), feeGson.toJson(fees)).apply()
-        feeVersion.value = feeVersion.value + 1
-    }
-
-    private fun updateFees(walletAddress: String, transform: (List<PortfolioFeeRecord>) -> List<PortfolioFeeRecord>) {
-        synchronized(feeLock) { saveFees(walletAddress, transform(loadFees(walletAddress))) }
-    }
+    private fun updateFees(walletAddress: String, transform: (List<PortfolioFeeRecord>) -> List<PortfolioFeeRecord>) =
+        ledgerStore.updateFees(walletAddress, transform)
 
     /** Every portfolio's fees for the active wallet; re-emits on a wallet switch or a save. */
     fun getFeesForActiveWallet(): Flow<List<PortfolioFeeRecord>> =
         walletManager.activeAddressFlow.flatMapLatest { address ->
-            feeVersion.map { if (address == null) emptyList() else loadFees(address) }
+            ledgerStore.feeVersion.map { if (address == null) emptyList() else loadFees(address) }
         }
 
     /** A deleted portfolio's fees go with it (iOS forgetPortfolio). */
@@ -132,7 +112,7 @@ class PortfolioRepository @Inject constructor(
         val row = database.portfolioDao().getAllTransactionsForWallet(walletManager.getAddress()).first()
             .firstOrNull { it.id == id } ?: return
         if (row.portfolioId == toPortfolioId) return
-        database.portfolioDao().insert(row.copy(portfolioId = toPortfolioId))
+        ledgerStore.saveTransaction(row.copy(portfolioId = toPortfolioId))
     }
 
     fun getTransactions(): Flow<List<PortfolioTransactionEntity>> {
@@ -176,7 +156,7 @@ class PortfolioRepository @Inject constructor(
         sourceTxId: String? = null,
     ) {
         val targetPortfolioId = portfolioId ?: currentPortfolioId() ?: return
-        database.portfolioDao().insert(
+        ledgerStore.saveTransaction(
             PortfolioTransactionEntity(
                 id = UUID.randomUUID().toString(),
                 walletAddress = walletManager.getAddress(),
@@ -203,7 +183,7 @@ class PortfolioRepository @Inject constructor(
             .firstOrNull { it.id == id }
         val existingPortfolioId = existingRow?.portfolioId
             ?: currentPortfolioId() ?: return
-        database.portfolioDao().insert(
+        ledgerStore.saveTransaction(
             PortfolioTransactionEntity(
                 id = id,
                 walletAddress = walletManager.getAddress(),
@@ -222,7 +202,7 @@ class PortfolioRepository @Inject constructor(
         )
     }
 
-    suspend fun deleteTransaction(id: String) = database.portfolioDao().delete(id)
+    suspend fun deleteTransaction(id: String) = ledgerStore.deleteTransactions(walletManager.getAddress(), listOf(id))
 
     /** Null on any failure (offline, rate-limited, etc.) — callers fall back to the last-known price.
      *  [currency] is the lowercase ISO 4217 code (Settings > Customization > Currency, defaults to "usd"). */
@@ -697,13 +677,14 @@ class PortfolioRepository @Inject constructor(
         var importedCount = 0
         var pendingPriceCount = 0
         val pendingIdsByDay = mutableMapOf<Long, MutableList<String>>()
+        val importedRows = ArrayList<PortfolioTransactionEntity>(candidates.size)
         for (candidate in candidates) {
             // Days already in the persistent cache price instantly and for free — only genuinely
             // unknown days go to the background backfill.
             val cachedPrice = readPersistedHistoricalPrice(candidate.dayStartMillis, currency)
             val amountKas = candidate.amountSompi / 100_000_000.0
             val id = UUID.randomUUID().toString()
-            database.portfolioDao().insert(
+            importedRows.add(
                 PortfolioTransactionEntity(
                     id = id,
                     walletAddress = walletAddress,
@@ -723,6 +704,7 @@ class PortfolioRepository @Inject constructor(
                 pendingIdsByDay.getOrPut(candidate.dayStartMillis) { mutableListOf() }.add(id)
             }
         }
+        ledgerStore.saveTransactions(importedRows)
 
         if (pendingIdsByDay.isNotEmpty() || pendingFeeDays.isNotEmpty()) {
             priceBackfillScope.launch { backfillHistoricalPrices(walletAddress, pendingIdsByDay, currency, pendingFeeDays) }
@@ -778,14 +760,14 @@ class PortfolioRepository @Inject constructor(
                 }
                 val idsForDay = pendingIdsByDay[day]?.toSet() ?: emptySet()
                 val currentRows = database.portfolioDao().getAllTransactionsForWallet(walletAddress).first()
-                for (row in currentRows) {
-                    // Re-check the marker so a price the user already set by hand mid-backfill
-                    // is never overwritten.
+                // Re-check the marker so a price the user already set by hand mid-backfill is
+                // never overwritten. A priced row is an edit like any other (stamped, synced).
+                ledgerStore.saveTransactions(currentRows.mapNotNull { row ->
                     if (row.id in idsForDay && row.notes == PRICE_UNAVAILABLE_NOTE) {
                         val amountKas = row.amountSompi / 100_000_000.0
-                        database.portfolioDao().insert(row.copy(fiatValue = amountKas * dayPrice, notes = null))
-                    }
-                }
+                        row.copy(fiatValue = amountKas * dayPrice, notes = null)
+                    } else null
+                })
             }
             if (index < days.size - 1) {
                 delay(PRICE_REQUEST_SPACING_MILLIS)
@@ -949,7 +931,7 @@ class PortfolioRepository @Inject constructor(
                 updateTransaction(existingId, type, amountSompi, fiatValue, timestampMillis, notes)
             } else {
                 val newId = UUID.randomUUID().toString()
-                database.portfolioDao().insert(
+                ledgerStore.saveTransaction(
                     PortfolioTransactionEntity(
                         id = newId,
                         walletAddress = walletAddress,

@@ -36,7 +36,10 @@ import javax.inject.Singleton
 class PortfolioManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: KaChatDatabase,
-    private val walletManager: WalletManager
+    private val walletManager: WalletManager,
+    // Every portfolio write goes through it: stamped for Nextcloud sync, deletions recorded,
+    // the backup marked dirty (iOS PortfolioManager.persist).
+    private val ledgerStore: PortfolioLedgerStore,
 ) {
     /** Serializes the seed-if-empty check with its insert - see [ensureDefaultPortfolio]. */
     private val defaultSeedMutex = Mutex()
@@ -113,15 +116,19 @@ class PortfolioManager @Inject constructor(
      * with three identical "Portfolio 1" cards. The mutex makes the check and the insert one
      * step, so only the first caller through creates anything.
      *
-     * The cleanup is deliberately narrow: it only removes extra portfolios that still carry the
-     * seeded name AND hold no transactions, keeping the earliest. A portfolio someone renamed or
-     * put a single row into is theirs, whatever created it.
+     * The cleanup is deliberately narrow: it only removes extra portfolios that are still
+     * untouched seeds - the seeded name, never stamped, no transactions, no fees - keeping the
+     * earliest. A portfolio someone renamed, moved or put a single row or fee into is theirs,
+     * whatever created it, and may have synced to other devices. An untouched seed never syncs
+     * (NEXTCLOUD_SYNC.md section 5), so removing one needs no tombstone.
+     *
+     * The seed itself is written unstamped ([PortfolioLedgerStore.insertSeed]), as iOS seeds it.
      */
     private suspend fun ensureDefaultPortfolio(walletAddress: String) = defaultSeedMutex.withLock {
         val dao = database.portfolioDefinitionDao()
         val existing = dao.getPortfoliosOnce(walletAddress)
         if (existing.isEmpty()) {
-            dao.insert(
+            ledgerStore.insertSeed(
                 PortfolioEntity(
                     id = UUID.randomUUID().toString(),
                     walletAddress = walletAddress,
@@ -135,8 +142,10 @@ class PortfolioManager @Inject constructor(
         val seeded = existing.filter { it.name == DEFAULT_PORTFOLIO_NAME }
         if (seeded.size < 2) return@withLock
         val keep = seeded.minByOrNull { it.createdAtMillis } ?: return@withLock
+        val fees = ledgerStore.loadFees(walletAddress)
         for (duplicate in seeded) {
-            if (duplicate.id == keep.id) continue
+            if (duplicate.id == keep.id || duplicate.updatedAtMillis != null) continue
+            if (fees.any { it.portfolioId == duplicate.id }) continue
             if (database.portfolioDao().countForPortfolio(duplicate.id) == 0) {
                 dao.delete(duplicate.id)
             }
@@ -156,7 +165,7 @@ class PortfolioManager @Inject constructor(
             sortOrder = count,
             createdAtMillis = System.currentTimeMillis()
         )
-        database.portfolioDefinitionDao().insert(entity)
+        ledgerStore.savePortfolios(listOf(entity))
         normalizeSortOrder(address)
         setActivePortfolio(entity.id)
         return entity
@@ -166,15 +175,15 @@ class PortfolioManager @Inject constructor(
      * Rewrites sortOrder to match position, so the stored order is always 0 until count with no
      * gaps and no duplicates. Run after every add, delete and reorder - it never was, so deleting
      * from the middle and adding another handed the new portfolio a sortOrder the survivor already
-     * had.
+     * had. A portfolio that moves is stamped, as on iOS.
      */
     private suspend fun normalizeSortOrder(walletAddress: String) {
         val dao = database.portfolioDefinitionDao()
         val ordered = dao.getPortfoliosOnce(walletAddress)
-        val renumbered = ordered.mapIndexed { index, portfolio ->
-            if (portfolio.sortOrder == index) portfolio else portfolio.copy(sortOrder = index)
+        val moved = ordered.mapIndexedNotNull { index, portfolio ->
+            if (portfolio.sortOrder == index) null else portfolio.copy(sortOrder = index)
         }
-        if (renumbered != ordered) dao.insertAll(renumbered)
+        if (moved.isNotEmpty()) ledgerStore.savePortfolios(moved)
     }
 
     /**
@@ -187,22 +196,21 @@ class PortfolioManager @Inject constructor(
         val current = dao.getPortfoliosOnce(address)
         if (orderedIds.size != current.size || orderedIds.toSet() != current.map { it.id }.toSet()) return
         val byId = current.associateBy { it.id }
-        dao.insertAll(orderedIds.mapIndexedNotNull { index, id -> byId[id]?.copy(sortOrder = index) })
+        ledgerStore.savePortfolios(orderedIds.mapIndexedNotNull { index, id -> byId[id]?.copy(sortOrder = index) })
     }
 
     suspend fun renamePortfolio(id: String, newName: String) {
         val trimmed = newName.trim()
         if (trimmed.isEmpty()) return
         val existing = database.portfolioDefinitionDao().getById(id) ?: return
-        database.portfolioDefinitionDao().insert(existing.copy(name = trimmed))
+        ledgerStore.savePortfolios(listOf(existing.copy(name = trimmed)))
     }
 
-    /** Never allows deleting the last remaining portfolio — every wallet must always have at least one. Also deletes that portfolio's own ledger rows. */
+    /** Never allows deleting the last remaining portfolio — every wallet must always have at least one. Also deletes that portfolio's own ledger rows and fees, all recorded as deleted for the Nextcloud backup. */
     suspend fun deletePortfolio(id: String): Boolean {
         val address = walletManager.getAddress()
         if (database.portfolioDefinitionDao().count(address) <= 1) return false
-        database.portfolioDefinitionDao().delete(id)
-        database.portfolioDao().deleteAllForPortfolio(id)
+        ledgerStore.deletePortfolio(address, id)
         normalizeSortOrder(address)
         return true
     }

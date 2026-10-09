@@ -45,7 +45,7 @@ import com.kachat.app.models.SwapTransactionEntity
         ReactionEntity::class,
         MessageEditEntity::class,
     ],
-    version = 41,
+    version = 42,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
@@ -494,6 +494,24 @@ abstract class KaChatDatabase : RoomDatabase() {
                         "WHERE `contacts`.`id` = `deleted_contacts`.`contactId` " +
                         "AND `contacts`.`walletAddress` = `deleted_contacts`.`walletAddress`)"
                 )
+            }
+        }
+
+        /**
+         * v41 -> v42: `updatedAtMillis` on `portfolios` and `portfolio_transactions` - when a
+         * portfolio or a ledger row was last created or changed on any device, which is how
+         * Nextcloud Automatic Sync picks between two copies (NEXTCLOUD_SYNC.md section 5,
+         * Portfolios; iOS 11f1548). Existing rows start null: a portfolio without one counts as
+         * its createdAt, a row without one as the oldest possible.
+         */
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!columnExists(db, "portfolios", "updatedAtMillis")) {
+                    db.execSQL("ALTER TABLE `portfolios` ADD COLUMN `updatedAtMillis` INTEGER DEFAULT NULL")
+                }
+                if (!columnExists(db, "portfolio_transactions", "updatedAtMillis")) {
+                    db.execSQL("ALTER TABLE `portfolio_transactions` ADD COLUMN `updatedAtMillis` INTEGER DEFAULT NULL")
+                }
             }
         }
 

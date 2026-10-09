@@ -1210,4 +1210,6 @@
     <string name="kachat_expired_many_body">Renouvelez-les avant la fin de leurs périodes de grâce pour les conserver.</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Les noms .kachat ne sont pas encore actifs sur ce réseau</string>
+    <!-- Nextcloud sync carries portfolios -->
+    <string name="nextcloud_sync_address_book_portfolios">Votre carnet d’adresses et vos portefeuilles sont dans la même sauvegarde et se synchronisent de la même façon entre vos appareils.</string>
 </resources>

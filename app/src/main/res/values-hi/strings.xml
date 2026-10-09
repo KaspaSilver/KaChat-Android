@@ -1210,4 +1210,6 @@
     <string name="kachat_expired_many_body">उन्हें बनाए रखने के लिए ग्रेस अवधि खत्म होने से पहले नवीनीकृत करें।</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">.kachat नाम अभी इस नेटवर्क पर चालू नहीं हैं</string>
+    <!-- Nextcloud sync carries portfolios -->
+    <string name="nextcloud_sync_address_book_portfolios">आपकी एड्रेस बुक और पोर्टफ़ोलियो उसी बैकअप में हैं और आपके डिवाइसों के बीच उसी तरह सिंक होते हैं।</string>
 </resources>
