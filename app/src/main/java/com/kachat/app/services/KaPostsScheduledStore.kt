@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
@@ -48,9 +49,11 @@ data class KaPostScheduledEntry(
 /**
  * This wallet's scheduled posts, and the keeper of the coins they will spend.
  *
- * [reservedOutpoints] is read by the wallet engine before it chooses inputs, so a coin a
- * scheduled post depends on is never spent underneath it. The reservation lasts exactly as long
- * as the entry is `scheduled`. Mirrors iOS's `KaPostsScheduledStore`.
+ * [reservedOutpoints] is read before inputs are chosen - by the wallet engine, and by `.kachat`
+ * through `KachatNamesService.fundingUtxos` and the profile record - so a coin a scheduled post
+ * depends on is never spent underneath it. The reservation lasts exactly as long as the entry is
+ * `scheduled`; it's loaded for each wallet as the wallet loads (iOS 58a0b22, IOS-064). Mirrors
+ * iOS's `KaPostsScheduledStore`.
  */
 @Singleton
 class KaPostsScheduledStore @Inject constructor(
@@ -66,6 +69,14 @@ class KaPostsScheduledStore @Inject constructor(
     val entries: StateFlow<List<KaPostScheduledEntry>> = _entries.asStateFlow()
 
     private var loadedWallet: String? = null
+
+    init {
+        // The coins scheduled KaPosts hold, for every builder from the moment a wallet loads -
+        // not first when the KaPosts page renders, and never the previous wallet's (iOS 58a0b22, IOS-064).
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default).launch {
+            walletManager.activeAddressFlow.collect { runCatching { reloadIfNeeded() } }
+        }
+    }
 
     private fun walletAddressOrNull(): String? =
         try { walletManager.getAddress() } catch (_: Exception) { null }

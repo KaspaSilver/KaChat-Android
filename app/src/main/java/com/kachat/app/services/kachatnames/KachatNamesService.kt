@@ -444,11 +444,18 @@ class KachatNamesService @Inject constructor(
         /**
          * The wallet's spendable funding UTXOs for the builders: the signer's own Schnorr P2PK
          * outputs only, mature, and never one carrying a covenant id (spending that would drag a
-         * covenant into the transaction and change its storage mass).
+         * covenant into the transaction and change its storage mass), and never a coin a
+         * scheduled KaPost will spend (iOS 58a0b22, IOS-064): quotes, plans and submits all fund
+         * from here, so they see the same coins.
          */
         fun fundingUtxos(utxos: List<Utxo>, me: ByteArray, virtualDaaScore: Long): List<Utxo> {
             val mine = Codec.p2pkScript(me)
+            val reserved = com.kachat.app.services.KaPostsScheduledStore.reservedOutpoints
+                .mapTo(HashSet()) { it.lowercase() }
             return utxos.filter { u ->
+                if (reserved.isNotEmpty() && "${KachatNames.hex(u.outpoint.txid)}:${u.outpoint.index}".lowercase() in reserved) {
+                    return@filter false
+                }
                 // An overflowing or negative DAA score counts as not yet mature (IOS-020).
                 val mature = !u.entry.isCoinbase ||
                     com.kachat.app.util.UtxoMath.isMatureCoinbase(u.entry.blockDaaScore, KaspaWalletEngine.COINBASE_MATURITY, virtualDaaScore)
