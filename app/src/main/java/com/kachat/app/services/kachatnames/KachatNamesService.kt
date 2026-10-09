@@ -148,13 +148,13 @@ class KachatNamesService @Inject constructor(
             // (iOS e1e3455 / 49c0baa)
             Manifest.decode(data).also { it.verify(if (source == "bundle") Manifest.Source.BUNDLE else Manifest.Source.INDEXER) }
         } catch (e: Exception) {
-            // An earlier registry's manifest (the bundled one until the v3 genesis) is expected,
+            // A registry version this app doesn't build for (an earlier or a later one) is expected,
             // not an error: say "being upgraded", once, and stop re-reading the bundle.
             val upgrading = isRegistryUpgrading(e)
             val refused: Exception = if (upgrading) ServiceError.RegistryUpgrading() else e
             if (upgrading) {
                 if (!_registryUpgrading.value) {
-                    Log.i(TAG, "the $source manifest is an earlier registry; .kachat waits for the v3 genesis manifest")
+                    Log.i(TAG, "the $source manifest is an earlier registry; .kachat waits for a registry v4 or v5 manifest")
                 }
                 _registryUpgrading.value = true
             }
@@ -247,7 +247,9 @@ class KachatNamesService @Inject constructor(
             blockDaa = dag.virtualDaaScore,
             blockTimeMs = dag.pastMedianTimeMs,
             wallMs = System.currentTimeMillis(),
-            feerate = maxOf(feerate, KachatNames.MIN_FEERATE)
+            feerate = maxOf(feerate, KachatNames.MIN_FEERATE),
+            // the v5 gap is bigger and costs more script units per spend (iOS 6f18475)
+            budgets = Budgets.recommended(runCatching { loadManifest() }.getOrNull()?.registryVersion ?: 4)
         )
     }
 

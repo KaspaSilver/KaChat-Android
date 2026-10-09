@@ -25,8 +25,14 @@ import java.io.File
  * budgets, outputs, covenant bindings, lock time, payload, masses, fee, rest and full preimages,
  * every sighash, every signature script, txid and tx hash). Also codecs, BLAKE3 against Rust
  * `blake3::hash`, and the manifest checks. The official BLAKE3 vectors are in `Blake3Test`.
+ * [KachatNamesCoreV5Test] runs the same over the registry v5 vectors (kachat-domains 6eddc7a: the
+ * v5 gap's budgets, the register deadline; imports are skipped here, the walker test decodes them;
+ * iOS 6f18475).
  */
-class KachatNamesCoreTest {
+open class KachatNamesCoreTest {
+
+    /** The vectors file: the v4 set here, the v5 set in [KachatNamesCoreV5Test]. */
+    protected open val vectorsResource: String = "KachatNamesVectors.json"
 
     private class Report {
         var pass = 0
@@ -50,8 +56,8 @@ class KachatNamesCoreTest {
     }
 
     private val vectors: JsonObject by lazy {
-        val stream = javaClass.classLoader!!.getResourceAsStream("KachatNamesVectors.json")
-            ?: error("KachatNamesVectors.json missing from the test resources")
+        val stream = javaClass.classLoader!!.getResourceAsStream(vectorsResource)
+            ?: error("$vectorsResource missing from the test resources")
         JsonParser.parseString(stream.bufferedReader().use { it.readText() }).asJsonObject
     }
 
@@ -230,8 +236,10 @@ class KachatNamesCoreTest {
         val m = manifest()
         val pins = listOf(m.gap, m.name, m.offer).associate { it.contract to hex(it.templateHash) }
         assertEquals(setOf("KachatGap", "KachatName", "KachatOffer"), pins.keys)
-        // the app's own pins are this build's gap and name (registry v4, iOS 0ed15e9)
-        assertEquals(pins - "KachatOffer", Manifest.PINNED_TEMPLATE_HASHES)
+        // the app's own pins are this build's gap and name (registry v4, iOS 0ed15e9); on v5 the
+        // name only - the v5 gap bakes its migration, so it is pinned per deployment (iOS 6f18475)
+        val appPins = Manifest.PINNED_TEMPLATE_HASHES.getValue(m.registryVersion)
+        assertEquals(if (m.registryVersion >= 5) pins - "KachatOffer" - "KachatGap" else pins - "KachatOffer", appPins)
         val withoutOffer = pins - "KachatOffer"
         // gap and name pinned, the offer not: refused from an indexer
         val refused = runCatching { m.verify(Manifest.Source.INDEXER, withoutOffer) }.exceptionOrNull()
@@ -273,7 +281,7 @@ class KachatNamesCoreTest {
         val wrongOffer = mapOf("KachatOffer" to "00".repeat(32))
         for (source in listOf(Manifest.Source.BUNDLE, Manifest.Source.INDEXER)) {
             try {
-                m.verify(source, Manifest.PINNED_TEMPLATE_HASHES + wrongOffer)
+                m.verify(source, Manifest.PINNED_TEMPLATE_HASHES.getValue(m.registryVersion) + wrongOffer)
                 fail("a tampered offer pin must be refused ($source)")
             } catch (e: KachatNames.Failure) {
                 assertTrue(e.toString(), e.toString().contains("not the pinned build"))
@@ -365,12 +373,46 @@ class KachatNamesCoreTest {
         } else {
             r.check(false) { "no extend step in the vectors" }
         }
-        // the fixed budgets are the vectors' table, entry for entry
+        // the fixed budgets are the vectors' table, entry for entry (a v4 table has no gap.import)
         val recommended = vectors.o("recommendedBudgets")
-        r.eq(recommended.keySet().toSet(), BudgetRole.entries.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
-        for (role in BudgetRole.entries) {
-            r.eq(Budgets.RECOMMENDED[role].toLong(), recommended.l(role.raw), "recommended budget ${role.raw}")
+        val table = Budgets.recommended(m.registryVersion)
+        val roles = BudgetRole.entries.filter { m.registryVersion >= 5 || it != BudgetRole.GAP_IMPORT }
+        r.eq(recommended.keySet().toSet(), roles.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
+        for (role in roles) {
+            r.eq(table[role].toLong(), recommended.l(role.raw), "recommended budget ${role.raw}")
         }
+        val rules = vectors.get("migrationRules")?.takeIf { it.isJsonObject }?.asJsonObject
+        if (m.registryVersion >= 5 && rules != null) {
+            // registry v5: register is refused before the migration deadline, built at and after it (iOS 6f18475)
+            val opensAt = rules.l("registerOpensAt")
+            r.eq(m.params.migration?.deadlineMs ?: 0L, opensAt, "v5: registerOpensAt = migration.deadlineMs")
+            r.check(!m.params.registerOpen(opensAt - 1) && m.params.registerOpen(opensAt)) { "v5: registerOpen flips at the deadline" }
+            val st = vectors.arr("steps").map { it.asJsonObject }.firstOrNull { it.s("op") == "register" }
+            if (st != null) {
+                val env0 = st.o("env")
+                val env = Env(me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"), budgets = table)
+                val rec = st.o("records")
+                val wallet = st.arr("wallet").map { utxo(it.asJsonObject) }
+                val years = st.o("args").l("years")
+                val early = runCatching { b.register(env, wallet, gapRec(rec.o("gap")), commitRec(rec.o("commit")), years, opensAt - 1) }
+                r.check(early.isFailure) { "v5: register a millisecond before the deadline was built" }
+                r.check(early.exceptionOrNull()?.toString()?.contains("migration deadline") == true) {
+                    "v5: register before the deadline refused for the deadline: ${early.exceptionOrNull()}"
+                }
+            } else {
+                r.check(false) { "v5: no register step to try before the deadline" }
+            }
+            // a v5 manifest without its migration block is refused
+            val noMig = vectors.o("manifest").deepCopy()
+            noMig.o("params").remove("migration")
+            r.check(runCatching { manifest(noMig) }.isFailure) { "v5: a manifest without params.migration decoded" }
+        }
+        // a later registry version is "newer" (shown as setting up), never trusted
+        val later = vectors.o("manifest").deepCopy()
+        later.addProperty("registryVersion", 6)
+        val errLater = runCatching { manifest(later) }.exceptionOrNull()
+        r.check(errLater != null) { "a registryVersion 6 manifest decoded" }
+        r.eq(errLater as? KachatNames.Failure, KachatNames.Failure.NEWER_REGISTRY, "registryVersion 6 is a newer registry")
         // an earlier registry's manifest (no registryVersion 4) is recognised as outdated, never trusted
         val old = vectors.o("manifest").deepCopy()
         old.remove("registryVersion")
@@ -420,10 +462,16 @@ class KachatNamesCoreTest {
      */
     @Test
     fun vectorStepsBuildWithRecommendedBudgets() {
-        val b = Builder(manifest())
+        val m = manifest()
+        val b = Builder(m)
         for (st in vectors.arr("steps").map { it.asJsonObject }) {
+            // the sponsor's (or an owner's) import is built by the kachat-domains CLI, not the app
+            if (st.s("op") == "import") continue
             val env0 = st.o("env")
-            val env = Env(me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"))
+            val env = Env(
+                me = env0.hx("me"), blockDaa = env0.l("blockDaa"), blockTimeMs = env0.l("blockTimeMs"), wallMs = env0.l("wallMs"),
+                budgets = Budgets.recommended(m.registryVersion)
+            )
             val plan = build(b, st, env)
             val label = st.s("label")
             assertEquals("$label: op", label, plan.op)
@@ -441,7 +489,11 @@ class KachatNamesCoreTest {
         val b = Builder(m)
         val recommended = vectors.o("recommendedBudgets")
         val results = ArrayList<Triple<String, Boolean, String?>>()
-        val steps = vectors.arr("steps").map { it.asJsonObject }
+        // the sponsor's (or an owner's) import is built by the kachat-domains CLI, not the app; the
+        // walker decodes it (KachatNamesRegistryTest; iOS 6f18475)
+        val steps = vectors.arr("steps").map { it.asJsonObject }.filter { it.s("op") != "import" }
+        // the fixed table for this registry version (v5's gap is bigger)
+        val table = Budgets.recommended(m.registryVersion)
         for (st in steps) {
             val failBefore = r.fail
             val failuresBefore = r.failures.size
@@ -449,12 +501,12 @@ class KachatNamesCoreTest {
             val env0 = st.o("env")
             val exp = st.o("expected")
             val expInputs = exp.arr("inputs").map { it.asJsonObject }
-            var budgets = Budgets.RECOMMENDED
+            var budgets = table
             for (i in expInputs) {
                 val role = BudgetRole.fromRaw(i.s("role")) ?: error("unknown role ${i.s("role")}")
                 val measured = i.l("computeBudget").toInt()
-                r.check(measured <= Budgets.RECOMMENDED[role]) { "$label: measured budget $measured > recommended for $role" }
-                r.eq(Budgets.RECOMMENDED[role].toLong(), recommended.l(role.raw), "recommended table ${role.raw}")
+                r.check(measured <= table[role]) { "$label: measured budget $measured > recommended for $role" }
+                r.eq(table[role].toLong(), recommended.l(role.raw), "recommended table ${role.raw}")
                 budgets = budgets.with(role, measured)
             }
             val env = Env(
@@ -566,8 +618,14 @@ class KachatNamesCoreTest {
         }
         val identical = results.count { it.second }
         println("vectors: ${r.pass} checks pass, ${r.fail} fail; $identical/${results.size} transactions byte-identical")
-        assertEquals("vector steps (registry v4)", 35, steps.size)
+        assertEquals("vector steps (registry v${m.registryVersion}, imports aside)", 35, steps.size)
         r.assertClean()
         assertEquals("transactions byte-identical", steps.size, identical)
     }
+}
+
+/** [KachatNamesCoreTest] over kachat-domains 6eddc7a's registry v5 vectors (iOS 6f18475): 35/35
+ *  transactions byte-identical with the v5 budgets, the register deadline, the migration block. */
+class KachatNamesCoreV5Test : KachatNamesCoreTest() {
+    override val vectorsResource: String = "KachatNamesVectors-v5.json"
 }

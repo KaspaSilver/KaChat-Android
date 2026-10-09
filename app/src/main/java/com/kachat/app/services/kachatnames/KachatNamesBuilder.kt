@@ -18,6 +18,8 @@ enum class BudgetRole(val raw: String) {
     GAP_REGISTER("gap.register"),
     GAP_MERGE("gap.merge"),
     GAP_ABSORBED("gap.absorbed"),
+    /** registry v5 only: the CLI's sponsor imports; listed so the table matches the vectors (iOS 6f18475) */
+    GAP_IMPORT("gap.import"),
     NAME_TRANSFER("name.transfer"),
     NAME_LIST("name.list"),
     NAME_BUY("name.buy"),
@@ -52,7 +54,7 @@ data class Budgets(val table: Map<BudgetRole, Int>) {
         val RECOMMENDED = Budgets(
             mapOf(
                 BudgetRole.P2PK to 10, BudgetRole.COMMIT to 10,
-                BudgetRole.GAP_REGISTER to 8, BudgetRole.GAP_MERGE to 4, BudgetRole.GAP_ABSORBED to 0,
+                BudgetRole.GAP_REGISTER to 8, BudgetRole.GAP_MERGE to 4, BudgetRole.GAP_ABSORBED to 0, BudgetRole.GAP_IMPORT to 0,
                 BudgetRole.NAME_TRANSFER to 12, BudgetRole.NAME_LIST to 12, BudgetRole.NAME_BUY to 2,
                 BudgetRole.NAME_EXTEND to 2, BudgetRole.NAME_RENEW to 2, BudgetRole.NAME_RELEASE to 10,
                 BudgetRole.NAME_RECLAIM to 0,
@@ -60,6 +62,21 @@ data class Budgets(val table: Map<BudgetRole, Int>) {
                 BudgetRole.OFFER_REFUND to 0
             )
         )
+
+        /**
+         * Registry v5: the gap is the v5 gap (7.7 kB: the 20-level import proof loop and a second
+         * name check), and every gap spend reveals and runs it. kachat-domains 6eddc7a measured the
+         * worst cases: register 122,889 script units (12), merge 69,090 (6), absorbed 15,782 (1),
+         * import ~234,700 (23); the vectors' `recommendedBudgets`. Name and offer as v4 (iOS 6f18475).
+         */
+        val RECOMMENDED_V5: Budgets = RECOMMENDED
+            .with(BudgetRole.GAP_REGISTER, 13)
+            .with(BudgetRole.GAP_MERGE, 7)
+            .with(BudgetRole.GAP_ABSORBED, 1)
+            .with(BudgetRole.GAP_IMPORT, 24)
+
+        /** The fixed table for a registry version (v5's gap is bigger). */
+        fun recommended(registryVersion: Int): Budgets = if (registryVersion >= 5) RECOMMENDED_V5 else RECOMMENDED
     }
 }
 
@@ -487,6 +504,8 @@ class Builder(val manifest: Manifest) {
         val redeem = Codec.commitRedeem(Codec.commitment(name, env.me, commit.salt), env.me)
         if (!commitUtxo.entry.script.contentEquals(Codec.p2shScript(redeem))) throw Failure("commit UTXO script does not match the salt")
         if (now <= 0 || now < KachatNames.LOCK_TIME_THRESHOLD) throw Failure("now must be a unix-ms timestamp")
+        // registry v5: closed until the migration deadline (the contract refuses it; iOS 6f18475)
+        if (!params.registerOpen(now)) throw Failure.registrationNotOpen(params.migration?.deadlineMs ?: 0L)
 
         val nameLength = name.toByteArray(Charsets.UTF_8).size
         val price = params.registerCost(nameLength, years)

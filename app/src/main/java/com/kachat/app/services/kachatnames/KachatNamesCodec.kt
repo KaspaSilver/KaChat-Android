@@ -28,17 +28,21 @@ object KachatNames {
         override fun equals(other: Any?): Boolean = other is Failure && other.message == message
         override fun hashCode(): Int = message.hashCode()
 
-        /** True for [OUTDATED_REGISTRY] (compared by message, like every Failure). */
-        val isOutdatedRegistry: Boolean get() = this == OUTDATED_REGISTRY
+        /** True for [OUTDATED_REGISTRY] and [NEWER_REGISTRY] (compared by message, like every Failure). */
+        val isOutdatedRegistry: Boolean get() = this == OUTDATED_REGISTRY || this == NEWER_REGISTRY
 
         companion object {
             /**
-             * The manifest describes an earlier registry (v1 - v3): this app builds for registry v4
-             * (fixed register and renew tables, no price record) and waits for its genesis manifest.
-             * Not an error to show as one: the screens say the registry is being set up (iOS 3ef2ec2,
-             * 0ed15e9).
+             * The manifest describes a registry this app doesn't build for: an earlier one (v1 - v3)
+             * or a later one than v5 ([NEWER_REGISTRY]). Not an error to show as one: the screens say
+             * the registry is being set up (iOS 3ef2ec2, 0ed15e9, 6f18475).
              */
-            val OUTDATED_REGISTRY = Failure("manifest: an earlier registry; this app needs the registry v4 manifest (new genesis pending)")
+            val OUTDATED_REGISTRY = Failure("manifest: an earlier registry; this app needs a registry v4 or v5 manifest")
+            val NEWER_REGISTRY = Failure("manifest: a later registry version than this app builds for; update KaChat")
+
+            /** Registry v5: `register` is refused until the migration deadline (unix ms; iOS 6f18475). */
+            fun registrationNotOpen(deadlineMs: Long): Failure =
+                Failure("registration opens after the migration deadline ($deadlineMs)")
 
             /**
              * A registry transaction that spends a gap or name not tracked yet: it applies once the

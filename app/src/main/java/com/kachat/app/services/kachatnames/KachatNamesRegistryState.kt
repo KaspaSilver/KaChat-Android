@@ -167,8 +167,8 @@ class OfferInfo(
 data class Event(
     val txId: String,
     /**
-     * register, transfer, list, delist, sale, extend, renew, release, reclaim, offer_accepted,
-     * offer, offer_<entry> (registry v4 has no price changes)
+     * register, import (registry v5), transfer, list, delist, sale, extend, renew, release, reclaim,
+     * offer_accepted, offer, offer_<entry> (registry v4 has no price changes)
      */
     val op: String,
     val name: String? = null,
@@ -987,6 +987,25 @@ data class RegistryState(
                     predicted.add(i to Predicted.GapP(hex(k), g.hi))
                     predicted.add(i to Predicted.NameP(f, name))
                     events.add(Event(txId = id, op = "register", name = name, at = tx.at, to = hex(owner), years = years))
+                }
+                "import" -> {
+                    // registry v5: a name from the predecessor's snapshot, with its owner and paid
+                    // period, unlisted. The same outputs as register; the contract checked the
+                    // Merkle proof and the owner's or sponsor's signature (REGISTRY_V5.md section 2;
+                    // iOS 6f18475).
+                    if (m.registryVersion < 5) throw Failure("$short: import on a registry v${m.registryVersion} gap")
+                    val nameBytes = sp.args.firstOrNull() ?: throw Failure("$short: import without a name")
+                    val owner = arg32(sp.args, 1)
+                    val periodStart = argInt(sp.args, 2)
+                    val expiresAt = argInt(sp.args, 3)
+                    val name = String(nameBytes, Charsets.UTF_8)
+                    val k = KachatNames.blake3(nameBytes)
+                    val padded = nameBytes.copyOf(minOf(nameBytes.size, 32)).copyOf(32)
+                    val f = NameFields(k, padded, owner, 0, periodStart, expiresAt)
+                    predicted.add(i to Predicted.GapP(g.lo, hex(k)))
+                    predicted.add(i to Predicted.GapP(hex(k), g.hi))
+                    predicted.add(i to Predicted.NameP(f, name))
+                    events.add(Event(txId = id, op = "import", name = name, at = tx.at, to = hex(owner)))
                 }
                 "merge" -> {
                     val succ = gapIns.firstOrNull { it.first == 2 && it.second.lo == g.hi }?.second

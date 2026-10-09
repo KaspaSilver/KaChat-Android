@@ -24,9 +24,13 @@ import org.junit.Test
  * walk loop over a simulated chain, the status / label / profile rules, the REST transaction
  * parser and the indexer shapes. Plus the Android-side pure pieces: the `.kachat` resolution
  * rule (active names only), signing and the protowire conversion, funding UTXO selection and
- * the curve check.
+ * the curve check. [KachatNamesRegistryV5Test] runs the same over the registry v5 vectors, which
+ * open with two imports from a migration snapshot (iOS 6f18475).
  */
-class KachatNamesRegistryTest {
+open class KachatNamesRegistryTest {
+
+    /** The vectors file: the v4 set here, the v5 set in [KachatNamesRegistryV5Test]. */
+    protected open val vectorsResource: String = "KachatNamesVectors.json"
 
     private class Report {
         var pass = 0
@@ -45,8 +49,8 @@ class KachatNamesRegistryTest {
     }
 
     private val vectors: JsonObject by lazy {
-        val stream = javaClass.classLoader!!.getResourceAsStream("KachatNamesVectors.json")
-            ?: error("KachatNamesVectors.json missing from the test resources")
+        val stream = javaClass.classLoader!!.getResourceAsStream(vectorsResource)
+            ?: error("$vectorsResource missing from the test resources")
         JsonParser.parseString(stream.bufferedReader().use { it.readText() }).asJsonObject
     }
 
@@ -88,9 +92,13 @@ class KachatNamesRegistryTest {
      * The vectors' end-to-end plan (README "The end-to-end run", registry v4), after the genesis:
      * commits, three registrations, extend, renew, transfer, list, buy, four offers (accept,
      * decline, refund, withdraw), release, reclaim. The steps after it are edge cases on their own
-     * synthetic records.
+     * synthetic records. Registry v5 vectors open with [lead] imports from the migration snapshot,
+     * then the same plan (iOS 6f18475).
      */
-    private val e2eCount = 21
+    private val e2eCount: Int get() = 21 + lead
+
+    /** The imports the vectors open with (registry v5; none on v4). */
+    private val lead: Int by lazy { steps.takeWhile { it.s("op") == "import" }.size }
 
     /** Every record a step was built from must be in the walked state, exactly. */
     private fun checkRecords(st: JsonObject, state: RegistryState, r: Report) {
@@ -185,9 +193,10 @@ class KachatNamesRegistryTest {
             }
             try { state.checkInvariants() } catch (e: Exception) { r.check(false) { "${st.s("label")}: invariants: $e" } }
         }
+        val imported = e2e.take(lead).map { it.s("label").removePrefix("import ") }
         r.eq(
             ops,
-            listOf(
+            imported.map { "import $it" } + listOf(
                 "register alpha-tn", "register bravo-tn", "register lapse-tn", "extend alpha-tn", "renew lapse-tn",
                 "transfer alpha-tn", "list alpha-tn", "sale alpha-tn", "offer bravo-tn", "offer_accepted bravo-tn", "offer_accept bravo-tn",
                 "offer alpha-tn", "offer_decline alpha-tn", "offer alpha-tn", "offer_refund alpha-tn",
@@ -195,16 +204,37 @@ class KachatNamesRegistryTest {
             ),
             "e2e events"
         )
-        r.eq(state.names.map { it.name }, listOf("alpha-tn"), "names left after the e2e plan")
-        r.eq(state.gaps.size, 2, "gaps left after the e2e plan")
+        r.eq(state.names.map { it.name }.sorted(), (imported + "alpha-tn").sorted(), "names left after the e2e plan")
+        r.eq(state.gaps.size, 2 + lead, "gaps left after the e2e plan")
+        val entries = vectors.getAsJsonObject("migrationRules")?.optO("snapshot")?.arr("entries")
+        if (lead > 0 && entries != null) {
+            // registry v5: each import is the snapshot entry exactly - owner, paid period - and unlisted
+            r.eq(entries.size, lead, "v5: one import per snapshot entry")
+            for (e in entries) {
+                val n = state.name(e.s("name"))
+                r.eq(n?.owner, e.s("owner"), "v5 import ${e.s("name")}: owner")
+                r.eq(n?.periodStart, e.l("periodStart"), "v5 import ${e.s("name")}: periodStart")
+                r.eq(n?.expiresAt, e.l("expiresAt"), "v5 import ${e.s("name")}: expiresAt")
+                r.eq(n?.price, 0L, "v5 import ${e.s("name")}: unlisted")
+                r.eq(n?.key, e.s("key"), "v5 import ${e.s("name")}: key")
+            }
+            // the same import on a v4 manifest is refused
+            val v4 = vectors.getAsJsonObject("manifest").deepCopy()
+            v4.addProperty("registryVersion", 4)
+            v4.getAsJsonObject("params").remove("migration")
+            runCatching { Manifest.decode(v4.toString()) }.getOrNull()?.let { m4 ->
+                val st4 = RegistryState.atGenesis(m4)
+                r.check(runCatching { st4.apply(view(e2e[0], 1_000), m4) }.isFailure) { "v5: an import is refused on a v4 manifest" }
+            }
+        }
         r.eq(state.offers.size, 0, "offers left after the e2e plan")
         val accepted = state.events.firstOrNull { it.op == "offer_accepted" }
         val payout = accepted?.price ?: 0L
         r.check(payout > 9 * 100_000_000L && payout < 10 * 100_000_000L) { "accepted offer payout is the offer less the fee ($payout)" }
         val alpha = state.name("alpha-tn")
-        r.check(alpha?.registeredTxId == e2e[3].o("expected").s("txid")) { "registration tx carried through every transition" }
-        r.eq(alpha?.registeredAt, 1_003L, "registration time carried through every transition")
-        val alphaRegister = e2e[3].o("args")
+        r.check(alpha?.registeredTxId == e2e[lead + 3].o("expected").s("txid")) { "registration tx carried through every transition" }
+        r.eq(alpha?.registeredAt, 1_003L + lead, "registration time carried through every transition")
+        val alphaRegister = e2e[lead + 3].o("args")
         r.eq(alpha?.periodStart, alphaRegister.l("now"), "alpha-tn: periodStart = register's now, kept by extend, transfer, list and buy")
         r.eq(alpha?.expiresAt, alphaRegister.l("now") + 2 * m.params.periodMs, "alpha-tn: registered for 1 period, extended by 1")
         r.eq(m.params.periodMs, 86_400_000L, "testnet vectors run the 24-hour clock")
@@ -249,8 +279,9 @@ class KachatNamesRegistryTest {
             }
         }
 
-        // refusals leave the state alone
-        val reg = steps[3]
+        // refusals leave the state alone (on the first spend of the genesis gap: the first
+        // registration, or on v5 the first import)
+        val reg = steps[if (lead > 0) 0 else 3]
         val base = view(reg, 1)
         fun withOutput(t: TxView, i: Int, o: TxOutput) = t.copy(outputs = t.outputs.mapIndexed { k, x -> if (k == i) o else x })
         val o2 = base.outputs[2]
@@ -272,7 +303,7 @@ class KachatNamesRegistryTest {
         r.check(runCatching { st0.apply(badRedeem, m) }.isFailure) { "a spend revealing another redeem script was accepted" }
         r.eq(st0, RegistryState.atGenesis(m), "refusals left the state alone")
         // an unrelated transaction is ignored
-        r.eq(runCatching { st0.apply(view(steps[0], 1), m) }.getOrNull()?.size, 0, "a commit is not a registry transaction")
+        r.eq(runCatching { st0.apply(view(steps[lead], 1), m) }.getOrNull()?.size, 0, "a commit is not a registry transaction")
         println("walkerOverTheVectors: ${r.pass} checks pass, ${r.fail} fail")
         r.assertClean()
     }
@@ -295,7 +326,7 @@ class KachatNamesRegistryTest {
         // the genesis gap lives at the manifest's genesis outpoint
         created["${hex(m.genesisTxid)}:0"] = m.genesisOutput.script
 
-        for (upTo in listOf(3, 6, 7, 8, 10, 11, 17, e2eCount)) {
+        for (upTo in (if (lead > 0) listOf(lead) else emptyList()) + listOf(3, 6, 7, 8, 10, 11, 17).map { it + lead } + e2eCount) {
             val visible = txs.take(upTo)
             val visibleIds = visible.map { it.idHex }.toSet()
             val walked = RegistryState.atGenesis(m)
@@ -325,7 +356,8 @@ class KachatNamesRegistryTest {
                 r.eq(walked.offers.map { "${it.txid}:${it.index}" }.toSet(), reference.offers.map { "${it.txid}:${it.index}" }.toSet(), "walk to $upTo: offers")
                 r.check(report.unresolved.isEmpty()) { "walk to $upTo: unresolved ${report.unresolved}" }
                 // the first three are commits: nothing in the registry moves until the first register
-                r.check((upTo <= 3) == report.applied.isEmpty()) { "walk to $upTo: walked ${report.applied.size}" }
+                // (on v5 the imports come first, so something always moves)
+                r.check((lead == 0 && upTo <= 3) == report.applied.isEmpty()) { "walk to $upTo: walked ${report.applied.size}" }
                 try { walked.checkInvariants() } catch (e: Exception) { r.check(false) { "walk to $upTo: invariants $e" } }
             } catch (e: Exception) {
                 r.check(false) { "walk to $upTo threw $e" }
@@ -421,7 +453,7 @@ class KachatNamesRegistryTest {
                 // and incrementally, a few transactions visible at a time
                 val inc = RegistryState.atGenesis(m)
                 try {
-                    for (upTo in listOf(4, 7, 9, 13, 18, e2eCount)) walk(inc, upTo, order, times)
+                    for (upTo in listOf(4, 7, 9, 13, 18).map { it + lead } + e2eCount) walk(inc, upTo, order, times)
                     same(inc, "$label, incremental")
                 } catch (e: Exception) {
                     r.check(false) { "$label, incremental threw $e" }
@@ -797,7 +829,7 @@ class KachatNamesRegistryTest {
         assertEquals(hex(tx.payload), rpc.payload)
 
         // a registry transaction's covenant bindings survive the conversion
-        val reg = steps[3]
+        val reg = steps[lead + 3]
         val e = reg.o("expected")
         val regTx = Tx(
             version = 1,
@@ -948,4 +980,10 @@ class KachatNamesRegistryTest {
         r.eq(KachatSocialImageResolver.key(" X.com/kaspa "), "https://x.com/kaspa", "cache keyed by the normalized link")
         r.assertClean()
     }
+}
+
+/** [KachatNamesRegistryTest] over kachat-domains 6eddc7a's registry v5 vectors (iOS 6f18475): the
+ *  same plan after two imports from a migration snapshot, imports walked in any order. */
+class KachatNamesRegistryV5Test : KachatNamesRegistryTest() {
+    override val vectorsResource: String = "KachatNamesVectors-v5.json"
 }
