@@ -70,11 +70,17 @@ import kotlinx.coroutines.launch
 @Composable
 fun OnboardingScreen(viewModel: WalletViewModel) {
     val navController = rememberNavController()
-    val generatedMnemonic by viewModel.onMnemonicGenerated.collectAsState()
+    // The freshly generated seed lives only in WalletViewModel's memory. The route is fixed and
+    // carries no words: a route argument would be kept in the NavController's saved state, i.e.
+    // the Activity's saved-instance Bundle, which Android parcels to system_server (audit AND-031).
+    val generatedMnemonic by viewModel.mnemonic.collectAsState()
 
     LaunchedEffect(generatedMnemonic) {
         if (generatedMnemonic != null) {
-            navController.navigate("backup_mnemonic/$generatedMnemonic")
+            // Only once per seed: a recreated Activity re-runs this effect with the same words,
+            // and the restored back stack already holds the backup step.
+            val alreadyThere = runCatching { navController.getBackStackEntry("backup_mnemonic") }.isSuccess
+            if (!alreadyThere) navController.navigate("backup_mnemonic")
         }
     }
 
@@ -164,11 +170,29 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 onProceed = { navController.navigate("passphrase_import") }
             )
         }
-        composable("backup_mnemonic/{words}") { backStackEntry ->
-            val words = backStackEntry.arguments?.getString("words") ?: ""
+        composable("backup_mnemonic") { backStackEntry ->
+            val pending by viewModel.mnemonic.collectAsState()
+            // Keeps the words on screen while the step animates out after Back cleared the view
+            // model's copy. Plain remember: composition memory only, never saved state.
+            var shown by remember { mutableStateOf(pending) }
+            LaunchedEffect(pending) {
+                if (pending != null) {
+                    shown = pending
+                } else if (navController.currentBackStackEntry == backStackEntry) {
+                    // No pending seed (the process was recreated, so the in-memory copy is
+                    // gone): back to the length step, which generates a fresh one.
+                    navController.popBackStack()
+                }
+            }
+            // Leaving the seed step backwards abandons the uncommitted account: drop its words.
+            val abandon: () -> Unit = {
+                navController.popBackStack()
+                viewModel.abandonCreatedWallet()
+            }
+            BackHandler(onBack = abandon)
             CreateAccountSeedScreen(
-                mnemonic = words,
-                onBack = { navController.popBackStack() },
+                words = shown.orEmpty(),
+                onBack = abandon,
                 // Wallet isn't committed yet — go collect the optional passphrase, then commit.
                 onNext = { navController.navigate("passphrase_create") }
             )
@@ -1244,9 +1268,8 @@ fun ImportWalletScreen(
  * Settings > Seed Phrase is a separate screen ([SeedPhraseScreen]).
  */
 @Composable
-fun CreateAccountSeedScreen(mnemonic: String, onBack: () -> Unit, onNext: () -> Unit) {
+fun CreateAccountSeedScreen(words: List<String>, onBack: () -> Unit, onNext: () -> Unit) {
     val colors = LocalAppColors.current
-    val words = remember(mnemonic) { mnemonic.split(" ") }
     var hasConfirmedBackup by rememberSaveable { mutableStateOf(false) }
     // Hidden until tapped, as on iOS: the words would otherwise appear the moment this screen
     // opens, the one moment the user has no say in who is looking at the phone.

@@ -114,8 +114,6 @@ class WalletViewModel @Inject constructor(
     private val _mnemonic = MutableStateFlow<List<String>?>(null)
     val mnemonic: StateFlow<List<String>?> = _mnemonic
 
-    private val _onMnemonicGenerated = MutableStateFlow<String?>(null)
-    val onMnemonicGenerated: StateFlow<String?> = _onMnemonicGenerated
 
     // Armed whenever an account is added — both the create-a-new-wallet flow
     // (`CreateAccountSeedScreen.onNext`) and the import flow (`ImportWalletScreen`'s `onImported`)
@@ -1241,16 +1239,26 @@ class WalletViewModel @Inject constructor(
             pendingAccountName = name
             pendingMnemonicWords = words
             _mnemonic.value = words
-            _onMnemonicGenerated.value = words.joinToString(" ")
         }
+    }
+
+    /** Create Account was left at (or before) the seed step: forget the uncommitted words and
+     *  name. The words only ever lived in this view model (audit AND-031). */
+    fun abandonCreatedWallet() {
+        pendingAccountName = ""
+        clearMnemonic()
     }
 
     /** Commits the pending new wallet with the chosen passphrase ("" = none), then logs in. The
      *  save happens before login() so the main shell sees a fully-persisted active account. */
     fun commitCreatedWallet(passphrase: String) {
+        // The words are dropped once committed or abandoned (AND-031): a second tap, or a step
+        // restored after the process was recreated, has nothing to commit.
+        val words = pendingMnemonicWords
+        if (words.isEmpty()) return
         viewModelScope.launch {
             try {
-                walletManager.commitCreatedWallet(pendingAccountName, pendingMnemonicWords, passphrase)
+                walletManager.commitCreatedWallet(pendingAccountName, words, passphrase)
             } catch (e: WalletManager.AccountsNotKeptException) {
                 // The accounts already on this device couldn't be kept: nothing was changed.
                 android.util.Log.e("WalletViewModel", "commitCreatedWallet stopped", e)
@@ -1416,6 +1424,7 @@ class WalletViewModel @Inject constructor(
                     family = pendingSourceFamily
                 )
                 _justImportedWallet.value = true
+                pendingMnemonicWords = emptyList()
                 _hasWallet.value = true
                 _address.value = walletManager.getAddress()
                 _accountName.value = walletManager.getAccountName()
@@ -1561,9 +1570,10 @@ class WalletViewModel @Inject constructor(
     /** True if [word] is an exact BIP39 English word. */
     fun isBip39Word(word: String): Boolean = walletManager.isValidMnemonicWord(word)
 
+    /** Drops every in-memory copy of a generated, uncommitted seed (audit AND-031). */
     fun clearMnemonic() {
         _mnemonic.value = null
-        _onMnemonicGenerated.value = null
+        pendingMnemonicWords = emptyList()
     }
 
     /**
