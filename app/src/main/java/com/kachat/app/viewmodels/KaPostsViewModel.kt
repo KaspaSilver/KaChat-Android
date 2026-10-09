@@ -63,6 +63,8 @@ class KaPostsViewModel @Inject constructor(
     private val threadProbeStore: com.kachat.app.services.KaPostsThreadProbeStore,
     /** Posts signed now and waiting for their time - see [com.kachat.app.services.KaPostsScheduledStore]. */
     private val scheduledStore: com.kachat.app.services.KaPostsScheduledStore,
+    /** Every name service, .kachat first - @mentions resolve through it (iOS d0c5b09). */
+    private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
     // MARK: - Scheduled posts (KAPOSTS_INDEXER.md section 5.10)
@@ -1830,13 +1832,33 @@ class KaPostsViewModel @Inject constructor(
         for ((address, _) in contactAliases.value) ensureSenderProfileFetched(address)
     }
 
-    /** The bare @domain tokens in `text`, in order, deduped. */
-    private fun mentionDomains(text: String): List<String> {
+    /**
+     * Contacts' `.kachat` names matching [query] ("" matches all), full ("bob.kachat"), sorted -
+     * listed before the .kas ones in the @ suggestions (iOS d0c5b09).
+     */
+    fun kachatMentionCandidates(query: String): List<String> {
+        val out = linkedSetOf<String>()
+        for ((address, _) in contactAliases.value) {
+            val label = com.kachat.app.services.kachatnames.KachatNamesRegistry.cachedIdentityOf(address)?.label ?: continue
+            if (query.isNotEmpty() && !label.startsWith(query)) continue
+            out.add("$label.kachat")
+        }
+        return out.sorted()
+    }
+
+    /**
+     * The owner address of an @mention token, on every name service with .kachat first: the
+     * ending typed ("@bob.kas" is the .kas name), else .kachat, .kas, .k, .kaspa (iOS d0c5b09).
+     */
+    private suspend fun mentionAddress(token: String): String? =
+        com.kachat.app.services.NameServicesClient.primary(nameServices.resolveEverywhere(token), token)?.address
+
+    /** The @mention tokens in `text`, each with the ending it was typed with, in order, deduped. */
+    private fun mentionTokens(text: String): List<String> {
         val out = linkedSetOf<String>()
         for (match in MENTION_TOKEN_REGEX.findAll(text)) {
-            var domain = match.groupValues[2].lowercase()
-            if (domain.endsWith(".kas")) domain = domain.dropLast(4)
-            if (domain.isNotEmpty()) out.add(domain)
+            val token = match.groupValues[2].lowercase()
+            if (token.isNotEmpty()) out.add(token)
         }
         return out.toList()
     }
@@ -1853,32 +1875,33 @@ class KaPostsViewModel @Inject constructor(
         // "**@alice.kas**" hides the mention behind the bold markers: the reader would see a
         // highlighted, tappable mention (the cell renders the same rendered text) while the
         // signed mentions array went out empty and @alice was never notified.
-        val domains = mentionDomains(com.kachat.app.util.KaPostsMarkdown.render(text).text)
-        if (domains.isEmpty()) return emptyList()
-        val byDomain = mentionCandidates().toMap()
+        val tokens = mentionTokens(com.kachat.app.util.KaPostsMarkdown.render(text).text)
+        if (tokens.isEmpty()) return emptyList()
+        // contacts' .kas names resolve from the local cache - only for a token typed as .kas
+        val byKasName = mentionCandidates().toMap()
         val found = linkedSetOf<String>()
-        for (domain in domains) {
-            var pubkey = byDomain[domain]
-            if (pubkey == null) {
-                val owner = knsService.resolve(domain)
-                if (owner != null) pubkey = KaPostsService.kapostPubkeyFromAddress(owner)
-            }
-            pubkey?.let { found.add(it) }
+        for (token in tokens) {
+            val cached = if (token.endsWith(".kas")) byKasName[token.dropLast(4)] else null
+            if (cached != null) { found.add(cached); continue }
+            // everyone else on every service, .kachat first
+            val owner = mentionAddress(token) ?: continue
+            KaPostsService.kapostPubkeyFromAddress(owner)?.let { found.add(it) }
         }
         return found.toList()
     }
 
-    /** Composer autocomplete: live-resolve the typed @query; the bare domain when it exists. */
+    /** Composer autocomplete: live-resolve the typed @query on any service, .kachat first; the
+     *  full name ("bob.kachat", "bob.kas") when it resolves. */
     suspend fun resolveMentionQuery(query: String): String? {
-        val clean = query.lowercase().removeSuffix(".kas")
-        if (clean.length < 2) return null
-        return if (knsService.resolve(clean) != null) clean else null
+        if (query.length < 2) return null
+        return com.kachat.app.services.NameServicesClient.primary(nameServices.resolveEverywhere(query), query)?.display
     }
 
-    /** Tapped @mention: resolve the KNS domain and open that user's profile (any KNS holder). */
+    /** Tapped @mention: resolve the token (.kachat first, or the ending it was typed with) and
+     *  open that user's profile. */
     fun openMentionProfile(domain: String) {
         viewModelScope.launch {
-            val owner = knsService.resolve(domain) ?: return@launch
+            val owner = mentionAddress(domain) ?: return@launch
             openPosterProfile(owner, KaPostsService.kapostPubkeyFromAddress(owner))
         }
     }

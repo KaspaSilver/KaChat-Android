@@ -3175,10 +3175,13 @@ fun KaPostComposerDialog(
                 .filter { query.isEmpty() || it.startsWith(query) }
                 .sorted()
                 .map { viewModel.fullKasName(it) }
-            val extra = resolvedAnyDomain?.let { viewModel.fullKasName(it) }
-            if (extra != null && extra !in contacts && (query.isEmpty() || viewModel.bareKasName(extra).startsWith(query))) {
-                contacts + extra
-            } else contacts
+            // contacts' .kachat names come first
+            val all = viewModel.kachatMentionCandidates(query) + contacts
+            // a live-resolved name matching the query (any service, .kachat first) rides along
+            val extra = resolvedAnyDomain
+            if (extra != null && extra !in all && (query.isEmpty() || extra.startsWith(query))) {
+                all + extra
+            } else all
         }
     }
 
@@ -4371,10 +4374,13 @@ private fun ThreadReplyComposer(
                         .filter { query.isEmpty() || it.startsWith(query) }
                         .sorted()
                         .map { viewModel.fullKasName(it) }
-                    val extra = replyResolvedAnyDomain?.let { viewModel.fullKasName(it) }
-                    if (extra != null && extra !in contacts && (query.isEmpty() || viewModel.bareKasName(extra).startsWith(query))) {
-                        contacts + extra
-                    } else contacts
+                    // contacts' .kachat names come first
+                    val all = viewModel.kachatMentionCandidates(query) + contacts
+                    // a live-resolved name matching the query (any service, .kachat first)
+                    val extra = replyResolvedAnyDomain
+                    if (extra != null && extra !in all && (query.isEmpty() || extra.startsWith(query))) {
+                        all + extra
+                    } else all
                 }
             }
             if (com.kachat.app.util.MentionsFeature.ENABLED && replyMentionSuggestions.isNotEmpty()) {
@@ -5938,7 +5944,9 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
             )
             addStringAnnotation(
                 MENTION_ANNOTATION_TAG,
-                domain.value.lowercase().removeSuffix(".kas"),
+                // the whole token, ending included: "@bob.kas" stays a .kas mention, "@bob" and
+                // "@bob.kachat" resolve .kachat first (KaPostsViewModel.openMentionProfile)
+                domain.value.lowercase(),
                 start,
                 end,
             )
