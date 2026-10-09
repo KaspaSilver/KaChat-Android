@@ -195,10 +195,15 @@ class BroadcastRepository @Inject constructor(
         }
         return combine(rows, getHiddenSenders()) { messages, hidden ->
             val hiddenHere = hiddenAddressesIn(channelName, hidden)
+            // And never two rows with one id: the room's LazyColumn is keyed by it, and a
+            // duplicate key crashes Compose (iOS d0b819f - there it left a blank gap). The table's
+            // primary key is the id, so this is a guard, not a cleanup.
+            val seen = HashSet<String>(messages.size)
             RoomWindow(
-                messages = messages.filterNot {
-                    it.senderAddress in hiddenHere || MessageReaction.parseOrNull(it.content) != null ||
-                        com.kachat.app.util.MessageEdit.parseOrNull(it.content) != null
+                messages = messages.filter {
+                    seen.add(it.id) &&
+                        it.senderAddress !in hiddenHere && MessageReaction.parseOrNull(it.content) == null &&
+                        com.kachat.app.util.MessageEdit.parseOrNull(it.content) == null
                 },
                 hasMore = limit != null && messages.size >= limit,
             )
