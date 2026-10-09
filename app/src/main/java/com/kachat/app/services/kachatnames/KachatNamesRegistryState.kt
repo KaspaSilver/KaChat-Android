@@ -1128,7 +1128,8 @@ data class RegistryState(
     /**
      * Moves the state forward to the chain's current registry. [live] answers which of the
      * outpoints ("txid:index") at those P2SH addresses are unspent (a node), and [transactions]
-     * the accepted transactions touching an address (the REST API). Each round: every tracked UTXO
+     * the accepted transactions touching an address (the REST API), at least those spending the
+     * wanted outpoints ("txid:index") when it has them (iOS 8de95c9, IOS-065). Each round: every tracked UTXO
      * the node no longer has was spent; its spending transaction is found through its address and
      * applied ([apply], which decodes the spend and verifies every new state against its output's
      * script); the new outputs are tracked next round. A transaction that needs a registry input
@@ -1142,7 +1143,7 @@ data class RegistryState(
         maxRounds: Int = 64,
         address: (ByteArray) -> String?,
         live: suspend (List<String>) -> Set<String>,
-        transactions: suspend (String) -> List<TxView>
+        transactions: suspend (String, Set<String>) -> List<TxView>
     ): WalkReport {
         val m = manifest
         val report = WalkReport()
@@ -1163,7 +1164,7 @@ data class RegistryState(
             val found = HashSet<String>()
             for (a in spent.map { it.first }.toSet().sorted()) {
                 val wanted = spent.filter { it.first == a }.map { it.second }.toSet()
-                for (tx in transactions(a)) {
+                for (tx in transactions(a, wanted)) {
                     val spends = tx.inputs.map { "${hex(it.outpoint.txid)}:${it.outpoint.index}" }.filter { it in wanted }
                     if (spends.isNotEmpty()) {
                         candidates[tx.idHex] = tx

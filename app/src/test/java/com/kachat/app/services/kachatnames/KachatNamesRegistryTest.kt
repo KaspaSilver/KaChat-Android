@@ -310,7 +310,7 @@ class KachatNamesRegistryTest {
                                 spentBy[op]?.let { visibleIds.contains(it) } != true
                         }.keys
                     },
-                    transactions = { a ->
+                    transactions = { a, _ ->
                         visible.reversed().filter { t ->
                             t.outputs.any { addr(it.script) == a } ||
                                 t.inputs.any { i -> created["${hex(i.outpoint.txid)}:${i.outpoint.index}"]?.let { addr(it) } == a }
@@ -371,7 +371,7 @@ class KachatNamesRegistryTest {
                             spentBy[op]?.let { visibleIds.contains(it) } != true
                     }.keys
                 },
-                transactions = { a ->
+                transactions = { a, _ ->
                     order(visible.filter { t ->
                         t.outputs.any { addr(it.script) == a } ||
                             t.inputs.any { i -> created["${hex(i.outpoint.txid)}:${i.outpoint.index}"]?.let { addr(it) } == a }

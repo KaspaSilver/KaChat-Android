@@ -363,24 +363,40 @@ class KachatNamesRegistry @Inject constructor(
                 }
                 out
             },
-            transactions = { address -> restTransactions(address) }
+            transactions = { address, wanted -> restTransactions(address, wanted) }
         )
     }
 
     private suspend fun restBase(): String = settings.kaspaRestUrl.first().trim().removeSuffix("/")
 
-    /** Accepted transactions touching [address], newest first (kaspa-rest-server). */
-    suspend fun restTransactions(address: String): List<TxView> = withContext(Dispatchers.IO) {
-        val url = "${restBase()}/addresses/$address/full-transactions?limit=50&offset=0&resolve_previous_outpoints=no"
-        val request = runCatching { Request.Builder().url(url).build() }.getOrNull()
-            ?: throw KachatNames.Failure("bad Kaspa REST API URL")
-        http.newCall(request).execute().use { response ->
-            if (response.code != 200) throw KachatNames.Failure("the Kaspa REST API answered ${response.code} for $address")
-            val body = response.body?.string() ?: return@use emptyList()
-            val root = JsonParser.parseString(body)
-            if (!root.isJsonArray) return@use emptyList()
-            root.asJsonArray.mapNotNull { e -> if (e.isJsonObject) TxView.fromREST(e.asJsonObject) else null }
+    /**
+     * Accepted transactions touching [address], newest first (kaspa-rest-server), paged until
+     * every outpoint in [wanted] ("txid:index") has its spender, the history ends, or
+     * [REST_MAX_PAGES] pages. One page is not enough: 50 dust payments to a registry address would
+     * hide the spend that moved it on, and the names behind it would never resolve (iOS 8de95c9, IOS-065).
+     */
+    suspend fun restTransactions(address: String, wanted: Set<String> = emptySet()): List<TxView> = withContext(Dispatchers.IO) {
+        val root = restBase()
+        val out = ArrayList<TxView>()
+        val missing = wanted.toMutableSet()
+        for (page in 0 until REST_MAX_PAGES) {
+            val url = "$root/addresses/$address/full-transactions?limit=$REST_PAGE_SIZE&offset=${page * REST_PAGE_SIZE}&resolve_previous_outpoints=no"
+            val request = runCatching { Request.Builder().url(url).build() }.getOrNull()
+                ?: throw KachatNames.Failure("bad Kaspa REST API URL")
+            val list = http.newCall(request).execute().use { response ->
+                if (response.code != 200) throw KachatNames.Failure("the Kaspa REST API answered ${response.code} for $address")
+                val body = response.body?.string() ?: return@use null
+                val json = JsonParser.parseString(body)
+                if (!json.isJsonArray) null else json.asJsonArray
+            } ?: break
+            val txs = list.mapNotNull { e -> if (e.isJsonObject) TxView.fromREST(e.asJsonObject) else null }
+            out.addAll(txs)
+            for (tx in txs) {
+                for (input in tx.inputs) missing.remove("${hex(input.outpoint.txid)}:${input.outpoint.index}")
+            }
+            if (missing.isEmpty() || list.size() < REST_PAGE_SIZE) break
         }
+        out
     }
 
     /** Whether the REST API has seen [txId] accepted. */
@@ -955,6 +971,10 @@ class KachatNamesRegistry @Inject constructor(
 
     companion object {
         private const val TAG = "KachatNames"
+        /** The REST history page the walker reads (iOS 8de95c9). */
+        const val REST_PAGE_SIZE = 50
+        /** 1,000 transactions per address: past the newest dust anyone would pay to send (iOS 8de95c9, IOS-065). */
+        const val REST_MAX_PAGES = 20
         private const val CACHE_FILE = "registry.json"
         /** The identities in [KachatProfileCache] (iOS 5e408f7), at most [IDENTITIES_KEEP] people. */
         private const val IDENTITIES_FILE = "identities.json"
