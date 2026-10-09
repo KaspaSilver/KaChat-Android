@@ -258,22 +258,29 @@ open class KachatNamesCoreTest {
 
     /**
      * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json) is the live
-     * testnet-10 registry v4 on the day clock of 2026-10-07 (genesis 5ffdd006...a777, registry
-     * e6b72448...7f0d, iOS 08107e1): it verifies both as bundled and as an indexer would serve it (the gap and name
-     * pinned in the app, the offer for this deployment), it is not a dry run, it carries the
-     * pinned price tables, and a tampered offer pin or a changed price is refused.
+     * testnet-10 registry v5 of 2026-10-09, the migration drill (genesis 408682e6...dfda5, registry
+     * fdc403f5...571d, importing the day-clock v4 registry e6b72448...7f0d; kachat-domains 392ce20,
+     * iOS fbfa5a6): it verifies both as bundled and as an indexer would serve it (the name pinned
+     * in the app, the gap and offer for this deployment), it is not a dry run, it carries the
+     * pinned price tables and its migration, and a tampered offer pin or a changed price is refused.
      */
     @Test
-    fun bundledManifestIsTheDeployedRegistryV4() {
+    fun bundledManifestIsTheDeployedRegistryV5() {
         val bytes = File("src/main/assets/${Manifest.ASSET_NAME}").readBytes()
         val m = Manifest.decode(bytes)
         m.verify(Manifest.Source.BUNDLE)
         m.verify(Manifest.Source.INDEXER)
         assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
-        assertEquals("e6b7244831004e1db928458bce570347317b50ff124c010d342d73a6c2017f0d", KachatNames.hex(m.registryCovenantId))
-        assertEquals("5ffdd006", KachatNames.hex(m.genesisTxid).take(8))
-        assertEquals("a777", KachatNames.hex(m.genesisTxid).takeLast(4))
-        assertEquals("5a7e22af319bac406769563b6b4b39b05c3aac145375ccaaada4095960372a7a", KachatNames.hex(m.offer.templateHash))
+        assertEquals(5, m.registryVersion)
+        assertEquals("fdc403f5ef76ea7c71dcb5305d09daf7ab7fd68dc1d274a314fc8ca9111e571d", KachatNames.hex(m.registryCovenantId))
+        assertEquals("408682e6", KachatNames.hex(m.genesisTxid).take(8))
+        assertEquals("dfda5", KachatNames.hex(m.genesisTxid).takeLast(5))
+        assertEquals("afce97e05a6341ea7768252a264c65882b92105f8d7158a3ac63f68fbe1615cb", KachatNames.hex(m.gap.templateHash))
+        assertEquals("9d6e666481ea80e27565e68c01e6de51b32660d2f91368d9b80e4ee00b981d6d", KachatNames.hex(m.offer.templateHash))
+        val mig = m.params.migration
+        assertTrue("the v5 manifest carries its migration", mig != null)
+        assertEquals("e6b7244831004e1db928458bce570347317b50ff124c010d342d73a6c2017f0d", KachatNames.hex(mig!!.predecessorRegistryId))
+        assertEquals(1_791_541_849_055L, mig.deadlineMs)
         assertEquals(Manifest.PINNED_REGISTER_PRICES, m.params.registerPrices)
         assertEquals(Manifest.PINNED_RENEW_PRICES, m.params.renewPrices)
         Builder(m)
