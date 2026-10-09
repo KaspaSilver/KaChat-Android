@@ -337,8 +337,12 @@ class KachatNamesService @Inject constructor(
     suspend fun submit(tx: Tx): String {
         requireLaunched()
         val expected = tx.idHex
+        // A node can accept it while its answer is lost and a raced node rejects it: looked up by
+        // id before failing, so a retry never pays a price twice (iOS 9139e88, IOS-014).
         val txId = withContext(Dispatchers.IO) {
-            nodePoolManager.getBroadcastConnection().submitRpcTransaction(rpcTransaction(tx))
+            nodePoolManager.submitConfirmingKnown(expected, networkService.kaspaRestApi.value) {
+                nodePoolManager.getBroadcastConnection().submitRpcTransaction(rpcTransaction(tx))
+            }
         }
         Log.i(TAG, "submitted $txId")
         if (txId.lowercase() != expected) throw ServiceError.SubmitMismatch(expected, txId)

@@ -763,6 +763,16 @@ class NodePoolManager @Inject constructor(
      */
     suspend fun submitConfirmingKnown(transaction: RawTransaction, rest: KaspaRestApi?, submit: suspend () -> String): String {
         val txId = runCatching { com.kachat.app.util.KaspaTransactionId.compute(transaction) }.getOrDefault("")
+        return submitConfirmingKnown(txId, rest, submit)
+    }
+
+    /**
+     * [submitConfirmingKnown] for a transaction whose id the caller already computed
+     * ([expectedTxId]): the version-1 `.kachat` builders, whose transactions aren't
+     * [RawTransaction]s (iOS 9139e88 `submitRpcTransaction(_:expectedTxId:)`, audit IOS-014).
+     */
+    suspend fun submitConfirmingKnown(expectedTxId: String, rest: KaspaRestApi?, submit: suspend () -> String): String {
+        val txId = expectedTxId.lowercase()
         return SubmitConfirmation.submitOrConfirmKnown(
             txId = txId,
             isKnown = { isTransactionKnown(it, rest) },
