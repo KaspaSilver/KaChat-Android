@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Explore
@@ -64,6 +65,7 @@ import androidx.lifecycle.viewModelScope
 import com.kachat.app.R
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.repository.ChatRepository
+import com.kachat.app.services.AddressBookManager
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.WalletService
 import com.kachat.app.services.kachatnames.Event
@@ -88,6 +90,7 @@ import com.kachat.app.ui.theme.IosActivityIndicator
 import com.kachat.app.ui.theme.IosAlertDialog
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaUnit
 import com.kachat.app.util.authenticateWithDeviceCredential
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -3363,6 +3366,20 @@ fun KachatListSheet(info: NameInfo, onClose: () -> Unit) {
     }
 }
 
+/** A round accent icon beside a field (the Send screens' Paste / Scan QR / Address Book). */
+@Composable
+private fun KachatFieldIconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Icon(
+        icon,
+        contentDescription = label,
+        tint = KaspaTeal,
+        modifier = Modifier
+            .size(22.dp)
+            .clip(CircleShape)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+    )
+}
+
 @Composable
 fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewModel = hiltViewModel()) {
     val colors = LocalAppColors.current
@@ -3370,6 +3387,10 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
     var resolved by remember { mutableStateOf<Pair<String, ByteArray>?>(null) }
     var resolveError by remember { mutableStateOf<Int?>(null) }
     var resolving by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
+    var showAddressBook by remember { mutableStateOf(false) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val addressBook = rememberAddressBookEntries()
 
     LaunchedEffect(input) {
         delay(400)
@@ -3416,23 +3437,39 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         onClose = onClose, vm = vm
     ) {
         KachatInputCard(title = stringResource(R.string.kn_new_owner), footer = stringResource(R.string.kn_transfer_footer)) {
-            androidx.compose.foundation.text.BasicTextField(
-                value = input,
-                onValueChange = { input = it },
-                singleLine = true,
-                textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, fontFamily = FontFamily.Monospace),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, keyboardType = KeyboardType.Uri),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    Box {
-                        if (input.isEmpty()) {
-                            Text(stringResource(R.string.kn_transfer_placeholder), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
+            // The Send screens' recipient field: Paste, Scan QR and the Address Book beside it (iOS bfe7ef9).
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                androidx.compose.foundation.text.BasicTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    singleLine = true,
+                    textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, fontFamily = FontFamily.Monospace),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, keyboardType = KeyboardType.Uri),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        Box {
+                            if (input.isEmpty()) {
+                                Text(stringResource(R.string.kn_transfer_placeholder), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                            }
+                            inner()
                         }
-                        inner()
-                    }
-                },
-            )
+                    },
+                )
+                KachatFieldIconButton(Icons.Default.ContentPaste, stringResource(R.string.paste)) {
+                    clipboard.getText()?.text?.let { input = it.trim() }
+                }
+                KachatFieldIconButton(Icons.Default.QrCodeScanner, stringResource(R.string.scan_qr)) { showScanner = true }
+                KachatFieldIconButton(Icons.Outlined.Book, stringResource(R.string.ab_address_book)) { showAddressBook = true }
+            }
+            // The name it has in your Address Book.
+            val saved = remember(addressBook, target, input) { AddressBookManager.shared?.entry(target?.first ?: input) }
+            if (saved != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.Book, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
+                    Text(saved.name, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
             when {
                 resolving -> IosActivityIndicator(color = KaspaTeal)
                 target != null -> SelectionContainer {
@@ -3441,6 +3478,14 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
                 resolveError != null -> Text(stringResource(resolveError!!), color = colors.danger, fontSize = 12.sp)
             }
         }
+    }
+
+    if (showScanner) {
+        // a payment link's ?query is dropped
+        QrScannerSheet(onScanned = { input = KaspaAddress.fromScanned(it) }, onDismiss = { showScanner = false })
+    }
+    if (showAddressBook) {
+        AddressBookPickerSheet(onDismiss = { showAddressBook = false }, onSelect = { input = it.address })
     }
 }
 
