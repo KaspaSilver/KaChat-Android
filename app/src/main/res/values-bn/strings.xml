@@ -79,7 +79,6 @@
     <string name="each_transaction_temporarily_uses_2_kas">প্রতিটি লেনদেন সাময়িকভাবে ~2 KAS ব্যবহার করে; ~1 KAS অবিলম্বে বাকি হিসেবে ফেরত আসে, তাই শুধুমাত্র ছোট নেটওয়ার্ক ফিই আসল খরচ।</string>
     <string name="edit_kns_profile">KNS প্রোফাইল সম্পাদনা করুন</string>
     <string name="edit_account">অ্যাকাউন্ট সম্পাদনা করুন</string>
-    <string name="enter_a_kaspa_address_kaspa_or">Kaspa ঠিকানা (kaspa:...) বা KNS ডোমেন নাম লিখুন (যেমন, alice.kas)</string>
     <string name="enter_kpub">kpub লিখুন</string>
     <string name="error">ত্রুটি</string>
     <string name="every_member_will_see_the_new">প্রতিটি সদস্য নতুন নাম দেখতে পাবে।</string>
@@ -178,7 +177,6 @@
     <string name="read">পঠিত</string>
     <string name="receiving_kas_at">KAS গ্রহণ করা হচ্ছে</string>
     <string name="recipient_address">প্রাপকের ঠিকানা</string>
-    <string name="recipient_address_or_kas_name">প্রাপকের ঠিকানা বা .kas নাম</string>
     <string name="refresh_status">স্ট্যাটাস রিফ্রেশ করুন</string>
     <string name="remove">সরান</string>
     <string name="remove_cold_storage_account">কোল্ড স্টোরেজ অ্যাকাউন্ট সরান</string>
@@ -191,7 +189,6 @@
     <string name="resign">পরাজয় স্বীকার করুন</string>
     <string name="resign_this_game">এই খেলা থেকে পরাজয় স্বীকার করবেন?</string>
     <string name="resolving_domain">ডোমেইন সমাধান হচ্ছে…</string>
-    <string name="resolving">সমাধান হচ্ছে...</string>
     <string name="retention">ধারণ</string>
     <string name="retry">পুনরায় চেষ্টা করুন</string>
     <string name="retry_inscription_reveal">ইনস্ক্রিপশন রিভিল আবার চেষ্টা করুন</string>
@@ -301,10 +298,8 @@
     <string name="indexer">ইনডেক্সার</string>
     <string name="info">তথ্য</string>
     <string name="kns_profile">KNS প্রোফাইল</string>
-    <string name="kns_domain_resolution_service">KNS ডোমেন রেজোলিউশন সেবা</string>
     <string name="kachat_indexer">KaChat ইনডেক্সার</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">কাস্পা নোড</string>
     <string name="last_sync">সর্বশেষ সিংক</string>
     <string name="latency">বিলম্ব</string>
@@ -423,8 +418,6 @@
     <string name="connection_tab_domains">ডোমেইন</string>
     <string name="connection_tab_explorer">এক্সপ্লোরার</string>
     <string name="message_indexer">বার্তা ইনডেক্সার</string>
-    <string name="other_name_services">অন্যান্য নাম পরিষেবা</string>
-    <string name="other_name_services_footer">কোনো ঠিকানার মালিকানাধীন .k ও .kaspa নাম দেখাতে ব্যবহৃত হয়। KaChat-এর নিজস্ব .kachat নাম চালু হলে এখানে সেট হবে।</string>
     <string name="coming_soon">শীঘ্রই আসছে</string>
     <string name="not_available_on_this_network">এই নেটওয়ার্কে উপলব্ধ নয়</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -582,7 +575,6 @@
     <string name="portfolio_fees_count_priced">লেনদেন: %1$d, প্রতিদিনের দামে।</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">এই সিড যদি আগে থেকেই অন্য কোনো ঠিকানায় আপনার পরিচয় রাখে - একটি ডোমেইন (.kas, .k বা .kaspa) বা ব্যালেন্সসহ চ্যাট ঠিকানা - তবে এখানে বেছে নিন। শুধু ব্যালেন্স বা ডোমেইন থাকা ঠিকানা দেখানো হয়।</string>
     <string name="chatting_picker_other_names_count">.k ও .kaspa নাম (%1$d)</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">মেসেজ অনুরোধ</string>
@@ -698,12 +690,9 @@
     <string name="kn_new_expiry">নতুন মেয়াদ</string>
     <string name="kn_list_footer">যে কেউ এই দামে কিনতে পারে: এক লেনদেনে পেমেন্ট আপনার কাছে আর নাম তার কাছে যায়। যেকোনো সময় তালিকা থেকে সরান।</string>
     <string name="kn_transfer_warning">হস্তান্তর ফেরানো যায় না। নতুন মালিক বর্তমান মেয়াদসহ নামটি পান; আপনার প্রোফাইল আপনার ঠিকানাতেই থাকে।</string>
-    <string name="kn_transfer_placeholder">kaspatest:... বা name.kachat</string>
     <string name="kn_new_owner">নতুন মালিক</string>
-    <string name="kn_transfer_footer">একটি টেস্টনেট ঠিকানা বা .kachat নাম - এটি দেখানো ঠিকানায় রিজলভ হয়।</string>
     <string name="kn_err_not_testnet_address">এটি টেস্টনেট Schnorr ঠিকানা নয়।</string>
     <string name="kn_err_address_key">এই ঠিকানার কী বৈধ নয়।</string>
-    <string name="kn_err_enter_address">একটি ঠিকানা বা .kachat নাম লিখুন।</string>
     <string name="kn_err_lookup">নামটি খুঁজে দেখা যায়নি।</string>
     <string name="kn_profile_belongs">আপনার প্রোফাইল আপনার ঠিকানার, কোনো নামের নয়: নাম কিনলে, বেচলে বা ছেড়ে দিলেও এটি একই থাকে।</string>
     <string name="kn_links">লিংক</string>
@@ -1105,7 +1094,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">গ্রেস পিরিয়ড শেষ হবে %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">এই নামে কোনো .kachat নাম নেই।</string>
     <string name="kn_detail_grace_resolves">মেয়াদ শেষ। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত এটি এখনও মালিকের ঠিকানায় রিজলভ হয়, এবং মালিক এখনও এটি নবায়ন করতে পারেন।</string>
     <string name="kn_detail_grace_mine_resolves">মেয়াদ শেষ - রাখতে নবায়ন করুন। গ্রেস পিরিয়ড শেষ না হওয়া পর্যন্ত এটি এখনও আপনার ঠিকানায় রিজলভ হয় এবং অন্য কেউ এটি নিতে পারবে না।</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1196,4 +1184,28 @@
     <string name="kn_registration_not_open">নামগুলো নতুন রেজিস্ট্রিতে সরানো হচ্ছে। %1$s থেকে নতুন নাম দাবি করা যাবে।</string>
     <string name="kn_registration_not_open_note">পুরোনো রেজিস্ট্রির প্রতিটি নাম আগে একই মালিক ও মেয়াদসহ চলে আসে।</string>
     <string name="kn_ev_imported">নতুন রেজিস্ট্রিতে সরানো হয়েছে</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">একটি Kaspa ঠিকানা (kaspa:...) বা ডোমেইন লিখুন (যেমন alice.kachat)। আগে .kachat নাম খোঁজা হয়।</string>
+    <string name="search_contacts_or_address_or_domain">পরিচিতি, ঠিকানা বা ডোমেইন খুঁজুন</string>
+    <string name="no_contacts_yet_paste_address_or_domain">এখনো কোনো পরিচিতি নেই। কাউকে আমন্ত্রণ জানাতে ওপরে একটি ঠিকানা বা ডোমেইন পেস্ট করুন।</string>
+    <string name="no_contacts_match_paste_address_or_domain">খোঁজার সাথে কোনো পরিচিতি মেলেনি। নতুন কাউকে আমন্ত্রণ জানাতে একটি ঠিকানা বা ডোমেইন পেস্ট করুন।</string>
+    <string name="their_profile_kachat_name_address">তাদের প্রোফাইল, .kachat নাম ও ঠিকানা।</string>
+    <string name="finds_addresses_balance_or_domain">ব্যালেন্স বা ডোমেইন থাকা ঠিকানা খুঁজে বের করে।</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">একটি Kaspa ঠিকানা (kaspa:...) বা ডোমেইন লিখুন। আগে .kachat নাম খোঁজা হয়।</string>
+    <string name="portfolio_add_address_footer_kachat">একটি Kaspa ঠিকানা বা name.kachat-এর মতো ডোমেইন লিখুন (আগে .kachat নাম খোঁজা হয়)। এই ঠিকানায় পাওয়া প্রতিটি লেনদেন কেনা এবং পাঠানো প্রতিটি লেনদেন বিক্রি হিসেবে সেই দিনের ঐতিহাসিক KAS দামে ধরা হয়। পরে একই ঠিকানা আবার যোগ করলে শুধু শেষ ইমপোর্টের পরের লেনদেন আনা হয়।</string>
+    <string name="kn_transfer_footer_domain">একটি ঠিকানা বা ডোমেইন - আগে .kachat নাম খোঁজা হয়, এবং দেখানো ঠিকানায় রূপান্তরিত হয়।</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... বা ডোমেইন</string>
+    <string name="kn_err_enter_address_or_domain">একটি ঠিকানা বা ডোমেইন লিখুন।</string>
+    <string name="kn_err_name_address_cant_own">এই নামের ঠিকানা কোনো .kachat নামের মালিক হতে পারে না।</string>
+    <string name="kn_err_no_domain_by_name">এই নামে কোনো ডোমেইন পাওয়া যায়নি।</string>
+    <string name="kachat_names_resolved_first_footer">যেখানেই ঠিকানা লেখা যায়, সেখানে আগে খোঁজা হয়।</string>
+    <string name="other_domains_title">অন্যান্য ডোমেইন</string>
+    <string name="other_domains_settings_footer">.kachat-এর পরে খোঁজা হয়, আর লেখা নামটি সেখানেও থাকলে অন্যান্য ডোমেইনের নিচে দেখানো হয়।</string>
+    <string name="chatting_picker_intro_any_name_kachat">এই সিড যদি আগে থেকেই অন্য ঠিকানায় আপনার পরিচয় রাখে - একটি ডোমেইন (.kachat, .kas, .k বা .kaspa) বা অর্থ জমা থাকা চ্যাট ব্যালেন্স - এখানে সেটি বেছে নিন। শুধু ব্যালেন্স বা ডোমেইন থাকা ঠিকানা দেখানো হয়।</string>
+    <string name="chatting_picker_kachat_names_count">.kachat নাম (%1$d)</string>
+    <string name="chatting_picker_kas_names_count">.kas নাম (%1$d)</string>
+    <string name="kachat_expired_one_title">আপনার একটি .kachat ডোমেইনের মেয়াদ শেষ হয়েছে</string>
+    <string name="kachat_expired_many_title">আপনার %1$dটি .kachat ডোমেইনের মেয়াদ শেষ হয়েছে</string>
+    <string name="kachat_expired_one_body">%1$s রাখতে চাইলে %2$s তারিখে গ্রেস পিরিয়ড শেষ হওয়ার আগে নবায়ন করুন।</string>
+    <string name="kachat_expired_many_body">রাখতে চাইলে গ্রেস পিরিয়ড শেষ হওয়ার আগে সেগুলো নবায়ন করুন।</string>
 </resources>

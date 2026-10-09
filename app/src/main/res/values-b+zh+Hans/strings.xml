@@ -79,7 +79,6 @@
     <string name="each_transaction_temporarily_uses_2_kas">每笔交易临时使用约 2 KAS;约 1 KAS 会立即作为找零返回,因此只有少量网络手续费是真实成本。</string>
     <string name="edit_kns_profile">编辑 KNS 个人资料</string>
     <string name="edit_account">编辑账户</string>
-    <string name="enter_a_kaspa_address_kaspa_or">输入 Kaspa 地址（kaspa:...）或 KNS 域名（例如 alice.kas）</string>
     <string name="enter_kpub">输入 kpub</string>
     <string name="error">错误</string>
     <string name="every_member_will_see_the_new">每个成员都会看到新名称。</string>
@@ -178,7 +177,6 @@
     <string name="read">已读</string>
     <string name="receiving_kas_at">接收 KAS 于</string>
     <string name="recipient_address">收款地址</string>
-    <string name="recipient_address_or_kas_name">收款地址或 .kas 名称</string>
     <string name="refresh_status">刷新状态</string>
     <string name="remove">移除</string>
     <string name="remove_cold_storage_account">移除冷存储账户</string>
@@ -191,7 +189,6 @@
     <string name="resign">认输</string>
     <string name="resign_this_game">要认输这局游戏吗?</string>
     <string name="resolving_domain">正在解析域名…</string>
-    <string name="resolving">正在解析...</string>
     <string name="retention">保留</string>
     <string name="retry">重试</string>
     <string name="retry_inscription_reveal">重试铭文揭示</string>
@@ -301,10 +298,8 @@
     <string name="indexer">索引器</string>
     <string name="info">信息</string>
     <string name="kns_profile">KNS 简介</string>
-    <string name="kns_domain_resolution_service">KNS 域名解析服务</string>
     <string name="kachat_indexer">KaChat 索引器</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">Kaspa 节点</string>
     <string name="last_sync">上次同步</string>
     <string name="latency">延迟</string>
@@ -423,8 +418,6 @@
     <string name="connection_tab_domains">域名</string>
     <string name="connection_tab_explorer">浏览器</string>
     <string name="message_indexer">消息索引器</string>
-    <string name="other_name_services">其他名称服务</string>
-    <string name="other_name_services_footer">用于显示某个地址拥有的 .k 和 .kaspa 名称。KaChat 自己的 .kachat 名称上线后将在此设置。</string>
     <string name="coming_soon">即将推出</string>
     <string name="not_available_on_this_network">此网络不可用</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -582,7 +575,6 @@
     <string name="portfolio_fees_count_priced">交易：%1$d 笔，按当日价格计算。</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">如果这个助记词已在另一个地址上持有你的身份——一个域名（.kas、.k 或 .kaspa）或有余额的聊天地址——请在这里选择。只显示有余额或域名的地址。</string>
     <string name="chatting_picker_other_names_count">.k 和 .kaspa 名称（%1$d）</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">消息请求</string>
@@ -698,12 +690,9 @@
     <string name="kn_new_expiry">新的到期时间</string>
     <string name="kn_list_footer">任何人都可以按此价格购买：付款到你、名称到买家，在同一笔交易中完成。可随时下架。</string>
     <string name="kn_transfer_warning">转让无法撤销。新所有者获得名称时保留当前到期时间；你的个人资料仍归你的地址所有。</string>
-    <string name="kn_transfer_placeholder">kaspatest:... 或 name.kachat</string>
     <string name="kn_new_owner">新所有者</string>
-    <string name="kn_transfer_footer">测试网地址或 .kachat 名称——会解析为显示的地址。</string>
     <string name="kn_err_not_testnet_address">不是测试网 Schnorr 地址。</string>
     <string name="kn_err_address_key">该地址的密钥无效。</string>
-    <string name="kn_err_enter_address">请输入地址或 .kachat 名称。</string>
     <string name="kn_err_lookup">无法查询该名称。</string>
     <string name="kn_profile_belongs">你的个人资料属于你的地址，而不是某个名称：买入、卖出或放弃名称时都不会改变。</string>
     <string name="kn_links">链接</string>
@@ -1105,7 +1094,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">宽限期结束于 %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">没有这个名称的 .kachat 名称。</string>
     <string name="kn_detail_grace_resolves">已过期。在宽限期结束前，它仍解析到其所有者，所有者仍可续期。</string>
     <string name="kn_detail_grace_mine_resolves">已过期 - 续期以保留它。在宽限期结束前，它仍解析到你，其他人无法获取。</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1196,4 +1184,28 @@
     <string name="kn_registration_not_open">名称正在迁移到新的注册表。新名称可从 %1$s 起认领。</string>
     <string name="kn_registration_not_open_note">旧注册表中的每个名称会先以相同的所有者和到期时间迁移过来。</string>
     <string name="kn_ev_imported">已迁移到新注册表</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">输入 Kaspa 地址(kaspa:...)或域名(例如 alice.kachat)。会先查找 .kachat 名称。</string>
+    <string name="search_contacts_or_address_or_domain">搜索联系人、地址或域名</string>
+    <string name="no_contacts_yet_paste_address_or_domain">你还没有联系人。在上方粘贴地址或域名来邀请他人。</string>
+    <string name="no_contacts_match_paste_address_or_domain">没有匹配的联系人。粘贴地址或域名来邀请新的人。</string>
+    <string name="their_profile_kachat_name_address">其个人资料、.kachat 名称和地址。</string>
+    <string name="finds_addresses_balance_or_domain">查找有余额或域名的地址。</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">输入 Kaspa 地址(kaspa:...)或域名。会先查找 .kachat 名称。</string>
+    <string name="portfolio_add_address_footer_kachat">输入 Kaspa 地址或域名,例如 name.kachat(会先查找 .kachat 名称)。该地址收到的每笔交易记为买入,发出的每笔记为卖出,按当天的历史 KAS 价格计价。以后再次添加同一地址,只会导入上次导入之后的交易。</string>
+    <string name="kn_transfer_footer_domain">地址或域名——会先查找 .kachat 名称,并解析为显示的地址。</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... 或域名</string>
+    <string name="kn_err_enter_address_or_domain">请输入地址或域名。</string>
+    <string name="kn_err_name_address_cant_own">该名称的地址无法拥有 .kachat 名称。</string>
+    <string name="kn_err_no_domain_by_name">未找到该名称的域名。</string>
+    <string name="kachat_names_resolved_first_footer">在所有可以输入地址的地方优先解析。</string>
+    <string name="other_domains_title">其他域名</string>
+    <string name="other_domains_settings_footer">在 .kachat 之后查找;如果输入的名称在那里也存在,会列在“其他域名”下。</string>
+    <string name="chatting_picker_intro_any_name_kachat">如果此助记词已在其他地址上保存了你的身份(.kachat、.kas、.k 或 .kaspa 域名,或有余额的聊天地址),请在此选择。只显示有余额或域名的地址。</string>
+    <string name="chatting_picker_kachat_names_count">.kachat 名称(%1$d)</string>
+    <string name="chatting_picker_kas_names_count">.kas 名称(%1$d)</string>
+    <string name="kachat_expired_one_title">你的一个 .kachat 域名已过期</string>
+    <string name="kachat_expired_many_title">你有 %1$d 个 .kachat 域名已过期</string>
+    <string name="kachat_expired_one_body">请在 %2$s 宽限期结束前续订 %1$s 以保留它。</string>
+    <string name="kachat_expired_many_body">请在宽限期结束前续订以保留它们。</string>
 </resources>

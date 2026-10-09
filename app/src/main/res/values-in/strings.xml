@@ -58,7 +58,6 @@
     <string name="delete_transaction">Hapus Transaksi</string>
     <string name="done">Selesai</string>
     <string name="edit_kns_profile">Edit Profil KNS</string>
-    <string name="enter_a_kaspa_address_kaspa_or">Masukkan alamat Kaspa (kaspa:...) atau nama domain KNS (mis. alice.kas)</string>
     <string name="enter_kpub">Masukkan kpub</string>
     <string name="error">Kesalahan</string>
     <string name="every_member_will_see_the_new">Setiap anggota akan melihat nama baru.</string>
@@ -206,10 +205,8 @@
     <string name="indexer">Pengindeks (Indexer)</string>
     <string name="info">Info</string>
     <string name="kns_profile">Profil KNS</string>
-    <string name="kns_domain_resolution_service">Layanan resolusi domain KNS</string>
     <string name="kachat_indexer">Pengindeks KaChat</string>
     <string name="kaspa_explorer_api">API Penjelajah Kaspa</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">Node Kaspa</string>
     <string name="last_sync">Sinkronisasi Terakhir</string>
     <string name="latency">Latensi</string>
@@ -313,8 +310,6 @@
     <string name="connection_tab_domains">Domain</string>
     <string name="connection_tab_explorer">Penjelajah</string>
     <string name="message_indexer">Pengindeks Pesan</string>
-    <string name="other_name_services">Layanan Nama Lain</string>
-    <string name="other_name_services_footer">Dipakai untuk menampilkan nama .k dan .kaspa yang dimiliki sebuah alamat. Nama .kachat milik KaChat akan diatur di sini setelah diluncurkan.</string>
     <string name="coming_soon">Segera hadir</string>
     <string name="not_available_on_this_network">Tidak tersedia di jaringan ini</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -472,7 +467,6 @@
     <string name="portfolio_fees_count_priced">Transaksi: %1$d, dengan harga tiap hari.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">Jika seed ini sudah menyimpan identitasmu di alamat lain - domain (.kas, .k, atau .kaspa) atau saldo obrolan - pilih di sini. Hanya alamat dengan saldo atau domain yang ditampilkan.</string>
     <string name="chatting_picker_other_names_count">Nama .k dan .kaspa (%1$d)</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">Permintaan Pesan</string>
@@ -588,12 +582,9 @@
     <string name="kn_new_expiry">Kedaluwarsa baru</string>
     <string name="kn_list_footer">Siapa pun bisa membelinya dengan harga ini: pembayaran sampai ke Anda dan nama ke pembeli dalam satu transaksi. Tarik kapan saja.</string>
     <string name="kn_transfer_warning">Pemindahan tidak bisa dibatalkan. Pemilik baru mendapat nama dengan masa berlakunya saat ini; profil Anda tetap di alamat Anda.</string>
-    <string name="kn_transfer_placeholder">kaspatest:... atau name.kachat</string>
     <string name="kn_new_owner">Pemilik baru</string>
-    <string name="kn_transfer_footer">Alamat testnet atau nama .kachat - diterjemahkan ke alamat yang ditampilkan.</string>
     <string name="kn_err_not_testnet_address">Bukan alamat Schnorr testnet.</string>
     <string name="kn_err_address_key">Kunci alamat itu tidak valid.</string>
-    <string name="kn_err_enter_address">Masukkan alamat atau nama .kachat.</string>
     <string name="kn_err_lookup">Tidak dapat mencari nama itu.</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
     <string name="kn_links">Tautan</string>
@@ -972,7 +963,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Masa tenggang berakhir %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">Tidak ada nama .kachat dengan nama itu.</string>
     <string name="kn_detail_grace_resolves">Kedaluwarsa. Nama ini masih mengarah ke pemiliknya sampai masa tenggang berakhir, dan pemilik masih bisa memperpanjangnya.</string>
     <string name="kn_detail_grace_mine_resolves">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, nama ini masih mengarah ke Anda dan tidak ada orang lain yang bisa mengambilnya.</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1063,4 +1053,28 @@
     <string name="kn_registration_not_open">Nama sedang dipindahkan ke registri baru. Nama baru bisa diklaim mulai %1$s.</string>
     <string name="kn_registration_not_open_note">Setiap nama dari registri lama dipindahkan lebih dulu dengan pemilik dan masa berlaku yang sama.</string>
     <string name="kn_ev_imported">Dipindahkan ke registri baru</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">Masukkan alamat Kaspa (kaspa:...) atau domain (mis. alice.kachat). Nama .kachat dicari lebih dulu.</string>
+    <string name="search_contacts_or_address_or_domain">Cari kontak, alamat, atau domain</string>
+    <string name="no_contacts_yet_paste_address_or_domain">Anda belum punya kontak. Tempel alamat atau domain di atas untuk mengundang seseorang.</string>
+    <string name="no_contacts_match_paste_address_or_domain">Tidak ada kontak yang cocok. Tempel alamat atau domain untuk mengundang orang baru.</string>
+    <string name="their_profile_kachat_name_address">Profil, nama .kachat, dan alamatnya.</string>
+    <string name="finds_addresses_balance_or_domain">Menemukan alamat yang punya saldo atau domain.</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">Masukkan alamat Kaspa (kaspa:...) atau domain. Nama .kachat dicari lebih dulu.</string>
+    <string name="portfolio_add_address_footer_kachat">Masukkan alamat Kaspa atau domain seperti name.kachat (nama .kachat dicari lebih dulu). Setiap transaksi masuk ke alamat ini menjadi pembelian dan setiap transaksi keluar menjadi penjualan, dengan harga historis KAS hari itu. Menambahkan alamat yang sama lagi nanti hanya mengimpor transaksi sejak impor terakhir.</string>
+    <string name="kn_transfer_footer_domain">Alamat atau domain - nama .kachat dicari lebih dulu, lalu diubah menjadi alamat yang ditampilkan.</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... atau domain</string>
+    <string name="kn_err_enter_address_or_domain">Masukkan alamat atau domain.</string>
+    <string name="kn_err_name_address_cant_own">Alamat nama itu tidak bisa memiliki nama .kachat.</string>
+    <string name="kn_err_no_domain_by_name">Tidak ada domain dengan nama itu.</string>
+    <string name="kachat_names_resolved_first_footer">Diresolusikan lebih dulu, di mana pun Anda bisa mengetik alamat.</string>
+    <string name="other_domains_title">Domain Lain</string>
+    <string name="other_domains_settings_footer">Dicari setelah .kachat, dan ditampilkan di Domain lain jika nama yang diketik juga ada di sana.</string>
+    <string name="chatting_picker_intro_any_name_kachat">Jika seed ini sudah menyimpan identitas Anda di alamat lain - domain (.kachat, .kas, .k, atau .kaspa) atau saldo chat yang terisi - pilih di sini. Hanya alamat dengan saldo atau domain yang ditampilkan.</string>
+    <string name="chatting_picker_kachat_names_count">Nama .kachat (%1$d)</string>
+    <string name="chatting_picker_kas_names_count">Nama .kas (%1$d)</string>
+    <string name="kachat_expired_one_title">Salah satu domain .kachat Anda kedaluwarsa</string>
+    <string name="kachat_expired_many_title">%1$d domain .kachat Anda kedaluwarsa</string>
+    <string name="kachat_expired_one_body">Perpanjang %1$s sebelum masa tenggangnya berakhir pada %2$s agar tetap milik Anda.</string>
+    <string name="kachat_expired_many_body">Perpanjang sebelum masa tenggangnya berakhir agar tetap milik Anda.</string>
 </resources>

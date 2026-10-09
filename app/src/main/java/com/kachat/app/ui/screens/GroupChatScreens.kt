@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Close
@@ -2371,19 +2372,22 @@ fun GroupChatInfoScreen(
         // A group invite is encrypted to a public key decoded from the address itself - there is
         // no handshake or prior chat to require. Limiting this to saved contacts made it look
         // like there was; the only thing missing was somewhere to put an address.
+        // Address a typed domain resolved to (.kachat first, like everywhere else an address is
+        // accepted), the name it resolved as, and every service's answer for "Other domains"
+        // (iOS 6ac48a7).
         var addResolvedDomain by remember { mutableStateOf<String?>(null) }
+        var addResolvedName by remember { mutableStateOf<String?>(null) }
+        var addResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
+        var addSelectedTld by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
+        var addDomainNotFound by remember { mutableStateOf<String?>(null) }
         var addResolvingDomain by remember { mutableStateOf(false) }
-        LaunchedEffect(addSearch) {
-            addResolvedDomain = null
-            val trimmed = addSearch.trim()
-            if (trimmed.isEmpty() || !com.kachat.app.services.KnsService.looksLikeDomain(trimmed)) {
-                addResolvingDomain = false
-                return@LaunchedEffect
+        val addSelectResolution: (com.kachat.app.services.NameResolution) -> Unit = { resolution ->
+            resolution.address?.let {
+                addResolvedDomain = it
+                addResolvedName = resolution.display
+                addSelectedTld = resolution.tld
+                addDomainNotFound = null
             }
-            addResolvingDomain = true
-            kotlinx.coroutines.delay(500)
-            addResolvedDomain = chatViewModel.resolveKnsDomain(trimmed)
-            addResolvingDomain = false
         }
         val candidates = remember(conversations, existingAddresses, query) {
             conversations.map { it.contact }
@@ -2392,12 +2396,44 @@ fun GroupChatInfoScreen(
                 .sortedBy { it.displayName.lowercase() }
                 .filter { query.isEmpty() || it.displayName.lowercase().contains(query) || it.id.lowercase().contains(query) }
         }
+        val addContext = androidx.compose.ui.platform.LocalContext.current
+        // Resolves a typed name in the background on every service, .kachat first (the ending
+        // typed, else .kachat, .kas, .k, .kaspa). Anything that is already an address, or too
+        // short to be a name, is left alone.
+        LaunchedEffect(addSearch) {
+            addResolvedDomain = null
+            addResolvedName = null
+            addResolutions = emptyList()
+            addSelectedTld = null
+            addDomainNotFound = null
+            val trimmed = addSearch.trim().lowercase()
+            if (trimmed.isEmpty() || com.kachat.app.util.KaspaAddress.isValid(trimmed) ||
+                !com.kachat.app.services.NameServicesClient.looksLikeName(trimmed) || trimmed.length < 2
+            ) {
+                addResolvingDomain = false
+                return@LaunchedEffect
+            }
+            addResolvingDomain = true
+            // debounce typing: the search box changes on every keystroke
+            kotlinx.coroutines.delay(300)
+            val results = chatViewModel.resolveEverywhere(trimmed)
+            addResolutions = results
+            addResolvingDomain = false
+            val primary = com.kachat.app.services.NameServicesClient.primary(results, trimmed)
+            if (primary != null) {
+                addSelectResolution(primary)
+            } else if (candidates.isEmpty()) {
+                // it matched no contacts by name either: a failed lookup
+                addDomainNotFound = noDomainFoundMessage(addContext, trimmed)
+            }
+        }
         // Hidden when the address is already listed as a contact below, so it is never offered twice.
+        // Only the active network's addresses: the invite is encrypted to the key the address carries.
         val typedAddress = remember(addSearch, addResolvedDomain, existingAddresses, candidates) {
             val trimmed = addSearch.trim()
-            val candidate = if (com.kachat.app.util.KaspaAddress.isValid(trimmed)) trimmed else addResolvedDomain
+            val candidate = if (com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(trimmed)) trimmed else addResolvedDomain
             candidate?.takeIf { addr ->
-                com.kachat.app.util.KaspaAddress.isValid(addr) && addr !in existingAddresses && candidates.none { it.id == addr }
+                com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(addr) && addr !in existingAddresses && candidates.none { it.id == addr }
             }
         }
         com.kachat.app.ui.theme.IosAlertDialog(
@@ -2436,7 +2472,7 @@ fun GroupChatInfoScreen(
                     TextField(
                         value = addSearch,
                         onValueChange = { addSearch = it },
-                        placeholder = { Text("Search contacts, or paste an address", color = LocalAppColors.current.textTertiary) },
+                        placeholder = { Text(stringResource(R.string.search_contacts_or_address_or_domain), color = LocalAppColors.current.textTertiary) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
@@ -2455,8 +2491,32 @@ fun GroupChatInfoScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Looking up domain...", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                         }
+                        Spacer(Modifier.height(8.dp))
+                    } else if (addResolvedDomain != null && addResolvedName != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.resolved_name, addResolvedName ?: ""), color = LocalAppColors.current.success, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        MiddleEllipsisText(
+                            addResolvedDomain ?: "",
+                            color = LocalAppColors.current.textSecondary,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontSize = 11.sp,
+                        )
+                    } else if (addDomainNotFound != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Cancel, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(addDomainNotFound ?: "", color = LocalAppColors.current.danger, fontSize = 12.sp)
+                        }
+                    }
+                    if (!addResolvingDomain) {
+                        OtherDomainsDropdown(addResolutions, addSelectedTld, addSelectResolution)
+                    }
+                    if (!addResolvingDomain && (addResolvedDomain != null || addDomainNotFound != null || addResolutions.isNotEmpty())) {
                         Spacer(Modifier.height(8.dp))
                     }
                     if (typedAddress != null) {
@@ -2470,17 +2530,13 @@ fun GroupChatInfoScreen(
                                 .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Add this address", color = LocalAppColors.current.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(
-                                    typedAddress,
-                                    color = LocalAppColors.current.textSecondary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                            // Who this is - avatar and name - the same card as create-chat.
+                            AddressResolutionCard(
+                                address = typedAddress,
+                                domain = if (addResolvedDomain == typedAddress) addResolvedName else null,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(Modifier.width(12.dp))
                             Icon(
                                 if (typedSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
@@ -2490,10 +2546,10 @@ fun GroupChatInfoScreen(
                         Spacer(Modifier.height(8.dp))
                     }
                     if (conversations.isEmpty() && typedAddress == null) {
-                        Text("You have no contacts yet. Paste an address or a .kas domain above to invite someone.",
+                        Text(stringResource(R.string.no_contacts_yet_paste_address_or_domain),
                             color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                     } else if (candidates.isEmpty() && typedAddress == null) {
-                        Text(if (query.isEmpty()) "Everyone in your contacts is already in this group." else "No contacts match your search. Paste an address or a .kas domain to invite someone new.",
+                        Text(if (query.isEmpty()) "Everyone in your contacts is already in this group." else stringResource(R.string.no_contacts_match_paste_address_or_domain),
                             color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                     } else if (candidates.isNotEmpty()) {
                         LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {

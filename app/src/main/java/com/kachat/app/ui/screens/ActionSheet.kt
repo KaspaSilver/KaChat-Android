@@ -676,7 +676,7 @@ fun SenderActionsSheet(
         ActionSheetRow(
             icon = Icons.Default.Person,
             title = stringResource(R.string.view_profile),
-            subtitle = "Their KNS profile, domains and address.",
+            subtitle = stringResource(R.string.their_profile_kachat_name_address),
         ) { onDismiss(); onViewProfile() }
         if (!isOwnMessage) {
             ActionSheetRow(

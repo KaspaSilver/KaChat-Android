@@ -1546,12 +1546,10 @@ class ChatViewModel @Inject constructor(
      * concurrently, so each row owns its own debounce/resolving state locally in Compose and
      * just calls this directly.
      */
-    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
-    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
-
-    /** .kas only - for the group add-members search, which stays on what KNS indexes (iOS 79b6ac8). */
-    suspend fun resolveKnsDomain(domain: String): String? = knsService.resolve(domain)
+    /** What a typed name points to on every service, .kachat first - the primary answer and the
+     *  "Other domains" (iOS 6ac48a7). */
+    suspend fun resolveEverywhere(input: String): List<com.kachat.app.services.NameResolution> =
+        runCatching { nameServices.resolveEverywhere(input) }.getOrDefault(emptyList())
 
     private val _isCreatingGroup = MutableStateFlow(false)
     val isCreatingGroup: StateFlow<Boolean> = _isCreatingGroup.asStateFlow()
@@ -2223,10 +2221,6 @@ class ChatViewModel @Inject constructor(
     val nameResolutions: StateFlow<List<com.kachat.app.services.NameResolution>> = _nameResolutions.asStateFlow()
     private val _selectedResolutionTld = MutableStateFlow<com.kachat.app.services.NameServiceTLD?>(null)
     val selectedResolutionTld: StateFlow<com.kachat.app.services.NameServiceTLD?> = _selectedResolutionTld.asStateFlow()
-    /** Whether the "Other domains" list starts open - when nothing resolved for the ending typed
-     *  but another service has the name. */
-    private val _otherDomainsSuggested = MutableStateFlow(false)
-    val otherDomainsSuggested: StateFlow<Boolean> = _otherDomainsSuggested.asStateFlow()
 
     /** Call on every keystroke in the Create Chat address field - debounces, then looks a name
      *  (with or without its ending) up on every service at once. The chat goes to the priority
@@ -2239,7 +2233,6 @@ class ChatViewModel @Inject constructor(
         _knsError.value = null
         _nameResolutions.value = emptyList()
         _selectedResolutionTld.value = null
-        _otherDomainsSuggested.value = false
 
         val typed = input.trim()
         if (!com.kachat.app.services.NameServicesClient.looksLikeName(typed)) {
@@ -2266,8 +2259,6 @@ class ChatViewModel @Inject constructor(
                 } else {
                     appContext.getString(com.kachat.app.R.string.no_domain_found)
                 }
-                // Nothing resolved for the ending typed, but another service may have it.
-                _otherDomainsSuggested.value = results.any { it.address != null }
             }
         }
     }

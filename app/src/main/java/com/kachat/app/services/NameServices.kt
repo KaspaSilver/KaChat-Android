@@ -173,6 +173,9 @@ data class NameResolution(
     val address: String?,
     /** The service could not be asked (network or server failure), so "not registered" is unknown. */
     val failed: Boolean,
+    /** The service isn't live on this network yet (.kachat on mainnet before its launch): listed,
+     *  first as always, but nothing can resolve there (iOS 6ac48a7). */
+    val notLive: Boolean = false,
 )
 
 /** One name an address owns on a service other than KNS. */
@@ -268,6 +271,23 @@ class NameServicesClient @Inject constructor(
         }
     }
 
+    /** The .kachat names each of [addresses] holds (active or in grace), where the registry is
+     *  live; empty elsewhere. Kept apart from [ownedNames] because .kachat comes first wherever
+     *  names are listed (iOS 6ac48a7). */
+    suspend fun kachatNames(addresses: List<String>): Map<String, List<OwnedServiceName>> {
+        if (!NameServiceTLD.KACHAT.isLive || addresses.isEmpty()) return emptyMap()
+        val registry = kachatRegistry.get()
+        registry.refreshIfStale()
+        val result = mutableMapOf<String, List<OwnedServiceName>>()
+        for (address in addresses) {
+            val key = KachatNamesRegistry.keyOf(address) ?: continue
+            val held = runCatching { registry.heldNames(key) }.getOrNull().orEmpty()
+            if (held.isEmpty()) continue
+            result[address] = held.map { OwnedServiceName(name = it.name, display = "${it.name}.kachat", tld = NameServiceTLD.KACHAT, isProvisional = false) }
+        }
+        return result
+    }
+
     /** [ownedNames] for many addresses, a few lookups at a time rather than one burst of two
      *  requests per address against services that rate-limit. Addresses with none are absent. */
     suspend fun ownedNames(of: List<String>, concurrency: Int = 6): Map<String, List<OwnedServiceName>> {
@@ -344,8 +364,9 @@ class NameServicesClient @Inject constructor(
     // Forward resolution (typed name -> address)
 
     /** What [input] points to on every live service, in [NameServiceTLD.resolutionOrder]. A
-     *  service whose own rules reject the label is left out. `.kachat` is skipped where it is not
-     *  live (mainnet). Each service normalizes with its own rule ([NameNormalization]). */
+     *  service whose own rules reject the label is left out. `.kachat` is always listed first;
+     *  where its registry isn't live yet (mainnet until launch) it is marked [NameResolution.notLive]
+     *  (iOS 6ac48a7). Each service normalizes with its own rule ([NameNormalization]). */
     suspend fun resolveEverywhere(input: String): List<NameResolution> {
         val label = NameServiceTLD.splitTypedName(input).first
         if (label.isEmpty()) return emptyList()
@@ -360,19 +381,17 @@ class NameServicesClient @Inject constructor(
         return NameServiceTLD.resolutionOrder.mapNotNull { results[it] }
     }
 
-    /** The address a typed name points to, by [primary]'s rule - null when nothing resolves. */
-    suspend fun resolvePrimary(input: String): NameResolution? =
-        primary(resolveEverywhere(input), input)?.takeIf { it.address != null }
-
     /** `.kachat`: the registry's owner of a name that is active or in its grace period - an owner
      *  stays reachable until the name is back on the market; only a lapsed name doesn't resolve
      *  (KACHAT_NAMES.md section 4, [KachatNames.resolvedOwner]). Same rules as the gap: a-z, 0-9,
      *  hyphen. iOS 25cc2c9, f7c371a. */
     private suspend fun resolveKachat(label: String): NameResolution? {
-        if (!NameServiceTLD.KACHAT.isLive) return null
         val canonical = KachatNames.Codec.normalize(label)
         if (!KachatNames.Codec.isValid(canonical)) return null
         val display = "$canonical.kachat"
+        if (!NameServiceTLD.KACHAT.isLive) {
+            return NameResolution(NameServiceTLD.KACHAT, display, null, failed = false, notLive = true)
+        }
         val registry = kachatRegistry.get()
         registry.refreshIfStale()
         return try {

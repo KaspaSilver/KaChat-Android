@@ -1618,9 +1618,10 @@ class WalletViewModel @Inject constructor(
     /** Forward KNS domain resolution for any recipient-address field (Withdraw dialogs, the
      *  spending-address send flow) - lets typing "name.kas" resolve to a Kaspa address the same
      *  way Create Chat's own address field already does. */
-    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
-    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
+    /** What a typed name points to on every service, .kachat first - the primary answer and the
+     *  "Other domains" (iOS 6ac48a7). */
+    suspend fun resolveEverywhere(input: String): List<com.kachat.app.services.NameResolution> =
+        runCatching { nameServices.resolveEverywhere(input) }.getOrDefault(emptyList())
 
     /** Epoch millis this account was first added to this device, or null for one added before
      *  that started being recorded. See [WalletManager.accountAddedAt]. */
@@ -1730,7 +1731,11 @@ class WalletViewModel @Inject constructor(
         val input: String,
         val checking: Boolean = false,
         val resolvedAddress: String? = null,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
+        /** The name it resolved as, and every service's answer for "Other domains" (iOS 6ac48a7). */
+        val resolvedName: String? = null,
+        val nameResolutions: List<com.kachat.app.services.NameResolution> = emptyList(),
+        val selectedTld: com.kachat.app.services.NameServiceTLD? = null,
     )
 
     private val _transferRecipientPreview = MutableStateFlow<TransferRecipientPreview?>(null)
@@ -1752,27 +1757,58 @@ class WalletViewModel @Inject constructor(
         transferPreviewJob = viewModelScope.launch {
             delay(350)
             _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = true)
-            val myAddress = sourceAddress ?: address.value
-            try {
-                // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-                // (iOS 79b6ac8) - the same lookup as every other address field.
-                val resolved = if (!KaspaAddress.isValid(trimmed) && com.kachat.app.services.NameServicesClient.looksLikeName(trimmed)) {
-                    nameServices.resolvePrimary(trimmed)?.address
-                        ?: throw IllegalStateException(appContext.getString(com.kachat.app.R.string.no_domain_found))
-                } else {
-                    trimmed
-                }
-                if (!KaspaAddress.isValid(resolved)) throw IllegalStateException("Invalid recipient address")
-                if (resolved == myAddress) throw IllegalStateException("Recipient must be different from your own wallet")
-                // The other network's address is the same key on another chain (iOS ce20e87).
-                KaspaAddress.otherNetworkMessageRes(resolved)?.let { throw IllegalStateException(appContext.getString(it)) }
-                if (myAddress != null && resolved.substringBefore(":") != myAddress.substringBefore(":")) {
-                    throw IllegalStateException("Recipient address is on the wrong network")
-                }
-                _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, resolvedAddress = resolved)
-            } catch (e: Exception) {
-                _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, errorMessage = UserFacingError.message(e, "Invalid recipient"))
+            // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
+            // (iOS 79b6ac8) - the same lookup as every other address field; the others are
+            // offered under "Other domains" (iOS 6ac48a7).
+            val isName = !KaspaAddress.isValid(trimmed) && com.kachat.app.services.NameServicesClient.looksLikeName(trimmed)
+            val results = if (isName) runCatching { nameServices.resolveEverywhere(trimmed) }.getOrDefault(emptyList()) else emptyList()
+            val primary = if (isName) com.kachat.app.services.NameServicesClient.primary(results, trimmed)?.takeIf { it.address != null } else null
+            if (isName && primary == null) {
+                val explicit = com.kachat.app.services.NameServiceTLD.splitTypedName(trimmed).second
+                val message = if (explicit != null) appContext.getString(com.kachat.app.R.string.no_tld_domain_found, explicit.suffix)
+                else appContext.getString(com.kachat.app.R.string.no_domain_found)
+                _transferRecipientPreview.value = TransferRecipientPreview(input = trimmed, checking = false, errorMessage = message, nameResolutions = results)
+                return@launch
             }
+            _transferRecipientPreview.value = validatedTransferRecipient(trimmed, primary?.address ?: trimmed, primary, results, sourceAddress)
+        }
+    }
+
+    /** Picks another service's answer for the typed name (under "Other domains"): it goes through
+     *  the same checks as the priority one. */
+    fun selectTransferResolution(resolution: com.kachat.app.services.NameResolution, sourceAddress: String? = null) {
+        val current = _transferRecipientPreview.value ?: return
+        val address = resolution.address ?: return
+        transferPreviewJob?.cancel()
+        _transferRecipientPreview.value = validatedTransferRecipient(current.input, address, resolution, current.nameResolutions, sourceAddress)
+    }
+
+    /** A real, different, same-network address - else the reason, with the name lookup kept. */
+    private fun validatedTransferRecipient(
+        input: String,
+        resolved: String,
+        resolution: com.kachat.app.services.NameResolution?,
+        results: List<com.kachat.app.services.NameResolution>,
+        sourceAddress: String?,
+    ): TransferRecipientPreview {
+        val myAddress = sourceAddress ?: address.value
+        return try {
+            if (!KaspaAddress.isValid(resolved)) throw IllegalStateException("Invalid recipient address")
+            if (resolved == myAddress) throw IllegalStateException("Recipient must be different from your own wallet")
+            // The other network's address is the same key on another chain (iOS ce20e87).
+            KaspaAddress.otherNetworkMessageRes(resolved)?.let { throw IllegalStateException(appContext.getString(it)) }
+            if (myAddress != null && resolved.substringBefore(":") != myAddress.substringBefore(":")) {
+                throw IllegalStateException("Recipient address is on the wrong network")
+            }
+            TransferRecipientPreview(
+                input = input, checking = false, resolvedAddress = resolved,
+                resolvedName = resolution?.display, nameResolutions = results, selectedTld = resolution?.tld,
+            )
+        } catch (e: Exception) {
+            TransferRecipientPreview(
+                input = input, checking = false, errorMessage = UserFacingError.message(e, "Invalid recipient"),
+                nameResolutions = results, selectedTld = resolution?.tld,
+            )
         }
     }
 

@@ -417,13 +417,15 @@ class WalletService @Inject constructor(
         val balanceSompi: Long,
         val domains: List<KnsAsset>,
         val primaryDomain: String?,
-        /** Names on the other services (.k, .kaspa; .kachat once live). */
+        /** Names on the other services (.k, .kaspa). */
         val otherNames: List<OwnedServiceName> = emptyList(),
+        /** .kachat names (active or in grace) where the registry is live - listed first (iOS 6ac48a7). */
+        val kachatNames: List<OwnedServiceName> = emptyList(),
     ) {
-        val nameCount: Int get() = domains.size + otherNames.size
+        val nameCount: Int get() = kachatNames.size + domains.size + otherNames.size
         /** The one name to show on the row when there is exactly one. */
         val onlyName: String? get() = if (nameCount != 1) null
-            else domains.firstOrNull()?.asset ?: otherNames.firstOrNull()?.display
+            else kachatNames.firstOrNull()?.display ?: domains.firstOrNull()?.asset ?: otherNames.firstOrNull()?.display
         val isInteresting: Boolean get() = balanceSompi > 0L || nameCount > 0
     }
 
@@ -457,6 +459,7 @@ class WalletService @Inject constructor(
         // .k and .kaspa too: an identity can live at an address whose only trace is a name on
         // one of them.
         val otherNamesByAddress = nameServices.ownedNames(of = addresses)
+        val kachatNamesByAddress = runCatching { nameServices.kachatNames(addresses) }.getOrDefault(emptyMap())
 
         derived.map { (index, address) ->
             val domains = domainsByAddress[address].orEmpty()
@@ -469,7 +472,8 @@ class WalletService @Inject constructor(
                 primaryDomain = if (domains.isEmpty()) null else {
                     try { knsService.reverseResolve(address) } catch (e: Exception) { null }
                 },
-                otherNames = otherNamesByAddress[address].orEmpty()
+                otherNames = otherNamesByAddress[address].orEmpty(),
+                kachatNames = kachatNamesByAddress[address].orEmpty(),
             )
         }
     }

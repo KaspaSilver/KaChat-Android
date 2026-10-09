@@ -79,7 +79,6 @@
     <string name="each_transaction_temporarily_uses_2_kas">Her islem gecici olarak ~2 KAS kullanir; ~1 KAS hemen para ustu olarak geri doner, bu yuzden gercek maliyet yalnizca kucuk ag ucretidir.</string>
     <string name="edit_kns_profile">KNS Profilini Düzenle</string>
     <string name="edit_account">Hesabi duzenle</string>
-    <string name="enter_a_kaspa_address_kaspa_or">Bir Kaspa adresi (kaspa:...) veya KNS alan adı girin (ör. alice.kas)</string>
     <string name="enter_kpub">kpub Gir</string>
     <string name="error">Hata</string>
     <string name="every_member_will_see_the_new">Her uye yeni ismi gorecek.</string>
@@ -178,7 +177,6 @@
     <string name="read">Okundu</string>
     <string name="receiving_kas_at">KAS Alma Adresi</string>
     <string name="recipient_address">Alici adresi</string>
-    <string name="recipient_address_or_kas_name">Alici adresi veya .kas adi</string>
     <string name="refresh_status">Durumu Yenile</string>
     <string name="remove">Kaldir</string>
     <string name="remove_cold_storage_account">Soguk Depolama Hesabini Kaldir</string>
@@ -191,7 +189,6 @@
     <string name="resign">Pes Et</string>
     <string name="resign_this_game">Bu oyundan cekilinsin mi?</string>
     <string name="resolving_domain">Alan adi cozumleniyor…</string>
-    <string name="resolving">Cozumleniyor...</string>
     <string name="retention">Saklama</string>
     <string name="retry">Tekrar Dene</string>
     <string name="retry_inscription_reveal">Yazit Acilmasini Tekrar Dene</string>
@@ -301,10 +298,8 @@
     <string name="indexer">Indeksleyici</string>
     <string name="info">Bilgi</string>
     <string name="kns_profile">KNS Profili</string>
-    <string name="kns_domain_resolution_service">KNS alan adı çözümleme servisi</string>
     <string name="kachat_indexer">KaChat Dizinleyici</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">Kaspa Dugumu</string>
     <string name="last_sync">Son Senkronizasyon</string>
     <string name="latency">Gecikme</string>
@@ -423,8 +418,6 @@
     <string name="connection_tab_domains">Alan Adlari</string>
     <string name="connection_tab_explorer">Kesif Motoru</string>
     <string name="message_indexer">Mesaj dizinleyici</string>
-    <string name="other_name_services">Diğer ad hizmetleri</string>
-    <string name="other_name_services_footer">Bir adresin sahip olduğu .k ve .kaspa adlarını göstermek için kullanılır. KaChat\'in kendi .kachat adları kullanıma girince burada ayarlanacak.</string>
     <string name="coming_soon">Yakında</string>
     <string name="not_available_on_this_network">Bu ağda kullanılamıyor</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -582,7 +575,6 @@
     <string name="portfolio_fees_count_priced">İşlemler: %1$d, her günün fiyatıyla.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">Bu tohum kimliğini zaten başka bir adreste tutuyorsa - bir alan adı (.kas, .k veya .kaspa) ya da bakiyeli bir sohbet adresi - onu burada seç. Yalnızca bakiyesi veya alan adı olan adresler gösterilir.</string>
     <string name="chatting_picker_other_names_count">.k ve .kaspa Adları (%1$d)</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">Mesaj İstekleri</string>
@@ -698,12 +690,9 @@
     <string name="kn_new_expiry">Yeni bitiş tarihi</string>
     <string name="kn_list_footer">Herkes bu fiyattan satın alabilir: ödeme size, ad alıcıya tek işlemde ulaşır. İstediğiniz zaman satıştan kaldırın.</string>
     <string name="kn_transfer_warning">Devir geri alınamaz. Yeni sahip adı mevcut bitiş tarihiyle alır; profiliniz adresinizde kalır.</string>
-    <string name="kn_transfer_placeholder">kaspatest:... veya name.kachat</string>
     <string name="kn_new_owner">Yeni sahip</string>
-    <string name="kn_transfer_footer">Bir testnet adresi veya .kachat adı - gösterilen adrese çözümlenir.</string>
     <string name="kn_err_not_testnet_address">Testnet Schnorr adresi değil.</string>
     <string name="kn_err_address_key">Bu adresin anahtarı geçerli değil.</string>
-    <string name="kn_err_enter_address">Bir adres veya .kachat adı girin.</string>
     <string name="kn_err_lookup">Bu ad aranamadı.</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
     <string name="kn_links">Bağlantılar</string>
@@ -1105,7 +1094,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Ek süre %1$s tarihinde bitiyor</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">Bu adla bir .kachat adı yok.</string>
     <string name="kn_detail_grace_resolves">Süresi doldu. Ek süre bitene kadar hâlâ sahibine çözümlenir ve sahibi hâlâ yenileyebilir.</string>
     <string name="kn_detail_grace_mine_resolves">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar hâlâ size çözümlenir ve başka kimse alamaz.</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1196,4 +1184,28 @@
     <string name="kn_registration_not_open">İsimler yeni kayıt defterine taşınıyor. Yeni isimler %1$s tarihinden itibaren alınabilir.</string>
     <string name="kn_registration_not_open_note">Önce eski kayıt defterindeki her isim aynı sahip ve aynı bitiş tarihiyle taşınır.</string>
     <string name="kn_ev_imported">Yeni kayıt defterine taşındı</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">Bir Kaspa adresi (kaspa:...) veya alan adı girin (ör. alice.kachat). Önce .kachat adları aranır.</string>
+    <string name="search_contacts_or_address_or_domain">Kişi, adres veya alan adı arayın</string>
+    <string name="no_contacts_yet_paste_address_or_domain">Henüz kişiniz yok. Birini davet etmek için yukarıya bir adres veya alan adı yapıştırın.</string>
+    <string name="no_contacts_match_paste_address_or_domain">Aramanızla eşleşen kişi yok. Yeni birini davet etmek için bir adres veya alan adı yapıştırın.</string>
+    <string name="their_profile_kachat_name_address">Profili, .kachat adı ve adresi.</string>
+    <string name="finds_addresses_balance_or_domain">Bakiyesi veya alan adı olan adresleri bulur.</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">Bir Kaspa adresi (kaspa:...) veya alan adı girin. Önce .kachat adları aranır.</string>
+    <string name="portfolio_add_address_footer_kachat">Bir Kaspa adresi veya name.kachat gibi bir alan adı girin (önce .kachat adları aranır). Bu adrese gelen her işlem alış, gönderilen her işlem satış sayılır ve o günün geçmiş KAS fiyatıyla değerlenir. Aynı adresi daha sonra yeniden eklerseniz yalnızca son içe aktarmadan beri bulunan işlemler içe aktarılır.</string>
+    <string name="kn_transfer_footer_domain">Bir adres veya alan adı; önce .kachat adları aranır ve gösterilen adrese çözümlenir.</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... veya alan adı</string>
+    <string name="kn_err_enter_address_or_domain">Bir adres veya alan adı girin.</string>
+    <string name="kn_err_name_address_cant_own">Bu adın adresi bir .kachat adına sahip olamaz.</string>
+    <string name="kn_err_no_domain_by_name">Bu adla bir alan adı bulunamadı.</string>
+    <string name="kachat_names_resolved_first_footer">Adres girebildiğiniz her yerde önce çözümlenir.</string>
+    <string name="other_domains_title">Diğer Alan Adları</string>
+    <string name="other_domains_settings_footer">.kachat\'tan sonra aranır; yazılan ad orada da varsa Diğer alan adları altında listelenir.</string>
+    <string name="chatting_picker_intro_any_name_kachat">Bu seed kimliğinizi zaten başka bir adreste tutuyorsa (bir alan adı .kachat, .kas, .k veya .kaspa ya da bakiyeli bir sohbet adresi), burada seçin. Yalnızca bakiyesi veya alan adı olan adresler gösterilir.</string>
+    <string name="chatting_picker_kachat_names_count">.kachat Adları (%1$d)</string>
+    <string name="chatting_picker_kas_names_count">.kas Adları (%1$d)</string>
+    <string name="kachat_expired_one_title">.kachat alan adlarınızdan birinin süresi doldu</string>
+    <string name="kachat_expired_many_title">.kachat alan adlarınızdan %1$d tanesinin süresi doldu</string>
+    <string name="kachat_expired_one_body">%1$s adını korumak için ek süresi %2$s tarihinde bitmeden yenileyin.</string>
+    <string name="kachat_expired_many_body">Korumak için ek süreleri bitmeden yenileyin.</string>
 </resources>

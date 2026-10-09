@@ -79,7 +79,6 @@
     <string name="each_transaction_temporarily_uses_2_kas">Mỗi giao dịch tạm thời sử dụng ~2 KAS; ~1 KAS quay lại ngay lập tức dưới dạng tiền thối, vì vậy chỉ có phí mạng nhỏ mới là chi phí thực sự.</string>
     <string name="edit_kns_profile">Chỉnh sửa hồ sơ KNS</string>
     <string name="edit_account">Chỉnh sửa tài khoản</string>
-    <string name="enter_a_kaspa_address_kaspa_or">Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền KNS (ví dụ: alice.kas)</string>
     <string name="enter_kpub">Nhập kpub</string>
     <string name="error">Lỗi</string>
     <string name="every_member_will_see_the_new">Mọi thành viên sẽ thấy tên mới.</string>
@@ -178,7 +177,6 @@
     <string name="read">Da doc</string>
     <string name="receiving_kas_at">Đang nhận KAS tại</string>
     <string name="recipient_address">Địa chỉ người nhận</string>
-    <string name="recipient_address_or_kas_name">Địa chỉ người nhận hoặc tên .kas</string>
     <string name="refresh_status">Làm mới trạng thái</string>
     <string name="remove">Xóa</string>
     <string name="remove_cold_storage_account">Xóa tài khoản lưu trữ lạnh</string>
@@ -191,7 +189,6 @@
     <string name="resign">Đầu hàng</string>
     <string name="resign_this_game">Đầu hàng ván này?</string>
     <string name="resolving_domain">Đang phân giải tên miền…</string>
-    <string name="resolving">Đang phân giải...</string>
     <string name="retention">Lưu giữ</string>
     <string name="retry">Thu lai</string>
     <string name="retry_inscription_reveal">Thử lại tiết lộ bản khắc</string>
@@ -301,10 +298,8 @@
     <string name="indexer">Trình lập chỉ mục</string>
     <string name="info">Thông tin</string>
     <string name="kns_profile">KNS Hồ sơ</string>
-    <string name="kns_domain_resolution_service">Dịch vụ phân giải tên miền KNS</string>
     <string name="kachat_indexer">Bộ lập chỉ mục KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">Nút Kaspa</string>
     <string name="last_sync">Đồng bộ lần cuối</string>
     <string name="latency">Độ trễ</string>
@@ -423,8 +418,6 @@
     <string name="connection_tab_domains">Tên miền</string>
     <string name="connection_tab_explorer">Trình khám phá</string>
     <string name="message_indexer">Trình lập chỉ mục tin nhắn</string>
-    <string name="other_name_services">Dịch vụ tên khác</string>
-    <string name="other_name_services_footer">Dùng để hiển thị các tên .k và .kaspa mà một địa chỉ sở hữu. Tên .kachat của KaChat sẽ được đặt ở đây khi ra mắt.</string>
     <string name="coming_soon">Sắp ra mắt</string>
     <string name="not_available_on_this_network">Không khả dụng trên mạng này</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -582,7 +575,6 @@
     <string name="portfolio_fees_count_priced">Giao dịch: %1$d, theo giá từng ngày.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">Nếu cụm từ khôi phục này đã giữ danh tính của bạn ở địa chỉ khác - một tên miền (.kas, .k hoặc .kaspa) hoặc số dư trò chuyện - hãy chọn ở đây. Chỉ hiện các địa chỉ có số dư hoặc tên miền.</string>
     <string name="chatting_picker_other_names_count">Tên .k và .kaspa (%1$d)</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">Yêu cầu nhắn tin</string>
@@ -698,12 +690,9 @@
     <string name="kn_new_expiry">Hạn mới</string>
     <string name="kn_list_footer">Ai cũng có thể mua với giá này: tiền đến bạn và tên đến người mua trong một giao dịch. Gỡ bán bất cứ lúc nào.</string>
     <string name="kn_transfer_warning">Không thể hoàn tác việc chuyển. Chủ mới nhận tên với hạn hiện tại; hồ sơ của bạn vẫn ở địa chỉ của bạn.</string>
-    <string name="kn_transfer_placeholder">kaspatest:... hoặc name.kachat</string>
     <string name="kn_new_owner">Chủ mới</string>
-    <string name="kn_transfer_footer">Một địa chỉ testnet hoặc một tên .kachat - được chuyển thành địa chỉ hiển thị.</string>
     <string name="kn_err_not_testnet_address">Không phải địa chỉ Schnorr testnet.</string>
     <string name="kn_err_address_key">Khóa của địa chỉ đó không hợp lệ.</string>
-    <string name="kn_err_enter_address">Nhập địa chỉ hoặc tên .kachat.</string>
     <string name="kn_err_lookup">Không tra cứu được tên đó.</string>
     <string name="kn_profile_belongs">Hồ sơ thuộc về địa chỉ của bạn, không thuộc về tên: vẫn giữ nguyên khi bạn mua, bán hay bỏ một tên.</string>
     <string name="kn_links">Liên kết</string>
@@ -1105,7 +1094,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Thời gian ân hạn kết thúc %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">Không có tên .kachat nào như vậy.</string>
     <string name="kn_detail_grace_resolves">Đã hết hạn. Tên vẫn trỏ đến chủ sở hữu cho đến khi hết thời gian ân hạn, và chủ sở hữu vẫn có thể gia hạn.</string>
     <string name="kn_detail_grace_mine_resolves">Đã hết hạn - hãy gia hạn để giữ. Cho đến khi hết thời gian ân hạn, tên vẫn trỏ đến bạn và không ai khác có thể lấy.</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1196,4 +1184,28 @@
     <string name="kn_registration_not_open">Các tên đang được chuyển sang sổ đăng ký mới. Bạn có thể nhận tên mới từ %1$s.</string>
     <string name="kn_registration_not_open_note">Trước tiên, mọi tên từ sổ đăng ký cũ được chuyển sang với cùng chủ sở hữu và hạn dùng.</string>
     <string name="kn_ev_imported">Đã chuyển sang sổ đăng ký mới</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền (vd. alice.kachat). Tên .kachat được tra trước.</string>
+    <string name="search_contacts_or_address_or_domain">Tìm liên hệ, địa chỉ hoặc tên miền</string>
+    <string name="no_contacts_yet_paste_address_or_domain">Bạn chưa có liên hệ nào. Dán địa chỉ hoặc tên miền ở trên để mời ai đó.</string>
+    <string name="no_contacts_match_paste_address_or_domain">Không có liên hệ phù hợp. Dán địa chỉ hoặc tên miền để mời người mới.</string>
+    <string name="their_profile_kachat_name_address">Hồ sơ, tên .kachat và địa chỉ của họ.</string>
+    <string name="finds_addresses_balance_or_domain">Tìm các địa chỉ có số dư hoặc tên miền.</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền. Tên .kachat được tra trước.</string>
+    <string name="portfolio_add_address_footer_kachat">Nhập địa chỉ Kaspa hoặc tên miền như name.kachat (tên .kachat được tra trước). Mỗi giao dịch nhận vào địa chỉ này là một lần mua, mỗi giao dịch gửi đi là một lần bán, theo giá KAS lịch sử của ngày đó. Thêm lại cùng địa chỉ sau này chỉ nhập các giao dịch kể từ lần nhập trước.</string>
+    <string name="kn_transfer_footer_domain">Địa chỉ hoặc tên miền - tên .kachat được tra trước và được chuyển thành địa chỉ hiển thị.</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... hoặc tên miền</string>
+    <string name="kn_err_enter_address_or_domain">Nhập địa chỉ hoặc tên miền.</string>
+    <string name="kn_err_name_address_cant_own">Địa chỉ của tên đó không thể sở hữu tên .kachat.</string>
+    <string name="kn_err_no_domain_by_name">Không tìm thấy tên miền nào có tên đó.</string>
+    <string name="kachat_names_resolved_first_footer">Được phân giải trước, ở mọi nơi bạn có thể nhập địa chỉ.</string>
+    <string name="other_domains_title">Tên miền khác</string>
+    <string name="other_domains_settings_footer">Được tra sau .kachat, và hiển thị trong Tên miền khác khi tên đã nhập cũng có ở đó.</string>
+    <string name="chatting_picker_intro_any_name_kachat">Nếu cụm seed này đã giữ danh tính của bạn ở một địa chỉ khác - một tên miền (.kachat, .kas, .k hoặc .kaspa) hoặc số dư chat đã nạp - hãy chọn ở đây. Chỉ hiển thị địa chỉ có số dư hoặc tên miền.</string>
+    <string name="chatting_picker_kachat_names_count">Tên .kachat (%1$d)</string>
+    <string name="chatting_picker_kas_names_count">Tên .kas (%1$d)</string>
+    <string name="kachat_expired_one_title">Một tên miền .kachat của bạn đã hết hạn</string>
+    <string name="kachat_expired_many_title">%1$d tên miền .kachat của bạn đã hết hạn</string>
+    <string name="kachat_expired_one_body">Gia hạn %1$s trước khi thời gian ân hạn kết thúc vào %2$s để giữ nó.</string>
+    <string name="kachat_expired_many_body">Gia hạn chúng trước khi thời gian ân hạn kết thúc để giữ chúng.</string>
 </resources>

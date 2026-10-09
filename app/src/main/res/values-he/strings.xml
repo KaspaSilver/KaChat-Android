@@ -79,7 +79,6 @@
     <string name="each_transaction_temporarily_uses_2_kas">כל עסקה משתמשת באופן זמני ב-~2 KAS; ~1 KAS חוזר מיד כעודף, כך שרק עמלת הרשת הקטנה היא עלות אמיתית.</string>
     <string name="edit_kns_profile">ערוך פרופיל KNS</string>
     <string name="edit_account">ערוך חשבון</string>
-    <string name="enter_a_kaspa_address_kaspa_or">הזן כתובת Kaspa (kaspa:...) או שם דומיין KNS (למשל alice.kas)</string>
     <string name="enter_kpub">הזן kpub</string>
     <string name="error">שגיאה</string>
     <string name="every_member_will_see_the_new">כל חבר יראה את השם החדש.</string>
@@ -178,7 +177,6 @@
     <string name="read">נקרא</string>
     <string name="receiving_kas_at">קבלת KAS ב</string>
     <string name="recipient_address">כתובת הנמען</string>
-    <string name="recipient_address_or_kas_name">כתובת הנמען או שם .kas</string>
     <string name="refresh_status">רענן סטטוס</string>
     <string name="remove">הסר</string>
     <string name="remove_cold_storage_account">הסר חשבון אחסון קר</string>
@@ -191,7 +189,6 @@
     <string name="resign">התפטר</string>
     <string name="resign_this_game">להתפטר ממשחק זה?</string>
     <string name="resolving_domain">פותר דומיין…</string>
-    <string name="resolving">פותר...</string>
     <string name="retention">שמירה</string>
     <string name="retry">נסה שוב</string>
     <string name="retry_inscription_reveal">נסה שוב את חשיפת הרישום</string>
@@ -301,10 +298,8 @@
     <string name="indexer">אינדקסר</string>
     <string name="info">מידע</string>
     <string name="kns_profile">פרופיל KNS</string>
-    <string name="kns_domain_resolution_service">שירות תרגום דומיינים KNS</string>
     <string name="kachat_indexer">מאנדקס KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">צומת קספה</string>
     <string name="last_sync">סנכרון אחרון</string>
     <string name="latency">זמן תגובה</string>
@@ -423,8 +418,6 @@
     <string name="connection_tab_domains">דומיינים</string>
     <string name="connection_tab_explorer">סייר</string>
     <string name="message_indexer">אינדקסר הודעות</string>
-    <string name="other_name_services">שירותי שמות אחרים</string>
-    <string name="other_name_services_footer">משמש להצגת שמות ה-.k וה-.kaspa שבבעלות כתובת. שמות ה-.kachat של KaChat יוגדרו כאן לאחר ההשקה.</string>
     <string name="coming_soon">בקרוב</string>
     <string name="not_available_on_this_network">לא זמין ברשת זו</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -582,7 +575,6 @@
     <string name="portfolio_fees_count_priced">עסקאות: %1$d, לפי מחיר כל יום.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">אם הסיד הזה כבר מחזיק את הזהות שלכם בכתובת אחרת - דומיין (.kas, .k או .kaspa) או יתרת צ\'אט - בחרו אותה כאן. מוצגות רק כתובות עם יתרה או דומיינים.</string>
     <string name="chatting_picker_other_names_count">שמות .k ו-.kaspa (%1$d)</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">בקשות הודעה</string>
@@ -698,12 +690,9 @@
     <string name="kn_new_expiry">תפוגה חדשה</string>
     <string name="kn_list_footer">כל אחד יכול לקנות במחיר הזה: התשלום מגיע אליך והשם לקונה בעסקה אחת. אפשר להסיר מהמכירה בכל עת.</string>
     <string name="kn_transfer_warning">אי אפשר לבטל העברה. הבעלים החדש מקבל את השם עם תאריך התפוגה הנוכחי; הפרופיל שלך נשאר עם הכתובת שלך.</string>
-    <string name="kn_transfer_placeholder">kaspatest:... או name.kachat</string>
     <string name="kn_new_owner">בעלים חדש</string>
-    <string name="kn_transfer_footer">כתובת Testnet או שם .kachat - הוא מתורגם לכתובת שמוצגת.</string>
     <string name="kn_err_not_testnet_address">זו לא כתובת Schnorr של Testnet.</string>
     <string name="kn_err_address_key">המפתח של הכתובת הזו אינו תקין.</string>
-    <string name="kn_err_enter_address">הזינו כתובת או שם .kachat.</string>
     <string name="kn_err_lookup">לא ניתן היה לחפש את השם.</string>
     <string name="kn_profile_belongs">הפרופיל שלך שייך לכתובת שלך, לא לשם: הוא נשאר זהה כשקונים, מוכרים או מוותרים על שם.</string>
     <string name="kn_links">קישורים</string>
@@ -1105,7 +1094,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">תקופת החסד מסתיימת ב-%1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">אין שם ‎.kachat‎ בשם הזה.</string>
     <string name="kn_detail_grace_resolves">פג תוקף. השם עדיין מפנה לבעלים עד שתקופת החסד מסתיימת, והבעלים עדיין יכול לחדש אותו.</string>
     <string name="kn_detail_grace_mine_resolves">פג תוקף - חדש כדי לשמור עליו. עד שתקופת החסד מסתיימת הוא עדיין מפנה אליך ואף אחד אחר לא יכול לקחת אותו.</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1196,4 +1184,28 @@
     <string name="kn_registration_not_open">השמות עוברים למרשם החדש. אפשר יהיה לתבוע שמות חדשים החל מ-%1$s.</string>
     <string name="kn_registration_not_open_note">קודם כל, כל שם מהמרשם הישן עובר עם אותו בעלים ואותו מועד תפוגה.</string>
     <string name="kn_ev_imported">הועבר למרשם החדש</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">הזן כתובת Kaspa (kaspa:...) או דומיין (למשל alice.kachat). שמות .kachat נבדקים קודם.</string>
+    <string name="search_contacts_or_address_or_domain">חפש אנשי קשר, כתובת או דומיין</string>
+    <string name="no_contacts_yet_paste_address_or_domain">עדיין אין לך אנשי קשר. הדבק למעלה כתובת או דומיין כדי להזמין מישהו.</string>
+    <string name="no_contacts_match_paste_address_or_domain">אין אנשי קשר שתואמים לחיפוש. הדבק כתובת או דומיין כדי להזמין מישהו חדש.</string>
+    <string name="their_profile_kachat_name_address">הפרופיל, שם ה-.kachat והכתובת.</string>
+    <string name="finds_addresses_balance_or_domain">מוצא כתובות שיש בהן יתרה או דומיין.</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">הזן כתובת Kaspa (kaspa:...) או דומיין. שמות .kachat נבדקים קודם.</string>
+    <string name="portfolio_add_address_footer_kachat">הזן כתובת Kaspa או דומיין כמו name.kachat (שמות .kachat נבדקים קודם). כל עסקה שהתקבלה בכתובת הזו נרשמת כקנייה, וכל עסקה שנשלחה כמכירה, לפי מחיר ה-KAS ההיסטורי של אותו יום. הוספה חוזרת של אותה כתובת מייבאת רק עסקאות מאז הייבוא האחרון.</string>
+    <string name="kn_transfer_footer_domain">כתובת או דומיין - שמות .kachat נבדקים קודם, והשם מומר לכתובת המוצגת.</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... או דומיין</string>
+    <string name="kn_err_enter_address_or_domain">הזן כתובת או דומיין.</string>
+    <string name="kn_err_name_address_cant_own">הכתובת של השם הזה לא יכולה להחזיק שם .kachat.</string>
+    <string name="kn_err_no_domain_by_name">לא נמצא דומיין בשם הזה.</string>
+    <string name="kachat_names_resolved_first_footer">נפתרים ראשונים, בכל מקום שבו אפשר להזין כתובת.</string>
+    <string name="other_domains_title">דומיינים אחרים</string>
+    <string name="other_domains_settings_footer">נבדקים אחרי .kachat, ומופיעים תחת דומיינים אחרים כשהשם שהוזן קיים גם שם.</string>
+    <string name="chatting_picker_intro_any_name_kachat">אם הסיד הזה כבר מחזיק את הזהות שלך בכתובת אחרת - דומיין (.kachat, .kas, .k או .kaspa) או יתרת צ׳אט ממומנת - בחר אותה כאן. מוצגות רק כתובות עם יתרה או דומיינים.</string>
+    <string name="chatting_picker_kachat_names_count">שמות .kachat (%1$d)</string>
+    <string name="chatting_picker_kas_names_count">שמות .kas (%1$d)</string>
+    <string name="kachat_expired_one_title">פג תוקפו של אחד מדומייני ה-.kachat שלך</string>
+    <string name="kachat_expired_many_title">פג תוקפם של %1$d מדומייני ה-.kachat שלך</string>
+    <string name="kachat_expired_one_body">חדש את %1$s לפני שתקופת החסד מסתיימת ב-%2$s כדי לשמור עליו.</string>
+    <string name="kachat_expired_many_body">חדש אותם לפני שתקופות החסד מסתיימות כדי לשמור עליהם.</string>
 </resources>

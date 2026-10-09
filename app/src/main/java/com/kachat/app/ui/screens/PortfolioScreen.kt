@@ -807,7 +807,7 @@ private fun PortfolioTransactionsContent(
                     )
                 }
             },
-            resolveKns = { input -> viewModel.resolveName(input)?.address }
+            resolveKns = { input -> viewModel.resolveEverywhere(input) }
         )
     }
 }
@@ -823,7 +823,8 @@ private fun AddressEntryDialog(
     presetAddress: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
-    resolveKns: suspend (String) -> String?,
+    /** Every service's answer for a typed name, .kachat first (iOS 6ac48a7). */
+    resolveKns: suspend (String) -> List<com.kachat.app.services.NameResolution>,
     /** True while the import this sheet started is running - it stays open and shows progress. */
     isImporting: Boolean = false,
     progressText: String = "",
@@ -833,6 +834,10 @@ private fun AddressEntryDialog(
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
     var knsNotFound by remember { mutableStateOf(false) }
+    // The name it resolved as, and every service's answer (`OtherDomainsDropdown`).
+    var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
+    var nameResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
+    var selectedTld by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     // Debounced live KNS resolution — the same 500ms pattern the send flows' address fields use
@@ -840,6 +845,9 @@ private fun AddressEntryDialog(
     // that looks like a domain rather than a raw address.
     LaunchedEffect(addressText) {
         knsResolvedAddress = null
+        knsResolvedDomain = null
+        nameResolutions = emptyList()
+        selectedTld = null
         knsNotFound = false
         val input = addressText.trim()
         if (input.isEmpty() || input.startsWith("kaspa:", ignoreCase = true) ||
@@ -851,9 +859,18 @@ private fun AddressEntryDialog(
         }
         isResolvingKns = true
         kotlinx.coroutines.delay(500)
-        val resolved = resolveKns(input)
+        val results = resolveKns(input)
+        nameResolutions = results
         isResolvingKns = false
-        if (resolved != null) knsResolvedAddress = resolved else knsNotFound = true
+        val resolution = com.kachat.app.services.NameServicesClient.primary(results, input)
+        val resolved = resolution?.address
+        if (resolved != null) {
+            knsResolvedAddress = resolved
+            knsResolvedDomain = resolution.display
+            selectedTld = resolution.tld
+        } else {
+            knsNotFound = true
+        }
     }
 
     val isRawValid = remember(addressText) {
@@ -907,6 +924,12 @@ private fun AddressEntryDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                // Who is behind it: the domain typed, else the address's own .kachat name.
+                AddressResolutionCard(
+                    address = knsResolvedAddress ?: addressText.trim().takeIf { com.kachat.app.util.KaspaAddress.isValid(it) },
+                    domain = knsResolvedDomain,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
                 if (addressText.trim().isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
                     when {
@@ -918,7 +941,9 @@ private fun AddressEntryDialog(
                         knsResolvedAddress != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Resolves to ${shortenKaspaAddress(knsResolvedAddress ?: "")}", color = LocalAppColors.current.success, fontSize = 12.sp)
+                            Text(stringResource(R.string.resolved_name, knsResolvedDomain ?: ""), color = LocalAppColors.current.success, fontSize = 12.sp, maxLines = 1)
+                            Spacer(Modifier.width(6.dp))
+                            Text(shortenKaspaAddress(knsResolvedAddress ?: ""), color = LocalAppColors.current.textSecondary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1)
                         }
                         // Quiet by design — an unfinished domain isn't an error worth shouting about.
                         knsNotFound -> Text(stringResource(R.string.no_domain_found), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
@@ -931,6 +956,16 @@ private fun AddressEntryDialog(
                             Icon(Icons.Default.Cancel, null, tint = LocalAppColors.current.danger, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.invalid_address_format), color = LocalAppColors.current.danger, fontSize = 12.sp)
+                        }
+                    }
+                    if (!isResolvingKns) {
+                        OtherDomainsDropdown(nameResolutions, selectedTld) { resolution ->
+                            resolution.address?.let {
+                                knsResolvedAddress = it
+                                knsResolvedDomain = resolution.display
+                                selectedTld = resolution.tld
+                                knsNotFound = false
+                            }
                         }
                     }
                 }
@@ -949,7 +984,7 @@ private fun AddressEntryDialog(
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Every received transaction on this address becomes a buy, every sent transaction becomes a sell, priced at that day's historical KAS price. Re-adding the same address later only imports transactions found since the last import.",
+                    stringResource(R.string.portfolio_add_address_footer_kachat),
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 12.sp
                 )

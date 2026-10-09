@@ -198,11 +198,10 @@ class PortfolioViewModel @Inject constructor(
         viewModelScope.launch { networkStats.refreshIfNeeded(force) }
     }
 
-    /** Forward KNS domain resolution for the Add Kaspa Address field — lets typing "name.kas"
-     *  resolve to a Kaspa address the same way the send flows' address fields already do. */
-    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
-    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
+    /** What a typed name points to on every service, .kachat first - the primary answer and the
+     *  "Other domains" (iOS 6ac48a7). */
+    suspend fun resolveEverywhere(input: String): List<com.kachat.app.services.NameResolution> =
+        runCatching { nameServices.resolveEverywhere(input) }.getOrDefault(emptyList())
 
     val transactions = repository.getTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

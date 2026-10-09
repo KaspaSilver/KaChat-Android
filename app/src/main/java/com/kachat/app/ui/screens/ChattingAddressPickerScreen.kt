@@ -159,7 +159,7 @@ fun ChattingAddressPickerScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                stringResource(R.string.chatting_picker_intro_any_name),
+                stringResource(R.string.chatting_picker_intro_any_name_kachat),
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
@@ -439,6 +439,20 @@ private fun ChattingAddressDetailScreen(
                     }
                 }
 
+                if (candidate.kachatNames.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        stringResource(R.string.chatting_picker_kachat_names_count, candidate.kachatNames.size),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    candidate.kachatNames.forEach { name ->
+                        DomainNameCard(title = name.display, badge = null)
+                        Spacer(Modifier.height(10.dp))
+                    }
+                }
+
                 if (candidate.otherNames.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
                     Text(
@@ -459,7 +473,7 @@ private fun ChattingAddressDetailScreen(
                 if (candidate.domains.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
                     Text(
-                        stringResource(R.string.kns_domains_count, candidate.domains.size),
+                        stringResource(R.string.chatting_picker_kas_names_count, candidate.domains.size),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.SemiBold
                     )

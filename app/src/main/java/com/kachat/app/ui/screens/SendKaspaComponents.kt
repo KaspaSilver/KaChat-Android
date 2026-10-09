@@ -151,6 +151,11 @@ fun SendRecipientCard(
     onScan: () -> Unit,
     lockedAddress: String? = null,
     enabled: Boolean = true,
+    /** Every service's answer for a typed name (`NameServicesClient.resolveEverywhere`, .kachat
+     *  first) and the one in use: the rest are offered under "Other domains" (iOS 6ac48a7). */
+    nameResolutions: List<com.kachat.app.services.NameResolution> = emptyList(),
+    selectedTld: com.kachat.app.services.NameServiceTLD? = null,
+    onSelectResolution: (com.kachat.app.services.NameResolution) -> Unit = {},
 ) {
     val colors = LocalAppColors.current
     val clipboard = LocalClipboardManager.current
@@ -236,9 +241,9 @@ fun SendRecipientCard(
                     )
                 }
             }
-            // Who the coins are going to - the card Create chat shows (iOS ac0ef19). Android's
-            // card resolves the typed input on its own.
-            AddressResolutionCard(input = trimmed)
+            // Who the coins are going to - the card Create chat shows (iOS ac0ef19): the domain
+            // typed, else the address's own .kachat name (iOS 6ac48a7).
+            AddressResolutionCard(address = resolvedAddress ?: trimmed.takeIf { isValidAddress }, domain = resolvedName)
             // The name it has in your Address Book (iOS 00767a4).
             val saved = remember(addressBook, resolvedAddress, trimmed) {
                 AddressBookManager.shared?.entry(resolvedAddress ?: trimmed)
@@ -258,9 +263,19 @@ fun SendRecipientCard(
                     lookupError = lookupError,
                     isValidAddress = isValidAddress,
                 )
+                if (!isResolving) {
+                    OtherDomainsDropdown(nameResolutions, selectedTld, onSelectResolution)
+                }
             }
         }
     }
+}
+
+/** "No .kas domain found" for a name typed with its ending, else "No domain found" (iOS 6ac48a7). */
+fun noDomainFoundMessage(context: android.content.Context, typed: String): String {
+    val explicit = com.kachat.app.services.NameServiceTLD.splitTypedName(typed).second
+    return if (explicit != null) context.getString(R.string.no_tld_domain_found, explicit.suffix)
+    else context.getString(R.string.no_domain_found)
 }
 
 @Composable

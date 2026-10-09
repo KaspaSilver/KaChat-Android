@@ -3975,6 +3975,8 @@ fun ProfileScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // one of your .kachat names expired and is in grace: renew it in time (iOS 6ac48a7)
+            KachatExpiredNamesBanner(walletAddress = address)
             // 4.0 Profile redesign (matches iOS): inline-editable account name up top, then a
             // KaPosts-style hero (KNS banner, overlapping avatar, display name, bio), then the
             // KNS profile editing entry - the old boxed Account section is gone.
@@ -4982,7 +4984,7 @@ fun KnsDomainSendScreen(
                             recipientInput = it
                             viewModel.checkTransferRecipient(it, sourceAddress)
                         },
-                        placeholder = { Text(stringResource(R.string.recipient_address_or_kas_name)) },
+                        placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
                         singleLine = true,
                         enabled = !inFlight,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -4995,12 +4997,33 @@ fun KnsDomainSendScreen(
                     )
                     recipientPreview?.let { preview ->
                         Spacer(Modifier.height(4.dp))
+                        // the shared card: the domain typed, else the address's own .kachat name
+                        AddressResolutionCard(address = preview.resolvedAddress, domain = preview.resolvedName)
                         when {
-                            preview.checking -> Text(stringResource(R.string.resolving), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                            preview.checking -> Text(stringResource(R.string.looking_up_domain), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                             preview.errorMessage != null -> Text(preview.errorMessage, color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
+                            preview.resolvedAddress != null && preview.resolvedName != null -> Column {
+                                Text(stringResource(R.string.resolved_name, preview.resolvedName), color = LocalAppColors.current.success, style = MaterialTheme.typography.bodySmall)
+                                MiddleEllipsisText(
+                                    preview.resolvedAddress,
+                                    color = LocalAppColors.current.textSecondary,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                )
+                            }
                             preview.resolvedAddress != null -> Text("Resolves to: ${preview.resolvedAddress}", color = LocalAppColors.current.success, style = MaterialTheme.typography.bodySmall)
                         }
+                        if (!preview.checking) {
+                            OtherDomainsDropdown(preview.nameResolutions, preview.selectedTld) {
+                                viewModel.selectTransferResolution(it, sourceAddress)
+                            }
+                        }
                     }
+                    Text(
+                        stringResource(R.string.enter_kaspa_address_or_domain_short_kachat_first),
+                        color = LocalAppColors.current.textSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
 
                     Spacer(Modifier.height(8.dp))
                     Text("FEE", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
@@ -6081,6 +6104,19 @@ fun SpendingAddressSendFlow(
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
     var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
     var knsError by remember { mutableStateOf<String?>(null) }
+    // Every service's answer for a typed name and the one in use: the rest go under "Other
+    // domains" (iOS 6ac48a7).
+    var nameResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
+    var selectedTld by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
+    // Use one service's answer (the priority one, or a pick from "Other domains").
+    val selectResolution: (com.kachat.app.services.NameResolution) -> Unit = { resolution ->
+        resolution.address?.let {
+            knsResolvedAddress = it
+            knsResolvedDomain = resolution.display
+            selectedTld = resolution.tld
+            knsError = null
+        }
+    }
 
     // The fee, as iOS prices it (SendKaspaComponents / SpendingAddressWithdrawView) and as the chat
     // Send KAS sheet already pays it: a base fee at the live quoted rate on the real inputs, plus
@@ -6133,11 +6169,13 @@ fun SpendingAddressSendFlow(
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
-    val noDomainFoundText = stringResource(R.string.no_domain_found)
+    val resolveContext = LocalContext.current
     LaunchedEffect(recipientInput) {
         knsResolvedAddress = null
         knsResolvedDomain = null
         knsError = null
+        nameResolutions = emptyList()
+        selectedTld = null
         if (isCompoundMode) {
             isResolvingKns = false
             return@LaunchedEffect
@@ -6152,14 +6190,16 @@ fun SpendingAddressSendFlow(
         isResolvingKns = true
         kotlinx.coroutines.delay(500)
         // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-        // (iOS 79b6ac8). The resolved line names which one answered.
-        val resolved = viewModel.resolveName(trimmed)
+        // (iOS 79b6ac8). The resolved line names which one answered; the others are offered
+        // under "Other domains" (iOS 6ac48a7).
+        val results = viewModel.resolveEverywhere(trimmed)
+        nameResolutions = results
         isResolvingKns = false
-        if (resolved?.address != null) {
-            knsResolvedAddress = resolved.address
-            knsResolvedDomain = resolved.display
+        val primary = com.kachat.app.services.NameServicesClient.primary(results, trimmed)
+        if (primary?.address != null) {
+            selectResolution(primary)
         } else {
-            knsError = noDomainFoundText
+            knsError = noDomainFoundMessage(resolveContext, trimmed)
         }
     }
 
@@ -6406,7 +6446,10 @@ fun SpendingAddressSendFlow(
                 lockedAddress = if (isCompoundMode) fromAddress else null,
                 isResolving = isResolvingKns,
                 resolvedAddress = knsResolvedAddress,
-                resolvedName = knsResolvedDomain ?: KnsService.normalizeDomain(recipientInput.trim()),
+                resolvedName = knsResolvedDomain,
+                nameResolutions = nameResolutions,
+                selectedTld = selectedTld,
+                onSelectResolution = selectResolution,
                 lookupError = knsError,
                 isValidAddress = isValidAddress,
                 onScan = { showScanner = true },
@@ -11180,27 +11223,29 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             }
             }
             3 -> {
-            SettingsSection(title = stringResource(R.string.kaspa_name_service)) {
-                ConnectionUrlField(label = "KNS API URL", value = knsApiUrl)
-                SettingsFooter(stringResource(R.string.kns_domain_resolution_service))
-            }
-            // The .k (dotk) and .kaspa (Kaspa Names) read APIs the app calls - shown, not
-            // editable yet - and KaChat's own names once they launch (iOS ee01f81).
-            SettingsSection(title = stringResource(R.string.other_name_services)) {
+            // .kachat first: it is what every address field resolves before anything else (iOS 6ac48a7).
+            SettingsSection(title = stringResource(R.string.kn_kachat_names)) {
                 val isMainnet = network.equals("mainnet", ignoreCase = true)
-                listOf(com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA).forEach { tld ->
-                    ConnectionUrlField(
-                        label = "${tld.serviceName} (${tld.suffix})",
-                        value = tld.apiBaseUrl(isMainnet) ?: stringResource(R.string.not_available_on_this_network),
-                    )
-                }
                 // Testnet: the testnet-10 registry, read through the chat indexer above when it
                 // serves names, else straight from the chain (KachatNamesRegistry, iOS 5df42b4).
                 ConnectionUrlField(
                     label = "KaChat Names (.kachat)",
                     value = stringResource(if (isMainnet) R.string.coming_soon else R.string.kn_live_testnet_registry)
                 )
-                SettingsFooter(stringResource(R.string.other_name_services_footer))
+                SettingsFooter(stringResource(R.string.kachat_names_resolved_first_footer))
+            }
+            // The other name services this app reads (see NameServicesClient). Shown, not
+            // editable; the .kas URL follows the selected network.
+            SettingsSection(title = stringResource(R.string.other_domains_title)) {
+                val isMainnet = network.equals("mainnet", ignoreCase = true)
+                ConnectionUrlField(label = ".kas", value = knsApiUrl)
+                listOf(com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA).forEach { tld ->
+                    ConnectionUrlField(
+                        label = tld.suffix,
+                        value = tld.apiBaseUrl(isMainnet) ?: stringResource(R.string.not_available_on_this_network),
+                    )
+                }
+                SettingsFooter(stringResource(R.string.other_domains_settings_footer))
             }
             }
             else -> {
@@ -11969,7 +12014,6 @@ fun CreateChatScreen(
     val looksLikeKnsDomain = remember(address) { com.kachat.app.services.NameServicesClient.looksLikeName(address) }
     val nameResolutions by chatViewModel.nameResolutions.collectAsState()
     val selectedResolutionTld by chatViewModel.selectedResolutionTld.collectAsState()
-    val otherDomainsSuggested by chatViewModel.otherDomainsSuggested.collectAsState()
 
     val knsResolvedAddress by chatViewModel.knsResolvedAddress.collectAsState()
     val knsResolvedDomain by chatViewModel.knsResolvedDomain.collectAsState()
@@ -12260,21 +12304,30 @@ fun CreateChatScreen(
                             Spacer(Modifier.width(8.dp))
                             Text(knsError ?: "", color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
-                        OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
+                        OtherDomainsDropdown(nameResolutions, selectedResolutionTld) { chatViewModel.selectNameResolution(it) }
                     } else if (isValidAddress) {
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = if (looksLikeKnsDomain) "Resolved: ${knsResolvedDomain ?: ""} ${knsResolvedAddress?.takeLast(12) ?: ""}".trim() else stringResource(R.string.valid_address),
+                                text = if (looksLikeKnsDomain) stringResource(R.string.resolved_name, knsResolvedDomain ?: "") else stringResource(R.string.valid_address),
                                 color = LocalAppColors.current.success,
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                         if (looksLikeKnsDomain) {
-                            OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
+                            // the whole address it resolved to, then the same name elsewhere (iOS 6ac48a7)
+                            MiddleEllipsisText(
+                                knsResolvedAddress ?: "",
+                                color = LocalAppColors.current.textSecondary,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                            )
+                            OtherDomainsDropdown(nameResolutions, selectedResolutionTld) { chatViewModel.selectNameResolution(it) }
                         }
                     } else if (!looksLikeKnsDomain && otherNetworkMessageRes != null) {
                         Spacer(Modifier.height(8.dp))
@@ -12287,59 +12340,11 @@ fun CreateChatScreen(
                     // wrong faces while you type would be worse than no card.
                     if (isValidAddress && effectiveAddress != null) {
                         val previewAddress = effectiveAddress
+                        // Still fetched: the roster above names and pictures members from it.
                         LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
-                        val preview = knsProfilesForPreview[previewAddress]
-                        // The domain the resolver already found beats waiting on the profile fetch:
-                        // if you typed one, that IS the name, and showing it immediately means the
-                        // card is useful from the moment the address turns valid.
-                        val previewName = preview?.selectedDomain
-                            ?: address.trim().takeIf { looksLikeKnsDomain }
-                        val stillLoading = preview == null
                         Spacer(Modifier.height(10.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(LocalAppColors.current.surface)
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            ContactAvatar(
-                                imageUrl = preview?.profile?.avatarUrl,
-                                fallbackText = previewName ?: previewAddress.takeLast(8),
-                                size = 44.dp,
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    previewName ?: if (stillLoading) "Looking up..." else "No KNS domain",
-                                    color = if (previewName != null) {
-                                        LocalAppColors.current.textPrimary
-                                    } else {
-                                        LocalAppColors.current.textSecondary
-                                    },
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    previewAddress,
-                                    color = LocalAppColors.current.textSecondary,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            if (stillLoading) {
-                                com.kachat.app.ui.theme.IosActivityIndicator(
-                                    color = KaspaTeal,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                        }
+                        // the shared card: the domain typed, else the address's own .kachat name
+                        AddressResolutionCard(address = previewAddress, domain = knsResolvedDomain.takeIf { looksLikeKnsDomain })
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
@@ -12428,7 +12433,7 @@ fun CreateChatScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(knsError ?: "", color = LocalAppColors.current.danger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                    OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
+                    OtherDomainsDropdown(nameResolutions, selectedResolutionTld) { chatViewModel.selectNameResolution(it) }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (looksLikeKnsDomain && knsResolvedAddress != null) {
                     // The domain it resolved, then the address it resolved TO - reading the whole
@@ -12452,7 +12457,7 @@ fun CreateChatScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    OtherDomainsDropdown(nameResolutions, selectedResolutionTld, otherDomainsSuggested) { chatViewModel.selectNameResolution(it) }
+                    OtherDomainsDropdown(nameResolutions, selectedResolutionTld) { chatViewModel.selectNameResolution(it) }
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (isValidAddress) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -12485,59 +12490,8 @@ fun CreateChatScreen(
                 // the group flow's add-by-address already shows, and iOS's contactPreviewCard.
                 val previewAddress = effectiveAddress?.takeIf { isValidAddress && it.isNotBlank() }
                 if (previewAddress != null) {
-                    LaunchedEffect(previewAddress) { chatViewModel.refreshKnsProfile(previewAddress) }
-                    val preview = knsProfilesForPreview[previewAddress]
-                    // The domain the resolver already found beats waiting on the profile fetch: if
-                    // you typed one, that IS the name, and the card is useful from the moment the
-                    // address turns valid.
-                    val previewName = preview?.selectedDomain
-                        ?: knsResolvedDomain
-                        ?: address.trim().takeIf { looksLikeKnsDomain }
-                    val stillLoading = preview == null
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ContactAvatar(
-                            imageUrl = preview?.profile?.avatarUrl,
-                            fallbackText = previewName ?: previewAddress.takeLast(8),
-                            size = 44.dp,
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                previewName ?: if (stillLoading) "Looking up..." else "No KNS domain",
-                                color = if (previewName != null) {
-                                    LocalAppColors.current.textPrimary
-                                } else {
-                                    LocalAppColors.current.textSecondary
-                                },
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                previewAddress,
-                                color = LocalAppColors.current.textSecondary,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        if (stillLoading) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(
-                                color = KaspaTeal,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
+                    // the shared card: the domain typed, else the address's own .kachat name (iOS 6ac48a7)
+                    AddressResolutionCard(address = previewAddress, domain = knsResolvedDomain.takeIf { looksLikeKnsDomain })
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
@@ -12567,7 +12521,7 @@ fun CreateChatScreen(
             Spacer(modifier = Modifier.height(12.dp))
             
             Text(
-                text = stringResource(R.string.enter_a_kaspa_address_kaspa_or),
+                text = stringResource(R.string.enter_kaspa_address_or_domain_kachat_first),
                 color = LocalAppColors.current.textSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -12620,20 +12574,22 @@ private const val MAX_GROUP_MEMBERS = 50
 
 /** One row in the group-member address list - supports both a raw Kaspa address and a KNS domain, resolved the same way the single-contact flow's address field does. */
 /**
- * "Other domains": what the same typed name points to on the other name services, each one
- * selectable to switch the chat to it (iOS a0dbc15). Unregistered or unreachable ones are listed
- * but not selectable.
+ * "Other domains": what the same typed name points to on the other name services, under the name
+ * it resolved to, each one selectable (iOS a0dbc15, 6ac48a7 `OtherDomainsDropdown`). Every field
+ * that takes an address shows it; the order is always .kachat first. Unregistered, unreachable or
+ * not-yet-live ones are listed but not selectable. Opens by itself when nothing was picked but
+ * another service has the name.
  */
 @Composable
 fun OtherDomainsDropdown(
     resolutions: List<com.kachat.app.services.NameResolution>,
     selected: com.kachat.app.services.NameServiceTLD?,
-    initiallyOpen: Boolean,
     onPick: (com.kachat.app.services.NameResolution) -> Unit,
 ) {
     val others = resolutions.filter { it.tld != selected }
     if (others.isEmpty()) return
-    var expanded by remember(initiallyOpen, resolutions) { mutableStateOf(initiallyOpen) }
+    val openByItself = selected == null && resolutions.any { it.address != null }
+    var expanded by remember(resolutions) { mutableStateOf(openByItself) }
     val colors = LocalAppColors.current
     Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         Row(
@@ -12670,7 +12626,13 @@ fun OtherDomainsDropdown(
                             fontWeight = FontWeight.SemiBold,
                         )
                         MiddleEllipsisText(
-                            address ?: stringResource(if (resolution.failed) R.string.couldnt_check else R.string.not_registered),
+                            address ?: stringResource(
+                                when {
+                                    resolution.notLive -> R.string.coming_soon
+                                    resolution.failed -> R.string.couldnt_check
+                                    else -> R.string.not_registered
+                                }
+                            ),
                             color = colors.textSecondary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
@@ -14278,7 +14240,7 @@ private fun ManageAddressesActionsSheet(
                         ActionSheetRow(
                             icon = Icons.Default.Search,
                             title = stringResource(R.string.discover_addresses),
-                            subtitle = "Finds addresses holding a balance or a KNS domain.",
+                            subtitle = stringResource(R.string.finds_addresses_balance_or_domain),
                             onClick = onDiscover,
                         )
                         ActionSheetRow(

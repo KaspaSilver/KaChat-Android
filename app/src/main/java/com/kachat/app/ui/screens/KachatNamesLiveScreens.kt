@@ -3671,10 +3671,31 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val addressBook = rememberAddressBookEntries()
 
+    // A typed name: what it resolved as (.kachat first) and every service's answer (iOS 6ac48a7).
+    var resolvedName by remember { mutableStateOf<String?>(null) }
+    var nameResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
+    var selectedTld by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
+    val resolver: AddressResolutionViewModel = hiltViewModel()
+    // Takes one service's answer as the new owner: its address must be a Schnorr key, the only
+    // kind a name can be locked to. False when it isn't.
+    val use: (com.kachat.app.services.NameResolution) -> Boolean = use@{ resolution ->
+        val address = resolution.address?.lowercase() ?: return@use false
+        val key = KachatNamesRegistry.keyOf(address) ?: return@use false
+        if (runCatching { KachatNamesActions.validateKey(key, "") }.isFailure) return@use false
+        resolved = address to key
+        resolvedName = resolution.display
+        selectedTld = resolution.tld
+        resolveError = null
+        true
+    }
+
     LaunchedEffect(input) {
         delay(400)
         resolved = null
         resolveError = null
+        resolvedName = null
+        nameResolutions = emptyList()
+        selectedTld = null
         val t = input.trim().lowercase()
         if (t.isEmpty()) return@LaunchedEffect
         if (t.startsWith("kaspatest:") || t.startsWith("kaspa:")) {
@@ -3684,25 +3705,21 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
             resolved = t to key
             return@LaunchedEffect
         }
-        val name = KachatNames.Codec.normalize(t)
-        if (KachatLive.invalidReason(name) != null) { resolveError = R.string.kn_err_enter_address; return@LaunchedEffect }
+        // a name on any service, .kachat first (the ending typed, else .kachat, .kas, .k, .kaspa)
+        if (!com.kachat.app.services.NameServicesClient.looksLikeName(t)) { resolveError = R.string.kn_err_enter_address_or_domain; return@LaunchedEffect }
         resolving = true
-        try {
-            val l = vm.registry.lookup(name)
-            // a name in grace still points to its owner, like everywhere else it resolves (iOS f7c371a)
-            val held = (l as? Lookup.Registered)?.info?.takeIf { it.status(vm.graceMs) != Status.LAPSED }
-            if (held != null) {
-                KachatNamesRegistry.address(held.owner)?.let { resolved = it to held.owner }
-            } else {
-                resolveError = R.string.kn_err_no_name
-            }
-        } catch (e: CancellationException) {
+        val results = try {
+            resolver.resolveEverywhere(t)
+        } finally {
             resolving = false
-            throw e
-        } catch (_: Exception) {
-            resolveError = R.string.kn_err_lookup
         }
-        resolving = false
+        nameResolutions = results
+        val primary = com.kachat.app.services.NameServicesClient.primary(results, t)
+        if (primary != null) {
+            if (!use(primary)) resolveError = R.string.kn_err_name_address_cant_own
+        } else {
+            resolveError = R.string.kn_err_no_domain_by_name
+        }
     }
 
     val target = resolved
@@ -3715,7 +3732,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         operation = target?.let { KachatNamesActions.Operation.Transfer(info, it.second) }, operationKey = target?.first ?: "-",
         onClose = onClose, vm = vm
     ) {
-        KachatInputCard(title = stringResource(R.string.kn_new_owner), footer = stringResource(R.string.kn_transfer_footer)) {
+        KachatInputCard(title = stringResource(R.string.kn_new_owner), footer = stringResource(R.string.kn_transfer_footer_domain)) {
             // The Send screens' recipient field: Paste, Scan QR and the Address Book beside it (iOS bfe7ef9).
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 androidx.compose.foundation.text.BasicTextField(
@@ -3729,7 +3746,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
                     decorationBox = { inner ->
                         Box {
                             if (input.isEmpty()) {
-                                Text(stringResource(R.string.kn_transfer_placeholder), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                                Text(stringResource(R.string.kn_transfer_placeholder_domain), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
                             }
                             inner()
                         }
@@ -3751,10 +3768,21 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
             }
             when {
                 resolving -> IosActivityIndicator(color = KaspaTeal)
-                target != null -> SelectionContainer {
-                    Text(target.first, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                target != null -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    resolvedName?.let { shownName ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(14.dp))
+                            Text(stringResource(R.string.resolved_name, shownName), color = colors.success, fontSize = 12.sp)
+                        }
+                    }
+                    SelectionContainer {
+                        Text(target.first, color = colors.textSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
                 }
                 resolveError != null -> Text(stringResource(resolveError!!), color = colors.danger, fontSize = 12.sp)
+            }
+            if (!resolving) {
+                OtherDomainsDropdown(nameResolutions, selectedTld) { use(it) }
             }
         }
     }
@@ -4510,3 +4538,108 @@ fun KachatProfileSaveSheet(
 
 /** iOS `@AppStorage("kachat_profile_privacy_seen")`: the first save says profiles are public. */
 private const val PRIVACY_SEEN_KEY = "kachat_profile_privacy_seen"
+
+// MARK: - Expired names banner (Profile)
+
+/**
+ * This wallet's .kachat names that have expired and sit in their grace period, for Profile's
+ * banner ([KachatExpiredNamesBanner]): renew before grace ends, or anyone can claim them. A
+ * dismissal (the X) is per name and expiry, so a name that expires again brings it back (iOS
+ * 6ac48a7 `KachatExpiredNamesModel`). Only where the registry is launched; elsewhere nothing here
+ * builds it.
+ */
+@HiltViewModel
+class KachatExpiredNamesViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
+    private val registry: dagger.Lazy<KachatNamesRegistry>,
+    private val actions: dagger.Lazy<KachatNamesActions>,
+) : ViewModel() {
+    var expired by mutableStateOf<List<NameInfo>>(emptyList()); private set
+    private var dismissed by mutableStateOf<Set<String>>(emptySet())
+
+    val visible: List<NameInfo> get() = expired.filter { key(it) !in dismissed }
+
+    /** The registry's revision, to load again when it moves on - zero where it isn't launched. */
+    val revision: kotlinx.coroutines.flow.StateFlow<Int> =
+        if (KachatNamesService.isLaunched) registry.get().revision else kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    val graceMs: Long get() = if (KachatNamesService.isLaunched) registry.get().graceMs else 0L
+
+    private fun key(n: NameInfo) = "${n.name}@${n.expiresAt}"
+    private val prefs get() = context.getSharedPreferences("kachat_expired_banner", android.content.Context.MODE_PRIVATE)
+    private fun storeKey(): String? = actions.get().myAddress?.let { "kachatExpiredBannerDismissed.$it" }
+
+    suspend fun load() {
+        val me = if (KachatNamesService.isLaunched) actions.get().myKey else null
+        val storeKey = storeKey()
+        if (me == null || storeKey == null) {
+            expired = emptyList()
+            return
+        }
+        dismissed = prefs.getStringSet(storeKey, emptySet()).orEmpty().toSet()
+        val reg = registry.get()
+        reg.refreshIfStale()
+        val owned = runCatching { reg.names(me, includeInactive = true) }.getOrNull().orEmpty()
+        expired = KachatNamesRegistry.inGracePeriod(owned, reg.graceMs)
+    }
+
+    fun dismissAll() {
+        val storeKey = storeKey() ?: return
+        dismissed = dismissed + visible.map { key(it) }
+        // only names still in grace are worth remembering
+        prefs.edit().putStringSet(storeKey, dismissed.intersect(expired.map { key(it) }.toSet())).apply()
+    }
+}
+
+/** Profile's banner while one of this wallet's .kachat names is in its grace period. Tapping it
+ *  opens the name (renew is there); the X hides it (iOS 6ac48a7 `KachatExpiredNamesBanner`). */
+@Composable
+fun KachatExpiredNamesBanner(walletAddress: String?, vm: KachatExpiredNamesViewModel = hiltViewModel()) {
+    val revision by vm.revision.collectAsState()
+    LaunchedEffect(walletAddress, revision) { vm.load() }
+    val visible = vm.visible
+    val n = visible.firstOrNull() ?: return
+    val colors = LocalAppColors.current
+    val orange = Color(0xFFFF9500)
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(orange.copy(alpha = 0.14f))
+            .border(1.dp, orange.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .padding(12.dp),
+    ) {
+        Icon(Icons.Default.Warning, contentDescription = null, tint = orange, modifier = Modifier.padding(top = 2.dp).size(18.dp))
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                ) { KachatDeepLink.pendingName.value = n.name },
+        ) {
+            Text(
+                if (visible.size == 1) stringResource(R.string.kachat_expired_one_title)
+                else stringResource(R.string.kachat_expired_many_title, visible.size),
+                color = colors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                if (visible.size == 1) stringResource(R.string.kachat_expired_one_body, "${n.name}.kachat", KachatLive.day(n.expiresAt + vm.graceMs))
+                else stringResource(R.string.kachat_expired_many_body),
+                color = colors.textSecondary, fontSize = 12.sp,
+            )
+        }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(28.dp)
+                .clickable(role = androidx.compose.ui.semantics.Role.Button) { vm.dismissAll() }
+                .semantics { contentDescription = "Dismiss" },
+        ) {
+            Icon(Icons.Default.Close, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+        }
+    }
+}

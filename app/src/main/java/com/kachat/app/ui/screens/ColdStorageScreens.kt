@@ -1318,14 +1318,29 @@ private fun ColdSendFlow(
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
     var knsResolvedDomain by remember { mutableStateOf<String?>(null) }
     var knsError by remember { mutableStateOf<String?>(null) }
+    // Every service's answer for a typed name and the one in use: the rest go under "Other
+    // domains" (iOS 6ac48a7).
+    var nameResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
+    var selectedTld by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
+    // Use one service's answer (the priority one, or a pick from "Other domains").
+    val selectResolution: (com.kachat.app.services.NameResolution) -> Unit = { resolution ->
+        resolution.address?.let {
+            knsResolvedAddress = it
+            knsResolvedDomain = resolution.display
+            selectedTld = resolution.tld
+            knsError = null
+        }
+    }
     // Debounced KNS domain resolution - lets typing "name.kas" here resolve the same way Create
     // Chat's own address field already does. Skipped entirely in compound mode, where the
     // recipient is always the locked self-address, never user-typed.
-    val noDomainFoundText = stringResource(R.string.no_domain_found)
+    val resolveContext = LocalContext.current
     LaunchedEffect(toAddress) {
         knsResolvedAddress = null
         knsResolvedDomain = null
         knsError = null
+        nameResolutions = emptyList()
+        selectedTld = null
         if (isCompoundMode) {
             isResolvingKns = false
             return@LaunchedEffect
@@ -1340,14 +1355,16 @@ private fun ColdSendFlow(
         isResolvingKns = true
         kotlinx.coroutines.delay(500)
         // Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-        // (iOS 79b6ac8). The resolved line names which one answered.
-        val resolved = viewModel.resolveName(trimmed)
+        // (iOS 79b6ac8). The resolved line names which one answered; the others are offered
+        // under "Other domains" (iOS 6ac48a7).
+        val results = viewModel.resolveEverywhere(trimmed)
+        nameResolutions = results
         isResolvingKns = false
-        if (resolved?.address != null) {
-            knsResolvedAddress = resolved.address
-            knsResolvedDomain = resolved.display
+        val primary = com.kachat.app.services.NameServicesClient.primary(results, trimmed)
+        if (primary?.address != null) {
+            selectResolution(primary)
         } else {
-            knsError = noDomainFoundText
+            knsError = noDomainFoundMessage(resolveContext, trimmed)
         }
     }
     // The actual address to use (resolved from a KNS domain, or the direct input) - same
@@ -1478,7 +1495,10 @@ private fun ColdSendFlow(
                             lockedAddress = if (isCompoundMode) fromAddress else null,
                             isResolving = isResolvingKns,
                             resolvedAddress = knsResolvedAddress,
-                            resolvedName = knsResolvedDomain ?: KnsService.normalizeDomain(toAddress.trim()),
+                            resolvedName = knsResolvedDomain,
+                            nameResolutions = nameResolutions,
+                            selectedTld = selectedTld,
+                            onSelectResolution = selectResolution,
                             lookupError = knsError,
                             isValidAddress = isValidRecipient,
                             onScan = { showRecipientScanner = true },
@@ -2496,7 +2516,7 @@ private fun ColdStorageAddressActionsSheet(
                         ActionSheetRow(
                             icon = Icons.Default.Search,
                             title = stringResource(R.string.discover_addresses),
-                            subtitle = "Finds addresses holding a balance or a KNS domain.",
+                            subtitle = stringResource(R.string.finds_addresses_balance_or_domain),
                             onClick = onDiscover,
                         )
                         ActionSheetRow(

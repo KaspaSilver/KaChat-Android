@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
@@ -776,7 +777,18 @@ fun AddressBookEntryEditor(
     val clipboard = LocalClipboardManager.current
     val entries = rememberAddressBookEntries()
     var addressInput by remember { mutableStateOf("") }
-    val effectiveAddress = AddressBookManager.normalize(address ?: addressInput)
+    // A typed domain: what it resolved to (.kachat first) and every service's answer (iOS 6ac48a7).
+    val resolver: AddressResolutionViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    var resolvedAddress by remember { mutableStateOf<String?>(null) }
+    var resolvedName by remember { mutableStateOf<String?>(null) }
+    var nameResolutions by remember { mutableStateOf<List<com.kachat.app.services.NameResolution>>(emptyList()) }
+    var selectedTld by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
+    var isResolving by remember { mutableStateOf(false) }
+    var lookupError by remember { mutableStateOf<String?>(null) }
+    // The address being saved: the one this editor was opened for, else what the typed domain
+    // resolved to, else what was typed.
+    val enteredAddress = address ?: resolvedAddress ?: addressInput
+    val effectiveAddress = AddressBookManager.normalize(enteredAddress)
     val existing = remember(entries, effectiveAddress) { book.entry(effectiveAddress) }
     // Filled once, from the saved entry or the suggestion.
     val initial = remember { book.entry(address) }
@@ -791,9 +803,37 @@ fun AddressBookEntryEditor(
     val showsAssignedPhoto = when {
         pendingBitmap != null -> true
         pendingRemoved -> false
-        else -> book.photoVersion.let { book.hasPhoto(address ?: addressInput) }
+        else -> book.photoVersion.let { book.hasPhoto(enteredAddress) }
     }
     val context = LocalContext.current
+    val selectResolution: (com.kachat.app.services.NameResolution) -> Unit = { resolution ->
+        resolution.address?.let {
+            resolvedAddress = it
+            resolvedName = resolution.display
+            selectedTld = resolution.tld
+            lookupError = null
+            // the name they're known by, unless one was typed already
+            if (name.isBlank()) name = resolution.display
+        }
+    }
+    // A typed name resolves on every service, .kachat first; the entry saves the address.
+    LaunchedEffect(addressInput) {
+        resolvedAddress = null
+        resolvedName = null
+        nameResolutions = emptyList()
+        selectedTld = null
+        lookupError = null
+        isResolving = false
+        val typed = addressInput.trim()
+        if (address != null || typed.isEmpty() || !com.kachat.app.services.NameServicesClient.looksLikeName(typed)) return@LaunchedEffect
+        isResolving = true
+        kotlinx.coroutines.delay(300)
+        val results = resolver.resolveEverywhere(typed)
+        nameResolutions = results
+        isResolving = false
+        val primary = com.kachat.app.services.NameServicesClient.primary(results, typed)
+        if (primary != null) selectResolution(primary) else lookupError = noDomainFoundMessage(context, typed)
+    }
     val scope = rememberCoroutineScope()
     val photoFailed = stringResource(R.string.ab_photo_failed)
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -908,10 +948,39 @@ fun AddressBookEntryEditor(
                         )
                     } else {
                         AddressBookFormField(
-                            addressInput, { addressInput = it }, "kaspa:qr...",
+                            addressInput, { addressInput = it }, stringResource(R.string.kaspa_qr_or_domain),
                             singleLine = false, maxLines = 3, monospace = true,
                             capitalization = KeyboardCapitalization.None,
                         )
+                        if (isResolving || resolvedAddress != null || lookupError != null || nameResolutions.isNotEmpty()) {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp)) {
+                                when {
+                                    isResolving -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = colors.textSecondary, strokeWidth = 2.dp)
+                                        Text(stringResource(R.string.looking_up_domain), color = colors.textSecondary, fontSize = 12.sp)
+                                    }
+                                    resolvedAddress != null -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(14.dp))
+                                            Text(stringResource(R.string.resolved_name, resolvedName ?: ""), color = colors.success, fontSize = 12.sp)
+                                        }
+                                        MiddleEllipsisText(
+                                            resolvedAddress ?: "",
+                                            color = colors.textSecondary,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 11.sp,
+                                        )
+                                    }
+                                    lookupError != null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(Icons.Default.Cancel, contentDescription = null, tint = colors.danger, modifier = Modifier.size(14.dp))
+                                        Text(lookupError ?: "", color = colors.danger, fontSize = 12.sp)
+                                    }
+                                }
+                                if (!isResolving) {
+                                    OtherDomainsDropdown(nameResolutions, selectedTld, selectResolution)
+                                }
+                            }
+                        }
                         SettingsDivider()
                         Row(
                             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),

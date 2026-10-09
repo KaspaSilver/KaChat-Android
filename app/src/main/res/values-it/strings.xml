@@ -79,7 +79,6 @@
     <string name="each_transaction_temporarily_uses_2_kas">Ogni transazione utilizza temporaneamente ~2 KAS; ~1 KAS torna immediatamente come resto, quindi solo la piccola commissione di rete e un costo reale.</string>
     <string name="edit_kns_profile">Modifica il profilo KNS</string>
     <string name="edit_account">Modifica account</string>
-    <string name="enter_a_kaspa_address_kaspa_or">Inserisci un indirizzo Kaspa (kaspa:...) o un nome di dominio KNS (es. alice.kas)</string>
     <string name="enter_kpub">Inserisci kpub</string>
     <string name="error">Errore</string>
     <string name="every_member_will_see_the_new">Ogni membro vedra il nuovo nome.</string>
@@ -178,7 +177,6 @@
     <string name="read">Letto</string>
     <string name="receiving_kas_at">Ricezione KAS su</string>
     <string name="recipient_address">Indirizzo destinatario</string>
-    <string name="recipient_address_or_kas_name">Indirizzo destinatario o nome .kas</string>
     <string name="refresh_status">Aggiorna stato</string>
     <string name="remove">Rimuovi</string>
     <string name="remove_cold_storage_account">Rimuovi account cold storage</string>
@@ -191,7 +189,6 @@
     <string name="resign">Abbandona</string>
     <string name="resign_this_game">Abbandonare questa partita?</string>
     <string name="resolving_domain">Risoluzione dominio…</string>
-    <string name="resolving">Risoluzione...</string>
     <string name="retention">Conservazione</string>
     <string name="retry">Riprova</string>
     <string name="retry_inscription_reveal">Riprova rivelazione iscrizione</string>
@@ -301,10 +298,8 @@
     <string name="indexer">Indexer</string>
     <string name="info">Info</string>
     <string name="kns_profile">KNS Profilo</string>
-    <string name="kns_domain_resolution_service">Servizio di risoluzione dominio KNS</string>
     <string name="kachat_indexer">Indicizzatore KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
-    <string name="kaspa_name_service">Kaspa Name Service</string>
     <string name="kaspa_node">Nodo Kaspa</string>
     <string name="last_sync">Ultima sincronizzazione</string>
     <string name="latency">Latenza</string>
@@ -423,8 +418,6 @@
     <string name="connection_tab_domains">Domini</string>
     <string name="connection_tab_explorer">Explorer</string>
     <string name="message_indexer">Indicizzatore messaggi</string>
-    <string name="other_name_services">Altri servizi di nomi</string>
-    <string name="other_name_services_footer">Serve a mostrare i nomi .k e .kaspa posseduti da un indirizzo. I nomi .kachat di KaChat verranno impostati qui al lancio.</string>
     <string name="coming_soon">Prossimamente</string>
     <string name="not_available_on_this_network">Non disponibile su questa rete</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
@@ -582,7 +575,6 @@
     <string name="portfolio_fees_count_priced">Transazioni: %1$d, al prezzo di ogni giorno.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
-    <string name="chatting_picker_intro_any_name">Se questo seed contiene già la tua identità a un altro indirizzo - un dominio (.kas, .k o .kaspa) o un saldo chat - sceglilo qui. Sono mostrati solo indirizzi con saldo o domini.</string>
     <string name="chatting_picker_other_names_count">Nomi .k e .kaspa (%1$d)</string>
     <!-- Message Requests and Private chats (iOS f7ca401/ba1b2e3/76faa97/74bd52c) -->
     <string name="message_requests">Richieste di messaggi</string>
@@ -698,12 +690,9 @@
     <string name="kn_new_expiry">Nuova scadenza</string>
     <string name="kn_list_footer">Chiunque può comprarlo a questo prezzo: il pagamento arriva a te e il nome all’acquirente in un’unica transazione. Ritiralo quando vuoi.</string>
     <string name="kn_transfer_warning">Un trasferimento non si può annullare. Il nuovo proprietario riceve il nome con la sua scadenza attuale; il tuo profilo resta con il tuo indirizzo.</string>
-    <string name="kn_transfer_placeholder">kaspatest:... o name.kachat</string>
     <string name="kn_new_owner">Nuovo proprietario</string>
-    <string name="kn_transfer_footer">Un indirizzo testnet o un nome .kachat: viene risolto nell’indirizzo mostrato.</string>
     <string name="kn_err_not_testnet_address">Non è un indirizzo Schnorr testnet.</string>
     <string name="kn_err_address_key">La chiave di quell’indirizzo non è valida.</string>
-    <string name="kn_err_enter_address">Inserisci un indirizzo o un nome .kachat.</string>
     <string name="kn_err_lookup">Impossibile cercare quel nome.</string>
     <string name="kn_profile_belongs">Il tuo profilo appartiene al tuo indirizzo, non a un nome: resta uguale quando compri, vendi o lasci un nome.</string>
     <string name="kn_links">Link</string>
@@ -1105,7 +1094,6 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <string name="kn_grace_period_ends">Il periodo di tolleranza termina il %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_err_no_name">Nessun nome .kachat con questo nome.</string>
     <string name="kn_detail_grace_resolves">Scaduto. Continua a risolversi al suo proprietario fino alla fine del periodo di grazia, e il proprietario può ancora rinnovarlo.</string>
     <string name="kn_detail_grace_mine_resolves">Scaduto - rinnovalo per tenerlo. Fino alla fine del periodo di grazia continua a risolversi a te e nessun altro può prenderlo.</string>
     <!-- Address Book (iOS 00767a4) -->
@@ -1196,4 +1184,28 @@
     <string name="kn_registration_not_open">I nomi si stanno spostando nel nuovo registro. Potrai rivendicare nuovi nomi dal %1$s.</string>
     <string name="kn_registration_not_open_note">Prima ogni nome del vecchio registro viene trasferito con lo stesso proprietario e la stessa scadenza.</string>
     <string name="kn_ev_imported">Spostato nel nuovo registro</string>
+    <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
+    <string name="enter_kaspa_address_or_domain_kachat_first">Inserisci un indirizzo Kaspa (kaspa:...) o un dominio (es. alice.kachat). I nomi .kachat vengono cercati per primi.</string>
+    <string name="search_contacts_or_address_or_domain">Cerca contatti, o un indirizzo o dominio</string>
+    <string name="no_contacts_yet_paste_address_or_domain">Non hai ancora contatti. Incolla sopra un indirizzo o un dominio per invitare qualcuno.</string>
+    <string name="no_contacts_match_paste_address_or_domain">Nessun contatto corrisponde alla ricerca. Incolla un indirizzo o un dominio per invitare qualcuno di nuovo.</string>
+    <string name="their_profile_kachat_name_address">Il suo profilo, nome .kachat e indirizzo.</string>
+    <string name="finds_addresses_balance_or_domain">Trova gli indirizzi con un saldo o un dominio.</string>
+    <string name="enter_kaspa_address_or_domain_short_kachat_first">Inserisci un indirizzo Kaspa (kaspa:...) o un dominio. I nomi .kachat vengono cercati per primi.</string>
+    <string name="portfolio_add_address_footer_kachat">Inserisci un indirizzo Kaspa o un dominio come name.kachat (i nomi .kachat vengono cercati per primi). Ogni transazione ricevuta su questo indirizzo diventa un acquisto e ogni transazione inviata una vendita, al prezzo storico di KAS di quel giorno. Se aggiungi di nuovo lo stesso indirizzo, vengono importate solo le transazioni trovate dall’ultima importazione.</string>
+    <string name="kn_transfer_footer_domain">Un indirizzo o un dominio: i nomi .kachat vengono cercati per primi e risolti nell’indirizzo mostrato.</string>
+    <string name="kn_transfer_placeholder_domain">kaspatest:... o dominio</string>
+    <string name="kn_err_enter_address_or_domain">Inserisci un indirizzo o un dominio.</string>
+    <string name="kn_err_name_address_cant_own">L’indirizzo di quel nome non può possedere un nome .kachat.</string>
+    <string name="kn_err_no_domain_by_name">Nessun dominio trovato con quel nome.</string>
+    <string name="kachat_names_resolved_first_footer">Risolti per primi, ovunque tu possa inserire un indirizzo.</string>
+    <string name="other_domains_title">Altri domini</string>
+    <string name="other_domains_settings_footer">Cercati dopo .kachat ed elencati in Altri domini quando un nome digitato esiste anche lì.</string>
+    <string name="chatting_picker_intro_any_name_kachat">Se questo seed contiene già la tua identità a un altro indirizzo (un dominio .kachat, .kas, .k o .kaspa, o un saldo chat con fondi), sceglilo qui. Vengono mostrati solo indirizzi con saldo o domini.</string>
+    <string name="chatting_picker_kachat_names_count">Nomi .kachat (%1$d)</string>
+    <string name="chatting_picker_kas_names_count">Nomi .kas (%1$d)</string>
+    <string name="kachat_expired_one_title">Uno dei tuoi domini .kachat è scaduto</string>
+    <string name="kachat_expired_many_title">%1$d dei tuoi domini .kachat sono scaduti</string>
+    <string name="kachat_expired_one_body">Rinnova %1$s prima che il periodo di tolleranza finisca il %2$s per mantenerlo.</string>
+    <string name="kachat_expired_many_body">Rinnovali prima che finiscano i periodi di tolleranza per mantenerli.</string>
 </resources>

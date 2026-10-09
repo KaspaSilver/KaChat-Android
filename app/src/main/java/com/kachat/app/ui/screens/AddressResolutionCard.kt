@@ -38,60 +38,46 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 /**
- * Who is behind an address being typed - the card Create chat shows, for every other place an
- * address or a `.kas` domain goes in: a withdrawal, a send, a portfolio transaction, a group
- * invite. It resolves on its own - a domain is looked up to its owner first, a valid address
- * fetches its KNS profile - and appears only once the input is something the app is confident
- * about, so a half-typed address gets nothing rather than a card flickering through wrong faces.
- * Mirrors iOS's AddressResolutionCard (ac0ef19, bd0a6f3, 7d4fdd7).
+ * Who is behind the address a screen has resolved - the card Create chat shows, for every other
+ * place an address or a domain goes in: a withdrawal, a send, the portfolio, a group invite. The
+ * SCREEN does the resolving (.kachat first, see [com.kachat.app.services.NameServicesClient.resolveEverywhere]);
+ * this card takes the outcome and shows the face and the name: the [domain] that was typed, else
+ * the address's own .kachat name. Null address, no card - a half-typed address gets nothing rather
+ * than a card flickering through wrong faces. Mirrors iOS's AddressResolutionCard (6ac48a7).
  */
 @Composable
 fun AddressResolutionCard(
-    input: String,
+    address: String?,
+    domain: String? = null,
     modifier: Modifier = Modifier,
     viewModel: AddressResolutionViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
-    val trimmed = input.trim()
-    var address by remember { mutableStateOf<String?>(null) }
-    var domain by remember { mutableStateOf<String?>(null) }
+    val shown = address?.trim()?.takeIf { it.isNotEmpty() }
+    var profileName by remember { mutableStateOf<String?>(null) }
     var avatarUrl by remember { mutableStateOf<String?>(null) }
     var looking by remember { mutableStateOf(false) }
 
-    // The lookup runs on what is typed, not on what is already drawn: a card only ever appears
-    // once this has an answer (iOS bd0a6f3).
-    LaunchedEffect(trimmed) {
-        address = null
-        domain = null
+    LaunchedEffect(shown) {
+        profileName = null
         avatarUrl = null
-        if (trimmed.isEmpty()) {
-            looking = false
-            return@LaunchedEffect
-        }
-        val isDomain = com.kachat.app.services.NameServicesClient.looksLikeName(trimmed) && !KaspaAddress.isValid(trimmed)
-        if (!isDomain && !KaspaAddress.isValid(trimmed)) {
+        if (shown == null || !KaspaAddress.isValid(shown)) {
             looking = false
             return@LaunchedEffect
         }
         looking = true
-        // The same 300ms iOS debounces a typed domain by, so a name being typed is not looked up
-        // once per keystroke.
-        kotlinx.coroutines.delay(300)
-        val resolution = if (isDomain) viewModel.resolveName(trimmed) else null
-        val resolved = if (isDomain) resolution?.address else trimmed
-        if (resolved == null) {
-            looking = false
-            return@LaunchedEffect
-        }
-        address = resolved
-        domain = if (isDomain) resolution?.display else null
-        val profile = viewModel.profileFor(resolved)
-        domain = domain ?: profile?.first
+        val profile = viewModel.profileFor(shown)
+        profileName = profile?.first
         avatarUrl = profile?.second
         looking = false
     }
 
-    val shown = address ?: return
+    if (shown == null) return
+    // The domain typed, else the address's .kachat name (snapshot state: it recomposes when the
+    // identity lands), else what KNS knows.
+    val name = domain
+        ?: com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(shown)
+        ?: profileName
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -100,12 +86,12 @@ fun AddressResolutionCard(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ContactAvatar(imageUrl = avatarUrl, fallbackText = domain ?: shown.takeLast(8), size = 44.dp)
+        ContactAvatar(imageUrl = avatarUrl, fallbackText = name ?: shown.takeLast(8), size = 44.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                domain ?: if (looking) stringResource(R.string.looking_up) else stringResource(R.string.no_domain),
-                color = if (domain != null) colors.textPrimary else colors.textSecondary,
+                name ?: if (looking) stringResource(R.string.looking_up) else stringResource(R.string.no_domain),
+                color = if (name != null) colors.textPrimary else colors.textSecondary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -132,14 +118,15 @@ class AddressResolutionViewModel @Inject constructor(
     private val nameServices: com.kachat.app.services.NameServicesClient,
 ) : ViewModel() {
 
+    /** What a typed name points to on every service, .kachat first (iOS 6ac48a7) - for a field
+     *  that has no model of its own (the Address Book editor). */
+    suspend fun resolveEverywhere(input: String): List<com.kachat.app.services.NameResolution> =
+        runCatching { nameServices.resolveEverywhere(input) }.getOrDefault(emptyList())
+
     /** The contact saved for [address] on this account, if there is one. */
     suspend fun contactFor(address: String): com.kachat.app.models.ContactEntity? = runCatching {
         chatRepository.getContacts().first().firstOrNull { it.id.equals(address, ignoreCase = true) }
     }.getOrNull()
-
-    /** Every name service, in priority (iOS 79b6ac8): the typed ending, else .kachat, .kas, .k, .kaspa. */
-    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? =
-        runCatching { nameServices.resolvePrimary(input) }.getOrNull()
 
     /** The address's primary domain and avatar, as far as KNS knows them. */
     suspend fun profileFor(address: String): Pair<String?, String?>? = runCatching {

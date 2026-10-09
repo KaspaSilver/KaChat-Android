@@ -41,11 +41,10 @@ class ColdStorageViewModel @Inject constructor(
     private val kachatRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>,
 ) : ViewModel() {
 
-    /** Forward KNS domain resolution for the send form's recipient field - lets typing "name.kas"
-     *  resolve to a Kaspa address the same way Create Chat's own address field already does. */
-    /** Every name service, in priority: the ending typed, else .kachat, .kas, .k, .kaspa
-     *  (iOS 79b6ac8, NameServicesClient). Null when nothing resolves. */
-    suspend fun resolveName(input: String): com.kachat.app.services.NameResolution? = nameServices.resolvePrimary(input)
+    /** What a typed name points to on every service, .kachat first - the primary answer and the
+     *  "Other domains" (iOS 6ac48a7). */
+    suspend fun resolveEverywhere(input: String): List<com.kachat.app.services.NameResolution> =
+        runCatching { nameServices.resolveEverywhere(input) }.getOrDefault(emptyList())
 
     private val _accounts = MutableStateFlow(coldStorageManager.getAccounts())
     val accounts: StateFlow<List<ColdStorageManager.ColdAccount>> = _accounts.asStateFlow()
