@@ -1997,19 +1997,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** "Donate" from Settings -> About: resolves the app's donation KNS domain and hands back its address so the caller can navigate straight into a chat, pre-armed to send a payment. */
-    fun startDonationChat(onResolved: (String) -> Unit, onError: () -> Unit) {
-        viewModelScope.launch {
-            val address = knsService.resolve(DONATION_KNS_DOMAIN)
-            if (address == null) {
-                onError()
-                return@launch
-            }
-            addContact(address = address, name = null, knsName = DONATION_KNS_DOMAIN)
-            onResolved(address)
-        }
-    }
-
     data class KnsProfileUiState(
         val ownedDomains: List<String> = emptyList(),
         val selectedDomain: String? = null,
@@ -3441,8 +3428,6 @@ class ChatViewModel @Inject constructor(
         /** A contact's primary domain changes rarely, and the name already lives in the
          *  database, so the sweep is a refresh rather than something the UI waits on. */
         private const val KNS_NAME_SWEEP_INTERVAL_MS = 6L * 60 * 60 * 1000
-        /** KNS domain shown as "Donate" in Settings -> About — see [startDonationChat]. */
-        const val DONATION_KNS_DOMAIN = "kachat.kas"
 
         /** Target raw JPEG bytes for a group chat photo — see [sendPendingGroupPhoto]. */
         private const val GROUP_PHOTO_TARGET_BYTES = 10_000

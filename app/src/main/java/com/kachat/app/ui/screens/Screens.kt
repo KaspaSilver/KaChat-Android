@@ -3674,6 +3674,9 @@ internal fun broadcastCenterBody(body: String): String {
     }
 }
 
+/** Who Donate pays: KaChat's .kachat name, resolved like any typed name (iOS e7cc0d5). */
+private const val DONATE_NAME = "kachat.kachat"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -3720,6 +3723,8 @@ fun ProfileScreen(
         }
     }
     var showWithdrawDialog by remember { mutableStateOf(false) }
+    // Donate: the Send screen, addressed to KaChat's .kachat name (iOS e7cc0d5).
+    var showDonateSheet by remember { mutableStateOf(false) }
     var showSpendingWithdrawDialog by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
 
@@ -3824,6 +3829,23 @@ fun ProfileScreen(
                 portfolioViewModel = portfolioViewModel,
                 onDone = close,
                 presentedAsSheet = true,
+            )
+        }
+    }
+
+    // Donate goes straight to Send with KaChat's name filled in: it resolves like any typed name
+    // (.kachat first, the others under Other domains), no chat opened (iOS e7cc0d5).
+    if (showDonateSheet) {
+        IosFullSheet(onDismissed = { showDonateSheet = false }, swipeToDismiss = false) { close ->
+            SpendingAddressSendFlow(
+                fromAddress = address ?: "",
+                balanceSompi = identityBalanceSompi,
+                title = "Send Kaspa",
+                viewModel = viewModel,
+                portfolioViewModel = portfolioViewModel,
+                onDone = close,
+                presentedAsSheet = true,
+                prefillAddress = DONATE_NAME,
             )
         }
     }
@@ -4311,17 +4333,9 @@ fun ProfileScreen(
                 SettingsDivider()
                 SettingsInfoItem(
                     stringResource(R.string.donate),
-                    ChatViewModel.DONATION_KNS_DOMAIN,
+                    DONATE_NAME,
                     KaspaTeal,
-                    onClick = {
-                        chatViewModel.startDonationChat(
-                            onResolved = { donateAddress -> navController.navigate("chat/$donateAddress?paymentMode=true") },
-                            onError = {
-                                // iOS ContactsView's words, in red.
-                                IosToasts.error("Couldn't resolve ${ChatViewModel.DONATION_KNS_DOMAIN}. Please try again later.")
-                            }
-                        )
-                    }
+                    onClick = { showDonateSheet = true }
                 )
             }
 
