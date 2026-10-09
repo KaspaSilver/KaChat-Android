@@ -42,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -1093,13 +1094,7 @@ fun ImportWalletScreen(
     // screens, so it gets the same screenshot/recording block. The custom keyboard already keeps
     // it away from the OS keyboard and clipboard; this closes the screen-capture side. Cleared
     // on dispose like CreateAccountSeedScreen/SeedPhraseScreen's identical guards.
-    val window = (LocalContext.current as? Activity)?.window
-    DisposableEffect(window) {
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-    }
+    SecureWindowWhileShown()
 
     // iOS ImportWalletView: "Import Account" as an inline title with Back, then the label, Paste
     // and the count on one line, the keyboard, and Continue - 12 apart, 16 from the edges.
@@ -1277,13 +1272,7 @@ fun CreateAccountSeedScreen(words: List<String>, onBack: () -> Unit, onNext: () 
 
     // Blocks screenshots and screen recording of the freshly-generated seed phrase for as long
     // as this screen is on-screen (iOS `SecureView`) - see SeedPhraseScreen's identical guard.
-    val window = (LocalContext.current as? Activity)?.window
-    DisposableEffect(window) {
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-    }
+    SecureWindowWhileShown()
 
     CreateAccountStepScaffold(onBack = onBack) {
         // Warning
@@ -1665,6 +1654,10 @@ private fun PassphraseEntryStep(
     onBack: () -> Unit,
 ) {
     val colors = LocalAppColors.current
+    // The passphrase is as secret as the seed words, and "Show" puts it on screen in plain text:
+    // no screenshots, screen recording or Recents thumbnail while this step is up, like the seed
+    // screens (audit AND-030).
+    SecureWindowWhileShown()
     // Debounced: the derivation is PBKDF2 over 2048 rounds, quick but not free, and running it on
     // every keystroke would be felt.
     var shownAddress by remember { mutableStateOf<String?>(null) }
@@ -1871,7 +1864,14 @@ private fun PassphraseInputField(
         placeholder = { Text(placeholder, color = LocalAppColors.current.textSecondary) },
         singleLine = true,
         visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false),
+        // Password keyboard even while revealed: a visual transformation doesn't change what the
+        // IME is told, and only the Password type keeps keyboards from learning, suggesting or
+        // syncing what is typed (audit AND-030; RevealableSecureField does the same).
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            capitalization = KeyboardCapitalization.None,
+            autoCorrect = false
+        ),
         trailingIcon = {
             TextButton(onClick = onToggleReveal) {
                 Text(if (reveal) "Hide" else "Show", color = KaspaTeal, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
@@ -2033,3 +2033,41 @@ internal val KaChatSignInBackground = Color(0xFF0E1614)
 
 /** One step up from [KaChatSignInBackground], same cast, for the saved-account rows. */
 internal val KaChatSignInCard = Color(0xFF1A2624)
+
+/**
+ * FLAG_SECURE (no screenshots, screen recording or Recents thumbnail) for as long as the calling
+ * screen is composed. Counted per window, because the onboarding steps that use it follow one
+ * another: on seed step -> passphrase step the next screen adds the flag before the previous one
+ * is disposed, and a plain clear on dispose would lift it while the passphrase is on screen
+ * (audit AND-030). The flag is cleared only when the last secure screen goes.
+ */
+@Composable
+internal fun SecureWindowWhileShown() {
+    val window = (LocalContext.current as? Activity)?.window
+    DisposableEffect(window) {
+        if (window != null) SecureWindowCount.acquire(window)
+        onDispose {
+            if (window != null) SecureWindowCount.release(window)
+        }
+    }
+}
+
+private object SecureWindowCount {
+    private val counts = java.util.WeakHashMap<android.view.Window, Int>()
+
+    fun acquire(window: android.view.Window) {
+        val n = counts[window] ?: 0
+        counts[window] = n + 1
+        if (n == 0) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    fun release(window: android.view.Window) {
+        val n = (counts[window] ?: 1) - 1
+        if (n <= 0) {
+            counts.remove(window)
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            counts[window] = n
+        }
+    }
+}
