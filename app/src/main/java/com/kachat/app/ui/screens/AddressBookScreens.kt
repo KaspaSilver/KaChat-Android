@@ -81,6 +81,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -253,15 +254,21 @@ private fun AddressBookImportExport(show: Boolean, onDismiss: () -> Unit) {
         scope.launch {
             val book = AddressBookManager.shared ?: return@launch
             try {
-                val (added, updated) = withContext(Dispatchers.IO) { book.importExport(data) }
-                if (added + updated == 0) IosToasts.show(context.getString(R.string.ab_already_up_to_date))
-                else IosToasts.show(context.getString(R.string.ab_imported_counts, added, updated))
+                val result = withContext(Dispatchers.IO) { book.importExport(data) }
+                var message = if (result.added + result.updated == 0) context.getString(R.string.ab_already_up_to_date)
+                else context.getString(R.string.ab_imported_counts, result.added, result.updated)
+                // other-network entries are skipped, and said so (iOS 218dc42, IOS-063)
+                if (result.skipped > 0) message += " " + context.getString(R.string.ab_import_skipped_other_network, result.skipped)
+                IosToasts.show(message)
             } catch (e: AddressBookManager.ImportException) {
                 IosToasts.error(
                     context.getString(
                         when (e.reason) {
                             AddressBookManager.ImportError.NOT_AN_ADDRESS_BOOK -> R.string.ab_err_not_an_export
                             AddressBookManager.ImportError.EMPTY -> R.string.ab_err_export_empty
+                            AddressBookManager.ImportError.OTHER_NETWORK ->
+                                if (com.kachat.app.util.KaspaNetwork.isTestnet) R.string.ab_err_import_all_mainnet
+                                else R.string.ab_err_import_all_testnet
                         }
                     )
                 )
@@ -563,6 +570,9 @@ fun AddressBookEntryDetail(
     val walletAddress by walletViewModel.address.collectAsState()
     val balanceSompi by walletViewModel.balanceSompi.collectAsState()
     val isOwnAddress = AddressBookManager.normalize(walletAddress.orEmpty()) == AddressBookManager.normalize(address)
+    // Why this entry can't be paid or messaged here: it's the other network's address (saved
+    // before IOS-063, or restored from a backup; iOS 218dc42).
+    val otherNetwork = KaspaAddress.otherNetworkMessageRes(address)?.let { stringResource(it) }
     var showEdit by remember { mutableStateOf(false) }
     var showSend by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -642,16 +652,22 @@ fun AddressBookEntryDetail(
                 }
             }
 
-            SettingsSection(title = null) {
-                AddressBookActionRow(Icons.Default.Send, stringResource(R.string.send_kas_title), enabled = walletAddress != null) {
-                    showSend = true
-                }
-                if (!isOwnAddress) {
-                    SettingsDivider()
-                    AddressBookActionRow(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.message)) {
-                        onOpenChat(entry.address)
+            Column {
+                SettingsSection(title = null) {
+                    AddressBookActionRow(
+                        Icons.Default.Send, stringResource(R.string.send_kas_title),
+                        enabled = walletAddress != null && otherNetwork == null,
+                    ) {
+                        showSend = true
+                    }
+                    if (!isOwnAddress) {
+                        SettingsDivider()
+                        AddressBookActionRow(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.message), enabled = otherNetwork == null) {
+                            if (KaspaAddress.isValidOnActiveNetwork(entry.address)) onOpenChat(entry.address)
+                        }
                     }
                 }
+                if (otherNetwork != null) SettingsFooter(otherNetwork)
             }
 
             SettingsSection(title = null) {
@@ -824,6 +840,9 @@ fun AddressBookEntryEditor(
                                     AddressBookManager.SaveError.NO_WALLET -> errNoWallet
                                     AddressBookManager.SaveError.EMPTY_NAME -> errEmptyName
                                     AddressBookManager.SaveError.INVALID_ADDRESS -> errInvalid
+                                    // the usual reason (iOS 218dc42, IOS-063)
+                                    AddressBookManager.SaveError.OTHER_NETWORK ->
+                                        KaspaAddress.otherNetworkMessageRes(effectiveAddress)?.let { context.getString(it) } ?: errInvalid
                                 }
                             }
                         },
@@ -993,7 +1012,9 @@ fun AddressBookPickerSheet(
                             if (ticked.isEmpty()) stringResource(R.string.done) else stringResource(R.string.ab_add_count, ticked.size),
                             bold = true,
                             onClick = {
-                                onDoneMultiple?.invoke(entries.filter { AddressBookManager.normalize(it.address) in ticked })
+                                onDoneMultiple?.invoke(entries.filter {
+                                    AddressBookManager.normalize(it.address) in ticked && KaspaAddress.isValidOnActiveNetwork(it.address)
+                                })
                                 close()
                             },
                         )
@@ -1019,10 +1040,14 @@ fun AddressBookPickerSheet(
                             shown.forEachIndexed { index, entry ->
                                 if (index > 0) SettingsDivider(inset = 66.dp)
                                 val key = AddressBookManager.normalize(entry.address)
+                                // the other network's address can't be chatted with or added to a group (iOS 218dc42, IOS-063)
+                                val otherNetwork = KaspaAddress.otherNetworkMessageRes(entry.address)?.let { stringResource(it) }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
+                                        .alpha(if (otherNetwork != null) 0.5f else 1f)
+                                        .clickable(enabled = otherNetwork == null) {
+                                            if (!KaspaAddress.isValidOnActiveNetwork(entry.address)) return@clickable
                                             if (isMultiple) {
                                                 ticked = if (key in ticked) ticked - key else ticked + key
                                             } else {
@@ -1033,7 +1058,12 @@ fun AddressBookPickerSheet(
                                         .padding(horizontal = 16.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    AddressBookRow(entry, Modifier.weight(1f))
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        AddressBookRow(entry)
+                                        if (otherNetwork != null) {
+                                            Text(otherNetwork, color = colors.warning, fontSize = 12.sp)
+                                        }
+                                    }
                                     if (isMultiple) {
                                         Spacer(Modifier.width(8.dp))
                                         val on = key in ticked

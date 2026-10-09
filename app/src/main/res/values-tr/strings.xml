@@ -1188,4 +1188,8 @@
     <string name="kn_offers_tap_to_accept_decline">Kabul etmek veya reddetmek için bir teklife dokun. Süresi dolan teklifler alıcılarına geri döner.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">Onayladığınızdan beri ağ ücreti %1$s değerine çıktı. Hiçbir şey gönderilmedi. Yeni ücreti kontrol edip tekrar onaylayın.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">Bu dosyadaki tüm adresler Mainnet adresi. KaChat Testnet\'te.</string>
+    <string name="ab_err_import_all_testnet">Bu dosyadaki tüm adresler Testnet adresi. KaChat Mainnet\'te.</string>
+    <string name="ab_import_skipped_other_network">Diğer ağdan %1$d adres atlandı.</string>
 </resources>

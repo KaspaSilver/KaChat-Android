@@ -1188,4 +1188,8 @@
     <string name="kn_offers_tap_to_accept_decline">点按报价即可接受或拒绝。过期的报价会退回给买家。</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">确认后网络费用已涨到 %1$s。没有发送任何内容。请查看新费用并再次确认。</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">该文件中的所有地址都是 Mainnet 地址。KaChat 当前在 Testnet。</string>
+    <string name="ab_err_import_all_testnet">该文件中的所有地址都是 Testnet 地址。KaChat 当前在 Mainnet。</string>
+    <string name="ab_import_skipped_other_network">已跳过另一网络的 %1$d 个地址。</string>
 </resources>

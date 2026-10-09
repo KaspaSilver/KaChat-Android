@@ -1188,4 +1188,8 @@
     <string name="kn_offers_tap_to_accept_decline">Toca una oferta para aceptarla o rechazarla. Las ofertas caducadas vuelven a sus compradores.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">La comisión de red subió a %1$s desde que confirmaste. No se envió nada. Revisa la nueva comisión y vuelve a confirmar.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">Todas las direcciones de ese archivo son de Mainnet. KaChat está en Testnet.</string>
+    <string name="ab_err_import_all_testnet">Todas las direcciones de ese archivo son de Testnet. KaChat está en Mainnet.</string>
+    <string name="ab_import_skipped_other_network">Se omitieron %1$d de la otra red.</string>
 </resources>

@@ -191,7 +191,9 @@ class AddressBookManager @Inject constructor(
     /** Why a save was refused; [messageKey] is the iOS English string the UI localizes. */
     class SaveException(val messageKey: SaveError) : Exception(messageKey.name)
 
-    enum class SaveError { NO_WALLET, EMPTY_NAME, INVALID_ADDRESS }
+    /** [OTHER_NETWORK]: a valid address of the network the app isn't on; the UI shows
+     *  [KaspaAddress.otherNetworkMessageRes] for it (iOS `SaveError.otherNetwork`, IOS-063). */
+    enum class SaveError { NO_WALLET, EMPTY_NAME, INVALID_ADDRESS, OTHER_NETWORK }
 
     /** What a save does to the entry's assigned photo. */
     sealed class PhotoChange {
@@ -210,7 +212,10 @@ class AddressBookManager @Inject constructor(
         val normalized = normalize(address)
         val cleanName = name.trim()
         if (cleanName.isEmpty()) throw SaveException(SaveError.EMPTY_NAME)
-        if (!KaspaAddress.isValid(normalized)) throw SaveException(SaveError.INVALID_ADDRESS)
+        // The network the app runs on only: the other network's address is the same key on the
+        // other chain, a chat with it is never read and is dropped on the next launch (iOS 218dc42, IOS-063).
+        if (KaspaAddress.otherNetwork(normalized) != null) throw SaveException(SaveError.OTHER_NETWORK)
+        if (!KaspaAddress.isValidOnActiveNetwork(normalized)) throw SaveException(SaveError.INVALID_ADDRESS)
         val cleanNote = note.trim()
         val now = System.currentTimeMillis()
         val existing = current.byAddress[normalized]
@@ -331,8 +336,12 @@ class AddressBookManager @Inject constructor(
 
     // MARK: - Export / import (Address Book > import-export sheet, iOS 87b2a0b)
 
-    /** Why an import was refused; the UI localizes it (iOS `AddressBookManager.ImportError`). */
-    enum class ImportError { NOT_AN_ADDRESS_BOOK, EMPTY }
+    /** Why an import was refused; the UI localizes it (iOS `AddressBookManager.ImportError`).
+     *  [OTHER_NETWORK]: every address in the file is the other network's (iOS 218dc42, IOS-063). */
+    enum class ImportError { NOT_AN_ADDRESS_BOOK, EMPTY, OTHER_NETWORK }
+
+    /** What an import did: entries added, entries updated, and other-network entries skipped. */
+    data class ImportResult(val added: Int, val updated: Int, val skipped: Int)
 
     class ImportException(val reason: ImportError) : Exception(reason.name)
 
@@ -369,11 +378,12 @@ class AddressBookManager @Inject constructor(
     /**
      * Imports an export file into this wallet's book: an address not saved here is added (even
      * one deleted since - importing is asking for it back); one already saved takes the file's
-     * version only when that is newer. Photos come with their entry. Returns (added, updated).
+     * version only when that is newer. Photos come with their entry. Addresses of the other
+     * network are skipped (iOS 218dc42, IOS-063). Returns (added, updated, skipped).
      */
     @Synchronized
     @Throws(SaveException::class, ImportException::class)
-    fun importExport(data: ByteArray): Pair<Int, Int> {
+    fun importExport(data: ByteArray): ImportResult {
         val current = book
         val wallet = current.wallet ?: throw SaveException(SaveError.NO_WALLET)
         val root = runCatching {
@@ -388,8 +398,11 @@ class AddressBookManager @Inject constructor(
             runCatching { gson.fromJson(element, ArchiveAddressBookEntry::class.java)?.toEntry() }.getOrNull()
                 ?: throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
         }
-        val valid = decoded.filter { it.name.isNotBlank() && KaspaAddress.isValid(normalize(it.address)) }
-        if (valid.isEmpty()) throw ImportException(ImportError.EMPTY)
+        val named = decoded.filter { it.name.isNotBlank() && KaspaAddress.isValid(normalize(it.address)) }
+        val valid = named.filter { KaspaAddress.isValidOnActiveNetwork(normalize(it.address)) }
+        val skipped = named.size - valid.size
+        if (named.isEmpty()) throw ImportException(ImportError.EMPTY)
+        if (valid.isEmpty()) throw ImportException(ImportError.OTHER_NETWORK)
 
         val list = current.entries.toMutableList()
         val index = HashMap<String, Int>()
@@ -420,7 +433,7 @@ class AddressBookManager @Inject constructor(
         publish(Book(wallet, sorted(list), deleted))
         persist()
         if (added + updated > 0) didChange()
-        return added to updated
+        return ImportResult(added, updated, skipped)
     }
 
     // MARK: - Backup

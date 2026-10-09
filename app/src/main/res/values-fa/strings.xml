@@ -1219,4 +1219,8 @@
     <string name="kn_offers_tap_to_accept_decline">برای پذیرش یا رد، روی یک پیشنهاد بزنید. پیشنهادهای منقضی‌شده به خریدارانشان برمی‌گردند.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">کارمزد شبکه از زمان تأیید شما به %1$s رسید. چیزی ارسال نشد. کارمزد جدید را ببینید و دوباره تأیید کنید.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">همه نشانی‌های این فایل نشانی Mainnet هستند. KaChat روی Testnet است.</string>
+    <string name="ab_err_import_all_testnet">همه نشانی‌های این فایل نشانی Testnet هستند. KaChat روی Mainnet است.</string>
+    <string name="ab_import_skipped_other_network">%1$d مورد از شبکه دیگر رد شد.</string>
 </resources>

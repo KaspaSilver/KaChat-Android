@@ -1055,4 +1055,8 @@
     <string name="kn_offers_tap_to_accept_decline">Ketuk penawaran untuk menerima atau menolaknya. Penawaran yang kedaluwarsa kembali ke pembelinya.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">Biaya jaringan naik menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa biaya baru dan konfirmasi lagi.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">Semua alamat dalam file itu adalah alamat Mainnet. KaChat ada di Testnet.</string>
+    <string name="ab_err_import_all_testnet">Semua alamat dalam file itu adalah alamat Testnet. KaChat ada di Mainnet.</string>
+    <string name="ab_import_skipped_other_network">%1$d dari jaringan lain dilewati.</string>
 </resources>

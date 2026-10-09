@@ -1391,4 +1391,8 @@
     <string name="kn_offers_tap_to_accept_decline">Tap an offer to accept or decline it. Expired offers go back to their buyers.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">The network fee went up to %1$s since you confirmed. Nothing was sent. Check the new fee and confirm again.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">Every address in that file is a Mainnet address. KaChat is on Testnet.</string>
+    <string name="ab_err_import_all_testnet">Every address in that file is a Testnet address. KaChat is on Mainnet.</string>
+    <string name="ab_import_skipped_other_network">Skipped %1$d from the other network.</string>
 </resources>

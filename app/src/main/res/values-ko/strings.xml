@@ -1188,4 +1188,8 @@
     <string name="kn_offers_tap_to_accept_decline">제안을 탭해 수락하거나 거절하세요. 만료된 제안은 구매자에게 돌아갑니다.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">확인한 뒤 네트워크 수수료가 %1$s(으)로 올랐습니다. 아무것도 보내지 않았습니다. 새 수수료를 확인하고 다시 확인하세요.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">이 파일의 모든 주소는 Mainnet 주소입니다. KaChat은 Testnet에 있습니다.</string>
+    <string name="ab_err_import_all_testnet">이 파일의 모든 주소는 Testnet 주소입니다. KaChat은 Mainnet에 있습니다.</string>
+    <string name="ab_import_skipped_other_network">다른 네트워크의 %1$d개를 건너뛰었습니다.</string>
 </resources>

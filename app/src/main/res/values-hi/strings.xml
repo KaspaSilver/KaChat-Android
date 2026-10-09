@@ -1188,4 +1188,8 @@
     <string name="kn_offers_tap_to_accept_decline">स्वीकार या अस्वीकार करने के लिए किसी ऑफ़र पर टैप करें। समाप्त ऑफ़र खरीदार को लौट जाते हैं।</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">आपके पुष्टि करने के बाद नेटवर्क शुल्क बढ़कर %1$s हो गया। कुछ नहीं भेजा गया। नया शुल्क देखें और फिर से पुष्टि करें।</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">इस फ़ाइल का हर पता Mainnet का है। KaChat Testnet पर है।</string>
+    <string name="ab_err_import_all_testnet">इस फ़ाइल का हर पता Testnet का है। KaChat Mainnet पर है।</string>
+    <string name="ab_import_skipped_other_network">दूसरे नेटवर्क के %1$d छोड़ दिए गए।</string>
 </resources>

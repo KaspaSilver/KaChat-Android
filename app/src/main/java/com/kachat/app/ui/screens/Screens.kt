@@ -12056,6 +12056,8 @@ fun CreateChatScreen(
                     .toMutableSet()
                 for (entry in picked) {
                     if (members.size >= MAX_GROUP_MEMBERS) break
+                    // the active network's addresses only (iOS 218dc42, IOS-063)
+                    if (!KaspaAddress.isValidOnActiveNetwork(entry.address)) continue
                     members.add(entry.address)
                 }
                 selectedMemberAddresses = members

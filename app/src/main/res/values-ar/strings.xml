@@ -1188,4 +1188,8 @@
     <string name="kn_offers_tap_to_accept_decline">اضغط عرضًا لقبوله أو رفضه. العروض المنتهية تعود إلى أصحابها.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">ارتفعت رسوم الشبكة إلى %1$s منذ تأكيدك. لم يُرسل شيء. راجع الرسوم الجديدة وأكّد مرة أخرى.</string>
+    <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
+    <string name="ab_err_import_all_mainnet">كل العناوين في هذا الملف عناوين Mainnet. ‏KaChat على Testnet.</string>
+    <string name="ab_err_import_all_testnet">كل العناوين في هذا الملف عناوين Testnet. ‏KaChat على Mainnet.</string>
+    <string name="ab_import_skipped_other_network">تم تخطي %1$d من الشبكة الأخرى.</string>
 </resources>

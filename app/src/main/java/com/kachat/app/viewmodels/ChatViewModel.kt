@@ -1442,6 +1442,12 @@ class ChatViewModel @Inject constructor(
      */
     fun addContact(address: String, name: String?, knsName: String? = null, deliberate: Boolean = false, onResult: (String?) -> Unit = {}) {
         viewModelScope.launch {
+            // A deliberate add is of the network the app runs on: a chat with the other network's
+            // address is never read and is dropped on the next launch (iOS 218dc42, IOS-063).
+            if (deliberate && !com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(address.trim())) {
+                onResult(com.kachat.app.util.KaspaAddress.otherNetworkReason(address) ?: "Invalid Kaspa address format.")
+                return@launch
+            }
             val existing = chatRepository.getContact(address)
             val stored = if (existing != null) {
                 // If contact exists, update name if provided
