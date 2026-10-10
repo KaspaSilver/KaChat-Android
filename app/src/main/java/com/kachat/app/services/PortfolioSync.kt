@@ -133,8 +133,63 @@ data class PortfolioSync(
             return newest.values.sortedWith(compareBy<PortfolioTombstone> { it.kind }.thenBy { it.id })
         }
 
-        /** iOS `PortfolioSync.merge`: the earlier side wins a tie. */
-        fun merge(sides: List<PortfolioSync>): PortfolioSync {
+        /**
+         * Folds what two devices each made on their own before sync existed (iOS 54788da,
+         * IOS-073): portfolios with the same name and no `updatedAt` become one (the oldest id
+         * stays), their rows and fees move with them, and a row whose `(portfolio, sourceTxId)` is
+         * already there - the same imported transaction - is dropped (the newest copy stays).
+         */
+        fun foldEquivalents(sides: List<PortfolioSync>): List<PortfolioSync> {
+            val keep = HashMap<String, SyncPortfolio>()
+            for (p in sides.flatMap { it.portfolios }) {
+                if (p.updatedAtMillis != null) continue
+                val have = keep[p.name]
+                if (have != null && have.createdAtMillis <= p.createdAtMillis) continue
+                keep[p.name] = p
+            }
+            val remap = HashMap<String, String>()
+            for (p in sides.flatMap { it.portfolios }) {
+                if (p.updatedAtMillis != null) continue
+                val canonical = keep[p.name] ?: continue
+                if (canonical.id != p.id) remap[p.id] = canonical.id
+            }
+            // per imported transaction, the copy that stays: the newest edit, ties by the smaller id
+            // (the same choice on every device, so the copies don't trade places back and forth)
+            val winner = HashMap<String, SyncTransaction>()
+            for (t in sides.flatMap { it.transactions }) {
+                val source = t.sourceTxId
+                if (source.isNullOrEmpty()) continue
+                val key = "${remap[t.portfolioId] ?: t.portfolioId}:$source"
+                val have = winner[key]
+                if (have == null) {
+                    winner[key] = t
+                } else {
+                    val a = have.updatedAtMillis ?: Long.MIN_VALUE
+                    val b = t.updatedAtMillis ?: Long.MIN_VALUE
+                    if (b > a || (b == a && t.id < have.id)) winner[key] = t
+                }
+            }
+            return sides.map { side ->
+                side.copy(
+                    portfolios = side.portfolios.filter { remap[it.id] == null },
+                    transactions = side.transactions.mapNotNull { t ->
+                        val moved = t.copy(portfolioId = remap[t.portfolioId] ?: t.portfolioId)
+                        val source = moved.sourceTxId
+                        if (source.isNullOrEmpty()) return@mapNotNull moved
+                        if (winner["${moved.portfolioId}:$source"]?.id == t.id) moved else null
+                    },
+                    fees = side.fees.map { f ->
+                        val target = remap[f.portfolioId] ?: return@map f
+                        f.copy(portfolioId = target)
+                    },
+                )
+            }
+        }
+
+        /** iOS `PortfolioSync.merge`: the earlier side wins a tie. What two devices made before
+         *  sync is folded first ([foldEquivalents], iOS 54788da). */
+        fun merge(sidesIn: List<PortfolioSync>): PortfolioSync {
+            val sides = foldEquivalents(sidesIn)
             val tombstones = mergeTombstones(sides.map { it.tombstones })
             val deletedAt = tombstones.associate { "${it.kind}:${it.id}" to it.deletedAtMillis }
 
