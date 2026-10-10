@@ -2425,7 +2425,9 @@ fun KaPostCell(
                             val mention = postAnnotated.getStringAnnotations(MENTION_ANNOTATION_TAG, offset, offset).firstOrNull()
                             val link = postAnnotated.getStringAnnotations(LINK_ANNOTATION_TAG, offset, offset).firstOrNull()
                             when {
-                                mention != null -> viewModel.openMentionProfile(mention.item)
+                                // the post's signed mentions ride along, so the tap opens who
+                                // the author meant (iOS e493c97, IOS-068)
+                                mention != null -> viewModel.openMentionProfile(mention.item, post.mentionedPubkeys)
                                 link != null -> tappedLinkUrl = link.item
                                 !isRoot -> onOpenThread()
                             }
@@ -5945,7 +5947,8 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
             addStringAnnotation(
                 MENTION_ANNOTATION_TAG,
                 // the whole token, ending included: "@bob.kas" stays a .kas mention, "@bob" and
-                // "@bob.kachat" resolve .kachat first (KaPostsViewModel.openMentionProfile)
+                // "@bob.kachat" resolve .kachat first, a bare "@bob" then .kas
+                // (KaPostsViewModel.openMentionProfile)
                 domain.value.lowercase(),
                 start,
                 end,

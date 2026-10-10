@@ -33,6 +33,9 @@ data class KaPostDraft(
     val remoteId: String? = null,
     /** Author's K pubkey (66-hex compressed) - needed for vote/quote/follow targeting. */
     val posterPubkey: String? = null,
+    /** The pubkeys the author signed as this post's mentions: who each @token meant when it was
+     *  written - a tap opens one of these, not whoever owns the name today (iOS e493c97, IOS-068). */
+    val mentionedPubkeys: List<String> = emptyList(),
     val likes: Int = 0,
     val dislikes: Int = 0,
     val reposts: Int = 0,

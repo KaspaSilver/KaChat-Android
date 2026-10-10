@@ -1459,6 +1459,7 @@ class KaPostsViewModel @Inject constructor(
             posterAddress = address,
             remoteId = post.id,
             posterPubkey = post.userPublicKey,
+            mentionedPubkeys = post.mentionedPubkeys ?: emptyList(),
             likes = post.upVotesCount ?: 0,
             dislikes = post.downVotesCount ?: 0,
             reposts = post.quotesCount ?: 0,
@@ -1847,12 +1848,30 @@ class KaPostsViewModel @Inject constructor(
     }
 
     /**
-     * The owner address of an @mention token, on every name service with .kachat first: the
-     * ending typed ("@bob.kas" is the .kas name), else .kachat only - the others wait under
-     * Other domains (iOS d0c5b09, 5a5122d).
+     * The owner address of an @mention token. Mentions have their own rule (iOS e493c97,
+     * IOS-068/069), not the address fields' .kachat-only one:
+     * - with the post's signed mentions ([signed]), the answer whose owner the author signed -
+     *   who the token meant when it was written, whoever holds the name today;
+     * - otherwise the ending typed ("@bob.kas" is the .kas name), else .kachat, else .kas - the
+     *   meaning every post from before .kachat was written with.
      */
-    private suspend fun mentionAddress(token: String): String? =
-        com.kachat.app.services.NameServicesClient.primary(nameServices.resolveEverywhere(token), token)?.address
+    private suspend fun mentionAddress(token: String, signed: List<String> = emptyList()): String? {
+        val results = nameServices.resolveEverywhere(token)
+        if (signed.isNotEmpty()) {
+            val keys = signed.mapTo(HashSet()) { it.lowercase() }
+            val typed = com.kachat.app.services.NameServiceTLD.splitTypedName(token).second
+            val ordered = results.filter { it.tld == typed } + results.filter { it.tld != typed }
+            val match = ordered.firstOrNull { r ->
+                val pk = r.address?.let { KaPostsService.kapostPubkeyFromAddress(it) } ?: return@firstOrNull false
+                pk.lowercase() in keys
+            }
+            if (match != null) return match.address
+        }
+        com.kachat.app.services.NameServicesClient.primary(results, token)?.let { return it.address }
+        // a bare token with no .kachat answer: the .kas name it meant before .kachat existed
+        if (com.kachat.app.services.NameServiceTLD.splitTypedName(token).second != null) return null
+        return results.firstOrNull { it.tld == com.kachat.app.services.NameServiceTLD.KAS && it.address != null }?.address
+    }
 
     /** The @mention tokens in `text`, each with the ending it was typed with, in order, deduped. */
     private fun mentionTokens(text: String): List<String> {
@@ -1884,25 +1903,30 @@ class KaPostsViewModel @Inject constructor(
         for (token in tokens) {
             val cached = if (token.endsWith(".kas")) byKasName[token.dropLast(4)] else null
             if (cached != null) { found.add(cached); continue }
-            // everyone else on every service, .kachat first
+            // everyone else: the mention rule - the ending typed, else .kachat, else .kas (iOS e493c97)
             val owner = mentionAddress(token) ?: continue
             KaPostsService.kapostPubkeyFromAddress(owner)?.let { found.add(it) }
         }
         return found.toList()
     }
 
-    /** Composer autocomplete: live-resolve the typed @query on any service, .kachat first; the
-     *  full name ("bob.kachat", "bob.kas") when it resolves. */
+    /** Composer autocomplete: live-resolve the typed @query - anyone with a name: .kachat first,
+     *  else the .kas name (the mention rule, iOS e493c97, IOS-069); the full name ("bob.kachat",
+     *  "bob.kas") when it resolves. */
     suspend fun resolveMentionQuery(query: String): String? {
         if (query.length < 2) return null
-        return com.kachat.app.services.NameServicesClient.primary(nameServices.resolveEverywhere(query), query)?.display
+        val results = nameServices.resolveEverywhere(query)
+        val resolution = com.kachat.app.services.NameServicesClient.primary(results, query)
+            ?: results.firstOrNull { it.tld == com.kachat.app.services.NameServiceTLD.KAS && it.address != null }
+        return resolution?.display
     }
 
-    /** Tapped @mention: resolve the token (.kachat first, or the ending it was typed with) and
-     *  open that user's profile. */
-    fun openMentionProfile(domain: String) {
+    /** Tapped @mention: resolve the token by the mention rule - the owner the post's author
+     *  signed ([signed], the post's mentioned pubkeys) when one answers, else the ending typed,
+     *  .kachat, then .kas (iOS e493c97, IOS-068) - and open that user's profile. */
+    fun openMentionProfile(domain: String, signed: List<String> = emptyList()) {
         viewModelScope.launch {
-            val owner = mentionAddress(domain) ?: return@launch
+            val owner = mentionAddress(domain, signed) ?: return@launch
             openPosterProfile(owner, KaPostsService.kapostPubkeyFromAddress(owner))
         }
     }
