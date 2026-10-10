@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,19 +58,27 @@ fun AddressResolutionCard(
     var profileName by remember { mutableStateOf<String?>(null) }
     var avatarUrl by remember { mutableStateOf<String?>(null) }
     var looking by remember { mutableStateOf(false) }
+    // The address the card shows now, for a lookup that finishes after it moved on.
+    val current by rememberUpdatedState(shown)
 
+    // A new address starts clean - never the previous one's avatar or name while it loads - and
+    // the spinner always stops, a cancelled lookup included; a late answer for an address the
+    // card no longer shows is dropped (iOS 6c8e75a, IOS-074).
     LaunchedEffect(shown) {
         profileName = null
         avatarUrl = null
-        if (shown == null || !KaspaAddress.isValid(shown)) {
-            looking = false
-            return@LaunchedEffect
-        }
-        looking = true
-        val profile = viewModel.profileFor(shown)
-        profileName = profile?.first
-        avatarUrl = profile?.second
         looking = false
+        if (shown == null || !KaspaAddress.isValid(shown)) return@LaunchedEffect
+        looking = true
+        try {
+            val profile = viewModel.profileFor(shown)
+            if (shown != current) return@LaunchedEffect
+            profileName = profile?.first
+            avatarUrl = profile?.second
+        } finally {
+            // a lookup for an address the card no longer shows leaves the newer one's spinner alone
+            if (shown == current) looking = false
+        }
     }
 
     if (shown == null) return
