@@ -1086,4 +1086,7 @@
     <string name="kn_how_live_footer_mainnet">Aktif di Mainnet: nama, harga, dan pembayaran di sini memakai KAS sungguhan.</string>
     <string name="kn_how_live_footer_testnet">Aktif di Testnet: nama, harga, dan pembayaran di sini memakai TKAS di testnet-10. Nama Mainnet aktif di Mainnet.</string>
     <string name="kn_live_on_mainnet">Aktif di Mainnet</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">Tawaran harus bisa dikembalikan sebelum nama kedaluwarsa.</string>
+    <string name="kn_offer_refundable_from_expiry">Nama ini kedaluwarsa lebih cepat, jadi tawaran Anda bisa dikembalikan mulai %1$s.</string>
 </resources>

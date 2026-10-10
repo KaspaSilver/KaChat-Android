@@ -1217,4 +1217,7 @@
     <string name="kn_how_live_footer_mainnet">Mainnetで稼働中: ここでの名前・価格・支払いは実際のKASです。</string>
     <string name="kn_how_live_footer_testnet">Testnetで稼働中: ここでの名前・価格・支払いはtestnet-10のTKASを使います。Mainnetの名前はMainnetで稼働中です。</string>
     <string name="kn_live_on_mainnet">Mainnetで稼働中</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">オファーは名前の有効期限より前に返金可能である必要があります。</string>
+    <string name="kn_offer_refundable_from_expiry">この名前はそれより早く期限切れになるため、オファーは%1$sから返金可能です。</string>
 </resources>

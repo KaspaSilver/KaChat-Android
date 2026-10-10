@@ -1214,4 +1214,7 @@
     <string name="kn_how_live_footer_mainnet">Live im Mainnet: Namen, Preise und Zahlungen hier sind echte KAS.</string>
     <string name="kn_how_live_footer_testnet">Live im Testnet: Namen, Preise und Zahlungen hier nutzen TKAS im testnet-10. Mainnet-Namen sind im Mainnet live.</string>
     <string name="kn_live_on_mainnet">Live im Mainnet</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">Ein Angebot muss vor Ablauf des Namens rückerstattbar sein.</string>
+    <string name="kn_offer_refundable_from_expiry">Dieser Name läuft früher ab, daher ist dein Angebot ab %1$s rückerstattbar.</string>
 </resources>

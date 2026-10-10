@@ -1419,4 +1419,7 @@
     <string name="kn_how_live_footer_mainnet">Live on Mainnet: names, prices and payments here are real KAS.</string>
     <string name="kn_how_live_footer_testnet">Live on Testnet: names, prices and payments here use TKAS on testnet-10. Mainnet names are live on Mainnet.</string>
     <string name="kn_live_on_mainnet">Live on Mainnet</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">An offer must be refundable before the name expires.</string>
+    <string name="kn_offer_refundable_from_expiry">This name expires sooner, so your offer is refundable from %1$s.</string>
 </resources>

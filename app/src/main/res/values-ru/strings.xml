@@ -1217,4 +1217,7 @@
     <string name="kn_how_live_footer_mainnet">Работает в Mainnet: имена, цены и платежи здесь в настоящих KAS.</string>
     <string name="kn_how_live_footer_testnet">Работает в Testnet: имена, цены и платежи здесь в TKAS сети testnet-10. Имена Mainnet работают в Mainnet.</string>
     <string name="kn_live_on_mainnet">Работает в Mainnet</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">Предложение должно стать возвратным до истечения имени.</string>
+    <string name="kn_offer_refundable_from_expiry">Это имя истекает раньше, поэтому ваше предложение можно вернуть с %1$s.</string>
 </resources>

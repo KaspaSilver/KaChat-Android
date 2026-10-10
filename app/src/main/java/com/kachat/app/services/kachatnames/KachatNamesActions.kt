@@ -187,6 +187,8 @@ class KachatNamesActions @Inject constructor(
 
         /** an offer past the app's 7-day cap, or one already refundable (iOS 49c0baa) */
         class OfferTooLong : ActionError("An offer can run for up to 7 days.")
+        /** MAINNET.md C1: an offer must be refundable before its name expires (iOS 0312a3f) */
+        class OfferPastExpiry : ActionError("An offer must be refundable before the name expires.")
 
         /** a renewal that would still end in the past: paid for nothing, and anyone could reclaim
          *  the name right after (iOS 71128c4, IOS-056) */
@@ -567,6 +569,10 @@ class KachatNamesActions @Inject constructor(
                 // the app's cap: the buyer's funds come back within a week at most
                 val cap = env.blockDaa + MAX_OFFER_DAYS * 86_400L * DAA_PER_SECOND
                 if (op.refundAfterDaa <= env.blockDaa || op.refundAfterDaa > cap) throw ActionError.OfferTooLong()
+                // MAINNET.md C1: refundable before the name expires - past that the seller could
+                // accept it and then reclaim the name, leaving the buyer only the bond (iOS 0312a3f)
+                val refundAtMs = env.wallMs + (op.refundAfterDaa - env.blockDaa) * 1000L / DAA_PER_SECOND
+                if (refundAtMs > op.target.expiresAt) throw ActionError.OfferPastExpiry()
                 b.offer(env, wallet, liveName(op.target, m), op.amount, op.refundAfterDaa)
             }
             is Operation.Withdraw -> b.withdrawOffer(env, liveOffer(op.offer, m))
@@ -820,9 +826,12 @@ class KachatNamesActions @Inject constructor(
                 } catch (_: Exception) {
                     continue
                 }
-                ownerByName[name] = (l as? Lookup.Registered)?.info?.owner
+                // MAINNET.md C1: once the name has expired the seller could accept the offer and
+                // then reclaim the name, so it counts as declined - it comes back (iOS 0312a3f)
+                ownerByName[name] = (l as? Lookup.Registered)?.info
+                    ?.takeIf { it.status(registry.graceMs) == Status.ACTIVE }?.owner
             }
-            // still made to the name's current owner: it stands
+            // still made to the name's current owner, who still holds it: it stands
             val current = ownerByName[name]
             if (current != null && !o.isDeclined(current)) continue
             // an expired one may have started going back meanwhile: leave it to that

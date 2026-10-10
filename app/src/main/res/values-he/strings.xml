@@ -1217,4 +1217,7 @@
     <string name="kn_how_live_footer_mainnet">פעיל ב-Mainnet: השמות, המחירים והתשלומים כאן ב-KAS אמיתי.</string>
     <string name="kn_how_live_footer_testnet">פעיל ב-Testnet: השמות, המחירים והתשלומים כאן ב-TKAS ב-testnet-10. שמות Mainnet פעילים ב-Mainnet.</string>
     <string name="kn_live_on_mainnet">פעיל ב-Mainnet</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">הצעה חייבת להיות ניתנת להחזר לפני שהשם פג.</string>
+    <string name="kn_offer_refundable_from_expiry">השם הזה פג מוקדם יותר, ולכן ההצעה שלך ניתנת להחזר מ-%1$s.</string>
 </resources>

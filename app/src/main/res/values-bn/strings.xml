@@ -1217,4 +1217,7 @@
     <string name="kn_how_live_footer_mainnet">Mainnet-এ চালু: এখানে নাম, দাম ও পেমেন্ট আসল KAS-এ।</string>
     <string name="kn_how_live_footer_testnet">Testnet-এ চালু: এখানে নাম, দাম ও পেমেন্ট testnet-10-এর TKAS-এ। Mainnet নাম Mainnet-এ চালু।</string>
     <string name="kn_live_on_mainnet">Mainnet-এ চালু</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">নামের মেয়াদ শেষ হওয়ার আগেই অফারটি ফেরতযোগ্য হতে হবে।</string>
+    <string name="kn_offer_refundable_from_expiry">এই নামের মেয়াদ আগে শেষ হয়, তাই আপনার অফার %1$s থেকে ফেরতযোগ্য।</string>
 </resources>

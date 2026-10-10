@@ -1217,4 +1217,7 @@
     <string name="kn_how_live_footer_mainnet">Mainnet\'te canlı: buradaki isimler, fiyatlar ve ödemeler gerçek KAS\'tır.</string>
     <string name="kn_how_live_footer_testnet">Testnet\'te canlı: buradaki isimler, fiyatlar ve ödemeler testnet-10\'da TKAS kullanır. Mainnet isimleri Mainnet\'te canlı.</string>
     <string name="kn_live_on_mainnet">Mainnet\'te canlı</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">Teklif, isim süresi dolmadan iade edilebilir olmalıdır.</string>
+    <string name="kn_offer_refundable_from_expiry">Bu ismin süresi daha erken doluyor, bu yüzden teklifiniz %1$s tarihinden itibaren iade edilebilir.</string>
 </resources>

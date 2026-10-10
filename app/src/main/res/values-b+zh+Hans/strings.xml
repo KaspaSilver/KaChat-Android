@@ -1217,4 +1217,7 @@
     <string name="kn_how_live_footer_mainnet">已在主网上线:这里的名称、价格和付款都是真实的 KAS。</string>
     <string name="kn_how_live_footer_testnet">已在测试网上线:这里的名称、价格和付款使用 testnet-10 上的 TKAS。主网名称已在主网上线。</string>
     <string name="kn_live_on_mainnet">已在主网上线</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">报价必须在名称到期前可以退回。</string>
+    <string name="kn_offer_refundable_from_expiry">此名称会更早到期,因此你的报价从 %1$s 起可退回。</string>
 </resources>

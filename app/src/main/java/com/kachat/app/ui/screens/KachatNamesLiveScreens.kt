@@ -140,6 +140,22 @@ object KachatLive {
     /** testnet-10 and mainnet run at 10 blocks per second */
     const val DAA_PER_SECOND: Long = 10
 
+    /**
+     * MAINNET.md C6 (iOS 0312a3f `KachatLiveNameDetail.currentOffers`): an offer is bound to a
+     * seller key, so one made to this owner before the name last left them - and came back - could
+     * be accepted again. Only offers made since the current owner got the name are shown for them;
+     * others to other sellers (declined, on their way back to the buyer) stay.
+     */
+    fun currentOffers(offers: List<OfferInfo>, owner: ByteArray, history: List<Event>): List<OfferInfo> {
+        val ownershipOps = setOf("register", "import", "transfer", "sale", "offer_accepted", "offer_accept")
+        val since = history.filter { it.op in ownershipOps }.mapNotNull { it.at }.maxOrNull() ?: return offers
+        return offers.filter { o ->
+            val created = o.createdAt
+            if (!o.seller.contentEquals(owner) || created == null) return@filter true
+            created >= since
+        }
+    }
+
     /** An event party: an address (indexer) or an x-only key in hex (walker), as a short address. */
     fun party(s: String?): String? {
         if (s.isNullOrEmpty()) return null
@@ -337,6 +353,8 @@ fun Context.kachatErrorText(e: Throwable): String {
         // localized on iOS too (49c0baa)
         is KachatNamesActions.ActionError.OwnName -> getString(R.string.kn_err_offer_own_name)
         is KachatNamesActions.ActionError.OfferTooLong -> getString(R.string.kn_err_offer_max_days)
+        // localized on iOS too (0312a3f)
+        is KachatNamesActions.ActionError.OfferPastExpiry -> getString(R.string.kn_err_offer_past_expiry)
         // localized on iOS too (4f5d95e)
         is KachatNamesActions.ActionError.PriceChanged -> getString(R.string.kn_err_price_changed, KaspaUnit.amount(e.price))
         // localized on iOS too (7e2b6cd, 218dc42)
@@ -2895,8 +2913,8 @@ fun KachatLiveNameDetailScreen(
         if (held == null && !vm.isMine(info.owner) && owner != null) {
             runCatching { vm.registry.identity(owner) }.getOrNull()?.let { ownerLabel = it.label }
         }
-        offers = runCatching { vm.registry.offers(info.name) }.getOrNull() ?: emptyList()
         history = runCatching { vm.registry.history(info.name) }.getOrNull() ?: emptyList()
+        offers = KachatLive.currentOffers(runCatching { vm.registry.offers(info.name) }.getOrNull() ?: emptyList(), info.owner, history)
         if (offers.isNotEmpty()) {
             vm.actions.refreshVirtualDaa()
             // Expired offers don't stay on your name: the owner's app (and the buyer's) send them
@@ -3377,7 +3395,16 @@ fun KachatLiveOfferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveView
     LaunchedEffect(Unit) { virtualDaa = runCatching { vm.service.currentVirtualDaaScore() }.getOrNull() }
 
     val amount = KaspaUnit.sompiFromUserText(amountText)?.takeIf { it > 0 }
-    val refundAfter = virtualDaa?.let { it + days.toLong() * 86_400L * KachatLive.DAA_PER_SECOND }
+    // `days` from now, but never past the name's expiry (MAINNET.md C1, iOS 0312a3f): with yearly
+    // names that rarely matters, near the end of a period it does.
+    val wantedRefundAfter = virtualDaa?.let { it + days.toLong() * 86_400L * KachatLive.DAA_PER_SECOND }
+    val refundAfter = virtualDaa?.let { daa ->
+        val msLeft = info.expiresAt - KachatNames.nowMs() - 600_000L // 10 minutes of margin
+        if (msLeft <= 0) return@let null
+        val atExpiry = daa + msLeft * KachatLive.DAA_PER_SECOND / 1000L
+        minOf(daa + days.toLong() * 86_400L * KachatLive.DAA_PER_SECOND, atExpiry)
+    }
+    val cappedByExpiry = refundAfter != null && wantedRefundAfter != null && refundAfter < wantedRefundAfter
     val operation = if (amount != null && refundAfter != null) KachatNamesActions.Operation.Offer(info, amount, refundAfter) else null
     val belowListing = info.isListed && amount != null && info.price < amount
 
@@ -3400,7 +3427,10 @@ fun KachatLiveOfferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveView
         KachatInputCard(title = stringResource(R.string.kl_your_offer), footer = KaspaUnit.label(stringResource(R.string.kn_offer_locked_decline))) {
             AmountField(amountText) { amountText = it }
         }
-        KachatInputCard(title = stringResource(R.string.kn_refundable_after)) {
+        KachatInputCard(
+            title = stringResource(R.string.kn_refundable_after),
+            footer = if (cappedByExpiry) stringResource(R.string.kn_offer_refundable_from_expiry, KachatLive.day(info.expiresAt - 600_000L)) else null
+        ) {
             KachatSegmented(choices.map { stringResource(it.second) }, choices.indexOfFirst { it.first == days }, inset = false) { days = choices[it].first }
         }
     }

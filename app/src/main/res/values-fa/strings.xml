@@ -1248,4 +1248,7 @@
     <string name="kn_how_live_footer_mainnet">فعال در Mainnet: نام‌ها، قیمت‌ها و پرداخت‌ها اینجا با KAS واقعی است.</string>
     <string name="kn_how_live_footer_testnet">فعال در Testnet: نام‌ها، قیمت‌ها و پرداخت‌ها اینجا با TKAS در testnet-10 است. نام‌های Mainnet در Mainnet فعال‌اند.</string>
     <string name="kn_live_on_mainnet">فعال در Mainnet</string>
+    <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
+    <string name="kn_err_offer_past_expiry">پیشنهاد باید پیش از انقضای نام قابل بازپرداخت باشد.</string>
+    <string name="kn_offer_refundable_from_expiry">این نام زودتر منقضی می‌شود، پس پیشنهاد شما از %1$s قابل بازپرداخت است.</string>
 </resources>
