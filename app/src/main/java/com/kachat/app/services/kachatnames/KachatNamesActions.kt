@@ -1341,7 +1341,9 @@ class KachatNamesActions @Inject constructor(
     /** Frees a lapsed old record of [p]'s name (a reclaim) and notes the gap it reopens (iOS beb9c45). */
     private suspend fun sendReclaim(n: NameInfo, p: PendingRegistration) {
         val (below, above) = registry.exitGaps(n)
-        val txId = perform(Operation.Reclaim(n), fee = feeTierOf(p)?.let { FeeChoice.Tier(it) })
+        // sent with no fee shown, like the register: the chosen speed under the background cap
+        // (iOS 25c9193, IOS-061)
+        val txId = perform(Operation.Reclaim(n), exactFeerate = registrationFeerate(p))
         set(p) { it.copy(reclaimTxId = txId, reclaimLo = hex(below.lo), reclaimHi = hex(above.hi), lastError = freeingName(p.name)) }
     }
 
