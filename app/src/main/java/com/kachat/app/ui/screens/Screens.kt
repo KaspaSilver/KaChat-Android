@@ -3674,8 +3674,17 @@ internal fun broadcastCenterBody(body: String): String {
     }
 }
 
-/** Who Donate pays: KaChat's .kachat name, resolved like any typed name (iOS e7cc0d5). */
+/** What the Donate row reads: KaChat's .kachat name (iOS e7cc0d5). */
 private const val DONATE_NAME = "kachat.kachat"
+
+/**
+ * The address Donate pays, pinned (iOS 8bc86f8, IOS-067): a name is first-come, so resolving
+ * `kachat.kachat` would pay whoever registered it. This is the address `kachat.kas` has always
+ * paid; on testnet the same key's `kaspatest:` form. The Send screen shows the address's own
+ * .kachat name once the project registers `kachat` to it.
+ */
+private const val DONATION_ADDRESS_MAINNET = "kaspa:qzy7da4589avjwmmnqfvkhp5p8p268gc7rvr9lg2xxpuhj75sy8kgdqmpd2fu"
+private val donationAddress: String get() = com.kachat.app.util.KaspaNetwork.reencode(DONATION_ADDRESS_MAINNET)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -3723,7 +3732,7 @@ fun ProfileScreen(
         }
     }
     var showWithdrawDialog by remember { mutableStateOf(false) }
-    // Donate: the Send screen, addressed to KaChat's .kachat name (iOS e7cc0d5).
+    // Donate: the Send screen, addressed to KaChat's donation address (iOS e7cc0d5, 8bc86f8).
     var showDonateSheet by remember { mutableStateOf(false) }
     var showSpendingWithdrawDialog by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
@@ -3833,8 +3842,8 @@ fun ProfileScreen(
         }
     }
 
-    // Donate goes straight to Send with KaChat's name filled in: it resolves like any typed name
-    // (.kachat first, the others under Other domains), no chat opened (iOS e7cc0d5).
+    // Donate goes straight to Send with KaChat's pinned donation address filled in - an address,
+    // not a name anyone could register (iOS 8bc86f8, IOS-067) - no chat opened.
     if (showDonateSheet) {
         IosFullSheet(onDismissed = { showDonateSheet = false }, swipeToDismiss = false) { close ->
             SpendingAddressSendFlow(
@@ -3845,7 +3854,7 @@ fun ProfileScreen(
                 portfolioViewModel = portfolioViewModel,
                 onDone = close,
                 presentedAsSheet = true,
-                prefillAddress = DONATE_NAME,
+                prefillAddress = donationAddress,
             )
         }
     }
