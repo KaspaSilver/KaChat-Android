@@ -1220,4 +1220,8 @@
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Đề nghị phải hoàn lại được trước khi tên hết hạn.</string>
     <string name="kn_offer_refundable_from_expiry">Tên này hết hạn sớm hơn, nên đề nghị của bạn hoàn lại được từ %1$s.</string>
+    <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
+    <string name="kn_combining_coins">KAS của bạn nằm rải rác trong nhiều đồng nhỏ. Đang gộp chúng thành một trước...</string>
+    <string name="kn_combines_coins_note">KAS của bạn nằm rải rác trong nhiều đồng nhỏ. KaChat gộp chúng thành một trước khi đăng ký, với một khoản phí mạng nhỏ thêm.</string>
+    <string name="kn_not_enough_to_combine">Địa chỉ chat của bạn không đủ KAS để làm việc này.</string>
 </resources>

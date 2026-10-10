@@ -1220,4 +1220,8 @@
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Un’offerta deve essere rimborsabile prima che il nome scada.</string>
     <string name="kn_offer_refundable_from_expiry">Questo nome scade prima, quindi la tua offerta è rimborsabile dal %1$s.</string>
+    <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
+    <string name="kn_combining_coins">I tuoi KAS sono in tante piccole monete. Prima vengono unite in una...</string>
+    <string name="kn_combines_coins_note">I tuoi KAS sono in tante piccole monete. KaChat le unisce in una prima della registrazione, con una minima commissione di rete in più.</string>
+    <string name="kn_not_enough_to_combine">Non ci sono abbastanza KAS sul tuo indirizzo chat per questo.</string>
 </resources>

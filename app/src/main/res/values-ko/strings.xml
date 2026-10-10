@@ -1220,4 +1220,8 @@
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">제안은 이름이 만료되기 전에 환불할 수 있어야 합니다.</string>
     <string name="kn_offer_refundable_from_expiry">이 이름이 더 일찍 만료되므로 제안은 %1$s부터 환불할 수 있습니다.</string>
+    <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
+    <string name="kn_combining_coins">KAS가 작은 코인 여러 개에 나뉘어 있습니다. 먼저 하나로 합치는 중...</string>
+    <string name="kn_combines_coins_note">KAS가 작은 코인 여러 개에 나뉘어 있습니다. 등록 전에 KaChat이 하나로 합치며, 아주 적은 네트워크 수수료가 추가됩니다.</string>
+    <string name="kn_not_enough_to_combine">채팅 주소에 이 작업을 할 KAS가 부족합니다.</string>
 </resources>

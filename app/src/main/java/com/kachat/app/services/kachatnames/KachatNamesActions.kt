@@ -115,6 +115,9 @@ class KachatNamesActions @Inject constructor(
     private val registry: KachatNamesRegistry,
     private val walletManager: WalletManager,
     private val networkService: NetworkService,
+    /** The plain self-send that combines many small coins into one before a name transaction
+     *  ([combineCoins], iOS f1c16ec). */
+    private val walletEngine: com.kachat.app.services.KaspaWalletEngine,
     /** KasSigner (watch-only) accounts, to tell which of this wallet's addresses holds a name
      *  ([ownAddress], iOS 881ada6). Read only: their keys never live here. */
     private val coldStorageManager: com.kachat.app.services.ColdStorageManager
@@ -519,7 +522,67 @@ class KachatNamesActions @Inject constructor(
     suspend fun planWithRate(op: Operation, fee: FeeChoice? = null): Pair<Plan, Double> = withContext(Dispatchers.IO) {
         val s = signer(op)
         val rate = feerate(fee, op, s)
-        build(op, s, rate).first to rate
+        try {
+            build(op, s, rate).first to rate
+        } catch (e: KachatNames.Failure) {
+            if (!isTooManyCoins(e)) throw e
+            // the KAS is there, in too many small coins: combined into one first (iOS f1c16ec)
+            combineCoins(s)
+            build(op, s, rate).first to rate
+        }
+    }
+
+    // Many small coins (mainnet, 2026-10-09; iOS f1c16ec)
+
+    /**
+     * Combines the wallet's coins into one: a plain send of up to
+     * [com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest coins to the same
+     * address (a tiny network fee), then waits until a node has the combined coin, so the name
+     * transaction can be built from it. Never a coin a scheduled KaPost holds or one carrying a
+     * covenant. A transaction from the wallet's own address is never a payment chat
+     * (ChatRepository.processPayment), so it stays out of the chats.
+     */
+    suspend fun combineCoins(s: Signer): String {
+        val utxos = service.utxosByAddresses(listOf(s.address))
+        val reserved = com.kachat.app.services.KaPostsScheduledStore.reservedOutpoints.mapTo(HashSet()) { it.lowercase() }
+        val plain = utxos
+            .filter { "${hex(it.outpoint.txid)}:${it.outpoint.index}".lowercase() !in reserved }
+            .filter { it.entry.covenantId == null }
+            .sortedByDescending { it.entry.amount }
+            .take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)
+        val total = plain.sumOf { it.entry.amount }
+        val feeRoom = 5_000_000L // 0.05 KAS: room for the fee
+        if (plain.size <= 1 || total <= feeRoom * 2) throw KachatNames.Failure(NOT_ENOUGH_TO_COMBINE)
+        // exactly these coins (coin control), the whole value back to the same address as one coin
+        val coins = plain.map { u ->
+            com.kachat.app.services.UtxoEntry(
+                address = s.address,
+                outpoint = com.kachat.app.services.Outpoint(hex(u.outpoint.txid), u.outpoint.index),
+                utxoEntry = com.kachat.app.services.UtxoData(
+                    amount = u.entry.amount,
+                    scriptPublicKey = com.kachat.app.services.ScriptPublicKey(hex(u.entry.script)),
+                    blockDaaScore = u.entry.blockDaaScore,
+                    isCoinbase = u.entry.isCoinbase
+                )
+            )
+        }
+        val txId = walletEngine.sendKaspa(
+            toAddress = s.address, amountSompi = 0L, fromAddress = s.address,
+            signingPrivateKey = s.privateKey, manualUtxos = coins
+        ).getOrThrow()
+        Log.i(TAG, "combined ${plain.size} coins into one: $txId")
+        repeat(30) {
+            delay(2_000)
+            val now = try {
+                service.utxosByAddresses(listOf(s.address))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            if (now.any { hex(it.outpoint.txid).equals(txId, ignoreCase = true) }) return txId
+        }
+        return txId
     }
 
     private suspend fun build(op: Operation, s: Signer, rate: Double? = null): Pair<Plan, Env> {
@@ -643,7 +706,14 @@ class KachatNamesActions @Inject constructor(
      * price the person confirmed (iOS c8f1086: no price shard to lose, so no retry on another).
      */
     private suspend fun submit(op: Operation, s: Signer, maxPrice: Long?, rate: Double?, maxNetworkFee: Long? = null): Pair<String, Plan> {
-        val (plan, env) = build(op, s, rate)
+        val (plan, env) = try {
+            build(op, s, rate)
+        } catch (e: KachatNames.Failure) {
+            if (!isTooManyCoins(e)) throw e
+            // the KAS is there, in too many small coins: combined into one first (iOS f1c16ec)
+            combineCoins(s)
+            build(op, s, rate)
+        }
         checkPriceCap(plan.priceFee, maxPrice)
         // A few percent of slack: the same rate on a rebuild with other inputs can weigh a little more.
         if (maxNetworkFee != null && plan.networkFee > maxNetworkFee + maxNetworkFee / 20 + 1_000) {
@@ -898,7 +968,10 @@ class KachatNamesActions @Inject constructor(
         val networkFee: Long,
         /** what leaves the wallet in the end: price + bond + gap deposit + network fees */
         val total: Long,
-        val spendable: Long
+        val spendable: Long,
+        /** The KAS is there but in too many small coins for one transaction: KaChat combines them
+         *  into one before registering ([combineCoins], iOS f1c16ec). */
+        val combinesCoins: Boolean = false
     ) {
         val affordable: Boolean get() = spendable >= total + KachatNames.MIN_CHANGE
     }
@@ -918,6 +991,7 @@ class KachatNamesActions @Inject constructor(
         val price = m.params.registerCost(name.toByteArray(Charsets.UTF_8).size, years)
         var commitFee = 0L
         var registerFee = 0L
+        var combinesCoins = false
         val commitPlan = runCatching { b.commit(env, wallet, name, salt) }.getOrNull()
         if (commitPlan != null) {
             commitFee = commitPlan.networkFee
@@ -940,7 +1014,8 @@ class KachatNamesActions @Inject constructor(
                 val rest = wallet.filter { u -> commitPlan.inputs.none { it.utxo.outpoint == u.outpoint } }
                 runCatching {
                     b.register(env, rest, GapRecord(gap.lo, gap.hi, m.params.gapValue, gapUtxo), matureCommit, years, Builder.registerNow(env))
-                }.getOrNull()?.let { registerFee = it.networkFee }
+                }.onSuccess { registerFee = it.networkFee }
+                    .onFailure { combinesCoins = isTooManyCoins(it) }
             }
         }
         if (registerFee == 0L) registerFee = 400_000L
@@ -949,7 +1024,7 @@ class KachatNamesActions @Inject constructor(
         Quote(
             name = name, years = years, price = price, bond = m.params.bond, gapDeposit = m.params.gapValue,
             commit = KachatNames.COMMIT_VALUE, networkFee = fee, total = price + m.params.bond + m.params.gapValue + fee,
-            spendable = spendable
+            spendable = spendable, combinesCoins = combinesCoins
         )
     }
 
@@ -1039,6 +1114,7 @@ class KachatNamesActions @Inject constructor(
 
     /** Try a failed registration again. */
     fun retry(p: PendingRegistration) {
+        combinedFor.remove(p.id) // Try Again may combine coins again (iOS f1c16ec)
         set(p) { it.copy(stage = PendingRegistration.Stage.WAITING, lastError = null) }
         startDriver()
     }
@@ -1331,11 +1407,23 @@ class KachatNamesActions @Inject constructor(
                 is RegisterStep.Claim -> step.gap ?: throw KachatNames.Failure("no gap for ${p.name} yet")
             }
             val c = context(s, registrationFeerate(p))
-            val plan = c.builder.register(
-                c.env, c.wallet, liveGap(gap, m),
-                CommitRecord(p.name, s.me, salt, commit.entry.amount, commit),
-                p.years, Builder.registerNow(c.env)
-            )
+            val liveGapRecord = liveGap(gap, m)
+            val plan = try {
+                c.builder.register(
+                    c.env, c.wallet, liveGapRecord,
+                    CommitRecord(p.name, s.me, salt, commit.entry.amount, commit),
+                    p.years, Builder.registerNow(c.env)
+                )
+            } catch (e: KachatNames.Failure) {
+                if (!isTooManyCoins(e) || !combinedFor.add(p.id)) throw e
+                // the KAS is there in many small coins: combine them, then register on the next
+                // tick with the same commit (once per registration; a second time it's real;
+                // iOS f1c16ec)
+                set(p) { it.copy(lastError = COMBINING_COINS) }
+                combineCoins(s)
+                set(p) { it.copy(lastError = null) }
+                return
+            }
             // Never pay more than the person confirmed (the fixed prices make this a safeguard;
             // iOS 4f5d95e, c8f1086).
             checkPriceCap(plan.priceFee, p.maxPrice)
@@ -1353,6 +1441,9 @@ class KachatNamesActions @Inject constructor(
             set(p) { it.copy(lastError = message, stage = if (fatal) PendingRegistration.Stage.FAILED else it.stage) }
         }
     }
+
+    /** Registrations this session already combined coins for ([combineCoins], iOS f1c16ec). */
+    private val combinedFor: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /** The gap [p]'s reclaim reopens: its output 0, between the two gaps around the old name. */
     private fun freedGap(p: PendingRegistration): GapInfo? {
@@ -1509,6 +1600,19 @@ class KachatNamesActions @Inject constructor(
          *  messages, localized by the screens (`kachatPendingError`). */
         const val COMMIT_WAITING_BUSY = "The network is busy. Your commit is waiting for a block."
         const val COMMIT_SENT_AGAIN = "The network is busy, so the commit was sent again."
+
+        /** The driver's note while it combines many small coins, and why combining can't run
+         *  (iOS f1c16ec); localized by the screens (`kachatPendingError`). */
+        const val COMBINING_COINS = "Your KAS is in many small coins. Combining them into one first..."
+        const val NOT_ENOUGH_TO_COMBINE = "Not enough KAS on your chatting address for this."
+
+        /**
+         * A name transaction takes at most a few funding inputs ([KachatNames.MAX_INPUTS_FEE_ENTRY]
+         * all in), so a wallet holding enough KAS in many small coins couldn't pay: "insufficient
+         * funds ... at most N funding inputs fit" (iOS f1c16ec).
+         */
+        fun isTooManyCoins(error: Throwable): Boolean =
+            (error as? KachatNames.Failure)?.message?.contains("funding inputs fit") == true
 
         /** Since [p]'s commit went out (its first send when it was never sent again: the record's start). */
         private fun sinceCommitSent(p: PendingRegistration, nowMs: Long): Long = nowMs - (p.commitSentAt ?: p.createdAt)

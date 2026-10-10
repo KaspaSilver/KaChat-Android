@@ -1220,4 +1220,8 @@
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">يجب أن يكون العرض قابلًا للاسترداد قبل انتهاء الاسم.</string>
     <string name="kn_offer_refundable_from_expiry">ينتهي هذا الاسم قبل ذلك، لذا يمكن استرداد عرضك بدءًا من %1$s.</string>
+    <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
+    <string name="kn_combining_coins">رصيدك من KAS موزع على عملات صغيرة كثيرة. يتم دمجها في عملة واحدة أولًا...</string>
+    <string name="kn_combines_coins_note">رصيدك من KAS موزع على عملات صغيرة كثيرة. يدمجها KaChat في عملة واحدة قبل التسجيل، مقابل رسوم شبكة إضافية صغيرة جدًا.</string>
+    <string name="kn_not_enough_to_combine">لا يوجد KAS كافٍ في عنوان الدردشة لهذا.</string>
 </resources>

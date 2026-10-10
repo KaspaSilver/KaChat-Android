@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -392,6 +393,9 @@ fun Context.kachatPendingError(m: String): String {
         // the busy-network notes (iOS b219bb0)
         KachatNamesActions.COMMIT_WAITING_BUSY -> getString(R.string.kn_commit_waiting_busy)
         KachatNamesActions.COMMIT_SENT_AGAIN -> getString(R.string.kn_commit_sent_again)
+        // combining many small coins first (iOS f1c16ec)
+        KachatNamesActions.COMBINING_COINS -> getString(R.string.kn_combining_coins)
+        KachatNamesActions.NOT_ENOUGH_TO_COMBINE -> getString(R.string.kn_not_enough_to_combine)
         else -> m
     }
 }
@@ -2741,6 +2745,16 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                             quote?.let { q ->
                                 Row(Modifier.fillMaxWidth()) {
                                     SendInfoPill { Text(stringResource(R.string.kn_available_value, KaspaUnit.amount(q.spendable))) }
+                                }
+                                // said up front: the KAS is in many small coins (iOS f1c16ec)
+                                if (q.combinesCoins && q.affordable) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.CallMerge, contentDescription = null,
+                                            tint = colors.textSecondary, modifier = Modifier.size(14.dp).padding(top = 1.dp)
+                                        )
+                                        Text(stringResource(R.string.kn_combines_coins_note), color = colors.textSecondary, fontSize = 12.sp)
+                                    }
                                 }
                             }
 
