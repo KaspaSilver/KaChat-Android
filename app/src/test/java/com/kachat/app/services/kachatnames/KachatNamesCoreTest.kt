@@ -27,12 +27,18 @@ import java.io.File
  * `blake3::hash`, and the manifest checks. The official BLAKE3 vectors are in `Blake3Test`.
  * [KachatNamesCoreV5Test] runs the same over the registry v5 vectors (kachat-domains 6eddc7a: the
  * v5 gap's budgets, the register deadline; imports are skipped here, the walker test decodes them;
- * iOS 6f18475).
+ * iOS 6f18475; regenerated with the C3 retry case, iOS ef6b21e), [KachatNamesCoreMainnetTest] the
+ * mainnet vectors (kachat-domains a99afeb: registry v4 under the mainnet params, iOS ef6b21e).
  */
 open class KachatNamesCoreTest {
 
-    /** The vectors file: the v4 set here, the v5 set in [KachatNamesCoreV5Test]. */
+    /** The vectors file: the v4 set here, the v5 set in [KachatNamesCoreV5Test], the mainnet set in
+     *  [KachatNamesCoreMainnetTest]. */
     protected open val vectorsResource: String = "KachatNamesVectors.json"
+
+    /** The vector steps the app builds (imports aside): 35 in the v4 set, 36 in the v5 and mainnet
+     *  sets (with the C3 retry case). */
+    protected open val expectedSteps: Int = 35
 
     private class Report {
         var pass = 0
@@ -221,9 +227,14 @@ open class KachatNamesCoreTest {
         val gapArt = j2.o("artifacts").o("KachatGap")
         gapArt.addProperty("suffixHex", gapArt.s("suffixHex").dropLast(2) + "00")
         assertFalse("manifest with a tampered gap suffix verified", runCatching { manifest(j2).verify() }.isSuccess)
+        // relabelled to the OTHER network, a manifest is refused (pins and prices are per network;
+        // iOS ef6b21e)
         val j3 = vectors.o("manifest").deepCopy()
-        j3.addProperty("network", "mainnet")
-        assertFalse("mainnet manifest verified", runCatching { manifest(j3).verify() }.isSuccess)
+        j3.addProperty("network", if (m.network == "mainnet") "testnet-10" else "mainnet")
+        assertFalse("a manifest relabelled to the other network verified", runCatching { manifest(j3).verify() }.isSuccess)
+        val j4 = vectors.o("manifest").deepCopy()
+        j4.addProperty("network", "testnet-11")
+        assertFalse("a manifest for an unsupported network verified", runCatching { manifest(j4).verify() }.isSuccess)
     }
 
     /**
@@ -238,7 +249,7 @@ open class KachatNamesCoreTest {
         assertEquals(setOf("KachatGap", "KachatName", "KachatOffer"), pins.keys)
         // the app's own pins are this build's gap and name (registry v4, iOS 0ed15e9); on v5 the
         // name only - the v5 gap bakes its migration, so it is pinned per deployment (iOS 6f18475)
-        val appPins = Manifest.PINNED_TEMPLATE_HASHES.getValue(m.registryVersion)
+        val appPins = Manifest.PINNED_TEMPLATE_HASHES.getValue(m.network).getValue(m.registryVersion)
         assertEquals(if (m.registryVersion >= 5) pins - "KachatOffer" - "KachatGap" else pins - "KachatOffer", appPins)
         val withoutOffer = pins - "KachatOffer"
         // gap and name pinned, the offer not: refused from an indexer
@@ -266,7 +277,7 @@ open class KachatNamesCoreTest {
      */
     @Test
     fun bundledManifestIsTheDeployedRegistryV5() {
-        val bytes = File("src/main/assets/${Manifest.ASSET_NAME}").readBytes()
+        val bytes = File("src/main/assets/${Manifest.assetName("testnet-10")}").readBytes()
         val m = Manifest.decode(bytes)
         m.verify(Manifest.Source.BUNDLE)
         m.verify(Manifest.Source.INDEXER)
@@ -281,14 +292,14 @@ open class KachatNamesCoreTest {
         assertTrue("the v5 manifest carries its migration", mig != null)
         assertEquals("fdc403f5ef76ea7c71dcb5305d09daf7ab7fd68dc1d274a314fc8ca9111e571d", KachatNames.hex(mig!!.predecessorRegistryId))
         assertEquals(1_791_582_129_000L, mig.deadlineMs)
-        assertEquals(Manifest.PINNED_REGISTER_PRICES, m.params.registerPrices)
-        assertEquals(Manifest.PINNED_RENEW_PRICES, m.params.renewPrices)
+        assertEquals(Manifest.PINNED_REGISTER_PRICES.getValue("testnet-10"), m.params.registerPrices)
+        assertEquals(Manifest.PINNED_RENEW_PRICES.getValue("testnet-10"), m.params.renewPrices)
         Builder(m)
         // a different offer build for this registry is refused, wherever the manifest came from
         val wrongOffer = mapOf("KachatOffer" to "00".repeat(32))
         for (source in listOf(Manifest.Source.BUNDLE, Manifest.Source.INDEXER)) {
             try {
-                m.verify(source, Manifest.PINNED_TEMPLATE_HASHES.getValue(m.registryVersion) + wrongOffer)
+                m.verify(source, Manifest.PINNED_TEMPLATE_HASHES.getValue(m.network).getValue(m.registryVersion) + wrongOffer)
                 fail("a tampered offer pin must be refused ($source)")
             } catch (e: KachatNames.Failure) {
                 assertTrue(e.toString(), e.toString().contains("not the pinned build"))
@@ -302,13 +313,56 @@ open class KachatNamesCoreTest {
         }
     }
 
+    /**
+     * The mainnet manifest bundled at the launch (assets/kachat-names-mainnet.json, iOS ef6b21e):
+     * the live mainnet v1 registry of 2026-10-09 (registry 348bd2c8...75a4, the v4 contracts under
+     * the mainnet params - yearly periods, a 90-day grace, a 30-day renewal window). It verifies as
+     * bundled and as an indexer would serve it (gap and name pinned for mainnet v4, the offer for
+     * this deployment), carries the mainnet price tables, and relabelled testnet-10 it is refused.
+     */
+    @Test
+    fun bundledMainnetManifestIsTheLaunchedRegistry() {
+        val bytes = File("src/main/assets/${Manifest.assetName("mainnet")}").readBytes()
+        val m = Manifest.decode(bytes)
+        m.verify(Manifest.Source.BUNDLE)
+        m.verify(Manifest.Source.INDEXER)
+        assertEquals("mainnet", m.network)
+        assertFalse("the bundled mainnet manifest must not be a dry run", m.isDryRun)
+        assertEquals(4, m.registryVersion)
+        assertEquals("348bd2c81170f267a2a7039cbf3a6f275e80b189d6c956183ea73ff3ffde75a4", KachatNames.hex(m.registryCovenantId))
+        assertEquals("d70afe60686842b92ec8b4f6da34eb20462f0a98c26922de62b82ae65cfc1d4f", KachatNames.hex(m.gap.templateHash))
+        assertEquals("259e0250a2bba8587a74b2ad366c45916565593db6eb44c3751dacba943f19d6", KachatNames.hex(m.name.templateHash))
+        assertEquals("7e7f2461f475f7196eabd9fca2f945fbf660c27d40b7f65e2c6a9dc2c0ae63e4", KachatNames.hex(m.offer.templateHash))
+        assertEquals(Manifest.PINNED_REGISTER_PRICES.getValue("mainnet"), m.params.registerPrices)
+        assertEquals(Manifest.PINNED_RENEW_PRICES.getValue("mainnet"), m.params.renewPrices)
+        assertEquals(listOf(400_000_000_000L, 200_000_000_000L, 100_000_000_000L, 25_000_000_000L, 3_500_000_000L), m.params.registerPrices)
+        assertEquals(listOf(100_000_000_000L, 50_000_000_000L, 25_000_000_000L, 6_250_000_000L, 875_000_000L), m.params.renewPrices)
+        assertEquals(31_536_000_000L, m.params.periodMs)
+        assertEquals(7_776_000_000L, m.params.graceMs)
+        assertEquals(2_592_000_000L, m.params.renewWindowMs)
+        Builder(m)
+        // relabelled testnet-10 it is refused: testnet's pins and prices are its own
+        val root = JsonParser.parseString(String(bytes, Charsets.UTF_8)).asJsonObject
+        root.addProperty("network", "testnet-10")
+        for (source in listOf(Manifest.Source.BUNDLE, Manifest.Source.INDEXER)) {
+            assertFalse("the mainnet manifest relabelled testnet-10 verified ($source)", runCatching { manifest(root).verify(source) }.isSuccess)
+        }
+        // and the testnet one relabelled mainnet is refused too
+        val tn = JsonParser.parseString(File("src/main/assets/${Manifest.assetName("testnet-10")}").readText()).asJsonObject
+        tn.addProperty("network", "mainnet")
+        for (source in listOf(Manifest.Source.BUNDLE, Manifest.Source.INDEXER)) {
+            assertFalse("the testnet manifest relabelled mainnet verified ($source)", runCatching { manifest(tn).verify(source) }.isSuccess)
+        }
+    }
+
     /** The set of { lock time } and every input sequence of a plan (extend: all zero). */
     private fun tx0LockAndSequences(p: Plan): Set<Long> = (listOf(p.unsignedTx.lockTime) + p.unsignedTx.inputs.map { it.sequence }).toSet()
 
     /**
      * The period rules on their own (KACHAT_NAMES.md 4.1, ops.rs; the Swift script's
-     * `runPeriodRules`, iOS 3ef2ec2, e1e3455, 08107e1) on the testnet-10 day clock (registry v4:
-     * periodMs 24 hours, renewWindowMs 2 hours, graceMs 6 hours): what extend may add, when renew opens, its
+     * `runPeriodRules`, iOS 3ef2ec2, e1e3455, 08107e1, ef6b21e) on the vectors' network clock - the
+     * testnet-10 day clock (periodMs 24 hours, renewWindowMs 2 hours, graceMs 6 hours) or mainnet's
+     * year (a 30-day window, a 90-day grace): what extend may add, when renew opens, its
      * lock time, the refusals, the fixed budget table, and an earlier manifest recognised as
      * outdated.
      */
@@ -324,9 +378,11 @@ open class KachatNamesCoreTest {
         r.eq(KachatNames.safeFeerate(1e300), KachatNames.MAX_FEERATE, "1e300 fee rate -> the ceiling")
         r.eq(KachatNames.safeFeerate(500.0), 500.0, "a normal fee rate is kept")
         val y = p.periodMs
-        r.eq(y, 86_400_000L, "periodMs from the manifest (24 hours)")
-        r.eq(p.renewWindowMs, 7_200_000L, "renewWindowMs from the manifest (2 hours)")
-        r.eq(p.graceMs, 21_600_000L, "graceMs from the manifest (6 hours)")
+        // testnet-10: the day clock; mainnet: the year clock (90-day grace, 30-day window)
+        val mainnet = m.network == "mainnet"
+        r.eq(y, if (mainnet) 31_536_000_000L else 86_400_000L, "periodMs from the manifest")
+        r.eq(p.renewWindowMs, if (mainnet) 2_592_000_000L else 7_200_000L, "renewWindowMs from the manifest")
+        r.eq(p.graceMs, if (mainnet) 7_776_000_000L else 21_600_000L, "graceMs from the manifest")
         r.eq(vectors.l("renewWindowMs"), p.renewWindowMs, "renewWindowMs matches the vectors")
         val start = 2_000_000_000_000L
         r.eq(p.extendableYears(start, start + y), 1L, "1-period registration: extend by 1")
@@ -343,10 +399,10 @@ open class KachatNamesCoreTest {
         r.eq(f.withPrice(5).periodStart, start, "list keeps periodStart")
         r.eq(runCatching { Codec.decodeNameState(f.encoded) }.getOrNull(), f, "126-byte state round trip")
         r.check(runCatching { Codec.decodeNameState(f.encoded.copyOfRange(0, 117)) }.isFailure) { "a 117-byte (v1) state is refused" }
-        // a 2-period name: the window opens 2 hours before its expiry
+        // a 2-period name: the window opens renewWindowMs before its expiry
         val f2 = NameFields("alice", ByteArray(32) { 7 }, 0, start, start + 2 * y)
         val opens = p.renewOpens(f2.expiresAt)
-        r.eq(opens, f2.expiresAt - 7_200_000L, "renew opens 2 hours before expiry")
+        r.eq(opens, f2.expiresAt - p.renewWindowMs, "renew opens renewWindowMs before expiry")
         val before = Env(me = f.owner, blockDaa = 1, blockTimeMs = opens - 60_000, wallMs = opens + 60_000)
         r.check(!Builder.renewWindowOpen(before, p, f2.expiresAt)) { "window closed while the median time is before the opening" }
         r.eq(Builder.renewLockTime(before, p, f2.expiresAt), opens, "lock time never before the opening")
@@ -380,13 +436,14 @@ open class KachatNamesCoreTest {
         } else {
             r.check(false) { "no extend step in the vectors" }
         }
-        // the fixed budgets are the vectors' table, entry for entry (a v4 table has no gap.import)
+        // the fixed budgets cover the vectors' table, entry for entry (a v4 table has no gap.import);
+        // never below it (a pre-audit v4 set asks less than the audited code, iOS ef6b21e)
         val recommended = vectors.o("recommendedBudgets")
         val table = Budgets.recommended(m.registryVersion)
         val roles = BudgetRole.entries.filter { m.registryVersion >= 5 || it != BudgetRole.GAP_IMPORT }
         r.eq(recommended.keySet().toSet(), roles.map { it.raw }.toSet(), "budget roles = recommendedBudgets keys")
         for (role in roles) {
-            r.eq(table[role].toLong(), recommended.l(role.raw), "recommended budget ${role.raw}")
+            r.check(table[role].toLong() >= recommended.l(role.raw)) { "recommended budget ${role.raw}: ${table[role]} < ${recommended.l(role.raw)}" }
         }
         val rules = vectors.get("migrationRules")?.takeIf { it.isJsonObject }?.asJsonObject
         if (m.registryVersion >= 5 && rules != null) {
@@ -513,7 +570,8 @@ open class KachatNamesCoreTest {
                 val role = BudgetRole.fromRaw(i.s("role")) ?: error("unknown role ${i.s("role")}")
                 val measured = i.l("computeBudget").toInt()
                 r.check(measured <= table[role]) { "$label: measured budget $measured > recommended for $role" }
-                r.eq(table[role].toLong(), recommended.l(role.raw), "recommended table ${role.raw}")
+                // never below the vectors' table (a pre-audit v4 set asks less than the audited code)
+                r.check(table[role].toLong() >= recommended.l(role.raw)) { "recommended table ${role.raw}: ${table[role]} < ${recommended.l(role.raw)}" }
                 budgets = budgets.with(role, measured)
             }
             val env = Env(
@@ -522,8 +580,10 @@ open class KachatNamesCoreTest {
             )
             val args = st.o("args")
             val plan: Plan = try {
-                if (st.s("op") == "register") {
-                    r.eq(Builder.registerNow(env), args.l("now") + (if (label.contains("lapse")) 55L * 3_600_000L else 0L), "$label: registerNow")
+                // the lapse step is backdated on purpose (by a network's clock), so only the others
+                // (iOS ef6b21e)
+                if (st.s("op") == "register" && !label.contains("lapse")) {
+                    r.eq(Builder.registerNow(env), args.l("now"), "$label: registerNow")
                 }
                 val built = build(b, st, env)
                 when (st.s("op")) {
@@ -625,14 +685,23 @@ open class KachatNamesCoreTest {
         }
         val identical = results.count { it.second }
         println("vectors: ${r.pass} checks pass, ${r.fail} fail; $identical/${results.size} transactions byte-identical")
-        assertEquals("vector steps (registry v${m.registryVersion}, imports aside)", 35, steps.size)
+        assertEquals("vector steps (registry v${m.registryVersion}, imports aside)", expectedSteps, steps.size)
         r.assertClean()
         assertEquals("transactions byte-identical", steps.size, identical)
     }
 }
 
-/** [KachatNamesCoreTest] over kachat-domains 6eddc7a's registry v5 vectors (iOS 6f18475): 35/35
- *  transactions byte-identical with the v5 budgets, the register deadline, the migration block. */
+/** [KachatNamesCoreTest] over kachat-domains' registry v5 vectors (iOS 6f18475; regenerated with the
+ *  C3 retry case, iOS ef6b21e): 36/36 transactions byte-identical with the v5 budgets, the register
+ *  deadline, the migration block. */
 class KachatNamesCoreV5Test : KachatNamesCoreTest() {
     override val vectorsResource: String = "KachatNamesVectors-v5.json"
+    override val expectedSteps: Int = 36
+}
+
+/** [KachatNamesCoreTest] over kachat-domains a99afeb's mainnet vectors (iOS ef6b21e): registry v4 under
+ *  the mainnet params, 36/36 transactions byte-identical, the audited budgets (register 9, merge 5). */
+class KachatNamesCoreMainnetTest : KachatNamesCoreTest() {
+    override val vectorsResource: String = "KachatNamesVectors-mainnet.json"
+    override val expectedSteps: Int = 36
 }

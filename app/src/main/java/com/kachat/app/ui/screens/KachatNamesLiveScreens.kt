@@ -109,12 +109,12 @@ import java.util.Locale
 import javax.inject.Inject
 
 // ---------------------------------------------------------------------------------------------
-// The live `.kachat` screens, TESTNET ONLY (testnet-10 and a verified registry manifest) - a port
+// The live `.kachat` screens, where the registry is live (testnet-10, and mainnet since iOS ef6b21e;
+// with a verified registry manifest) - a port
 // of iOS KaChat/Views/Ecosystem/KachatNamesLiveViews.swift (KaChat 5df42b4): the hub's search,
 // registrations in flight, Marketplace / My Names / Activity, the name detail with its actions,
-// every transaction sheet, Your Domains > .kachat and the address profile editor. On mainnet none
-// of this is reached - KachatMarketScreen, the listing and the profile editor keep their "Coming
-// soon" mockups. Every spending or destructive action shows its cost first, asks to confirm, then
+// every transaction sheet, Your Domains > .kachat and the address profile editor. Where the
+// registry isn't launched, the same screens show empty under "Coming soon" (iOS 7227d69). Every spending or destructive action shows its cost first, asks to confirm, then
 // passes the device's own lock (authenticateWithDeviceCredential, iOS DeviceAuth) before anything
 // is signed.
 //
@@ -133,11 +133,11 @@ fun KaspaUnit.signed(delta: Long): String = if (delta >= 0) "+${amount(delta)}" 
 // MARK: - Shared pieces
 
 object KachatLive {
-    /** The registry is live on this network (testnet only for now) - reads and actions run. Not
+    /** The registry is live on this network (testnet-10 and mainnet) - reads and actions run. Not
      *  the .kachat UI, which is on everywhere ([KachatNamesService.isEnabled], iOS 7227d69). */
     val isEnabled: Boolean get() = KachatNamesService.isLaunched
 
-    /** testnet-10 runs at 10 blocks per second */
+    /** testnet-10 and mainnet run at 10 blocks per second */
     const val DAA_PER_SECOND: Long = 10
 
     /** An event party: an address (indexer) or an x-only key in hex (walker), as a short address. */
@@ -316,7 +316,7 @@ object KachatLive {
 fun Context.kachatErrorText(e: Throwable): String {
     val m = e.message ?: e.toString()
     return when (e) {
-        is KachatNamesActions.ActionError.NoWallet -> getString(R.string.kn_err_no_wallet)
+        is KachatNamesActions.ActionError.NoWallet -> getString(R.string.kn_err_no_wallet_open)
         is KachatNamesActions.ActionError.KeyMismatch -> getString(R.string.kn_err_key_mismatch)
         is KachatNamesActions.ActionError.NoSalt -> getString(R.string.kn_err_no_salt)
         is KachatNamesActions.ActionError.InvalidKey -> {
@@ -347,7 +347,9 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.ExpiredTooLongToRenew -> getString(R.string.kn_err_renew_expired_too_long)
         is KachatNamesActions.ActionError.OfferNameNotActive -> getString(R.string.kn_err_offer_name_not_active)
         is KachatNamesActions.ActionError.AcceptNameExpired -> getString(R.string.kn_err_accept_name_expired)
-        is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_upgrading)
+        is KachatNamesService.ServiceError.RegistryUpgrading -> getString(R.string.kn_registry_being_upgraded)
+        // localized on iOS too (ef6b21e)
+        is KachatNamesService.ServiceError.TestnetOnly -> getString(R.string.kachat_names_not_live_here)
         // localized on iOS too (d36fc42 `wrongAddressNetwork`)
         is KachatNamesService.ServiceError.WrongAddressNetwork -> getString(R.string.kn_err_wrong_address_network)
         is KachatNamesActions.ActionError.NotRegisterable -> when {
@@ -616,8 +618,10 @@ private fun Modifier.kachatGlass(colors: com.kachat.app.ui.theme.AppColors, radi
         .background(colors.surface)
         .border(0.8.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(radius.dp))
 
+/** "Testnet", on testnet only: mainnet's names are the real ones and need no label (iOS ef6b21e). */
 @Composable
 fun KachatTestnetBadge() {
+    if (KachatNamesService.networkName == "mainnet") return
     val colors = LocalAppColors.current
     Text(
         stringResource(R.string.testnet),
@@ -3705,7 +3709,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
         if (t.isEmpty()) return@LaunchedEffect
         if (t.startsWith("kaspatest:") || t.startsWith("kaspa:")) {
             val key = KachatNamesRegistry.keyOf(t)
-            if (key == null) { resolveError = R.string.kn_err_not_testnet_address; return@LaunchedEffect }
+            if (key == null) { resolveError = R.string.kn_err_not_network_address; return@LaunchedEffect }
             if (runCatching { KachatNamesActions.validateKey(key, "") }.isFailure) { resolveError = R.string.kn_err_address_key; return@LaunchedEffect }
             resolved = t to key
             return@LaunchedEffect
@@ -3751,7 +3755,7 @@ fun KachatTransferSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewM
                     decorationBox = { inner ->
                         Box {
                             if (input.isEmpty()) {
-                                Text(stringResource(R.string.kn_transfer_placeholder_domain), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                                Text(stringResource(if (KachatNamesService.addressPrefix == "kaspa") R.string.kaspa_qr_or_domain else R.string.kn_transfer_placeholder_domain), color = colors.textTertiary, fontSize = 15.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
                             }
                             inner()
                         }
@@ -3915,7 +3919,7 @@ fun KachatLiveDomainsTab(
                 ) {
                     Icon(Icons.Default.Hardware, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(40.dp))
                     Text(stringResource(R.string.kn_setting_up), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    Text(stringResource(R.string.kn_registry_upgrading), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.kn_registry_being_upgraded), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
                 else -> {
                     if (names.isEmpty()) {

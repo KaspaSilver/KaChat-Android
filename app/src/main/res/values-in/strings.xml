@@ -498,7 +498,6 @@
     <string name="nextcloud_off_on_testnet_footer">Cadangan, sinkronisasi, media, dan panggilan lewat Nextcloud hanya berjalan di mainnet, jadi testnet tidak akan pernah menimpa cadangan mainnet Anda. Matikan Testnet di Pengaturan > Koneksi dan koneksi Nextcloud Anda kembali seperti semula.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">Di Testnet, klaim satu di Kaspa Hub > .kachat.</string>
-    <string name="kn_how_live_footer">Aktif di Testnet: nama, harga, dan pembayaran di sini memakai TKAS di testnet-10. Nama mainnet hadir setelah audit.</string>
     <string name="kn_live_testnet_registry">Aktif di Testnet (registri testnet-10)</string>
     <string name="kn_ev_transferred">Dipindahkan</string>
     <string name="kn_ev_delisted">Ditarik dari penjualan</string>
@@ -583,7 +582,6 @@
     <string name="kn_list_footer">Siapa pun bisa membelinya dengan harga ini: pembayaran sampai ke Anda dan nama ke pembeli dalam satu transaksi. Tarik kapan saja.</string>
     <string name="kn_transfer_warning">Pemindahan tidak bisa dibatalkan. Pemilik baru mendapat nama dengan masa berlakunya saat ini; profil Anda tetap di alamat Anda.</string>
     <string name="kn_new_owner">Pemilik baru</string>
-    <string name="kn_err_not_testnet_address">Bukan alamat Schnorr testnet.</string>
     <string name="kn_err_address_key">Kunci alamat itu tidak valid.</string>
     <string name="kn_err_lookup">Tidak dapat mencari nama itu.</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
@@ -594,7 +592,6 @@
     <string name="kn_save_profile">Simpan Profil</string>
     <string name="kn_save_footer">Menyimpan akan menulis profil Anda ke chain dari alamat Anda ke dirinya sendiri, dengan biaya jaringan. Profil bersifat publik.</string>
     <string name="kn_n_years">%1$d tahun</string>
-    <string name="kn_err_no_wallet">Tidak ada dompet testnet yang terbuka.</string>
     <string name="kn_err_key_mismatch">Kunci dompet ini tidak cocok dengan alamatnya.</string>
     <string name="kn_err_invalid_key">%1$s bukan kunci yang valid (tidak pada kurva secp256k1).</string>
     <string name="kn_err_no_salt">Rahasia untuk pendaftaran ini tidak ada di perangkat ini.</string>
@@ -660,7 +657,6 @@
     <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
     <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
     <string name="kn_setting_up">Sedang disiapkan</string>
-    <string name="kn_registry_upgrading">Registri .kachat di Testnet sedang ditingkatkan. Nama dibuka lagi di sini setelah registri baru aktif.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Nama .kachat</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
@@ -1083,4 +1079,11 @@
     <string name="nextcloud_sync_address_book_portfolios">Buku Alamat dan portofolio Anda ada di cadangan yang sama dan tersinkron antarperangkat dengan cara yang sama.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Tenggang berakhir %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">Registri .kachat sedang ditingkatkan. Nama akan terbuka lagi di sini setelah registri baru aktif.</string>
+    <string name="kn_err_no_wallet_open">Tidak ada dompet yang terbuka.</string>
+    <string name="kn_err_not_network_address">Bukan alamat Schnorr di jaringan ini.</string>
+    <string name="kn_how_live_footer_mainnet">Aktif di Mainnet: nama, harga, dan pembayaran di sini memakai KAS sungguhan.</string>
+    <string name="kn_how_live_footer_testnet">Aktif di Testnet: nama, harga, dan pembayaran di sini memakai TKAS di testnet-10. Nama Mainnet aktif di Mainnet.</string>
+    <string name="kn_live_on_mainnet">Aktif di Mainnet</string>
 </resources>

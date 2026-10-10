@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">النسخ الاحتياطي والمزامنة والوسائط والمكالمات عبر Nextcloud تعمل على الشبكة الرئيسية فقط، فلا يمكن للشبكة التجريبية أبدًا الكتابة فوق نسختك الاحتياطية الرئيسية. أوقف الشبكة التجريبية من الإعدادات > الاتصال وسيعود اتصال Nextcloud كما كان.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">على الشبكة التجريبية، احصل على اسم من Kaspa Hub > .kachat.</string>
-    <string name="kn_how_live_footer">مفعّل على الشبكة التجريبية: الأسماء والأسعار والمدفوعات هنا تستخدم TKAS على testnet-10. أسماء الشبكة الرئيسية تأتي بعد التدقيق.</string>
     <string name="kn_live_testnet_registry">مفعّل على الشبكة التجريبية (سجل testnet-10)</string>
     <string name="kn_ev_transferred">تم النقل</string>
     <string name="kn_ev_delisted">أُزيل من البيع</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">يمكن لأي شخص شراؤه بهذا السعر: يصلك الدفع ويصله الاسم في معاملة واحدة. أزله من البيع متى شئت.</string>
     <string name="kn_transfer_warning">لا يمكن التراجع عن النقل. يحصل المالك الجديد على الاسم بتاريخ انتهائه الحالي؛ ويبقى ملفك الشخصي مع عنوانك.</string>
     <string name="kn_new_owner">المالك الجديد</string>
-    <string name="kn_err_not_testnet_address">ليس عنوان Schnorr على الشبكة التجريبية.</string>
     <string name="kn_err_address_key">مفتاح هذا العنوان غير صالح.</string>
     <string name="kn_err_lookup">تعذر البحث عن هذا الاسم.</string>
     <string name="kn_profile_belongs">ملفك الشخصي مرتبط بعنوانك، لا باسم: يبقى كما هو عندما تشتري اسمًا أو تبيعه أو تتركه.</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">حفظ الملف الشخصي</string>
     <string name="kn_save_footer">الحفظ يكتب ملفك الشخصي على السلسلة من عنوانك إلى نفسه، مقابل رسوم الشبكة. الملفات الشخصية عامة.</string>
     <string name="kn_n_years">%1$d سنوات</string>
-    <string name="kn_err_no_wallet">لا توجد محفظة مفتوحة على الشبكة التجريبية.</string>
     <string name="kn_err_key_mismatch">مفتاح هذه المحفظة لا يطابق عنوانها.</string>
     <string name="kn_err_invalid_key">%1$s ليس مفتاحًا صالحًا (ليس على منحنى secp256k1).</string>
     <string name="kn_err_no_salt">سرّ هذا التسجيل غير موجود على هذا الجهاز.</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">لم يرسل مفهرس الأسماء الفترة المدفوعة لهذا الاسم. اسحب للتحديث وحاول مرة أخرى.</string>
     <string name="kn_claim_step3_cap">الاسم لك طوال السنوات التي دفعتها، وسنتين مقدمًا كحد أقصى. يمكن تمديد اسم لسنة واحدة إلى سنتين؛ ومن 10 أيام قبل انتهائه يمكنك تجديده.</string>
     <string name="kn_setting_up">جارٍ الإعداد</string>
-    <string name="kn_registry_upgrading">تتم ترقية سجل .kachat على الشبكة التجريبية. ستُفتح الأسماء هنا مجددًا بمجرد تشغيل السجل الجديد.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">أسماء .kachat</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">دفتر العناوين والمحافظ موجودة في النسخة الاحتياطية نفسها وتتزامن بين أجهزتك بالطريقة نفسها.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">تنتهي فترة السماح %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">سجل .kachat قيد الترقية. تعود الأسماء هنا بمجرد تشغيل السجل الجديد.</string>
+    <string name="kn_err_no_wallet_open">لا توجد محفظة مفتوحة.</string>
+    <string name="kn_err_not_network_address">ليس عنوان Schnorr على هذه الشبكة.</string>
+    <string name="kn_how_live_footer_mainnet">مباشر على Mainnet: الأسماء والأسعار والمدفوعات هنا بعملة KAS حقيقية.</string>
+    <string name="kn_how_live_footer_testnet">مباشر على Testnet: الأسماء والأسعار والمدفوعات هنا بعملة TKAS على testnet-10. أسماء Mainnet متاحة على Mainnet.</string>
+    <string name="kn_live_on_mainnet">مباشر على Mainnet</string>
 </resources>

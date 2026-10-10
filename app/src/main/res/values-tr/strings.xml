@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">Nextcloud üzerinden yedekleme, eşitleme, medya ve aramalar yalnızca mainnet\'te çalışır; böylece testnet mainnet yedeğinizin üzerine asla yazamaz. Ayarlar > Bağlantı bölümünden Testnet\'i kapatın, Nextcloud bağlantınız olduğu gibi geri gelir.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">Testnet\'te Kaspa Hub > .kachat bölümünden bir tane alın.</string>
-    <string name="kn_how_live_footer">Testnet\'te etkin: buradaki adlar, fiyatlar ve ödemeler testnet-10\'da TKAS kullanır. Mainnet adları bir denetimden sonra gelecek.</string>
     <string name="kn_live_testnet_registry">Testnet\'te etkin (testnet-10 kaydı)</string>
     <string name="kn_ev_transferred">Devredildi</string>
     <string name="kn_ev_delisted">Satıştan kaldırıldı</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">Herkes bu fiyattan satın alabilir: ödeme size, ad alıcıya tek işlemde ulaşır. İstediğiniz zaman satıştan kaldırın.</string>
     <string name="kn_transfer_warning">Devir geri alınamaz. Yeni sahip adı mevcut bitiş tarihiyle alır; profiliniz adresinizde kalır.</string>
     <string name="kn_new_owner">Yeni sahip</string>
-    <string name="kn_err_not_testnet_address">Testnet Schnorr adresi değil.</string>
     <string name="kn_err_address_key">Bu adresin anahtarı geçerli değil.</string>
     <string name="kn_err_lookup">Bu ad aranamadı.</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">Profili Kaydet</string>
     <string name="kn_save_footer">Kaydetmek profilinizi bir ağ ücretiyle adresinizden kendisine bir işlemle zincire yazar. Profiller herkese açıktır.</string>
     <string name="kn_n_years">%1$d yıl</string>
-    <string name="kn_err_no_wallet">Açık bir testnet cüzdanı yok.</string>
     <string name="kn_err_key_mismatch">Bu cüzdanın anahtarı adresiyle eşleşmiyor.</string>
     <string name="kn_err_invalid_key">%1$s geçerli bir anahtar değil (secp256k1 eğrisinde değil).</string>
     <string name="kn_err_no_salt">Bu kaydın gizli bilgisi bu cihazda yok.</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.</string>
     <string name="kn_claim_step3_cap">Ad, ödediğiniz yıllar boyunca sizindir, en fazla 2 yıl ileriye. 1 yıllık bir ad 2 yıla uzatılabilir; bitişinden 10 gün önceden itibaren yenileyebilirsiniz.</string>
     <string name="kn_setting_up">Hazırlanıyor</string>
-    <string name="kn_registry_upgrading">Testnet\'teki .kachat kaydı güncelleniyor. Yeni kayıt yayına girince adlar burada yeniden açılır.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat Adları</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">Adres Defteriniz ve portföyleriniz aynı yedektedir ve cihazlarınız arasında aynı şekilde eşitlenir.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Ek süre bitişi %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">.kachat kayıt defteri yükseltiliyor. Yeni kayıt defteri devreye girince isimler burada yeniden açılır.</string>
+    <string name="kn_err_no_wallet_open">Açık bir cüzdan yok.</string>
+    <string name="kn_err_not_network_address">Bu ağda bir Schnorr adresi değil.</string>
+    <string name="kn_how_live_footer_mainnet">Mainnet\'te canlı: buradaki isimler, fiyatlar ve ödemeler gerçek KAS\'tır.</string>
+    <string name="kn_how_live_footer_testnet">Testnet\'te canlı: buradaki isimler, fiyatlar ve ödemeler testnet-10\'da TKAS kullanır. Mainnet isimleri Mainnet\'te canlı.</string>
+    <string name="kn_live_on_mainnet">Mainnet\'te canlı</string>
 </resources>

@@ -83,12 +83,13 @@ import com.kachat.app.util.KaspaUnit
  * to peer and trustless (the name and the payment settle together on chain, no one holds either
  * in between).
  *
- * On mainnet it is the live screen, empty, under "Coming soon" (iOS 7227d69): search answers
- * that registration isn't open, the tabs are the live pages with nothing in them, and nothing
- * reads or writes a registry. The placeholder pages (blank shapes, never invented names or prices)
- * remain only for a testnet registry that is setting up.
+ * Where the registry isn't launched it is the live screen, empty, under "Coming soon" (iOS
+ * 7227d69): search answers that registration isn't open, the tabs are the live pages with nothing
+ * in them, and nothing reads or writes a registry. The placeholder pages (blank shapes, never
+ * invented names or prices) remain only for a registry that is setting up.
  *
- * On TESTNET (testnet-10, with the bundled registry manifest verified) it is live
+ * On testnet-10, and on mainnet since its launch (iOS ef6b21e), with the bundled registry manifest
+ * verified, it is live
  * (KachatNamesLiveScreens.kt, iOS 5df42b4): search shows real availability and the price, Claim
  * registers, the tabs read the registry, registrations in flight show their progress, and a name
  * opens its live detail. [onOpenChat] opens a 1:1 chat (Message on a name's owner).
@@ -96,7 +97,7 @@ import com.kachat.app.util.KaspaUnit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {}) {
-    // Testnet only: mainnet never builds the live model, so it makes no network calls.
+    // Only where names are live: elsewhere the live model is never built, so it makes no network calls.
     val live: KachatLiveViewModel? = if (KachatLive.isEnabled) hiltViewModel() else null
     // Kept above the full-screen swaps below, so a name's detail returns to the same search and tab
     // (iOS pushes it on a NavigationStack).
@@ -106,7 +107,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     if (live != null) {
         LaunchedEffect(Unit) { live.start() }
     }
-    // A name a tapped notification pointed at (testnet only, where names are live).
+    // A name a tapped notification pointed at (where names are live).
     // One name screen at a time (iOS b799091): the same name again leaves the open one as it is,
     // and another name replaces it (closed first, then opened) instead of piling up.
     var nameRoute by remember { mutableStateOf<String?>(null) }
@@ -221,7 +222,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                         SettingUpPill()
                     }
                     Text(
-                        stringResource(R.string.kn_registry_upgrading),
+                        stringResource(R.string.kn_registry_being_upgraded),
                         color = colors.textSecondary,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
@@ -336,7 +337,14 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             HowRow(Icons.Outlined.PanTool, stringResource(R.string.kl_offer), KaspaUnit.label(stringResource(R.string.kl_offer_detail)))
             HowRow(Icons.Outlined.VerifiedUser, stringResource(R.string.km_trustless), stringResource(R.string.km_trustless_detail))
             Text(
-                stringResource(if (isLive) R.string.kn_how_live_footer else R.string.km_nothing_live),
+                stringResource(
+                    when {
+                        // mainnet's names are real KAS (iOS ef6b21e)
+                        isLive && com.kachat.app.services.kachatnames.KachatNamesService.networkName == "mainnet" -> R.string.kn_how_live_footer_mainnet
+                        isLive -> R.string.kn_how_live_footer_testnet
+                        else -> R.string.km_nothing_live
+                    }
+                ),
                 color = LocalAppColors.current.textSecondary,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">Las copias de seguridad, la sincronización, los archivos y las llamadas con Nextcloud solo funcionan en mainnet, así testnet nunca puede sobrescribir tu copia de mainnet. Desactiva Testnet en Ajustes > Conexión y tu conexión con Nextcloud volverá tal como estaba.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">En Testnet, consigue uno en Kaspa Hub > .kachat.</string>
-    <string name="kn_how_live_footer">Activo en Testnet: los nombres, precios y pagos aquí usan TKAS en testnet-10. Los nombres de mainnet llegarán tras una auditoría.</string>
     <string name="kn_live_testnet_registry">Activo en Testnet (registro de testnet-10)</string>
     <string name="kn_ev_transferred">Transferido</string>
     <string name="kn_ev_delisted">Retirado de la venta</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">Cualquiera puede comprarlo a este precio: el pago te llega a ti y el nombre al comprador en una sola transacción. Retíralo cuando quieras.</string>
     <string name="kn_transfer_warning">Una transferencia no se puede deshacer. El nuevo dueño recibe el nombre con su vencimiento actual; tu perfil se queda con tu dirección.</string>
     <string name="kn_new_owner">Nuevo dueño</string>
-    <string name="kn_err_not_testnet_address">No es una dirección Schnorr de testnet.</string>
     <string name="kn_err_address_key">La clave de esa dirección no es válida.</string>
     <string name="kn_err_lookup">No se pudo buscar ese nombre.</string>
     <string name="kn_profile_belongs">Tu perfil pertenece a tu dirección, no a un nombre: sigue igual cuando compras, vendes o dejas un nombre.</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">Guardar perfil</string>
     <string name="kn_save_footer">Al guardar, tu perfil se escribe en la cadena desde tu dirección a sí misma, por una comisión de red. Los perfiles son públicos.</string>
     <string name="kn_n_years">%1$d años</string>
-    <string name="kn_err_no_wallet">No hay ninguna cartera de testnet abierta.</string>
     <string name="kn_err_key_mismatch">La clave de esta cartera no coincide con su dirección.</string>
     <string name="kn_err_invalid_key">%1$s no es una clave válida (no está en la curva secp256k1).</string>
     <string name="kn_err_no_salt">Falta en este dispositivo el secreto de este registro.</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">El indexador de nombres no envió el periodo pagado de este nombre. Desliza para actualizar e inténtalo de nuevo.</string>
     <string name="kn_claim_step3_cap">El nombre es tuyo por los años que pagaste, como máximo 2 por adelantado. Un nombre de 1 año se puede ampliar a 2 años; desde 10 días antes de que venza puedes renovarlo.</string>
     <string name="kn_setting_up">Configurando</string>
-    <string name="kn_registry_upgrading">El registro .kachat en Testnet se está actualizando. Los nombres vuelven a abrirse aquí cuando el nuevo registro esté activo.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Nombres .kachat</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">Tu libreta de direcciones y tus portafolios están en la misma copia y se sincronizan igual entre tus dispositivos.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">La gracia termina %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">El registro .kachat se está actualizando. Los nombres vuelven aquí cuando el nuevo registro esté activo.</string>
+    <string name="kn_err_no_wallet_open">No hay ninguna billetera abierta.</string>
+    <string name="kn_err_not_network_address">No es una dirección Schnorr de esta red.</string>
+    <string name="kn_how_live_footer_mainnet">Activo en Mainnet: los nombres, precios y pagos aquí son KAS reales.</string>
+    <string name="kn_how_live_footer_testnet">Activo en Testnet: los nombres, precios y pagos aquí usan TKAS en testnet-10. Los nombres de Mainnet están activos en Mainnet.</string>
+    <string name="kn_live_on_mainnet">Activo en Mainnet</string>
 </resources>

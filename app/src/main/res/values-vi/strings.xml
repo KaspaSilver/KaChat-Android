@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">Sao lưu, đồng bộ, tệp phương tiện và cuộc gọi qua Nextcloud chỉ hoạt động trên mainnet, nên testnet không bao giờ ghi đè bản sao lưu mainnet của bạn. Tắt Testnet trong Cài đặt > Kết nối và kết nối Nextcloud sẽ trở lại như cũ.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">Trên Testnet, hãy nhận một tên tại Kaspa Hub > .kachat.</string>
-    <string name="kn_how_live_footer">Đang chạy trên Testnet: tên, giá và thanh toán ở đây dùng TKAS trên testnet-10. Tên mainnet sẽ có sau khi kiểm toán.</string>
     <string name="kn_live_testnet_registry">Đang chạy trên Testnet (sổ đăng ký testnet-10)</string>
     <string name="kn_ev_transferred">Đã chuyển</string>
     <string name="kn_ev_delisted">Đã gỡ bán</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">Ai cũng có thể mua với giá này: tiền đến bạn và tên đến người mua trong một giao dịch. Gỡ bán bất cứ lúc nào.</string>
     <string name="kn_transfer_warning">Không thể hoàn tác việc chuyển. Chủ mới nhận tên với hạn hiện tại; hồ sơ của bạn vẫn ở địa chỉ của bạn.</string>
     <string name="kn_new_owner">Chủ mới</string>
-    <string name="kn_err_not_testnet_address">Không phải địa chỉ Schnorr testnet.</string>
     <string name="kn_err_address_key">Khóa của địa chỉ đó không hợp lệ.</string>
     <string name="kn_err_lookup">Không tra cứu được tên đó.</string>
     <string name="kn_profile_belongs">Hồ sơ thuộc về địa chỉ của bạn, không thuộc về tên: vẫn giữ nguyên khi bạn mua, bán hay bỏ một tên.</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">Lưu hồ sơ</string>
     <string name="kn_save_footer">Lưu sẽ ghi hồ sơ của bạn lên chuỗi bằng giao dịch từ địa chỉ của bạn về chính nó, với phí mạng. Hồ sơ là công khai.</string>
     <string name="kn_n_years">%1$d năm</string>
-    <string name="kn_err_no_wallet">Chưa mở ví testnet nào.</string>
     <string name="kn_err_key_mismatch">Khóa của ví này không khớp với địa chỉ.</string>
     <string name="kn_err_invalid_key">%1$s không phải khóa hợp lệ (không nằm trên đường cong secp256k1).</string>
     <string name="kn_err_no_salt">Thiết bị này không có mã bí mật của lần đăng ký này.</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.</string>
     <string name="kn_claim_step3_cap">Tên là của bạn trong số năm đã trả, tối đa trước 2 năm. Tên 1 năm có thể kéo dài thành 2 năm; từ 10 ngày trước khi hết hạn bạn có thể gia hạn.</string>
     <string name="kn_setting_up">Đang thiết lập</string>
-    <string name="kn_registry_upgrading">Sổ đăng ký .kachat trên Testnet đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Tên .kachat</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">Sổ địa chỉ và danh mục đầu tư của bạn nằm trong cùng bản sao lưu và được đồng bộ giữa các thiết bị theo cùng cách.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Hết ân hạn %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">Sổ đăng ký .kachat đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
+    <string name="kn_err_no_wallet_open">Chưa mở ví nào.</string>
+    <string name="kn_err_not_network_address">Không phải địa chỉ Schnorr trên mạng này.</string>
+    <string name="kn_how_live_footer_mainnet">Đang chạy trên Mainnet: tên, giá và thanh toán ở đây là KAS thật.</string>
+    <string name="kn_how_live_footer_testnet">Đang chạy trên Testnet: tên, giá và thanh toán ở đây dùng TKAS trên testnet-10. Tên Mainnet đang chạy trên Mainnet.</string>
+    <string name="kn_live_on_mainnet">Đang chạy trên Mainnet</string>
 </resources>

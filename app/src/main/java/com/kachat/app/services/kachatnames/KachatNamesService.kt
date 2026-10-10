@@ -42,18 +42,18 @@ import javax.inject.Singleton
 
 /**
  * `.kachat` names: the app side of the transaction core (`KachatNames`, `Builder`..., pure and
- * checked against the kachat-domains vectors). This service adds what needs the app: the testnet
+ * checked against the kachat-domains vectors). This service adds what needs the app: the network
  * gate, loading and verifying the manifest, the node's DAG point, the wallet's and the registry's
  * live UTXOs, Schnorr signing with the wallet key (BIP-340, SIGHASH_ALL over the version-1
  * sighash), the protowire conversion with the Toccata fields, and submission through the node
  * pool. A port of iOS KaChat/Services/KachatNames/KachatNamesService.swift (KaChat ede9417; the
  * registry-v1 "being upgraded" state from d2e0673).
  *
- * Transactions are testnet-10 only: every entry point refuses unless this launch runs on testnet
- * ([KaspaNetwork.isTestnet], iOS `AppSettings.networkType == .testnet`), and the manifest itself
- * must be for testnet-10. The mainnet registry stays off until the contracts are audited - but
- * the .kachat UI and identity are on for every network (see [isEnabled] / [isLaunched], iOS
- * 7227d69).
+ * Names run on testnet-10 and, since the mainnet v1 launch on 2026-10-09, on mainnet (iOS
+ * ef6b21e): each network has its own bundled manifest (`assets/kachat-names-<network>.json`), its
+ * own pinned templates and price tables ([Manifest]), and its own address prefix
+ * ([addressPrefix]). The manifest in use always matches the network the app runs on
+ * ([networkName]).
  *
  * Callers: `KachatNamesRegistry` (reads) and `KachatNamesActions` (every operation).
  *
@@ -96,26 +96,34 @@ class KachatNamesService @Inject constructor(
      * not read and verified again on every call (until [resetManifest]).
      */
     @Volatile private var bundleFailure: Exception? = null
+        set(value) {
+            field = value
+            bundleFailureNetwork = if (value == null) null else networkName
+        }
+
+    /** The network [bundleFailure] was found on (iOS ef6b21e). */
+    @Volatile private var bundleFailureNetwork: String? = null
 
     private val manifestMutex = Mutex()
 
     /** The service's errors; messages are English like iOS's (the screens show them as they are). */
     sealed class ServiceError(message: String) : Exception(message) {
-        class TestnetOnly : ServiceError(".kachat names run on Testnet only for now")
+        /** shown localized, `kachat_names_not_live_here` (iOS ef6b21e) */
+        class TestnetOnly : ServiceError(".kachat names aren't live on this network yet")
         /** the profile record's address is not on the network the app runs on (iOS d36fc42;
          *  shown localized, `kn_err_wrong_address_network`) */
         class WrongAddressNetwork : ServiceError("This address is on a different network than the app.")
         class NoManifest(why: String) : ServiceError("No .kachat registry manifest: $why")
         class DryRunManifest : ServiceError("The .kachat manifest is from a dry run; that registry does not exist")
-        class WrongNodeNetwork(network: String) : ServiceError("The node is on $network, not testnet-10")
+        class WrongNodeNetwork(network: String) : ServiceError("The node is on $network, not ${KachatNamesService.networkName}")
         class KeyMismatch : ServiceError("The signing key is not the key the transaction was built for")
         class NotOnChain(what: String) : ServiceError("$what is not on chain (or not with the registry covenant id)")
         class BadProfile(why: String) : ServiceError("Profile: $why")
         class SubmitMismatch(expected: String, got: String) : ServiceError("The node accepted $got, expected $expected")
         /** the manifest is an earlier registry's; this app builds for v3 and waits for its genesis
-         *  (the screens show it localized, `kn_registry_upgrading`) */
+         *  (the screens show it localized, `kn_registry_being_upgraded`) */
         class RegistryUpgrading :
-            ServiceError("The .kachat registry on Testnet is being upgraded. Names open here again once the new registry is live.")
+            ServiceError("The .kachat registry is being upgraded. Names open here again once the new registry is live.")
     }
 
     /** The virtual's DAA score and past median time (unix ms) and the node's network name. */
@@ -125,8 +133,7 @@ class KachatNamesService @Inject constructor(
 
     /**
      * The gate on every registry read and write: the network the app runs on has a live registry
-     * ([isLaunched], testnet-10 for now). [isEnabled] only turns the UI on (iOS d657ee3,
-     * `requireLaunched`).
+     * ([isLaunched]). [isEnabled] only turns the UI on (iOS d657ee3, `requireLaunched`).
      */
     fun requireLaunched() {
         if (!isLaunched) throw ServiceError.TestnetOnly()
@@ -135,11 +142,22 @@ class KachatNamesService @Inject constructor(
     // Manifest
 
     /**
-     * The verified registry manifest: `kachat-names-testnet-10.json` from the app's assets when it
-     * ships one, else the indexer's `GET /names/manifest`. Cached once verified.
+     * The verified registry manifest of the network the app runs on: `kachat-names-<network>.json`
+     * from the app's assets when it ships one, else the indexer's `GET /names/manifest`. Cached once
+     * verified.
      */
     suspend fun loadManifest(allowDryRun: Boolean = false): Manifest = manifestMutex.withLock {
         requireLaunched()
+        // the network switched: the other network's manifest (and the registry read from it) go
+        // (iOS ef6b21e)
+        val cached = _manifest.value
+        if (cached != null && cached.network != networkName) {
+            resetManifest()
+            onNetworkSwitched?.invoke()
+        } else if (cached == null && bundleFailureNetwork != networkName) {
+            bundleFailure = null
+            _registryUpgrading.value = false
+        }
         _manifest.value?.let { if (allowDryRun || !it.isDryRun) return@withLock it }
         bundleFailure?.let { throw it }
         val (data, source) = manifestData()
@@ -168,6 +186,13 @@ class KachatNamesService @Inject constructor(
         m
     }
 
+    /**
+     * Called when [loadManifest] finds the cached manifest is the other network's: the registry
+     * forgets what it read from it ([KachatNamesRegistry.reset], wired by the registry; iOS
+     * ef6b21e `KachatNamesRegistry.shared.reset()`).
+     */
+    @Volatile var onNetworkSwitched: (() -> Unit)? = null
+
     /** Forget the cached manifest (indexer change). */
     fun resetManifest() {
         _manifest.value = null
@@ -177,10 +202,10 @@ class KachatNamesService @Inject constructor(
     }
 
     private suspend fun manifestData(): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
-        val bundled = runCatching { context.assets.open(Manifest.ASSET_NAME).use { it.readBytes() } }.getOrNull()
+        val bundled = runCatching { context.assets.open(Manifest.assetName(networkName)).use { it.readBytes() } }.getOrNull()
         if (bundled != null) return@withContext bundled to "bundle"
         val base = settings.indexerUrl.first().trim()
-        if (base.isEmpty()) throw ServiceError.NoManifest("none in the app and no indexer is configured for Testnet")
+        if (base.isEmpty()) throw ServiceError.NoManifest("none in the app and no indexer is configured")
         val url = base.removeSuffix("/") + "/names/manifest"
         val request = runCatching { Request.Builder().url(url).build() }.getOrNull()
             ?: throw ServiceError.NoManifest("bad indexer URL")
@@ -236,12 +261,12 @@ class KachatNamesService @Inject constructor(
 
     /**
      * Where the next transaction is judged: the virtual's DAA score and past median time from a
-     * testnet-10 node, the wall clock, the signer's key.
+     * node on the network the app runs on, the wall clock, the signer's key.
      */
     suspend fun environment(privateKey: ByteArray, feerate: Double = KachatNames.MIN_FEERATE): Env {
         requireLaunched()
         val dag = currentDagPoint()
-        if (!dag.networkName.endsWith("testnet-10")) throw ServiceError.WrongNodeNetwork(dag.networkName)
+        if (!dag.networkName.endsWith(networkName)) throw ServiceError.WrongNodeNetwork(dag.networkName)
         return Env(
             me = xonlyKey(privateKey),
             blockDaa = dag.virtualDaaScore,
@@ -335,7 +360,8 @@ class KachatNamesService @Inject constructor(
     // Signing and submit
 
     /** Submits a signed version-1 transaction; returns its id. Register and renew carry the price
-     *  (35-8,000 TKAS) as fee on purpose - there is no high-fee guard on this path. */
+     *  (8.75-4,000 KAS on mainnet, a hundredth of that in TKAS on testnet) as fee on purpose -
+     *  there is no high-fee guard on this path. */
     suspend fun submit(tx: Tx): String {
         requireLaunched()
         val expected = tx.idHex
@@ -420,12 +446,19 @@ class KachatNamesService @Inject constructor(
 
         /**
          * Whether this network has a live registry the app reads and transacts with (lookups,
-         * listings, registrations, resolving typed names): testnet-10 only for now
-         * - the network this launch runs on (iOS 7227d69). Off it, nothing builds the registry
-         * stack at all: the names service, registry and actions are injected lazily or only
-         * behind this gate.
+         * listings, registrations, resolving typed names): testnet-10, and mainnet since
+         * 2026-10-09 (iOS 7227d69, ef6b21e) - the network this launch runs on. Off it, nothing
+         * builds the registry stack at all: the names service, registry and actions are injected
+         * lazily or only behind this gate.
          */
-        val isLaunched: Boolean get() = KaspaNetwork.isTestnet
+        val isLaunched: Boolean get() = networkName in Manifest.SUPPORTED_NETWORKS
+
+        /** The manifest network name of the network the app runs on (iOS ef6b21e). */
+        val networkName: String get() = if (KaspaNetwork.launch == KaspaNetwork.Type.MAINNET) "mainnet" else "testnet-10"
+
+        /** The address prefix of the network the app runs on: names, owners and registry outputs
+         *  are shown and parsed with it (iOS ef6b21e). */
+        val addressPrefix: String get() = KaspaNetwork.launch.hrp
 
         /**
          * Address profiles (`kchat:1:profile:`) work on every network (iOS d36fc42): a profile is
@@ -481,12 +514,12 @@ class KachatNamesService @Inject constructor(
             )
         }.getOrNull()
 
-        /** The `kaspatest:` P2SH address of a P2SH script (`OP_BLAKE2B <hash> OP_EQUAL`). */
+        /** The P2SH address (this network's prefix) of a P2SH script (`OP_BLAKE2B <hash> OP_EQUAL`). */
         fun p2shAddress(script: ByteArray): String? {
             if (script.size != 35 || (script[0].toInt() and 0xff) != 0xaa || script[1].toInt() != 0x20 ||
                 (script[34].toInt() and 0xff) != 0x87
             ) return null
-            return KaspaAddress.encode("kaspatest", 0x08, script.copyOfRange(2, 34))
+            return KaspaAddress.encode(addressPrefix, 0x08, script.copyOfRange(2, 34))
         }
 
         /** A fresh 32-byte commit salt. Keep it (with the name) until the registration: without it

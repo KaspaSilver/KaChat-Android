@@ -53,10 +53,11 @@ import javax.inject.Singleton
  *   tracked UTXOs are still unspent, finds each spent one's spending transaction through the Kaspa
  *   REST API (`GET /addresses/{p2sh}/full-transactions`), decodes the spend like the indexer does
  *   (B3), verifies every new state against its output script and moves on. Cached per network in
- *   `filesDir/KachatNames/testnet-10/` (iOS Application Support).
+ *   `filesDir/KachatNames/<network>/` (iOS Application Support).
  *
  * Records from either source are only read here; every action re-reads its UTXOs from a node
- * ([KachatNamesService.liveRegistryUtxo]) before it builds anything. Testnet-10 only. A port of
+ * ([KachatNamesService.liveRegistryUtxo]) before it builds anything. On the network the app runs
+ * on (testnet-10, and mainnet since iOS ef6b21e). A port of
  * iOS KaChat/Services/KachatNames/KachatNamesRegistry.swift (KaChat 27edcd5, 25cc2c9).
  */
 @Singleton
@@ -155,6 +156,9 @@ class KachatNamesRegistry @Inject constructor(
         // the companion, from code Hilt does not inject (built at startup on testnet, see
         // KaChatApplication)
         instance = this
+        // the other network's manifest dropped by the service: what was read from it goes too
+        // (iOS ef6b21e)
+        service.onNetworkSwitched = { reset() }
         // The identities cached on the last run, off the main thread. None of them was asked in
         // this run, so each is shown at once and re-fetched on first use (iOS 5e408f7).
         scope.launch {
@@ -173,6 +177,13 @@ class KachatNamesRegistry @Inject constructor(
     suspend fun prepare(forceSourceCheck: Boolean = false): Manifest = withContext(Dispatchers.IO) {
         prepareMutex.withLock {
             val m = service.loadManifest()
+            // a source picked on the other network (its indexer) is never this one's (iOS ef6b21e)
+            if (preparedNetwork != m.network) {
+                _source.value = null
+                _chainState.value = null
+                cacheNetwork = null
+                preparedNetwork = m.network
+            }
             if (_source.value == null || forceSourceCheck) {
                 val chosen = chooseSource(m)
                 val was = _source.value
@@ -189,8 +200,12 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
-    /** Forget everything in memory (logout). */
+    /** The network [prepare] last ran for (iOS ef6b21e). */
+    @Volatile private var preparedNetwork: String? = null
+
+    /** Forget everything in memory (network switch, logout). */
     fun reset() {
+        preparedNetwork = null
         _source.value = null
         _chainState.value = null
         cacheNetwork = null
@@ -925,15 +940,15 @@ class KachatNamesRegistry @Inject constructor(
 
     // Cache files (filesDir/KachatNames/<network>/; iOS Application Support/KachatNames/<network>/)
 
-    private fun directory(network: String = Manifest.SUPPORTED_NETWORK): File? = runCatching {
+    private fun directory(network: String = KachatNamesService.networkName): File? = runCatching {
         File(File(context.filesDir, "KachatNames"), network).apply { mkdirs() }
     }.getOrNull()
 
-    fun readFile(name: String, network: String = Manifest.SUPPORTED_NETWORK): ByteArray? =
+    fun readFile(name: String, network: String = KachatNamesService.networkName): ByteArray? =
         runCatching { directory(network)?.let { File(it, name).readBytes() } }.getOrNull()
 
     /** Atomic: a temporary file renamed over the old one. */
-    fun writeFile(name: String, data: ByteArray, network: String = Manifest.SUPPORTED_NETWORK) {
+    fun writeFile(name: String, data: ByteArray, network: String = KachatNamesService.networkName) {
         runCatching {
             val dir = directory(network) ?: return
             val tmp = File(dir, "$name.tmp")
@@ -951,7 +966,7 @@ class KachatNamesRegistry @Inject constructor(
      *  registry's folder, so profiles saved before mainnet profiles existed are still found;
      *  iOS d36fc42). */
     private fun profileNetwork(address: String): String =
-        if (KaspaNetwork.ofAddress(address) == KaspaNetwork.Type.MAINNET) "mainnet" else Manifest.SUPPORTED_NETWORK
+        if (KaspaNetwork.ofAddress(address) == KaspaNetwork.Type.MAINNET) "mainnet" else "testnet-10"
 
     private fun loadCache(m: Manifest): RegistryState? {
         val data = readFile(CACHE_FILE) ?: return null
@@ -1058,16 +1073,16 @@ class KachatNamesRegistry @Inject constructor(
 
         // Addresses
 
-        /** The `kaspatest:` Schnorr address of an x-only key. */
+        /** The Schnorr address of an x-only key on the network the app runs on (iOS ef6b21e). */
         fun address(xonly: ByteArray): String? {
             if (xonly.size != 32) return null
-            return KaspaAddress.encode("kaspatest", 0x00, xonly)
+            return KaspaAddress.encode(KachatNamesService.addressPrefix, 0x00, xonly)
         }
 
-        /** The x-only key of a `kaspatest:` Schnorr address. */
+        /** The x-only key of a Schnorr address on the network the app runs on (iOS ef6b21e). */
         fun keyOf(address: String): ByteArray? {
             val a = address.trim().lowercase()
-            if (!a.startsWith("kaspatest:")) return null
+            if (!a.startsWith(KachatNamesService.addressPrefix + ":")) return null
             val (version, payload) = runCatching { KaspaAddress.decode(a) }.getOrNull() ?: return null
             if (version.toInt() != 0 || payload.size != 32) return null
             return payload

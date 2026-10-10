@@ -85,7 +85,8 @@ enum class NameServiceTLD(val raw: String) {
     }
 
     /** Whether the app can read this service yet. `.kachat` only where its registry is launched
-     *  (testnet-10 for now, iOS 7227d69): typed-name resolution never asks a registry on mainnet. */
+     *  (testnet-10, and mainnet since iOS ef6b21e; iOS 7227d69): typed-name resolution never asks a
+     *  registry that isn't launched. */
     val isLive: Boolean get() = this != KACHAT || KachatNamesService.isLaunched
 
     companion object {

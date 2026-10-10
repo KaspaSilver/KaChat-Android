@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">Nextcloud के ज़रिए बैकअप, सिंक, मीडिया और कॉल सिर्फ़ मेननेट पर काम करते हैं, ताकि टेस्टनेट कभी आपके मेननेट बैकअप को ओवरराइट न कर सके। सेटिंग्स > कनेक्शन में टेस्टनेट बंद करें और आपका Nextcloud कनेक्शन पहले जैसा वापस आ जाएगा।</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">टेस्टनेट पर, Kaspa Hub > .kachat में एक लें।</string>
-    <string name="kn_how_live_footer">टेस्टनेट पर लाइव: यहाँ नाम, कीमतें और भुगतान testnet-10 पर TKAS में हैं। मेननेट नाम ऑडिट के बाद आएँगे।</string>
     <string name="kn_live_testnet_registry">टेस्टनेट पर लाइव (testnet-10 रजिस्ट्री)</string>
     <string name="kn_ev_transferred">ट्रांसफ़र हुआ</string>
     <string name="kn_ev_delisted">बिक्री से हटाया</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">कोई भी इसे इस कीमत पर खरीद सकता है: एक ही लेन-देन में भुगतान आपको और नाम खरीदार को मिलता है। कभी भी बिक्री से हटाएँ।</string>
     <string name="kn_transfer_warning">ट्रांसफ़र पलटा नहीं जा सकता। नए मालिक को नाम उसकी मौजूदा समाप्ति के साथ मिलता है; आपकी प्रोफ़ाइल आपके पते के साथ रहती है।</string>
     <string name="kn_new_owner">नया मालिक</string>
-    <string name="kn_err_not_testnet_address">यह टेस्टनेट Schnorr पता नहीं है।</string>
     <string name="kn_err_address_key">इस पते की कुंजी मान्य नहीं है।</string>
     <string name="kn_err_lookup">यह नाम खोजा नहीं जा सका।</string>
     <string name="kn_profile_belongs">आपकी प्रोफ़ाइल आपके पते की है, किसी नाम की नहीं: नाम खरीदने, बेचने या छोड़ने पर भी यह वही रहती है।</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">प्रोफ़ाइल सहेजें</string>
     <string name="kn_save_footer">सहेजने पर नेटवर्क शुल्क देकर आपकी प्रोफ़ाइल आपके पते से खुद को भेजे लेन-देन में चेन पर लिखी जाती है। प्रोफ़ाइल सार्वजनिक होती हैं।</string>
     <string name="kn_n_years">%1$d वर्ष</string>
-    <string name="kn_err_no_wallet">कोई टेस्टनेट वॉलेट खुला नहीं है।</string>
     <string name="kn_err_key_mismatch">इस वॉलेट की कुंजी उसके पते से मेल नहीं खाती।</string>
     <string name="kn_err_invalid_key">%1$s मान्य कुंजी नहीं है (secp256k1 वक्र पर नहीं)।</string>
     <string name="kn_err_no_salt">इस रजिस्ट्रेशन का गुप्त डेटा इस डिवाइस पर नहीं है।</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">नाम इंडेक्सर ने इस नाम की भुगतान की गई अवधि नहीं भेजी। रीफ़्रेश करने के लिए नीचे खींचें और फिर कोशिश करें।</string>
     <string name="kn_claim_step3_cap">जितने साल का भुगतान किया, नाम उतने साल आपका है, अधिकतम 2 साल आगे तक। 1 साल का नाम 2 साल तक बढ़ाया जा सकता है; समाप्ति से 10 दिन पहले से आप इसका नवीनीकरण कर सकते हैं।</string>
     <string name="kn_setting_up">सेट अप हो रहा है</string>
-    <string name="kn_registry_upgrading">टेस्टनेट पर .kachat रजिस्ट्री अपग्रेड हो रही है। नई रजिस्ट्री लाइव होते ही नाम यहां फिर खुलेंगे।</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat नाम</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">आपकी एड्रेस बुक और पोर्टफ़ोलियो उसी बैकअप में हैं और आपके डिवाइसों के बीच उसी तरह सिंक होते हैं।</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">ग्रेस अवधि समाप्त %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">.kachat रजिस्ट्री अपग्रेड हो रही है। नई रजिस्ट्री चालू होते ही नाम यहाँ फिर खुलेंगे।</string>
+    <string name="kn_err_no_wallet_open">कोई वॉलेट खुला नहीं है।</string>
+    <string name="kn_err_not_network_address">इस नेटवर्क पर यह Schnorr पता नहीं है।</string>
+    <string name="kn_how_live_footer_mainnet">Mainnet पर चालू: यहाँ नाम, कीमतें और भुगतान असली KAS में हैं।</string>
+    <string name="kn_how_live_footer_testnet">Testnet पर चालू: यहाँ नाम, कीमतें और भुगतान testnet-10 के TKAS में हैं। Mainnet नाम Mainnet पर चालू हैं।</string>
+    <string name="kn_live_on_mainnet">Mainnet पर चालू</string>
 </resources>

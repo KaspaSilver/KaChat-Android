@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">Nextcloud-এর মাধ্যমে ব্যাকআপ, সিঙ্ক, মিডিয়া ও কল শুধু মেইননেটে কাজ করে, তাই টেস্টনেট কখনো আপনার মেইননেট ব্যাকআপ মুছে লিখতে পারে না। সেটিংস > সংযোগ থেকে টেস্টনেট বন্ধ করলে আপনার Nextcloud সংযোগ আগের মতো ফিরে আসবে।</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">টেস্টনেটে Kaspa Hub > .kachat থেকে একটি নিন।</string>
-    <string name="kn_how_live_footer">টেস্টনেটে চালু: এখানে নাম, দাম ও পেমেন্ট testnet-10-এ TKAS ব্যবহার করে। মেইননেটের নাম আসবে অডিটের পরে।</string>
     <string name="kn_live_testnet_registry">টেস্টনেটে চালু (testnet-10 রেজিস্ট্রি)</string>
     <string name="kn_ev_transferred">হস্তান্তরিত</string>
     <string name="kn_ev_delisted">তালিকা থেকে সরানো</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">যে কেউ এই দামে কিনতে পারে: এক লেনদেনে পেমেন্ট আপনার কাছে আর নাম তার কাছে যায়। যেকোনো সময় তালিকা থেকে সরান।</string>
     <string name="kn_transfer_warning">হস্তান্তর ফেরানো যায় না। নতুন মালিক বর্তমান মেয়াদসহ নামটি পান; আপনার প্রোফাইল আপনার ঠিকানাতেই থাকে।</string>
     <string name="kn_new_owner">নতুন মালিক</string>
-    <string name="kn_err_not_testnet_address">এটি টেস্টনেট Schnorr ঠিকানা নয়।</string>
     <string name="kn_err_address_key">এই ঠিকানার কী বৈধ নয়।</string>
     <string name="kn_err_lookup">নামটি খুঁজে দেখা যায়নি।</string>
     <string name="kn_profile_belongs">আপনার প্রোফাইল আপনার ঠিকানার, কোনো নামের নয়: নাম কিনলে, বেচলে বা ছেড়ে দিলেও এটি একই থাকে।</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">প্রোফাইল সংরক্ষণ</string>
     <string name="kn_save_footer">সংরক্ষণ করলে নেটওয়ার্ক ফি দিয়ে আপনার ঠিকানা থেকে নিজের কাছে একটি লেনদেনে প্রোফাইলটি চেইনে লেখা হয়। প্রোফাইল সর্বজনীন।</string>
     <string name="kn_n_years">%1$d বছর</string>
-    <string name="kn_err_no_wallet">কোনো টেস্টনেট ওয়ালেট খোলা নেই।</string>
     <string name="kn_err_key_mismatch">এই ওয়ালেটের কী এর ঠিকানার সঙ্গে মেলে না।</string>
     <string name="kn_err_invalid_key">%1$s বৈধ কী নয় (secp256k1 কার্ভে নেই)।</string>
     <string name="kn_err_no_salt">এই নিবন্ধনের গোপন তথ্য এই ডিভাইসে নেই।</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">নাম ইনডেক্সার এই নামের পরিশোধিত মেয়াদকাল পাঠায়নি। রিফ্রেশ করতে নিচে টানুন এবং আবার চেষ্টা করুন।</string>
     <string name="kn_claim_step3_cap">যত বছরের জন্য পরিশোধ করেছেন, নামটি তত বছর আপনার, সর্বোচ্চ ২ বছর আগাম। ১ বছরের নাম ২ বছর পর্যন্ত বাড়ানো যায়; মেয়াদ শেষের ১০ দিন আগে থেকে নবায়ন করতে পারবেন।</string>
     <string name="kn_setting_up">সেট আপ হচ্ছে</string>
-    <string name="kn_registry_upgrading">টেস্টনেটে .kachat রেজিস্ট্রি আপগ্রেড হচ্ছে। নতুন রেজিস্ট্রি চালু হলে নামগুলো এখানে আবার খুলবে।</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat নাম</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">আপনার অ্যাড্রেস বুক ও পোর্টফোলিও একই ব্যাকআপে থাকে এবং একইভাবে আপনার ডিভাইসগুলোর মধ্যে সিঙ্ক হয়।</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">গ্রেস পিরিয়ড শেষ %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">.kachat রেজিস্ট্রি আপগ্রেড হচ্ছে। নতুন রেজিস্ট্রি চালু হলে নামগুলো এখানে আবার খুলবে।</string>
+    <string name="kn_err_no_wallet_open">কোনো ওয়ালেট খোলা নেই।</string>
+    <string name="kn_err_not_network_address">এই নেটওয়ার্কে এটি Schnorr ঠিকানা নয়।</string>
+    <string name="kn_how_live_footer_mainnet">Mainnet-এ চালু: এখানে নাম, দাম ও পেমেন্ট আসল KAS-এ।</string>
+    <string name="kn_how_live_footer_testnet">Testnet-এ চালু: এখানে নাম, দাম ও পেমেন্ট testnet-10-এর TKAS-এ। Mainnet নাম Mainnet-এ চালু।</string>
+    <string name="kn_live_on_mainnet">Mainnet-এ চালু</string>
 </resources>

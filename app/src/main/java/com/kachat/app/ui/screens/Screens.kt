@@ -11258,11 +11258,11 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             // .kachat first: it is what every address field resolves before anything else (iOS 6ac48a7).
             SettingsSection(title = stringResource(R.string.kn_kachat_names)) {
                 val isMainnet = network.equals("mainnet", ignoreCase = true)
-                // Testnet: the testnet-10 registry, read through the chat indexer above when it
-                // serves names, else straight from the chain (KachatNamesRegistry, iOS 5df42b4).
+                // Read through the chat indexer above when it serves this network's names, else
+                // straight from the chain (KachatNamesRegistry, iOS 5df42b4, ef6b21e).
                 ConnectionUrlField(
                     label = "KaChat Names (.kachat)",
-                    value = stringResource(if (isMainnet) R.string.coming_soon else R.string.kn_live_testnet_registry)
+                    value = stringResource(if (isMainnet) R.string.kn_live_on_mainnet else R.string.kn_live_testnet_registry)
                 )
                 SettingsFooter(stringResource(R.string.kachat_names_resolved_first_footer))
             }

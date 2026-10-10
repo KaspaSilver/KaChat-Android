@@ -262,7 +262,7 @@ class KaChatApplication : Application(), Configuration.Provider {
                 nodePoolManager.reconnectStaleConnections()
                 // This wallet's own profile follows the chain on every network (a profile saved
                 // on another device shows here; iOS 5d4ce87), and .kachat registrations in flight
-                // (testnet only; nothing on mainnet) resume after a relaunch: commit -> wait ->
+                // (where names are live) resume after a relaunch: commit -> wait ->
                 // register continues by itself.
                 if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) {
                     try {
@@ -273,8 +273,8 @@ class KaChatApplication : Application(), Configuration.Provider {
                 }
                 if (com.kachat.app.services.kachatnames.KachatNamesService.isLaunched) {
                     // .kachat news for the Profile bell (offers, sales, renewal, expiry): the
-                    // refresh runs KachatNamesNotifier (iOS 86471dd). Testnet only until names
-                    // launch on mainnet.
+                    // refresh runs KachatNamesNotifier (iOS 86471dd). Where names are live
+                    // (testnet-10, and mainnet since iOS ef6b21e).
                     owner.lifecycleScope.launch(Dispatchers.IO) {
                         try {
                             kachatNamesRegistry.get().refreshIfStale()

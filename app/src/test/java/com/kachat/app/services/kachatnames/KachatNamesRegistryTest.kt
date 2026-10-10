@@ -7,6 +7,7 @@ import com.google.gson.JsonParser
 import com.kachat.app.services.kachatnames.KachatNames.Codec
 import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaNetwork
 import com.kachat.app.util.Schnorr
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -25,11 +26,16 @@ import org.junit.Test
  * parser and the indexer shapes. Plus the Android-side pure pieces: the `.kachat` resolution
  * rule (active names only), signing and the protowire conversion, funding UTXO selection and
  * the curve check. [KachatNamesRegistryV5Test] runs the same over the registry v5 vectors, which
- * open with two imports from a migration snapshot (iOS 6f18475).
+ * open with two imports from a migration snapshot (iOS 6f18475), and [KachatNamesRegistryMainnetTest]
+ * over the mainnet vectors (kachat-domains a99afeb, iOS ef6b21e).
+ *
+ * Unit tests never call KaspaNetwork.init, so the app runs on mainnet here: addresses come out with
+ * the running network's prefix ([KachatNamesService.addressPrefix]).
  */
 open class KachatNamesRegistryTest {
 
-    /** The vectors file: the v4 set here, the v5 set in [KachatNamesRegistryV5Test]. */
+    /** The vectors file: the v4 set here, the v5 set in [KachatNamesRegistryV5Test], the mainnet set
+     *  in [KachatNamesRegistryMainnetTest]. */
     protected open val vectorsResource: String = "KachatNamesVectors.json"
 
     private class Report {
@@ -170,9 +176,10 @@ open class KachatNamesRegistryTest {
         return state
     }
 
-    /** P2SH and P2PK scripts as `kaspatest:` addresses (iOS `KaspaAddress.address(fromScriptPublicKey:)`). */
+    /** P2SH and P2PK scripts as addresses of the network the app runs on (iOS
+     *  `KaspaAddress.address(fromScriptPublicKey:)`). */
     private fun addr(script: ByteArray): String? =
-        KachatNamesService.p2shAddress(script) ?: Codec.p2pkKey(script)?.let { KaspaAddress.encode("kaspatest", 0x00, it) }
+        KachatNamesService.p2shAddress(script) ?: Codec.p2pkKey(script)?.let { KaspaAddress.encode(KachatNamesService.addressPrefix, 0x00, it) }
 
     // The decoder over the vectors
 
@@ -237,7 +244,7 @@ open class KachatNamesRegistryTest {
         val alphaRegister = e2e[lead + 3].o("args")
         r.eq(alpha?.periodStart, alphaRegister.l("now"), "alpha-tn: periodStart = register's now, kept by extend, transfer, list and buy")
         r.eq(alpha?.expiresAt, alphaRegister.l("now") + 2 * m.params.periodMs, "alpha-tn: registered for 1 period, extended by 1")
-        r.eq(m.params.periodMs, 86_400_000L, "testnet vectors run the 24-hour clock")
+        r.eq(m.params.periodMs, if (m.network == "mainnet") 31_536_000_000L else 86_400_000L, "the vectors run their network's clock")
         // applying again changes nothing
         val snapshot = state.copy()
         for ((i, st) in e2e.withIndex()) runCatching { state.apply(view(st, 1_000L + i), m) }
@@ -695,11 +702,13 @@ open class KachatNamesRegistryTest {
         assertNull("a name at the end of grace has lapsed", KachatNames.resolvedOwner(registered(now - g), g, now))
         assertNull("a lapsed name does not resolve", KachatNames.resolvedOwner(registered(now - g - 1), g, now))
         assertNull("a free name does not resolve", KachatNames.resolvedOwner(Lookup.Free("alice", null), g, now))
-        // and the owner key comes back as its kaspatest: address, and back again
+        // and the owner key comes back as its address on the network the app runs on, and back
+        // again; the other network's address has no key here (iOS ef6b21e)
         val a = KachatNamesRegistry.address(owner)!!
-        assertTrue(a.startsWith("kaspatest:q"))
+        assertTrue(a.startsWith(KachatNamesService.addressPrefix + ":q"))
         assertEquals(hex(owner), KachatNamesRegistry.keyOf(a)?.let { hex(it) })
-        assertNull("a mainnet address has no testnet key", KachatNamesRegistry.keyOf(KaspaAddress.encode("kaspa", 0x00, owner)))
+        val otherPrefix = if (KachatNamesService.addressPrefix == "kaspa") "kaspatest" else "kaspa"
+        assertNull("the other network's address has no key here", KachatNamesRegistry.keyOf(KaspaAddress.encode(otherPrefix, 0x00, owner)))
     }
 
     // REST and indexer shapes
@@ -724,12 +733,17 @@ open class KachatNamesRegistryTest {
             r.eq(t.outputs[0].covenant?.let { hex(it.covenantId) }, "9444187f09a3e77450e125d448b21eb79b3c54b692a5b3f3e8af38343b9a7a51", "REST covenant id")
             r.eq(t.outputs[1].covenant, null, "REST plain output")
             r.eq(t.at, 1790909722989L, "REST acceptance time")
+            // the testnet genesis's addresses, in the running network's prefix (iOS ef6b21e)
             r.eq(
                 KachatNamesService.p2shAddress(t.outputs[0].script),
-                "kaspatest:pzg7r3p9wthvxxjtm74k7nlznrl9rjcfxjkx7txmslss2gyzw3xvj686vxecj",
+                KaspaNetwork.reencode("kaspatest:pzg7r3p9wthvxxjtm74k7nlznrl9rjcfxjkx7txmslss2gyzw3xvj686vxecj", KachatNamesService.addressPrefix),
                 "P2SH address of the genesis gap"
             )
-            r.eq(addr(t.outputs[1].script), "kaspatest:qz5xdn6e0clxsyey4k7pzhkrfjnhg6qneac0d0lyl8pk7tya6vyysf8pt3r8m", "P2PK address")
+            r.eq(
+                addr(t.outputs[1].script),
+                KaspaNetwork.reencode("kaspatest:qz5xdn6e0clxsyey4k7pzhkrfjnhg6qneac0d0lyl8pk7tya6vyysf8pt3r8m", KachatNamesService.addressPrefix),
+                "P2PK address"
+            )
         }
         val rejected = j.deepCopy().apply { addProperty("is_accepted", false) }
         r.check(runCatching { TxView.fromREST(rejected) }.let { it.isSuccess && it.getOrNull() == null }) { "REST: a transaction not accepted is skipped" }
@@ -986,4 +1000,10 @@ open class KachatNamesRegistryTest {
  *  same plan after two imports from a migration snapshot, imports walked in any order. */
 class KachatNamesRegistryV5Test : KachatNamesRegistryTest() {
     override val vectorsResource: String = "KachatNamesVectors-v5.json"
+}
+
+/** [KachatNamesRegistryTest] over kachat-domains a99afeb's mainnet vectors (iOS ef6b21e): registry v4
+ *  under the mainnet params - the yearly clock, the audited budgets. */
+class KachatNamesRegistryMainnetTest : KachatNamesRegistryTest() {
+    override val vectorsResource: String = "KachatNamesVectors-mainnet.json"
 }

@@ -42,7 +42,8 @@ enum class BudgetRole(val raw: String) {
  * no engine, so it commits a fixed budget per entry that covers every case (README "Cost per
  * operation"; the vector generator checks every measured budget fits this table, the vectors'
  * `recommendedBudgets`). An input that needs more than it committed fails, so these only ever err
- * on the side of a slightly higher fee (100 grams per unit). Registry v4 (iOS 0ed15e9).
+ * on the side of a slightly higher fee (100 grams per unit). Registry v4 on the audited contracts
+ * (mainnet, kachat-domains a99afeb; iOS 0ed15e9, ef6b21e); the pre-audit v4 needed 8 / 4.
  */
 data class Budgets(val table: Map<BudgetRole, Int>) {
     operator fun get(role: BudgetRole): Int = table[role] ?: RECOMMENDED.table[role] ?: 0
@@ -54,7 +55,9 @@ data class Budgets(val table: Map<BudgetRole, Int>) {
         val RECOMMENDED = Budgets(
             mapOf(
                 BudgetRole.P2PK to 10, BudgetRole.COMMIT to 10,
-                BudgetRole.GAP_REGISTER to 8, BudgetRole.GAP_MERGE to 4, BudgetRole.GAP_ABSORBED to 0, BudgetRole.GAP_IMPORT to 0,
+                // the audited v4 contracts (mainnet v1): audit C2's fee loop reads every input's
+                // covenant id - register up to 92,048 script units (9), merge 50,084 (5)
+                BudgetRole.GAP_REGISTER to 9, BudgetRole.GAP_MERGE to 5, BudgetRole.GAP_ABSORBED to 0, BudgetRole.GAP_IMPORT to 0,
                 BudgetRole.NAME_TRANSFER to 12, BudgetRole.NAME_LIST to 12, BudgetRole.NAME_BUY to 2,
                 BudgetRole.NAME_EXTEND to 2, BudgetRole.NAME_RENEW to 2, BudgetRole.NAME_RELEASE to 10,
                 BudgetRole.NAME_RECLAIM to 0,
@@ -272,8 +275,8 @@ data class Plan(
  * change and fee rule. Pure: they read decoded registry records with their live UTXOs and the
  * signer's spendable P2PK UTXOs, and never touch the network.
  *
- * Only over a verified testnet-10 manifest ([Manifest.verify], run by the constructor): the
- * builders never run against an unverified registry or another network.
+ * Only over a verified manifest ([Manifest.verify], run by the constructor) of a network with a
+ * live registry: the builders never run against an unverified registry.
  */
 class Builder(val manifest: Manifest) {
 
@@ -928,9 +931,13 @@ class Builder(val manifest: Manifest) {
         private fun checkKey(key: ByteArray, what: String) {
             if (key.size != 32 || key.contentEquals(KachatNames.ZERO32)) throw Failure("$what must be a non-zero 32-byte x-only key")
         }
-
-        /** `12.34000000 TKAS` (testnet-10 only, like iOS). */
-        internal fun kas(sompi: Long): String =
-            String.format(Locale.US, "%d.%08d TKAS", sompi / KachatNames.SOMPI_PER_KAS, sompi % KachatNames.SOMPI_PER_KAS)
     }
+
+    /** An amount in a plan's description, in this registry's unit (`12.34000000 KAS` on mainnet,
+     *  `TKAS` on testnet) - the CLI's wording, which the vectors compare (iOS ef6b21e). */
+    private fun kas(sompi: Long): String =
+        String.format(
+            Locale.US, "%d.%08d %s", sompi / KachatNames.SOMPI_PER_KAS, sompi % KachatNames.SOMPI_PER_KAS,
+            if (manifest.network == "mainnet") "KAS" else "TKAS"
+        )
 }

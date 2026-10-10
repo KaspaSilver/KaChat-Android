@@ -36,7 +36,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** A registration in flight: commit -> wait `tCommit` DAA -> register. Kept per wallet in
- *  `filesDir/KachatNames/testnet-10/pending-<wallet>.json` (the salt in encrypted preferences), so
+ *  `filesDir/KachatNames/<network>/pending-<wallet>.json` (the salt in encrypted preferences), so
  *  it resumes after a relaunch. iOS `KachatNames.PendingRegistration` (KaChat 1ed6e57). */
 data class PendingRegistration(
     /** Names the salt in the encrypted preferences. */
@@ -100,8 +100,8 @@ data class PendingRegistration(
 /**
  * The `.kachat` actions: every operation the screens offer, built with the pure builders over
  * UTXOs re-read from a node, signed with the wallet key and submitted ([KachatNamesService]), plus
- * the registration driver (commit, wait, register - resumable). Testnet-10 only: each entry goes
- * through [KachatNamesService.requireLaunched] (on `isLaunched`, iOS d657ee3). Every action returns its txid and refreshes the
+ * the registration driver (commit, wait, register - resumable). On a network with a live registry
+ * only: each entry goes through [KachatNamesService.requireLaunched] (on `isLaunched`, iOS d657ee3). Every action returns its txid and refreshes the
  * registry once the transaction is accepted. A port of iOS
  * KaChat/Services/KachatNames/KachatNamesActions.swift (KaChat 1ed6e57, 5df42b4; registry v2 extend and
  * the renewal window from 5766c00; expired offers going back from ba07975; registry v3 - offers made
@@ -160,7 +160,7 @@ class KachatNamesActions @Inject constructor(
 
     /** Action errors; English like iOS's service errors (iOS localizes these five). */
     sealed class ActionError(message: String) : Exception(message) {
-        class NoWallet : ActionError("No testnet wallet is open.")
+        class NoWallet : ActionError("No wallet is open.")
         class KeyMismatch : ActionError("This wallet's key does not match its address.")
         class InvalidKey(what: String) : ActionError("$what is not a valid key (not on the secp256k1 curve).")
         class NoSalt : ActionError("The secret for this registration is missing on this device.")
@@ -232,11 +232,12 @@ class KachatNamesActions @Inject constructor(
 
     class Signer(val address: String, val privateKey: ByteArray, val me: ByteArray)
 
-    /** The current wallet's testnet address, key and x-only key (they must agree). */
+    /** The current wallet's address on this network, its key and x-only key (they must agree;
+     *  iOS ef6b21e). */
     fun signer(): Signer {
         service.requireLaunched()
         val address = walletManager.getActiveAccount()?.address?.lowercase()
-        if (address == null || !address.startsWith("kaspatest:")) throw ActionError.NoWallet()
+        if (address == null || !address.startsWith(KachatNamesService.addressPrefix + ":")) throw ActionError.NoWallet()
         val key = try { walletManager.getPrivateKeyBytes() } catch (_: Exception) { throw ActionError.NoWallet() }
         val me = KachatNamesService.xonlyKey(key)
         if (!me.contentEquals(KachatNamesRegistry.keyOf(address))) throw ActionError.KeyMismatch()
@@ -245,8 +246,8 @@ class KachatNamesActions @Inject constructor(
 
     /**
      * The current wallet's chatting address and key on the network the app runs on - the profile
-     * record's signer (iOS d36fc42 `profileSigner()`). Unlike [signer] it isn't testnet-only:
-     * profiles work on mainnet before its registry launches ([KachatNamesService.profilesEnabled]).
+     * record's signer (iOS d36fc42 `profileSigner()`). Unlike [signer] it doesn't need a live
+     * registry: profiles work on every network ([KachatNamesService.profilesEnabled]).
      */
     fun profileSigner(): Signer {
         if (!KachatNamesService.profilesEnabled) throw KachatNamesService.ServiceError.TestnetOnly()
@@ -322,9 +323,9 @@ class KachatNamesActions @Inject constructor(
         val spending = heldBy?.let { ownAddress(it) } as? OwnAddress.Spending
         if (heldBy != null && spending != null) {
             service.requireLaunched()
-            // the spending address must be a testnet one on the network the app runs on (iOS d657ee3)
+            // the spending address must be on the network the app runs on (iOS d657ee3, ef6b21e)
             val address = spending.address.lowercase()
-            if (!address.startsWith("kaspatest:") || !KaspaNetwork.isOnActiveNetwork(address)) {
+            if (!address.startsWith(KachatNamesService.addressPrefix + ":") || !KaspaNetwork.isOnActiveNetwork(address)) {
                 throw KachatNamesService.ServiceError.WrongAddressNetwork()
             }
             val key = try { walletManager.getSpendingPrivateKeyBytes(spending.index) } catch (_: Exception) { throw ActionError.NoWallet() }
@@ -1041,8 +1042,8 @@ class KachatNamesActions @Inject constructor(
 
     /**
      * Brings this wallet's own profile up to date with the chain (every network), then loads its
-     * registrations and drives the open ones (testnet). Call when a screen appears and when the
-     * app comes to the foreground (KaChatApplication, iOS app-active).
+     * registrations and drives the open ones (on a network with a live registry). Call when a
+     * screen appears and when the app comes to the foreground (KaChatApplication, iOS app-active).
      */
     fun resume() {
         val address = myAddress
@@ -1540,7 +1541,7 @@ class KachatNamesActions @Inject constructor(
             if (nowMs - 180_000L < deadline) throw ActionError.RegistrationNotOpen(deadline + 180_000L)
         }
 
-        /** The `kaspatest:` address of a P2PK output script (`<32-byte key> OP_CHECKSIG`). */
+        /** The address (this network's prefix) of a P2PK output script (`<32-byte key> OP_CHECKSIG`). */
         fun p2pkAddress(script: ByteArray): String? {
             if (script.size != 34 || script[0].toInt() != 0x20 || (script[33].toInt() and 0xff) != 0xac) return null
             return KachatNamesRegistry.address(script.copyOfRange(1, 33))

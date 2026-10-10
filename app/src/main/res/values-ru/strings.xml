@@ -606,7 +606,6 @@
     <string name="nextcloud_off_on_testnet_footer">Резервные копии, синхронизация, медиа и звонки через Nextcloud работают только в основной сети, поэтому тестовая сеть никогда не перезапишет вашу резервную копию. Выключите тестовую сеть в Настройки > Подключение, и подключение к Nextcloud вернётся как было.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">В тестнете получите имя в Kaspa Hub > .kachat.</string>
-    <string name="kn_how_live_footer">Работает в тестнете: имена, цены и платежи здесь в TKAS в testnet-10. Имена в основной сети появятся после аудита.</string>
     <string name="kn_live_testnet_registry">Работает в тестнете (реестр testnet-10)</string>
     <string name="kn_ev_transferred">Передано</string>
     <string name="kn_ev_delisted">Снято с продажи</string>
@@ -691,7 +690,6 @@
     <string name="kn_list_footer">Любой может купить его по этой цене: платёж приходит вам, а имя — покупателю одной транзакцией. Снять с продажи можно в любой момент.</string>
     <string name="kn_transfer_warning">Передачу нельзя отменить. Новый владелец получает имя с текущим сроком; ваш профиль остаётся на вашем адресе.</string>
     <string name="kn_new_owner">Новый владелец</string>
-    <string name="kn_err_not_testnet_address">Это не адрес Schnorr в тестнете.</string>
     <string name="kn_err_address_key">Ключ этого адреса недействителен.</string>
     <string name="kn_err_lookup">Не удалось найти это имя.</string>
     <string name="kn_profile_belongs">Профиль принадлежит вашему адресу, а не имени: он не меняется, когда вы покупаете, продаёте или отпускаете имя.</string>
@@ -702,7 +700,6 @@
     <string name="kn_save_profile">Сохранить профиль</string>
     <string name="kn_save_footer">При сохранении профиль записывается в сеть транзакцией с вашего адреса на него же за сетевую комиссию. Профили публичны.</string>
     <string name="kn_n_years">%1$d года</string>
-    <string name="kn_err_no_wallet">Нет открытого кошелька тестнета.</string>
     <string name="kn_err_key_mismatch">Ключ этого кошелька не соответствует его адресу.</string>
     <string name="kn_err_invalid_key">%1$s — недопустимый ключ (не на кривой secp256k1).</string>
     <string name="kn_err_no_salt">Секрет этой регистрации отсутствует на этом устройстве.</string>
@@ -766,7 +763,6 @@
     <string name="kn_err_period_unknown">Индексатор имён не прислал оплаченный период этого имени. Потяните вниз, чтобы обновить, и попробуйте снова.</string>
     <string name="kn_claim_step3_cap">Имя ваше на оплаченные годы, не больше 2 вперёд. Имя на 1 год можно дополнить до 2 лет; за 10 дней до окончания срока его можно продлить.</string>
     <string name="kn_setting_up">Настраивается</string>
-    <string name="kn_registry_upgrading">Реестр .kachat в Testnet обновляется. Имена снова откроются здесь, как только заработает новый реестр.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Имена .kachat</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1214,4 +1210,11 @@
     <string name="nextcloud_sync_address_book_portfolios">Адресная книга и портфели хранятся в той же резервной копии и так же синхронизируются между устройствами.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Льготный период до %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">Реестр .kachat обновляется. Имена снова откроются здесь, когда новый реестр заработает.</string>
+    <string name="kn_err_no_wallet_open">Кошелёк не открыт.</string>
+    <string name="kn_err_not_network_address">Это не Schnorr-адрес этой сети.</string>
+    <string name="kn_how_live_footer_mainnet">Работает в Mainnet: имена, цены и платежи здесь в настоящих KAS.</string>
+    <string name="kn_how_live_footer_testnet">Работает в Testnet: имена, цены и платежи здесь в TKAS сети testnet-10. Имена Mainnet работают в Mainnet.</string>
+    <string name="kn_live_on_mainnet">Работает в Mainnet</string>
 </resources>

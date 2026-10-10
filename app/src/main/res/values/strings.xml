@@ -781,7 +781,6 @@
     <string name="nextcloud_off_on_testnet_footer">Backups, sync, media and calls through Nextcloud work on mainnet only, so testnet can never overwrite your mainnet backup. Turn off Testnet in Settings > Connection and your Nextcloud connection comes back as it was.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
     <string name="kn_guide_testnet">On Testnet, claim one in Kaspa Hub > .kachat.</string>
-    <string name="kn_how_live_footer">Live on Testnet: names, prices and payments here use TKAS on testnet-10. Mainnet names come after an audit.</string>
     <string name="kn_live_testnet_registry">Live on Testnet (testnet-10 registry)</string>
     <string name="kn_ev_transferred">Transferred</string>
     <string name="kn_ev_delisted">Delisted</string>
@@ -866,7 +865,6 @@
     <string name="kn_list_footer">Anyone can buy it at this price: the payment reaches you and the name reaches them in one transaction. Delist any time.</string>
     <string name="kn_transfer_warning">A transfer can\'t be undone. The new owner gets the name with its current expiry; your profile stays with your address.</string>
     <string name="kn_new_owner">New owner</string>
-    <string name="kn_err_not_testnet_address">Not a testnet Schnorr address.</string>
     <string name="kn_err_address_key">That address\'s key is not valid.</string>
     <string name="kn_err_lookup">Couldn\'t look that name up.</string>
     <string name="kn_profile_belongs">Your profile belongs to your address, not to a name: it stays the same when you buy, sell or let a name go.</string>
@@ -877,7 +875,6 @@
     <string name="kn_save_profile">Save Profile</string>
     <string name="kn_save_footer">Saving writes your profile to the chain from your address to itself, for a network fee. Profiles are public.</string>
     <string name="kn_n_years">%1$d years</string>
-    <string name="kn_err_no_wallet">No testnet wallet is open.</string>
     <string name="kn_err_key_mismatch">This wallet\'s key does not match its address.</string>
     <string name="kn_err_invalid_key">%1$s is not a valid key (not on the secp256k1 curve).</string>
     <string name="kn_err_no_salt">The secret for this registration is missing on this device.</string>
@@ -941,7 +938,6 @@
     <string name="kn_err_period_unknown">The names indexer didn\'t send this name\'s paid period. Pull to refresh and try again.</string>
     <string name="kn_claim_step3_cap">The name is yours for the years you paid, at most 2 ahead. A 1-year name can be extended to 2 years; from 10 days before it expires you can renew it.</string>
     <string name="kn_setting_up">Setting up</string>
-    <string name="kn_registry_upgrading">The .kachat registry on Testnet is being upgraded. Names open here again once the new registry is live.</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat Names</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
@@ -1416,4 +1412,11 @@
     <string name="nextcloud_sync_address_book_portfolios">Your Address Book and portfolios are in the same backup and sync between your devices the same way.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Grace ends %1$s</string>
+    <!-- .kachat on mainnet (iOS ef6b21e) -->
+    <string name="kn_registry_being_upgraded">The .kachat registry is being upgraded. Names open here again once the new registry is live.</string>
+    <string name="kn_err_no_wallet_open">No wallet is open.</string>
+    <string name="kn_err_not_network_address">Not a Schnorr address on this network.</string>
+    <string name="kn_how_live_footer_mainnet">Live on Mainnet: names, prices and payments here are real KAS.</string>
+    <string name="kn_how_live_footer_testnet">Live on Testnet: names, prices and payments here use TKAS on testnet-10. Mainnet names are live on Mainnet.</string>
+    <string name="kn_live_on_mainnet">Live on Mainnet</string>
 </resources>
