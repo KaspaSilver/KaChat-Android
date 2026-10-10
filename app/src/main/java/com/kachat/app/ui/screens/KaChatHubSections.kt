@@ -74,6 +74,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.kachat.app.util.KaspaUnit
+import com.kachat.app.services.kachatnames.nowMs
 
 // ---------------------------------------------------------------------------------------------
 // Kaspa Hub > .kachat - the marketplace for KaChat's own names (iOS b064468, KachatMarketView).
