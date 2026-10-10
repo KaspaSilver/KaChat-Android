@@ -1224,4 +1224,12 @@
     <string name="kn_combining_coins">KAS\'ınız birçok küçük coine dağılmış. Önce tek bir coinde birleştiriliyor...</string>
     <string name="kn_combines_coins_note">KAS\'ınız birçok küçük coine dağılmış. KaChat kayıttan önce bunları çok küçük ek bir ağ ücretiyle tek bir coinde birleştirir.</string>
     <string name="kn_not_enough_to_combine">Sohbet adresinizde bunun için yeterli KAS yok.</string>
+    <!-- .kachat mainnet launch countdown (iOS c6ebf74) -->
+    <string name="kn_names_open_in">İsimlerin açılmasına</string>
+    <string name="kn_countdown_days">Gün</string>
+    <string name="kn_countdown_hours">Saat</string>
+    <string name="kn_countdown_minutes">Dakika</string>
+    <string name="kn_countdown_seconds">Saniye</string>
+    <string name="kn_launch_then_anyone">Sonra herkes burada .kachat ismi arayıp alabilir.</string>
+    <string name="kn_not_public_yet">.kachat isimleri herkese %1$s tarihinde açılıyor.</string>
 </resources>

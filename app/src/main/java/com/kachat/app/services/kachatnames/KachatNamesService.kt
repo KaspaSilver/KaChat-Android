@@ -453,6 +453,21 @@ class KachatNamesService @Inject constructor(
          */
         val isLaunched: Boolean get() = networkName in Manifest.SUPPORTED_NETWORKS
 
+        /**
+         * Mainnet's public opening, the owner's launch plan (kachat-domains docs/MAINNET.md): until
+         * then the marketplace shows a countdown and nobody searches or claims names in the app
+         * (the registry itself is open from its genesis; this gates the app only). Friday
+         * 2026-10-16, 8:00 AM Eastern (12:00 UTC). Names already held stay manageable meanwhile
+         * (iOS c6ebf74).
+         */
+        const val MAINNET_PUBLIC_LAUNCH_MS: Long = 1_792_152_000_000L
+
+        /** When this network's names open to everyone in the app; null once there is no countdown
+         *  (testnet never has one; iOS c6ebf74). */
+        val publicLaunchMs: Long? get() = if (networkName == "mainnet") MAINNET_PUBLIC_LAUNCH_MS else null
+
+        fun isPubliclyOpen(nowMs: Long = KachatNames.nowMs()): Boolean = publicLaunchMs?.let { nowMs >= it } ?: true
+
         /** The manifest network name of the network the app runs on (iOS ef6b21e). */
         val networkName: String get() = if (KaspaNetwork.launch == KaspaNetwork.Type.MAINNET) "mainnet" else "testnet-10"
 

@@ -1224,4 +1224,12 @@
     <string name="kn_combining_coins">Tus KAS están en muchas monedas pequeñas. Primero se combinan en una...</string>
     <string name="kn_combines_coins_note">Tus KAS están en muchas monedas pequeñas. KaChat las combina en una antes de registrar, por una comisión de red extra mínima.</string>
     <string name="kn_not_enough_to_combine">No hay suficientes KAS en tu dirección de chat para esto.</string>
+    <!-- .kachat mainnet launch countdown (iOS c6ebf74) -->
+    <string name="kn_names_open_in">Los nombres abren en</string>
+    <string name="kn_countdown_days">Días</string>
+    <string name="kn_countdown_hours">Horas</string>
+    <string name="kn_countdown_minutes">Minutos</string>
+    <string name="kn_countdown_seconds">Segundos</string>
+    <string name="kn_launch_then_anyone">Después, cualquiera podrá buscar y reclamar un nombre .kachat aquí.</string>
+    <string name="kn_not_public_yet">Los nombres .kachat se abren a todos el %1$s.</string>
 </resources>

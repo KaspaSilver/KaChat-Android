@@ -1224,4 +1224,12 @@
     <string name="kn_combining_coins">KASが多数の小さなコインに分かれています。まず1つにまとめています...</string>
     <string name="kn_combines_coins_note">KASが多数の小さなコインに分かれています。登録の前にKaChatが1つにまとめます(ごくわずかな追加ネットワーク手数料がかかります)。</string>
     <string name="kn_not_enough_to_combine">チャット用アドレスにこれを行うのに十分なKASがありません。</string>
+    <!-- .kachat mainnet launch countdown (iOS c6ebf74) -->
+    <string name="kn_names_open_in">名前の公開まで</string>
+    <string name="kn_countdown_days">日</string>
+    <string name="kn_countdown_hours">時間</string>
+    <string name="kn_countdown_minutes">分</string>
+    <string name="kn_countdown_seconds">秒</string>
+    <string name="kn_launch_then_anyone">その後、誰でもここで.kachatの名前を検索して取得できます。</string>
+    <string name="kn_not_public_yet">.kachatの名前は%1$sに全員に公開されます。</string>
 </resources>

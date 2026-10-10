@@ -1255,4 +1255,12 @@
     <string name="kn_combining_coins">KAS شما در سکه‌های کوچک زیادی پخش است. ابتدا در یک سکه ادغام می‌شوند...</string>
     <string name="kn_combines_coins_note">KAS شما در سکه‌های کوچک زیادی پخش است. KaChat پیش از ثبت آن‌ها را در یک سکه ادغام می‌کند، با کارمزد شبکه اضافی بسیار کم.</string>
     <string name="kn_not_enough_to_combine">برای این کار KAS کافی در نشانی گفت‌وگوی شما نیست.</string>
+    <!-- .kachat mainnet launch countdown (iOS c6ebf74) -->
+    <string name="kn_names_open_in">نام‌ها باز می‌شوند تا</string>
+    <string name="kn_countdown_days">روز</string>
+    <string name="kn_countdown_hours">ساعت</string>
+    <string name="kn_countdown_minutes">دقیقه</string>
+    <string name="kn_countdown_seconds">ثانیه</string>
+    <string name="kn_launch_then_anyone">پس از آن هر کسی می‌تواند اینجا نام .kachat جست‌وجو و ثبت کند.</string>
+    <string name="kn_not_public_yet">نام‌های .kachat در %1$s برای همه باز می‌شوند.</string>
 </resources>

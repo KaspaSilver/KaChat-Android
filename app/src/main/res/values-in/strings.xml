@@ -1093,4 +1093,12 @@
     <string name="kn_combining_coins">KAS Anda tersebar di banyak koin kecil. Koin-koin itu digabung jadi satu dulu...</string>
     <string name="kn_combines_coins_note">KAS Anda tersebar di banyak koin kecil. KaChat menggabungkannya jadi satu sebelum mendaftar, dengan biaya jaringan tambahan yang sangat kecil.</string>
     <string name="kn_not_enough_to_combine">KAS di alamat chat Anda tidak cukup untuk ini.</string>
+    <!-- .kachat mainnet launch countdown (iOS c6ebf74) -->
+    <string name="kn_names_open_in">Nama dibuka dalam</string>
+    <string name="kn_countdown_days">Hari</string>
+    <string name="kn_countdown_hours">Jam</string>
+    <string name="kn_countdown_minutes">Menit</string>
+    <string name="kn_countdown_seconds">Detik</string>
+    <string name="kn_launch_then_anyone">Setelah itu siapa pun bisa mencari dan mengklaim nama .kachat di sini.</string>
+    <string name="kn_not_public_yet">Nama .kachat dibuka untuk semua orang pada %1$s.</string>
 </resources>

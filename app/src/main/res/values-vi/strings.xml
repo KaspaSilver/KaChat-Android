@@ -1224,4 +1224,12 @@
     <string name="kn_combining_coins">KAS của bạn nằm rải rác trong nhiều đồng nhỏ. Đang gộp chúng thành một trước...</string>
     <string name="kn_combines_coins_note">KAS của bạn nằm rải rác trong nhiều đồng nhỏ. KaChat gộp chúng thành một trước khi đăng ký, với một khoản phí mạng nhỏ thêm.</string>
     <string name="kn_not_enough_to_combine">Địa chỉ chat của bạn không đủ KAS để làm việc này.</string>
+    <!-- .kachat mainnet launch countdown (iOS c6ebf74) -->
+    <string name="kn_names_open_in">Tên sẽ mở sau</string>
+    <string name="kn_countdown_days">Ngày</string>
+    <string name="kn_countdown_hours">Giờ</string>
+    <string name="kn_countdown_minutes">Phút</string>
+    <string name="kn_countdown_seconds">Giây</string>
+    <string name="kn_launch_then_anyone">Sau đó ai cũng có thể tìm và nhận tên .kachat tại đây.</string>
+    <string name="kn_not_public_yet">Tên .kachat mở cho mọi người vào %1$s.</string>
 </resources>

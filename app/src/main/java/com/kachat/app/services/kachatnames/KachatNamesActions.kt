@@ -218,6 +218,12 @@ class KachatNamesActions @Inject constructor(
         /** registry v5: registering opens at the migration deadline, once the old registry's names
          *  are imported (iOS dd836cb) */
         class RegistrationNotOpen(val opensMs: Long) : ActionError(registrationNotOpenNote(opensMs))
+
+        /** mainnet before its public opening ([KachatNamesService.publicLaunchMs], iOS c6ebf74) */
+        class NotPublicYet(val opensMs: Long) : ActionError(notPublicYetNote(opensMs))
+
+        /** Either reason registering can't start yet - shown as a notice, not an error (iOS c6ebf74). */
+        val isNotOpenYet: Boolean get() = this is RegistrationNotOpen || this is NotPublicYet
     }
 
     // Wallet
@@ -1370,9 +1376,11 @@ class KachatNamesActions @Inject constructor(
             val m = registry.prepare()
             // A commit isn't bound to a registry: one sent before a migration registers on the new
             // registry once its deadline passes. Until then it waits, saying why (iOS dd836cb).
+            // Nor before mainnet's public opening (iOS c6ebf74).
             try {
                 requireRegistrationOpen(m)
-            } catch (e: ActionError.RegistrationNotOpen) {
+            } catch (e: ActionError) {
+                if (!e.isNotOpenYet) throw e
                 set(p) { it.copy(lastError = e.message) }
                 return
             }
@@ -1647,11 +1655,17 @@ class KachatNamesActions @Inject constructor(
         fun registrationNotOpenNote(opensMs: Long): String =
             "Names are moving to the new registry. New names can be claimed from $opensMs."
 
+        /** Why a claim waits on mainnet before its public opening (English; the screens localize
+         *  it, with the time, from [opensMs]; iOS c6ebf74). */
+        fun notPublicYetNote(opensMs: Long): String = ".kachat names open to everyone on $opensMs."
+
         /**
          * Registry v5 refuses `register` until the migration deadline; checked against the wall
          * clock with the 3-minute margin `registerNow` takes off it (iOS dd836cb).
          */
         fun requireRegistrationOpen(m: Manifest, nowMs: Long = KachatNames.nowMs()) {
+            // mainnet's countdown: nobody claims a name in the app before the public opening (iOS c6ebf74)
+            KachatNamesService.publicLaunchMs?.let { opens -> if (nowMs < opens) throw ActionError.NotPublicYet(opens) }
             val deadline = m.params.migration?.deadlineMs ?: return
             if (nowMs - 180_000L < deadline) throw ActionError.RegistrationNotOpen(deadline + 180_000L)
         }

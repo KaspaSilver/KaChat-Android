@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -106,6 +107,20 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     var liveSheet by remember { mutableStateOf<KachatHubSheet?>(null) }
     if (live != null) {
         LaunchedEffect(Unit) { live.start() }
+    }
+    // Mainnet before its public opening shows the countdown instead of search and the pages;
+    // flips by itself when the moment comes (`KachatNamesService.publicLaunchMs`, iOS c6ebf74).
+    var publiclyOpen by remember { mutableStateOf(com.kachat.app.services.kachatnames.KachatNamesService.isPubliclyOpen()) }
+    // the countdown ends while the screen is open: the marketplace opens without a relaunch
+    LaunchedEffect(com.kachat.app.services.kachatnames.KachatNamesService.networkName) {
+        val names = com.kachat.app.services.kachatnames.KachatNamesService
+        publiclyOpen = names.isPubliclyOpen()
+        while (!publiclyOpen) {
+            val opens = names.publicLaunchMs ?: break
+            val left = maxOf(0L, opens - com.kachat.app.services.kachatnames.KachatNames.nowMs())
+            kotlinx.coroutines.delay(minOf(left, 60_000L) + 50L)
+            publiclyOpen = names.isPubliclyOpen()
+        }
     }
     // A name a tapped notification pointed at (where names are live).
     // One name screen at a time (iOS b799091): the same name again leaves the open one as it is,
@@ -243,6 +258,10 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     }
                 }
             }
+            val launchMs = com.kachat.app.services.kachatnames.KachatNamesService.publicLaunchMs
+            if (!publiclyOpen && launchMs != null) {
+                KachatLaunchCountdown(launchMs)
+            } else {
             // Search
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -324,6 +343,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     else -> ActivityPage()
                 }
             }
+            }
         }
         if (isLive) PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
       }
@@ -350,6 +370,82 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
+    }
+}
+
+/**
+ * Mainnet's countdown to the public opening (`KachatNamesService.publicLaunchMs`): days, hours,
+ * minutes and seconds ticking down, and the moment in the person's own time zone (iOS c6ebf74
+ * `KachatLaunchCountdown`).
+ */
+@Composable
+private fun KachatLaunchCountdown(opensMs: Long) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    // iOS `TimelineView(.periodic(from: .now, by: 1))`
+    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000L)
+            nowMs = System.currentTimeMillis()
+        }
+    }
+    val left = maxOf(0L, (opensMs - nowMs) / 1000)
+    Column(
+        Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.surface)
+            .padding(20.dp)
+            .semantics(mergeDescendants = true) {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(stringResource(R.string.kn_names_open_in), color = colors.textSecondary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LaunchCountdownUnit(left / 86_400, stringResource(R.string.kn_countdown_days))
+            LaunchCountdownUnit(left % 86_400 / 3_600, stringResource(R.string.kn_countdown_hours))
+            LaunchCountdownUnit(left % 3_600 / 60, stringResource(R.string.kn_countdown_minutes))
+            LaunchCountdownUnit(left % 60, stringResource(R.string.kn_countdown_seconds))
+        }
+        Text(
+            KachatLive.launch(opensMs, context),
+            color = colors.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            stringResource(R.string.kn_launch_then_anyone),
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+/** One of the countdown's four tiles: the number over its unit (iOS `KachatLaunchCountdown.unit`). */
+@Composable
+private fun RowScope.LaunchCountdownUnit(value: Long, label: String) {
+    val colors = LocalAppColors.current
+    Column(
+        Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(KaspaTeal.copy(alpha = 0.12f))
+            .padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            String.format(java.util.Locale.US, "%02d", value),
+            color = colors.textPrimary,
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold,
+            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum")
+        )
+        KachatFitText(label, color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, minScale = 0.7f)
     }
 }
 
