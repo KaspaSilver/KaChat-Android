@@ -1140,11 +1140,16 @@ private fun ChatCirclesStrip(
                         }
                     }
                 }
+                // The whole name: a long one carries on underneath (up to three lines) rather than
+                // being cut off, centered. Every name reserves the three lines, so every circle is
+                // the same height and the row has one known height - nothing for the chat list
+                // below to cut off, and the circles stay level (iOS 7a8ef1f, 55cb8e6).
                 Text(
                     item.title,
                     color = colors.textPrimary,
                     fontSize = 11.sp,
-                    maxLines = 1,
+                    minLines = 3,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.width(68.dp),
