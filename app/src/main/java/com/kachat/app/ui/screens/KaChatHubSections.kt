@@ -1347,7 +1347,9 @@ private fun KachatOfferScreen(onClose: () -> Unit) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextField(
                     value = amount,
-                    onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' } },
+                    // Thousands commas while shown, stored plain (iOS 40c5258).
+                    onValueChange = { amount = KaspaAmountGrouping.ungrouped(it, previous = amount).filter { c -> c.isDigit() || c == '.' } },
+                    visualTransformation = KaspaAmountGrouping.visualTransformation,
                     placeholder = { Text("0", color = colors.textTertiary, fontSize = 20.sp) },
                     singleLine = true,
                     textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),

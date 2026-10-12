@@ -276,7 +276,9 @@ fun AddToPortfolioSheet(
 
                         com.kachat.app.ui.theme.IosTextField(
                             value = amountText,
-                            onValueChange = { amountText = it },
+                            // Thousands commas while shown, stored plain (iOS 40c5258).
+                            onValueChange = { amountText = KaspaAmountGrouping.ungrouped(it, previous = amountText) },
+                            visualTransformation = KaspaAmountGrouping.visualTransformation,
                             label = { Text("Amount (${KaspaUnit.symbol})", color = colors.textSecondary) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
@@ -284,7 +286,9 @@ fun AddToPortfolioSheet(
                         )
                         com.kachat.app.ui.theme.IosTextField(
                             value = priceText,
-                            onValueChange = { priceText = it },
+                            // Thousands commas while shown, stored plain (iOS 40c5258).
+                            onValueChange = { priceText = KaspaAmountGrouping.ungrouped(it, previous = priceText) },
+                            visualTransformation = KaspaAmountGrouping.visualTransformation,
                             label = { Text("Price per KAS", color = colors.textSecondary) },
                             trailingIcon = {
                                 if (isLookingUpPrice) {

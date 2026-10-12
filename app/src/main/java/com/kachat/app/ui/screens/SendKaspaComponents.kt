@@ -79,12 +79,16 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -352,9 +356,11 @@ fun KaspaAmountEntry(
         }
     }
     val display = fiatAmountState.displayText
+    // Sized by what's shown, thousands commas included (iOS 40c5258).
+    val shown = KaspaAmountGrouping.grouped(display)
     val fontSize = when {
-        display.length <= 7 -> 52.sp
-        display.length <= 10 -> 40.sp
+        shown.length <= 7 -> 52.sp
+        shown.length <= 10 -> 40.sp
         else -> 30.sp
     }
     Column(
@@ -374,7 +380,11 @@ fun KaspaAmountEntry(
             val amountLabel = KaspaUnit.label(stringResource(R.string.amount_kas))
             BasicTextField(
                 value = display,
-                onValueChange = { raw -> fiatAmountState.onDisplayTextChange(sanitize(raw), priceInCurrency) },
+                // Shown with thousands commas ("12,345.5"); what the screen gets stays plain (iOS 40c5258).
+                onValueChange = { raw ->
+                    fiatAmountState.onDisplayTextChange(sanitize(KaspaAmountGrouping.ungrouped(raw, previous = display)), priceInCurrency)
+                },
+                visualTransformation = KaspaAmountGrouping.visualTransformation,
                 singleLine = true,
                 textStyle = TextStyle(
                     color = colors.textPrimary,
@@ -448,6 +458,80 @@ fun KaspaAmountEntry(
             }
             }
         }
+    }
+}
+
+/**
+ * Thousands commas on an amount field while it's shown ("12,345.5"), the plain number kept as the
+ * field's value (iOS 40c5258 `KaspaAmountEntry.grouped` / `ungrouped`, `Binding.groupedAmount`).
+ * Used by [KaspaAmountEntry], the .kachat offer and list price, Add to Portfolio and a portfolio
+ * transaction's quantity: put [visualTransformation] on the field and pass what's typed through
+ * [ungrouped] before it's stored. The commas are only drawn, so the value never contains them.
+ */
+object KaspaAmountGrouping {
+    /** "12345.5" -> "12,345.5": commas every three digits of the whole part, the rest as typed. */
+    fun grouped(plain: String): String {
+        val dot = plain.indexOf('.')
+        val whole = if (dot >= 0) plain.substring(0, dot) else plain
+        if (whole.length <= 3 || !whole.all { it in '0'..'9' }) return plain
+        val out = StringBuilder()
+        for ((i, ch) in whole.withIndex()) {
+            if (i > 0 && (whole.length - i) % 3 == 0) out.append(',')
+            out.append(ch)
+        }
+        return if (dot >= 0) out.toString() + plain.substring(dot) else out.toString()
+    }
+
+    /**
+     * The edited field back to a plain number. [edited] is the field's value after the edit and
+     * [previous] its value before (both without the drawn commas), so every comma in [edited] was
+     * typed or pasted. As on iOS, a comma typed as the decimal point (comma-decimal keyboards)
+     * stays one: typed at the end, or a single comma not three digits from the end in a number
+     * that showed no grouping ("0,5" pasted is 0.5, never 5). Any other comma goes.
+     */
+    fun ungrouped(edited: String, previous: String): String {
+        if (edited == "$previous,") {
+            return previous.replace(",", "") + "."
+        }
+        val comma = edited.indexOf(',')
+        if (!grouped(previous).contains(',') && !edited.contains('.') &&
+            edited.count { it == ',' } == 1 && edited.length - (comma + 1) != 3
+        ) {
+            return edited.replace(',', '.')
+        }
+        return edited.replace(",", "")
+    }
+
+    /** Draws [grouped] over the field's plain text, the cursor kept on the same digit. */
+    val visualTransformation: VisualTransformation = GroupedAmountTransformation
+}
+
+private object GroupedAmountTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val plain = text.text
+        val shown = KaspaAmountGrouping.grouped(plain)
+        if (shown == plain) return TransformedText(text, OffsetMapping.Identity)
+        // Each plain character's position in the shown text; a cursor just before a digit that
+        // has a comma in front of it sits after that comma.
+        val toShown = IntArray(plain.length + 1)
+        val toPlain = IntArray(shown.length + 1)
+        var o = 0
+        for (t in shown.indices) {
+            toPlain[t] = o
+            // Only the drawn commas are extra: grouped() inserts them, and a groupable whole part
+            // has none of its own (the fraction is copied as is, so it lines up 1:1 again).
+            if (o < plain.length && shown[t] == plain[o]) {
+                toShown[o] = t
+                o++
+            }
+        }
+        toPlain[shown.length] = plain.length
+        toShown[plain.length] = shown.length
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int = toShown[offset.coerceIn(0, plain.length)]
+            override fun transformedToOriginal(offset: Int): Int = toPlain[offset.coerceIn(0, shown.length)]
+        }
+        return TransformedText(AnnotatedString(shown), mapping)
     }
 }
 

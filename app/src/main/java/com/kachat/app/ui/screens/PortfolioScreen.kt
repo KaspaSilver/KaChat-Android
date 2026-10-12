@@ -2495,7 +2495,9 @@ private fun TransactionDialog(
                 // to Quantity in a shared row and just clipped at the field's edge.
                 com.kachat.app.ui.theme.IosTextField(
                     value = quantityText,
-                    onValueChange = { quantityText = it },
+                    // Thousands commas while shown, stored plain (iOS 40c5258).
+                    onValueChange = { quantityText = KaspaAmountGrouping.ungrouped(it, previous = quantityText) },
+                    visualTransformation = KaspaAmountGrouping.visualTransformation,
                     label = { Text(stringResource(R.string.quantity)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
