@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -210,8 +210,63 @@ private fun PaymentRequestShareButton(onClick: () -> Unit) {
 
 private enum class PaymentRequestDestination { CHATTING, SPENDING }
 
-/** Request Payment's tile icon (iOS "doc.text"). */
-val RequestPaymentIcon: androidx.compose.ui.graphics.vector.ImageVector get() = Icons.Outlined.Description
+/**
+ * Request Payment's tile icon, for the New sheet and a 1:1 chat's + sheet: iOS's SF Symbol
+ * "doc.text" (semibold) drawn to its proportions - a rounded page with its top-right corner folded
+ * down and two short lines of text in the middle. Material's Description reads as a different,
+ * squarer page with longer lines, and is already the File tile's icon next to this one.
+ */
+val RequestPaymentIcon: androidx.compose.ui.graphics.vector.ImageVector by lazy {
+    val ink = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.Black)
+    androidx.compose.ui.graphics.vector.ImageVector.Builder(
+        name = "RequestPaymentDocText",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        // the page, the fold's diagonal closing it
+        path(
+            stroke = ink,
+            strokeLineWidth = 2f,
+            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round,
+        ) {
+            moveTo(12.86f, 3.36f)
+            lineTo(7.04f, 3.36f)
+            arcTo(1.7f, 1.7f, 0f, false, false, 5.34f, 5.06f)
+            lineTo(5.34f, 18.94f)
+            arcTo(1.7f, 1.7f, 0f, false, false, 7.04f, 20.64f)
+            lineTo(16.96f, 20.64f)
+            arcTo(1.7f, 1.7f, 0f, false, false, 18.66f, 18.94f)
+            lineTo(18.66f, 9.17f)
+            close()
+        }
+        // the folded corner
+        path(
+            stroke = ink,
+            strokeLineWidth = 2f,
+            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round,
+        ) {
+            moveTo(11.96f, 3.36f)
+            lineTo(11.96f, 9.16f)
+            arcTo(1f, 1f, 0f, false, false, 12.96f, 10.16f)
+            lineTo(18.66f, 10.16f)
+        }
+        // the two lines of text
+        path(
+            stroke = ink,
+            strokeLineWidth = 1.1f,
+            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+        ) {
+            moveTo(8.8f, 13.8f)
+            lineTo(15.02f, 13.8f)
+            moveTo(8.8f, 16.68f)
+            lineTo(15.02f, 16.68f)
+        }
+    }.build()
+}
 
 /**
  * Makes a payment request link (iOS `CreatePaymentRequestView`, c6851d6 / 7c71a98 / 6594936): to

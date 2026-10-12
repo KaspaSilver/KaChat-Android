@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.ArrowCircleDown
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
@@ -2064,7 +2063,7 @@ private fun ChatsNewSheet(
                                     // A link asking for an exact amount (iOS c6851d6).
                                     ChatsNewTile(
                                         size = tileSize,
-                                        icon = Icons.Outlined.Description,
+                                        icon = RequestPaymentIcon,
                                         title = stringResource(R.string.pr_request_payment),
                                         hint = stringResource(R.string.pr_request_payment_hint),
                                     ) { close { onRequestPayment() } }
