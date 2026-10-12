@@ -111,6 +111,8 @@ class KachatNamesRegistry @Inject constructor(
     private val _revision = MutableStateFlow(0)
     /** Bumped whenever registry data may have changed, so screens reload. */
     val revision: StateFlow<Int> = _revision.asStateFlow()
+    /** When [refresh] last bumped [revision] (unix ms; see `refresh(announce)`). */
+    @Volatile private var revisionBumpedAt = 0L
 
     @Volatile private var cacheNetwork: String? = null
 
@@ -257,18 +259,30 @@ class KachatNamesRegistry @Inject constructor(
      * Walks the chain forward (no indexer) or just marks fresh data (indexer). Safe to call often.
      * Every refresh re-checks the source, so an indexer that fell behind is dropped and one that
      * caught up is used again (iOS 7aa6c6d).
+     *
+     * `announce = false` (the automatic [refreshIfStale]) bumps [revision] - which reloads every
+     * screen keyed on it and re-checks identities - only when something may have changed: the
+     * walk applied a transaction, the source changed, the last refresh had failed, or the last
+     * bump is five minutes old (an indexer can't say whether anything changed). Pull to refresh
+     * and read-your-writes always announce (iOS 0c305b5).
      */
-    suspend fun refresh() {
+    suspend fun refresh(announce: Boolean = true) {
         // Launched networks only (iOS 7227d69): mainnet never reads a registry.
         if (!KachatNamesService.isLaunched) return
         if (!_isRefreshing.compareAndSet(expect = false, update = true)) return
         val previousError = _lastError.value
+        val previousSource = _source.value
         try {
             val m = prepare(forceSourceCheck = true)
-            if (_source.value == Source.Chain) walk(m)
+            val walkedChanges = if (_source.value == Source.Chain) walk(m) else false
             _lastError.value = null
             _refreshedAt.value = System.currentTimeMillis()
-            bump()
+            val quiet = !announce && !walkedChanges && _source.value == previousSource && previousError == null &&
+                System.currentTimeMillis() - revisionBumpedAt < 300_000L
+            if (!quiet) {
+                bump()
+                revisionBumpedAt = System.currentTimeMillis()
+            }
             // what changed for this wallet's names and offers, into the Profile bell (iOS 86471dd)
             scope.launch { notifier.get().check() }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -332,10 +346,11 @@ class KachatNamesRegistry @Inject constructor(
     suspend fun refreshIfStale(maxAgeMs: Long = 60_000) {
         val at = _refreshedAt.value
         if (at != null && System.currentTimeMillis() - at < maxAgeMs) return
-        refresh()
+        refresh(announce = false)
     }
 
-    private suspend fun walk(m: Manifest) = withContext(Dispatchers.IO) { stateMutex.withLock {
+    /** True when the walk applied a transaction (or started from the genesis). */
+    private suspend fun walk(m: Manifest): Boolean = withContext(Dispatchers.IO) { stateMutex.withLock {
         // a copy: the walk only replaces the published state once it succeeded
         var state = (_chainState.value ?: RegistryState.atGenesis(m)).copy()
         var report = walkOnce(state, m)
@@ -354,8 +369,10 @@ class KachatNamesRegistry @Inject constructor(
         if (report.unresolved.isNotEmpty()) {
             Log.i(TAG, "${report.unresolved.size} spent registry UTXO(s) wait for the REST API to index their spend")
         }
+        val changed = report.applied.isNotEmpty() || _chainState.value == null
         _chainState.value = state
         saveCache(state)
+        changed
     } }
 
     private suspend fun walkOnce(state: RegistryState, m: Manifest): RegistryState.WalkReport {
