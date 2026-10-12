@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">ההתראות מהבוט הזה חוזרות.</string>
     <string name="bot_sheet_no_notification">אין התראות מהבוט הזה.</string>
     <string name="bot_sheet_delete_subtitle">מסיר את הצ׳אט הזה עד שתכתבו לבוט שוב.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">בקשת תשלום</string>
+    <string name="pr_request_payment_hint">קישור שמבקש סכום מדויק, עם מטרתו.</string>
+    <string name="pr_paid_to">משולם אל</string>
+    <string name="pr_chatting_footer">התשלום מגיע לצ׳אט שלך עם המשלם, עם ההערה.</string>
+    <string name="pr_spending_footer">משולם לכתובת חדשה שלך. המשלם רואה את ההערה, אבל היא לא נשלחת עם התשלום.</string>
+    <string name="pr_memo_placeholder">בשביל מה (אופציונלי)</string>
+    <string name="pr_copy">העתקת בקשת התשלום</string>
+    <string name="pr_anyone_note">מי שפותח או מדביק אותה ב-KaChat מקבל את מסך שליחת Kaspa ממולא, ורואה שהיא נוצרה מכתובת הצ׳אט שלך (חתומה במפתח שלה).</string>
+    <string name="pr_requested">מבוקש</string>
+    <string name="pr_paid_as_chat_payment">משולם כתשלום בצ׳אט: מופיע בצ׳אט שלך איתם.</string>
+    <string name="pr_paid_to_their_spending">משולם לכתובת ההוצאה שלהם.</string>
+    <string name="pr_payment_request">בקשת תשלום</string>
+    <string name="pr_preview">בקשת תשלום: %1$s KAS</string>
+    <string name="pr_tap_to_pay">הקישו לתשלום.</string>
+    <string name="pr_from_name">מ-%1$s</string>
+    <string name="pr_requested_by">התבקש על ידי</string>
+    <string name="pr_signed_by_their_chatting">חתום על ידי כתובת הצ׳אט שלהם. התשלום הולך לכתובת שלמעלה.</string>
+    <string name="pr_not_signed">לא חתום: לא ניתן לאשר מי יצר את הבקשה.</string>
+    <string name="pr_your_payment_request">בקשת התשלום שלך</string>
+    <string name="pr_your_request_tap_to_view">בקשת התשלום שלך. הקישו לצפייה.</string>
+    <string name="pr_paid_to_your_chatting">משולם לכתובת הצ׳אט שלך</string>
+    <string name="pr_paid_to_your_spending">משולם לכתובת ההוצאה שלך</string>
+    <string name="pr_ask_contact_hint">בקשו מאיש הקשר הזה סכום מדויק, עם מטרתו.</string>
+    <string name="pr_send_request">שליחת בקשת תשלום</string>
 </resources>

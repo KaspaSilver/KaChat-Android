@@ -57,6 +57,18 @@ class KaspaFiatAmountState internal constructor(private val onKasTextChange: (St
         onKasTextChange(formatKasAmount(maxKas))
     }
 
+    /** An exact KAS amount set by code (a payment request's, iOS c6851d6): [kasText] is what the
+     *  send uses, unrounded; the field shows it in whichever unit is being displayed. */
+    fun setExactKas(kasText: String, priceInCurrency: Double?) {
+        val kas = kasText.toDoubleOrNull() ?: 0.0
+        displayText = if (isFiatMode && priceInCurrency != null && priceInCurrency > 0.0) {
+            formatFiatPlain(kas * priceInCurrency)
+        } else {
+            kasText
+        }
+        onKasTextChange(kasText)
+    }
+
     /** Flips units, carrying today's typed number over converted into the other one rather than
      *  clearing the field. No-ops if there's no live price yet to convert with. */
     fun toggleMode(priceInCurrency: Double?) {

@@ -3411,7 +3411,13 @@ fun KaPostComposerDialog(
                         value = text,
                         // Hard cap at the limit, X-style: a paste that overflows is clipped to
                         // the first 25,000 characters rather than dropped (iOS prefix).
-                        onValueChange = { text = clampToCharacterLimit(it, limit) },
+                        onValueChange = {
+                            // Someone's payment request pasted in opens Send Kaspa instead (iOS
+                            // c6851d6 PaymentRequestAwareTextView).
+                            if (!PaymentRequestPaste.interceptInsert(text.text, it.text)) {
+                                text = clampToCharacterLimit(it, limit)
+                            }
+                        },
                         onTextLayout = { editorLayout = it },
                         textStyle = TextStyle(color = colors.textPrimary, fontSize = 16.sp, lineHeight = 22.sp),
                         cursorBrush = SolidColor(KaspaTeal),
@@ -4407,7 +4413,13 @@ private fun ThreadReplyComposer(
                 BasicTextField(
                     value = text,
                     // Hard cap at the limit, X-style - clipped, never dropped (iOS prefix).
-                    onValueChange = { onTextChange(clampToCharacterLimit(it, KaPostDraft.POST_CHARACTER_LIMIT)) },
+                    onValueChange = {
+                        // Someone's payment request pasted in opens Send Kaspa instead (iOS
+                        // c6851d6 PaymentRequestAwareTextView).
+                        if (!PaymentRequestPaste.interceptInsert(text.text, it.text)) {
+                            onTextChange(clampToCharacterLimit(it, KaPostDraft.POST_CHARACTER_LIMIT))
+                        }
+                    },
                     textStyle = TextStyle(color = colors.textPrimary, fontSize = 15.sp, lineHeight = 20.sp),
                     cursorBrush = SolidColor(KaspaTeal),
                     keyboardOptions = KeyboardOptions(autoCorrect = false),

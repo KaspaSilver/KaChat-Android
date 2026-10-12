@@ -598,6 +598,38 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    // MARK: - Payment requests (iOS c6851d6, 6594936)
+
+    /**
+     * Sends a payment request into the chat with [contactId] (a 1:1 chat's + > Request Payment):
+     * signed by the chatting address, as a plain message holding its link - it shows there as a
+     * Payment Request card they tap to pay. [onResult] gets whether it went out and, if not, why.
+     */
+    fun sendPaymentRequest(contactId: String, request: com.kachat.app.models.PaymentRequest, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val signed = withContext(Dispatchers.Default) {
+                com.kachat.app.services.PaymentRequestWallet.shared?.sign(request) ?: request
+            }
+            var error: String? = null
+            val ok = sendMessageAwait(contactId, signed.shareUrlString, onError = { error = it }, plain = true)
+            onResult(ok, error)
+        }
+    }
+
+    /**
+     * A request to someone's chatting address is paid as a chat payment, so it needs their
+     * contact: the existing one, else one added automatically (iOS `addContact(isAutoAdded:
+     * true)`). False when there can't be one (one of your own accounts) - the request is then
+     * paid as a plain send.
+     */
+    suspend fun ensurePaymentRequestContact(address: String): Boolean {
+        if (chatRepository.getContact(address) != null) return true
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull() ?: return false
+        return runCatching {
+            chatRepository.addContact(ContactEntity(id = address, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+        }.getOrDefault(false)
+    }
+
     /** Message Requests, newest first. */
     val messageRequests: StateFlow<List<Conversation>> = combine(conversations, messageRequestIds) { all, requests ->
         all.filter { it.contact.id in requests }.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }
@@ -2376,15 +2408,23 @@ class ChatViewModel @Inject constructor(
      * wrapper every composer uses, while the share-sheet compose sheet needs the outcome so it can
      * show progress/success and fall back to staging a draft when the send fails.
      */
-    suspend fun sendMessageAwait(contactId: String, text: String, onError: ((String) -> Unit)? = null): Boolean {
+    suspend fun sendMessageAwait(
+        contactId: String,
+        text: String,
+        onError: ((String) -> Unit)? = null,
+        /** Sent as is, outside the composer: not as a reply to the message being replied to, and
+         *  without the composer's fee override (a payment request sent from the + sheet, iOS
+         *  6594936 `sendMessage(to:content:feeOverride: nil)`). */
+        plain: Boolean = false,
+    ): Boolean {
         if (text.isEmpty()) return false
         // Sending bumps this conversation to the top of the recency order the system share sheet
         // mirrors — promote it explicitly since the conversations flow only reorders after the
         // pending insert lands. Diffed inside refresh(), so repeat sends to the same top chat are free.
         shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
-        val reply = _replyingTo.value
-        val feeRate = _feeRateOverride.value
-        _feeRateOverride.value = null
+        val reply = if (plain) null else _replyingTo.value
+        val feeRate = if (plain) null else _feeRateOverride.value
+        if (!plain) _feeRateOverride.value = null
         run {
             val pendingId = "pending_${java.util.UUID.randomUUID()}"
             try {
@@ -2437,7 +2477,7 @@ class ChatViewModel @Inject constructor(
                         deliveryStatus = "sent"
                     )
                 )
-                _replyingTo.value = null
+                if (!plain) _replyingTo.value = null
                 return true
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)

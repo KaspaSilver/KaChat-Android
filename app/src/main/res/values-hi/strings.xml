@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">इस बॉट की सूचनाएँ फिर शुरू होती हैं।</string>
     <string name="bot_sheet_no_notification">इस बॉट से कोई सूचना नहीं।</string>
     <string name="bot_sheet_delete_subtitle">जब तक आप बॉट को फिर न लिखें, यह चैट हटा देता है।</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">भुगतान का अनुरोध</string>
+    <string name="pr_request_payment_hint">एक लिंक जो सटीक राशि माँगता है, कारण के साथ।</string>
+    <string name="pr_paid_to">भुगतान किसे</string>
+    <string name="pr_chatting_footer">भुगतान, नोट के साथ, भुगतान करने वाले के साथ आपकी चैट में आएगा।</string>
+    <string name="pr_spending_footer">आपके एक नए पते पर भुगतान होगा। नोट भुगतान करने वाले को दिखेगा, पर भुगतान के साथ नहीं जाएगा।</string>
+    <string name="pr_memo_placeholder">किसलिए (वैकल्पिक)</string>
+    <string name="pr_copy">भुगतान अनुरोध कॉपी करें</string>
+    <string name="pr_anyone_note">KaChat में इसे खोलने या पेस्ट करने वाले को भरी हुई Kaspa भेजें स्क्रीन मिलेगी, और दिखेगा कि यह आपके चैटिंग पते से बना है (उसकी कुंजी से हस्ताक्षरित)।</string>
+    <string name="pr_requested">माँगा गया</string>
+    <string name="pr_paid_as_chat_payment">चैट भुगतान के रूप में: उनके साथ आपकी चैट में दिखेगा।</string>
+    <string name="pr_paid_to_their_spending">उनके खर्च वाले पते पर भुगतान।</string>
+    <string name="pr_payment_request">भुगतान अनुरोध</string>
+    <string name="pr_preview">भुगतान अनुरोध: %1$s KAS</string>
+    <string name="pr_tap_to_pay">भुगतान के लिए टैप करें।</string>
+    <string name="pr_from_name">%1$s से</string>
+    <string name="pr_requested_by">अनुरोधकर्ता</string>
+    <string name="pr_signed_by_their_chatting">उनके चैटिंग पते से हस्ताक्षरित। भुगतान ऊपर वाले पते पर जाएगा।</string>
+    <string name="pr_not_signed">हस्ताक्षरित नहीं: यह अनुरोध किसने बनाया, इसकी पुष्टि नहीं हो सकती।</string>
+    <string name="pr_your_payment_request">आपका भुगतान अनुरोध</string>
+    <string name="pr_your_request_tap_to_view">आपका भुगतान अनुरोध। देखने के लिए टैप करें।</string>
+    <string name="pr_paid_to_your_chatting">आपके चैटिंग पते पर भुगतान</string>
+    <string name="pr_paid_to_your_spending">आपके खर्च वाले पते पर भुगतान</string>
+    <string name="pr_ask_contact_hint">इस संपर्क से कारण के साथ सटीक राशि माँगें।</string>
+    <string name="pr_send_request">भुगतान अनुरोध भेजें</string>
 </resources>

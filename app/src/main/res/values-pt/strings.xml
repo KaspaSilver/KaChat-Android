@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">As notificações deste bot voltam.</string>
     <string name="bot_sheet_no_notification">Nenhuma notificação deste bot.</string>
     <string name="bot_sheet_delete_subtitle">Remove esta conversa até você escrever ao bot de novo.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">Solicitar pagamento</string>
+    <string name="pr_request_payment_hint">Um link que pede um valor exato, com o motivo.</string>
+    <string name="pr_paid_to">Pago para</string>
+    <string name="pr_chatting_footer">O pagamento chega à sua conversa com quem paga, com a nota.</string>
+    <string name="pr_spending_footer">Pago a um endereço novo seu. Quem paga vê a nota, mas ela não vai junto com o pagamento.</string>
+    <string name="pr_memo_placeholder">Para que é (opcional)</string>
+    <string name="pr_copy">Copiar solicitação de pagamento</string>
+    <string name="pr_anyone_note">Quem abrir ou colar no KaChat recebe Enviar Kaspa preenchido e vê que foi criado pelo seu endereço de conversa (assinado com a chave dele).</string>
+    <string name="pr_requested">Solicitado</string>
+    <string name="pr_paid_as_chat_payment">Pago como pagamento na conversa: aparece na sua conversa com a pessoa.</string>
+    <string name="pr_paid_to_their_spending">Pago ao endereço de gastos da pessoa.</string>
+    <string name="pr_payment_request">Solicitação de pagamento</string>
+    <string name="pr_preview">Solicitação de pagamento: %1$s KAS</string>
+    <string name="pr_tap_to_pay">Toque para pagar.</string>
+    <string name="pr_from_name">Do %1$s</string>
+    <string name="pr_requested_by">Solicitado por</string>
+    <string name="pr_signed_by_their_chatting">Assinado pelo endereço de conversa da pessoa. O pagamento vai para o endereço acima.</string>
+    <string name="pr_not_signed">Sem assinatura: não é possível confirmar quem criou esta solicitação.</string>
+    <string name="pr_your_payment_request">Sua solicitação de pagamento</string>
+    <string name="pr_your_request_tap_to_view">Sua solicitação de pagamento. Toque para ver.</string>
+    <string name="pr_paid_to_your_chatting">Pago ao seu endereço de conversa</string>
+    <string name="pr_paid_to_your_spending">Pago ao seu endereço de gastos</string>
+    <string name="pr_ask_contact_hint">Peça a este contato um valor exato, com o motivo.</string>
+    <string name="pr_send_request">Enviar solicitação de pagamento</string>
 </resources>

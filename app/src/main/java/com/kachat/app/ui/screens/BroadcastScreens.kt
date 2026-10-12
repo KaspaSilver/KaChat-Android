@@ -1127,7 +1127,13 @@ fun BroadcastChannelScreen(
                         ComposerTextScope {
                         com.kachat.app.ui.theme.IosTextField(
                             value = messageTextState.value,
-                            onValueChange = { broadcastViewModel.setMessageText(it, fromTyping = true) },
+                            onValueChange = {
+                                // Someone's payment request pasted in opens Send Kaspa instead of
+                                // landing in the message (iOS c6851d6).
+                                if (!PaymentRequestPaste.interceptInsert(messageTextState.value, it)) {
+                                    broadcastViewModel.setMessageText(it, fromTyping = true)
+                                }
+                            },
                             placeholder = { Text("Message #$channelName", color = LocalAppColors.current.textTertiary) },
                             modifier = Modifier
                                 .weight(1f)

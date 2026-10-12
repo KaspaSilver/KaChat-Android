@@ -111,6 +111,15 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kachat" android:host="profile" />
             </intent-filter>
+            <!-- Payment requests: kachat://pay/<address>?amount=...&memo=...[&chat=1]&by=...&sig=...
+                 (the kachat.app page's "Pay in KaChat") opens Send Kaspa filled in (iOS c6851d6).
+                 Every field, and the signature, is checked before anything routes. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kachat" android:host="pay" />
+            </intent-filter>
             <!-- Universal-link form. autoVerify needs /.well-known/assetlinks.json served at
                  the domain (mirrors iOS's AASA file - see KACHAT_APP_LINKS.md). kachat.app is
                  the host the app writes; the duckdns one is only ever read, for links shared
@@ -124,6 +133,8 @@
                 <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/broadcast/" />
                 <!-- The share button beside the Profile title writes these (/u/<address>). -->
                 <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/u/" />
+                <!-- Payment requests (Chats > + > Request Payment, iOS c6851d6). -->
+                <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/pay/" />
                 <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/post/" />
                 <data android:scheme="https" android:host="kachat.duckdns.org" android:pathPrefix="/broadcast/" />
             </intent-filter>

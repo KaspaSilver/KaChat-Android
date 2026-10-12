@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">Bu bottan bildirimler yeniden gelir.</string>
     <string name="bot_sheet_no_notification">Bu bottan bildirim gelmez.</string>
     <string name="bot_sheet_delete_subtitle">Bota yeniden yazana kadar bu sohbeti kaldırır.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">Ödeme İste</string>
+    <string name="pr_request_payment_hint">Tam bir tutarı, ne için olduğuyla isteyen bir bağlantı.</string>
+    <string name="pr_paid_to">Ödenecek adres</string>
+    <string name="pr_chatting_footer">Ödeme, notla birlikte ödeyen kişiyle sohbetinize düşer.</string>
+    <string name="pr_spending_footer">Yeni bir adresinize ödenir. Notu ödeyen görür, ancak ödemeyle birlikte gitmez.</string>
+    <string name="pr_memo_placeholder">Ne için (isteğe bağlı)</string>
+    <string name="pr_copy">Ödeme İsteğini Kopyala</string>
+    <string name="pr_anyone_note">KaChat\'te açan veya yapıştıran herkes dolu Kaspa Gönder ekranını görür ve isteğin sohbet adresinizden oluşturulduğunu (onun anahtarıyla imzalı) görür.</string>
+    <string name="pr_requested">İstenen</string>
+    <string name="pr_paid_as_chat_payment">Sohbet ödemesi olarak ödenir: onunla sohbetinizde görünür.</string>
+    <string name="pr_paid_to_their_spending">Harcama adresine ödenir.</string>
+    <string name="pr_payment_request">Ödeme İsteği</string>
+    <string name="pr_preview">Ödeme isteği: %1$s KAS</string>
+    <string name="pr_tap_to_pay">Ödemek için dokunun.</string>
+    <string name="pr_from_name">%1$s üzerinden</string>
+    <string name="pr_requested_by">İsteyen</string>
+    <string name="pr_signed_by_their_chatting">Sohbet adresiyle imzalandı. Ödeme yukarıdaki adrese gider.</string>
+    <string name="pr_not_signed">İmzasız: bu isteği kimin oluşturduğu doğrulanamaz.</string>
+    <string name="pr_your_payment_request">Ödeme İsteğiniz</string>
+    <string name="pr_your_request_tap_to_view">Ödeme isteğiniz. Görmek için dokunun.</string>
+    <string name="pr_paid_to_your_chatting">Sohbet adresinize ödenir</string>
+    <string name="pr_paid_to_your_spending">Harcama adresinize ödenir</string>
+    <string name="pr_ask_contact_hint">Bu kişiden ne için olduğuyla birlikte tam bir tutar isteyin.</string>
+    <string name="pr_send_request">Ödeme İsteği Gönder</string>
 </resources>

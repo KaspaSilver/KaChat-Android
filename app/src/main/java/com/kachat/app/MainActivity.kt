@@ -176,6 +176,7 @@ class MainActivity : AppCompatActivity() {
         intent?.let(::consumeNotificationTarget)
         intent?.let(::handleBroadcastDeepLink)
         intent?.let(::handleProfileDeepLink)
+        intent?.let(::handlePaymentRequestDeepLink)
         intent?.let(::handleShareIntent)
         intent?.let(::clearConsumedIntentPayload)
         intent?.let(::consumeCallAnswer)
@@ -291,6 +292,7 @@ class MainActivity : AppCompatActivity() {
         consumeNotificationTarget(intent)
         handleBroadcastDeepLink(intent)
         handleProfileDeepLink(intent)
+        handlePaymentRequestDeepLink(intent)
         handleShareIntent(intent)
         clearConsumedIntentPayload(intent)
         consumeCallAnswer(intent)
@@ -551,6 +553,25 @@ class MainActivity : AppCompatActivity() {
             else -> null
         } ?: return
         com.kachat.app.ui.screens.ProfileDeepLink.request(raw)
+    }
+
+    /** kachat://pay/<address>?... or https://kachat.app/pay/<address>?... - someone's payment
+     *  request (iOS c6851d6). Everything in it is checked - the address on this network, the exact
+     *  amount, the memo, a signature when it carries one - before Send Kaspa opens filled in (your
+     *  own shows it instead); nothing is ever sent without slide to send. */
+    private fun handlePaymentRequestDeepLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        val isPayLink = when {
+            uri.scheme.equals("kachat", ignoreCase = true) -> uri.host.equals("pay", ignoreCase = true)
+            uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true) ->
+                isKaChatWebHost(uri.host) && uri.pathSegments.firstOrNull() == "pay"
+            else -> false
+        }
+        if (!isPayLink) return
+        val ref = com.kachat.app.ui.screens.KaChatLink.parse(uri.toString()) as? com.kachat.app.ui.screens.KaChatLinkRef.PaymentRequest
+            ?: return
+        com.kachat.app.ui.screens.PaymentRequestRouter.open(ref.request)
     }
 
     private fun handleBroadcastDeepLink(intent: Intent) {

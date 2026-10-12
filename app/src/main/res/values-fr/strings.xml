@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">Les notifications de ce bot reprennent.</string>
     <string name="bot_sheet_no_notification">Aucune notification de ce bot.</string>
     <string name="bot_sheet_delete_subtitle">Supprime cette discussion jusqu’à ce que vous écriviez de nouveau au bot.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">Demander un paiement</string>
+    <string name="pr_request_payment_hint">Un lien qui demande un montant exact, avec son motif.</string>
+    <string name="pr_paid_to">Payé à</string>
+    <string name="pr_chatting_footer">Le paiement arrive dans votre discussion avec la personne qui paie, avec la note.</string>
+    <string name="pr_spending_footer">Payé à une nouvelle adresse à vous. La note s’affiche pour qui paie, mais ne part pas avec le paiement.</string>
+    <string name="pr_memo_placeholder">Pour quoi (facultatif)</string>
+    <string name="pr_copy">Copier la demande de paiement</string>
+    <string name="pr_anyone_note">Quiconque l’ouvre ou la colle dans KaChat obtient Envoyer des Kaspa déjà rempli, et voit qu’elle vient de votre adresse de discussion (signée avec sa clé).</string>
+    <string name="pr_requested">Demandé</string>
+    <string name="pr_paid_as_chat_payment">Payé comme paiement de discussion : il apparaît dans votre discussion avec la personne.</string>
+    <string name="pr_paid_to_their_spending">Payé à son adresse de dépense.</string>
+    <string name="pr_payment_request">Demande de paiement</string>
+    <string name="pr_preview">Demande de paiement : %1$s KAS</string>
+    <string name="pr_tap_to_pay">Touchez pour payer.</string>
+    <string name="pr_from_name">Depuis %1$s</string>
+    <string name="pr_requested_by">Demandé par</string>
+    <string name="pr_signed_by_their_chatting">Signé par son adresse de discussion. Le paiement va à l’adresse ci-dessus.</string>
+    <string name="pr_not_signed">Non signée : impossible de confirmer qui a créé cette demande.</string>
+    <string name="pr_your_payment_request">Votre demande de paiement</string>
+    <string name="pr_your_request_tap_to_view">Votre demande de paiement. Touchez pour la voir.</string>
+    <string name="pr_paid_to_your_chatting">Payé à votre adresse de discussion</string>
+    <string name="pr_paid_to_your_spending">Payé à votre adresse de dépense</string>
+    <string name="pr_ask_contact_hint">Demandez à ce contact un montant exact, avec son motif.</string>
+    <string name="pr_send_request">Envoyer la demande de paiement</string>
 </resources>

@@ -1282,4 +1282,29 @@
     <string name="bot_sheet_notifications_resume">اعلان‌های این ربات دوباره می‌آیند.</string>
     <string name="bot_sheet_no_notification">هیچ اعلانی از این ربات نمی‌آید.</string>
     <string name="bot_sheet_delete_subtitle">این گفتگو را تا وقتی دوباره به ربات بنویسید حذف می‌کند.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">درخواست پرداخت</string>
+    <string name="pr_request_payment_hint">پیوندی که مبلغی دقیق را با دلیلش درخواست می‌کند.</string>
+    <string name="pr_paid_to">پرداخت به</string>
+    <string name="pr_chatting_footer">پرداخت با یادداشت در گفتگوی شما با پرداخت‌کننده ثبت می‌شود.</string>
+    <string name="pr_spending_footer">به یک آدرس تازه شما پرداخت می‌شود. پرداخت‌کننده یادداشت را می‌بیند، اما همراه پرداخت ارسال نمی‌شود.</string>
+    <string name="pr_memo_placeholder">بابت چه (اختیاری)</string>
+    <string name="pr_copy">کپی درخواست پرداخت</string>
+    <string name="pr_anyone_note">هر کس آن را در KaChat باز یا جای‌گذاری کند، صفحه ارسال Kaspa را پرشده می‌بیند و می‌فهمد که از آدرس گفتگوی شما ساخته شده است (با کلید آن امضا شده).</string>
+    <string name="pr_requested">درخواست‌شده</string>
+    <string name="pr_paid_as_chat_payment">به‌صورت پرداخت در گفتگو: در گفتگوی شما با او نمایش داده می‌شود.</string>
+    <string name="pr_paid_to_their_spending">به آدرس هزینه او پرداخت می‌شود.</string>
+    <string name="pr_payment_request">درخواست پرداخت</string>
+    <string name="pr_preview">درخواست پرداخت: %1$s KAS</string>
+    <string name="pr_tap_to_pay">برای پرداخت ضربه بزنید.</string>
+    <string name="pr_from_name">از %1$s</string>
+    <string name="pr_requested_by">درخواست‌کننده</string>
+    <string name="pr_signed_by_their_chatting">با آدرس گفتگوی او امضا شده است. پرداخت به آدرس بالا می‌رود.</string>
+    <string name="pr_not_signed">امضا نشده: سازنده این درخواست قابل تأیید نیست.</string>
+    <string name="pr_your_payment_request">درخواست پرداخت شما</string>
+    <string name="pr_your_request_tap_to_view">درخواست پرداخت شما. برای دیدن ضربه بزنید.</string>
+    <string name="pr_paid_to_your_chatting">به آدرس گفتگوی شما پرداخت می‌شود</string>
+    <string name="pr_paid_to_your_spending">به آدرس هزینه شما پرداخت می‌شود</string>
+    <string name="pr_ask_contact_hint">از این مخاطب مبلغی دقیق را با دلیلش درخواست کنید.</string>
+    <string name="pr_send_request">ارسال درخواست پرداخت</string>
 </resources>

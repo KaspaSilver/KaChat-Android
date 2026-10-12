@@ -741,6 +741,10 @@ fun MainShell(
         }
     }
 
+    // A payment request tapped, pasted or opened from outside the app (iOS c6851d6
+    // PaymentRequestSheetPresenter): Send Kaspa with it filled in, or your own to copy or share.
+    com.kachat.app.ui.screens.PaymentRequestSheetHost(walletViewModel = walletViewModel, chatViewModel = chatViewModel)
+
     val pendingBroadcastLinkChannel by BroadcastDeepLink.pendingChannel.collectAsState()
     LaunchedEffect(pendingBroadcastLinkChannel) {
         val channel = pendingBroadcastLinkChannel ?: return@LaunchedEffect

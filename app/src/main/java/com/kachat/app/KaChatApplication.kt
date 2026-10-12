@@ -137,6 +137,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var addressBookManager: com.kachat.app.services.AddressBookManager
 
+    // Payment requests (iOS c6851d6): built at startup because a request card or a pasted link
+    // asks whether it is your own through its companion (PaymentRequest.isOwn).
+    @Inject
+    lateinit var paymentRequestWallet: com.kachat.app.services.PaymentRequestWallet
+
     // Portfolio rows still waiting for a price resume pricing whenever a wallet loads (iOS
     // PortfolioViewModel.setCurrentWallet, run by WalletManager on every wallet load) - built at
     // startup so its active-wallet observer runs from launch, not first when a screen with

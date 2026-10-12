@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">Уведомления от этого бота возобновятся.</string>
     <string name="bot_sheet_no_notification">Никаких уведомлений от этого бота.</string>
     <string name="bot_sheet_delete_subtitle">Удаляет этот чат, пока вы снова не напишете боту.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">Запросить оплату</string>
+    <string name="pr_request_payment_hint">Ссылка с запросом точной суммы и назначением.</string>
+    <string name="pr_paid_to">Оплата на</string>
+    <string name="pr_chatting_footer">Платёж с заметкой придёт в ваш чат с плательщиком.</string>
+    <string name="pr_spending_footer">Оплата на ваш новый адрес. Заметку увидит плательщик, но с платежом она не отправится.</string>
+    <string name="pr_memo_placeholder">За что (необязательно)</string>
+    <string name="pr_copy">Скопировать запрос на оплату</string>
+    <string name="pr_anyone_note">Любой, кто откроет или вставит её в KaChat, увидит заполненный экран «Отправить Kaspa» и что запрос создан вашим адресом для чатов (подписан его ключом).</string>
+    <string name="pr_requested">Запрошено</string>
+    <string name="pr_paid_as_chat_payment">Оплачивается как платёж в чате: появится в вашем чате с ним.</string>
+    <string name="pr_paid_to_their_spending">Оплачивается на его адрес для расходов.</string>
+    <string name="pr_payment_request">Запрос на оплату</string>
+    <string name="pr_preview">Запрос на оплату: %1$s KAS</string>
+    <string name="pr_tap_to_pay">Нажмите, чтобы оплатить.</string>
+    <string name="pr_from_name">Из %1$s</string>
+    <string name="pr_requested_by">Запрошено</string>
+    <string name="pr_signed_by_their_chatting">Подписано его адресом для чатов. Платёж уйдёт на адрес выше.</string>
+    <string name="pr_not_signed">Без подписи: нельзя подтвердить, кто создал этот запрос.</string>
+    <string name="pr_your_payment_request">Ваш запрос на оплату</string>
+    <string name="pr_your_request_tap_to_view">Ваш запрос на оплату. Нажмите, чтобы открыть.</string>
+    <string name="pr_paid_to_your_chatting">Оплата на ваш адрес для чатов</string>
+    <string name="pr_paid_to_your_spending">Оплата на ваш адрес для расходов</string>
+    <string name="pr_ask_contact_hint">Попросите у этого контакта точную сумму с назначением.</string>
+    <string name="pr_send_request">Отправить запрос на оплату</string>
 </resources>

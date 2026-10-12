@@ -443,6 +443,18 @@ fun ChatThreadScreen(
     // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
     // casual untimed game (the pre-timer behavior).
     var showChessTimeControlMenu by remember { mutableStateOf(false) }
+    /** + > Request Payment: a payment request made for this contact and sent into this chat
+     *  (iOS 6594936). */
+    var showPaymentRequestSheet by remember { mutableStateOf(false) }
+    if (showPaymentRequestSheet) {
+        CreatePaymentRequestSheet(
+            walletViewModel = walletViewModel,
+            onDismissed = { showPaymentRequestSheet = false },
+            recipientContactId = contactId,
+            chatViewModel = chatViewModel,
+            portfolioViewModel = portfolioViewModel,
+        )
+    }
     // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
     // Storage > Nextcloud). Picking a file sends its public share link as a normal text message,
     // which the recipient's link-preview feature renders as tappable media.
@@ -1090,7 +1102,13 @@ fun ChatThreadScreen(
                             ComposerTextScope {
                             TextField(
                                 value = messageTextState.value,
-                                onValueChange = { chatViewModel.setMessageText(it, fromTyping = true) },
+                                onValueChange = {
+                                    // Someone's payment request pasted in opens Send Kaspa instead
+                                    // of landing in the message (iOS c6851d6).
+                                    if (!PaymentRequestPaste.interceptInsert(messageTextState.value, it)) {
+                                        chatViewModel.setMessageText(it, fromTyping = true)
+                                    }
+                                },
                                 placeholder = { Text(stringResource(R.string.message), color = LocalAppColors.current.textSecondary) },
                                 modifier = Modifier
                                     .weight(1f)
@@ -1136,10 +1154,10 @@ fun ChatThreadScreen(
                                     TileActionSheet(
                                         title = stringResource(R.string.send),
                                         onDismiss = { showComposerMenu = false },
-                                        // iOS composerPlusSheetHeight: pay, camera, photo, voice and
-                                        // chess, plus file and a handshake when they apply.
+                                        // iOS composerPlusSheetHeight: pay, camera, photo, voice,
+                                        // request and chess, plus file and a handshake when they apply.
                                         height = ActionSheetTileMetrics.sheetHeight(
-                                            tiles = 5 + (if (nextcloudAccount != null) 1 else 0) +
+                                            tiles = 6 + (if (nextcloudAccount != null) 1 else 0) +
                                                 (if (contactId != myAddress && !inboxSupported) 1 else 0)
                                         ),
                                         // iOS: [.height(composerPlusSheetHeight), .large].
@@ -1184,6 +1202,16 @@ fun ChatThreadScreen(
                                                     showComposerMenu = false
                                                     showNextcloudPicker = true
                                                 }
+                                            }
+                                            // Ask this contact for an exact amount; the signed
+                                            // request goes into this chat (iOS 6594936).
+                                            ActionSheetRow(
+                                                icon = RequestPaymentIcon,
+                                                title = stringResource(R.string.pr_request_payment),
+                                                subtitle = stringResource(R.string.pr_ask_contact_hint),
+                                            ) {
+                                                showComposerMenu = false
+                                                showPaymentRequestSheet = true
                                             }
                                             ActionSheetRow(
                                                 icon = Icons.Default.Apps,
@@ -6094,6 +6122,14 @@ fun SpendingAddressSendFlow(
     /** Pre-fills the recipient (Address Book > Send KAS, iOS `WithdrawKaspaView(prefillAddress:)`);
      *  it stays editable. */
     prefillAddress: String? = null,
+    /** Someone's payment request (a tapped or pasted link, iOS c6851d6 `WithdrawKaspaView
+     *  (paymentRequest:)`): its address is locked in, its amount and memo filled in. A request
+     *  pasted into the recipient field does the same. Only from the chatting address (no
+     *  [spendingIndex]). */
+    paymentRequest: com.kachat.app.models.PaymentRequest? = null,
+    /** Pays a chatting-address request as a chat payment (the memo encrypted to them inside it);
+     *  null takes the app's own (the activity's), as every iOS send screen has ChatService. */
+    chatViewModel: com.kachat.app.viewmodels.ChatViewModel? = null,
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -6126,6 +6162,24 @@ fun SpendingAddressSendFlow(
     val isSending = sendId in viewModel.sends.inFlight.collectAsState().value
     val sendResult = viewModel.sends.results.collectAsState().value[sendId]
     val coroutineScope = rememberCoroutineScope()
+
+    // The chat side of paying a chatting-address request: the caller's, else the activity's - the
+    // same instance MainShell holds, so nothing new is built for it.
+    val requestChatViewModel: com.kachat.app.viewmodels.ChatViewModel? = chatViewModel ?: run {
+        val activity = generateSequence(LocalContext.current) { (it as? android.content.ContextWrapper)?.baseContext }
+            .firstOrNull { it is androidx.activity.ComponentActivity } as? androidx.activity.ComponentActivity
+        activity?.let { hiltViewModel<com.kachat.app.viewmodels.ChatViewModel>(it) }
+    }
+    /** The payment request this send pays, if any ([paymentRequest], or one pasted in). */
+    var activeRequest by remember { mutableStateOf<com.kachat.app.models.PaymentRequest?>(null) }
+    /** Fills in a payment request: the address (locked), the exact amount and the memo. The
+     *  amount stays editable; whatever it says is what is sent, through the same exact parser. */
+    fun applyRequest(request: com.kachat.app.models.PaymentRequest) {
+        activeRequest = request
+        recipientInput = request.address
+        // the exact amount is what's sent; the field shows it in whichever unit it is in
+        fiatAmountState.setExactKas(request.amountText, fiatPriceInCurrency)
+    }
 
     // The spending address this send comes from: [spendingIndex] / [fromAddress] (the primary
     // from Profile, or the address opened from Manage Addresses), unless another was picked from
@@ -6276,6 +6330,8 @@ fun SpendingAddressSendFlow(
         if (isCompoundMode) {
             recipientInput = fromAddress
             isEstimatingMax = true
+        } else if (paymentRequest != null && activeRequest == null) {
+            applyRequest(paymentRequest)
         }
         // The live quote, once (see baseFeeRateSompiPerGram). Falls back to the network minimum
         // on any failure.
@@ -6419,9 +6475,40 @@ fun SpendingAddressSendFlow(
     val canSend = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0 && !isPreviewingFee
     val send: () -> Unit = {
         amountSompi?.takeIf { canSend }?.let {
+            val request = activeRequest
+            val recipient = effectiveAddress.trim()
             // No rate override: the engine prices the base at the live quote, and the speed or
             // custom fee goes on top as the flat extra shown (SendFeeModel).
-            if (sourceIndex != null) {
+            if (request != null && request.toChattingAddress && request.address.equals(recipient, ignoreCase = true) &&
+                sourceIndex == null && requestChatViewModel != null
+            ) {
+                // A chatting address (iOS c6851d6): a chat payment, the memo encrypted to them
+                // inside it - it lands in your chat with them like any payment from the chat. With
+                // no contact to pay as (one of your own accounts) it goes as a plain send.
+                viewModel.sends.start(sendId)
+                val sompi = it
+                val extra = extraFeeSompi
+                val utxos = manualUtxos
+                coroutineScope.launch {
+                    if (requestChatViewModel.ensurePaymentRequestContact(recipient)) {
+                        requestChatViewModel.sendPayment(
+                            contactId = recipient,
+                            amount = KaspaUnit.plain(sompi),
+                            note = request.memo,
+                            extraFeeSompi = extra,
+                            manualUtxos = utxos,
+                        ) { ok, error, txId ->
+                            viewModel.sends.finish(
+                                sendId,
+                                if (ok && txId != null) Result.success(txId)
+                                else Result.failure(IllegalStateException(error ?: context.getString(R.string.withdrawal_failed)))
+                            )
+                        }
+                    } else {
+                        viewModel.onSendClicked(sendId, recipient, sompi, feeRateOverride = null, manualUtxos = utxos, extraFeeSompi = extra)
+                    }
+                }
+            } else if (sourceIndex != null) {
                 viewModel.withdrawFromSpendingAddress(sendId, sourceIndex, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             } else {
                 viewModel.onSendClicked(sendId, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
@@ -6439,6 +6526,7 @@ fun SpendingAddressSendFlow(
                     Text(
                         when {
                             isCompoundMode -> stringResource(R.string.compound_utxos)
+                            activeRequest != null -> stringResource(R.string.pr_payment_request)
                             // A spending address's Send names the address it sends from, and
                             // follows the source picked here (iOS e994235).
                             sourceIndex != null -> "Send Kaspa from Address #$sourceIndex"
@@ -6483,8 +6571,14 @@ fun SpendingAddressSendFlow(
         ) {
             SendRecipientCard(
                 input = recipientInput,
-                onInputChange = { recipientInput = it },
-                lockedAddress = if (isCompoundMode) fromAddress else null,
+                onInputChange = { input ->
+                    // A payment request pasted in fills in everything it carries (iOS c6851d6) -
+                    // on the chatting address's Send, as iOS's WithdrawKaspaView.
+                    val pasted = if (isCompoundMode || spendingIndex != null) null
+                    else (KaChatLink.findFirst(input.trim())?.ref as? KaChatLinkRef.PaymentRequest)?.request
+                    if (pasted != null) applyRequest(pasted) else recipientInput = input
+                },
+                lockedAddress = if (isCompoundMode) fromAddress else activeRequest?.address,
                 isResolving = isResolvingKns,
                 resolvedAddress = knsResolvedAddress,
                 resolvedName = knsResolvedDomain,
@@ -6496,6 +6590,8 @@ fun SpendingAddressSendFlow(
                 onScan = { showScanner = true },
                 enabled = !isSending,
             )
+
+            activeRequest?.let { PaymentRequestSummary(request = it) }
 
             KaspaAmountEntry(
                 fiatAmountState = fiatAmountState,

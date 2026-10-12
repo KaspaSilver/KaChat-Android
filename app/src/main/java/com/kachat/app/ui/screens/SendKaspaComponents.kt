@@ -339,6 +339,8 @@ fun KaspaAmountEntry(
     isEstimatingMax: Boolean = false,
     maxEnabled: Boolean = true,
     focusOnAppear: Boolean = false,
+    /** False leaves Max out (asking for an amount, not sending one: Request Payment, iOS c6851d6). */
+    showsMax: Boolean = true,
 ) {
     val colors = LocalAppColors.current
     val focus = remember { FocusRequester() }
@@ -429,6 +431,7 @@ fun KaspaAmountEntry(
                     )
                 }
             }
+            if (showsMax) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -442,6 +445,7 @@ fun KaspaAmountEntry(
                 } else {
                     Text(stringResource(R.string.max), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 }
+            }
             }
         }
     }

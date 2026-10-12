@@ -1,6 +1,7 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -766,6 +767,8 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
  *   KaPosts post   kachat://kapost/<txid>       https://kachat.app/post/<txid>
  *   Broadcast room kachat://broadcast/<channel> https://kachat.app/broadcast/<channel>
  *   Profile        kachat://profile/<address>   https://kachat.app/u/<address>
+ *   Payment req.   kachat://pay/<address>?...   https://kachat.app/pay/<address>?amount=<KAS>&memo=<text>[&chat=1]&by=<address>&sig=<hex>
+ *                  (see [com.kachat.app.models.PaymentRequest], iOS c6851d6 / 7c71a98)
  *
  * A profile's `<address>` is a full Kaspa address; in the web form a mainnet address drops its
  * `kaspa:` prefix (the app writes it without, so the link reads cleanly) and a missing prefix
@@ -783,6 +786,10 @@ sealed class KaChatLinkRef {
     /** Someone's KaChat profile: opens their User Info, contact or not (iOS 81df734). Always a
      *  full, valid address. */
     data class Profile(val address: String) : KaChatLinkRef()
+    /** A request to be paid: opens Send Kaspa with the address, amount and memo filled in - or,
+     *  your own, shows it to copy or share again (iOS c6851d6, 1fe8388). Every field validated,
+     *  and a signed one only when its signature checks out. */
+    data class PaymentRequest(val request: com.kachat.app.models.PaymentRequest) : KaChatLinkRef()
 }
 
 /** [raw] is the exact link substring as it appears in the message, [range] where it sits in it. */
@@ -813,18 +820,30 @@ object KaChatLink {
         """(?:kachat://(kapost|broadcast|profile)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(post|broadcast|u)/)([^\s/?#]+)""",
         RegexOption.IGNORE_CASE
     )
+    // A payment request carries a query, so it has its own pattern: everything up to whitespace
+    // or a quote/angle bracket, as iOS matches it (the memo inside is percent-encoded).
+    private val PAY_LINK_REGEX = Regex(
+        """(?:kachat://pay/|https?://(?:www\.)?(?:kachat\.app|kachat\.duckdns\.org)/pay/)([^\s<>"']+)""",
+        RegexOption.IGNORE_CASE
+    )
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')
     private val TX_ID_REGEX = Regex("[0-9a-fA-F]{6,64}")
 
     /** True when [raw] is nothing but one of these links (no surrounding text). */
     fun parse(raw: String): KaChatLinkRef? {
-        val match = LINK_REGEX.matchEntire(raw.trim()) ?: return null
+        val trimmed = raw.trim()
+        PAY_LINK_REGEX.matchEntire(trimmed)?.let { return paymentRequestRef(it.groupValues[1]) }
+        val match = LINK_REGEX.matchEntire(trimmed) ?: return null
         return refFor(match)
     }
 
     /** The first valid KaChat link in [text], or null. Invalid ones are skipped, not accepted. */
     fun findFirst(text: String): KaChatLinkMatch? {
-        for (match in LINK_REGEX.findAll(text)) {
+        // Neither form can appear without "kachat" - the cheap bail-out for nearly every message.
+        if (!text.contains("kachat", ignoreCase = true)) return null
+        // Both patterns, in the order the links appear in the text (iOS scans with one).
+        val candidates = (LINK_REGEX.findAll(text) + PAY_LINK_REGEX.findAll(text)).sortedBy { it.range.first }
+        for (match in candidates) {
             var end = match.range.last
             while (end >= match.range.first && text[end] in TRAILING_PUNCTUATION) end--
             if (end < match.range.first) continue
@@ -871,6 +890,17 @@ object KaChatLink {
         }
     }
 
+    /** A payment request's path tail (`<address>?<query>`, any `#fragment` ignored): exactly one
+     *  address segment, then [com.kachat.app.models.PaymentRequest.fromLink] checks the rest. */
+    private fun paymentRequestRef(tail: String): KaChatLinkRef? {
+        val withoutFragment = tail.substringBefore('#')
+        val path = withoutFragment.substringBefore('?')
+        val query = if ('?' in withoutFragment) withoutFragment.substringAfter('?') else null
+        if (path.isEmpty() || '/' in path) return null
+        val address = runCatching { android.net.Uri.decode(path) }.getOrNull() ?: return null
+        return com.kachat.app.models.PaymentRequest.fromLink(address, query)?.let(KaChatLinkRef::PaymentRequest)
+    }
+
     /** A linked address is attacker-controlled like everything else in a link: it has to be a
      *  valid Kaspa address, checksum and all, or the link is not ours. It opens on the network the
      *  app runs on: a link without a prefix (or shared from the other network) names the same
@@ -897,6 +927,8 @@ fun openKaChatLink(ref: KaChatLinkRef) {
         }
         is KaChatLinkRef.BroadcastRoom -> BroadcastDeepLink.request(ref.channel)
         is KaChatLinkRef.Profile -> ProfileDeepLink.request(ref.address)
+        // Someone else's opens Send Kaspa filled in, your own shows it (MainShell presents both).
+        is KaChatLinkRef.PaymentRequest -> PaymentRequestRouter.open(ref.request)
     }
 }
 
@@ -981,10 +1013,32 @@ fun KaChatInternalLinkCard(
         LaunchedEffect(roomChannel) { roomIsKnown = rooms.hasJoinedRoom(roomChannel) }
     }
 
+    // A payment request: whether it is yours (worked out off the main thread - the wallet's
+    // addresses may need deriving once) and, for someone else's signed one, the maker's name.
+    val payRequest = (ref as? KaChatLinkRef.PaymentRequest)?.request
+    val payIsOwn by androidx.compose.runtime.produceState(initialValue = false, payRequest) {
+        value = payRequest != null && kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { payRequest.isOwn }
+    }
+    val payCreator = payRequest?.creator
+    var payCreatorName by remember(payCreator) {
+        mutableStateOf(payCreator?.let { com.kachat.app.models.addressDisplayName(it) })
+    }
+    if (payCreator != null) {
+        val resolver: AddressResolutionViewModel = hiltViewModel()
+        LaunchedEffect(payCreator) {
+            val contact = resolver.contactFor(payCreator)
+            payCreatorName = com.kachat.app.models.addressDisplayName(payCreator, contact?.alias)
+        }
+    }
+    val payEyebrow = stringResource(R.string.pr_payment_request)
+    val payFrom = payCreatorName?.let { stringResource(R.string.pr_from_name, it) }
+    val payAction = stringResource(if (payIsOwn) R.string.pr_your_request_tap_to_view else R.string.pr_tap_to_pay)
+
     val icon = when (ref) {
         is KaChatLinkRef.KaPost -> Icons.Default.NoteAlt
         is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
         is KaChatLinkRef.Profile -> Icons.Default.AccountCircle
+        is KaChatLinkRef.PaymentRequest -> Icons.Outlined.ArrowCircleUp
     }
     val eyebrow = when (ref) {
         // A reply or a quote is still a KaPosts post, but saying which one it is explains why
@@ -996,11 +1050,13 @@ fun KaChatInternalLinkCard(
         }
         is KaChatLinkRef.BroadcastRoom -> "Public Chat Room"
         is KaChatLinkRef.Profile -> "KaChat Profile"
+        is KaChatLinkRef.PaymentRequest -> payEyebrow
     }
     val title = when (ref) {
         is KaChatLinkRef.KaPost -> post?.authorName ?: "KaPosts post"
         is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
         is KaChatLinkRef.Profile -> profileName ?: com.kachat.app.util.KaspaAddress.shortDisplay(ref.address)
+        is KaChatLinkRef.PaymentRequest -> "${ref.request.amountText} ${com.kachat.app.util.KaspaUnit.symbol}"
     }
     val subtitle = when (ref) {
         is KaChatLinkRef.KaPost -> when {
@@ -1015,6 +1071,13 @@ fun KaChatInternalLinkCard(
             if (roomIsKnown) "Tap to open this KaChat public chat room." else "Tap to join this KaChat public chat room."
         is KaChatLinkRef.Profile ->
             if (profileIsContact) "Tap to open your chat." else "Tap to start a chat on KaChat."
+        // The memo, the maker as the signature in the link proves - their name, not the payment
+        // address - and what a tap does (iOS c6851d6, 7c71a98, 1fe8388).
+        is KaChatLinkRef.PaymentRequest -> listOfNotNull(
+            ref.request.memo.takeIf { it.isNotEmpty() },
+            payFrom.takeIf { payCreator != null && !payIsOwn },
+            payAction,
+        ).joinToString("\n")
     }
     // The text of a real post deserves more than the placeholder's three lines.
     val subtitleMaxLines = if (post?.snippet?.isNotBlank() == true) 6 else 3

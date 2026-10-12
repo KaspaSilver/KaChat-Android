@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">تُستأنف الإشعارات من هذا البوت.</string>
     <string name="bot_sheet_no_notification">لا إشعارات من هذا البوت.</string>
     <string name="bot_sheet_delete_subtitle">يزيل هذه المحادثة حتى تكتب إلى البوت مرة أخرى.</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">طلب دفعة</string>
+    <string name="pr_request_payment_hint">رابط يطلب مبلغًا محددًا، مع ما هو مقابله.</string>
+    <string name="pr_paid_to">يُدفع إلى</string>
+    <string name="pr_chatting_footer">تصل الدفعة إلى محادثتك مع من يدفع، مع الملاحظة.</string>
+    <string name="pr_spending_footer">تُدفع إلى عنوان جديد لك. تظهر الملاحظة لمن يدفع، لكنها لا تُرسل مع الدفعة.</string>
+    <string name="pr_memo_placeholder">مقابل ماذا (اختياري)</string>
+    <string name="pr_copy">نسخ طلب الدفع</string>
+    <string name="pr_anyone_note">كل من يفتحه أو يلصقه في KaChat يحصل على شاشة إرسال Kaspa معبأة، ويرى أنه صادر من عنوان الدردشة الخاص بك (موقّع بمفتاحه).</string>
+    <string name="pr_requested">المطلوب</string>
+    <string name="pr_paid_as_chat_payment">تُدفع كدفعة في المحادثة: تظهر في محادثتك معه.</string>
+    <string name="pr_paid_to_their_spending">تُدفع إلى عنوان الإنفاق الخاص به.</string>
+    <string name="pr_payment_request">طلب دفعة</string>
+    <string name="pr_preview">طلب دفعة: %1$s KAS</string>
+    <string name="pr_tap_to_pay">اضغط للدفع.</string>
+    <string name="pr_from_name">من %1$s</string>
+    <string name="pr_requested_by">مطلوب من</string>
+    <string name="pr_signed_by_their_chatting">موقّع من عنوان الدردشة الخاص به. تذهب الدفعة إلى العنوان أعلاه.</string>
+    <string name="pr_not_signed">غير موقّع: لا يمكن التأكد ممن أنشأ هذا الطلب.</string>
+    <string name="pr_your_payment_request">طلب الدفع الخاص بك</string>
+    <string name="pr_your_request_tap_to_view">طلب الدفع الخاص بك. اضغط للعرض.</string>
+    <string name="pr_paid_to_your_chatting">يُدفع إلى عنوان الدردشة الخاص بك</string>
+    <string name="pr_paid_to_your_spending">يُدفع إلى عنوان الإنفاق الخاص بك</string>
+    <string name="pr_ask_contact_hint">اطلب من جهة الاتصال هذه مبلغًا محددًا، مع ما هو مقابله.</string>
+    <string name="pr_send_request">إرسال طلب الدفع</string>
 </resources>

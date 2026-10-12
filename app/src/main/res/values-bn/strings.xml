@@ -1251,4 +1251,29 @@
     <string name="bot_sheet_notifications_resume">এই বটের বিজ্ঞপ্তি আবার চালু হয়।</string>
     <string name="bot_sheet_no_notification">এই বট থেকে কোনো বিজ্ঞপ্তি নয়।</string>
     <string name="bot_sheet_delete_subtitle">আবার বটকে লেখা পর্যন্ত এই চ্যাট সরিয়ে দেয়।</string>
+    <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
+    <string name="pr_request_payment">পেমেন্ট অনুরোধ</string>
+    <string name="pr_request_payment_hint">একটি নির্দিষ্ট পরিমাণ চাওয়ার লিংক, কীসের জন্য তা সহ।</string>
+    <string name="pr_paid_to">যেখানে পেমেন্ট যাবে</string>
+    <string name="pr_chatting_footer">পেমেন্টটি যে দেবে তার সাথে আপনার চ্যাটে আসবে, মেমোসহ।</string>
+    <string name="pr_spending_footer">আপনার একটি নতুন ঠিকানায় পেমেন্ট হবে। মেমো শুধু প্রদানকারী দেখবেন, পেমেন্টের সাথে যাবে না।</string>
+    <string name="pr_memo_placeholder">কীসের জন্য (ঐচ্ছিক)</string>
+    <string name="pr_copy">পেমেন্ট অনুরোধ কপি করুন</string>
+    <string name="pr_anyone_note">KaChat-এ যে কেউ এটি খুললে বা পেস্ট করলে তথ্য ভরা Kaspa পাঠানোর স্ক্রিন পাবেন, এবং দেখবেন এটি আপনার চ্যাটিং ঠিকানা থেকে তৈরি (এর কী দিয়ে স্বাক্ষরিত)।</string>
+    <string name="pr_requested">অনুরোধকৃত</string>
+    <string name="pr_paid_as_chat_payment">চ্যাট পেমেন্ট হিসেবে দেওয়া হবে: তাদের সাথে আপনার চ্যাটে দেখাবে।</string>
+    <string name="pr_paid_to_their_spending">তাদের স্পেন্ডিং ঠিকানায় দেওয়া হবে।</string>
+    <string name="pr_payment_request">পেমেন্ট অনুরোধ</string>
+    <string name="pr_preview">পেমেন্ট অনুরোধ: %1$s KAS</string>
+    <string name="pr_tap_to_pay">পেমেন্ট করতে ট্যাপ করুন।</string>
+    <string name="pr_from_name">%1$s থেকে</string>
+    <string name="pr_requested_by">অনুরোধকারী</string>
+    <string name="pr_signed_by_their_chatting">তাদের চ্যাটিং ঠিকানা দিয়ে স্বাক্ষরিত। পেমেন্ট উপরের ঠিকানায় যাবে।</string>
+    <string name="pr_not_signed">স্বাক্ষরিত নয়: কে এই অনুরোধ তৈরি করেছে তা নিশ্চিত করা যায় না।</string>
+    <string name="pr_your_payment_request">আপনার পেমেন্ট অনুরোধ</string>
+    <string name="pr_your_request_tap_to_view">আপনার পেমেন্ট অনুরোধ। দেখতে ট্যাপ করুন।</string>
+    <string name="pr_paid_to_your_chatting">আপনার চ্যাটিং ঠিকানায় দেওয়া হবে</string>
+    <string name="pr_paid_to_your_spending">আপনার স্পেন্ডিং ঠিকানায় দেওয়া হবে</string>
+    <string name="pr_ask_contact_hint">এই কন্টাক্টের কাছে কীসের জন্য তা সহ একটি নির্দিষ্ট পরিমাণ চান।</string>
+    <string name="pr_send_request">পেমেন্ট অনুরোধ পাঠান</string>
 </resources>

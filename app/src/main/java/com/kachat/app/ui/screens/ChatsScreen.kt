@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.ArrowCircleDown
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
@@ -170,6 +171,8 @@ fun ChatsScreen(
     val chattingBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     /** "Send Kaspa" in the New sheet: Profile's send from the current spending address (iOS f81e8d6). */
     var showSpendingSend by remember { mutableStateOf(false) }
+    /** "Request Payment" in the New sheet (iOS c6851d6 `CreatePaymentRequestView`). */
+    var showPaymentRequest by remember { mutableStateOf(false) }
     LaunchedEffect(showNewSheet, newSheetQr) {
         if (showNewSheet || newSheetQr == ChatsNewQr.RECEIVE) {
             if (receiveQrAddress == null) receiveQrResolving = true
@@ -215,7 +218,7 @@ fun ChatsScreen(
                     convo.contact.alias,
                     convo.contact.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY },
                     convo.contact.id,
-                    messagePreviewText(convo.lastMessage, contactLabel)
+                    messagePreviewText(convo.lastMessage, contactLabel, context)
                 ).any { it.contains(query, ignoreCase = true) }
             }
         }
@@ -949,6 +952,16 @@ fun ChatsScreen(
             },
             onShowQr = { newSheetQr = it },
             onSendKaspa = { showSpendingSend = true },
+            onRequestPayment = { showPaymentRequest = true },
+        )
+    }
+    // A sheet over Chats once the New sheet has gone, as iOS presents it (c6851d6): the link to
+    // copy or share, paid to the chatting address or a fresh receive address.
+    if (showPaymentRequest) {
+        CreatePaymentRequestSheet(
+            walletViewModel = walletViewModel,
+            onDismissed = { showPaymentRequest = false },
+            initialSpendingAddress = receiveQrAddress,
         )
     }
     // A sheet over Chats, as iOS presents it once the New sheet has gone (f81e8d6).
@@ -1436,7 +1449,7 @@ private fun ChatsUnreadBadge(count: Int, modifier: Modifier = Modifier) {
  * otherwise leak the audio-message or reply JSON blob to the user. [contactLabel] names the other
  * party, used when they're the one who sent a reply ("Alice replied to ..." vs "You replied to ...").
  */
-private fun messagePreviewText(message: MessageEntity?, contactLabel: String): String? {
+private fun messagePreviewText(message: MessageEntity?, contactLabel: String, context: android.content.Context): String? {
     val body = message?.plaintextBody ?: return null
     val replyContent = MessageReply.parseOrNull(body)
     if (replyContent != null) {
@@ -1460,6 +1473,9 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String): S
         is KaChatLinkRef.KaPost -> return "Shared a KaPosts post"
         is KaChatLinkRef.BroadcastRoom -> return "Public chat room #${link.channel}"
         is KaChatLinkRef.Profile -> return "Shared a KaChat profile"
+        is KaChatLinkRef.PaymentRequest -> return com.kachat.app.util.KaspaUnit.label(
+            context.getString(R.string.pr_preview, link.request.amountText)
+        )
         null -> {}
     }
     if (com.kachat.app.util.ChessMessage.parseOrNull(body) != null) return "♟️ Chess game"
@@ -1541,8 +1557,9 @@ internal fun ConversationRow(
             // every sync tick, and this walks the message body looking for a reply envelope and a
             // media mime - cheap now, but not free, and there are as many of these as there are
             // visible rows.
+            val previewContext = LocalContext.current
             val preview = remember(convo.lastMessage?.id, contactLabel) {
-                messagePreviewText(convo.lastMessage, contactLabel)
+                messagePreviewText(convo.lastMessage, contactLabel, previewContext)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // The row said nothing about whether your own last message went out. iOS's list
@@ -1880,9 +1897,9 @@ private enum class ChatsNewQr { FUND_CHATTING, RECEIVE }
 private enum class ChatsNewPage { MENU, JOIN_ROOM, NEW_CHAT, NEW_GROUP }
 
 /**
- * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6 and
- * f81e8d6 - this is where they ended): a half sheet of square tiles - New Chat, New Group Chat,
- * New Public Chat, Send Kaspa, Receive Kaspa and Fund Chatting Address. Everything but the send
+ * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6, f81e8d6
+ * and c6851d6 - this is where they ended): a half sheet of square tiles - New Chat, New Group
+ * Chat, New Public Chat, Send Kaspa, Receive Kaspa, Request Payment and Fund Chatting Address. Everything but the send
  * and the QR codes happens in this one sheet, so there is no close-then-open wait:
  * - New Chat / New Group Chat swap the sheet to the create screen, full height ([CreateChatScreen],
  *   whose Cancel comes back to the menu);
@@ -1904,6 +1921,7 @@ private fun ChatsNewSheet(
     onRoomJoined: (String) -> Unit,
     onShowQr: (ChatsNewQr) -> Unit,
     onSendKaspa: () -> Unit,
+    onRequestPayment: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -2043,6 +2061,15 @@ private fun ChatsNewSheet(
                                         title = stringResource(R.string.receive_kaspa),
                                         hint = stringResource(R.string.chats_receive_subtitle),
                                     ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
+                                    // A link asking for an exact amount (iOS c6851d6).
+                                    ChatsNewTile(
+                                        size = tileSize,
+                                        icon = Icons.Outlined.Description,
+                                        title = stringResource(R.string.pr_request_payment),
+                                        hint = stringResource(R.string.pr_request_payment_hint),
+                                    ) { close { onRequestPayment() } }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
                                     ChatsNewTile(
                                         size = tileSize,
                                         icon = Icons.Default.QrCode,
@@ -2143,9 +2170,9 @@ private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: 
 }
 
 /** The menu and the room name share one height, so moving between them is a plain push; the
- *  create screens open at full height. Shrunk to fit the tiles grid (iOS f81e8d6
- *  `createSheetHeight`, 380 pt). */
-private val ChatsNewSheetHeight = 380.dp
+ *  create screens open at full height. Fits the tiles grid, three rows since Request Payment
+ *  (iOS c6851d6 `createSheetHeight`, 498 pt). */
+private val ChatsNewSheetHeight = 498.dp
 
 /**
  * Join or create a public room, right in the New sheet (iOS be0857a `createJoinRoom`): the same

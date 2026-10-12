@@ -789,6 +789,9 @@ fun GroupChatThreadScreen(
                             TextField(
                                 value = draft,
                                 onValueChange = { newValue ->
+                                    // Someone's payment request pasted in opens Send Kaspa instead
+                                    // of landing in the message (iOS c6851d6).
+                                    if (PaymentRequestPaste.interceptInsert(draft.text, newValue.text)) return@TextField
                                     lastTypedDraft[0] = newValue.text
                                     draft = newValue
                                     mentionQuery = detectMentionQuery(newValue)
