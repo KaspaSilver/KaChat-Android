@@ -298,9 +298,18 @@ object KachatLive {
                 }
             )
         }
-        return android.icu.text.MeasureFormat.getInstance(locale, android.icu.text.MeasureFormat.FormatWidth.NARROW)
-            .formatMeasures(*measures.toTypedArray())
+        // One formatter per language, not one per call: the Expired page ticks every tile's
+        // countdown once a second (iOS defda2e). Formatted under the lock, as ICU formatters are
+        // not documented as safe to share across threads.
+        synchronized(measureFormats) {
+            val format = measureFormats.getOrPut(locale) {
+                android.icu.text.MeasureFormat.getInstance(locale, android.icu.text.MeasureFormat.FormatWidth.NARROW)
+            }
+            return format.formatMeasures(*measures.toTypedArray())
+        }
     }
+
+    private val measureFormats = HashMap<Locale, android.icu.text.MeasureFormat>()
 
     /**
      * Time left until a moment, for a live countdown (iOS cb3c27d `KachatLive.countdown`): "2d 5h"
