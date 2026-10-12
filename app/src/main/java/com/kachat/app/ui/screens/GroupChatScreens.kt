@@ -129,6 +129,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.InsertDriveFile
 
 // Shared, reused across every parseGroupMembers call. Allocating a fresh Gson + TypeToken per call
 // (the old behaviour) was measurable: parseGroupMembers runs inside chat-list item builders and per
@@ -860,7 +861,7 @@ fun GroupChatThreadScreen(
                                             if (nextcloudAccount != null) {
                                                 ActionSheetRow(
                                                     // iOS "doc": a plain page, no text lines
-                                                    icon = androidx.compose.material.icons.Icons.Outlined.InsertDriveFile,
+                                                    icon = Icons.Outlined.InsertDriveFile,
                                                     title = stringResource(R.string.composer_file),
                                                     subtitle = stringResource(R.string.composer_file_subtitle),
                                                 ) {

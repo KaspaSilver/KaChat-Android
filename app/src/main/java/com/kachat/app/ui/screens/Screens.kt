@@ -196,6 +196,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import com.kachat.app.util.showAddressCopiedToast
+import androidx.compose.material.icons.outlined.InsertDriveFile
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -1196,7 +1197,7 @@ fun ChatThreadScreen(
                                             if (nextcloudAccount != null) {
                                                 ActionSheetRow(
                                                     // iOS "doc": a plain page, no text lines
-                                                    icon = androidx.compose.material.icons.Icons.Outlined.InsertDriveFile,
+                                                    icon = Icons.Outlined.InsertDriveFile,
                                                     title = stringResource(R.string.composer_file),
                                                     subtitle = stringResource(R.string.composer_file_subtitle),
                                                 ) {
