@@ -411,6 +411,29 @@ class ChatRepository @Inject constructor(
     }
 
     /**
+     * Opens (or starts) the 1:1 chat with a KaChat bot, the way Kaspa Hub > KaChat Bots does it
+     * (iOS `KaChatBotCard.open`, 82ab31d / 5fcf755). Starting it accepts it, so the bot's replies
+     * land in the chat, not in Message Requests; [name] (the bot's) is the contact's name until the
+     * person renames it. A chat deleted before starts again: the deletion's block is lifted, but
+     * what came before it stays deleted - the tombstone stays as the history floor (iOS
+     * `clearDeletionTombstone`), unlike a deliberate [addContact], which drops it.
+     * @return false when there is no wallet, or the contact was refused.
+     */
+    suspend fun openBotChat(address: String, name: String): Boolean {
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull() ?: return false
+        database.contactDao().liftDeletedContact(address, myAddress)
+        val existing = database.contactDao().getContact(address, myAddress)
+        if (existing == null) {
+            val created = ContactEntity(id = address, walletAddress = myAddress, alias = name, knsName = null, publicKeyHex = null)
+            if (!addContact(created)) return false
+        } else if (existing.alias.isNullOrBlank()) {
+            addContact(existing.copy(alias = name))
+        }
+        acceptChat(address)
+        return true
+    }
+
+    /**
      * Reject: their messages are deleted from this device and the address is blocked - ignored
      * by discovery, fetching and notifications until the user writes to them.
      */

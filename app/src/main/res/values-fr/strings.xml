@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">Secondes</string>
     <string name="kn_launch_then_anyone">Ensuite, tout le monde pourra chercher et réserver un nom .kachat ici.</string>
     <string name="kn_not_public_yet">Les noms .kachat s’ouvrent à tous le %1$s.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">Bots KaChat</string>
+    <string name="bot_block_rewards_name">Suivi des récompenses de bloc</string>
+    <string name="bot_block_rewards_summary">Un message pour chaque récompense de bloc versée à votre adresse de minage.</string>
+    <string name="bot_wallet_name">Suivi de portefeuille</string>
+    <string name="bot_wallet_summary">Vous prévient quand une adresse surveillée reçoit ou envoie des KAS.</string>
+    <string name="bot_price_name">Bot de prix</string>
+    <string name="bot_price_summary">Alertes quand le KAS franchit votre prix, gros mouvements et résumé quotidien.</string>
+    <string name="bot_kaspa_answers_name">Réponses Kaspa</string>
+    <string name="bot_kaspa_answers_summary">Posez n’importe quelle question sur Kaspa.</string>
+    <string name="bots_coming_soon">Bientôt disponible.</string>
+    <string name="bots_mainnet_only">Les bots fonctionnent uniquement sur le mainnet.</string>
+    <string name="bots_opens_chat_hint">Ouvre une discussion avec ce bot.</string>
+    <string name="bots_fee_note">Les messages à un bot sont des messages KaChat chiffrés ordinaires : chacun coûte les frais de réseau habituels.</string>
+    <string name="bots_unread_count">%1$d non lus</string>
+    <string name="bot_sheet_clears_unread">Retire le badge non lu de cette discussion.</string>
+    <string name="bot_sheet_notifications_resume">Les notifications de ce bot reprennent.</string>
+    <string name="bot_sheet_no_notification">Aucune notification de ce bot.</string>
+    <string name="bot_sheet_delete_subtitle">Supprime cette discussion jusqu’à ce que vous écriviez de nouveau au bot.</string>
 </resources>

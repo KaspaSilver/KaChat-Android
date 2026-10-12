@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">Segundos</string>
     <string name="kn_launch_then_anyone">Después, cualquiera podrá buscar y reclamar un nombre .kachat aquí.</string>
     <string name="kn_not_public_yet">Los nombres .kachat se abren a todos el %1$s.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">Bots de KaChat</string>
+    <string name="bot_block_rewards_name">Rastreador de recompensas de bloque</string>
+    <string name="bot_block_rewards_summary">Un mensaje por cada recompensa de bloque pagada a tu dirección de minería.</string>
+    <string name="bot_wallet_name">Rastreador de billetera</string>
+    <string name="bot_wallet_summary">Te avisa cuando una dirección vigilada recibe o envía KAS.</string>
+    <string name="bot_price_name">Bot de precio</string>
+    <string name="bot_price_summary">Avisos cuando KAS cruza tu precio, grandes movimientos y un resumen diario.</string>
+    <string name="bot_kaspa_answers_name">Respuestas de Kaspa</string>
+    <string name="bot_kaspa_answers_summary">Pregunta lo que quieras sobre Kaspa.</string>
+    <string name="bots_coming_soon">Próximamente.</string>
+    <string name="bots_mainnet_only">Los bots solo funcionan en mainnet.</string>
+    <string name="bots_opens_chat_hint">Abre un chat con este bot.</string>
+    <string name="bots_fee_note">Los mensajes a un bot son mensajes cifrados normales de KaChat, así que cada uno cuesta la comisión de red habitual.</string>
+    <string name="bots_unread_count">%1$d sin leer</string>
+    <string name="bot_sheet_clears_unread">Quita la insignia de no leídos de este chat.</string>
+    <string name="bot_sheet_notifications_resume">Vuelven las notificaciones de este bot.</string>
+    <string name="bot_sheet_no_notification">Ninguna notificación de este bot.</string>
+    <string name="bot_sheet_delete_subtitle">Elimina este chat hasta que vuelvas a escribirle al bot.</string>
 </resources>

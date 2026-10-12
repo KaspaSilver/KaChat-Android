@@ -133,7 +133,14 @@ fun ChatsScreen(
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
     // The chat list leaves out Message Requests and blocked chats - requests sit behind their own
     // row, and neither counts toward the unread badge (iOS f7ca401, 84e3402).
-    val conversations by chatViewModel.chatListConversations.collectAsState()
+    val chatListConversations by chatViewModel.chatListConversations.collectAsState()
+    // Bot chats are never rows in the chat list (or its search): Kaspa Hub > KaChat Bots is the
+    // way in, and once you have written to a bot its chat is a circle above the list (iOS
+    // d576941, 5fcf755).
+    val conversations = remember(chatListConversations) {
+        chatListConversations.filterNot { com.kachat.app.models.KaChatBot.isBot(it.contact.id) }
+    }
+    val botConversations by chatViewModel.botCircleConversations.collectAsState()
     val messageRequests by chatViewModel.messageRequests.collectAsState()
     val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
@@ -183,6 +190,8 @@ fun ChatsScreen(
     /** A group or custom room waiting on its delete confirmation, from that sheet. */
     var circleDeleteGroup by remember { mutableStateOf<String?>(null) }
     var circleDeleteRoom by remember { mutableStateOf<String?>(null) }
+    /** A bot chat waiting on its delete confirmation, from its circle's sheet (iOS 5fcf755). */
+    var circleDeleteBot by remember { mutableStateOf<com.kachat.app.models.ContactEntity?>(null) }
     /** Pins a circle to the front, or unpins it, with a toast saying which (iOS `toggleCirclePin`). */
     fun toggleCirclePin(id: String) {
         val address = myAddress ?: return
@@ -214,8 +223,10 @@ fun ChatsScreen(
 
     // The circles, as the row shows them: pinned first, then by latest activity, filtered by the
     // search. Select All and the action bar read the same list, so they agree on what's visible.
-    val circleItems = remember(groupConversations, listedRooms, roomSummaries, searchQuery, circlePins) {
-        chatCircleItems(groupConversations, listedRooms, roomSummaries, searchQuery, circlePins)
+    val circleItems = remember(groupConversations, listedRooms, roomSummaries, botConversations, searchQuery, circlePins) {
+        chatCircleItems(groupConversations, listedRooms, roomSummaries, botConversations, searchQuery, circlePins) { convo ->
+            botCircleTitle(context, convo)
+        }
     }
     // What Select All and "everything selected" count while searching are iOS's displayedGroups
     // and displayedRooms - not the circles row, which matches a title alone. A group matches by
@@ -512,6 +523,8 @@ fun ChatsScreen(
                             when (item) {
                                 is ChatCircle.Group -> item.convo.group.groupId in selectedGroupIds
                                 is ChatCircle.Room -> item.name in selectedRooms
+                                // a bot chat is deleted from its own half sheet, not in Select mode
+                                is ChatCircle.Bot -> false
                             }
                         },
                         onTap = { item ->
@@ -531,6 +544,9 @@ fun ChatsScreen(
                                     } else {
                                         navController.navigate("broadcast_channel/$name")
                                     }
+                                }
+                                is ChatCircle.Bot -> {
+                                    if (!isSelectionMode) navController.navigate("chat/${item.convo.contact.id}")
                                 }
                             }
                         },
@@ -828,12 +844,42 @@ fun ChatsScreen(
             groupConversations = groupConversations,
             listedRooms = listedRooms,
             roomSummaries = roomSummaries,
+            botConversations = botConversations,
             chatViewModel = chatViewModel,
             broadcastViewModel = broadcastViewModel,
             onDismiss = { circleActionTarget = null },
             onTogglePin = { toggleCirclePin(id) },
             onDeleteGroup = { circleDeleteGroup = it },
             onDeleteRoom = { circleDeleteRoom = it },
+            onDeleteBot = { circleDeleteBot = it },
+        )
+    }
+    // The chat row's delete confirmation, for a bot chat's circle (iOS 5fcf755 rowDeleteContact).
+    circleDeleteBot?.let { contact ->
+        val label = com.kachat.app.models.KaChatBot.bot(contact.id)?.let { stringResource(it.nameRes) } ?: contact.displayName
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { circleDeleteBot = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text("Delete Chat with $label", color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    stringResource(R.string.this_permanently_deletes_every_message_with),
+                    color = LocalAppColors.current.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    chatViewModel.deleteChat(contact.id)
+                    circleDeleteBot = null
+                }) {
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { circleDeleteBot = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
         )
     }
     circleDeleteGroup?.let { groupId ->
@@ -934,8 +980,8 @@ fun ChatsScreen(
     }
 }
 
-/** One circle in [ChatCirclesStrip]: a group chat or a public room. [id] is the pin id -
- *  "g:<groupId>" / "r:<room>", as iOS's (a062577). */
+/** One circle in [ChatCirclesStrip]: a group chat, a public room or a bot chat. [id] is the pin
+ *  id - "g:<groupId>" / "r:<room>" / "b:<bot address, lowercased>", as iOS's (a062577, 5fcf755). */
 private sealed interface ChatCircle {
     val id: String
     val title: String
@@ -951,20 +997,35 @@ private sealed interface ChatCircle {
         override val id get() = "r:$name"
         override val title get() = "#$name"
     }
+
+    /** A bot chat you have written to ([ChatViewModel.botCircleConversations]); [title] is the
+     *  bot's name, else the contact's. */
+    data class Bot(val convo: com.kachat.app.models.Conversation, override val title: String) : ChatCircle {
+        override val id get() = "b:${convo.contact.id.lowercase()}"
+        override val unread get() = convo.unreadCount
+    }
 }
 
+/** A bot chat circle's name: the bot's own, else what the contact is called (iOS 5fcf755). */
+private fun botCircleTitle(context: android.content.Context, convo: com.kachat.app.models.Conversation): String =
+    com.kachat.app.models.KaChatBot.bot(convo.contact.id)?.let { context.getString(it.nameRes) }
+        ?: convo.contact.alias?.takeIf { it.isNotBlank() }
+        ?: convo.contact.displayName
+
 /**
- * The circles in row order (iOS `ChatCirclesStrip.items`): every group and every listed room,
- * filtered by the search on its title; the pinned ones first, in pin order, then the rest by
- * latest activity - a group's last message, else when it was created; a room's last message,
- * else when it was joined.
+ * The circles in row order (iOS `ChatCirclesStrip.items`): every group, every listed room and
+ * every bot chat you have written to, filtered by the search on its title; the pinned ones first,
+ * in pin order, then the rest by latest activity - a group's last message, else when it was
+ * created; a room's last message, else when it was joined; a bot chat's last message.
  */
 private fun chatCircleItems(
     groups: List<GroupConversation>,
     rooms: List<com.kachat.app.models.BroadcastChannelEntity>,
     summaries: Map<String, com.kachat.app.repository.BroadcastRepository.RoomSummary>,
+    bots: List<com.kachat.app.models.Conversation>,
     searchQuery: String,
     pins: List<String>,
+    botTitle: (com.kachat.app.models.Conversation) -> String,
 ): List<ChatCircle> {
     var dated: List<Pair<ChatCircle, Long>> =
         groups.map { ChatCircle.Group(it) to (it.lastMessage?.blockTimestamp ?: it.group.createdAt) } +
@@ -972,7 +1033,8 @@ private fun chatCircleItems(
                 val summary = summaries[room.channelName]
                 ChatCircle.Room(room.channelName, summary?.unreadCount ?: 0) to
                     (summary?.lastMessage?.blockTimestamp ?: room.joinedAt)
-            }
+            } +
+            bots.map { ChatCircle.Bot(it, botTitle(it)) to (it.lastMessage?.blockTimestamp ?: 0L) }
     val query = searchQuery.trim()
     if (query.isNotEmpty()) dated = dated.filter { it.first.title.contains(query, ignoreCase = true) }
     val byId = dated.associate { it.first.id to it.first }
@@ -1116,6 +1178,18 @@ private fun ChatCircleAvatar(item: ChatCircle) {
         ) {
             Text("#", color = KaspaTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         }
+        // The bot's own icon, as on its Kaspa Hub card (iOS 5fcf755).
+        is ChatCircle.Bot -> Box(
+            modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                com.kachat.app.models.KaChatBot.bot(item.convo.contact.id)?.icon ?: com.kachat.app.models.KaChatBot.fallbackIcon,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier.size(26.dp),
+            )
+        }
     }
 }
 
@@ -1133,12 +1207,14 @@ private fun ChatCircleActionSheet(
     groupConversations: List<GroupConversation>,
     listedRooms: List<com.kachat.app.models.BroadcastChannelEntity>,
     roomSummaries: Map<String, com.kachat.app.repository.BroadcastRepository.RoomSummary>,
+    botConversations: List<com.kachat.app.models.Conversation>,
     chatViewModel: ChatViewModel,
     broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel,
     onDismiss: () -> Unit,
     onTogglePin: () -> Unit,
     onDeleteGroup: (String) -> Unit,
     onDeleteRoom: (String) -> Unit,
+    onDeleteBot: (com.kachat.app.models.ContactEntity) -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -1203,6 +1279,57 @@ private fun ChatCircleActionSheet(
                 ) {
                     onDismiss()
                     onDeleteGroup(groupId)
+                }
+        }
+    } else if (id.startsWith("b:")) {
+        // A bot chat's circle (iOS 5fcf755, localized in 4a43e33): read state, pin to the front,
+        // Silence, and Delete - confirmed, and the circle stays gone until you write to the bot
+        // again.
+        val convo = botConversations.firstOrNull { "b:${it.contact.id.lowercase()}" == id } ?: return
+        val contact = convo.contact
+        val isSilent = com.kachat.app.models.ContactNotificationMode.fromName(contact.notificationOverride) ==
+            com.kachat.app.models.ContactNotificationMode.OFF
+        val title = com.kachat.app.models.KaChatBot.bot(contact.id)?.let { stringResource(it.nameRes) } ?: contact.displayName
+        TileActionSheet(title = title, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
+                if (convo.unreadCount > 0) {
+                    ActionSheetRow(
+                        icon = Icons.Default.MarkEmailRead,
+                        title = stringResource(R.string.mark_as_read),
+                        subtitle = stringResource(R.string.bot_sheet_clears_unread),
+                    ) {
+                        onDismiss()
+                        chatViewModel.markAsRead(contact.id)
+                    }
+                } else {
+                    ActionSheetRow(
+                        icon = Icons.Default.MarkEmailUnread,
+                        title = stringResource(R.string.mark_as_unread),
+                        subtitle = "Puts the unread badge back so you come across it again.",
+                    ) {
+                        onDismiss()
+                        chatViewModel.markAsUnread(contact.id)
+                    }
+                }
+                PinRow()
+                ActionSheetRow(
+                    icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                    title = if (isSilent) "Unsilence" else "Silence",
+                    subtitle = stringResource(if (isSilent) R.string.bot_sheet_notifications_resume else R.string.bot_sheet_no_notification),
+                ) {
+                    onDismiss()
+                    chatViewModel.updateContactNotificationOverride(
+                        contact.id,
+                        if (isSilent) null else com.kachat.app.models.ContactNotificationMode.OFF
+                    )
+                }
+                ActionSheetRow(
+                    icon = Icons.Default.Delete,
+                    title = stringResource(R.string.delete),
+                    subtitle = stringResource(R.string.bot_sheet_delete_subtitle),
+                    tint = LocalAppColors.current.danger,
+                ) {
+                    onDismiss()
+                    onDeleteBot(contact)
                 }
         }
     } else if (id.startsWith("r:")) {

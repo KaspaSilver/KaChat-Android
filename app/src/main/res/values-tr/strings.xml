@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">Saniye</string>
     <string name="kn_launch_then_anyone">Sonra herkes burada .kachat ismi arayıp alabilir.</string>
     <string name="kn_not_public_yet">.kachat isimleri herkese %1$s tarihinde açılıyor.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">KaChat Botları</string>
+    <string name="bot_block_rewards_name">Blok Ödülü Takipçisi</string>
+    <string name="bot_block_rewards_summary">Madencilik adresinize ödenen her blok ödülü için bir mesaj.</string>
+    <string name="bot_wallet_name">Cüzdan Takipçisi</string>
+    <string name="bot_wallet_summary">İzlenen bir adres KAS aldığında veya gönderdiğinde haber verir.</string>
+    <string name="bot_price_name">Fiyat Botu</string>
+    <string name="bot_price_summary">KAS fiyatınızı geçtiğinde, büyük hareketlerde ve günlük özetle uyarır.</string>
+    <string name="bot_kaspa_answers_name">Kaspa Cevapları</string>
+    <string name="bot_kaspa_answers_summary">Kaspa ile ilgili her şeyi sorun.</string>
+    <string name="bots_coming_soon">Çok yakında.</string>
+    <string name="bots_mainnet_only">Botlar yalnızca ana ağda çalışır.</string>
+    <string name="bots_opens_chat_hint">Bu botla bir sohbet açar.</string>
+    <string name="bots_fee_note">Bir bota giden mesajlar sıradan şifreli KaChat mesajlarıdır, bu yüzden her biri olağan ağ ücretine mal olur.</string>
+    <string name="bots_unread_count">%1$d okunmamış</string>
+    <string name="bot_sheet_clears_unread">Bu sohbetteki okunmamış rozetini kaldırır.</string>
+    <string name="bot_sheet_notifications_resume">Bu bottan bildirimler yeniden gelir.</string>
+    <string name="bot_sheet_no_notification">Bu bottan bildirim gelmez.</string>
+    <string name="bot_sheet_delete_subtitle">Bota yeniden yazana kadar bu sohbeti kaldırır.</string>
 </resources>

@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">秒</string>
     <string name="kn_launch_then_anyone">届时任何人都可以在这里搜索并认领 .kachat 名称。</string>
     <string name="kn_not_public_yet">.kachat 名称将于 %1$s 向所有人开放。</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">KaChat 机器人</string>
+    <string name="bot_block_rewards_name">区块奖励追踪</string>
+    <string name="bot_block_rewards_summary">每当有区块奖励支付到你的挖矿地址，就发一条消息。</string>
+    <string name="bot_wallet_name">钱包追踪</string>
+    <string name="bot_wallet_summary">当关注的地址收到或发送 KAS 时通知你。</string>
+    <string name="bot_price_name">价格机器人</string>
+    <string name="bot_price_summary">当 KAS 突破你设定的价格、出现大幅波动时提醒你，并每日汇总。</string>
+    <string name="bot_kaspa_answers_name">Kaspa 问答</string>
+    <string name="bot_kaspa_answers_summary">任何关于 Kaspa 的问题都可以问。</string>
+    <string name="bots_coming_soon">即将推出。</string>
+    <string name="bots_mainnet_only">机器人仅在主网运行。</string>
+    <string name="bots_opens_chat_hint">打开与此机器人的聊天。</string>
+    <string name="bots_fee_note">发给机器人的消息是普通的加密 KaChat 消息，因此每条都需支付常规网络费用。</string>
+    <string name="bots_unread_count">%1$d 条未读</string>
+    <string name="bot_sheet_clears_unread">清除此聊天的未读标记。</string>
+    <string name="bot_sheet_notifications_resume">恢复此机器人的通知。</string>
+    <string name="bot_sheet_no_notification">不接收此机器人的通知。</string>
+    <string name="bot_sheet_delete_subtitle">删除此聊天，直到你再次给机器人发消息。</string>
 </resources>

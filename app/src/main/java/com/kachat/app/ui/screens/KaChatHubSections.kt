@@ -34,12 +34,14 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -1531,6 +1533,127 @@ private fun KachatAddressComingNote() {
                     textAlign = TextAlign.Center,
                 )
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Kaspa Hub > KaChat Bots (iOS 82ab31d, 7dd508a, 64ce0c7, d576941, 5fcf755 - KaChatBotsView).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Kaspa Hub > KaChat Bots: one card per bot ([com.kachat.app.models.KaChatBot.all]); tapping a card
+ * opens (or starts) the 1:1 chat with it, accepted and named after the bot. Each card carries the
+ * chat's unread count too (the chat's circle above the chat list does). Bots run on mainnet only.
+ * [onBack] is the Hub's way back to its grid; null as a dock tab.
+ */
+@Composable
+fun KaChatBotsScreen(
+    onBack: (() -> Unit)?,
+    onOpenChat: (String) -> Unit,
+    chatViewModel: com.kachat.app.viewmodels.ChatViewModel,
+) {
+    if (onBack != null) BackHandler(onBack = onBack)
+    val colors = LocalAppColors.current
+    val conversations by chatViewModel.conversations.collectAsState()
+    fun unread(bot: com.kachat.app.models.KaChatBot): Int {
+        if (bot.address.isEmpty()) return 0
+        val key = bot.address.lowercase()
+        return conversations.firstOrNull { it.contact.id.lowercase() == key }?.unreadCount ?: 0
+    }
+
+    Scaffold(
+        containerColor = colors.background,
+        topBar = { MainPageHeader(title = stringResource(R.string.bots_title), onBack = onBack) },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp, bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            com.kachat.app.models.KaChatBot.all.forEach { bot ->
+                KaChatBotCard(
+                    bot = bot,
+                    unread = unread(bot),
+                    onOpen = { name -> chatViewModel.openBotChat(bot, name) { address -> onOpenChat(address) } },
+                )
+            }
+            Text(
+                stringResource(R.string.bots_fee_note),
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun KaChatBotCard(
+    bot: com.kachat.app.models.KaChatBot,
+    unread: Int,
+    /** Called with the bot's (localized) name, which the new chat is named after. */
+    onOpen: (String) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val haptic = com.kachat.app.util.rememberHaptics()
+    val unavailable = bot.unavailableReasonRes?.let { stringResource(it) }
+    val name = stringResource(bot.nameRes)
+    val hint = unavailable ?: stringResource(R.string.bots_opens_chat_hint)
+    val unreadLabel = stringResource(R.string.bots_unread_count, unread)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            // The card's hint (iOS accessibilityHint): what a tap does, or why it can't.
+            .clickable(enabled = unavailable == null, onClickLabel = hint) {
+                haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                onOpen(name)
+            }
+            .alpha(if (unavailable == null) 1f else 0.6f)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(52.dp).background(KaspaTeal.copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(bot.icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+            Text(unavailable ?: stringResource(bot.summaryRes), color = colors.textSecondary, fontSize = 15.sp)
+        }
+        if (unread > 0) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Red)
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                    .semantics { contentDescription = unreadLabel },
+            ) {
+                Text(
+                    if (unread > 99) "99+" else unread.toString(),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        if (unavailable == null) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.textSecondary,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

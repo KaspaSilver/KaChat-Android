@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">שניות</string>
     <string name="kn_launch_then_anyone">אחר כך כל אחד יוכל לחפש ולתבוע כאן שם .kachat.</string>
     <string name="kn_not_public_yet">שמות .kachat ייפתחו לכולם ב-%1$s.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">בוטים של KaChat</string>
+    <string name="bot_block_rewards_name">מעקב תגמולי בלוקים</string>
+    <string name="bot_block_rewards_summary">הודעה על כל תגמול בלוק שמשולם לכתובת הכרייה שלך.</string>
+    <string name="bot_wallet_name">מעקב ארנק</string>
+    <string name="bot_wallet_summary">מודיע כשכתובת במעקב מקבלת או שולחת KAS.</string>
+    <string name="bot_price_name">בוט מחיר</string>
+    <string name="bot_price_summary">התראות כש-KAS חוצה את המחיר שלך, תנודות גדולות וסיכום יומי.</string>
+    <string name="bot_kaspa_answers_name">תשובות Kaspa</string>
+    <string name="bot_kaspa_answers_summary">שאלו כל דבר שקשור ל-Kaspa.</string>
+    <string name="bots_coming_soon">בקרוב.</string>
+    <string name="bots_mainnet_only">הבוטים פועלים רק ברשת הראשית.</string>
+    <string name="bots_opens_chat_hint">פותח צ׳אט עם הבוט הזה.</string>
+    <string name="bots_fee_note">הודעות לבוט הן הודעות KaChat מוצפנות רגילות, כך שכל אחת עולה את עמלת הרשת הרגילה.</string>
+    <string name="bots_unread_count">%1$d שלא נקראו</string>
+    <string name="bot_sheet_clears_unread">מסיר את תג הלא-נקרא מהצ׳אט הזה.</string>
+    <string name="bot_sheet_notifications_resume">ההתראות מהבוט הזה חוזרות.</string>
+    <string name="bot_sheet_no_notification">אין התראות מהבוט הזה.</string>
+    <string name="bot_sheet_delete_subtitle">מסיר את הצ׳אט הזה עד שתכתבו לבוט שוב.</string>
 </resources>

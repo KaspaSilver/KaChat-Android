@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BubbleChart
 import androidx.compose.material.icons.filled.AlternateEmail
@@ -127,6 +128,10 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     // addresses with names, per wallet, kept in KaChat (it replaced syncing with the phone's
     // Contacts). Your own saved addresses, so Simple Mode shows it.
     object AddressBook : Screen("address_book", "Address Book", Icons.Outlined.Book)
+    // KaChat Bots (5.2.1, iOS AppTab.kachatBots, 82ab31d) - Kaspa Hub > KaChat Bots: Block Reward
+    // Tracker, Wallet Tracker, Price Bot and Kaspa Answers; tapping one opens a chat with it.
+    // Ordinary chats with the bots, so Simple Mode shows it.
+    object KachatBots  : Screen("kachat_bots",  "Bots",         Icons.Outlined.Memory)
     // Holds whatever of the above is turned on but not in the dock - see [kaspaHubSections].
     // Route stays "kaspa_hub" once shipped: it is persisted in saved dock arrangements.
     object KaspaHub    : Screen("kaspa_hub",    "Kaspa Hub",    Icons.Default.BubbleChart)
@@ -147,7 +152,8 @@ private fun dockOwnerRoute(route: String?): String? = when (route) {
     "cold_storage_detail/{accountId}", "cold_storage_tx_history/{address}" -> Screen.ColdStorage.route
     Screen.Chess.route, Screen.Broadcasts.route, Screen.KaPosts.route, Screen.Portfolio.route,
     Screen.Swap.route, Screen.ColdStorage.route, Screen.KaspaWebsites.route,
-    Screen.KachatNames.route, Screen.KachatStats.route, Screen.AddressBook.route -> route
+    Screen.KachatNames.route, Screen.KachatStats.route, Screen.AddressBook.route,
+    Screen.KachatBots.route -> route
     else -> null
 }
 
@@ -162,6 +168,7 @@ val Screen.hubTitle: String
         Screen.KaspaWebsites -> "Kaspa Websites"
         Screen.Chess -> "Chess Online"
         Screen.KachatStats -> "KaChat Stats"
+        Screen.KachatBots -> "KaChat Bots"
         else -> label
     }
 
@@ -197,7 +204,8 @@ val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
     Screen.Swap.route, Screen.KaPosts.route,
     Screen.KaspaWebsites.route, Screen.Chess.route,
-    Screen.KachatNames.route, Screen.KachatStats.route, Screen.AddressBook.route
+    Screen.KachatNames.route, Screen.KachatStats.route, Screen.AddressBook.route,
+    Screen.KachatBots.route
 )
 
 /** Route strings for tabs that can never be hidden — see [resolveTabOrder]. */
@@ -215,6 +223,7 @@ val bottomNavItems = listOf(
     Screen.AddressBook,
     Screen.KachatNames,
     Screen.KachatStats,
+    Screen.KachatBots,
     Screen.Swap,
     Screen.KaPosts,
     Screen.Broadcasts,
@@ -1722,6 +1731,15 @@ fun MainShell(
                         onBack = null,
                         onOpenChat = { address -> navController.navigate("chat/$address") },
                         walletViewModel = walletViewModel,
+                    )
+                }
+            }
+            composable(Screen.KachatBots.route) {
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    com.kachat.app.ui.screens.KaChatBotsScreen(
+                        onBack = null,
+                        onOpenChat = { address -> navController.navigate("chat/$address") },
+                        chatViewModel = chatViewModel,
                     )
                 }
             }

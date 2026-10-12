@@ -576,6 +576,28 @@ class ChatViewModel @Inject constructor(
         all.filter { it.contact.id !in requests && it.contact.id.lowercase() !in state.blocked }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /**
+     * Bot chats you have written to (iOS 5fcf755 `botCircles`): circles in the row above the chat
+     * list, with groups and public chats - never rows in it. Opening a bot from Kaspa Hub >
+     * KaChat Bots without writing leaves no circle; deleting the chat takes its messages, and so
+     * the circle, away until you write to the bot again.
+     */
+    val botCircleConversations: StateFlow<List<Conversation>> = combine(
+        conversations, chatRepository.getContactMessageStats(),
+    ) { all, stats ->
+        val written = stats.filter { it.anySent > 0 }.map { it.contactId.lowercase() }.toSet()
+        all.filter { com.kachat.app.models.KaChatBot.isBot(it.contact.id) && it.contact.id.lowercase() in written }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Opens (or starts) the chat with [bot] - accepted, named [name] - then [onReady] with its
+     *  address, for the caller to navigate to (iOS `KaChatBotCard.open`). */
+    fun openBotChat(bot: com.kachat.app.models.KaChatBot, name: String, onReady: (String) -> Unit) {
+        if (bot.unavailableReasonRes != null) return
+        viewModelScope.launch {
+            if (chatRepository.openBotChat(bot.address, name)) onReady(bot.address)
+        }
+    }
+
     /** Message Requests, newest first. */
     val messageRequests: StateFlow<List<Conversation>> = combine(conversations, messageRequestIds) { all, requests ->
         all.filter { it.contact.id in requests }.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L }

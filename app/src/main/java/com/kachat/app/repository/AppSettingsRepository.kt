@@ -222,7 +222,8 @@ class AppSettingsRepository @Inject constructor(
         // users get them appended (kaspaHubSections adds any eligible tab the list lacks).
         // Address Book first on a fresh install (iOS 00767a4 defaultHub); existing users get it
         // appended like any tab their stored list lacks.
-        val DEFAULT_HUB_TABS = listOf("address_book", "kachat_names", "kachat_stats", "kaposts", "broadcasts", "swap")
+        // KaChat Bots after KaChat Stats (iOS 82ab31d defaultHub).
+        val DEFAULT_HUB_TABS = listOf("address_book", "kachat_names", "kachat_stats", "kachat_bots", "kaposts", "broadcasts", "swap")
         // One-time derivation of a placement from what an existing user could already SEE.
         val KEY_PLACEMENT_APPLIED = booleanPreferencesKey("dock_placement_applied")
         // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >

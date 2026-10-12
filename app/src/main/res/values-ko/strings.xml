@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">초</string>
     <string name="kn_launch_then_anyone">그 후 누구나 여기서 .kachat 이름을 검색하고 받을 수 있습니다.</string>
     <string name="kn_not_public_yet">.kachat 이름이 %1$s에 모두에게 열립니다.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">KaChat 봇</string>
+    <string name="bot_block_rewards_name">블록 보상 추적기</string>
+    <string name="bot_block_rewards_summary">채굴 주소로 지급되는 블록 보상마다 메시지를 보냅니다.</string>
+    <string name="bot_wallet_name">지갑 추적기</string>
+    <string name="bot_wallet_summary">지켜보는 주소가 KAS를 받거나 보내면 알려 줍니다.</string>
+    <string name="bot_price_name">가격 봇</string>
+    <string name="bot_price_summary">KAS가 정한 가격을 넘을 때, 큰 변동, 일일 요약을 알려 줍니다.</string>
+    <string name="bot_kaspa_answers_name">Kaspa 답변</string>
+    <string name="bot_kaspa_answers_summary">Kaspa에 관한 무엇이든 물어보세요.</string>
+    <string name="bots_coming_soon">곧 제공됩니다.</string>
+    <string name="bots_mainnet_only">봇은 메인넷에서만 작동합니다.</string>
+    <string name="bots_opens_chat_hint">이 봇과의 채팅을 엽니다.</string>
+    <string name="bots_fee_note">봇에게 보내는 메시지는 일반 암호화 KaChat 메시지라서 매번 일반 네트워크 수수료가 듭니다.</string>
+    <string name="bots_unread_count">읽지 않음 %1$d개</string>
+    <string name="bot_sheet_clears_unread">이 채팅의 읽지 않음 배지를 지웁니다.</string>
+    <string name="bot_sheet_notifications_resume">이 봇의 알림이 다시 옵니다.</string>
+    <string name="bot_sheet_no_notification">이 봇의 알림을 받지 않습니다.</string>
+    <string name="bot_sheet_delete_subtitle">봇에게 다시 쓸 때까지 이 채팅을 삭제합니다.</string>
 </resources>

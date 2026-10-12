@@ -152,6 +152,11 @@ fun KaspaHubScreen(
             onOpenChat = { address -> navController.navigate("chat/$address") },
             walletViewModel = walletViewModel,
         )
+        openSection == Screen.KachatBots -> KaChatBotsScreen(
+            onBack = { openSectionRoute = null },
+            onOpenChat = { address -> navController.navigate("chat/$address") },
+            chatViewModel = chatViewModel,
+        )
         else -> HubGrid(
             sections = sections,
             onOpenSection = { openSectionRoute = it.route },

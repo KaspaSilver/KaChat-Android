@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">Giây</string>
     <string name="kn_launch_then_anyone">Sau đó ai cũng có thể tìm và nhận tên .kachat tại đây.</string>
     <string name="kn_not_public_yet">Tên .kachat mở cho mọi người vào %1$s.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">Bot KaChat</string>
+    <string name="bot_block_rewards_name">Theo dõi phần thưởng khối</string>
+    <string name="bot_block_rewards_summary">Một tin nhắn cho mỗi phần thưởng khối trả về địa chỉ đào của bạn.</string>
+    <string name="bot_wallet_name">Theo dõi ví</string>
+    <string name="bot_wallet_summary">Báo cho bạn khi một địa chỉ đang theo dõi nhận hoặc gửi KAS.</string>
+    <string name="bot_price_name">Bot giá</string>
+    <string name="bot_price_summary">Cảnh báo khi KAS vượt mức giá của bạn, biến động lớn và bản tóm tắt hằng ngày.</string>
+    <string name="bot_kaspa_answers_name">Giải đáp Kaspa</string>
+    <string name="bot_kaspa_answers_summary">Hỏi bất cứ điều gì về Kaspa.</string>
+    <string name="bots_coming_soon">Sắp ra mắt.</string>
+    <string name="bots_mainnet_only">Bot chỉ chạy trên mainnet.</string>
+    <string name="bots_opens_chat_hint">Mở cuộc trò chuyện với bot này.</string>
+    <string name="bots_fee_note">Tin nhắn gửi bot là tin nhắn KaChat mã hóa thông thường, nên mỗi tin tốn phí mạng thông thường.</string>
+    <string name="bots_unread_count">%1$d chưa đọc</string>
+    <string name="bot_sheet_clears_unread">Xóa huy hiệu chưa đọc của cuộc trò chuyện này.</string>
+    <string name="bot_sheet_notifications_resume">Thông báo từ bot này hoạt động lại.</string>
+    <string name="bot_sheet_no_notification">Không có thông báo từ bot này.</string>
+    <string name="bot_sheet_delete_subtitle">Xóa cuộc trò chuyện này cho đến khi bạn viết lại cho bot.</string>
 </resources>

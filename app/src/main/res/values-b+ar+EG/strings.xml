@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">ثوانٍ</string>
     <string name="kn_launch_then_anyone">بعدها يمكن لأي شخص البحث عن اسم .kachat والمطالبة به هنا.</string>
     <string name="kn_not_public_yet">تُفتح أسماء .kachat للجميع في %1$s.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">بوتات KaChat</string>
+    <string name="bot_block_rewards_name">متتبع مكافآت الكتل</string>
+    <string name="bot_block_rewards_summary">رسالة عن كل مكافأة كتلة تُدفع إلى عنوان التعدين الخاص بك.</string>
+    <string name="bot_wallet_name">متتبع المحفظة</string>
+    <string name="bot_wallet_summary">يخبرك عندما يستقبل عنوان تراقبه KAS أو يرسلها.</string>
+    <string name="bot_price_name">بوت السعر</string>
+    <string name="bot_price_summary">تنبيهات عندما يتجاوز KAS السعر الذي حددته، والتحركات الكبيرة، وملخص يومي.</string>
+    <string name="bot_kaspa_answers_name">إجابات Kaspa</string>
+    <string name="bot_kaspa_answers_summary">اسأل أي شيء يتعلق بـ Kaspa.</string>
+    <string name="bots_coming_soon">قريبًا.</string>
+    <string name="bots_mainnet_only">البوتات تعمل على الشبكة الرئيسية فقط.</string>
+    <string name="bots_opens_chat_hint">يفتح محادثة مع هذا البوت.</string>
+    <string name="bots_fee_note">الرسائل إلى البوت رسائل KaChat مشفرة عادية، لذا تكلف كل رسالة رسوم الشبكة المعتادة.</string>
+    <string name="bots_unread_count">%1$d غير مقروءة</string>
+    <string name="bot_sheet_clears_unread">يزيل شارة غير المقروء من هذه المحادثة.</string>
+    <string name="bot_sheet_notifications_resume">تُستأنف الإشعارات من هذا البوت.</string>
+    <string name="bot_sheet_no_notification">لا إشعارات من هذا البوت.</string>
+    <string name="bot_sheet_delete_subtitle">يزيل هذه المحادثة حتى تكتب إلى البوت مرة أخرى.</string>
 </resources>

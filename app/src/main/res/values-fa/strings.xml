@@ -1263,4 +1263,23 @@
     <string name="kn_countdown_seconds">ثانیه</string>
     <string name="kn_launch_then_anyone">پس از آن هر کسی می‌تواند اینجا نام .kachat جست‌وجو و ثبت کند.</string>
     <string name="kn_not_public_yet">نام‌های .kachat در %1$s برای همه باز می‌شوند.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">ربات‌های KaChat</string>
+    <string name="bot_block_rewards_name">ردیاب پاداش بلاک</string>
+    <string name="bot_block_rewards_summary">برای هر پاداش بلاکی که به آدرس استخراج شما پرداخت شود یک پیام.</string>
+    <string name="bot_wallet_name">ردیاب کیف پول</string>
+    <string name="bot_wallet_summary">وقتی آدرسی که زیر نظر دارید KAS دریافت یا ارسال کند خبر می‌دهد.</string>
+    <string name="bot_price_name">ربات قیمت</string>
+    <string name="bot_price_summary">هشدار وقتی KAS از قیمت شما عبور کند، نوسان‌های بزرگ و خلاصه روزانه.</string>
+    <string name="bot_kaspa_answers_name">پاسخ‌های Kaspa</string>
+    <string name="bot_kaspa_answers_summary">هر سؤالی درباره Kaspa بپرسید.</string>
+    <string name="bots_coming_soon">به‌زودی.</string>
+    <string name="bots_mainnet_only">ربات‌ها فقط روی شبکه اصلی کار می‌کنند.</string>
+    <string name="bots_opens_chat_hint">گفتگو با این ربات را باز می‌کند.</string>
+    <string name="bots_fee_note">پیام به ربات یک پیام رمزنگاری‌شده عادی KaChat است، پس هر پیام کارمزد معمول شبکه را دارد.</string>
+    <string name="bots_unread_count">%1$d خوانده‌نشده</string>
+    <string name="bot_sheet_clears_unread">نشان خوانده‌نشده این گفتگو را پاک می‌کند.</string>
+    <string name="bot_sheet_notifications_resume">اعلان‌های این ربات دوباره می‌آیند.</string>
+    <string name="bot_sheet_no_notification">هیچ اعلانی از این ربات نمی‌آید.</string>
+    <string name="bot_sheet_delete_subtitle">این گفتگو را تا وقتی دوباره به ربات بنویسید حذف می‌کند.</string>
 </resources>

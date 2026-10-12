@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">秒</string>
     <string name="kn_launch_then_anyone">その後、誰でもここで.kachatの名前を検索して取得できます。</string>
     <string name="kn_not_public_yet">.kachatの名前は%1$sに全員に公開されます。</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">KaChat ボット</string>
+    <string name="bot_block_rewards_name">ブロック報酬トラッカー</string>
+    <string name="bot_block_rewards_summary">マイニングアドレスに支払われたブロック報酬ごとにメッセージを送ります。</string>
+    <string name="bot_wallet_name">ウォレットトラッカー</string>
+    <string name="bot_wallet_summary">監視中のアドレスが KAS を受け取ったり送ったりしたときに知らせます。</string>
+    <string name="bot_price_name">価格ボット</string>
+    <string name="bot_price_summary">KAS が指定価格を超えたとき、大きな値動き、毎日のまとめをお知らせします。</string>
+    <string name="bot_kaspa_answers_name">Kaspa アンサー</string>
+    <string name="bot_kaspa_answers_summary">Kaspa について何でも聞いてください。</string>
+    <string name="bots_coming_soon">近日公開。</string>
+    <string name="bots_mainnet_only">ボットはメインネットでのみ動作します。</string>
+    <string name="bots_opens_chat_hint">このボットとのチャットを開きます。</string>
+    <string name="bots_fee_note">ボットへのメッセージは通常の暗号化された KaChat メッセージなので、毎回通常のネットワーク手数料がかかります。</string>
+    <string name="bots_unread_count">未読 %1$d 件</string>
+    <string name="bot_sheet_clears_unread">このチャットの未読バッジを消します。</string>
+    <string name="bot_sheet_notifications_resume">このボットからの通知を再開します。</string>
+    <string name="bot_sheet_no_notification">このボットからの通知はありません。</string>
+    <string name="bot_sheet_delete_subtitle">ボットにもう一度書くまで、このチャットを削除します。</string>
 </resources>

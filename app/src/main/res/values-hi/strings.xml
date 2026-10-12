@@ -1232,4 +1232,23 @@
     <string name="kn_countdown_seconds">सेकंड</string>
     <string name="kn_launch_then_anyone">फिर कोई भी यहाँ .kachat नाम खोजकर क्लेम कर सकेगा।</string>
     <string name="kn_not_public_yet">.kachat नाम सबके लिए %1$s को खुलेंगे।</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">KaChat बॉट</string>
+    <string name="bot_block_rewards_name">ब्लॉक रिवॉर्ड ट्रैकर</string>
+    <string name="bot_block_rewards_summary">आपके माइनिंग पते पर दिए गए हर ब्लॉक रिवॉर्ड का एक संदेश।</string>
+    <string name="bot_wallet_name">वॉलेट ट्रैकर</string>
+    <string name="bot_wallet_summary">जब कोई निगरानी वाला पता KAS पाता या भेजता है तो बताता है।</string>
+    <string name="bot_price_name">प्राइस बॉट</string>
+    <string name="bot_price_summary">जब KAS आपकी कीमत पार करे, बड़े उतार-चढ़ाव और दैनिक सारांश के अलर्ट।</string>
+    <string name="bot_kaspa_answers_name">Kaspa जवाब</string>
+    <string name="bot_kaspa_answers_summary">Kaspa से जुड़ा कुछ भी पूछें।</string>
+    <string name="bots_coming_soon">जल्द आ रहा है।</string>
+    <string name="bots_mainnet_only">बॉट केवल मेननेट पर चलते हैं।</string>
+    <string name="bots_opens_chat_hint">इस बॉट के साथ चैट खोलता है।</string>
+    <string name="bots_fee_note">बॉट को भेजे संदेश सामान्य एन्क्रिप्टेड KaChat संदेश होते हैं, इसलिए हर एक पर सामान्य नेटवर्क शुल्क लगता है।</string>
+    <string name="bots_unread_count">%1$d अपठित</string>
+    <string name="bot_sheet_clears_unread">इस चैट का अपठित बैज हटा देता है।</string>
+    <string name="bot_sheet_notifications_resume">इस बॉट की सूचनाएँ फिर शुरू होती हैं।</string>
+    <string name="bot_sheet_no_notification">इस बॉट से कोई सूचना नहीं।</string>
+    <string name="bot_sheet_delete_subtitle">जब तक आप बॉट को फिर न लिखें, यह चैट हटा देता है।</string>
 </resources>

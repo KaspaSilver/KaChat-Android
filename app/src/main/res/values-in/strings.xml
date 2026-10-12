@@ -1101,4 +1101,23 @@
     <string name="kn_countdown_seconds">Detik</string>
     <string name="kn_launch_then_anyone">Setelah itu siapa pun bisa mencari dan mengklaim nama .kachat di sini.</string>
     <string name="kn_not_public_yet">Nama .kachat dibuka untuk semua orang pada %1$s.</string>
+    <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
+    <string name="bots_title">Bot KaChat</string>
+    <string name="bot_block_rewards_name">Pelacak Hadiah Blok</string>
+    <string name="bot_block_rewards_summary">Pesan untuk setiap hadiah blok yang dibayar ke alamat penambangan Anda.</string>
+    <string name="bot_wallet_name">Pelacak Dompet</string>
+    <string name="bot_wallet_summary">Memberi tahu saat alamat yang dipantau menerima atau mengirim KAS.</string>
+    <string name="bot_price_name">Bot Harga</string>
+    <string name="bot_price_summary">Peringatan saat KAS melewati harga Anda, pergerakan besar, dan ringkasan harian.</string>
+    <string name="bot_kaspa_answers_name">Jawaban Kaspa</string>
+    <string name="bot_kaspa_answers_summary">Tanyakan apa saja tentang Kaspa.</string>
+    <string name="bots_coming_soon">Segera hadir.</string>
+    <string name="bots_mainnet_only">Bot hanya berjalan di mainnet.</string>
+    <string name="bots_opens_chat_hint">Membuka obrolan dengan bot ini.</string>
+    <string name="bots_fee_note">Pesan ke bot adalah pesan KaChat terenkripsi biasa, jadi setiap pesan dikenai biaya jaringan biasa.</string>
+    <string name="bots_unread_count">%1$d belum dibaca</string>
+    <string name="bot_sheet_clears_unread">Menghapus lencana belum dibaca di obrolan ini.</string>
+    <string name="bot_sheet_notifications_resume">Notifikasi dari bot ini kembali aktif.</string>
+    <string name="bot_sheet_no_notification">Tidak ada notifikasi dari bot ini.</string>
+    <string name="bot_sheet_delete_subtitle">Menghapus obrolan ini sampai Anda menulis ke bot lagi.</string>
 </resources>
