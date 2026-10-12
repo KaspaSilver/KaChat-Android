@@ -113,16 +113,22 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     }
     // Mainnet before its public opening shows the countdown instead of search and the pages;
     // flips by itself when the moment comes (`KachatNamesService.publicLaunchMs`, iOS c6ebf74).
-    var publiclyOpen by remember { mutableStateOf(com.kachat.app.services.kachatnames.KachatNamesService.isPubliclyOpen()) }
+    // The first draw uses the last known network time (iOS 6975e3e, XP-020).
+    val launchContext = LocalContext.current
+    var publiclyOpen by remember {
+        mutableStateOf(com.kachat.app.services.kachatnames.KachatNamesService.isPubliclyOpenKnown(launchContext))
+    }
     // the countdown ends while the screen is open: the marketplace opens without a relaunch
     LaunchedEffect(com.kachat.app.services.kachatnames.KachatNamesService.networkName) {
         val names = com.kachat.app.services.kachatnames.KachatNamesService
-        publiclyOpen = names.isPubliclyOpen()
+        // on the network's clock (iOS 6975e3e, XP-020); closed until a node has said what time it is
+        publiclyOpen = live?.service?.isPubliclyOpen() ?: names.isPubliclyOpenKnown(launchContext)
         while (!publiclyOpen) {
             val opens = names.publicLaunchMs ?: break
-            val left = maxOf(0L, opens - com.kachat.app.services.kachatnames.KachatNames.nowMs())
+            val now = names.networkNowMs() ?: com.kachat.app.services.kachatnames.KachatNames.nowMs()
+            val left = maxOf(0L, opens - now)
             kotlinx.coroutines.delay(minOf(left, 60_000L) + 50L)
-            publiclyOpen = names.isPubliclyOpen()
+            publiclyOpen = live?.service?.isPubliclyOpen() ?: names.isPubliclyOpenKnown(launchContext)
         }
     }
     // A name a tapped notification pointed at (where names are live).
@@ -385,12 +391,15 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
 private fun KachatLaunchCountdown(opensMs: Long) {
     val colors = LocalAppColors.current
     val context = LocalContext.current
-    // iOS `TimelineView(.periodic(from: .now, by: 1))`
-    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // iOS `TimelineView(.periodic(from: .now, by: 1))`; the network's time when known, so a
+    // changed device date doesn't move it (iOS 6975e3e, XP-020)
+    fun currentMs(): Long =
+        com.kachat.app.services.kachatnames.KachatNamesService.networkNowMs() ?: System.currentTimeMillis()
+    var nowMs by remember { mutableLongStateOf(currentMs()) }
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(1000L)
-            nowMs = System.currentTimeMillis()
+            nowMs = currentMs()
         }
     }
     val left = maxOf(0L, (opensMs - nowMs) / 1000)

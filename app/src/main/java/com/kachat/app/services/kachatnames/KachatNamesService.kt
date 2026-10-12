@@ -1,6 +1,7 @@
 package com.kachat.app.services.kachatnames
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.JsonParser
 import com.kachat.app.repository.AppSettingsRepository
@@ -257,6 +258,33 @@ class KachatNamesService @Inject constructor(
     suspend fun currentVirtualDaaScore(): Long? =
         try { currentDagPoint().virtualDaaScore } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
 
+    // The network's clock (iOS 6975e3e, XP-020)
+    //
+    // The countdown is decided on the network's time, not the device's: with the device clock, a
+    // date set to Oct 16 opened search and registration in the app days early (the registration
+    // itself is valid - its lock time comes from chain time). The node's past median time is read
+    // at most once a minute and carried forward on the device's uptime
+    // (`SystemClock.elapsedRealtime`), which a changed date doesn't move. With no node answer yet
+    // the countdown stays closed.
+
+    /** Asks a node for its time when the last answer is over a minute old. */
+    suspend fun refreshNetworkClock(): Long? {
+        val clock = networkClock
+        if (clock != null && SystemClock.elapsedRealtime() - clock.uptimeMs < 60_000L) return networkNowMs()
+        val dag = try { currentDagPoint() } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+        if (dag != null && dag.pastMedianTimeMs > 0) networkClock = NetworkClock(dag.pastMedianTimeMs, SystemClock.elapsedRealtime())
+        return networkNowMs()
+    }
+
+    /** Whether this network's names are open to everyone in the app, on the network's clock. */
+    suspend fun isPubliclyOpen(): Boolean {
+        val opens = publicLaunchMs ?: return true
+        if (launchPrefs(context).getBoolean(openedKey, false)) return true
+        val now = refreshNetworkClock() ?: return false
+        if (now >= opens) launchPrefs(context).edit().putBoolean(openedKey, true).apply()
+        return now >= opens
+    }
+
     // Environment
 
     /**
@@ -466,7 +494,33 @@ class KachatNamesService @Inject constructor(
          *  (testnet never has one; iOS c6ebf74). */
         val publicLaunchMs: Long? get() = if (networkName == "mainnet") MAINNET_PUBLIC_LAUNCH_MS else null
 
-        fun isPubliclyOpen(nowMs: Long = KachatNames.nowMs()): Boolean = publicLaunchMs?.let { nowMs >= it } ?: true
+        /** The last node answer for the network's time, and the device's uptime when it came. */
+        private class NetworkClock(val chainMs: Long, val uptimeMs: Long)
+
+        @Volatile private var networkClock: NetworkClock? = null
+
+        /** The network's time now, from the last node answer; null until a node has answered
+         *  (iOS 6975e3e, XP-020). */
+        fun networkNowMs(): Long? {
+            val clock = networkClock ?: return null
+            return clock.chainMs + (SystemClock.elapsedRealtime() - clock.uptimeMs)
+        }
+
+        /**
+         * The same as [isPubliclyOpen] from the last known network time, without asking a node (a
+         * screen's first draw). Once the network has passed the opening it stays open - its clock
+         * only moves forward - so that is remembered, and the marketplace doesn't flash the
+         * countdown on later visits (iOS 6975e3e, XP-020).
+         */
+        fun isPubliclyOpenKnown(context: Context): Boolean {
+            val opens = publicLaunchMs ?: return true
+            if (launchPrefs(context).getBoolean(openedKey, false)) return true
+            return (networkNowMs() ?: 0L) >= opens
+        }
+
+        private fun launchPrefs(context: Context) = context.getSharedPreferences("kachat_names_launch", Context.MODE_PRIVATE)
+
+        private val openedKey: String get() = "kachat_names_public_opened.$networkName"
 
         /** The manifest network name of the network the app runs on (iOS ef6b21e). */
         val networkName: String get() = if (KaspaNetwork.launch == KaspaNetwork.Type.MAINNET) "mainnet" else "testnet-10"

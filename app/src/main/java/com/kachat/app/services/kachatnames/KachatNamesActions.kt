@@ -992,7 +992,7 @@ class KachatNamesActions @Inject constructor(
     suspend fun quote(name: String, years: Long, gap: GapInfo, feeTier: ColdFeeTier = ColdFeeTier.NORMAL): Quote = withContext(Dispatchers.IO) {
         val s = signer()
         val m = registry.prepare()
-        requireRegistrationOpen(m)
+        requireRegistrationOpen(m, service)
         val c = context(s, feerate(feeTier))
         val b = c.builder
         val env = c.env
@@ -1055,7 +1055,7 @@ class KachatNamesActions @Inject constructor(
         val name = Codec.normalize(raw)
         Codec.validate(name)
         // never a commit that couldn't be registered: v5 opens register at its migration deadline (iOS dd836cb)
-        requireRegistrationOpen(registry.prepare())
+        requireRegistrationOpen(registry.prepare(), service)
         // Claims can run side by side: no one-at-a-time rule any more (iOS b219bb0).
         loadPending(s.address)
         registry.refresh()
@@ -1383,7 +1383,7 @@ class KachatNamesActions @Inject constructor(
             // registry once its deadline passes. Until then it waits, saying why (iOS dd836cb).
             // Nor before mainnet's public opening (iOS c6ebf74).
             try {
-                requireRegistrationOpen(m)
+                requireRegistrationOpen(m, service)
             } catch (e: ActionError) {
                 if (!e.isNotOpenYet) throw e
                 set(p) { it.copy(lastError = e.message) }
@@ -1691,9 +1691,10 @@ class KachatNamesActions @Inject constructor(
          * Registry v5 refuses `register` until the migration deadline; checked against the wall
          * clock with the 3-minute margin `registerNow` takes off it (iOS dd836cb).
          */
-        fun requireRegistrationOpen(m: Manifest, nowMs: Long = KachatNames.nowMs()) {
-            // mainnet's countdown: nobody claims a name in the app before the public opening (iOS c6ebf74)
-            KachatNamesService.publicLaunchMs?.let { opens -> if (nowMs < opens) throw ActionError.NotPublicYet(opens) }
+        suspend fun requireRegistrationOpen(m: Manifest, service: KachatNamesService, nowMs: Long = KachatNames.nowMs()) {
+            // mainnet's countdown, on the network's clock (iOS 6975e3e, XP-020): nobody claims a
+            // name in the app before the public opening, whatever the device's date says
+            KachatNamesService.publicLaunchMs?.let { opens -> if (!service.isPubliclyOpen()) throw ActionError.NotPublicYet(opens) }
             val deadline = m.params.migration?.deadlineMs ?: return
             if (nowMs - 180_000L < deadline) throw ActionError.RegistrationNotOpen(deadline + 180_000L)
         }
