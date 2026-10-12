@@ -3809,9 +3809,14 @@ fun ProfileScreen(
     ).any { !it.isNullOrBlank() }
 
     LaunchedEffect(Unit) {
-        viewModel.refreshBalance()
+        // The balance requests at most every 30 s: switching tabs back and forth started them
+        // each time. Arriving funds still refresh at once (the activity events below), and pull
+        // to refresh is always there (iOS 9de981a).
+        if (viewModel.claimProfileAppearRefresh()) {
+            viewModel.refreshBalance()
+            viewModel.refreshSpendingAddress()
+        }
         viewModel.refreshOwnedDomains()
-        viewModel.refreshSpendingAddress()
         viewModel.loadManageAddresses()
         // Decide the Receive QR's address NOW, not when the button is tapped. The freshness
         // check is a network round trip, so doing it on tap put a spinner between pressing

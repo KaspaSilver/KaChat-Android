@@ -182,6 +182,22 @@ class WalletViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     /** Re-derives the current spending address and refreshes its balance — safe to call anytime the Profile screen appears, since the underlying index only ever changes via a successful send. */
+    /** For which account and when (unix ms) Profile's appear last ran its balance requests - see
+     *  [claimProfileAppearRefresh]. */
+    private var profileAppearRefreshed: Pair<String?, Long>? = null
+
+    /** True (and stamped) when Profile's appear may run its balance requests again: at most every
+     *  30 s for the same account, as tab switches otherwise started them each time (iOS 9de981a
+     *  `appearRefreshedAt`, which lives in a view rebuilt for another wallet). */
+    fun claimProfileAppearRefresh(): Boolean {
+        val now = System.currentTimeMillis()
+        val account = walletManager.activeAddressFlow.value
+        val last = profileAppearRefreshed
+        if (last != null && last.first == account && now - last.second < 30_000L) return false
+        profileAppearRefreshed = account to now
+        return true
+    }
+
     fun refreshSpendingAddress() {
         _spendingAddress.value = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
         viewModelScope.launch { walletService.refreshSpendingBalance() }

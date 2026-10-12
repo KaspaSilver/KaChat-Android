@@ -520,8 +520,17 @@ class KachatLiveViewModel @Inject constructor(
             return
         }
         actions.resume()
+        // Coming back to the screen: the pages are loaded, so only a stale registry is refreshed
+        // (the pages reload on its revision). A full refresh and reload ran on every appear.
+        if (loaded && loadError == null) {
+            registry.refreshIfStale()
+            return
+        }
+        // A refresh that moved `revision` already reloads through the revision observer above;
+        // reloading here as well ran the seven requests twice, side by side (iOS 9de981a).
+        val before = registry.revision.value
         registry.refresh()
-        reload()
+        if (registry.revision.value == before) reload()
     }
 
     suspend fun refresh() {
@@ -4671,11 +4680,16 @@ class KachatExpiredNamesViewModel @Inject constructor(
             expired = emptyList()
             return
         }
-        dismissed = prefs.getStringSet(storeKey, emptySet()).orEmpty().toSet()
+        val stored = prefs.getStringSet(storeKey, emptySet()).orEmpty().toSet()
+        if (stored != dismissed) dismissed = stored
         val reg = registry.get()
-        reg.refreshIfStale()
+        // Profile's own loads use five minutes too: a shorter window here refreshed in between
+        // and restarted every Profile effect keyed on the registry's revision (iOS 9de981a).
+        reg.refreshIfStale(maxAgeMs = 300_000)
         val owned = runCatching { reg.names(me, includeInactive = true) }.getOrNull().orEmpty()
-        expired = KachatNamesRegistry.inGracePeriod(owned, reg.graceMs)
+        val inGrace = KachatNamesRegistry.inGracePeriod(owned, reg.graceMs)
+        // assigned only on a change
+        if (inGrace != expired) expired = inGrace
     }
 
     fun dismissAll() {
