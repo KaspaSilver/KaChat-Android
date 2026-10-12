@@ -1195,7 +1195,8 @@ fun ChatThreadScreen(
                                             ) { chooseMedia(ComposerMediaKind.VOICE) }
                                             if (nextcloudAccount != null) {
                                                 ActionSheetRow(
-                                                    icon = Icons.Default.Description,
+                                                    // iOS "doc": a plain page, no text lines
+                                                    icon = androidx.compose.material.icons.Icons.Outlined.InsertDriveFile,
                                                     title = stringResource(R.string.composer_file),
                                                     subtitle = stringResource(R.string.composer_file_subtitle),
                                                 ) {
