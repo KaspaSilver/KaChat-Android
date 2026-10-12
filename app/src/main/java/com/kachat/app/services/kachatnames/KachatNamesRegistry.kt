@@ -785,7 +785,12 @@ class KachatNamesRegistry @Inject constructor(
         val rev = _revision.value
         val now = System.currentTimeMillis()
         val asked = identityAsked[key]
-        val stale = asked == null || asked.first != rev || now - asked.second > (if (known == null) 60_000L else 300_000L)
+        // Five minutes old, or older than a minute once the registry changed: every refresh bumps
+        // `revision`, and re-asking for every address on screen after each one cost a request per
+        // avatar and redrew the whole list as each answer came back (iOS 05c9615).
+        val stale = asked == null || (now - asked.second).let { age ->
+            age > (if (known == null) 60_000L else 300_000L) || (asked.first != rev && age > 60_000L)
+        }
         val missedRecently = identityMisses[key]?.let { now - it < 300_000L } == true
         if (stale && !missedRecently && identityLookups.add(key)) {
             identityAsked[key] = rev to now
@@ -1226,6 +1231,21 @@ class KachatSocialImageResolver @Inject constructor(
 
     private val inFlight = HashMap<String, Deferred<Lookup>>()
     private val lock = Any()
+    /** When an unchanged answer last re-checked a link (unix ms): kept out of [entries], so a
+     *  re-check that finds the same profile only stamps it and redraws nothing (iOS 05c9615). */
+    private val recheckedAt = ConcurrentHashMap<String, Long>()
+    /** Links [refreshIfStale] already started a lookup for: screens call it on every link they
+     *  draw, and it must start one lookup, not one per call (iOS `requested`). */
+    private val requested = ConcurrentHashMap.newKeySet<String>()
+    /** When a link's platform last couldn't be reached (unix ms): not asked again for ten
+     *  minutes, so an unreachable platform isn't hit again on every redraw (iOS `unreachableAt`). */
+    private val unreachableAt = ConcurrentHashMap<String, Long>()
+    /** The coalesced write of the cache: one disk write for a burst of answers. */
+    private var persistJob: kotlinx.coroutines.Job? = null
+    private var persistScheduled = false
+
+    /** When [key]'s answer was last confirmed: its own time, or a later unchanged re-check. */
+    private fun checkedAt(key: String, entry: Entry): Long = maxOf(entry.checkedAt, recheckedAt[key] ?: 0L)
 
     /** The cached profile for [link] in [entries] (a snapshot screens collected), null when
      *  there is none or the link isn't a supported one. */
@@ -1236,9 +1256,20 @@ class KachatSocialImageResolver @Inject constructor(
      *  side; screens call it when the link appears and read [cached]). */
     fun refreshIfStale(link: String?) {
         val source = link?.let { SocialSource.from(it, SocialSource.Kind.AVATAR) } ?: return
-        val entry = _entries.value[source.link]
-        if (entry == null || System.currentTimeMillis() - entry.checkedAt > FRESH_FOR_MS) {
-            scope.launch { resolve(source) }
+        val key = source.link
+        val now = System.currentTimeMillis()
+        val entry = _entries.value[key]
+        val stale = entry == null || now - checkedAt(key, entry) > FRESH_FOR_MS
+        val unreachableRecently = unreachableAt[key]?.let { now - it < UNREACHABLE_RETRY_MS } == true
+        val running = synchronized(lock) { inFlight.containsKey(key) }
+        if (stale && !unreachableRecently && !running && requested.add(key)) {
+            scope.launch {
+                try {
+                    resolve(source, maxAgeMs = FRESH_FOR_MS)
+                } finally {
+                    requested.remove(key)
+                }
+            }
         }
     }
 
@@ -1251,7 +1282,7 @@ class KachatSocialImageResolver @Inject constructor(
      */
     suspend fun resolve(source: SocialSource, maxAgeMs: Long = 300_000): Lookup {
         val key = source.link
-        _entries.value[key]?.let { if (System.currentTimeMillis() - it.checkedAt < maxAgeMs) return Lookup.Answered(it.profile) }
+        _entries.value[key]?.let { if (System.currentTimeMillis() - checkedAt(key, it) < maxAgeMs) return Lookup.Answered(it.profile) }
         val deferred = synchronized(lock) {
             inFlight[key] ?: scope.async {
                 val started = System.currentTimeMillis()
@@ -1259,10 +1290,21 @@ class KachatSocialImageResolver @Inject constructor(
                 val answered = withTimeoutOrNull(DEADLINE_MS) { lookUp(source) }
                 Log.i(TAG, "${source.platform.name.lowercase()} ${if (answered == null) "unreachable" else "answered"} " +
                     "in ${"%.1f".format(java.util.Locale.US, (System.currentTimeMillis() - started) / 1000.0)}s")
-                if (answered == null) return@async Lookup.Unreachable(_entries.value[key]?.profile) // keep the last answer
+                if (answered == null) {
+                    unreachableAt[key] = System.currentTimeMillis()
+                    return@async Lookup.Unreachable(_entries.value[key]?.profile) // keep the last answer
+                }
+                unreachableAt.remove(key)
                 // The platform answered - with something, or with nothing (taken down, account gone).
-                _entries.update { it + (key to Entry(answered, System.currentTimeMillis())) }
-                persist()
+                // The same answer as before only stamps it: publishing would redraw every avatar
+                // on screen for nothing (iOS 05c9615).
+                if (_entries.value[key]?.profile == answered) {
+                    recheckedAt[key] = System.currentTimeMillis()
+                } else {
+                    _entries.update { it + (key to Entry(answered, System.currentTimeMillis())) }
+                    recheckedAt.remove(key)
+                }
+                persistSoon()
                 Lookup.Answered(answered)
             }.also { d ->
                 inFlight[key] = d
@@ -1296,7 +1338,13 @@ class KachatSocialImageResolver @Inject constructor(
      */
     fun clearAll() {
         synchronized(lock) {
+            persistJob?.cancel()
+            persistJob = null
+            persistScheduled = false
             inFlight.clear()
+            requested.clear()
+            unreachableAt.clear()
+            recheckedAt.clear()
             _entries.value = emptyMap()
             KachatProfileCache.remove(context, CACHE_FILE)
         }
@@ -1315,13 +1363,28 @@ class KachatSocialImageResolver @Inject constructor(
         out
     }.getOrNull()
 
+    /** One disk write for a burst of answers (a screen of avatars landing at once), off the
+     *  main thread (iOS 05c9615). */
+    private fun persistSoon() {
+        synchronized(lock) {
+            if (persistScheduled) return
+            persistScheduled = true
+            persistJob = scope.launch {
+                delay(2_000)
+                synchronized(lock) { persistScheduled = false }
+                persist()
+            }
+        }
+    }
+
     private fun persist() {
         synchronized(lock) {
             var all = _entries.value
             if (all.size > MAX_ENTRIES) {
-                val oldest = all.entries.sortedBy { it.value.checkedAt }.take(all.size - MAX_ENTRIES).map { it.key }.toSet()
+                val oldest = all.entries.sortedBy { checkedAt(it.key, it.value) }.take(all.size - MAX_ENTRIES).map { it.key }.toSet()
                 all = all - oldest
                 _entries.value = all
+                oldest.forEach { recheckedAt.remove(it) }
             }
             val root = com.google.gson.JsonObject()
             for ((k, e) in all) {
@@ -1329,7 +1392,7 @@ class KachatSocialImageResolver @Inject constructor(
                 e.profile.avatar?.let { o.addProperty("avatar", it) }
                 e.profile.banner?.let { o.addProperty("banner", it) }
                 e.profile.bio?.let { o.addProperty("bio", it) }
-                o.addProperty("checkedAt", e.checkedAt)
+                o.addProperty("checkedAt", checkedAt(k, e))
                 root.add(k, o)
             }
             KachatProfileCache.write(context, CACHE_FILE, root.toString().toByteArray(Charsets.UTF_8))
@@ -1471,6 +1534,8 @@ class KachatSocialImageResolver @Inject constructor(
         /** Where the cache lived before (SharedPreferences): moved into [CACHE_FILE] once. */
         private const val LEGACY_CACHE_KEY = "kachat_social_profile_cache"
         private const val FRESH_FOR_MS = 24L * 3600 * 1000
+        /** An unreachable platform is asked again after ten minutes (iOS `unreachableRetry`). */
+        private const val UNREACHABLE_RETRY_MS = 600_000L
         private const val MAX_ENTRIES = 500
         private const val MAX_BODY_BYTES = 3_000_000L
         /** Hard limit for one lookup, every step included: a preview never spins longer than
