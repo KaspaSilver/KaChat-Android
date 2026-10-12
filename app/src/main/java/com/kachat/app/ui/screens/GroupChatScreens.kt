@@ -209,6 +209,10 @@ object GroupMentionCodec {
     }
 
     fun decodeForDisplay(text: String, members: List<GroupMember>, resolveDisplayName: (String) -> String): String {
+        // Every mention is "@kaspa:..." / "@kaspatest:...". Rows decode often, sometimes a photo
+        // or voice note's base64: one scan, not a name lookup and a full replace per member
+        // (iOS 85c7967).
+        if (!text.contains("@kaspa")) return text
         var result = text
         for (member in members) {
             val name = resolveDisplayName(member.address)
