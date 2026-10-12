@@ -850,8 +850,9 @@ private fun KaPostsFeedScreen(
     }
 
     LaunchedEffect(Unit) {
-        // Page one, once per session: coming back to the tab keeps the feed and the place in it
-        // (iOS's KaPostsView is kept alive by its tab view and loads in a one-shot task).
+        // Coming back to the tab keeps the feed and the place in it: page one is pulled only when
+        // nothing is loaded or it has gone stale, otherwise just newer posts are looked for
+        // (iOS c18fb77).
         viewModel.loadFeedIfNeeded()
         viewModel.refreshTranslationLanguages()
         // A post scheduled for a moment that has already passed, which the indexer never took,

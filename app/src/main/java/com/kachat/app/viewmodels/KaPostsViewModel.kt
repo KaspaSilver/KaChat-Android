@@ -829,12 +829,17 @@ class KaPostsViewModel @Inject constructor(
     suspend fun resolveAnyPost(txId: String): KaPostDraft? =
         findPostByRemoteId(txId) ?: indexerPost(txId) ?: chainPost(txId)
 
-    /** Page one of the selected feed, only when nothing has been loaded for it yet. Coming back
-     *  to the tab keeps what was on screen (iOS's KaPostsView stays alive across tab switches). */
+    /** Coming back to the tab keeps the pages already scrolled in, and the reader's place with
+     *  them: page one of the selected feed is pulled only when nothing is loaded or it is over
+     *  five minutes old, otherwise just the newer posts are looked for (iOS c18fb77). */
     fun loadFeedIfNeeded() {
         val tab = _selectedFeed.value
-        if (surfaceLoaded(feedKey(tab))) return
-        viewModelScope.launch { loadFeed(tab) }
+        val key = feedKey(tab)
+        if (!surfaceLoaded(key) || feedFlow(tab).value.isEmpty() || !isLoadFresh(pageOneLoadedAt[key] ?: 0L)) {
+            viewModelScope.launch { loadFeed(tab) }
+        } else {
+            checkForNewPosts(tab)
+        }
     }
 
     // MARK: - Identity chain (contact alias > KNS domain > shortened address; KNS owns display)
@@ -1188,6 +1193,9 @@ class KaPostsViewModel @Inject constructor(
     // window unless the feed was refreshed from page one in between.
     private val loadGateStaleAfterMs = 5 * 60_000L
     private var feedLoadedAt = 0L
+    /** When each feed surface's page one last loaded (Feed/Popular share one; Following its own):
+     *  coming back to the tab reloads only a stale one ([loadFeedIfNeeded]). */
+    private val pageOneLoadedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private var popularSweptAt = 0L
     private var myProfileLoadedAt = 0L
     private var posterProfileLoaded: Pair<String, Long>? = null
@@ -1324,6 +1332,7 @@ class KaPostsViewModel @Inject constructor(
                 resetTranslations()
                 // Account switch: nothing loaded belongs to the new identity.
                 feedLoadedAt = 0L
+                pageOneLoadedAt.clear()
                 popularSweptAt = 0L
                 myProfileLoadedAt = 0L
                 posterProfileLoaded = null
@@ -1360,6 +1369,7 @@ class KaPostsViewModel @Inject constructor(
                 if (isSelected) _feedError.value = result.error
             } else {
                 feedFlow(tab).value = result.items
+                pageOneLoadedAt[key] = System.currentTimeMillis()
                 // A refresh just delivered whatever was being offered; leaving the pill up would
                 // promise posts that are already on screen.
                 clearPendingNewPosts()
