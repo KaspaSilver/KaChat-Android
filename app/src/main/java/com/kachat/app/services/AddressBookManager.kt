@@ -96,7 +96,11 @@ class AddressBookManager @Inject constructor(
     var photoVersion by androidx.compose.runtime.mutableIntStateOf(0)
         private set
 
-    private val photoCache = android.util.LruCache<String, android.graphics.Bitmap>(200)
+    /** Decoded assigned photos, held to a byte budget (AND-032) - not an entry count, so a few
+     *  large pictures can't take the heap. */
+    private val photoCache = object : android.util.LruCache<String, android.graphics.Bitmap>(PHOTO_CACHE_BYTES) {
+        override fun sizeOf(key: String, value: android.graphics.Bitmap): Int = value.byteCount
+    }
 
     private val _entries = MutableStateFlow<List<AddressBookEntry>>(emptyList())
     /** This wallet's entries, sorted by name. */
@@ -259,9 +263,36 @@ class AddressBookManager @Inject constructor(
         val file = photoFile(normalize(address)) ?: return null
         photoCache.get(file.path)?.let { return it }
         if (!file.exists()) return null
-        val bitmap = runCatching { android.graphics.BitmapFactory.decodeFile(file.path) }.getOrNull() ?: return null
+        val bitmap = decodePhotoFile(file) ?: return null
         photoCache.put(file.path, bitmap)
         return bitmap
+    }
+
+    /**
+     * Reads a stored photo with its header checked first and the decode sampled down to at most
+     * [PHOTO_DECODE_MAX_SIDE] px (AND-032): a photo saved before imports were scaled, or put
+     * there by an older build, can't decode to a bitmap too large to draw. Our own photos are
+     * 384 px and decode unchanged.
+     */
+    private fun decodePhotoFile(file: java.io.File): android.graphics.Bitmap? = try {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(file.path, bounds)
+        val w = bounds.outWidth
+        val h = bounds.outHeight
+        if (w <= 0 || h <= 0) {
+            null
+        } else {
+            var sample = 1
+            while (w / sample > PHOTO_DECODE_MAX_SIDE || h / sample > PHOTO_DECODE_MAX_SIDE) sample *= 2
+            android.graphics.BitmapFactory.decodeFile(
+                file.path,
+                android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+            )
+        }
+    } catch (t: Throwable) {
+        // OutOfMemoryError included: a picture that can't be read is shown as no picture.
+        Log.w(TAG, "Could not read an Address Book photo", t)
+        null
     }
 
     fun hasPhoto(address: String?): Boolean {
@@ -412,14 +443,17 @@ class AddressBookManager @Inject constructor(
         var updated = 0
         for (raw in valid) {
             val address = normalize(raw.address)
-            val photo = raw.photo?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }.getOrNull() }
+            // The file's photo is re-encoded the way an assigned one is (AND-032); one that is
+            // too large or can't be decoded is dropped, and leaves the photo already here alone.
+            val sentPhoto = raw.photo?.takeIf { it.isNotBlank() }
+            val photo = sentPhoto?.let { importedPhoto(it) }
             var incoming = raw.copy(address = address, photo = null)
             val i = index[address]
             if (i != null) {
                 val have = list[i]
                 if (incoming.updatedAt <= have.updatedAt) continue
                 list[i] = have.copy(name = incoming.name, note = incoming.note, updatedAt = incoming.updatedAt)
-                if (photo != null) writePhoto(photo, address) else deletePhoto(address)
+                if (photo != null) writePhoto(photo, address) else if (sentPhoto == null) deletePhoto(address)
                 updated++
             } else {
                 if (list.any { it.id == incoming.id }) incoming = incoming.copy(id = UUID.randomUUID().toString().uppercase())
@@ -479,10 +513,14 @@ class AddressBookManager @Inject constructor(
         val before = current.byAddress
         val kept = merged.first.map { e ->
             val address = normalize(e.address)
-            val data = e.photo?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }.getOrNull() }
+            // Re-encoded like an assigned photo (AND-032); one that is too large or can't be
+            // decoded is dropped, and an existing local photo is then kept.
+            val sent = e.photo?.takeIf { it.isNotBlank() }
+            val data = sent?.let { importedPhoto(it) }
             val local = before[address]
             when {
                 data != null -> writePhoto(data, address)
+                sent != null && local != null -> Unit
                 local != null && local.updatedAt < e.updatedAt -> deletePhoto(address)
                 local == null -> deletePhoto(address)
             }
@@ -626,13 +664,94 @@ class AddressBookManager @Inject constructor(
 
         private fun photoFileName(address: String): String = hashName(normalize(address)) + ".jpg"
 
+        /** The longer side of an entry's photo as it is stored. */
+        private const val PHOTO_MAX_SIDE = 384
+
+        /** The most a stored photo is decoded to, whatever the file claims (AND-032). */
+        private const val PHOTO_DECODE_MAX_SIDE = 768
+
+        /** A photo field in an import or backup longer than this (base64 chars, ~1.5 MB of
+         *  image) is refused unread; a real one is tens of KB (AND-032). */
+        private const val MAX_IMPORTED_PHOTO_BASE64 = 2 * 1024 * 1024
+
+        /** The largest Address Book file Import reads (AND-032). */
+        const val MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024
+
+        /** Byte budget of the decoded-photo cache: an eighth of the heap, at most 32 MB. */
+        private val PHOTO_CACHE_BYTES: Int =
+            (Runtime.getRuntime().maxMemory() / 8).coerceIn(4L * 1024 * 1024, 32L * 1024 * 1024).toInt()
+
+        /**
+         * The picked Address Book file's bytes, or null when it can't be read or is larger than
+         * [MAX_IMPORT_FILE_BYTES] (AND-032) - the read stops at the cap, so an oversized file is
+         * never loaded whole. Call off the main thread.
+         */
+        fun readImportFile(context: Context, uri: android.net.Uri): ByteArray? = try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val out = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+                var tooLarge = false
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    total += n
+                    if (total > MAX_IMPORT_FILE_BYTES) {
+                        tooLarge = true
+                        break
+                    }
+                    out.write(buffer, 0, n)
+                }
+                if (tooLarge) null else out.toByteArray()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read the Address Book file", e)
+            null
+        }
+
+        /**
+         * A photo from an import file or a backup as the JPEG an entry keeps (AND-032): the
+         * base64 is refused past [MAX_IMPORTED_PHOTO_BASE64], decoded with its header checked
+         * ([com.kachat.app.util.SafeBitmapDecode], at most 768 px) and re-encoded like
+         * [preparedPhoto] (384 px, JPEG). Null when it is too large or can't be decoded.
+         */
+        private fun importedPhoto(base64: String): ByteArray? {
+            if (base64.length > MAX_IMPORTED_PHOTO_BASE64) return null
+            return try {
+                val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+                val bitmap = com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = PHOTO_DECODE_MAX_SIDE)
+                    ?: return null
+                scaledJpeg(bitmap)
+            } catch (t: Throwable) {
+                // Bad base64, or OutOfMemoryError: the photo is dropped, the entry still imports.
+                null
+            }
+        }
+
+        /** [source] at most [PHOTO_MAX_SIDE] px on its longer side, as JPEG quality 0.8. */
+        private fun scaledJpeg(source: android.graphics.Bitmap): ByteArray? {
+            if (source.width <= 0 || source.height <= 0) return null
+            val scale = minOf(1f, PHOTO_MAX_SIDE.toFloat() / maxOf(source.width, source.height))
+            val scaled = if (scale < 1f) {
+                android.graphics.Bitmap.createScaledBitmap(
+                    source,
+                    Math.round(source.width * scale).coerceAtLeast(1),
+                    Math.round(source.height * scale).coerceAtLeast(1),
+                    true
+                )
+            } else source
+            val out = java.io.ByteArrayOutputStream()
+            scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+            return out.toByteArray()
+        }
+
         /**
          * A picked image as the JPEG an entry keeps: at most 384 px on its longer side (an avatar
          * is never drawn bigger), quality 0.8 - tens of KB, so the backup stays small. Null when
          * it can't be read.
          */
         fun preparedPhoto(context: Context, uri: android.net.Uri): ByteArray? = runCatching {
-            val maxSide = 384
+            val maxSide = PHOTO_MAX_SIDE
             val source: android.graphics.Bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
                 // ImageDecoder applies the photo's EXIF orientation.
                 val src = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
@@ -647,19 +766,7 @@ class AddressBookManager @Inject constructor(
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
                 com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = maxSide * 2) ?: return null
             }
-            if (source.width <= 0 || source.height <= 0) return null
-            val scale = minOf(1f, maxSide.toFloat() / maxOf(source.width, source.height))
-            val scaled = if (scale < 1f) {
-                android.graphics.Bitmap.createScaledBitmap(
-                    source,
-                    Math.round(source.width * scale).coerceAtLeast(1),
-                    Math.round(source.height * scale).coerceAtLeast(1),
-                    true
-                )
-            } else source
-            val out = java.io.ByteArrayOutputStream()
-            scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
-            out.toByteArray()
+            scaledJpeg(source)
         }.getOrNull()
 
         private val UUID_PATTERN =

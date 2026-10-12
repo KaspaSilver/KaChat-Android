@@ -296,7 +296,9 @@ private fun AddressBookImportExport(show: Boolean, onDismiss: () -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val data = withContext(Dispatchers.IO) {
-                runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+                // Capped (AND-032): a file bigger than any real Address Book export is refused
+                // before it is read into memory.
+                AddressBookManager.readImportFile(context, uri)
             }
             if (data == null) IosToasts.error(context.getString(R.string.ab_couldnt_read_file))
             else runImport(data)
