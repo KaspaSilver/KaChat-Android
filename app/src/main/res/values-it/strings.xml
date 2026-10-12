@@ -1279,4 +1279,6 @@
     <!-- Chat list: delete one chat (iOS ChatListView rowDeleteContact) -->
     <string name="delete_chat_q">Delete Chat?</string>
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
+    <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
+    <string name="kn_combines_coins_on_slide">I tuoi KAS sono in molte monete piccole. Quando scorri, KaChat prima le unisce in una (una transazione a parte con una piccola commissione), poi invia questa.</string>
 </resources>

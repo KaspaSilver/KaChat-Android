@@ -355,7 +355,9 @@ class Builder(val manifest: Manifest) {
                     have = picked.sumOf { it.entry.amount }
                     if (fixedIn + have < required) {
                         val all = wallet.filter { it.outpoint !in used }.sumOf { it.entry.amount }
-                        val bound = if (slots < wallet.size) " (at most $slots funding inputs fit)" else ""
+                        // "funding inputs fit" only when the KAS is there but the slots can't take it:
+                        // combining coins can fix that, and nothing else (iOS 778a8fc, IOS-075)
+                        val bound = if (slots < wallet.size && fixedIn + all >= required) " (at most $slots funding inputs fit)" else ""
                         throw Failure(
                             "${d.op}: insufficient funds: need ${kas(required - fixedIn)} more (outputs ${kas(fixedOut)} + price " +
                                 "${kas(d.priceFee)} + network fee ~${kas(est)}), ${kas(all)} spendable$bound"

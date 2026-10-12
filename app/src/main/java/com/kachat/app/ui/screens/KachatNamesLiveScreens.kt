@@ -2382,6 +2382,9 @@ fun KachatTxSheet(
     var plan by remember { mutableStateOf<Plan?>(null) }
     // The fee rate `plan` was built at: the send uses exactly this (iOS 7e2b6cd, IOS-061).
     var planFeerate by remember { mutableStateOf<Double?>(null) }
+    // The plan assumes the small coins combined first (`planWithRate`); the combine is sent only
+    // after the slide and the device lock (iOS 778a8fc, IOS-075).
+    var combinesCoins by remember { mutableStateOf(false) }
     var planError by remember { mutableStateOf<String?>(null) }
     var building by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
@@ -2421,6 +2424,7 @@ fun KachatTxSheet(
     LaunchedEffect(operationKey, rebuilds, feeTier, customFee) {
         plan = null
         planError = null
+        combinesCoins = false
         val op = currentOperation
         if (op == null) { building = false; return@LaunchedEffect }
         building = true
@@ -2432,6 +2436,7 @@ fun KachatTxSheet(
             ensureActive()
             plan = built.first
             planFeerate = built.second
+            combinesCoins = built.third
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -2541,6 +2546,17 @@ fun KachatTxSheet(
                 Text(pe, color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
             } else if (footer != null) {
                 Text(footer, color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+            }
+
+            // said before the slide: the coins are combined only once it's confirmed (iOS 778a8fc, IOS-075)
+            if (combinesCoins && plan != null && txId == null) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        Icons.Default.Layers, contentDescription = null,
+                        tint = colors.textSecondary, modifier = Modifier.size(15.dp).padding(top = 1.dp)
+                    )
+                    Text(stringResource(R.string.kn_combines_coins_on_slide), color = colors.textSecondary, fontSize = 13.sp)
+                }
             }
 
             if (txId == null) {

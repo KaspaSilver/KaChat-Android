@@ -523,18 +523,23 @@ class KachatNamesActions @Inject constructor(
      *  shows before the person confirms. */
     suspend fun plan(op: Operation, fee: FeeChoice? = null): Plan = planWithRate(op, fee).first
 
-    /** The plan and the fee rate it was built at - the rate `perform(exactFeerate)` then sends at,
-     *  so the fee sent is the fee shown (iOS 7e2b6cd, IOS-061). */
-    suspend fun planWithRate(op: Operation, fee: FeeChoice? = null): Pair<Plan, Double> = withContext(Dispatchers.IO) {
+    /**
+     * The plan and the fee rate it was built at - the rate `perform(exactFeerate)` then sends at,
+     * so the fee sent is the fee shown (iOS 7e2b6cd, IOS-061) - and whether it combines coins.
+     *
+     * A preview never sends anything (iOS 778a8fc, IOS-075). When the KAS is there but in more
+     * small coins than the transaction can take, it is planned as if they were already combined,
+     * and the third value says so: the combine itself is sent by [perform], after the slide and
+     * the device lock.
+     */
+    suspend fun planWithRate(op: Operation, fee: FeeChoice? = null): Triple<Plan, Double, Boolean> = withContext(Dispatchers.IO) {
         val s = signer(op)
         val rate = feerate(fee, op, s)
         try {
-            build(op, s, rate).first to rate
+            Triple(build(op, s, rate).first, rate, false)
         } catch (e: KachatNames.Failure) {
             if (!isTooManyCoins(e)) throw e
-            // the KAS is there, in too many small coins: combined into one first (iOS f1c16ec)
-            combineCoins(s)
-            build(op, s, rate).first to rate
+            Triple(build(op, s, rate, previewCombined = true).first, rate, true)
         }
     }
 
@@ -591,12 +596,12 @@ class KachatNamesActions @Inject constructor(
         return txId
     }
 
-    private suspend fun build(op: Operation, s: Signer, rate: Double? = null): Pair<Plan, Env> {
+    private suspend fun build(op: Operation, s: Signer, rate: Double? = null, previewCombined: Boolean = false): Pair<Plan, Env> {
         val m = registry.prepare()
         val c = context(s, rate)
         val b = c.builder
         val env = c.env
-        val wallet = c.wallet
+        val wallet = if (previewCombined) combinedPreviewWallet(c.wallet) else c.wallet
         val plan = when (op) {
             is Operation.Extend -> {
                 if (op.name.periodStart == null) throw ActionError.PeriodUnknown()
@@ -1619,10 +1624,33 @@ class KachatNamesActions @Inject constructor(
         /**
          * A name transaction takes at most a few funding inputs ([KachatNames.MAX_INPUTS_FEE_ENTRY]
          * all in), so a wallet holding enough KAS in many small coins couldn't pay: "insufficient
-         * funds ... at most N funding inputs fit" (iOS f1c16ec).
+         * funds ... at most N funding inputs fit" (iOS f1c16ec). The builder says that only when
+         * the spendable KAS would cover the transaction (iOS 778a8fc, IOS-075): a wallet that is
+         * simply short never combines.
          */
         fun isTooManyCoins(error: Throwable): Boolean =
             (error as? KachatNames.Failure)?.message?.contains("funding inputs fit") == true
+
+        /**
+         * The wallet as it will be once [combineCoins] ran: its largest coins (as many as a send
+         * takes) as one coin, less room for that send's fee. Only ever planned against, for a
+         * preview - never signed or sent (iOS 778a8fc, IOS-075).
+         */
+        fun combinedPreviewWallet(wallet: List<Utxo>): List<Utxo> {
+            val sorted = wallet.sortedByDescending { it.entry.amount }
+            val merged = sorted.take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)
+            if (merged.size <= 1) return wallet
+            val first = merged.first().entry
+            val total = merged.sumOf { it.entry.amount }
+            val feeRoom = 5_000_000L
+            if (total <= feeRoom) return wallet
+            val entry = UtxoEntry(
+                amount = total - feeRoom, scriptVersion = first.scriptVersion, script = first.script,
+                blockDaaScore = first.blockDaaScore, isCoinbase = first.isCoinbase, covenantId = first.covenantId
+            )
+            val standIn = Utxo(Outpoint(ByteArray(32) { 0xcc.toByte() }, 0), entry)
+            return listOf(standIn) + sorted.drop(merged.size)
+        }
 
         /** Since [p]'s commit went out (its first send when it was never sent again: the record's start). */
         private fun sinceCommitSent(p: PendingRegistration, nowMs: Long): Long = nowMs - (p.commitSentAt ?: p.createdAt)
