@@ -19,7 +19,9 @@ enum class KaspaExplorer(
     companion object {
         private const val TESTNET_TX_BASE = "https://tn10.kaspa.stream/transactions/"
         private const val TESTNET_ADDRESS_BASE = "https://tn10.kaspa.stream/addresses/"
-        val default: KaspaExplorer = KASPA_ORG
+        // kaspa.stream first: the picker lists it first and a fresh install opens links there
+        // (iOS e69fe13).
+        val default: KaspaExplorer = KASPA_STREAM
 
         fun fromName(name: String?): KaspaExplorer =
             entries.firstOrNull { it.name == name } ?: default
