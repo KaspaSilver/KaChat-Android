@@ -1276,4 +1276,7 @@
     <string name="pr_paid_to_your_spending">내 지출 주소로 결제</string>
     <string name="pr_ask_contact_hint">이 연락처에 용도와 함께 정확한 금액을 요청합니다.</string>
     <string name="pr_send_request">결제 요청 보내기</string>
+    <!-- Chat list: delete one chat (iOS ChatListView rowDeleteContact) -->
+    <string name="delete_chat_q">Delete Chat?</string>
+    <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
 </resources>

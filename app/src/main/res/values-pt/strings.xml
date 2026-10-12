@@ -1276,4 +1276,7 @@
     <string name="pr_paid_to_your_spending">Pago ao seu endereço de gastos</string>
     <string name="pr_ask_contact_hint">Peça a este contato um valor exato, com o motivo.</string>
     <string name="pr_send_request">Enviar solicitação de pagamento</string>
+    <!-- Chat list: delete one chat (iOS ChatListView rowDeleteContact) -->
+    <string name="delete_chat_q">Delete Chat?</string>
+    <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
 </resources>

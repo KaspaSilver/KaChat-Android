@@ -857,16 +857,16 @@ fun ChatsScreen(
             onDeleteBot = { circleDeleteBot = it },
         )
     }
-    // The chat row's delete confirmation, for a bot chat's circle (iOS 5fcf755 rowDeleteContact).
+    // The chat row's delete confirmation, for a bot chat's circle (iOS 5fcf755 rowDeleteContact):
+    // iOS's "Delete Chat?" alert, its title and text as they are there.
     circleDeleteBot?.let { contact ->
-        val label = com.kachat.app.models.KaChatBot.bot(contact.id)?.let { stringResource(it.nameRes) } ?: contact.displayName
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { circleDeleteBot = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Delete Chat with $label", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.delete_chat_q), color = LocalAppColors.current.textPrimary) },
             text = {
                 Text(
-                    stringResource(R.string.this_permanently_deletes_every_message_with),
+                    stringResource(R.string.delete_chat_alert_message),
                     color = LocalAppColors.current.textSecondary
                 )
             },
