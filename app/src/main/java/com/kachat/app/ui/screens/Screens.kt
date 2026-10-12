@@ -4311,11 +4311,11 @@ fun ProfileScreen(
                 SettingsDivider()
                 SettingsInfoItem(
                     stringResource(R.string.website),
-                    "https://linktr.ee/Kachat_",
+                    "home.kachat.app",
                     KaspaTeal,
                     onClick = {
                         try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://linktr.ee/Kachat_")))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://home.kachat.app")))
                         } catch (e: Exception) { /* no browser available */ }
                     }
                 )
