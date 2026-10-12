@@ -9,14 +9,20 @@ fun currencySymbolFor(currencyCode: String): String {
     // Not ISO 4217 - Currency.getInstance() below throws for it (caught, falling back to "BTC"),
     // but the Unicode Bitcoin sign reads better as a prefix than the bare code.
     if (currencyCode.equals("btc", ignoreCase = true)) return "₿"
-    return try {
-        java.text.NumberFormat.getCurrencyInstance(Locale.US).apply {
-            currency = java.util.Currency.getInstance(currencyCode.uppercase())
-        }.currency?.symbol ?: currencyCode.uppercase()
-    } catch (e: Exception) {
-        currencyCode.uppercase()
+    // Looked up once per currency: Portfolio's rows and chart headers ask on every
+    // recomposition, and each lookup built a currency NumberFormat (iOS b45cda1).
+    return currencySymbols.getOrPut(currencyCode) {
+        try {
+            java.text.NumberFormat.getCurrencyInstance(Locale.US).apply {
+                currency = java.util.Currency.getInstance(currencyCode.uppercase())
+            }.currency?.symbol ?: currencyCode.uppercase()
+        } catch (e: Exception) {
+            currencyCode.uppercase()
+        }
     }
 }
+
+private val currencySymbols = java.util.concurrent.ConcurrentHashMap<String, String>()
 
 /** Generic fiat total formatter - symbol, thousands separators, 2 decimals. */
 fun formatFiatAmount(value: Double, currencyCode: String): String {

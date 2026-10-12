@@ -933,14 +933,31 @@ class PortfolioViewModel @Inject constructor(
         ): List<Pair<Long, Double>> {
             if (priceHistory.isEmpty()) return emptyList()
             val sortedTx = transactions.sortedBy { it.timestampMillis }
-            return priceHistory.map { (timestamp, price) ->
-                var holdingsSompi = 0L
-                for (tx in sortedTx) {
-                    if (tx.timestampMillis > timestamp) break
-                    when (tx.type) {
-                        "buy" -> holdingsSompi += tx.amountSompi
-                        "sell" -> holdingsSompi -= tx.amountSompi
+            fun delta(tx: PortfolioTransactionEntity): Long = when (tx.type) {
+                "buy" -> tx.amountSompi
+                "sell" -> -tx.amountSompi
+                else -> 0L
+            }
+            // Price points in time order (the usual case): one running pass over the ledger
+            // instead of replaying it from the start for every point - points x transactions on
+            // every recomposition (iOS b45cda1).
+            val ascending = priceHistory.zipWithNext().all { (a, b) -> a.first <= b.first }
+            if (!ascending) {
+                return priceHistory.map { (timestamp, price) ->
+                    var holdingsSompi = 0L
+                    for (tx in sortedTx) {
+                        if (tx.timestampMillis > timestamp) break
+                        holdingsSompi += delta(tx)
                     }
+                    timestamp to (holdingsSompi / 100_000_000.0 * price)
+                }
+            }
+            var holdingsSompi = 0L
+            var next = 0
+            return priceHistory.map { (timestamp, price) ->
+                while (next < sortedTx.size && sortedTx[next].timestampMillis <= timestamp) {
+                    holdingsSompi += delta(sortedTx[next])
+                    next++
                 }
                 val holdingsKas = holdingsSompi / 100_000_000.0
                 timestamp to (holdingsKas * price)
