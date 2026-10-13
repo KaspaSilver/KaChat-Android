@@ -510,6 +510,9 @@ fun GroupChatThreadScreen(
             autoScrollBaselineCount = messages.size
         }
     }
+    // A row that keeps growing after it lands (long text, then its link preview, then the image)
+    // keeps the chat pinned to its bottom (iOS aa26c35).
+    KeepChatPinnedWhileRowsGrow(listState)
 
     // Same deliberate-scroll-away detection as ChatThreadScreen's showScrollToBottom in
     // Screens.kt: not canScrollForward (which flips for a frame whenever the viewport merely

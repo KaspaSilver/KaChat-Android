@@ -1469,6 +1469,9 @@ fun ChatThreadScreen(
                 autoScrollNewestId = messages.last().id
             }
         }
+        // A row that keeps growing after it lands (long text, then its link preview, then the
+        // image) keeps the chat pinned to its bottom (iOS aa26c35).
+        KeepChatPinnedWhileRowsGrow(scrollState)
 
         // Also re-pin to the bottom when the keyboard's own inset animation finishes (not
         // just when messageText changes — the IME resize is system-driven and can complete
