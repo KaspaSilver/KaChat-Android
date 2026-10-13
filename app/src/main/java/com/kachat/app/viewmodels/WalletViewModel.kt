@@ -625,6 +625,30 @@ class WalletViewModel @Inject constructor(
             )
     }
 
+    /**
+     * Request Payment's Fresh Address (iOS `reserveFreshSpendingAddresses(count: 1)`, 86dfd2d /
+     * 6dee531): a spending address never revealed, used or handed out, reserved now - the revealed
+     * bound moves past it in the same step ([WalletManager.allocateFreshSpendingIndices], shared
+     * with payment change and pool reservations), so no later request, change output or
+     * reservation can ever get the same one. Null when it can't be derived. The address-activity
+     * poll watches every revealed address, so its payment shows the moment it lands.
+     */
+    suspend fun reserveFreshSpendingAddress(): String? = withContext(Dispatchers.IO) {
+        try { walletManager.allocateFreshSpendingIndices(1).firstOrNull()?.second } catch (e: Exception) { null }
+    }
+
+    /** The address [reserveFreshSpendingAddress] would hand out next, derived but NOT reserved
+     *  (iOS 3f5f79c) - see [WalletManager.nextFreshSpendingAddress]. */
+    suspend fun nextFreshSpendingAddress(): String? = withContext(Dispatchers.IO) {
+        walletManager.nextFreshSpendingAddress()
+    }
+
+    /** See [WalletService.cachedSpendingAddressUsedState]. */
+    fun cachedSpendingAddressUsedState(address: String): Boolean? = walletService.cachedSpendingAddressUsedState(address)
+
+    /** See [WalletService.spendingAddressUsedState]. */
+    suspend fun spendingAddressUsedState(address: String): Boolean? = walletService.spendingAddressUsedState(address)
+
     /** Address at [index] on the spending chain, derived on demand — Address Visibility pager
      *  rows beyond the revealed bound. */
     fun spendingAddressAt(index: Int): String? =

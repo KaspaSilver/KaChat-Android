@@ -1456,9 +1456,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Request Payment</string>
     <string name="pr_request_payment_hint">A link asking for an exact amount, with what it\'s for.</string>
-    <string name="pr_paid_to">Paid to</string>
     <string name="pr_chatting_footer">The payment lands in your chat with whoever pays, with the memo.</string>
-    <string name="pr_spending_footer">Paid to a fresh address of yours. The memo shows to whoever pays, but doesn\'t travel with the payment.</string>
     <string name="pr_memo_placeholder">What it\'s for (optional)</string>
     <string name="pr_copy">Copy Payment Request</string>
     <string name="pr_anyone_note">Anyone who opens or pastes it in KaChat gets Send Kaspa with this filled in, and sees it was made by your chatting address (signed with its key).</string>
@@ -1489,4 +1487,15 @@
     <string name="address_domains_one">1 domain</string>
     <string name="address_domains_count">%1$d domains</string>
     <string name="address_domains_couldnt_load">Couldn\'t load</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Fresh Address</string>
+    <string name="pr_choose_an_address">Choose an Address</string>
+    <string name="pr_memo_shows_note">The memo shows to whoever pays, but doesn\'t travel with the payment.</string>
+    <string name="pr_pick_address">Pick which of your addresses gets paid.</string>
+    <string name="pr_couldnt_make_address">Couldn\'t make a new address. Please try again.</string>
+    <string name="pr_spending_addresses">Spending Addresses</string>
+    <string name="pr_used">Used</string>
+    <string name="pr_unused">Unused</string>
+    <string name="pr_checking">Checking</string>
+    <string name="pr_spending_footer_new">Paid to a brand-new address of yours, used for this request only. The memo shows to whoever pays, but doesn\'t travel with the payment.</string>
 </resources>

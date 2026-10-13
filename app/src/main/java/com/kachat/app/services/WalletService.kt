@@ -230,6 +230,44 @@ class WalletService @Inject constructor(
         }
     }
 
+    /** Addresses a history lookup found unused this session (iOS `sessionUnusedAddresses`): "unused"
+     *  can change any time, so it is never persisted, only remembered until the app restarts. */
+    private val sessionUnusedAddresses = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** What is already known about [address]'s use without a lookup (iOS
+     *  `cachedSpendingAddressUsedState`): true once it was ever seen used, false when a lookup this
+     *  session found it unused, null when unknown. */
+    fun cachedSpendingAddressUsedState(address: String): Boolean? = when {
+        walletManager.isAddressKnownUsed(address) -> true
+        address in sessionUnusedAddresses -> false
+        else -> null
+    }
+
+    /**
+     * Whether [address] was ever used (iOS `spendingAddressUsedState`, 338d9f5): the cached answer,
+     * else a one-row history lookup. True = used (remembered for good: "used" is monotonic), false
+     * = confirmed unused, null = the lookup failed, so used-ness is unknown right now - never
+     * guessed as unused.
+     */
+    suspend fun spendingAddressUsedState(address: String): Boolean? {
+        cachedSpendingAddressUsedState(address)?.let { return it }
+        val api = readyApi() ?: return null
+        return try {
+            val used = api.getTransactions(address, limit = 1).isNotEmpty()
+            if (used) {
+                sessionUnusedAddresses.remove(address)
+                walletManager.markAddressUsed(address)
+            } else {
+                sessionUnusedAddresses.add(address)
+            }
+            used
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     data class SpendingAddressEntry(
         val index: Int,
         val address: String,

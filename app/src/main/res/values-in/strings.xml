@@ -1123,9 +1123,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Minta Pembayaran</string>
     <string name="pr_request_payment_hint">Tautan yang meminta jumlah pasti, beserta keperluannya.</string>
-    <string name="pr_paid_to">Dibayar ke</string>
     <string name="pr_chatting_footer">Pembayaran masuk ke obrolan Anda dengan pembayar, beserta catatannya.</string>
-    <string name="pr_spending_footer">Dibayar ke alamat baru milik Anda. Catatan terlihat oleh pembayar, tetapi tidak ikut terkirim bersama pembayaran.</string>
     <string name="pr_memo_placeholder">Untuk apa (opsional)</string>
     <string name="pr_copy">Salin Permintaan Pembayaran</string>
     <string name="pr_anyone_note">Siapa pun yang membuka atau menempelkannya di KaChat mendapat Kirim Kaspa yang sudah terisi, dan melihat bahwa itu dibuat dari alamat obrolan Anda (ditandatangani dengan kuncinya).</string>
@@ -1156,4 +1154,15 @@
     <string name="address_domains_one">1 domain</string>
     <string name="address_domains_count">%1$d domain</string>
     <string name="address_domains_couldnt_load">Tidak bisa dimuat</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Alamat Baru</string>
+    <string name="pr_choose_an_address">Pilih Alamat</string>
+    <string name="pr_memo_shows_note">Catatan terlihat oleh pembayar, tetapi tidak ikut terkirim bersama pembayaran.</string>
+    <string name="pr_pick_address">Pilih alamat Anda mana yang dibayar.</string>
+    <string name="pr_couldnt_make_address">Tidak bisa membuat alamat baru. Coba lagi.</string>
+    <string name="pr_spending_addresses">Alamat Belanja</string>
+    <string name="pr_used">Terpakai</string>
+    <string name="pr_unused">Belum dipakai</string>
+    <string name="pr_checking">Memeriksa</string>
+    <string name="pr_spending_footer_new">Dibayar ke alamat Anda yang benar-benar baru, hanya untuk permintaan ini. Catatan terlihat oleh pembayar, tetapi tidak ikut terkirim bersama pembayaran.</string>
 </resources>

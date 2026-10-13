@@ -1251,9 +1251,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Zahlung anfordern</string>
     <string name="pr_request_payment_hint">Ein Link, der einen genauen Betrag anfordert, mit dem Zweck.</string>
-    <string name="pr_paid_to">Zahlung an</string>
     <string name="pr_chatting_footer">Die Zahlung landet in deinem Chat mit der zahlenden Person, mit der Notiz.</string>
-    <string name="pr_spending_footer">An eine neue Adresse von dir. Die Notiz sieht nur, wer zahlt; sie wird nicht mit der Zahlung gesendet.</string>
     <string name="pr_memo_placeholder">Wofür (optional)</string>
     <string name="pr_copy">Zahlungsanforderung kopieren</string>
     <string name="pr_anyone_note">Wer ihn in KaChat öffnet oder einfügt, bekommt „Kaspa senden“ ausgefüllt und sieht, dass er von deiner Chat-Adresse stammt (mit ihrem Schlüssel signiert).</string>
@@ -1284,4 +1282,15 @@
     <string name="address_domains_one">1 Domain</string>
     <string name="address_domains_count">%1$d Domains</string>
     <string name="address_domains_couldnt_load">Konnte nicht geladen werden</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Neue Adresse</string>
+    <string name="pr_choose_an_address">Adresse wählen</string>
+    <string name="pr_memo_shows_note">Die Notiz sieht, wer zahlt; sie wird nicht mit der Zahlung gesendet.</string>
+    <string name="pr_pick_address">Wähle, welche deiner Adressen bezahlt wird.</string>
+    <string name="pr_couldnt_make_address">Neue Adresse konnte nicht erstellt werden. Bitte erneut versuchen.</string>
+    <string name="pr_spending_addresses">Ausgabenadressen</string>
+    <string name="pr_used">Benutzt</string>
+    <string name="pr_unused">Unbenutzt</string>
+    <string name="pr_checking">Wird geprüft</string>
+    <string name="pr_spending_footer_new">An eine ganz neue Adresse von dir, nur für diese Anforderung. Die Notiz sieht, wer zahlt; sie wird nicht mit der Zahlung gesendet.</string>
 </resources>

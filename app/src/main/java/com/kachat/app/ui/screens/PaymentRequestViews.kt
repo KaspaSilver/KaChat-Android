@@ -58,6 +58,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import com.kachat.app.R
 import com.kachat.app.models.PaymentRequest
 import com.kachat.app.ui.theme.KaspaTeal
@@ -192,13 +200,14 @@ private fun sharePaymentRequestLink(context: android.content.Context, link: Stri
 
 /** iOS's `Label("Share", systemImage: "square.and.arrow.up")` button. */
 @Composable
-private fun PaymentRequestShareButton(onClick: () -> Unit) {
+private fun PaymentRequestShareButton(enabled: Boolean = true, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
+            .alpha(if (enabled) 1f else 0.4f)
             .clip(RoundedCornerShape(8.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         Icon(Icons.Outlined.IosShare, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
@@ -208,7 +217,12 @@ private fun PaymentRequestShareButton(onClick: () -> Unit) {
 
 // MARK: - Request Payment (Chats > + > Request Payment, and a 1:1 chat's + sheet)
 
-private enum class PaymentRequestDestination { CHATTING, SPENDING }
+private enum class PaymentRequestDestination {
+    /** A brand-new spending address, never revealed, used or handed out. */
+    FRESH,
+    /** One of your addresses, picked from the list: the chatting address or a spending one. */
+    CHOSEN,
+}
 
 /**
  * Request Payment's tile icon, for the New sheet and a 1:1 chat's + sheet: iOS's SF Symbol
@@ -269,10 +283,18 @@ val RequestPaymentIcon: androidx.compose.ui.graphics.vector.ImageVector by lazy 
 }
 
 /**
- * Makes a payment request link (iOS `CreatePaymentRequestView`, c6851d6 / 7c71a98 / 6594936): to
- * your chatting or spending address (a fresh receive address), an exact amount (KAS or your
- * currency) and what it's for - an optional memo up to [PaymentRequest.MEMO_LIMIT] characters.
- * Signed by your chatting address when it goes out, so whoever pays sees it is from you.
+ * Makes a payment request link (iOS `CreatePaymentRequestView`, c6851d6 / 7c71a98 / 6594936,
+ * 86dfd2d / 6dee531 / 338d9f5 / 3f5f79c): paid to a Fresh Address or one you choose, an exact
+ * amount (KAS or your currency) and what it's for - an optional memo up to
+ * [PaymentRequest.MEMO_LIMIT] characters. Signed by your chatting address when it goes out, so
+ * whoever pays sees it is from you.
+ *
+ * Fresh Address (the default) is a brand-new spending address, never revealed, used or handed out:
+ * the screen shows the next unrevealed slot (derived, not reserved) and reserves it only when the
+ * request is copied, shared or sent - opening the screen and cancelling uses none up. Once per
+ * screen: Copy, Share and Send all reuse it, so no two requests share an address. Choose an
+ * Address picks one of yours: a request to the chatting address is a chat payment with the memo;
+ * any other is a plain send.
  *
  * From Chats > + it gives the link: Copy Payment Request or Share. Made from a 1:1 chat's + sheet
  * ([recipientContactId]) it is for that person: Send Payment Request sends it into the chat.
@@ -284,8 +306,6 @@ fun CreatePaymentRequestSheet(
     onDismissed: () -> Unit,
     recipientContactId: String? = null,
     chatViewModel: ChatViewModel? = null,
-    /** A fresh receive address already worked out (the Chats New sheet's), shown at once. */
-    initialSpendingAddress: String? = null,
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
 ) {
     IosFullSheet(onDismissed = onDismissed, swipeToDismiss = true) { close ->
@@ -299,32 +319,48 @@ fun CreatePaymentRequestSheet(
         val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
         val chattingAddress by walletViewModel.address.collectAsState()
 
-        var destination by remember { mutableStateOf(PaymentRequestDestination.CHATTING) }
-        /** A fresh receive address of the spending chain, as Receive Kaspa shows. */
-        var spendingAddress by remember { mutableStateOf(initialSpendingAddress) }
+        var destination by remember { mutableStateOf(PaymentRequestDestination.FRESH) }
+        /** The brand-new address reserved for this request - only once it's copied, shared or sent. */
+        var freshAddress by remember { mutableStateOf<String?>(null) }
+        /** The next brand-new address, shown before it's reserved (the slot after the last revealed one). */
+        var nextFreshAddress by remember { mutableStateOf<String?>(null) }
+        var chosenAddress by remember { mutableStateOf<String?>(null) }
+        var showAddressPicker by remember { mutableStateOf(false) }
         var amountInput by remember { mutableStateOf("") }
         val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = { amountInput = it })
         var memo by remember { mutableStateOf("") }
         var copied by remember { mutableStateOf(false) }
-        var isSending by remember { mutableStateOf(false) }
+        var isWorking by remember { mutableStateOf(false) }
         var sendError by remember { mutableStateOf<String?>(null) }
 
-        LaunchedEffect(Unit) {
-            walletViewModel.resolveFreshReceiveAddress { fresh -> if (fresh != null) spendingAddress = fresh }
-        }
+        // derived, not reserved: opening the screen and cancelling uses no address up
+        LaunchedEffect(Unit) { nextFreshAddress = walletViewModel.nextFreshSpendingAddress() }
 
-        val address = when (destination) {
-            PaymentRequestDestination.CHATTING -> chattingAddress
-            PaymentRequestDestination.SPENDING -> spendingAddress
-        }
         val amountSompi = KaspaUnit.sompiFromUserText(amountInput)?.takeIf { it > 0 }
-        // Unsigned here; signed by the chatting address as it goes out (copy, share, send) - the
-        // key is only derived then.
-        val request = remember(address, amountSompi, memo, destination) {
-            if (address == null || amountSompi == null) null
-            else PaymentRequest.create(address, amountSompi, memo, destination == PaymentRequestDestination.CHATTING)
+        /** Ready to hand out: an amount, and an address (or a fresh one to be made). */
+        val canMake = amountSompi != null && (destination == PaymentRequestDestination.FRESH || chosenAddress != null)
+        LaunchedEffect(amountInput, memo, destination, chosenAddress) { copied = false }
+
+        /**
+         * The request to hand out, unsigned (signed by the chatting address as it goes out - the
+         * key is only derived then). A fresh address is reserved here, the first time it's needed.
+         */
+        suspend fun makeRequest(): PaymentRequest? {
+            val sompi = amountSompi ?: return null
+            val address = when (destination) {
+                PaymentRequestDestination.FRESH -> freshAddress ?: run {
+                    val reserved = walletViewModel.reserveFreshSpendingAddress()
+                    if (reserved == null) {
+                        sendError = context.getString(R.string.pr_couldnt_make_address)
+                        return null
+                    }
+                    freshAddress = reserved
+                    reserved
+                }
+                PaymentRequestDestination.CHOSEN -> chosenAddress ?: return null
+            }
+            return PaymentRequest.create(address, sompi, memo, address == chattingAddress)
         }
-        LaunchedEffect(request) { copied = false }
 
         /** The request's link, signed by the chatting address (or unsigned when its key can't be had). */
         suspend fun signedLink(unsigned: PaymentRequest): String = withContext(Dispatchers.Default) {
@@ -360,21 +396,50 @@ fun CreatePaymentRequestSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PaymentRequestDestinationPicker(destination) { destination = it }
-                    if (address != null) {
-                        AddressResolutionCard(address = address)
-                    } else {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PaymentRequestDestinationPill(
+                            title = stringResource(R.string.pr_fresh_address),
+                            selected = destination == PaymentRequestDestination.FRESH,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                            destination = PaymentRequestDestination.FRESH
+                        }
+                        PaymentRequestDestinationPill(
+                            title = stringResource(R.string.pr_choose_an_address),
+                            selected = destination == PaymentRequestDestination.CHOSEN,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                            destination = PaymentRequestDestination.CHOSEN
+                            showAddressPicker = true
                         }
                     }
-                    Text(
-                        stringResource(
-                            if (destination == PaymentRequestDestination.CHATTING) R.string.pr_chatting_footer else R.string.pr_spending_footer
-                        ),
-                        color = colors.textSecondary,
-                        fontSize = 13.sp,
-                    )
+                    when (destination) {
+                        PaymentRequestDestination.FRESH -> {
+                            val shown = freshAddress ?: nextFreshAddress
+                            if (shown != null) {
+                                AddressResolutionCard(address = shown)
+                            } else {
+                                Box(Modifier.fillMaxWidth().padding(vertical = 18.dp), contentAlignment = Alignment.Center) {
+                                    com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
+                                }
+                            }
+                        }
+                        PaymentRequestDestination.CHOSEN -> {
+                            val chosen = chosenAddress
+                            if (chosen != null) {
+                                AddressResolutionCard(address = chosen)
+                                Text(
+                                    stringResource(if (chosen == chattingAddress) R.string.pr_chatting_footer else R.string.pr_memo_shows_note),
+                                    color = colors.textSecondary,
+                                    fontSize = 13.sp,
+                                )
+                            } else {
+                                Text(stringResource(R.string.pr_pick_address), color = colors.textSecondary, fontSize = 13.sp)
+                            }
+                        }
+                    }
                 }
 
                 KaspaAmountEntry(
@@ -419,28 +484,35 @@ fun CreatePaymentRequestSheet(
                     )
                 }
 
+                sendError?.let {
+                    Text(it, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+                }
+
                 if (recipientContactId != null && chatViewModel != null) {
-                    sendError?.let {
-                        Text(it, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    }
                     SendActionButton(
                         title = stringResource(R.string.pr_send_request),
-                        isBusy = isSending,
-                        isEnabled = request != null && !isSending,
+                        isBusy = isWorking,
+                        isEnabled = canMake && !isWorking,
                         requiresSlide = false,
                         onSend = {
-                            val unsigned = request ?: return@SendActionButton
-                            isSending = true
+                            isWorking = true
                             sendError = null
-                            // Sent into the chat as a message: it shows there as a Payment Request
-                            // card, which they tap to pay.
-                            chatViewModel.sendPaymentRequest(recipientContactId, unsigned) { ok, error ->
-                                if (ok) {
-                                    haptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                    close()
-                                } else {
-                                    isSending = false
-                                    sendError = error
+                            scope.launch {
+                                val unsigned = makeRequest()
+                                if (unsigned == null) {
+                                    isWorking = false
+                                    return@launch
+                                }
+                                // Sent into the chat as a message: it shows there as a Payment
+                                // Request card, which they tap to pay.
+                                chatViewModel.sendPaymentRequest(recipientContactId, unsigned) { ok, error ->
+                                    if (ok) {
+                                        haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                        close()
+                                    } else {
+                                        isWorking = false
+                                        sendError = error
+                                    }
                                 }
                             }
                         },
@@ -448,21 +520,35 @@ fun CreatePaymentRequestSheet(
                 } else {
                     SendActionButton(
                         title = stringResource(if (copied) R.string.ab_copied else R.string.pr_copy),
-                        isBusy = false,
-                        isEnabled = request != null,
+                        isBusy = isWorking,
+                        isEnabled = canMake && !isWorking,
                         requiresSlide = false,
                         onSend = {
-                            val unsigned = request ?: return@SendActionButton
+                            isWorking = true
+                            sendError = null
                             scope.launch {
-                                clipboard.setText(AnnotatedString(signedLink(unsigned)))
-                                haptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                copied = true
+                                try {
+                                    val unsigned = makeRequest() ?: return@launch
+                                    clipboard.setText(AnnotatedString(signedLink(unsigned)))
+                                    haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                    copied = true
+                                } finally {
+                                    isWorking = false
+                                }
                             }
                         },
                     )
-                    if (request != null) {
-                        PaymentRequestShareButton {
-                            scope.launch { sharePaymentRequestLink(context, signedLink(request)) }
+                    // Share waits for the fresh address before the share sheet opens.
+                    PaymentRequestShareButton(enabled = canMake && !isWorking) {
+                        isWorking = true
+                        sendError = null
+                        scope.launch {
+                            try {
+                                val unsigned = makeRequest() ?: return@launch
+                                sharePaymentRequestLink(context, signedLink(unsigned))
+                            } finally {
+                                isWorking = false
+                            }
                         }
                     }
                 }
@@ -475,49 +561,301 @@ fun CreatePaymentRequestSheet(
                 )
             }
         }
+
+        if (showAddressPicker) {
+            PaymentRequestAddressPicker(
+                walletViewModel = walletViewModel,
+                selected = chosenAddress,
+                onPick = { chosenAddress = it },
+                onDismiss = { showAddressPicker = false },
+            )
+        }
     }
 }
 
-/** Chatting Address / Spending Address as iOS's segmented Picker draws it: a tinted track with the
- *  chosen segment on a raised thumb (as the send screens' fee speed picker). */
+/** A pill like the amount's currency switch (iOS `destinationPill`, 86dfd2d): the chosen one filled in. */
 @Composable
-private fun PaymentRequestDestinationPicker(
-    selected: PaymentRequestDestination,
-    onSelect: (PaymentRequestDestination) -> Unit,
+private fun PaymentRequestDestinationPill(
+    title: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    val thumb = if (colors.isDark) Color(0xFF636366) else Color.White
-    val label = stringResource(R.string.pr_paid_to)
+    val shape = RoundedCornerShape(50)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (selected) Modifier.background(KaspaTeal)
+                else Modifier.background(colors.surface).border(1.dp, KaspaTeal.copy(alpha = 0.35f), shape)
+            )
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 6.dp),
+    ) {
+        Text(
+            title,
+            color = if (selected) Color.Black else colors.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Choose an Address (iOS `PaymentRequestAddressPicker`, 6dee531 / 338d9f5): which of your
+ * addresses a payment request asks to be paid to - your chatting address, then your spending
+ * addresses (the ones Manage Addresses shows, plus hidden ones holding Kaspa), each with its name,
+ * balance and whether it was ever used. Used is checked the way Manage Addresses does: a balance
+ * means used, else the cached answer, else a history lookup, eight at a time. An address whose
+ * lookup hasn't answered shows Checking, never a possibly-wrong Unused.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PaymentRequestAddressPicker(
+    walletViewModel: WalletViewModel,
+    selected: String?,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
+    val chattingAddress by walletViewModel.address.collectAsState()
+    val chattingBalance by walletViewModel.balanceSompi.collectAsState()
+    val allEntries by walletViewModel.manageAddresses.collectAsState()
+    var loaded by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        walletViewModel.loadManageAddressesAndAwait()
+        loaded = true
+    }
+    val entries = remember(allEntries) {
+        allEntries.filter { !it.hidden || it.balanceSompi > 0 }.sortedBy { it.index }
+    }
+    /** Used / unused per address; missing while its lookup is out (or failed). */
+    val used = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    val items = buildList {
+        chattingAddress?.let { add(it to chattingBalance) }
+        entries.forEach { add(it.address to it.balanceSompi) }
+    }
+    LaunchedEffect(items) {
+        val toProbe = mutableListOf<String>()
+        for ((address, balance) in items) {
+            if (used[address] == true) continue
+            if (balance > 0L) {
+                used[address] = true
+                continue
+            }
+            val cached = walletViewModel.cachedSpendingAddressUsedState(address)
+            if (cached != null) used[address] = cached else toProbe.add(address)
+        }
+        // a few at a time, like Manage Addresses (a burst gets rate-limited)
+        val gate = kotlinx.coroutines.sync.Semaphore(8)
+        kotlinx.coroutines.coroutineScope {
+            toProbe.forEach { address ->
+                launch {
+                    gate.acquire()
+                    try {
+                        // a failed lookup leaves it Checking, never a guessed Unused
+                        walletViewModel.spendingAddressUsedState(address)?.let { used[address] = it }
+                    } finally {
+                        gate.release()
+                    }
+                }
+            }
+        }
+    }
+
+    val pick: (String) -> Unit = { address ->
+        onPick(address)
+        onDismiss()
+    }
+
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+        val colors = LocalAppColors.current
+        androidx.compose.material3.ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                    Column(Modifier.fillMaxSize()) {
+                        IosSheetNavBar(
+                            title = stringResource(R.string.pr_choose_an_address),
+                            leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = onDismiss) },
+                        )
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            val chatting = chattingAddress
+                            if (chatting != null) {
+                                PaymentRequestPickerSectionHeader(stringResource(R.string.chatting_address))
+                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
+                                    PaymentRequestPickerRow(
+                                        title = stringResource(R.string.chatting_address),
+                                        address = chatting,
+                                        balance = chattingBalance,
+                                        badge = null,
+                                        used = used[chatting],
+                                        isSelected = chatting == selected,
+                                        onClick = { pick(chatting) },
+                                    )
+                                }
+                                Box(Modifier.size(12.dp))
+                            }
+                            PaymentRequestPickerSectionHeader(stringResource(R.string.pr_spending_addresses))
+                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
+                                if (entries.isEmpty() && !loaded) {
+                                    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                                        com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
+                                    }
+                                } else {
+                                    val primaryLabel = stringResource(R.string.primary)
+                                    entries.forEachIndexed { i, entry ->
+                                        if (i > 0) IosListRowDivider()
+                                        PaymentRequestPickerRow(
+                                            title = entry.label?.trim()?.takeIf { it.isNotEmpty() }
+                                                ?: stringResource(R.string.address_number, entry.index),
+                                            address = entry.address,
+                                            balance = entry.balanceSompi,
+                                            badge = if (entry.isCurrent) primaryLabel else null,
+                                            used = used[entry.address],
+                                            isSelected = entry.address == selected,
+                                            onClick = { pick(entry.address) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentRequestPickerSectionHeader(title: String) {
+    Text(
+        title.uppercase(),
+        color = LocalAppColors.current.textSecondary,
+        fontSize = 13.sp,
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+    )
+}
+
+@Composable
+private fun PaymentRequestPickerRow(
+    title: String,
+    address: String,
+    balance: Long?,
+    badge: String?,
+    used: Boolean?,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(colors.textPrimary.copy(alpha = 0.08f))
-            .semantics { contentDescription = label }
-            .padding(2.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PaymentRequestDestination.entries.forEach { option ->
-            val isSelected = option == selected
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(if (isSelected) thumb else Color.Transparent)
-                    .clickable(role = Role.Tab) { onSelect(option) }
-                    .padding(vertical = 6.dp),
-            ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    stringResource(
-                        if (option == PaymentRequestDestination.CHATTING) R.string.chatting_address else R.string.spending_address
-                    ),
+                    title,
                     color = colors.textPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                PaymentRequestUsedTag(used)
+                if (badge != null) {
+                    Text(
+                        badge,
+                        color = KaspaTeal,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(KaspaTeal.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
             }
+            Text(
+                if (address.length > 20) "${address.take(14)}...${address.takeLast(6)}" else address,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+            )
         }
+        if (balance != null) {
+            Text(
+                "${KaspaUnit.plain(balance)} ${KaspaUnit.symbol}",
+                color = if (balance > 0L) colors.textPrimary else colors.textSecondary,
+                fontSize = 15.sp,
+                maxLines = 1,
+            )
+        }
+        if (isSelected) {
+            Icon(Icons.Filled.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Used / Unused, or Checking while the lookup is out (iOS `usedTag`, 338d9f5). */
+@Composable
+private fun PaymentRequestUsedTag(used: Boolean?) {
+    val colors = LocalAppColors.current
+    when (used) {
+        true -> Text(
+            stringResource(R.string.pr_used),
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(colors.textSecondary.copy(alpha = 0.15f))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+        false -> Text(
+            stringResource(R.string.pr_unused),
+            color = colors.success,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(colors.success.copy(alpha = 0.15f))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+        null -> Text(
+            stringResource(R.string.pr_checking),
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
     }
 }
 
@@ -652,7 +990,7 @@ private fun OwnPaymentRequestSheet(request: PaymentRequest, onDismissed: () -> U
                     )
                     AddressResolutionCard(address = request.address)
                     Text(
-                        stringResource(if (request.toChattingAddress) R.string.pr_chatting_footer else R.string.pr_spending_footer),
+                        stringResource(if (request.toChattingAddress) R.string.pr_chatting_footer else R.string.pr_spending_footer_new),
                         color = colors.textSecondary,
                         fontSize = 13.sp,
                     )

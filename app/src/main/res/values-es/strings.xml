@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Solicitar pago</string>
     <string name="pr_request_payment_hint">Un enlace que pide una cantidad exacta, con el motivo.</string>
-    <string name="pr_paid_to">Se paga a</string>
     <string name="pr_chatting_footer">El pago llega a tu chat con quien paga, con la nota.</string>
-    <string name="pr_spending_footer">Se paga a una dirección nueva tuya. Quien paga ve la nota, pero no viaja con el pago.</string>
     <string name="pr_memo_placeholder">Para qué es (opcional)</string>
     <string name="pr_copy">Copiar solicitud de pago</string>
     <string name="pr_anyone_note">Quien lo abra o lo pegue en KaChat verá Enviar Kaspa completado y sabrá que lo creó tu dirección de chat (firmado con su clave).</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 dominio</string>
     <string name="address_domains_count">%1$d dominios</string>
     <string name="address_domains_couldnt_load">No se pudo cargar</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Dirección nueva</string>
+    <string name="pr_choose_an_address">Elegir una dirección</string>
+    <string name="pr_memo_shows_note">Quien paga ve la nota, pero no viaja con el pago.</string>
+    <string name="pr_pick_address">Elige cuál de tus direcciones recibe el pago.</string>
+    <string name="pr_couldnt_make_address">No se pudo crear una dirección nueva. Inténtalo de nuevo.</string>
+    <string name="pr_spending_addresses">Direcciones de gasto</string>
+    <string name="pr_used">Usada</string>
+    <string name="pr_unused">Sin usar</string>
+    <string name="pr_checking">Comprobando</string>
+    <string name="pr_spending_footer_new">Se paga a una dirección tuya completamente nueva, solo para esta solicitud. Quien paga ve la nota, pero no viaja con el pago.</string>
 </resources>

@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Ödeme İste</string>
     <string name="pr_request_payment_hint">Tam bir tutarı, ne için olduğuyla isteyen bir bağlantı.</string>
-    <string name="pr_paid_to">Ödenecek adres</string>
     <string name="pr_chatting_footer">Ödeme, notla birlikte ödeyen kişiyle sohbetinize düşer.</string>
-    <string name="pr_spending_footer">Yeni bir adresinize ödenir. Notu ödeyen görür, ancak ödemeyle birlikte gitmez.</string>
     <string name="pr_memo_placeholder">Ne için (isteğe bağlı)</string>
     <string name="pr_copy">Ödeme İsteğini Kopyala</string>
     <string name="pr_anyone_note">KaChat\'te açan veya yapıştıran herkes dolu Kaspa Gönder ekranını görür ve isteğin sohbet adresinizden oluşturulduğunu (onun anahtarıyla imzalı) görür.</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 alan adı</string>
     <string name="address_domains_count">%1$d alan adı</string>
     <string name="address_domains_couldnt_load">Yüklenemedi</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Yeni Adres</string>
+    <string name="pr_choose_an_address">Bir Adres Seç</string>
+    <string name="pr_memo_shows_note">Notu ödeyen görür, ancak ödemeyle birlikte gitmez.</string>
+    <string name="pr_pick_address">Ödemenin hangi adresinize yapılacağını seçin.</string>
+    <string name="pr_couldnt_make_address">Yeni adres oluşturulamadı. Tekrar deneyin.</string>
+    <string name="pr_spending_addresses">Harcama Adresleri</string>
+    <string name="pr_used">Kullanıldı</string>
+    <string name="pr_unused">Kullanılmadı</string>
+    <string name="pr_checking">Kontrol ediliyor</string>
+    <string name="pr_spending_footer_new">Yalnızca bu istek için kullanılan yepyeni bir adresinize ödenir. Notu ödeyen görür, ancak ödemeyle birlikte gitmez.</string>
 </resources>

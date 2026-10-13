@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">支払いをリクエスト</string>
     <string name="pr_request_payment_hint">金額と用途を指定して支払いを依頼するリンク。</string>
-    <string name="pr_paid_to">支払先</string>
     <string name="pr_chatting_footer">支払いはメモ付きで、支払った人とのチャットに届きます。</string>
-    <string name="pr_spending_footer">あなたの新しいアドレスに支払われます。メモは支払う人に表示されますが、支払いと一緒には送られません。</string>
     <string name="pr_memo_placeholder">用途（任意）</string>
     <string name="pr_copy">支払いリクエストをコピー</string>
     <string name="pr_anyone_note">KaChat で開くか貼り付けると、入力済みの Kaspa 送金画面が開き、あなたのチャットアドレスが作成したこと（そのキーで署名済み）が分かります。</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 件のドメイン</string>
     <string name="address_domains_count">%1$d 件のドメイン</string>
     <string name="address_domains_couldnt_load">読み込めませんでした</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">新しいアドレス</string>
+    <string name="pr_choose_an_address">アドレスを選ぶ</string>
+    <string name="pr_memo_shows_note">メモは支払う人に表示されますが、支払いと一緒には送られません。</string>
+    <string name="pr_pick_address">どのアドレスで受け取るか選んでください。</string>
+    <string name="pr_couldnt_make_address">新しいアドレスを作成できませんでした。もう一度お試しください。</string>
+    <string name="pr_spending_addresses">支出アドレス</string>
+    <string name="pr_used">使用済み</string>
+    <string name="pr_unused">未使用</string>
+    <string name="pr_checking">確認中</string>
+    <string name="pr_spending_footer_new">このリクエスト専用の、まったく新しいあなたのアドレスに支払われます。メモは支払う人に表示されますが、支払いと一緒には送られません。</string>
 </resources>

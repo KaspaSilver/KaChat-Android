@@ -1076,6 +1076,19 @@ class WalletManager @Inject constructor(
         result
     }
 
+    /**
+     * The address [allocateFreshSpendingIndices] hands out next - the slot after the last revealed
+     * one - DERIVED, not reserved: Request Payment shows it under Fresh Address before anything is
+     * copied, shared or sent, so opening the screen and cancelling uses no address up (iOS
+     * `spendingAddress(at: maxSpendingAddressIndex + 1)`, 3f5f79c). Null when it can't be derived.
+     * Derives from the seed, so call it off the main thread.
+     */
+    fun nextFreshSpendingAddress(): String? {
+        val account = getActiveAccount() ?: return null
+        val index = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1
+        return try { deriveSpendingAddress(index) } catch (e: Exception) { null }
+    }
+
     fun getSpendingPrivateKeyBytes(index: Int): ByteArray =
         deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()).privKeyBytes
 

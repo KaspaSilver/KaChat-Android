@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">পেমেন্ট অনুরোধ</string>
     <string name="pr_request_payment_hint">একটি নির্দিষ্ট পরিমাণ চাওয়ার লিংক, কীসের জন্য তা সহ।</string>
-    <string name="pr_paid_to">যেখানে পেমেন্ট যাবে</string>
     <string name="pr_chatting_footer">পেমেন্টটি যে দেবে তার সাথে আপনার চ্যাটে আসবে, মেমোসহ।</string>
-    <string name="pr_spending_footer">আপনার একটি নতুন ঠিকানায় পেমেন্ট হবে। মেমো শুধু প্রদানকারী দেখবেন, পেমেন্টের সাথে যাবে না।</string>
     <string name="pr_memo_placeholder">কীসের জন্য (ঐচ্ছিক)</string>
     <string name="pr_copy">পেমেন্ট অনুরোধ কপি করুন</string>
     <string name="pr_anyone_note">KaChat-এ যে কেউ এটি খুললে বা পেস্ট করলে তথ্য ভরা Kaspa পাঠানোর স্ক্রিন পাবেন, এবং দেখবেন এটি আপনার চ্যাটিং ঠিকানা থেকে তৈরি (এর কী দিয়ে স্বাক্ষরিত)।</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">১টি ডোমেইন</string>
     <string name="address_domains_count">%1$dটি ডোমেইন</string>
     <string name="address_domains_couldnt_load">লোড করা যায়নি</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">নতুন ঠিকানা</string>
+    <string name="pr_choose_an_address">একটি ঠিকানা বাছুন</string>
+    <string name="pr_memo_shows_note">মেমো প্রদানকারী দেখবেন, কিন্তু পেমেন্টের সাথে যাবে না।</string>
+    <string name="pr_pick_address">আপনার কোন ঠিকানায় পেমেন্ট হবে তা বাছুন।</string>
+    <string name="pr_couldnt_make_address">নতুন ঠিকানা তৈরি করা যায়নি। আবার চেষ্টা করুন।</string>
+    <string name="pr_spending_addresses">স্পেন্ডিং ঠিকানা</string>
+    <string name="pr_used">ব্যবহৃত</string>
+    <string name="pr_unused">অব্যবহৃত</string>
+    <string name="pr_checking">যাচাই হচ্ছে</string>
+    <string name="pr_spending_footer_new">আপনার একদম নতুন একটি ঠিকানায় পেমেন্ট হবে, শুধু এই অনুরোধের জন্য। মেমো প্রদানকারী দেখবেন, কিন্তু পেমেন্টের সাথে যাবে না।</string>
 </resources>

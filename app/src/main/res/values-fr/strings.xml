@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Demander un paiement</string>
     <string name="pr_request_payment_hint">Un lien qui demande un montant exact, avec son motif.</string>
-    <string name="pr_paid_to">Payé à</string>
     <string name="pr_chatting_footer">Le paiement arrive dans votre discussion avec la personne qui paie, avec la note.</string>
-    <string name="pr_spending_footer">Payé à une nouvelle adresse à vous. La note s’affiche pour qui paie, mais ne part pas avec le paiement.</string>
     <string name="pr_memo_placeholder">Pour quoi (facultatif)</string>
     <string name="pr_copy">Copier la demande de paiement</string>
     <string name="pr_anyone_note">Quiconque l’ouvre ou la colle dans KaChat obtient Envoyer des Kaspa déjà rempli, et voit qu’elle vient de votre adresse de discussion (signée avec sa clé).</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 domaine</string>
     <string name="address_domains_count">%1$d domaines</string>
     <string name="address_domains_couldnt_load">Chargement impossible</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Nouvelle adresse</string>
+    <string name="pr_choose_an_address">Choisir une adresse</string>
+    <string name="pr_memo_shows_note">La note s’affiche pour qui paie, mais ne part pas avec le paiement.</string>
+    <string name="pr_pick_address">Choisissez laquelle de vos adresses est payée.</string>
+    <string name="pr_couldnt_make_address">Impossible de créer une nouvelle adresse. Réessayez.</string>
+    <string name="pr_spending_addresses">Adresses de dépense</string>
+    <string name="pr_used">Utilisée</string>
+    <string name="pr_unused">Inutilisée</string>
+    <string name="pr_checking">Vérification</string>
+    <string name="pr_spending_footer_new">Payé à une toute nouvelle adresse à vous, pour cette demande uniquement. La note s’affiche pour qui paie, mais ne part pas avec le paiement.</string>
 </resources>

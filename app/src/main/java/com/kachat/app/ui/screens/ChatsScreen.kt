@@ -955,12 +955,11 @@ fun ChatsScreen(
         )
     }
     // A sheet over Chats once the New sheet has gone, as iOS presents it (c6851d6): the link to
-    // copy or share, paid to the chatting address or a fresh receive address.
+    // copy or share, paid to a brand-new address or one you choose (iOS 6dee531).
     if (showPaymentRequest) {
         CreatePaymentRequestSheet(
             walletViewModel = walletViewModel,
             onDismissed = { showPaymentRequest = false },
-            initialSpendingAddress = receiveQrAddress,
         )
     }
     // A sheet over Chats, as iOS presents it once the New sheet has gone (f81e8d6).

@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Yêu cầu thanh toán</string>
     <string name="pr_request_payment_hint">Một liên kết yêu cầu số tiền chính xác, kèm mục đích.</string>
-    <string name="pr_paid_to">Trả cho</string>
     <string name="pr_chatting_footer">Khoản thanh toán kèm ghi chú sẽ vào cuộc trò chuyện của bạn với người trả.</string>
-    <string name="pr_spending_footer">Trả vào một địa chỉ mới của bạn. Người trả thấy ghi chú, nhưng ghi chú không đi kèm khoản thanh toán.</string>
     <string name="pr_memo_placeholder">Để làm gì (tùy chọn)</string>
     <string name="pr_copy">Sao chép yêu cầu thanh toán</string>
     <string name="pr_anyone_note">Ai mở hoặc dán nó trong KaChat sẽ thấy màn hình Gửi Kaspa đã điền sẵn, và thấy nó được tạo từ địa chỉ trò chuyện của bạn (ký bằng khóa của địa chỉ đó).</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 tên miền</string>
     <string name="address_domains_count">%1$d tên miền</string>
     <string name="address_domains_couldnt_load">Không thể tải</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Địa chỉ mới</string>
+    <string name="pr_choose_an_address">Chọn địa chỉ</string>
+    <string name="pr_memo_shows_note">Người trả thấy ghi chú, nhưng ghi chú không đi kèm khoản thanh toán.</string>
+    <string name="pr_pick_address">Chọn địa chỉ nào của bạn sẽ nhận thanh toán.</string>
+    <string name="pr_couldnt_make_address">Không thể tạo địa chỉ mới. Hãy thử lại.</string>
+    <string name="pr_spending_addresses">Địa chỉ chi tiêu</string>
+    <string name="pr_used">Đã dùng</string>
+    <string name="pr_unused">Chưa dùng</string>
+    <string name="pr_checking">Đang kiểm tra</string>
+    <string name="pr_spending_footer_new">Trả vào một địa chỉ hoàn toàn mới của bạn, chỉ dùng cho yêu cầu này. Người trả thấy ghi chú, nhưng ghi chú không đi kèm khoản thanh toán.</string>
 </resources>

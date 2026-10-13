@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">בקשת תשלום</string>
     <string name="pr_request_payment_hint">קישור שמבקש סכום מדויק, עם מטרתו.</string>
-    <string name="pr_paid_to">משולם אל</string>
     <string name="pr_chatting_footer">התשלום מגיע לצ׳אט שלך עם המשלם, עם ההערה.</string>
-    <string name="pr_spending_footer">משולם לכתובת חדשה שלך. המשלם רואה את ההערה, אבל היא לא נשלחת עם התשלום.</string>
     <string name="pr_memo_placeholder">בשביל מה (אופציונלי)</string>
     <string name="pr_copy">העתקת בקשת התשלום</string>
     <string name="pr_anyone_note">מי שפותח או מדביק אותה ב-KaChat מקבל את מסך שליחת Kaspa ממולא, ורואה שהיא נוצרה מכתובת הצ׳אט שלך (חתומה במפתח שלה).</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">דומיין אחד</string>
     <string name="address_domains_count">%1$d דומיינים</string>
     <string name="address_domains_couldnt_load">לא ניתן לטעון</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">כתובת חדשה</string>
+    <string name="pr_choose_an_address">בחירת כתובת</string>
+    <string name="pr_memo_shows_note">המשלם רואה את ההערה, אבל היא לא נשלחת עם התשלום.</string>
+    <string name="pr_pick_address">בחרו לאיזו מהכתובות שלכם ישולם.</string>
+    <string name="pr_couldnt_make_address">לא ניתן ליצור כתובת חדשה. נסו שוב.</string>
+    <string name="pr_spending_addresses">כתובות הוצאה</string>
+    <string name="pr_used">בשימוש</string>
+    <string name="pr_unused">לא בשימוש</string>
+    <string name="pr_checking">בודק</string>
+    <string name="pr_spending_footer_new">משולם לכתובת חדשה לגמרי שלך, לבקשה הזו בלבד. המשלם רואה את ההערה, אבל היא לא נשלחת עם התשלום.</string>
 </resources>

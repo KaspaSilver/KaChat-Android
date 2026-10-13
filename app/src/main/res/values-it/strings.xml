@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Richiedi pagamento</string>
     <string name="pr_request_payment_hint">Un link che chiede un importo esatto, con il motivo.</string>
-    <string name="pr_paid_to">Pagato a</string>
     <string name="pr_chatting_footer">Il pagamento arriva nella tua chat con chi paga, con la nota.</string>
-    <string name="pr_spending_footer">Pagato a un tuo indirizzo nuovo. La nota la vede chi paga, ma non viaggia con il pagamento.</string>
     <string name="pr_memo_placeholder">A cosa serve (facoltativo)</string>
     <string name="pr_copy">Copia richiesta di pagamento</string>
     <string name="pr_anyone_note">Chi lo apre o lo incolla in KaChat ottiene Invia Kaspa compilato e vede che viene dal tuo indirizzo di chat (firmato con la sua chiave).</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 dominio</string>
     <string name="address_domains_count">%1$d domini</string>
     <string name="address_domains_couldnt_load">Impossibile caricare</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Indirizzo nuovo</string>
+    <string name="pr_choose_an_address">Scegli un indirizzo</string>
+    <string name="pr_memo_shows_note">La nota la vede chi paga, ma non viaggia con il pagamento.</string>
+    <string name="pr_pick_address">Scegli quale dei tuoi indirizzi viene pagato.</string>
+    <string name="pr_couldnt_make_address">Impossibile creare un nuovo indirizzo. Riprova.</string>
+    <string name="pr_spending_addresses">Indirizzi di spesa</string>
+    <string name="pr_used">Usato</string>
+    <string name="pr_unused">Mai usato</string>
+    <string name="pr_checking">Verifica</string>
+    <string name="pr_spending_footer_new">Pagato a un tuo indirizzo nuovissimo, solo per questa richiesta. La nota la vede chi paga, ma non viaggia con il pagamento.</string>
 </resources>

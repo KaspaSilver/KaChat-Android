@@ -1254,9 +1254,7 @@
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Solicitar pagamento</string>
     <string name="pr_request_payment_hint">Um link que pede um valor exato, com o motivo.</string>
-    <string name="pr_paid_to">Pago para</string>
     <string name="pr_chatting_footer">O pagamento chega à sua conversa com quem paga, com a nota.</string>
-    <string name="pr_spending_footer">Pago a um endereço novo seu. Quem paga vê a nota, mas ela não vai junto com o pagamento.</string>
     <string name="pr_memo_placeholder">Para que é (opcional)</string>
     <string name="pr_copy">Copiar solicitação de pagamento</string>
     <string name="pr_anyone_note">Quem abrir ou colar no KaChat recebe Enviar Kaspa preenchido e vê que foi criado pelo seu endereço de conversa (assinado com a chave dele).</string>
@@ -1287,4 +1285,15 @@
     <string name="address_domains_one">1 domínio</string>
     <string name="address_domains_count">%1$d domínios</string>
     <string name="address_domains_couldnt_load">Não foi possível carregar</string>
+    <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
+    <string name="pr_fresh_address">Endereço novo</string>
+    <string name="pr_choose_an_address">Escolher um endereço</string>
+    <string name="pr_memo_shows_note">Quem paga vê a nota, mas ela não vai junto com o pagamento.</string>
+    <string name="pr_pick_address">Escolha qual dos seus endereços recebe o pagamento.</string>
+    <string name="pr_couldnt_make_address">Não foi possível criar um endereço novo. Tente de novo.</string>
+    <string name="pr_spending_addresses">Endereços de gastos</string>
+    <string name="pr_used">Usado</string>
+    <string name="pr_unused">Não usado</string>
+    <string name="pr_checking">Verificando</string>
+    <string name="pr_spending_footer_new">Pago a um endereço seu totalmente novo, só para esta solicitação. Quem paga vê a nota, mas ela não vai junto com o pagamento.</string>
 </resources>
