@@ -207,7 +207,7 @@ class WalletService @Inject constructor(
         sourceSpendingIndex: Int,
         feeRateOverride: Long? = null,
         payloadBytes: ByteArray? = null,
-        /** Coin control on the source address (null = sweep it, as always) and the Fast /
+        /** Coin control on the source address (null = automatic selection) and the Fast /
          *  Priority / custom extra fee (iOS 62c2773). */
         manualUtxos: List<UtxoEntry>? = null,
         extraFeeSompi: Long = 0L,

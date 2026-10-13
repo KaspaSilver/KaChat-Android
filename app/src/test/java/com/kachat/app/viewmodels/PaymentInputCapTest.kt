@@ -5,12 +5,11 @@ import com.kachat.app.services.ScriptPublicKey
 import com.kachat.app.services.UtxoData
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.util.KaspaUtxoSelector
-import com.kachat.app.util.SendFeeModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Audit AND-012: a chat payment's Max, fee preview and sweep only count what one transaction can
+/** Audit AND-012: a chat payment's Max and fee preview only count what one transaction can
  *  spend - the 80 largest coins - instead of every coin on a busy address. */
 class PaymentInputCapTest {
 
@@ -50,26 +49,7 @@ class PaymentInputCapTest {
     }
 
     @Test
-    fun `privacy-on Max is a sweep of the 80 largest that covers itself, Priority included`() {
-        val (balance, inputs) = ChatViewModel.paymentMaxCoins(busyTotal, busy, manual = null)
-        val max = ChatViewModel.computePaymentMaxSompi(balance, inputs, "", rate.toDouble(), 5, null)
-        // KaspaWalletEngine.sendSpendingPayment: sweep the 80 largest (sweepMaxInputs).
-        val swept = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-            utxos = SendFeeModel.largestSpendable(busy, cap),
-            amountSompi = max,
-            feeRateSompiPerGram = rate,
-            payloadBytes = null,
-            recipientScriptLen = 34,
-            changeScriptLen = 34,
-            extraFeeSompi = 4 * SendFeeModel.baseFee(cap, rate),
-        )
-        assertEquals(cap, swept.selectedUtxos.size)
-        assertTrue(swept.totalSelected >= swept.requiredAmount)
-        assertEquals(max, swept.finalAmount)
-    }
-
-    @Test
-    fun `privacy-off Max is covered by at most 80 inputs`() {
+    fun `Max is covered by at most 80 inputs, from either From`() {
         val (balance, inputs) = ChatViewModel.paymentMaxCoins(busyTotal, busy, manual = null)
         val max = ChatViewModel.computePaymentMaxSompi(balance, inputs, "", rate.toDouble(), 1, null)
         val sent = KaspaUtxoSelector.selectUtxosAndCalculateFee(
@@ -81,21 +61,16 @@ class PaymentInputCapTest {
     }
 
     @Test
-    fun `the sweep fee preview prices the 80 largest coins`() {
-        assertEquals(top80Total to cap, ChatViewModel.paymentFeeInputs(busy, manual = null, sweeps = true, sompiNeeded = kas))
-    }
-
-    @Test
     fun `the payment fee preview takes the largest coins first, as the send does`() {
         val coins = listOf(utxo(1 * kas, 0), utxo(5 * kas, 1), utxo(3 * kas, 2))
         // 4.5 KAS: the 5 KAS coin alone, not 1 + 5 in fetch order.
-        assertEquals(5 * kas to 1, ChatViewModel.paymentFeeInputs(coins, manual = null, sweeps = false, sompiNeeded = 45 * kas / 10))
+        assertEquals(5 * kas to 1, ChatViewModel.paymentFeeInputs(coins, manual = null, sompiNeeded = 45 * kas / 10))
     }
 
     @Test
     fun `the payment fee preview stops at 80 inputs`() {
         // More than the 80 largest hold: not coverable by one send, so the preview comes up short.
-        val (total, count) = ChatViewModel.paymentFeeInputs(busy, manual = null, sweeps = false, sompiNeeded = top80Total + kas)
+        val (total, count) = ChatViewModel.paymentFeeInputs(busy, manual = null, sompiNeeded = top80Total + kas)
         assertEquals(cap, count)
         assertEquals(top80Total, total)
     }
@@ -103,7 +78,7 @@ class PaymentInputCapTest {
     @Test
     fun `coin control's pick is priced exactly`() {
         val picked = busy.take(3)
-        assertEquals(picked.sumOf { it.utxoEntry.amount } to 3, ChatViewModel.paymentFeeInputs(busy, picked, sweeps = true, sompiNeeded = kas))
+        assertEquals(picked.sumOf { it.utxoEntry.amount } to 3, ChatViewModel.paymentFeeInputs(busy, picked, sompiNeeded = kas))
     }
 
     // iOS estimateMaxPaymentAmount: Max is worked out over the non-coinbase coins only.

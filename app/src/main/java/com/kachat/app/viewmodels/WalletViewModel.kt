@@ -589,7 +589,7 @@ class WalletViewModel @Inject constructor(
     /**
      * Sends KAS out of one specific spending-chain address (not necessarily the currently
      * active one) to [toAddress] — unlike [WalletService.sendKaspa]/`onSendClicked` (identity)
-     * or the "Pay in Kaspa" sweep-all-and-rotate flow, this targets a single address by
+     * or a chat payment from a spending address (KaspaWalletEngine.sendSpendingPayment), this targets a single address by
      * [index]. Its progress and outcome are [sends]' under [sendId], the send screen's own.
      *
      * For a NON-primary index the change stays on the same address: that is a scoped, explicit

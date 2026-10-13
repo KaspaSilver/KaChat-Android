@@ -92,58 +92,6 @@ class KaspaUtxoSelectorTest {
         assertEquals(203_600L, result.estimatedFee)
     }
 
-    // --- selectAllUtxosAndCalculateFee (spending-address full sweep) --------------------
-
-    @Test
-    fun `sweep selects every given UTXO regardless of whether fewer would cover the amount`() {
-        val utxos = listOf(utxo(100_000_000L, "a"), utxo(50_000_000L, "b"), utxo(10_000_000L, "c"))
-        val result = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-            utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
-            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
-        )
-        // The greedy selector would pick just the 100M UTXO; a sweep must take all three.
-        assertEquals(3, result.selectedUtxos.size)
-        assertEquals(160_000_000L, result.totalSelected)
-    }
-
-    @Test
-    fun `sweep of a single UTXO matches the greedy selector exactly`() {
-        // The steady-state case: after any spend, the spending address holds exactly one
-        // UTXO (its own change), so sweeping "all" and "enough" should agree completely.
-        val utxos = listOf(utxo(100_000_000L))
-        val swept = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-            utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
-            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
-        )
-        val greedy = KaspaUtxoSelector.selectUtxosAndCalculateFee(
-            utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
-            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
-        )
-        assertEquals(greedy.totalSelected, swept.totalSelected)
-        assertEquals(greedy.estimatedFee, swept.estimatedFee)
-        assertEquals(greedy.changeAmount, swept.changeAmount)
-    }
-
-    @Test
-    fun `sweep change equals total minus final amount minus fee`() {
-        val utxos = listOf(utxo(100_000_000L, "a"), utxo(50_000_000L, "b"))
-        val result = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-            utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
-            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
-        )
-        assertEquals(result.totalSelected - result.finalAmount - result.estimatedFee, result.changeAmount)
-    }
-
-    @Test
-    fun `sweep with insufficient total reports a required amount greater than what's available`() {
-        val utxos = listOf(utxo(1_000L), utxo(500L))
-        val result = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-            utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
-            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
-        )
-        assertTrue(result.totalSelected < result.requiredAmount)
-    }
-
     // iOS dd4d977: real change is never folded into the fee to make a shape fit.
 
     @Test
@@ -189,15 +137,11 @@ class KaspaUtxoSelectorTest {
             utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
             payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34, extraFeeSompi = x
         )
-        fun sweep(x: Long) = KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-            utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
-            payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34, extraFeeSompi = x
-        )
         fun manual(x: Long) = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
             utxos, amountSompi = 30_000_000L, feeRateSompiPerGram = 100L,
             recipientScriptLen = 34, changeScriptLen = 34, extraFeeSompi = x
         )
-        for ((base, withExtra) in listOf(greedy(0) to greedy(extra), sweep(0) to sweep(extra), manual(0) to manual(extra))) {
+        for ((base, withExtra) in listOf(greedy(0) to greedy(extra), manual(0) to manual(extra))) {
             assertEquals(base.selectedUtxos, withExtra.selectedUtxos)
             assertEquals(base.estimatedFee + extra, withExtra.estimatedFee)
             assertEquals(base.finalAmount, withExtra.finalAmount)

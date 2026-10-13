@@ -354,8 +354,8 @@ class WalletManager @Inject constructor(
     }
 
     /**
-     * The active account's primary ("Pay in Kaspa") spending index, reactive to every rotation —
-     * a successful spending send advances it (see KaspaWalletEngine.sendSpendingPayment), and the
+     * The active account's primary ("Pay in Kaspa") spending index, reactive to every change
+     * (a spending payment no longer moves it - see KaspaWalletEngine.sendSpendingPayment), and the
      * Manage Addresses screen needs to notice PROMPTLY so the old primary row loses its star and
      * becomes hideable without waiting for a full list reload. Updated from [saveAccounts] (the
      * choke point for all account mutations) and on account switches.
@@ -878,10 +878,9 @@ class WalletManager @Inject constructor(
     }
 
     // --- Spending address (accountIndex=1 branch) ---------------------------------------
-    // Separate from the identity address above for payment privacy: "Pay in Kaspa" sends
-    // sweep this address's entire balance and route change to a freshly derived next index
-    // (see KaspaWalletEngine.sendSpendingPayment), so KAS never sits in more than one
-    // spending-chain address at a time. Messaging (handshakes/chat messages) is untouched —
+    // Separate from the identity address above: a payment whose From is a spending address
+    // spends from it with its own key and routes change to a never-used next index (see
+    // KaspaWalletEngine.sendSpendingPayment). Messaging (handshakes/chat messages) is untouched —
     // still identity-address-sourced via getAddress()/getPrivateKeyBytes() above.
 
     private fun activeMnemonicWords(): List<String> =
@@ -1057,13 +1056,15 @@ class WalletManager @Inject constructor(
      * and (b) no later payment-change address or pool reservation can ever land on the same
      * index — both allocation paths funnel through this one synchronized method (the Android
      * equivalent of iOS serializing reservation + payment-change derivation through the outgoing
-     * tx queue). Returns (index, address) pairs; empty on failure.
+     * tx queue). [pastIndex] also keeps the slots past that index (a spending payment's source,
+     * iOS `max(maxSpendingAddressIndex, spendingIndex) + 1`). Returns (index, address) pairs;
+     * empty on failure.
      */
-    fun allocateFreshSpendingIndices(count: Int): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
+    fun allocateFreshSpendingIndices(count: Int, pastIndex: Int = -1): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
         if (count <= 0) return@synchronized emptyList()
         val account = getActiveAccount() ?: return@synchronized emptyList()
         val chainKey = try { spendingChainKey() } catch (e: Exception) { return@synchronized emptyList() }
-        val base = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1
+        val base = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex, pastIndex) + 1
         val result = (0 until count).map { offset ->
             val index = base + offset
             index to addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))

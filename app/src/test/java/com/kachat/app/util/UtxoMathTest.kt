@@ -80,14 +80,11 @@ class UtxoMathTest {
     }
 
     @Test
-    fun `the manual and sweep selectors refuse a total past the supply`() {
+    fun `the manual selector refuses a total past the supply`() {
         val big = UtxoMath.MAX_SOMPI - 1
         val utxos = (0 until 4).map { utxo(big, it) }
         assertInvalid {
             KaspaUtxoSelector.selectManualUtxosAndCalculateFee(utxos, 10_000_000L, 1L, 34, 34)
-        }
-        assertInvalid {
-            KaspaUtxoSelector.selectAllUtxosAndCalculateFee(utxos, 10_000_000L, 1L, null, 34, 34)
         }
     }
 
@@ -101,9 +98,8 @@ class UtxoMathTest {
     fun `the chat sheet's Max and fee inputs never sum nonsense coins`() {
         val bad = listOf(utxo(Long.MAX_VALUE, 0), utxo(Long.MAX_VALUE, 1))
         assertEquals(0L, ChatViewModel.paymentMaxCoins(0L, bad, bad).first)
-        assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, bad, sweeps = false, sompiNeeded = 1L).first)
-        assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, null, sweeps = true, sompiNeeded = 1L).first)
-        assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, null, sweeps = false, sompiNeeded = 1L).first)
+        assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, bad, sompiNeeded = 1L).first)
+        assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, null, sompiNeeded = 1L).first)
         // Real coins are untouched.
         val good = listOf(utxo(100_000_000L, 0), utxo(50_000_000L, 1))
         assertEquals(150_000_000L to 2, ChatViewModel.paymentMaxCoins(0L, good, good))

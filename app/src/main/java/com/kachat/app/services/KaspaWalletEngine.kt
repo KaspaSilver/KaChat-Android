@@ -5,7 +5,6 @@ import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaMass
 import com.kachat.app.util.KaspaTransactionSigner
 import com.kachat.app.util.KaspaUtxoSelector
-import com.kachat.app.util.SendFeeModel
 import com.kachat.app.util.UtxoMath
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -104,20 +103,16 @@ class KaspaWalletEngine @Inject constructor(
      * matches the default identity [fromAddress].
      * @param changeAddress Where leftover change goes — defaults to [fromAddress] (existing
      * behavior). The spending-address flow routes this to a freshly derived *next* address
-     * instead, so a spend never leaves anything behind at the address it came from.
-     * @param sweepAll Selects every fetched UTXO unconditionally instead of just enough to
-     * cover amount+fee — see [KaspaUtxoSelector.selectAllUtxosAndCalculateFee].
+     * instead, so a payment's change never lands on an address that has been used before.
      * @param feeRateOverride Sompi-per-mass-gram rate to use instead of the live network
      * estimate — e.g. from the Withdraw dialog's manual fee bump for a busy fee market. Still
      * floored at [KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM] like the live estimate is.
      * @param manualUtxos Coin control: spend exactly this fixed set instead of greedily picking
      * enough large UTXOs — resolved by outpoint against the freshly-reconciled `utxos` fetched
      * below, since the caller's selection may be stale (spent by another device, aged out) by
-     * the time this actually runs. Ignored when [sweepAll] is set.
+     * the time this actually runs.
      * @param extraFeeSompi A flat extra on top of the mass-priced fee (the Send KAS sheet's Fast /
      * Priority / custom fee, iOS 62c2773) - paid exactly, whichever selector runs.
-     * @param sweepMaxInputs With [sweepAll], sweep only this many of the largest coins and leave
-     * the rest where they are. Unlimited by default (every other sweep is unchanged).
      * @return Result containing the transaction ID or an error.
      */
     suspend fun sendKaspa(
@@ -127,7 +122,6 @@ class KaspaWalletEngine @Inject constructor(
         fromAddress: String = walletManager.getAddress(),
         signingPrivateKey: ByteArray = walletManager.getPrivateKeyBytes(),
         changeAddress: String = fromAddress,
-        sweepAll: Boolean = false,
         feeRateOverride: Long? = null,
         manualUtxos: List<UtxoEntry>? = null,
         /**
@@ -138,8 +132,7 @@ class KaspaWalletEngine @Inject constructor(
          * answer it (iOS buildHandshakeTx's third shape).
          */
         allowReducedAmount: Boolean = false,
-        extraFeeSompi: Long = 0L,
-        sweepMaxInputs: Int = Int.MAX_VALUE
+        extraFeeSompi: Long = 0L
     ): Result<String> = sendMutex.withLock {
         try {
             // 1. Validate address: well formed, and of the network the app runs on - the script
@@ -186,17 +179,7 @@ class KaspaWalletEngine @Inject constructor(
             suspend fun attempt(candidates: List<UtxoEntry>): Result<SubmittedSend> {
             val utxos = candidates
             // 4. UTXO selection and fee calculation using Kaspa's real mass model
-            val selectionResult = if (sweepAll) {
-                KaspaUtxoSelector.selectAllUtxosAndCalculateFee(
-                    utxos = SendFeeModel.largestSpendable(utxos, sweepMaxInputs),
-                    amountSompi = amountSompi,
-                    feeRateSompiPerGram = feeRateSompiPerGram,
-                    payloadBytes = payloadBytes,
-                    recipientScriptLen = recipientScriptHex.length / 2,
-                    changeScriptLen = changeScriptHex.length / 2,
-                    extraFeeSompi = extraFeeSompi
-                )
-            } else if (!manualUtxos.isNullOrEmpty()) {
+            val selectionResult = if (!manualUtxos.isNullOrEmpty()) {
                 val freshByOutpoint = utxos.associateBy { outpointKey(it.outpoint) }
                 val resolved = manualUtxos.mapNotNull { freshByOutpoint[outpointKey(it.outpoint)] }
                 if (resolved.isEmpty()) {
@@ -435,13 +418,14 @@ class KaspaWalletEngine @Inject constructor(
 
     /**
      * A chat payment whose From is one of the spending addresses (iOS 6333dd3
-     * `sendPaymentInternal(sourceSpendingIndex:)`): signed with [sourceSpendingIndex]'s own key,
-     * it sweeps that address's balance - the payment to [toAddress] + change to a never-used
-     * spending address. An address holding more coins than one transaction can spend sweeps its
-     * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest; the rest stay where they are.
-     * The change address is revealed (listed in Manage Addresses) once the send succeeds; it is
-     * never made the primary - nothing rotates a primary any more. A failed/rejected send moves
-     * nothing, safe to retry.
+     * `sendPaymentInternal(sourceSpendingIndex:)`): spent from [sourceSpendingIndex]'s address and
+     * signed with that address's own key. The coins are picked the normal way - the largest
+     * first, just enough for the amount and fee, at most
+     * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] - or, with coin control, exactly the picked
+     * ones; whatever is not spent stays on the source address. The change goes to a never-used
+     * spending address, which is revealed (listed in Manage Addresses) once the send succeeds;
+     * it is never made the primary - nothing rotates a primary any more. A failed/rejected send
+     * moves nothing, safe to retry.
      */
     suspend fun sendSpendingPayment(
         toAddress: String,
@@ -451,8 +435,8 @@ class KaspaWalletEngine @Inject constructor(
         /** The payment's `kchat:1:pay:` payload when it carries a memo (see
          *  [com.kachat.app.util.MessageProtocol.buildPaymentPayload]); null for a plain payment. */
         payloadBytes: ByteArray? = null,
-        /** Coin control: spend exactly these coins of the source address instead of sweeping it
-         *  (resolved against the fresh fetch in [sendKaspa]). null = sweep, as always. */
+        /** Coin control: spend exactly these coins of the source address (resolved against the
+         *  fresh fetch in [sendKaspa]). null = automatic selection. */
         manualUtxos: List<UtxoEntry>? = null,
         /** Fast / Priority / custom extra on top of the base fee, paid exactly. */
         extraFeeSompi: Long = 0L,
@@ -460,14 +444,17 @@ class KaspaWalletEngine @Inject constructor(
         val identityAddress = walletManager.getAddress()
         val sourceSpendingAddress = walletManager.deriveSpendingAddress(sourceSpendingIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(sourceSpendingIndex)
-        // Change goes one past the ALL-TIME max index (not just sourceSpendingIndex + 1) — so it
-        // never lands on an address that has been used before, or manually generated from Manage
-        // Addresses. The allocation bumps the max atomically, so a concurrent allocation (Request
-        // Payment's Fresh Address, another payment) can't collide either (matches iOS's
-        // `sendPaymentInternal` fresh-change-index rule). On failure the allocated index is
-        // simply burned unused — revealing an index is always safe, reusing one is not.
-        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+        // Change goes one past the ALL-TIME max index, and past the source index itself (iOS
+        // `max(maxSpendingAddressIndex, spendingIndex) + 1`) - so it never lands on an address
+        // that has been used before, or manually generated from Manage Addresses. The allocation
+        // bumps the max atomically, so a concurrent allocation (Request Payment's Fresh Address,
+        // another payment) can't collide either. On failure the allocated index is simply burned
+        // unused - revealing an index is always safe, reusing one is not.
+        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshSpendingIndices(1, pastIndex = sourceSpendingIndex).firstOrNull()
             ?: return Result.failure(IllegalStateException("Could not derive change address"))
+        if (nextIndex <= sourceSpendingIndex || nextSpendingAddress.equals(sourceSpendingAddress, ignoreCase = true)) {
+            return Result.failure(IllegalStateException("Could not derive change address"))
+        }
 
         val result = sendKaspa(
             toAddress = toAddress,
@@ -476,17 +463,12 @@ class KaspaWalletEngine @Inject constructor(
             fromAddress = sourceSpendingAddress,
             signingPrivateKey = spendingPrivateKey,
             changeAddress = nextSpendingAddress,
-            // Coin control replaces the sweep: only the chosen coins are spent, the rest stay
-            // on the source address (iOS 62c2773: the builder picks only from those).
-            sweepAll = manualUtxos.isNullOrEmpty(),
             feeRateOverride = feeRateOverride,
+            // Coin control: only the chosen coins are spent (iOS 62c2773). Otherwise the normal
+            // largest-first selection, as a chatting-address payment - the fee preview and Max
+            // price the same coins (ChatViewModel.paymentFeeInputs / paymentMaxCoins).
             manualUtxos = manualUtxos,
             extraFeeSompi = extraFeeSompi,
-            // One transaction holds at most this many inputs, so a spending address holding more
-            // sweeps its largest coins and keeps the rest, instead of every payment from it being
-            // refused (audit AND-012). The fee preview and Max price the same coins
-            // (ChatViewModel.paymentFeeInputs / paymentMaxCoins).
-            sweepMaxInputs = KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION
         )
         if (result.isSuccess) {
             // Revealed, not made primary (iOS revealSpendingAddress): the allocation above already
