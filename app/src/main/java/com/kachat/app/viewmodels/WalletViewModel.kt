@@ -359,24 +359,31 @@ class WalletViewModel @Inject constructor(
      *    scan for no privacy gained.
      * 2. Otherwise the primary, while THAT is unused - a fresh wallet should not reveal a second
      *    slot before the first one has seen anything.
-     * 3. Otherwise a newly revealed slot, remembered as the receive pointer for next time.
+     * 3. Otherwise the lowest slot never used: the lowest hidden, live-confirmed unused one, else
+     *    the slot past the revealed range - remembered as the receive pointer for next time.
+     *
+     * Picking has no side effects (iOS 24c2094): nothing is un-hidden or revealed, and the chain
+     * is not extended. With [revealing] - the Receive QR is actually being shown - the address goes
+     * on the Manage Addresses list, the chain extended to it if needed so its payment is watched
+     * ([revealSpendingAddress]). Without it (Profile or the New sheet warming the QR ahead of the
+     * tap) nothing about the list changes: an address appearing after Hide All with nobody having
+     * done anything was exactly that.
      *
      * The primary is never changed. Receiving and spending are separate jobs: which address a
-     * payment comes out of is not the QR's business, and moving it would make the balance under
-     * Spending mean something different from one tap to the next. Funds arriving here are covered
-     * by the Total line on the same screen and by Manage Addresses.
+     * payment comes out of is not the QR's business.
      *
      * [onResult] receives the address to draw, or null when nothing can be derived. A live check
      * that FAILS keeps the current answer rather than rotating on a guess: rotating whenever the
      * network hiccups is how an address list fills with empty slots.
      *
-     * Matches iOS's WalletManager.freshReceiveAddress.
+     * Matches iOS's WalletManager.freshReceiveAddress(revealing:).
      */
-    fun resolveFreshReceiveAddress(onResult: (String?) -> Unit) {
+    fun resolveFreshReceiveAddress(revealing: Boolean = false, onResult: (String?) -> Unit) {
         viewModelScope.launch {
             val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { null }
             val current = try { walletManager.currentSpendingAddress() } catch (e: Exception) { null }
-            if (walletAddress == null || current == null) {
+            val account = walletManager.getActiveAccount()
+            if (walletAddress == null || current == null || account == null) {
                 onResult(null)
                 return@launch
             }
@@ -388,50 +395,35 @@ class WalletViewModel @Inject constructor(
                 return entry.liveChecked && (entry.everUsed || entry.balanceSompi > 0L)
             }
 
-            // Rule 1: the pointer from last time, if it is still untouched.
             val storedIndex = walletManager.getReceiveAddressIndex(walletAddress)
-            if (storedIndex != null) {
-                val stored = try { walletManager.deriveSpendingAddress(storedIndex) } catch (e: Exception) { null }
-                if (stored != null && !confirmedUsed(stored)) {
-                    showIfHidden(walletAddress, storedIndex)
-                    onResult(stored)
+            val stored = storedIndex?.let { try { walletManager.deriveSpendingAddress(it) } catch (e: Exception) { null } }
+            val chosen: Pair<Int, String> = if (storedIndex != null && stored != null && !confirmedUsed(stored)) {
+                // Rule 1: the pointer from last time, if it is still untouched.
+                storedIndex to stored
+            } else if (!confirmedUsed(current)) {
+                // Rule 2: the primary, while it has seen nothing.
+                walletManager.setReceiveAddressIndex(walletAddress, account.spendingAddressIndex)
+                account.spendingAddressIndex to current
+            } else {
+                // Rule 3: the lowest slot never used (iOS lowestUnusedSpendingAddress, side-effect
+                // free): a hidden, live-confirmed unused row, else one past the revealed range -
+                // answered without extending the chain.
+                val index = entries.sortedBy { it.index }.firstOrNull { entry ->
+                    entry.hidden && entry.liveChecked && !entry.isCurrent &&
+                        entry.index != account.spendingAddressIndex &&
+                        entry.balanceSompi == 0L && !entry.everUsed
+                }?.index ?: (maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1)
+                val address = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
+                if (address == null) {
+                    onResult(current)
                     return@launch
                 }
-            }
-            // Rule 2: the primary, while it has seen nothing.
-            if (!confirmedUsed(current)) {
-                walletManager.getActiveAccount()?.spendingAddressIndex?.let {
-                    walletManager.setReceiveAddressIndex(walletAddress, it)
-                    showIfHidden(walletAddress, it)
-                }
-                onResult(current)
-                return@launch
-            }
-            // Rule 3: a slot that has never been revealed, funded or offered. Revealed but NOT
-            // made primary.
-            generateNewSpendingAddress { index ->
-                if (index == null) {
-                    onResult(current)
-                    return@generateNewSpendingAddress
-                }
-                val fresh = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
-                if (fresh == null) {
-                    onResult(current)
-                    return@generateNewSpendingAddress
-                }
                 walletManager.setReceiveAddressIndex(walletAddress, index)
-                onResult(fresh)
+                index to address
             }
-        }
-    }
-
-    /** An address handed out to receive into is back on the Manage Addresses list, even when the
-     *  person had hidden it (Hide All): money is about to land there (iOS 245a5d2 showIfHidden). */
-    private fun showIfHidden(walletAddress: String, index: Int) {
-        if (index !in walletManager.getHiddenSpendingIndices(walletAddress)) return
-        walletManager.setSpendingAddressHidden(walletAddress, index, false)
-        _manageAddressesRaw.value = _manageAddressesRaw.value.map {
-            if (it.index == index) it.copy(hidden = false) else it
+            // Shown now: it goes on the Manage Addresses list (and is watched for payments).
+            if (revealing) revealSpendingAddress(chosen.first)
+            onResult(chosen.second)
         }
     }
 

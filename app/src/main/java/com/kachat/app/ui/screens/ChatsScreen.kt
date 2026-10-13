@@ -175,7 +175,9 @@ fun ChatsScreen(
     LaunchedEffect(showNewSheet, newSheetQr) {
         if (showNewSheet || newSheetQr == ChatsNewQr.RECEIVE) {
             if (receiveQrAddress == null) receiveQrResolving = true
-            walletViewModel.resolveFreshReceiveAddress { address ->
+            // Revealed (on Manage Addresses, watched) only once the Receive QR is shown; the New
+            // sheet opening only warms the pick (iOS 24c2094).
+            walletViewModel.resolveFreshReceiveAddress(revealing = newSheetQr == ChatsNewQr.RECEIVE) { address ->
                 if (address != null) receiveQrAddress = address
                 receiveQrResolving = false
             }

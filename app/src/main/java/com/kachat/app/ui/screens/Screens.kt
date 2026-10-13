@@ -3713,7 +3713,8 @@ fun ProfileScreen(
     LaunchedEffect(showAcceptPaymentQr) {
         if (showAcceptPaymentQr) {
             if (receiveQrAddress == null) receiveQrResolving = true
-            viewModel.resolveFreshReceiveAddress { address ->
+            // Shown now: it goes on the Manage Addresses list (and is watched for payments).
+            viewModel.resolveFreshReceiveAddress(revealing = true) { address ->
                 receiveQrAddress = address
                 receiveQrResolving = false
             }
@@ -3778,8 +3779,9 @@ fun ProfileScreen(
         viewModel.loadManageAddresses()
         // Decide the Receive QR's address NOW, not when the button is tapped. The freshness
         // check is a network round trip, so doing it on tap put a spinner between pressing
-        // Receive Kaspa and seeing a code.
-        viewModel.resolveFreshReceiveAddress { address ->
+        // Receive Kaspa and seeing a code. Only picked, not revealed (iOS 24c2094): nothing
+        // appears in Manage Addresses until the QR is actually shown.
+        viewModel.resolveFreshReceiveAddress(revealing = false) { address ->
             receiveQrAddress = address
             receiveQrResolving = false
         }
