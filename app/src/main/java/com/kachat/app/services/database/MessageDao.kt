@@ -213,14 +213,6 @@ interface MessageDao {
     )
     suspend fun deleteContractAddressPayments(walletAddress: String): Int
 
-    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress AND direction = :direction)")
-    suspend fun hasMessageWithDirection(contactId: String, walletAddress: String, direction: String): Boolean
-
-    /** Rewrites an incoming payment bubble after on-chain verification of a payment_notice —
-     *  corrects the amount from chain data or flags it with a warning delivery status. */
-    @Query("UPDATE messages SET plaintextBody = :body, amountSompi = :amountSompi, deliveryStatus = :status WHERE id = :id AND walletAddress = :walletAddress")
-    suspend fun updatePaymentVerification(id: String, walletAddress: String, body: String, amountSompi: Long, status: String)
-
     @Query(
         """
         SELECT contactId, COUNT(*) as count FROM messages

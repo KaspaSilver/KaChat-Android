@@ -13,7 +13,6 @@ import com.kachat.app.services.KaspaWalletEngine
 import com.kachat.app.services.KnsInscriptionEngine
 import com.kachat.app.services.KnsProfileFields
 import com.kachat.app.services.KnsService
-import com.kachat.app.services.PaymentPoolStore
 import com.kachat.app.services.SpendingAddressDiscovery
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.services.WalletManager
@@ -48,9 +47,6 @@ class WalletViewModel @Inject constructor(
     private val knsService: KnsService,
     private val settings: AppSettingsRepository,
     private val spendingAddressDiscovery: SpendingAddressDiscovery,
-    /** Fresh-address payment-pool reservations — consulted so Generate never recycles an index
-     *  actively offered to a contact, and for the "Chat privacy address" tag/lock set. */
-    private val paymentPoolStore: PaymentPoolStore,
     /** Reused purely for its address-string-keyed REST fetchers (`getTransactionHistory`/
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
@@ -163,23 +159,13 @@ class WalletViewModel @Inject constructor(
     private val _spendingAddress = MutableStateFlow<String?>(null)
     val spendingAddress: StateFlow<String?> = _spendingAddress
 
-    val spendingBalance: StateFlow<String> = walletService.spendingBalance.map {
-        val kAs = it.toDouble() / 100_000_000.0
-        "%.8f %s".format(java.util.Locale.US, kAs, KaspaUnit.symbol)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00000000 ${KaspaUnit.symbol}")
-
-    val spendingBalanceSompi: StateFlow<Long> = walletService.spendingBalance
-
-    /** The primary ("Pay in Kaspa") spending index, live - the Send KAS sheet names it on its
-     *  Available pill and checks it in Send From (iOS dae8a01). */
-    val primarySpendingIndex: StateFlow<Int?> = walletManager.primarySpendingIndexFlow
-
-    /** Every revealed spending address together, formatted, or null when unknown. Shown under the
-     *  Profile row's balance: that row says what the address you are about to spend FROM holds,
-     *  which after a few payments is a long way from what the account has. */
-    val spendingTotalBalance: StateFlow<String?> = walletService.spendingTotalBalance.map { sompi ->
-        sompi?.let { "Total: %.8f %s".format(java.util.Locale.US, it.toDouble() / 100_000_000.0, KaspaUnit.symbol) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+    /** Everything this account holds (iOS 6333dd3 `accountTotalSompi`, Profile's Manage Addresses
+     *  card): the chatting address and every revealed spending address, hidden ones too. Null
+     *  until the spending total is known. */
+    val accountTotalSompi: StateFlow<Long?> =
+        combine(walletService.balance, walletService.spendingTotalBalance) { chatting, spending ->
+            spending?.let { chatting + it }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     /** Re-derives the current spending address and refreshes its balance — safe to call anytime the Profile screen appears, since the underlying index only ever changes via a successful send. */
     /** For which account and when (unix ms) Profile's appear last ran its balance requests - see
@@ -222,12 +208,12 @@ class WalletViewModel @Inject constructor(
     private val _manageAddressesRaw = MutableStateFlow<List<WalletService.SpendingAddressEntry>>(emptyList())
 
     /**
-     * THE isCurrent SINGLE-SOURCE RULE: the star is DERIVED, never stored. Rendered rows stamp
+     * THE isCurrent SINGLE-SOURCE RULE: the flag is DERIVED, never stored. Rendered rows stamp
      * isCurrent purely from [WalletManager.primarySpendingIndexFlow] (the authoritative live
-     * primary index) at combine time, and force the primary visible — so no persisted or
-     * captured isCurrent is ever trusted, and a send rotating the primary re-stars every open
-     * screen instantly, no matter which stale list commit lands afterwards. Guard paths follow
-     * the same rule: they compare against the authoritative index, never a row's flag.
+     * index) at combine time, and force that row visible — so no persisted or captured
+     * isCurrent is ever trusted, and a send moving the index updates every open screen
+     * instantly, no matter which stale list commit lands afterwards. Guard paths follow the same
+     * rule: they compare against the authoritative index, never a row's flag.
      */
     val manageAddresses: StateFlow<List<WalletService.SpendingAddressEntry>> =
         combine(_manageAddressesRaw, walletManager.primarySpendingIndexFlow) { rows, primary ->
@@ -241,37 +227,16 @@ class WalletViewModel @Inject constructor(
     private val _manageAddressesLoading = MutableStateFlow(false)
     val manageAddressesLoading: StateFlow<Boolean> = _manageAddressesLoading.asStateFlow()
 
-    /** Addresses currently offered to a contact for private payments (fresh-address payment-pool
-     *  reservations, minus revoked ones) - tagged "Chat privacy address" and locked visible in
-     *  Manage Addresses and the Address Visibility checklist. Refreshed on every
-     *  [loadManageAddresses]; the authoritative refusal lives in [setManageAddressHidden] plus
-     *  the WalletService/WalletManager backstops, all querying the pool store directly. */
-    private val _privacyReservedAddresses = MutableStateFlow<Set<String>>(emptySet())
-    val privacyReservedAddresses: StateFlow<Set<String>> = _privacyReservedAddresses.asStateFlow()
-
-    /** The ACTIVE account's Chats Payment Privacy toggle, re-scoped on account switches (same
-     *  derivation as SettingsViewModel's). Drives whether Manage Spending Addresses shows the
-     *  Chat Privacy tab at all: toggle OFF means no tab row, plain Addresses list only. */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val chatsPaymentPrivacyEnabled: StateFlow<Boolean> = walletManager.activeAddressFlow
-        .flatMapLatest { address ->
-            if (address == null) flowOf(true) else settings.chatsPaymentPrivacyEnabled(address)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-
     // Monotonic ticket for loadManageAddresses commits: only the NEWEST in-flight live load may
     // write its result, so a slow load that started before a rotation/newer refresh can never
     // overwrite fresher rows with pre-rotation balances.
     private var manageAddressesLoadGeneration = 0
 
     init {
-        // Primary freshness: a successful "Pay in Kaspa" send rotates the primary spending index
-        // (KaspaWalletEngine.sendSpendingPayment -> setSpendingAddressIndex). The star itself is
-        // handled by the derived [manageAddresses] stamping above; this collector only does what
-        // derivation can't: refresh the displayed spending address, move the swept balance from
-        // the old primary row to the new one (so the funded-row hide guard stops blocking the
-        // old primary immediately), and kick a reconciling reload. The storage-level primary-hide
-        // backstop in WalletManager.setSpendingAddressHidden is untouched.
+        // Current-index freshness: a send from the current spending address (Send Kaspa with that
+        // address as its From, withdrawFromSpendingAddress) moves the index onto its fresh change
+        // address. This collector refreshes the displayed spending address, moves the old row's
+        // balance to the new one optimistically, and kicks a reconciling reload.
         viewModelScope.launch {
             var lastPrimary: Int? = null
             walletManager.primarySpendingIndexFlow.collect { primary ->
@@ -281,9 +246,7 @@ class WalletViewModel @Inject constructor(
                 if (primary == null || previous == null || previous == primary) return@collect
                 val current = _manageAddressesRaw.value
                 if (current.isEmpty()) return@collect
-                // The rotation sweep moved the old primary's whole balance to the new primary.
-                // (Manual activation already moved it optimistically in setActiveSpendingAddress,
-                // in which case the old row's balance is 0 here and this adds nothing.)
+                // The send's change moved the old row's balance to the new index.
                 val sweptFromOldPrimary = current.firstOrNull { it.index == previous }?.balanceSompi ?: 0L
                 _manageAddressesRaw.value = current.map { entry ->
                     when (entry.index) {
@@ -320,17 +283,6 @@ class WalletViewModel @Inject constructor(
     private suspend fun loadManageAddressesInternal() {
         val generation = ++manageAddressesLoadGeneration
         try {
-            // Chat-privacy reservations: cheap synchronous store read, refreshed with the list.
-            // First reconcile the store's released mirror with the actual Chats Payment Privacy
-            // toggle - the toggle handler normally keeps it in sync, but accounts that flipped
-            // the toggle before the mirror existed (or a process death mid-handler) would
-            // otherwise keep stale tags/locks until the next flip. Runs before the live list
-            // load below, so the loader's visibility migration sees the reconciled active set.
-            _privacyReservedAddresses.value = walletManager.getActiveAccount()?.address?.let { addr ->
-                val privacyOn = try { settings.chatsPaymentPrivacyEnabled(addr).first() } catch (e: Exception) { true }
-                paymentPoolStore.setPoolsReleased(!privacyOn, addr)
-                paymentPoolStore.activeOfferedReservationAddresses(addr)
-            } ?: emptySet()
             // Instant paint from the persisted snapshot of the last full load (balances may be
             // a refresh stale — the live load below replaces them). Only seeds when the screen
             // has nothing yet, so a live list never regresses to older data.
@@ -350,8 +302,8 @@ class WalletViewModel @Inject constructor(
             // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
             refreshDomainOwningAddresses(_manageAddressesRaw.value.map { it.address })
         } finally {
-            // try/finally so no exit — success, a throw from the pool-store reconcile, or
-            // cancellation — can strand the initial-load spinner.
+            // try/finally so no exit — success, a throw, or cancellation — can strand the
+            // initial-load spinner.
             _manageAddressesLoading.value = false
         }
     }
@@ -359,12 +311,11 @@ class WalletViewModel @Inject constructor(
     /**
      * Hiding is purely a display preference — the address and its label are untouched; it's just
      * filtered out of the main Manage Addresses list. Unhiding is always allowed, but an address
-     * can never be hidden while it holds a balance, is the primary ("Pay in Kaspa") spending
-     * address, or is currently offered to a contact for private payments (chat-privacy pool
-     * reservation) — all are cases you'd want to keep an eye on, not tuck away. The guards check the
-     * freshest row plus the AUTHORITATIVE primary index (a row's isCurrent can be stale after a
-     * send rotates the primary). Hides against a row this session live-confirmed commit instantly
-     * (see the toggle rule inline); only rows with no live-confirmed data fall back to
+     * can never be hidden while it holds a balance or is the current spending address - cases
+     * you'd want to keep an eye on, not tuck away. The guards check the freshest row plus the
+     * AUTHORITATIVE current index (a row's isCurrent can be stale after a send moves it). Hides
+     * against a row this session live-confirmed commit instantly (see the toggle rule inline);
+     * only rows with no live-confirmed data fall back to
      * [WalletService.setSpendingAddressHidden]'s fail-closed live re-check. [onResult] reports
      * whether the hide actually committed.
      */
@@ -383,30 +334,19 @@ class WalletViewModel @Inject constructor(
             onResult(true)
             return
         }
-        // Chat-privacy lock: an address currently offered to a contact for private payments can
-        // never be hidden while the offer stands. Authoritative pool-store query by index -
-        // never a cached row flag - so the refusal holds even against a stale list.
-        if (paymentPoolStore.isIndexOfferedForPrivacy(index, account.address)) {
-            onResult(false)
-            return
-        }
         val entry = _manageAddressesRaw.value.find { it.index == index }
-        // Primary guard: ONLY the authoritative live index decides — never entry.isCurrent. A
-        // row's flag can be stale after a send rotates the primary (a pre-rotation list commit
-        // landing late), and trusting it left the OLD primary un-hideable until a full reload.
+        // Current-index guard: ONLY the authoritative live index decides — never
+        // entry.isCurrent, which can be stale after a send moves the index.
         if (index == account.spendingAddressIndex || (entry?.balanceSompi ?: 0L) > 0L) {
             onResult(false)
             return
         }
         // THE TOGGLE RULE: a hide trusts the fresh in-session row when one exists. This screen
         // batch-loads live balances when it opens (loadManageAddresses), so a row marked
-        // liveChecked was balance-confirmed moments ago — the hide commits instantly and
-        // optimistically with no per-toggle network round trip (that per-tap fetch is what made
-        // the checklist feel like it couldn't select). The funded/primary guards above were just
-        // enforced against that same fresh data, and WalletManager's storage-level backstop still
-        // refuses a primary hide from any caller. Only when NO live-confirmed row exists for the
-        // index (list painted from cache, live load failed) does the fail-closed path below run:
-        // one live balance fetch, and no answer means no hide.
+        // liveChecked was balance-confirmed moments ago — the hide commits instantly with no
+        // per-toggle network round trip. Only when NO live-confirmed row exists for the index
+        // (list painted from cache, live load failed) does the fail-closed path below run: one
+        // live balance fetch, and no answer means no hide.
         if (entry != null && entry.liveChecked) {
             walletManager.setSpendingAddressHidden(account.address, index, true)
             _manageAddressesRaw.value = _manageAddressesRaw.value.map {
@@ -425,6 +365,13 @@ class WalletViewModel @Inject constructor(
             onResult(ok)
         }
     }
+
+    /** A From address's balance (iOS `SendFromSection`: the sum of the address's UTXOs as the node
+     *  sees it), the REST gateway's coins when no node answers; 0 when neither can. */
+    suspend fun addressBalanceSompi(address: String): Long =
+        walletEngine.nodeBalance(address)
+            ?: runCatching { com.kachat.app.util.UtxoMath.checkedTotal(walletEngine.fetchUtxosOrThrow(address).map { it.utxoEntry.amount }) }.getOrNull()
+            ?: 0L
 
     /** Sets or clears (blank/null) a nickname for one spending-chain address, shown in place of "Address #N". */
     fun setManageAddressLabel(index: Int, label: String?) {
@@ -512,13 +459,11 @@ class WalletViewModel @Inject constructor(
 
     /**
      * iOS parity (lowestUnusedSpendingAddress): Generate recycles the LOWEST truly-unused
-     * index — skipping the primary, anything holding a balance or with on-chain history, and
-     * ACTIVELY offered payment-pool reservations (promised to a contact right now; reverted
-     * ones are ordinary rows and may be reclaimed) — unhiding it so it
-     * shows on the main list. Falls back to deriving maxIndex+1 when every existing index is
+     * index — skipping the primary and anything holding a balance or with on-chain history —
+     * unhiding it so it shows on the main list. Falls back to deriving maxIndex+1 when every existing index is
      * spoken for. [onResult] receives the index that is now ready, or null when the live check
      * failed and Generate refused (never derive or recycle blind — a wrongly re-offered index
-     * could already be funded or promised to a contact).
+     * could already be funded).
      */
     fun generateNewSpendingAddress(onResult: (Int?) -> Unit = {}) {
         viewModelScope.launch {
@@ -546,22 +491,12 @@ class WalletViewModel @Inject constructor(
             // it made press two a silent no-op (the stall this replaces). Only rows whose balance
             // and used-ness were both live-confirmed this load are recyclable; unconfirmed rows
             // are skipped rather than trusted.
-            // Chat-privacy exclusion checks the ACTIVE offered set only: an actively offered
-            // reservation is promised to a contact and never recycled, but once it reverts
-            // (privacy off, revoked, or superseded) it is a normal row - after the user hides
-            // it, recycling may reclaim it. The historical reservation mapping still renders
-            // and notices any payment racing that revert.
-            val activeReservations = paymentPoolStore.activeOfferedReservationAddresses(walletAddress)
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
                 entry.hidden && entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
-                    entry.balanceSompi == 0L && !entry.everUsed &&
-                    entry.address !in activeReservations
+                    entry.balanceSompi == 0L && !entry.everUsed
             }
             val readyIndex = if (pick != null) {
                 walletService.setSpendingAddressHidden(pick.index, false)
-                // A recycled reverted reservation is now a personal address: never re-offer
-                // it to its original contact on a privacy re-enable.
-                paymentPoolStore.markReclaimed(pick.address, walletAddress)
                 pick.index
             } else {
                 // Every listed index is spoken for (or unconfirmed): extend the chain. A brand-new
@@ -588,8 +523,8 @@ class WalletViewModel @Inject constructor(
                     isCurrent = false,
                     hidden = false,
                     label = null,
-                    // Past the all-time max index, so provably never revealed, funded, offered,
-                    // or reserved — unused by construction, no network needed. Marking it
+                    // Past the all-time max index, so provably never revealed or funded
+                    // — unused by construction, no network needed. Marking it
                     // live-confirmed lets the row show "Unused" (not the neutral unverified
                     // state) and hide instantly; the reload below still reconciles.
                     liveChecked = true
@@ -680,33 +615,6 @@ class WalletViewModel @Inject constructor(
     /** Used-check for Address Visibility rows derived beyond the loaded list. */
     suspend fun hasSpendingAddressBeenUsed(address: String): Boolean =
         walletService.hasSpendingAddressBeenUsed(address)
-
-    /**
-     * Makes the address at [index] the one "Pay in Kaspa" sources from going forward. The star
-     * and balance move in [manageAddresses] immediately, before the real network round-trips
-     * (switch + sweep) even finish, so the UI reads as live rather than stalling on them —
-     * [loadManageAddresses] then reconciles with the real on-chain state once they're done.
-     */
-    fun setActiveSpendingAddress(index: Int) {
-        // The AUTHORITATIVE index names the outgoing primary — never a row's isCurrent flag,
-        // which can be stale (single-source rule, see [manageAddresses]).
-        val previousIndex = walletManager.getActiveAccount()?.spendingAddressIndex
-        val current = _manageAddressesRaw.value
-        val previousBalance = current.firstOrNull { it.index == previousIndex }?.balanceSompi ?: 0L
-        _manageAddressesRaw.value = current.map { entry ->
-            when (entry.index) {
-                index -> entry.copy(isCurrent = true, hidden = false, balanceSompi = entry.balanceSompi + previousBalance)
-                previousIndex -> entry.copy(isCurrent = false, balanceSompi = 0L)
-                else -> entry
-            }
-        }
-
-        viewModelScope.launch {
-            walletService.setActiveSpendingAddress(index)
-            refreshSpendingAddress()
-            loadManageAddresses()
-        }
-    }
 
     /**
      * Sends KAS out of one specific spending-chain address (not necessarily the currently
@@ -1018,84 +926,12 @@ class WalletViewModel @Inject constructor(
                 // public API throttles. loadManageAddressesAndAwait rather than the fire-and-
                 // forget variant, or the rows would not be there yet to read.
                 loadManageAddressesAndAwait()
-                releaseFundedReservations(walletAddress)
                 onResult(matched.size)
             } finally {
                 _discoveringAddresses.value = false
                 _spendingDiscoveryProgress.value = null
             }
         }
-    }
-
-    /**
-     * Retires any Chats Payment Privacy reservation that has actually been paid into.
-     *
-     * A reservation normally leaves the active set the moment funding is detected - but that
-     * detection is a live signal: a payment_notice from the contact, or the UTXO watch seeing the
-     * deposit while this app is running. Neither reaches a device that was not there when it
-     * happened, which is exactly what a second device running the same seed is. That device goes
-     * on believing the address is an unfunded offer: it stays on the Chat Privacy tab, stays
-     * locked out of the main list, and its balance sits somewhere the user cannot see.
-     *
-     * So a scan asks the chain directly, for every active reservation, whatever index it sits at
-     * - the gap-limit walk can stop before reaching one. Money on an address ends its life as an
-     * offer regardless of what any device was told.
-     */
-    private suspend fun releaseFundedReservations(walletAddress: String) {
-        val reserved = paymentPoolStore.activeOfferedReservationAddresses(walletAddress)
-        if (reserved.isEmpty()) return
-
-        // Balances already in hand from the list load, which fetched them in bulk. Only
-        // addresses the list does not cover - a reservation past the revealed index bound - need
-        // asking about individually.
-        val rows = _manageAddressesRaw.value.filter { it.address in reserved }
-        val fundedFromRows = rows.filter { it.balanceSompi > 0 }.map { it.address }.toSet()
-        val unknown = reserved - rows.map { it.address }.toSet()
-        val funded = fundedFromRows + spendingAddressDiscovery.fundedAmong(unknown)
-        if (funded.isEmpty()) return
-
-        for (address in funded) {
-            paymentPoolStore.markReservationFundedByAddress(address, walletAddress)
-        }
-        // A funded address belongs on the main list, so it must not stay hidden either.
-        rows.filter { it.address in funded }
-            .forEach { walletManager.setSpendingAddressHidden(walletAddress, it.index, false) }
-        // Re-read so the Chat Privacy tab and the main list both reflect the release.
-        loadManageAddresses()
-    }
-
-    enum class ConsolidateStatus { IDLE, RUNNING, SUCCESS, FAILED }
-    data class ConsolidateUiState(
-        val status: ConsolidateStatus = ConsolidateStatus.IDLE,
-        /** The sweep's transactions, for iOS's ConsolidateSuccessCard. */
-        val txIds: List<String> = emptyList(),
-        val errorMessage: String? = null,
-    )
-
-    private val _consolidateState = MutableStateFlow(ConsolidateUiState())
-    val consolidateState: StateFlow<ConsolidateUiState> = _consolidateState.asStateFlow()
-
-    /** Sweeps every other spending-chain address's balance into the currently active one. */
-    fun consolidateSpendingAddresses() {
-        if (_consolidateState.value.status == ConsolidateStatus.RUNNING) return
-        viewModelScope.launch {
-            _consolidateState.value = ConsolidateUiState(status = ConsolidateStatus.RUNNING)
-            val result = try {
-                walletService.consolidateSpendingAddressesToCurrent()
-            } catch (e: Exception) {
-                com.kachat.app.services.WalletService.ConsolidationResult(emptyList(), e)
-            }
-            refreshSpendingAddress()
-            loadManageAddresses()
-            _consolidateState.value = consolidateOutcome(
-                result.txIds,
-                result.lastError?.let { UserFacingError.message(it, "Consolidation failed") },
-            )
-        }
-    }
-
-    fun resetConsolidateState() {
-        _consolidateState.value = ConsolidateUiState()
     }
 
     private val _isLoggedIn = MutableStateFlow(false)
@@ -1435,21 +1271,6 @@ class WalletViewModel @Inject constructor(
     fun previewChattingAddress(passphrase: String): String? =
         if (pendingMnemonicWords.isEmpty()) null
         else walletManager.previewIdentityAddress(pendingMnemonicWords, passphrase, pendingSourceFamily)
-
-    /** User-initiated: take a Chats Payment Privacy address out of the pool and back into the
-     *  normal spending list. See [PaymentPoolStore.releaseReservation] for why this exists
-     *  alongside the automatic funded-detection. */
-    fun releaseChatPrivacyAddress(address: String) {
-        viewModelScope.launch {
-            val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { return@launch }
-            if (!paymentPoolStore.releaseReservation(address, walletAddress)) return@launch
-            // It was locked visible while it was an offer; nothing holds it hidden now.
-            _manageAddressesRaw.value.firstOrNull { it.address == address }?.let {
-                walletManager.setSpendingAddressHidden(walletAddress, it.index, false)
-            }
-            loadManageAddresses()
-        }
-    }
 
     /** Imports the prepared wallet with the chosen passphrase ("" = none), then logs in. */
     fun commitImport(passphrase: String) {
@@ -2325,17 +2146,6 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch { settings.clearOnboardingWizardPending() }
     }
 
-    /** The wizard's Chat Payment Privacy step writes the per-account value directly - it
-     *  deliberately does NOT trigger the Settings toggle's revoke/re-offer propagation (there is
-     *  nothing to propagate during onboarding; replays flipping here match iOS's behavior of
-     *  only the Settings toggle propagating). */
-    fun setChatsPaymentPrivacyFromWizard(value: Boolean) {
-        viewModelScope.launch {
-            val addr = _address.value ?: try { walletManager.getAddress() } catch (e: Exception) { null } ?: return@launch
-            settings.setChatsPaymentPrivacyEnabled(addr, value)
-        }
-    }
-
     /**
      * Settings > Customization — whether the "Setup Guide" re-entry points (the Profile screen's
      * "Welcome Guide" row, the "Edit KNS Profile" screen's "Setup Guide" section) are shown.
@@ -2438,16 +2248,4 @@ class WalletViewModel @Inject constructor(
         WalletService.KnsInscribeStep.SUBMITTING_REVEAL -> KnsInscribeUiStatus.SUBMITTING_REVEAL
         WalletService.KnsInscribeStep.VERIFYING -> KnsInscribeUiStatus.VERIFYING
     }
-}
-
-/**
- * How a finished consolidation ends, as iOS's consolidateToPrimary decides it: anything sent shows
- * the sent sheet - one address failing must not hide the others' success; nothing sent and
- * something failed shows that failure; nothing sent and nothing failed (no other address held
- * a balance) just ends.
- */
-internal fun consolidateOutcome(txIds: List<String>, lastErrorMessage: String?): WalletViewModel.ConsolidateUiState = when {
-    txIds.isNotEmpty() -> WalletViewModel.ConsolidateUiState(WalletViewModel.ConsolidateStatus.SUCCESS, txIds = txIds)
-    lastErrorMessage != null -> WalletViewModel.ConsolidateUiState(WalletViewModel.ConsolidateStatus.FAILED, errorMessage = lastErrorMessage)
-    else -> WalletViewModel.ConsolidateUiState()
 }

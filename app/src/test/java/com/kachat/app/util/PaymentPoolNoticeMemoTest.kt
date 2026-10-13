@@ -11,44 +11,11 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 /**
- * Pool payments carry the payer's note (iOS 6b20d77, audit XP-004): the `kchat:1:pay:` payload is
- * sealed to the contact's CHAT key whichever address is paid, and `payment_notice` carries an
- * optional `memo` (<= 500 chars, omitted when empty) that the recipient shows as
- * "Received X KAS — memo".
+ * The retired `payment_notice` envelope another client may still send carries an optional `memo`
+ * (<= 500 chars, omitted when empty) - iOS 6b20d77, audit XP-004. The codec still parses it, so
+ * the app can swallow it and the push can word it as a payment.
  */
 class PaymentPoolNoticeMemoTest {
-
-    private fun randomScalarBytes(): ByteArray {
-        val random = SecureRandom()
-        while (true) {
-            val candidate = ByteArray(32).also { random.nextBytes(it) }
-            val d = BigInteger(1, candidate)
-            if (d != BigInteger.ZERO && d < Secp256k1.N) return candidate
-        }
-    }
-
-    private fun addressOf(priv: ByteArray): String =
-        KaspaAddress.encode("kaspa", 0, Schnorr.publicKeyXOnly(priv))
-
-    @Test
-    fun `pool payment memo is sealed to the chat key and opens with it, never the pool key`() {
-        val chatPriv = randomScalarBytes()
-        val poolPriv = randomScalarBytes()
-        val chatAddress = addressOf(chatPriv)
-        val poolAddress = addressOf(poolPriv)
-        assertTrue(chatAddress != poolAddress)
-
-        val sealKey = PaymentPoolProtocol.paymentPayloadSealKey(chatAddress)
-        assertTrue(sealKey.contentEquals(Schnorr.publicKeyXOnly(chatPriv)))
-
-        val payload = MessageProtocol.buildPaymentPayload("rent", 500_000_000L, sealKey)
-        val opened = MessageProtocol.decryptPaymentPayload(payload, chatPriv)
-        assertNotNull(opened)
-        assertEquals("rent", opened!!.message)
-        assertEquals(500_000_000L, opened.amount)
-        // The pool address's key (the recipient's spending chain) is never tried by a reader.
-        assertNull(MessageProtocol.decryptPaymentPayload(payload, poolPriv))
-    }
 
     @Test
     fun `notice with a memo encodes the MESSAGING md shape and parses back`() {

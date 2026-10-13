@@ -73,9 +73,9 @@ const val MAX_PAYMENT_MEMO_LENGTH = 140
 private const val DUST_LIMIT_SOMPI = 10_000_001L
 
 /**
- * "Send KAS": who it goes to, the exact amount (KAS or fiat), an encrypted memo, the available
- * balance, the fee card (speed, custom fee, coin control - iOS 62c2773), and a slide-to-send
- * button (iOS afaad34) - sliding rather than tapping, so a payment can't go out on a stray touch.
+ * "Send KAS": who it goes to, From (Chatting Address or Choose an Address, with that address's
+ * balance - iOS 6333dd3), the exact amount (KAS or fiat), an encrypted memo, the fee card (speed,
+ * custom fee, coin control - iOS 62c2773), and a slide-to-send button (iOS afaad34) - sliding rather than tapping, so a payment can't go out on a stray touch.
  * It replaced the composer's payment mode; every way into a payment (the "+" sheet's Pay in
  * Kaspa, "Pay in Kaspa" from a group or public chat's sender sheet) opens it. It scrolls and
  * opens at full height.
@@ -96,17 +96,9 @@ fun SendKasSheet(
     currencyCode: String,
     note: String,
     onNoteChange: (String) -> Unit,
-    availableText: String,
-    /** Chats Payment Privacy on: the Available pill is the paying spending address's balance,
-     *  underlined, and opens Send From to pay from another spending address (iOS dae8a01). Off,
-     *  payments come from the chatting address, so there's nothing to pick. */
-    availableTappable: Boolean,
-    onAvailableClick: () -> Unit,
-    /** Which spending address pays ("Address #N"), shown after the balance with a chevron when
-     *  [availableTappable]. */
-    availableSourceLabel: String?,
-    /** The payment goes to a fresh pool address the contact shared (privacy on only). */
-    paysToFreshAddress: Boolean,
+    /** The From section ([SendFromSection]) under the heading: which of your addresses the
+     *  payment comes from, and its balance. The screen owns its state, as it owns the send. */
+    fromSection: @Composable () -> Unit,
     /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
     maxKas: () -> Double,
     /** Changes whenever the fee Max leaves room for may have changed (the speed, a custom fee,
@@ -121,9 +113,6 @@ fun SendKasSheet(
     isSending: Boolean,
     onSend: () -> Unit,
     onDismiss: () -> Unit,
-    /** A line under the memo saying where the payment goes - the KaPosts tip's fresh private /
-     *  public chatting address line (iOS 0e08006). None in a chat. */
-    destinationLine: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     val currentlySending by rememberUpdatedState(isSending)
@@ -195,6 +184,8 @@ fun SendKasSheet(
                         )
                     }
 
+                    fromSection()
+
                     // The big centred amount, the KAS/fiat switch and Max - the shared Send Kaspa piece
                     // (iOS 4d0324f).
                     KaspaAmountEntry(
@@ -234,57 +225,7 @@ fun SendKasSheet(
                         )
                     }
 
-                    destinationLine?.invoke()
-
-                    // The available pill, then the fee card (iOS 62c2773).
-                    val sourcePickerHint = stringResource(R.string.send_from_hint)
-                    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(colors.surface)
-                                .then(
-                                    if (availableTappable) {
-                                        Modifier.clickable(onClickLabel = sourcePickerHint, role = androidx.compose.ui.semantics.Role.Button) { onAvailableClick() }
-                                    } else Modifier
-                                )
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        ) {
-                            Text(
-                                availableText,
-                                color = colors.textSecondary,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textDecoration = if (availableTappable) TextDecoration.Underline else null,
-                                // The balance gives way first on a narrow screen, so the address shows.
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
-                            if (availableTappable && availableSourceLabel != null) {
-                                // Which spending address pays: the primary unless another was picked.
-                                Text("·", color = colors.textSecondary, fontSize = 11.sp)
-                                Text(availableSourceLabel, color = colors.textSecondary, fontSize = 11.sp, maxLines = 1)
-                                Icon(
-                                    Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = colors.textSecondary,
-                                    modifier = Modifier.size(12.dp),
-                                )
-                            }
-                            if (availableTappable && paysToFreshAddress) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "Payment goes to a fresh address this contact shared, so it cannot be linked to their chat address on-chain",
-                                    tint = KaspaTeal,
-                                    modifier = Modifier.size(12.dp),
-                                )
-                            }
-                        }
-                    }
-
+                    // The fee card (iOS 62c2773).
                     feeControls()
 
                     if (error != null) {

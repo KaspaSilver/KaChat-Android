@@ -5,15 +5,17 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
 /**
- * Wire codec for the fresh-address payment pool protocol (MESSAGING.md, "Fresh-Address Payment
- * Pools") - three invisible JSON envelope types embedded in the normal encrypted contextual
- * content, exactly like reactions ([MessageReaction]). Field names/types must match the iOS
- * reference (`PaymentPoolCodec` in Models.swift) exactly - this is a cross-platform contract.
+ * Wire codec for the retired fresh-address payment pool protocol (MESSAGING.md, "Fresh-Address
+ * Payment Pools") - three invisible JSON envelope types embedded in the normal encrypted
+ * contextual content, exactly like reactions ([MessageReaction]). Field names/types match the
+ * iOS reference (`PaymentPoolCodec` in Models.swift).
  *
- * All three are intercepted before rendering (see ChatRepository.processContextualMessage) and
- * never appear as chat bubbles; a `payment_notice` *produces* a payment bubble but the envelope
- * itself is not shown. Unknown `type` values fall through to the normal message pipeline, and
- * unknown extra fields inside these envelopes are ignored (Gson does both naturally).
+ * Chats Payment Privacy was removed (iOS 6333dd3): this app never sends these any more. Other
+ * clients may still send them; ChatRepository.processContextualMessage swallows all three so
+ * they never show as text, and the push path keeps addr_pool / addr_pool_request silent and
+ * words a payment_notice as a payment (iOS NotificationService, unchanged). Unknown `type`
+ * values fall through to the normal message pipeline, and unknown extra fields inside these
+ * envelopes are ignored (Gson does both naturally).
  */
 object PaymentPoolProtocol {
 
@@ -72,12 +74,6 @@ object PaymentPoolProtocol {
         val note = noticeMemo(memo)
         return "Received $formattedAmount $symbol" + (note?.let { " — $it" } ?: "")
     }
-
-    /** The key a `kchat:1:pay:` payload is sealed to: the contact's CHAT key, whichever address
-     *  the payment pays (a pool address's key belongs to the recipient's spending chain, which no
-     *  reader tries) - MESSAGING.md, Fresh-Address Payment Pools, payer step 2. */
-    fun paymentPayloadSealKey(contactChatAddress: String): ByteArray =
-        KaspaAddress.decode(contactChatAddress).second
 
     sealed class Envelope {
         data class Pool(val content: AddressPoolContent) : Envelope()

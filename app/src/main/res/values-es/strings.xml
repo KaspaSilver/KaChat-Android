@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">Agreguemos mas detalles sobre ti</string>
     <string name="log_out">Cerrar sesion</string>
     <string name="longer_retention_means_more_messages_stay">Una retencion mas larga significa que mas mensajes permanecen en cache en tu dispositivo, lo cual puede ralentizar la app con el tiempo, especialmente en salas concurridas.</string>
-    <string name="make_active_address">Hacer direccion activa</string>
     <string name="manage_addresses">Administrar direcciones</string>
     <string name="max">Max</string>
     <string name="menu">Menu</string>
@@ -207,11 +206,9 @@
     <string name="select_time">Seleccionar hora</string>
     <string name="select_chat">Seleccionar chat</string>
     <string name="send">Enviar</string>
-    <string name="send_all_kaspa_to_primary_spend">Enviar todo el Kaspa a la direccion de gasto principal</string>
     <string name="send_from_cold_storage">Enviar desde almacenamiento en frio</string>
     <string name="send_photo">Enviar foto</string>
     <string name="sending">Enviando</string>
-    <string name="sends_every_other_spending_address_s">Envia el saldo de todas las demas direcciones de gasto a tu direccion favorita actual. Cada direccion con saldo es su propia transaccion real, asi que esto puede tardar unos momentos.</string>
     <string name="sent">Enviado</string>
     <string name="settings">Ajustes</string>
     <string name="show_more">Mostrar mas</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">Mostrar codigo QR</string>
     <string name="skip">Omitir</string>
     <string name="some_changes_failed_to_save">Algunos cambios no se pudieron guardar:</string>
-    <string name="spending_kaspa_on_kachat_will_come">Gastar Kaspa en KaChat saldra solo de esta direccion a partir de ahora. Cualquier Kaspa que aun este en tu direccion de gasto actual se enviara automaticamente a esta nueva.</string>
     <string name="start_a_new_chat_by_adding">Inicia un nuevo chat agregando un contacto</string>
     <string name="status">Estado</string>
     <string name="still_indexing_it_ll_show_up">Aun indexando. Aparecera arriba en breve.</string>
@@ -322,7 +318,6 @@
     <string name="security">Seguridad</string>
     <string name="send_handshake">Enviar solicitud de comunicacion</string>
     <string name="send_photo_2">Enviar foto</string>
-    <string name="set_as_primary_address">Establecer como direccion principal</string>
     <string name="setup_guide">Guia de configuracion</string>
     <string name="show_fee_estimate">Mostrar estimacion de comision</string>
     <string name="sound_vibration">Sonido y vibración</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">Desliza para consolidar</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Enviar desde</string>
-    <string name="send_from_hint">Elige desde qué dirección de gasto enviar</string>
     <string name="primary">Primario</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Fijado al principio</string>
     <string name="chats_unpinned">Desfijado</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Enviar Kaspa</string>
-    <string name="chats_send_kaspa_hint">Envía Kaspa desde tu dirección de gasto.</string>
+    <string name="chats_send_kaspa_hint">Envía Kaspa desde cualquiera de tus direcciones.</string>
     <string name="spending_address_unlocking">La dirección de gasto se está desbloqueando: vuelve e inténtalo de nuevo.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Fijar al principio</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">Mantén KaChat abierto: el nombre se registra aproximadamente un minuto después de que se confirme el compromiso oculto. Si sales, continuará donde lo dejó cuando vuelvas.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Propina</string>
-    <string name="tip_goes_to_fresh_address">Va a una dirección privada nueva que compartió</string>
-    <string name="tip_goes_to_public_address">Va a su dirección pública de chat</string>
-    <string name="available_amount_kas">disponible: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Nombres registrados</string>
     <string name="ks_kachat_renewals">Renovaciones de nombres</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">Punto de acceso del nodo copiado.</string>
     <string name="clear">Borrar</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Algo salio mal</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">Elegir moneda</string>
     <string name="couldn_t_read_this_swap_s">No se pudieron leer los montos de este intercambio</string>

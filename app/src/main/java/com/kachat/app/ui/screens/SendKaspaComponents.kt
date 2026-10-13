@@ -97,16 +97,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.collectAsState
-import com.kachat.app.repository.ChatRepository
-import com.kachat.app.services.WalletService
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.ui.theme.KaspaTeal
@@ -120,11 +117,13 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // The pieces every Send Kaspa screen is built from, so they look and behave the same: the 1:1
-// chat's Send KAS sheet, Profile's Send Kaspa, a spending address's Send, and KasSigner's send.
-// Recipient on top (paste, scan a QR, names resolve), then the big amount (KAS or your currency,
-// Max), the fee and balance, the fee speed and coin control, and a slide-to-send button.
-// Mirrors iOS's Views/Shared/SendKaspaComponents.swift (4d0324f). Change these pieces rather than
-// one screen, so the screens stay matched.
+// chat's Send KAS sheet, Send Kaspa (Chats > + > Send Kaspa, Donate, the Address Book, an
+// address's Send, paying a payment request), KaPosts tips, and KasSigner's send. Every send but
+// KasSigner's starts with From (SendFromSection): Chatting Address or Choose an Address. Then the
+// recipient (paste, scan a QR, names resolve), the big amount (KAS or your currency, Max), the
+// fee speed and coin control, and a slide-to-send button. Mirrors iOS's
+// Views/Shared/SendKaspaComponents.swift (4d0324f, 6333dd3). Change these pieces rather than one
+// screen, so the screens stay matched.
 
 /** The frosted card the Send Kaspa pieces sit on (iOS `sendKaspaGlass`). */
 @Composable
@@ -718,7 +717,7 @@ fun SendInfoPill(
     }
 }
 
-// MARK: - Send From
+// MARK: - From (which of your addresses a send comes out of)
 
 /** A spending address as the Send screens name it: its nickname, else "Address #N" (iOS
  *  `SpendingAddressEntry.displayLabel`, English like iOS). */
@@ -726,31 +725,232 @@ fun spendingAddressDisplayLabel(index: Int, label: String?): String =
     label?.trim()?.takeIf { it.isNotEmpty() } ?: "Address #$index"
 
 /**
- * Which spending address a send comes from, picked from a Send screen's Available pill: every
- * spending address you can see (plus hidden ones that hold Kaspa), funded ones first, each with
- * its balance, a Primary tag, and a checkmark on the current source. Picking one changes this
- * send only - the primary stays where it is. Mirrors iOS's `SpendingSourcePicker` (e994235).
+ * Where a send comes from (iOS 6333dd3 `SendSource`): the chatting address (every send screen's
+ * default), or one of the spending addresses picked under Choose an Address.
+ */
+sealed class SendSource {
+    object Chatting : SendSource()
+    data class Spending(val index: Int, val address: String, val label: String) : SendSource()
+
+    /** The spending index the send signs with, or null for the chatting address. */
+    val spendingIndex: Int? get() = (this as? Spending)?.index
+
+    /** The address the Kaspa leaves from - [chattingAddress] for the chatting address. */
+    fun address(chattingAddress: String?): String? = when (this) {
+        Chatting -> chattingAddress
+        is Spending -> address
+    }
+}
+
+/**
+ * A pill to pick one of a few choices, like the amount's currency switch: the chosen one filled
+ * in teal (iOS 6333dd3 `SelectablePill`). Send screens' From, Request Payment's address.
+ */
+@Composable
+fun SelectablePill(
+    title: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val haptic = com.kachat.app.util.rememberHaptics()
+    val shape = RoundedCornerShape(50)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (selected) Modifier.background(KaspaTeal)
+                else Modifier.background(colors.surface).border(1.dp, KaspaTeal.copy(alpha = 0.35f), shape)
+            )
+            .clickable(role = Role.Tab) {
+                haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                onClick()
+            }
+            .padding(vertical = 10.dp, horizontal = 6.dp),
+    ) {
+        Text(
+            title,
+            color = if (selected) Color.Black else colors.textPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * The From section every send screen starts with (iOS 6333dd3 `SendFromSection`), so it is
+ * always plain which address the Kaspa leaves from: Chatting Address (the default) or Choose an
+ * Address (any of your addresses, each marked used or unused), and the chosen address with its
+ * balance. The balance is loaded here ([onAvailableSompiChange], null while it loads) - the
+ * screen's Available.
+ */
+@Composable
+fun SendFromSection(
+    source: SendSource,
+    onSourceChange: (SendSource) -> Unit,
+    availableSompi: Long?,
+    onAvailableSompiChange: (Long?) -> Unit,
+    walletViewModel: WalletViewModel,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val colors = LocalAppColors.current
+    val chattingAddress by walletViewModel.address.collectAsState()
+    var showPicker by remember { mutableStateOf(false) }
+    val sourceAddress = source.address(chattingAddress)
+    val currentOnAvailable by rememberUpdatedState(onAvailableSompiChange)
+    LaunchedEffect(source, chattingAddress) {
+        currentOnAvailable(null)
+        val address = sourceAddress ?: return@LaunchedEffect
+        currentOnAvailable(walletViewModel.addressBalanceSompi(address))
+    }
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            stringResource(R.string.from).uppercase(),
+            color = colors.textSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SelectablePill(
+                title = stringResource(R.string.chatting_address),
+                selected = source is SendSource.Chatting,
+                modifier = Modifier.weight(1f),
+            ) { if (enabled) onSourceChange(SendSource.Chatting) }
+            SelectablePill(
+                title = stringResource(R.string.pr_choose_an_address),
+                selected = source !is SendSource.Chatting,
+                modifier = Modifier.weight(1f),
+            ) { if (enabled) showPicker = true }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .sendKaspaGlass(14.dp)
+                .padding(12.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    when (source) {
+                        SendSource.Chatting -> stringResource(R.string.chatting_address)
+                        is SendSource.Spending -> source.label
+                    },
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (sourceAddress != null) {
+                    Text(
+                        "${sourceAddress.take(14)}...${sourceAddress.takeLast(6)}",
+                        color = colors.textSecondary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                    )
+                }
+            }
+            if (availableSompi != null) {
+                Text(
+                    "${KaspaUnit.plain(availableSompi)} ${KaspaUnit.symbol}",
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    style = TextStyle(fontFeatureSettings = "tnum"),
+                )
+            } else {
+                com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(18.dp), color = colors.textSecondary, strokeWidth = 2.dp)
+            }
+        }
+    }
+
+    if (showPicker) {
+        OwnAddressPicker(
+            title = stringResource(R.string.send_from),
+            selected = sourceAddress,
+            walletViewModel = walletViewModel,
+            onPick = onSourceChange,
+            onDismiss = { showPicker = false },
+        )
+    }
+}
+
+/**
+ * Your addresses to pick from (iOS 6333dd3 `OwnAddressPicker`) - the chatting address, then the
+ * spending addresses (the ones Manage Addresses shows, plus hidden ones holding Kaspa) - each with
+ * its name, balance and whether it was ever used: a balance means used, else the cached answer,
+ * else a history lookup, eight at a time; "Checking" until answered, never a possibly-wrong
+ * "Unused". A send's Choose an Address, and Request Payment's.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpendingSourcePicker(
-    currentIndex: Int,
-    viewModel: WalletViewModel,
-    onPick: (WalletService.SpendingAddressEntry) -> Unit,
+fun OwnAddressPicker(
+    title: String,
+    selected: String?,
+    walletViewModel: WalletViewModel,
+    onPick: (SendSource) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val colors = LocalAppColors.current
-    val all by viewModel.manageAddresses.collectAsState()
+    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
+    val chattingAddress by walletViewModel.address.collectAsState()
+    val chattingBalance by walletViewModel.balanceSompi.collectAsState()
+    val allEntries by walletViewModel.manageAddresses.collectAsState()
     var loaded by remember { mutableStateOf(false) }
-    // A live load, so the balances it lists are current (the list shows the last one meanwhile).
     LaunchedEffect(Unit) {
-        viewModel.loadManageAddressesAndAwait()
+        walletViewModel.loadManageAddressesAndAwait()
         loaded = true
     }
-    val entries = remember(all, currentIndex) {
-        all.filter { !it.hidden || it.balanceSompi > 0 || it.index == currentIndex }
-            .sortedWith(compareBy({ if (it.balanceSompi > 0) 0 else 1 }, { it.index }))
+    val entries = remember(allEntries) {
+        allEntries.filter { !it.hidden || it.balanceSompi > 0 }.sortedBy { it.index }
     }
+    /** Used / unused per address; missing while its lookup is out (or failed). */
+    val used = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    val items = buildList {
+        chattingAddress?.let { add(it to chattingBalance) }
+        entries.forEach { add(it.address to it.balanceSompi) }
+    }
+    LaunchedEffect(items) {
+        val toProbe = mutableListOf<String>()
+        for ((address, balance) in items) {
+            if (used[address] == true) continue
+            if (balance > 0L) {
+                used[address] = true
+                continue
+            }
+            val cached = walletViewModel.cachedSpendingAddressUsedState(address)
+            if (cached != null) used[address] = cached else toProbe.add(address)
+        }
+        // a few at a time, like Manage Addresses (a burst gets rate-limited)
+        val gate = kotlinx.coroutines.sync.Semaphore(8)
+        kotlinx.coroutines.coroutineScope {
+            toProbe.forEach { address ->
+                launch {
+                    gate.acquire()
+                    try {
+                        // a failed lookup leaves it Checking, never a guessed Unused
+                        walletViewModel.spendingAddressUsedState(address)?.let { used[address] = it }
+                    } finally {
+                        gate.release()
+                    }
+                }
+            }
+        }
+    }
+
+    val pick: (SendSource) -> Unit = { source ->
+        onPick(source)
+        onDismiss()
+    }
+
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
@@ -758,104 +958,168 @@ fun SpendingSourcePicker(
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
-            sheetState = rememberModalBottomSheetState(),
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = colors.background,
+            dragHandle = null,
         ) {
-            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
-            // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                ) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
-                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                    }
-                    Text(
-                        stringResource(R.string.send_from),
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                }
-                if (entries.isEmpty()) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)) {
-                        if (loaded) {
-                            Text("—", color = colors.textSecondary)
-                        } else {
-                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(22.dp), color = colors.textSecondary, strokeWidth = 2.dp)
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(top = 8.dp, bottom = 24.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(colors.surface),
-                    ) {
-                        itemsIndexed(entries, key = { _, entry -> entry.index }) { position, entry ->
-                            if (position > 0) HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = 16.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onPick(entry)
-                                        onDismiss()
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 11.dp),
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(
-                                            spendingAddressDisplayLabel(entry.index, entry.label),
-                                            color = colors.textPrimary,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 15.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        if (entry.isCurrent) {
-                                            Text(
-                                                stringResource(R.string.primary),
-                                                color = KaspaTeal,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 11.sp,
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .background(KaspaTeal.copy(alpha = 0.15f))
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                            )
-                                        }
-                                    }
-                                    Text(
-                                        "${entry.address.take(14)}...${entry.address.takeLast(6)}",
-                                        color = colors.textSecondary,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
+                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                    Column(Modifier.fillMaxWidth().fillMaxHeight()) {
+                        IosSheetNavBar(
+                            title = title,
+                            leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = onDismiss) },
+                        )
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            val chatting = chattingAddress
+                            if (chatting != null) {
+                                OwnAddressPickerSectionHeader(stringResource(R.string.chatting_address))
+                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
+                                    OwnAddressPickerRow(
+                                        title = stringResource(R.string.chatting_address),
+                                        address = chatting,
+                                        balance = chattingBalance,
+                                        used = used[chatting],
+                                        isSelected = chatting == selected,
+                                        onClick = { pick(SendSource.Chatting) },
                                     )
                                 }
-                                Text(
-                                    "${ChatRepository.formatKas(entry.balanceSompi)} ${KaspaUnit.symbol}",
-                                    color = if (entry.balanceSompi > 0) colors.textPrimary else colors.textSecondary,
-                                    fontSize = 15.sp,
-                                    style = TextStyle(fontFeatureSettings = "tnum"),
-                                )
-                                if (entry.index == currentIndex) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                                Box(Modifier.size(12.dp))
+                            }
+                            OwnAddressPickerSectionHeader(stringResource(R.string.pr_spending_addresses))
+                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
+                                if (entries.isEmpty() && !loaded) {
+                                    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
+                                        com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
+                                    }
+                                } else {
+                                    entries.forEachIndexed { i, entry ->
+                                        if (i > 0) IosListRowDivider()
+                                        val label = spendingAddressDisplayLabel(entry.index, entry.label)
+                                        OwnAddressPickerRow(
+                                            title = label,
+                                            address = entry.address,
+                                            balance = entry.balanceSompi,
+                                            used = used[entry.address],
+                                            isSelected = entry.address == selected,
+                                            onClick = { pick(SendSource.Spending(entry.index, entry.address, label)) },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun OwnAddressPickerSectionHeader(title: String) {
+    Text(
+        title.uppercase(),
+        color = LocalAppColors.current.textSecondary,
+        fontSize = 13.sp,
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+    )
+}
+
+@Composable
+private fun OwnAddressPickerRow(
+    title: String,
+    address: String,
+    balance: Long?,
+    used: Boolean?,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    title,
+                    color = colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                OwnAddressUsedTag(used)
+            }
+            Text(
+                if (address.length > 20) "${address.take(14)}...${address.takeLast(6)}" else address,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+            )
+        }
+        if (balance != null) {
+            Text(
+                "${KaspaUnit.plain(balance)} ${KaspaUnit.symbol}",
+                color = if (balance > 0L) colors.textPrimary else colors.textSecondary,
+                fontSize = 15.sp,
+                maxLines = 1,
+                style = TextStyle(fontFeatureSettings = "tnum"),
+            )
+        }
+        if (isSelected) {
+            Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Used / Unused, or Checking while the lookup is out (iOS `usedTag`, 338d9f5). */
+@Composable
+private fun OwnAddressUsedTag(used: Boolean?) {
+    val colors = LocalAppColors.current
+    when (used) {
+        true -> Text(
+            stringResource(R.string.pr_used),
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(colors.textSecondary.copy(alpha = 0.15f))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+        false -> Text(
+            stringResource(R.string.pr_unused),
+            color = colors.success,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(colors.success.copy(alpha = 0.15f))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+        null -> Text(
+            stringResource(R.string.pr_checking),
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
     }
 }
 

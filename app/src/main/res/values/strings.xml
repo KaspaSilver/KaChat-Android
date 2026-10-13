@@ -232,7 +232,6 @@
     <string name="local_storage_used">Local storage used</string>
     <string name="log_out">Log Out</string>
     <string name="longer_retention_means_more_messages_stay">Longer retention means more messages stay cached on your device, which can slow the app down over time, especially for busy rooms.</string>
-    <string name="make_active_address">Make Active Address</string>
     <string name="manage_addresses">Manage Addresses</string>
     <string name="max">Max</string>
     <string name="menu">Customize Dock</string>
@@ -329,11 +328,9 @@
     <string name="select_chat">Select chat</string>
     <string name="selected">Selected</string>
     <string name="send">Send</string>
-    <string name="send_all_kaspa_to_primary_spend">Send All Kaspa To Primary Spend Address</string>
     <string name="send_from_cold_storage">Send from Cold Storage</string>
     <string name="send_photo">Send photo</string>
     <string name="sending">Sending</string>
-    <string name="sends_every_other_spending_address_s">Sends every other spending address\'s balance to your currently starred one. Each address with a balance is its own real transaction, so this may take a few moments.</string>
     <string name="sent">Sent</string>
     <string name="settings">Settings</string>
     <string name="show_more">Show More</string>
@@ -341,7 +338,6 @@
     <string name="show_qr_code">Show QR Code</string>
     <string name="skip">Skip</string>
     <string name="some_changes_failed_to_save">Some changes failed to save:</string>
-    <string name="spending_kaspa_on_kachat_will_come">Spending Kaspa on KaChat will come out of this address only now. Any Kaspa still sitting on your current spending address will be sent to this new one automatically.</string>
     <string name="start_a_new_chat_by_adding">Start a new chat by adding a contact</string>
     <string name="status">Status</string>
     <string name="still_indexing_it_ll_show_up">Still indexing. It\'ll show up above shortly.</string>
@@ -453,7 +449,6 @@
     <string name="send_handshake">Send Handshake</string>
     <string name="handshake_sent">Handshake sent</string>
     <string name="send_photo_2">Send Photo</string>
-    <string name="set_as_primary_address">Set as Primary Address</string>
     <string name="setup_guide">Setup Guide</string>
     <string name="show_fee_estimate">Show Fee Estimate</string>
     <string name="sound_vibration">Sound &amp; Vibration</string>
@@ -1029,13 +1024,12 @@
     <string name="slide_to_consolidate">Slide to Consolidate</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Send From</string>
-    <string name="send_from_hint">Choose which spending address to send from</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Pinned to the front</string>
     <string name="chats_unpinned">Unpinned</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Send Kaspa</string>
-    <string name="chats_send_kaspa_hint">Send Kaspa from your spending address.</string>
+    <string name="chats_send_kaspa_hint">Send Kaspa from any of your addresses.</string>
     <string name="spending_address_unlocking">Spending address is unlocking — go back and try again.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Pin to Front</string>
@@ -1149,9 +1143,6 @@
     <string name="kn_keep_open_claiming">Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tip</string>
-    <string name="tip_goes_to_fresh_address">Goes to a fresh private address they shared</string>
-    <string name="tip_goes_to_public_address">Goes to their public chatting address</string>
-    <string name="available_amount_kas">available: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Names Registered</string>
     <string name="ks_kachat_renewals">Name Renewals</string>
@@ -1241,7 +1232,6 @@
     <string name="node_endpoint_copied">Node endpoint copied.</string>
     <string name="clear">Clear</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Something Went Wrong</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Expires soon</string>
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->

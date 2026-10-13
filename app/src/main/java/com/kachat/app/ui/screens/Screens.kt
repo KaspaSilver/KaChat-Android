@@ -97,6 +97,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -263,8 +264,6 @@ fun ChatThreadScreen(
     val revealedPhotoTxIds by chatViewModel.revealedPhotoTxIds.collectAsState()
 
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
-    val spendingBalance by walletViewModel.spendingBalance.collectAsState()
-    val spendingBalanceSompi by walletViewModel.spendingBalanceSompi.collectAsState()
     val myKnsProfile by walletViewModel.knsProfile.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     val handshakeAcceptInFlight by chatViewModel.handshakeAcceptInFlight.collectAsState()
@@ -334,11 +333,11 @@ fun ChatThreadScreen(
      *  Explorer, Copy Transaction ID). It replaced the sent-confirmation sheet after a chat
      *  payment (iOS 80a6aae). */
     var paymentDetailMessage by remember { mutableStateOf<MessageEntity?>(null) }
-    /** The spending address this payment comes from, when not the primary (Chats Payment Privacy
-     *  on): picked from the sheet's Available pill. null = the primary. Resets each time the
-     *  sheet opens; the primary itself never changes (iOS dae8a01). */
-    var paymentSource by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
-    var showPaymentSourcePicker by remember { mutableStateOf(false) }
+    /** Where this payment comes from (the sheet's From, iOS 6333dd3): the chatting address, or one
+     *  picked under Choose an Address. Back to the chatting address each time the sheet opens. */
+    var paymentFrom by remember { mutableStateOf<SendSource>(SendSource.Chatting) }
+    /** The From address's balance, loaded by [SendFromSection]. */
+    var paymentFromBalanceSompi by remember { mutableStateOf<Long?>(null) }
     /** Fee speed and a custom fee, and coin control - the same controls as every Send Kaspa
      *  screen (SendFeeControls). The extra over the base fee and the picked coins go to
      *  sendPayment (iOS 62c2773). */
@@ -361,19 +360,18 @@ fun ChatThreadScreen(
         chatViewModel.setPaymentNote("")
         paymentNote = ""
         paymentError = null
-        paymentSource = null
+        paymentFrom = SendSource.Chatting
         chatViewModel.setPaymentSource(null)
         resetPaymentFeeAndCoins()
         showPaymentSheet = true
     }
     val closePaymentSheet: () -> Unit = {
         showPaymentSheet = false
-        showPaymentSourcePicker = false
         chatViewModel.setPaymentAmount("")
         chatViewModel.setPaymentNote("")
         paymentNote = ""
         paymentError = null
-        paymentSource = null
+        paymentFrom = SendSource.Chatting
         chatViewModel.setPaymentSource(null)
         resetPaymentFeeAndCoins()
     }
@@ -384,11 +382,6 @@ fun ChatThreadScreen(
             openPaymentSheet()
         }
     }
-    val paymentPrivacyOn by chatViewModel.chatsPaymentPrivacyOn.collectAsState()
-    val primarySpendingIndex by walletViewModel.primarySpendingIndex.collectAsState()
-    val paysToFreshPoolAddress by chatViewModel.paysToFreshPoolAddress.collectAsState()
-    val identityFullBalance by walletViewModel.fullBalance.collectAsState()
-    val identityBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     var showComposerMenu by remember { mutableStateOf(false) }
     // The "+" sheet's second step for Camera / Photo / Voice Message - on chain or via Nextcloud -
     // shown only while a server is connected (iOS 8b13460 ComposerSheetStep.media).
@@ -606,25 +599,10 @@ fun ChatThreadScreen(
 
     LaunchedEffect(showPaymentSheet) {
         if (showPaymentSheet) {
+            // The From's coins (the fee preview and Max price them), and the chatting balance the
+            // From section's picker lists.
             chatViewModel.refreshSpendingUtxos()
-            walletViewModel.refreshSpendingAddress()
-            // Privacy OFF funds payments from the chatting address — keep its balance fresh too.
             walletViewModel.refreshBalance()
-            chatViewModel.refreshFreshPoolIndicator(contactId)
-        }
-    }
-
-    // The Available pill tracks rotation change landing after a private-mode send: whenever an
-    // own-address balance change involves the current spending address (AddressActivityNotifier's
-    // always-on UI event, separate from its notification decision), re-fetch the shown balance.
-    LaunchedEffect(showPaymentSheet) {
-        if (!showPaymentSheet) return@LaunchedEffect
-        chatViewModel.ownAddressUtxoActivityEvents.collect { involved ->
-            val currentSpending = walletViewModel.spendingAddress.value
-            if (currentSpending == null || involved.contains(currentSpending)) {
-                walletViewModel.refreshSpendingAddress()
-                chatViewModel.refreshSpendingUtxos()
-            }
         }
     }
 
@@ -1872,28 +1850,32 @@ fun ChatThreadScreen(
             currencyCode = fiatCurrencyCode,
             note = paymentNote,
             onNoteChange = { paymentNote = it },
-            // The paying spending address's balance when Chats Payment Privacy is ON (underlined
-            // + tappable, opens Send From to pay from another spending address), chatting balance
-            // when OFF (plain, not tappable: it always pays from the chatting address) - iOS
-            // dae8a01. The pill no longer opens Manage Addresses.
-            availableText = "available: " + when {
-                !paymentPrivacyOn -> identityFullBalance
-                paymentSource != null -> "%.8f %s".format(java.util.Locale.US, paymentSource!!.balanceSompi / 100_000_000.0, KaspaUnit.symbol)
-                else -> spendingBalance
+            fromSection = {
+                SendFromSection(
+                    source = paymentFrom,
+                    onSourceChange = { picked ->
+                        if (picked != paymentFrom) {
+                            paymentFrom = picked
+                            chatViewModel.setPaymentSource(picked.spendingIndex)
+                            // Coin control and a custom fee belong to the address they were set for.
+                            paymentManualUtxos = null
+                            chatViewModel.setPaymentManualUtxos(null)
+                            paymentCustomExtraFeeSompi = null
+                            isEditingPaymentFee = false
+                        }
+                    },
+                    availableSompi = paymentFromBalanceSompi,
+                    onAvailableSompiChange = { paymentFromBalanceSompi = it },
+                    walletViewModel = walletViewModel,
+                    enabled = !paymentSending,
+                )
             },
-            availableTappable = paymentPrivacyOn,
-            onAvailableClick = { showPaymentSourcePicker = true },
-            availableSourceLabel = paymentSource?.let { spendingAddressDisplayLabel(it.index, it.label) }
-                ?: primarySpendingIndex?.let { "Address #$it" },
-            paysToFreshAddress = paysToFreshPoolAddress,
             maxKas = {
-                // Same source the send will use: the paying spending address (the picked one,
-                // else the primary) with privacy ON, chatting balance with privacy OFF - or just
-                // the coins picked in coin control. Leaves room for the base fee (KaspaWalletEngine's
-                // mass model and rate) and the speed / custom extra (iOS 62c2773), the extra worked
-                // out from Max's own base - the one here is 0 while the amount is empty.
-                val sourceBalanceSompi = if (paymentPrivacyOn) (paymentSource?.balanceSompi ?: spendingBalanceSompi) else identityBalanceSompi
-                chatViewModel.paymentMaxSompi(sourceBalanceSompi, paymentFeeTier.multiplier, paymentCustomExtraFeeSompi).toDouble() / 100_000_000.0
+                // Same source the send will use: the From address - or just the coins picked in
+                // coin control. Leaves room for the base fee (KaspaWalletEngine's mass model and
+                // rate) and the speed / custom extra (iOS 62c2773), the extra worked out from
+                // Max's own base - the one here is 0 while the amount is empty.
+                chatViewModel.paymentMaxSompi(paymentFromBalanceSompi ?: 0L, paymentFeeTier.multiplier, paymentCustomExtraFeeSompi).toDouble() / 100_000_000.0
             },
             maxRefreshKey = Triple(paymentFeeTier, paymentCustomExtraFeeSompi, paymentExtraFeeSompi),
             feeControls = {
@@ -1939,7 +1921,7 @@ fun ChatThreadScreen(
                         contactId,
                         paymentAmount,
                         paymentNote,
-                        sourceSpendingIndex = paymentSource?.index,
+                        sourceSpendingIndex = paymentFrom.spendingIndex,
                         extraFeeSompi = paymentExtraFeeSompi,
                         manualUtxos = paymentManualUtxos,
                     ) { ok, message, _ ->
@@ -1962,34 +1944,10 @@ fun ChatThreadScreen(
         )
     }
 
-    if (showPaymentSheet && showPaymentSourcePicker && paymentPrivacyOn) {
-        val primaryIndex = primarySpendingIndex
-        SpendingSourcePicker(
-            currentIndex = paymentSource?.index ?: primaryIndex ?: -1,
-            viewModel = walletViewModel,
-            onPick = { picked ->
-                // This payment only: picking the primary is the same as no pick.
-                paymentSource = if (picked.index == primaryIndex) null else picked
-                chatViewModel.setPaymentSource(paymentSource?.index)
-                // Coin control and a custom fee belong to the address they were set for.
-                paymentManualUtxos = null
-                chatViewModel.setPaymentManualUtxos(null)
-                paymentCustomExtraFeeSompi = null
-                isEditingPaymentFee = false
-            },
-            onDismiss = { showPaymentSourcePicker = false },
-        )
-    }
-
-    // Coin control on the address this payment comes from: the paying spending address with
-    // Chats Payment Privacy on (the picked one, else the primary), the chatting address off -
-    // over the Send KAS sheet, as iOS presents CoinControlView (62c2773).
+    // Coin control on the address this payment comes from (its From) - over the Send KAS sheet,
+    // as iOS presents CoinControlView (62c2773).
     if (showPaymentSheet && showPaymentCoinControl) {
-        val coinControlAddress = if (paymentPrivacyOn) {
-            paymentSource?.address ?: walletViewModel.spendingAddress.value
-        } else {
-            myAddress
-        }
+        val coinControlAddress = paymentFrom.address(myAddress)
         if (coinControlAddress != null) {
             CoinControlSheet(
                 fromAddress = coinControlAddress,
@@ -3737,11 +3695,8 @@ fun ProfileScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    val spendingAddress by viewModel.spendingAddress.collectAsState()
-    val spendingBalance by viewModel.spendingBalance.collectAsState()
-    val spendingTotalBalance by viewModel.spendingTotalBalance.collectAsState()
-    val manageAddresses by viewModel.manageAddresses.collectAsState()
-    val primarySpendingEntry = manageAddresses.firstOrNull { it.isCurrent }
+    /** Everything this account holds - Profile's Manage Addresses card (iOS 6333dd3). */
+    val accountTotalSompi by viewModel.accountTotalSompi.collectAsState()
     var showFundIdentityQr by remember { mutableStateOf(false) }
     // Its own state (not shared with any other QR overlay) so its bigger green border can't
     // accidentally affect an unrelated overlay reusing the same flag.
@@ -3764,10 +3719,8 @@ fun ProfileScreen(
             }
         }
     }
-    var showWithdrawDialog by remember { mutableStateOf(false) }
     // Donate: the Send screen, addressed to KaChat's donation address (iOS e7cc0d5, 8bc86f8).
     var showDonateSheet by remember { mutableStateOf(false) }
-    var showSpendingWithdrawDialog by remember { mutableStateOf(false) }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
 
     val knsInscribeState by viewModel.knsInscribeState.collectAsState()
@@ -3858,25 +3811,6 @@ fun ProfileScreen(
         if (tabReselectSignal.second == "profile") {
             showFundIdentityQr = false
             showAcceptPaymentQr = false
-            showWithdrawDialog = false
-        }
-    }
-
-    // Both of Profile's quick sends (Chatting Address, Spending Address) open the same
-    // full-featured send screen (coin control, fee tier, KNS resolution) as everywhere else, as a
-    // sheet of its own with Cancel leading its bar, which only Cancel closes - iOS's
-    // WithdrawKaspaView / SpendingAddressWithdrawView sheets (.interactiveDismissDisabled()).
-    if (showWithdrawDialog) {
-        IosFullSheet(onDismissed = { showWithdrawDialog = false }, swipeToDismiss = false) { close ->
-            SpendingAddressSendFlow(
-                fromAddress = address ?: "",
-                balanceSompi = identityBalanceSompi,
-                title = "Send Kaspa",
-                viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
-                onDone = close,
-                presentedAsSheet = true,
-            )
         }
     }
 
@@ -3893,21 +3827,6 @@ fun ProfileScreen(
                 onDone = close,
                 presentedAsSheet = true,
                 prefillAddress = donationAddress,
-            )
-        }
-    }
-
-    if (showSpendingWithdrawDialog && primarySpendingEntry != null) {
-        IosFullSheet(onDismissed = { showSpendingWithdrawDialog = false }, swipeToDismiss = false) { close ->
-            SpendingAddressSendFlow(
-                fromAddress = primarySpendingEntry.address,
-                balanceSompi = primarySpendingEntry.balanceSompi,
-                title = "Send Kaspa",
-                spendingIndex = primarySpendingEntry.index,
-                viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
-                onDone = close,
-                presentedAsSheet = true,
             )
         }
     }
@@ -4210,12 +4129,6 @@ fun ProfileScreen(
                 }
             }
 
-            // Compact action rows (iOS parity: ContactsView.addressDropdownsSection), one per
-            // address role. Each shows the role title with its balance, plus three icon-only
-            // circle buttons: Copy, Send, Manage. Replaces the old expanding dropdown sections
-            // that hid the exact same three actions behind a chevron tap; the rich management
-            // screens stay reachable via Manage exactly as before.
-            val addressCardClipboardManager = LocalClipboardManager.current
             // Testnet only: free TN10 coins for the chatting address, from the official faucet
             // (iOS 182ae68).
             if (com.kachat.app.util.KaspaNetwork.isTestnet && address != null) {
@@ -4225,41 +4138,13 @@ fun ProfileScreen(
                     refreshBalance = { viewModel.refreshBalanceAndAwait() },
                 )
             }
-            ProfileAddressActionCard(
-                title = "Chatting",
-                address = address,
-                balanceText = balance,
-                onCopy = {
-                    address?.let {
-                        addressCardClipboardManager.setText(AnnotatedString(it))
-                        showAddressCopiedToast(context, it)
-                    }
-                },
-                onSend = { if (address != null) showWithdrawDialog = true },
-                onManage = { if (address != null) navController.navigate("identity_address_detail") }
-            )
-
-            // Separate from the identity address above, purely for payment privacy — "Pay in
-            // Kaspa" sends always come out of this address, never the identity one above. It
-            // rotates to a freshly derived address after every send (see WalletManager's
-            // spending-address doc comment), so this always shows whichever one is current.
-            ProfileAddressActionCard(
-                title = "Spending",
-                address = spendingAddress,
-                balanceText = spendingBalance,
-                // Always shown, not only when it differs from the balance above. On a wallet
-                // whose funds all sit on the current address the two ARE the same number, and
-                // hiding the line then is exactly when its absence is most confusing - it reads
-                // as the feature being missing rather than as "nothing else to add".
-                totalText = spendingTotalBalance,
-                onCopy = {
-                    spendingAddress?.let {
-                        addressCardClipboardManager.setText(AnnotatedString(it))
-                        showAddressCopiedToast(context, it)
-                    }
-                },
-                onSend = { showSpendingWithdrawDialog = true },
-                onManage = { navController.navigate("manage_addresses") }
+            // One card for every address of this account (iOS 6333dd3 ContactsView
+            // addressDropdownsSection): it opens Manage Addresses, which lists them all, the
+            // chatting address first. Which address a send comes from is picked on the send
+            // screen (From), so Profile no longer splits Chatting from Spending.
+            ProfileManageAddressesCard(
+                totalSompi = accountTotalSompi,
+                onClick = { navController.navigate("manage_addresses") },
             )
 
             if (pendingKnsCommit != null) {
@@ -5180,9 +5065,10 @@ fun KnsDomainSendScreen(
 }
 
 /**
- * Every spending-chain address derived so far, plus the identity address shown first (grayed
- * out, tapping it warns rather than lets you copy it) — since paying the identity address
- * instead of the current spending address defeats the whole point of keeping them separate.
+ * Every address of this account (iOS 6333dd3 ManageAddressesView), reached from Profile > Manage
+ * Addresses: the chatting address first, then the spending addresses, each with its balance and
+ * whether it was used, a "generate new address" action, rename, QR, hide. Which address a send
+ * comes from is picked on the send screen itself (From), so there is no "primary" here.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -5190,93 +5076,44 @@ fun ManageAddressesScreen(
     viewModel: WalletViewModel,
     onBack: () -> Unit,
     onNavigateToTxHistory: (Int) -> Unit = {},
+    /** The chatting address's own screen (history, UTXOs, Domains, Send / Receive). */
+    onOpenChattingAddress: () -> Unit = {},
     onNavigateToHidden: () -> Unit = {},
     onNavigateToVisibility: () -> Unit = {},
     onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null,
     settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
+    val chattingAddress by viewModel.address.collectAsState()
+    val chattingBalanceSompi by viewModel.balanceSompi.collectAsState()
     val loading by viewModel.manageAddressesLoading.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    var activateIndex by remember { mutableStateOf<Int?>(null) }
     var qrAddress by remember { mutableStateOf<String?>(null) }
     var renamingEntry by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
     var renameInput by remember { mutableStateOf("") }
     var showActionsMenu by remember { mutableStateOf(false) }
-    var showConsolidateConfirm by remember { mutableStateOf(false) }
-    /// The chat-privacy address whose "move out of the pool" sheet is open.
-    var moveOutTarget by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
     val isDiscoveringAddresses by viewModel.discoveringAddresses.collectAsState()
     val discoveryProgress by viewModel.spendingDiscoveryProgress.collectAsState()
     var discoverySummary by remember { mutableStateOf<String?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
-    val consolidateState by viewModel.consolidateState.collectAsState()
 
-    // Ordering (matches iOS ManageAddressesView): the primary address first, then addresses with
-    // a balance OR an owned KNS domain (funded before domain-only, newest index first within each
-    // group), then fresh addresses. Domain knowledge fills in asynchronously, so rows may
-    // re-partition once the batched KNS lookups land.
+    // Ordering (matches iOS ManageAddressesView): addresses with a balance OR an owned KNS domain
+    // first (funded before domain-only, newest index first within each group), then fresh
+    // addresses. Domain knowledge fills in asynchronously, so rows may re-partition once the
+    // batched KNS lookups land.
     val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
-    // "Chat privacy address" rows: reserved and offered to a contact by the fresh-address
-    // payment pool. On the normal manage screen these live on their own read-only "Chat
-    // Privacy" tab instead of the main Addresses list (iOS parity); the Swap address picker
-    // variant keeps them inline with their tag. Never offered a Hide action while the offer
-    // stands. A reverted offer (revoke, superseding re-offer, or funding) leaves the set and
-    // its row moves back to the main list as a normal address again.
-    val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
-    // The Chat Privacy tab exists only while the current account's Chats Payment Privacy
-    // toggle is ON: toggle OFF releases every offered reservation (the active set is empty by
-    // definition), so the screen shows no tab row at all - just the plain Addresses list.
-    val chatsPaymentPrivacyOn by viewModel.chatsPaymentPrivacyEnabled.collectAsState()
-    // 0 = Addresses, 1 = Chat Privacy. Tabs exist only on the normal screen, not the picker.
-    var selectedManageTab by remember { mutableStateOf(0) }
-    val manageTabsVisible = onAddressPicked == null && chatsPaymentPrivacyOn
-    val showingChatPrivacyTab = manageTabsVisible && selectedManageTab == 1
-    // If the toggle flips OFF while the user is sitting on the Chat Privacy tab, land them on
-    // Addresses - the tab they were on no longer exists.
-    LaunchedEffect(chatsPaymentPrivacyOn) {
-        if (!chatsPaymentPrivacyOn) selectedManageTab = 0
-    }
-    val chatPrivacyAddresses = remember(addresses, privacyReservedAddresses) {
-        addresses.filter { it.address in privacyReservedAddresses }.sortedBy { it.index }
-    }
-    val visibleAddresses = remember(addresses, domainOwningAddresses, privacyReservedAddresses) {
-        val visible = addresses.filterNot { it.hidden || (onAddressPicked == null && it.address in privacyReservedAddresses) }
-        val primary = visible.filter { it.isCurrent }
-        val rest = visible.filterNot { it.isCurrent }
+    val visibleAddresses = remember(addresses, domainOwningAddresses) {
+        val rest = addresses.filterNot { it.hidden }
             .sortedWith(compareByDescending<com.kachat.app.services.WalletService.SpendingAddressEntry> { it.balanceSompi > 0 }.thenByDescending { it.index })
         val active = rest.filter { it.balanceSompi > 0 || it.address in domainOwningAddresses }
         val fresh = rest.filter { it.balanceSompi == 0L && it.address !in domainOwningAddresses }
-        primary + active + fresh
+        active + fresh
     }
     val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
 
     LaunchedEffect(Unit) {
         viewModel.loadManageAddresses()
-    }
-
-    // iOS's consolidateToPrimary: what was sent shows in ConsolidateSuccessCard's half sheet; a
-    // sweep that sent nothing and failed says why in a "Something Went Wrong" alert.
-    val consolidateExplorer by viewModel.kaspaExplorer.collectAsState()
-    if (consolidateState.status == WalletViewModel.ConsolidateStatus.SUCCESS) {
-        ConsolidateSuccessSheet(
-            txIds = consolidateState.txIds,
-            explorer = consolidateExplorer,
-            onDismiss = { viewModel.resetConsolidateState() },
-        )
-    }
-    if (consolidateState.status == WalletViewModel.ConsolidateStatus.FAILED) {
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { viewModel.resetConsolidateState() },
-            title = { Text(stringResource(R.string.something_went_wrong_title), color = LocalAppColors.current.textPrimary) },
-            text = { Text(consolidateState.errorMessage.orEmpty(), color = LocalAppColors.current.textPrimary) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.resetConsolidateState() }) {
-                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.SemiBold)
-                }
-            },
-        )
     }
 
     // Pull-to-refresh owns its spinner end-to-end (same pattern as the Profile and Domains
@@ -5337,35 +5174,10 @@ fun ManageAddressesScreen(
                     }
                 },
                 onVisibility = { showActionsMenu = false; onNavigateToVisibility() },
-                onConsolidate = { showActionsMenu = false; showConsolidateConfirm = true },
                 onDismiss = { showActionsMenu = false; discoverySummary = null },
             )
         }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-        // Top-of-screen tab switch, same TabRow treatment as the address-details screen's
-        // History/UTXOs/KNS Domains tabs. "Addresses" is the normal spending-address list;
-        // "Chat Privacy" is the read-only view of addresses actively offered to contacts as
-        // Chats Payment Privacy pool reservations. The Swap address picker keeps the plain
-        // list, and so does an account whose Chats Payment Privacy toggle is OFF (no tabs
-        // at all - see manageTabsVisible).
-        if (manageTabsVisible) {
-            TabRow(
-                selectedTabIndex = selectedManageTab,
-                containerColor = LocalAppColors.current.background,
-                contentColor = KaspaTeal
-            ) {
-                Tab(
-                    selected = selectedManageTab == 0,
-                    onClick = { selectedManageTab = 0 },
-                    text = { Text("Addresses") }
-                )
-                Tab(
-                    selected = selectedManageTab == 1,
-                    onClick = { selectedManageTab = 1 },
-                    text = { Text("Chat Privacy") }
-                )
-            }
-        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -5373,10 +5185,8 @@ fun ManageAddressesScreen(
                 // translating one full container-height above its own position via graphicsLayer,
                 // and graphicsLayer translation does NOT clip. On screens whose pull Box is the
                 // first child under the Scaffold padding, that resting gray circle lands in the
-                // top-app-bar band and the opaque app bar draws over it - but here the Chat
-                // Privacy TabRow sits above this Box, so without a clip the resting circle drew
-                // right over the tab row, parked there with no pull in progress. clipToBounds
-                // keeps the indicator inside this Box: invisible at rest, revealed by a real pull.
+                // top-app-bar band and the opaque app bar draws over it. clipToBounds keeps the
+                // indicator inside this Box: invisible at rest, revealed by a real pull.
                 .clipToBounds()
                 .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
@@ -5385,7 +5195,7 @@ fun ManageAddressesScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (!showingChatPrivacyTab) {
+            run {
                 // This account's own switch (a cold-storage account has one in its own menu):
                 // the spending addresses' receives, not every address the wallet watches
                 // (iOS ba352a2).
@@ -5419,68 +5229,11 @@ fun ManageAddressesScreen(
                     }
                 }
             }
-            if (showingChatPrivacyTab) {
-                // Read-only viewer for addresses currently offered to contacts in LIVE Chats
-                // Payment Privacy pools. Rows expose only Copy Address and Show QR Code; the
-                // offer lifecycle (revoke/supersede/fund) manages these rows, not the user.
-                item {
-                    Text(
-                        "These are fresh addresses offered to your contacts for private payments. Each contact gets their own, so your payment history stays unlinkable. KaChat keeps at least 2 fresh addresses per chat and replaces them as they are used.",
-                        fontSize = 13.sp,
-                        color = LocalAppColors.current.textSecondary,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)
-                    )
-                }
-                if (loading && addresses.isEmpty()) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                } else if (chatPrivacyAddresses.isEmpty()) {
-                    item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 40.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Default.Shield,
-                                contentDescription = null,
-                                tint = LocalAppColors.current.textSecondary,
-                                modifier = Modifier.size(40.dp)
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                "No Chat Privacy Addresses",
-                                color = LocalAppColors.current.textPrimary,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "When you chat with someone while Chats Payment Privacy is on, the fresh addresses offered to them appear here.",
-                                color = LocalAppColors.current.textSecondary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                } else {
-                    items(chatPrivacyAddresses, key = { it.index }) { entry ->
-                        ChatPrivacyAddressRow(
-                            entry = entry,
-                            onOpenActions = { moveOutTarget = entry },
-                        )
-                    }
-                }
-            } else {
             // Total, then the actions button directly under it rather than a FAB floating over
             // the list: the actions are about this account, so they belong with it, and the FAB
-            // covered the last address row on a short list. Same shape as Cold Storage.
-            // Deliberately excludes the chatting address - that one funds message and inscription
-            // fees and is kept separate on purpose, so folding it in would make the number mean
-            // nothing in particular.
+            // covered the last address row on a short list. Same shape as Cold Storage. The total
+            // is everything this account holds: the chatting address and the visible spending
+            // addresses (iOS 6333dd3).
             if (onAddressPicked == null) {
                 item {
                     Column(
@@ -5492,7 +5245,7 @@ fun ManageAddressesScreen(
                     ) {
                         Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         Text(
-                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, visibleAddresses.sumOf { it.balanceSompi } / 100_000_000.0),
+                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (chattingBalanceSompi + visibleAddresses.sumOf { it.balanceSompi }) / 100_000_000.0),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
@@ -5500,7 +5253,7 @@ fun ManageAddressesScreen(
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { showActionsMenu = true },
-                            enabled = !isDiscoveringAddresses && consolidateState.status != WalletViewModel.ConsolidateStatus.RUNNING,
+                            enabled = !isDiscoveringAddresses,
                             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
                             shape = RoundedCornerShape(28.dp),
                             modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -5512,6 +5265,18 @@ fun ManageAddressesScreen(
                             }
                         }
                     }
+                }
+            }
+            // The chatting address, first in the list: it opens its own screen (history, UTXOs,
+            // Domains, Send / Receive), the same one Profile used to.
+            val chatting = chattingAddress
+            if (onAddressPicked == null && chatting != null) {
+                item {
+                    ManageChattingAddressRow(
+                        address = chatting,
+                        balanceSompi = chattingBalanceSompi,
+                        onClick = onOpenChattingAddress,
+                    )
                 }
             }
             if (onAddressPicked != null) {
@@ -5561,26 +5326,20 @@ fun ManageAddressesScreen(
                     ManageAddressRow(
                         entry = entry,
                         showsDomainTag = entry.address in domainOwningAddresses,
-                        showsPrivacyTag = entry.address in privacyReservedAddresses,
                         onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
                         onCopyClick = {
                             clipboardManager.setText(AnnotatedString(entry.address))
                             showAddressCopiedToast(context, entry.address)
                         },
                         onQrClick = { qrAddress = entry.address },
-                        onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
                         onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
                         onHideClick = {
-                            // iOS hideAddress: the menu offers Hide only for an unfunded,
-                            // non-primary, non-reserved address; the setter re-checks all three
-                            // and its refusal says why.
+                            // iOS hideAddress: the menu offers Hide only for an unfunded address
+                            // that is not the current one; the setter re-checks and its refusal
+                            // says so.
                             viewModel.setManageAddressHidden(entry.index, true) { ok ->
-                                when {
-                                    ok -> IosToasts.show("Address hidden. Re-enable it in Address Visibility.")
-                                    entry.address in privacyReservedAddresses ->
-                                        IosToasts.show("This address is offered to a contact for private payments and stays visible.")
-                                    else -> IosToasts.show("This address can't be hidden.")
-                                }
+                                if (ok) IosToasts.show("Address hidden. Re-enable it in Address Visibility.")
+                                else IosToasts.show("This address can't be hidden.")
                             }
                         }
                     )
@@ -5589,7 +5348,6 @@ fun ManageAddressesScreen(
 
             item {
                 Spacer(Modifier.height(24.dp))
-            }
             }
         }
 
@@ -5609,54 +5367,6 @@ fun ManageAddressesScreen(
         }
         }
         }
-    }
-
-    moveOutTarget?.let { entry ->
-        ChatPrivacyAddressActionsSheet(
-            entry = entry,
-            onMoveOut = { viewModel.releaseChatPrivacyAddress(entry.address) },
-            onCopy = {
-                clipboardManager.setText(AnnotatedString(entry.address))
-                showAddressCopiedToast(context, entry.address)
-            },
-            onShowQr = { qrAddress = entry.address },
-            onDismiss = { moveOutTarget = null },
-        )
-    }
-
-    activateIndex?.let { index ->
-        ActivateAddressDialog(viewModel = viewModel, index = index, onDismiss = { activateIndex = null })
-    }
-
-    if (showConsolidateConfirm) {
-        val consolidating = consolidateState.status == WalletViewModel.ConsolidateStatus.RUNNING
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { if (!consolidating) showConsolidateConfirm = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.send_all_kaspa_to_primary_spend), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    stringResource(R.string.sends_every_other_spending_address_s),
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !consolidating,
-                    onClick = {
-                        viewModel.consolidateSpendingAddresses()
-                        showConsolidateConfirm = false
-                    }
-                ) {
-                    Text(stringResource(R.string.confirm), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(enabled = !consolidating, onClick = { showConsolidateConfirm = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
     }
 
     renamingEntry?.let { entry ->
@@ -5737,7 +5447,6 @@ fun ManageAddressesHiddenScreen(
     val addresses by viewModel.manageAddresses.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    var activateIndex by remember { mutableStateOf<Int?>(null) }
     var qrAddress by remember { mutableStateOf<String?>(null) }
     var renamingEntry by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
     var renameInput by remember { mutableStateOf("") }
@@ -5798,7 +5507,6 @@ fun ManageAddressesHiddenScreen(
                                 showAddressCopiedToast(context, entry.address)
                             },
                             onQrClick = { qrAddress = entry.address },
-                            onActivateClick = { if (!entry.isCurrent) activateIndex = entry.index },
                             onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
                         )
                     }
@@ -5808,10 +5516,6 @@ fun ManageAddressesHiddenScreen(
                 }
             }
         }
-    }
-
-    activateIndex?.let { index ->
-        ActivateAddressDialog(viewModel = viewModel, index = index, onDismiss = { activateIndex = null })
     }
 
     renamingEntry?.let { entry ->
@@ -5833,8 +5537,7 @@ fun ManageAddressesHiddenScreen(
  * EVERY spending address, paged 50 at a time, so dozens can be toggled off the main Manage
  * Addresses list in one sitting. The right arrow never runs out: future pages derive addresses
  * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
- * intermediate indices hidden. The primary, funded addresses, and addresses offered to a contact
- * for private payments ("Chat privacy address") are locked visible.
+ * intermediate indices hidden. The primary and funded addresses are locked visible.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -5844,8 +5547,6 @@ fun AddressVisibilityScreen(
 ) {
     val context = LocalContext.current
     val addresses by viewModel.manageAddresses.collectAsState()
-    // Chat-privacy pool reservations: locked visible (like primary/funded) and tagged.
-    val privacyReservedAddresses by viewModel.privacyReservedAddresses.collectAsState()
     var page by remember { mutableStateOf(0) }
     val pageSize = 50
     val byIndex = remember(addresses) { addresses.associateBy { it.index } }
@@ -5861,10 +5562,6 @@ fun AddressVisibilityScreen(
 
     val start = page * pageSize
     val end = start + pageSize - 1
-    // Active chat-privacy reservations DO get a checklist row: shown checked with an inert
-    // checkbox (they cannot be unchecked - tapping explains why) and the "Chat privacy address"
-    // tag. They still stay OFF the main Addresses list (the Chat Privacy tab owns them there);
-    // this checklist is the complete per-index map, so hiding rows here read as gaps.
     // Addresses for rows the loaded list does not cover, derived OFF the main thread and once
     // per page.
     //
@@ -5967,22 +5664,18 @@ fun AddressVisibilityScreen(
         ) {
             items(pageEntries, key = { it.index }) { entry ->
                 val funded = entry.balanceSompi > 0
-                val reserved = entry.address.isNotEmpty() && entry.address in privacyReservedAddresses
-                // Reserved rows always render checked: an actively offered chat-privacy address
-                // is locked visible whatever a (stale) hidden flag or a mid-load race says.
-                val visible = reserved || (entry.index <= listMax && !entry.hidden)
+                val visible = entry.index <= listMax && !entry.hidden
                 // Used-state comes from the page's own sweep below, not a per-row effect: fifty
                 // rows each launching their own history probe fired fifty requests the moment a
                 // page appeared, which is the other half of what made this screen unusable.
                 val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
                 // The WHOLE row toggles, not just the checkmark.
-                // iOS's toggle: a locked row (the primary, or a funded or offered address while
-                // visible) does nothing, and a hide the setter refuses leaves the row as it was -
-                // the dimmed checkmark already says it is locked.
+                // iOS's toggle: a locked row (the primary, or a funded address while visible) does
+                // nothing, and a hide the setter refuses leaves the row as it was - the dimmed
+                // checkmark already says it is locked.
                 val toggleVisibility: () -> Unit = {
                     when {
                         entry.isCurrent -> Unit
-                        reserved && visible -> Unit
                         funded && visible -> Unit
                         entry.index > listMax ->
                             viewModel.revealSpendingAddress(entry.index)
@@ -6034,15 +5727,6 @@ fun AddressVisibilityScreen(
                     }
                     Spacer(Modifier.width(8.dp))
                     when {
-                        // The tag mirrors the lock order above. A funded reservation leaves the
-                        // active set (reserved is false), so it falls through to the balance
-                        // display and stays locked through the funded rule instead.
-                        reserved -> Text(
-                            "Chat privacy address",
-                            color = KaspaTeal,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                         funded -> Text(
                             "%.4f ${KaspaUnit.symbol}".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
                             color = KaspaTeal,
@@ -6062,47 +5746,16 @@ fun AddressVisibilityScreen(
     }
 }
 
-/** "Make Active Address" confirmation — shared by [ManageAddressesScreen] and [ManageAddressesHiddenScreen]. */
-@Composable
-private fun ActivateAddressDialog(viewModel: WalletViewModel, index: Int, onDismiss: () -> Unit) {
-    com.kachat.app.ui.theme.IosAlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = LocalAppColors.current.surface,
-        title = { Text(stringResource(R.string.make_active_address), color = LocalAppColors.current.textPrimary) },
-        text = {
-            Text(
-                stringResource(R.string.spending_kaspa_on_kachat_will_come),
-                color = LocalAppColors.current.textSecondary
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                viewModel.setActiveSpendingAddress(index)
-                onDismiss()
-            }) {
-                Text(stringResource(R.string.confirm), color = KaspaTeal, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-            }
-        }
-    )
-}
-
 /**
- * Full-screen send flow shared by every address this wallet can sign locally with: a specific
- * spending-chain address (pass [spendingIndex]) or the identity/chatting address (leave
- * [spendingIndex] null) — used from [SpendingAddressTxHistoryScreen]'s Send button and both of
- * [ProfileScreen]'s quick-send entry points ("Chatting Address" and "Spending Address"), so all
- * three open the exact same screen instead of each having their own bare-bones popup. Visually
- * mirrors [ColdSendFlow]'s full-screen layout (scrollable form, in-column primary button,
- * segmented [ColdFeeTier] picker, Coin Control row) and iOS's `SpendingAddressWithdrawView`/
- * `WithdrawKaspaView` field-for-field — but signs and broadcasts directly via
- * [WalletViewModel.withdrawFromSpendingAddress]/[WalletViewModel.onSendClicked] (this wallet
- * already holds the private key for either address), never the external-QR-signer round trip
- * [ColdSendFlow] uses for watch-only keys.
+ * Send Kaspa (iOS `WithdrawKaspaView`): Chats > + > Send Kaspa, Donate, the Address Book, an
+ * address's Send, paying a payment request - and, in [isCompoundMode], Compound UTXOs for one
+ * address. Every send but Compound starts with From ([SendFromSection], iOS 6333dd3): Chatting
+ * Address (the default) or Choose an Address. Fees, Max, coin control and the send follow the
+ * chosen address: the chatting address signs with the identity key
+ * ([WalletViewModel.onSendClicked]), a spending address with its own key
+ * ([WalletViewModel.withdrawFromSpendingAddress]); a payment request to a chatting address is a
+ * chat payment from the chosen address. Never the external-QR-signer round trip [ColdSendFlow]
+ * uses for watch-only keys.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -6112,10 +5765,8 @@ fun SpendingAddressSendFlow(
     title: String,
     viewModel: WalletViewModel,
     onDone: () -> Unit,
-    // Which spending-chain address index to sign with, or null for the identity address - the
-    // only two send paths this wallet can sign locally with (see WalletViewModel.onSendClicked/
-    // withdrawFromSpendingAddress). Everything else about this screen (coin control, fee tier,
-    // KNS resolution) is identical either way.
+    // Compound UTXOs only: the spending-chain index of [fromAddress], or null for the chatting
+    // address. Every other send picks its address under From.
     spendingIndex: Int? = null,
     // Pre-fills the recipient with fromAddress itself (a self-send) and auto-fills Max, for the
     // "Compound UTXOs" entry point - merges every UTXO at this address into one. Locks the
@@ -6134,8 +5785,7 @@ fun SpendingAddressSendFlow(
     prefillAddress: String? = null,
     /** Someone's payment request (a tapped or pasted link, iOS c6851d6 `WithdrawKaspaView
      *  (paymentRequest:)`): its address is locked in, its amount and memo filled in. A request
-     *  pasted into the recipient field does the same. Only from the chatting address (no
-     *  [spendingIndex]). */
+     *  pasted into the recipient field does the same (not in Compound). */
     paymentRequest: com.kachat.app.models.PaymentRequest? = null,
     /** Pays a chatting-address request as a chat payment (the memo encrypted to them inside it);
      *  null takes the app's own (the activity's), as every iOS send screen has ChatService. */
@@ -6191,19 +5841,14 @@ fun SpendingAddressSendFlow(
         fiatAmountState.setExactKas(request.amountText, fiatPriceInCurrency)
     }
 
-    // The spending address this send comes from: [spendingIndex] / [fromAddress] (the primary
-    // from Profile, or the address opened from Manage Addresses), unless another was picked from
-    // the Available pill for this one send. The primary itself doesn't change: the send goes
-    // through withdrawFromSpendingAddress with the picked index, which rotates the primary only
-    // when that index IS the primary (iOS e994235). Compound UTXOs keeps its one address.
-    var chosenSource by remember { mutableStateOf<com.kachat.app.services.WalletService.SpendingAddressEntry?>(null) }
-    var showSourcePicker by remember { mutableStateOf(false) }
-    val sourceIndex = chosenSource?.index ?: spendingIndex
-    val sourceAddress = chosenSource?.address ?: fromAddress
-    val sourceBalanceSompi = chosenSource?.balanceSompi ?: balanceSompi
-    // The opening address's nickname, for the pill's "Address #N" (iOS displayLabel).
-    val addressRows by viewModel.manageAddresses.collectAsState()
-    val spendingLabel = spendingIndex?.let { index -> addressRows.firstOrNull { it.index == index }?.label }
+    // Where the Kaspa leaves from (the From section, iOS 6333dd3): the chatting address by
+    // default. Compound UTXOs has no From - it merges [fromAddress] ([spendingIndex]) itself.
+    var source by remember { mutableStateOf<SendSource>(SendSource.Chatting) }
+    /** The From address's balance, loaded by [SendFromSection]. */
+    var sourceBalanceSompi by remember { mutableStateOf<Long?>(null) }
+    val chattingAddress by viewModel.address.collectAsState()
+    val sourceIndex = if (isCompoundMode) spendingIndex else source.spendingIndex
+    val sourceAddress = if (isCompoundMode) fromAddress else (source.address(chattingAddress) ?: fromAddress)
 
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
@@ -6489,22 +6134,25 @@ fun SpendingAddressSendFlow(
             val recipient = effectiveAddress.trim()
             // No rate override: the engine prices the base at the live quote, and the speed or
             // custom fee goes on top as the flat extra shown (SendFeeModel).
-            if (request != null && request.toChattingAddress && request.address.equals(recipient, ignoreCase = true) &&
-                sourceIndex == null && requestChatViewModel != null
+            if (request != null && !isCompoundMode && request.toChattingAddress && request.address.equals(recipient, ignoreCase = true) &&
+                requestChatViewModel != null
             ) {
-                // A chatting address (iOS c6851d6): a chat payment, the memo encrypted to them
-                // inside it - it lands in your chat with them like any payment from the chat. With
-                // no contact to pay as (one of your own accounts) it goes as a plain send.
+                // A chatting address (iOS c6851d6): a chat payment from the From address, the memo
+                // encrypted to them inside it - it lands in your chat with them like any payment
+                // from the chat (iOS 6333dd3 sendPayment(sourceSpendingIndex:)). With no contact to
+                // pay as (one of your own accounts) it goes as a plain send from the same address.
                 viewModel.sends.start(sendId)
                 val sompi = it
                 val extra = extraFeeSompi
                 val utxos = manualUtxos
+                val fromIndex = sourceIndex
                 coroutineScope.launch {
                     if (requestChatViewModel.ensurePaymentRequestContact(recipient)) {
                         requestChatViewModel.sendPayment(
                             contactId = recipient,
                             amount = KaspaUnit.plain(sompi),
                             note = request.memo,
+                            sourceSpendingIndex = fromIndex,
                             extraFeeSompi = extra,
                             manualUtxos = utxos,
                         ) { ok, error, txId ->
@@ -6514,14 +6162,16 @@ fun SpendingAddressSendFlow(
                                 else Result.failure(IllegalStateException(error ?: context.getString(R.string.withdrawal_failed)))
                             )
                         }
+                    } else if (fromIndex != null) {
+                        viewModel.withdrawFromSpendingAddress(sendId, fromIndex, recipient, sompi, feeRateOverride = null, manualUtxos = utxos, extraFeeSompi = extra)
                     } else {
                         viewModel.onSendClicked(sendId, recipient, sompi, feeRateOverride = null, manualUtxos = utxos, extraFeeSompi = extra)
                     }
                 }
             } else if (sourceIndex != null) {
-                viewModel.withdrawFromSpendingAddress(sendId, sourceIndex, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
+                viewModel.withdrawFromSpendingAddress(sendId, sourceIndex, recipient, it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             } else {
-                viewModel.onSendClicked(sendId, effectiveAddress.trim(), it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
+                viewModel.onSendClicked(sendId, recipient, it, feeRateOverride = null, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
             }
         }
     }
@@ -6537,9 +6187,6 @@ fun SpendingAddressSendFlow(
                         when {
                             isCompoundMode -> stringResource(R.string.compound_utxos)
                             activeRequest != null -> stringResource(R.string.pr_payment_request)
-                            // A spending address's Send names the address it sends from, and
-                            // follows the source picked here (iOS e994235).
-                            sourceIndex != null -> "Send Kaspa from Address #$sourceIndex"
                             else -> title
                         },
                         color = LocalAppColors.current.textPrimary,
@@ -6579,12 +6226,29 @@ fun SpendingAddressSendFlow(
             verticalArrangement = Arrangement.spacedBy(18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (!isCompoundMode) {
+                SendFromSection(
+                    source = source,
+                    onSourceChange = { picked ->
+                        if (picked != source) {
+                            source = picked
+                            // coins picked on one address can't pay from another
+                            manualUtxos = null
+                        }
+                    },
+                    availableSompi = sourceBalanceSompi,
+                    onAvailableSompiChange = { sourceBalanceSompi = it },
+                    walletViewModel = viewModel,
+                    enabled = !isSending,
+                )
+            }
+
             SendRecipientCard(
                 input = recipientInput,
                 onInputChange = { input ->
-                    // A payment request pasted in fills in everything it carries (iOS c6851d6) -
-                    // on the chatting address's Send, as iOS's WithdrawKaspaView.
-                    val pasted = if (isCompoundMode || spendingIndex != null) null
+                    // A payment request pasted in fills in everything it carries (iOS c6851d6),
+                    // as iOS's WithdrawKaspaView.
+                    val pasted = if (isCompoundMode) null
                     else (KaChatLink.findFirst(input.trim())?.ref as? KaChatLinkRef.PaymentRequest)?.request
                     if (pasted != null) applyRequest(pasted) else recipientInput = input
                 },
@@ -6613,29 +6277,10 @@ fun SpendingAddressSendFlow(
                 modifier = Modifier.padding(top = 8.dp),
             )
 
-            if (spendingIndex == null) {
+            // Compound UTXOs has no From (it merges this one address); the balance shows here.
+            if (isCompoundMode) {
                 SendInfoPill {
                     Text(KaspaUnit.label("Available: ${ChatRepository.formatKas(balanceSompi)} KAS"))
-                }
-            } else {
-                // "Available: X KAS · Address #N ⌄": tap to send from a different spending
-                // address (not in Compound, which is about this one address) - iOS e994235.
-                val sourceLabel = chosenSource?.let { spendingAddressDisplayLabel(it.index, it.label) }
-                    ?: spendingAddressDisplayLabel(spendingIndex, spendingLabel)
-                val pickerHint = stringResource(R.string.send_from_hint)
-                SendInfoPill(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable(enabled = !isCompoundMode && !isSending, onClickLabel = pickerHint, role = androidx.compose.ui.semantics.Role.Button) {
-                            showSourcePicker = true
-                        },
-                ) {
-                    Text(KaspaUnit.label("Available: ${ChatRepository.formatKas(sourceBalanceSompi)} KAS"), maxLines = 1)
-                    Text("·")
-                    Text(sourceLabel, maxLines = 1)
-                    if (!isCompoundMode) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(14.dp))
-                    }
                 }
             }
 
@@ -6674,21 +6319,6 @@ fun SpendingAddressSendFlow(
                 onSend = send,
             )
         }
-    }
-
-    if (showSourcePicker && sourceIndex != null) {
-        SpendingSourcePicker(
-            currentIndex = sourceIndex,
-            viewModel = viewModel,
-            onPick = { picked ->
-                chosenSource = picked
-                // Coin control and the fee belong to the address they were set for.
-                manualUtxos = null
-                customExtraFeeSompi = null
-                isEditingFee = false
-            },
-            onDismiss = { showSourcePicker = false },
-        )
     }
 }
 
@@ -6788,8 +6418,12 @@ fun SpendingAddressTxHistoryScreen(
     }
 
     // Send and Compound are sheets over this screen that only Cancel closes, as iOS presents
-    // SpendingAddressWithdrawView (.interactiveDismissDisabled()).
-    if (showWithdraw && entry != null) {
+    // them (.interactiveDismissDisabled()). Send is the Send Kaspa every send is (iOS 6333dd3):
+    // From starts at the Chatting Address, and this address is under Choose an Address.
+    val sendChattingAddress by viewModel.address.collectAsState()
+    val sendChattingBalance by viewModel.balanceSompi.collectAsState()
+    val sendFrom = sendChattingAddress
+    if (showWithdraw && entry != null && sendFrom != null) {
         IosFullSheet(
             onDismissed = {
                 showWithdraw = false
@@ -6799,10 +6433,9 @@ fun SpendingAddressTxHistoryScreen(
             swipeToDismiss = false,
         ) { close ->
             SpendingAddressSendFlow(
-                fromAddress = entry.address,
-                balanceSompi = entry.balanceSompi,
-                title = "Send from Address #${entry.index}",
-                spendingIndex = entry.index,
+                fromAddress = sendFrom,
+                balanceSompi = sendChattingBalance,
+                title = "Send Kaspa",
                 viewModel = viewModel,
                 portfolioViewModel = portfolioViewModel,
                 onDone = close,
@@ -8003,17 +7636,12 @@ private fun ManageAddressRow(
     onClick: () -> Unit,
     onCopyClick: () -> Unit,
     onQrClick: () -> Unit,
-    onActivateClick: () -> Unit,
     onRenameClick: () -> Unit,
     /** Row-menu "Hide Address" (iOS parity) — same flag the Address Visibility checklist edits.
      *  Null hides the menu entry (e.g. the picker variant of this row). */
     onHideClick: (() -> Unit)? = null,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false,
-    /** "Chat privacy address" tag — this address is reserved and currently offered to a contact
-     *  for private payments (fresh-address payment pool). Such rows never offer Hide; the
-     *  authoritative refusal lives in the pool-store-backed guards below the UI. */
-    showsPrivacyTag: Boolean = false
 ) {
     val kas = entry.balanceSompi / 100_000_000.0
     var showMenu by remember { mutableStateOf(false) }
@@ -8030,18 +7658,12 @@ private fun ManageAddressRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                if (entry.isCurrent) {
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                }
-            }
+            Text(
+                text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
@@ -8073,15 +7695,6 @@ private fun ManageAddressRow(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
-                if (showsPrivacyTag) {
-                    // Same plain-badge styling as the Used/Unused/Unverified states above.
-                    Text(
-                        text = "Chat privacy address",
-                        color = KaspaTeal,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
                 if (showsDomainTag) {
                     ContainsDomainTag()
                 }
@@ -8122,16 +7735,10 @@ private fun ManageAddressRow(
                 title = stringResource(R.string.show_qr_code),
                 subtitle = "Full screen, for scanning with another device.",
             ) { showMenu = false; onQrClick() }
-            if (!entry.isCurrent) {
-                ActionSheetRow(
-                    icon = Icons.Default.Star,
-                    title = stringResource(R.string.set_as_primary_address),
-                    subtitle = "New payments send from here by default.",
-                ) { showMenu = false; onActivateClick() }
-            }
-            // Hide straight from the row - iOS's guard: never the primary address, a funded
-            // address, or a chat-privacy reservation (offered to a contact, locked visible).
-            if (onHideClick != null && !entry.isCurrent && !showsPrivacyTag && entry.balanceSompi == 0L) {
+            // Hide straight from the row - same effect as unchecking it in Address Visibility,
+            // without opening that screen. Never a funded address, nor the wallet's current
+            // receive index (iOS 6333dd3).
+            if (onHideClick != null && !entry.isCurrent && entry.balanceSompi == 0L) {
                 ActionSheetRow(
                     icon = Icons.Default.VisibilityOff,
                     title = "Hide Address",
@@ -8188,86 +7795,53 @@ private fun ManageAddressActionsSheet(
 }
 
 /**
- * One read-only row on [ManageAddressesScreen]'s Chat Privacy tab: an address reserved and
- * actively offered to a contact by the fresh-address payment pool (Chats Payment Privacy).
- * Same card styling as [ManageAddressRow], but the overflow menu offers ONLY Copy Address and
- * Show QR Code - no rename, hide, set-primary, or history navigation; the offer lifecycle
- * (revoke/supersede/fund) manages these rows, not the user. Balance shows only once funds
- * arrive, so a funded-but-still-active offer displays what came in.
+ * The chatting address's row at the top of [ManageAddressesScreen] (iOS 6333dd3
+ * `chattingAddressRow`): "Chatting Address" with its icon, the short address, its balance and
+ * "Used", and a chevron - it opens the chatting address's own screen.
  */
 @Composable
-private fun ChatPrivacyAddressRow(
-    entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
-    /** Opens the row's sheet, which holds every action this address has. */
-    onOpenActions: () -> Unit,
-) {
-    val kas = entry.balanceSompi / 100_000_000.0
-
+private fun ManageChattingAddressRow(address: String, balanceSompi: Long, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(LocalAppColors.current.surface)
-            .clickable { onOpenActions() }
+            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "Address #${entry.index}",
+                    text = stringResource(R.string.chatting_address),
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
-                entry.label?.takeIf { it.isNotBlank() }?.let { label ->
-                    Text(
-                        text = label,
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp,
-                        maxLines = 1
-                    )
-                }
+                Icon(Icons.Default.Forum, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
+                text = "${address.take(14)}...${address.takeLast(6)}",
                 color = LocalAppColors.current.textPrimary,
                 fontSize = 14.sp,
                 maxLines = 1
             )
-            if (entry.balanceSompi > 0) {
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
-                        color = KaspaTeal,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    // Money on a pool address is worth noticing: it means the offer has been
-                    // paid into and the address is not really "fresh and waiting" any more.
-                    Text(
-                        "Funded",
-                        color = KaspaTeal,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .background(KaspaTeal.copy(alpha = 0.15f), RoundedCornerShape(50))
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
-                }
-            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 14.sp
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Used",
+                color = LocalAppColors.current.warning,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
-        // No ellipsis: the whole row opens one sheet holding everything this address can do
-        // (see ChatPrivacyAddressActionsSheet). A second, smaller target for a subset of the
-        // same actions was a way to miss half of them.
-        Icon(
-            Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = LocalAppColors.current.textSecondary,
-        )
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = LocalAppColors.current.textSecondary)
     }
 }
 
@@ -9872,99 +9446,53 @@ private fun ProfileCircleAction(
 }
 
 /**
- * One compact address action row on [ProfileScreen] (iOS parity: ContactsView's
- * addressActionRow), one per address role (Chatting Address / Spending Address): the role title
- * with its balance underneath, and three icon-only circle buttons on the right: Copy, Send,
- * Manage. Sits directly on the screen background - no card surface - matching how the big QR
- * circle buttons ([ProfileCircleAction]) sit above it. Replaces the old collapsible address
- * dropdowns that hid the same three actions behind an expand
- * chevron. `address` is nullable because the current spending address can be momentarily
- * unresolvable right after wallet load; in that state the row shows a loading placeholder and
- * the caller's actions guard against the nil address.
+ * Profile's Manage Addresses card (iOS 6333dd3): the list icon in a circle, "Manage Addresses"
+ * with the account total under it (a spinner until it is known), and a chevron - the whole card
+ * opens Manage Addresses.
  */
 @Composable
-private fun ProfileAddressActionCard(
-    title: String,
-    address: String?,
-    balanceText: String?,
-    /** Optional second line under the balance. Used by the Spending row for the whole-account
-     *  total; the Chatting row has one address, so there is no total to distinguish. */
-    totalText: String? = null,
-    onCopy: () -> Unit,
-    onSend: () -> Unit,
-    onManage: () -> Unit
-) {
-    // Two buttons instead of three now, so the row centers as one cluster instead of
-    // splitting to the screen edges.
+private fun ProfileManageAddressesCard(totalSompi: Long?, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(LocalAppColors.current.surface)
+            .background(colors.surface)
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        // The title + balance block IS the copy affordance: tapping it copies the address,
-        // replacing the old dedicated Copy button.
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            // Fixed width so Send and Manage land in the same column on both cards
-            // regardless of title and balance text width.
+        Box(
             modifier = Modifier
-                .width(140.dp)
-                .clickable(enabled = address != null) { onCopy() }
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(colors.background),
+            contentAlignment = Alignment.Center,
         ) {
+            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
-                title,
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1
+                stringResource(R.string.manage_addresses),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                maxLines = 1,
             )
-            if (address == null) {
-                Spacer(Modifier.height(3.dp))
+            if (totalSompi != null) {
                 Text(
-                    "Loading...",
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 12.sp
-                )
-            } else if (!balanceText.isNullOrBlank()) {
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    balanceText,
+                    "%.8f %s".format(java.util.Locale.US, totalSompi / 100_000_000.0, KaspaUnit.symbol),
                     color = KaspaTeal,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    maxLines = 1
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    maxLines = 1,
                 )
-                if (!totalText.isNullOrBlank()) {
-                    Text(
-                        totalText,
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                }
+            } else {
+                com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = colors.textSecondary, strokeWidth = 2.dp)
             }
         }
-        ProfileAddressCardAction(Icons.AutoMirrored.Filled.Send, "Send", onSend)
-        ProfileAddressCardAction(Icons.Default.Settings, "Manage", onManage)
-    }
-}
-
-/** One circular icon button inside [ProfileAddressActionCard] — a smaller sibling of [ProfileCircleAction] with the same teal-on-circle look. No text label: the icon carries the meaning, [contentDescription] keeps it accessible. */
-@Composable
-private fun ProfileAddressCardAction(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(54.dp)
-            .clip(CircleShape)
-            .background(KaspaTeal.copy(alpha = 0.15f))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, contentDescription = contentDescription, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary)
     }
 }
 
@@ -10162,9 +9690,7 @@ fun SettingsFooter(text: String) {
 /**
  * The Security section's rows. The biometric toggles and Child Mode are app-wide, so the same
  * items render both in the in-account Settings > Security page and in the accounts screen's App
- * Settings sheet (see AppSettingsScreen.kt), one source of truth. Chats Payment Privacy is the
- * exception - it belongs to one account - so it appears only when an account is signed in.
- * Caller supplies the enclosing [SettingsSection] and the navigation to the Child Mode screen
+ * Settings sheet (see AppSettingsScreen.kt), one source of truth. Caller supplies the enclosing [SettingsSection] and the navigation to the Child Mode screen
  * (each host has its own NavHost).
  */
 @Composable
@@ -10222,25 +9748,6 @@ fun SecuritySettingsItems(
         if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
         onClick = onNavigateToChildMode
     )
-    // Per-account fresh-address payment pool toggle. Hidden with no account signed in, which is
-    // the case on the accounts screen's App Settings: every other row here is app-wide, this one
-    // is not, so without an account there is nothing for it to be the setting OF. It was
-    // rendering the default there and writing to whichever account happened to be active next.
-    val activeAccountAddress by walletViewModel.address.collectAsState()
-    if (!activeAccountAddress.isNullOrEmpty()) {
-        SettingsDivider()
-        val privacySettingsViewModel: SettingsViewModel = hiltViewModel()
-        val chatsPaymentPrivacyEnabled by privacySettingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
-        SettingsSwitchItem("Chats Payment Privacy", chatsPaymentPrivacyEnabled) { enabled ->
-            privacySettingsViewModel.setChatsPaymentPrivacyEnabled(enabled)
-        }
-        // Same wording as the setup wizard's own On/Off rows - see CHATS_PRIVACY_ON_DESCRIPTION.
-        SettingsFooter(
-            "On: $CHATS_PRIVACY_ON_DESCRIPTION\n\n" +
-                "Off: $CHATS_PRIVACY_OFF_DESCRIPTION\n\n" +
-                "This setting belongs to this account alone - your other accounts keep their own."
-        )
-    }
 }
 
 /**
@@ -14334,7 +13841,6 @@ private fun ManageAddressesActionsSheet(
     onGenerate: () -> Unit,
     onDiscover: () -> Unit,
     onVisibility: () -> Unit,
-    onConsolidate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -14420,12 +13926,6 @@ private fun ManageAddressesActionsSheet(
                             subtitle = "Check off every address you want on the list, in one sitting.",
                             onClick = onVisibility,
                         )
-                        ActionSheetRow(
-                            icon = Icons.AutoMirrored.Filled.CallMerge,
-                            title = stringResource(R.string.send_all_kaspa_to_primary_spend),
-                            subtitle = "Sweeps every other address into your primary spending address.",
-                            onClick = onConsolidate,
-                        )
                         if (summary != null) {
                             Text(summary, color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
@@ -14433,58 +13933,6 @@ private fun ManageAddressesActionsSheet(
                 }
             }
         }
-    }
-}
-
-/**
- * Tapping a Chat Privacy address: what it is, and the one thing the user can do about it.
- *
- * The pool normally manages these rows by itself - an offer is revoked, superseded, or marked
- * funded when a payment_notice arrives. None of that reaches a device that was not running when
- * the payment landed, so an address can sit here holding a balance with nothing to nudge it out.
- * This is the manual override for exactly that case.
- */
-@Composable
-fun ChatPrivacyAddressActionsSheet(
-    entry: com.kachat.app.services.WalletService.SpendingAddressEntry,
-    onMoveOut: () -> Unit,
-    onCopy: () -> Unit,
-    onShowQr: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val funded = entry.balanceSompi > 0
-    ActionSheetContainer(
-        title = "Address ${entry.index}",
-        subtitle = entry.address,
-        detail = if (funded) {
-            "Holding ${"%.8f".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0)} ${KaspaUnit.symbol}"
-        } else null,
-        onDismiss = onDismiss,
-    ) {
-        ActionSheetRow(
-            icon = Icons.Default.LockOpen,
-            title = "Move out of Chat Payment Privacy",
-            subtitle = if (funded) {
-                "It has been paid into, so it is no longer a fresh address. Moves it to your normal spending list where you can send from it."
-            } else {
-                "Stops offering this address to your contact and moves it to your normal spending list."
-            },
-        ) { onDismiss(); onMoveOut() }
-        ActionSheetRow(
-            icon = Icons.Default.ContentCopy,
-            title = stringResource(R.string.copy_address),
-            subtitle = "Puts the full address on the clipboard.",
-        ) { onDismiss(); onCopy() }
-        ActionSheetRow(
-            icon = Icons.Default.QrCode,
-            title = "Show QR Code",
-            subtitle = "Full screen, for scanning with another device.",
-        ) { onDismiss(); onShowQr() }
-        ActionSheetRow(
-            icon = Icons.Default.Close,
-            title = "Cancel",
-            subtitle = "Leave it in the pool.",
-        ) { onDismiss() }
     }
 }
 

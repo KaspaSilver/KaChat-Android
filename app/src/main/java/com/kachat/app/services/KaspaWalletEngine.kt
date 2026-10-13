@@ -434,28 +434,23 @@ class KaspaWalletEngine @Inject constructor(
     }
 
     /**
-     * "Pay in Kaspa" — the only entry point that spends from the spending-address chain instead
-     * of the identity address, for payment privacy (see [WalletManager]'s spending-address doc
-     * comment). Sweeps the current spending address's entire balance: payment to [toAddress] +
-     * change to a freshly derived *next* spending address, which becomes the new current one.
-     * An address holding more coins than one transaction can spend sweeps its
+     * A chat payment whose From is one of the spending addresses (iOS 6333dd3
+     * `sendPaymentInternal(sourceSpendingIndex:)`): signed with [sourceSpendingIndex]'s own key,
+     * it sweeps that address's balance - the payment to [toAddress] + change to a never-used
+     * spending address. An address holding more coins than one transaction can spend sweeps its
      * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest; the rest stay where they are.
-     * The stored index only advances after the send actually succeeds — a failed/rejected send
-     * leaves the current spending address exactly as it was, safe to retry.
-     *
-     * [sourceSpendingIndex] pays from that spending address instead of the primary (the Send KAS
-     * sheet's Available pill, Chats Payment Privacy on); null = the primary, as always. A picked
-     * source keeps the primary where it is: its change still goes to a fresh never-used index,
-     * which is revealed (listed in Manage Addresses) rather than made primary (iOS dae8a01).
+     * The change address is revealed (listed in Manage Addresses) once the send succeeds; it is
+     * never made the primary - nothing rotates a primary any more. A failed/rejected send moves
+     * nothing, safe to retry.
      */
     suspend fun sendSpendingPayment(
         toAddress: String,
         amountSompi: Long,
+        sourceSpendingIndex: Int,
         feeRateOverride: Long? = null,
         /** The payment's `kchat:1:pay:` payload when it carries a memo (see
          *  [com.kachat.app.util.MessageProtocol.buildPaymentPayload]); null for a plain payment. */
         payloadBytes: ByteArray? = null,
-        sourceSpendingIndex: Int? = null,
         /** Coin control: spend exactly these coins of the source address instead of sweeping it
          *  (resolved against the fresh fetch in [sendKaspa]). null = sweep, as always. */
         manualUtxos: List<UtxoEntry>? = null,
@@ -463,16 +458,12 @@ class KaspaWalletEngine @Inject constructor(
         extraFeeSompi: Long = 0L,
     ): Result<String> {
         val identityAddress = walletManager.getAddress()
-        val primaryIndex = walletManager.getActiveAccount()?.spendingAddressIndex
-            ?: return Result.failure(IllegalStateException("No active account"))
-        val keepsPrimary = sourceSpendingIndex != null && sourceSpendingIndex != primaryIndex
-        val spendingIndex = sourceSpendingIndex ?: primaryIndex
-        val sourceSpendingAddress = walletManager.deriveSpendingAddress(spendingIndex)
-        val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(spendingIndex)
-        // Change goes one past the ALL-TIME max index (not just spendingIndex + 1) — guarantees it
-        // never lands on an address that's already been used, offered as a payment-pool
-        // reservation, or manually generated from Manage Addresses. The allocation bumps the max
-        // atomically, so a concurrent pool reservation can't collide either (matches iOS's
+        val sourceSpendingAddress = walletManager.deriveSpendingAddress(sourceSpendingIndex)
+        val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(sourceSpendingIndex)
+        // Change goes one past the ALL-TIME max index (not just sourceSpendingIndex + 1) — so it
+        // never lands on an address that has been used before, or manually generated from Manage
+        // Addresses. The allocation bumps the max atomically, so a concurrent allocation (Request
+        // Payment's Fresh Address, another payment) can't collide either (matches iOS's
         // `sendPaymentInternal` fresh-change-index rule). On failure the allocated index is
         // simply burned unused — revealing an index is always safe, reusing one is not.
         val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshSpendingIndices(1).firstOrNull()
@@ -498,35 +489,11 @@ class KaspaWalletEngine @Inject constructor(
             sweepMaxInputs = KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION
         )
         if (result.isSuccess) {
-            if (keepsPrimary) {
-                // Revealed, not made primary: the allocation above already raised the max to
-                // cover it; make sure it isn't hidden either (iOS revealSpendingAddress).
-                walletManager.setSpendingAddressHidden(identityAddress, nextIndex, hidden = false)
-            } else {
-                walletManager.setSpendingAddressIndex(identityAddress, nextIndex)
-            }
+            // Revealed, not made primary (iOS revealSpendingAddress): the allocation above already
+            // raised the max to cover it; make sure it isn't hidden either.
+            walletManager.setSpendingAddressHidden(identityAddress, nextIndex, hidden = false)
         }
         return result
-    }
-
-    /**
-     * Moves an old spending-chain address's entire balance to another spending-chain address —
-     * used when the user manually activates a different address from the Manage Addresses
-     * screen, so KAS left behind on the previously-active one follows along automatically
-     * rather than sitting stranded. `amountSompi = 0` means [sendKaspa] skips the recipient
-     * output entirely and routes the whole swept balance out through [changeAddress] instead.
-     */
-    suspend fun sweepSpendingAddress(fromIndex: Int, toAddress: String): Result<String> {
-        val fromAddress = walletManager.deriveSpendingAddress(fromIndex)
-        val fromPrivateKey = walletManager.getSpendingPrivateKeyBytes(fromIndex)
-        return sendKaspa(
-            toAddress = toAddress,
-            amountSompi = 0,
-            fromAddress = fromAddress,
-            signingPrivateKey = fromPrivateKey,
-            changeAddress = toAddress,
-            sweepAll = true
-        )
     }
 
     /** Live quoted fee rate (sompi per mass-gram), floored at the network minimum - mirrors

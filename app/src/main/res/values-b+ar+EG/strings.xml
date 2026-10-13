@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">لنضف المزيد من التفاصيل عنك</string>
     <string name="log_out">تسجيل الخروج</string>
     <string name="longer_retention_means_more_messages_stay">الاحتفاظ لفترة أطول يعني بقاء المزيد من الرسائل مخزنة مؤقتًا على جهازك، مما قد يبطئ التطبيق بمرور الوقت، خاصة للغرف النشطة.</string>
-    <string name="make_active_address">جعله العنوان النشط</string>
     <string name="manage_addresses">إدارة العناوين</string>
     <string name="max">الحد الأقصى</string>
     <string name="menu">القائمة</string>
@@ -207,11 +206,9 @@
     <string name="select_time">اختيار الوقت</string>
     <string name="select_chat">اختيار الدردشة</string>
     <string name="send">إرسال</string>
-    <string name="send_all_kaspa_to_primary_spend">إرسال كل الكاسبا إلى عنوان الإنفاق الرئيسي</string>
     <string name="send_from_cold_storage">إرسال من التخزين البارد</string>
     <string name="send_photo">إرسال صورة</string>
     <string name="sending">جارٍ الإرسال</string>
-    <string name="sends_every_other_spending_address_s">يرسل رصيد كل العناوين الأخرى للإنفاق إلى عنوانك المفضل الحالي. كل عنوان برصيد هو معاملة حقيقية خاصة به، لذا قد يستغرق هذا بعض الوقت.</string>
     <string name="sent">مرسل</string>
     <string name="settings">الإعدادات</string>
     <string name="show_more">عرض المزيد</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">عرض رمز QR</string>
     <string name="skip">تخطي</string>
     <string name="some_changes_failed_to_save">فشل حفظ بعض التغييرات:</string>
-    <string name="spending_kaspa_on_kachat_will_come">سيتم إنفاق كاسبا في KaChat من هذا العنوان فقط من الآن فصاعدًا. أي كاسبا لا تزال في عنوان الإنفاق الحالي سيتم إرسالها تلقائيًا إلى هذا العنوان الجديد.</string>
     <string name="start_a_new_chat_by_adding">ابدأ شات جديد بإضافة جهة اتصال</string>
     <string name="status">الحالة</string>
     <string name="still_indexing_it_ll_show_up">لا يزال قيد الفهرسة. سيظهر أعلاه قريبًا.</string>
@@ -322,7 +318,6 @@
     <string name="security">الأمان</string>
     <string name="send_handshake">إرسال طلب تواصل</string>
     <string name="send_photo_2">إرسال صورة</string>
-    <string name="set_as_primary_address">تعيين كعنوان رئيسي</string>
     <string name="setup_guide">دليل الإعداد</string>
     <string name="show_fee_estimate">إظهار تقدير الرسوم</string>
     <string name="sound_vibration">الصوت والاهتزاز</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">اسحب عشان تدمج</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">ابعت من</string>
-    <string name="send_from_hint">اختار عنوان الصرف اللي هتبعت منه</string>
     <string name="primary">أساسي</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">اتثبت في الأول</string>
     <string name="chats_unpinned">اتشال التثبيت</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">إرسال كاسبا</string>
-    <string name="chats_send_kaspa_hint">ابعت Kaspa من عنوان الصرف بتاعك.</string>
+    <string name="chats_send_kaspa_hint">أرسل Kaspa من أي عنوان من عناوينك.</string>
     <string name="spending_address_unlocking">عنوان الصرف بيتفتح — ارجع وجرّب تاني.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">ثبّته في الأول</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">أبقِ KaChat مفتوحًا: يُسجَّل الاسم بعد نحو دقيقة من تأكيد الالتزام المخفي. إذا غادرت، فسيكمل من حيث توقف عند عودتك.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">إكرامية</string>
-    <string name="tip_goes_to_fresh_address">تذهب إلى عنوان خاص جديد شاركه</string>
-    <string name="tip_goes_to_public_address">تذهب إلى عنوان الدردشة العام الخاص به</string>
-    <string name="available_amount_kas">المتاح: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">الأسماء المسجلة</string>
     <string name="ks_kachat_renewals">تجديدات الأسماء</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">تم نسخ نقطة اتصال العقدة.</string>
     <string name="clear">مسح</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">حدث خطأ ما</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">اختر العملة</string>
     <string name="couldn_t_read_this_swap_s">تعذرت قراءة مبالغ هذه المبادلة</string>

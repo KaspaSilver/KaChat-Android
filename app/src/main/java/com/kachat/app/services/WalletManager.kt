@@ -30,10 +30,6 @@ import javax.inject.Singleton
 @Singleton
 class WalletManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    // Store-only dependency (PaymentPoolStore depends on nothing but Context, so no Dagger
-    // cycle): consulted by [setSpendingAddressHidden] so a spending address currently offered
-    // to a contact for private payments can never be hidden, no matter which caller asks.
-    private val paymentPoolStore: PaymentPoolStore
 ) {
 
     companion object {
@@ -419,15 +415,11 @@ class WalletManager @Inject constructor(
         getAllHiddenSpendingAddresses().filter { it.walletAddress == walletAddress }.map { it.index }.toSet()
 
     fun setSpendingAddressHidden(walletAddress: String, index: Int, hidden: Boolean) {
-        // Storage-level backstop for EVERY write path: the primary ("Pay in Kaspa") spending
-        // index must always stay visible, so a hide of it never persists no matter which caller
-        // asked. (Live-balance guarding lives in WalletService.setSpendingAddressHidden; bulk
-        // paths that only touch never-funded fresh indices come straight here.)
+        // Storage-level backstop for EVERY write path: the current spending index must always
+        // stay visible, so a hide of it never persists no matter which caller asked.
+        // (Live-balance guarding lives in WalletService.setSpendingAddressHidden; bulk paths that
+        // only touch never-funded fresh indices come straight here.)
         if (hidden && getAccounts().any { it.address == walletAddress && it.spendingAddressIndex == index }) return
-        // Chat-privacy backstop, same authority level as the primary guard above: an address
-        // currently offered to a contact for private payments (fresh-address payment pool) stays
-        // visible while the offer stands. The pool store is queried directly - never a row flag.
-        if (hidden && paymentPoolStore.isIndexOfferedForPrivacy(index, walletAddress)) return
         val remaining = getAllHiddenSpendingAddresses().filterNot { it.walletAddress == walletAddress && it.index == index }
         saveHiddenSpendingAddresses(if (hidden) remaining + HiddenSpendingAddress(walletAddress, index) else remaining)
     }

@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">あなたについての詳細をもっと追加しましょう</string>
     <string name="log_out">ログアウト</string>
     <string name="longer_retention_means_more_messages_stay">保持期間が長いほど、デバイスにキャッシュされるメッセージが増えます。これは特にアクティブな部屋では時間の経過とともにアプリを遅くする可能性があります。</string>
-    <string name="make_active_address">アクティブなアドレスにする</string>
     <string name="manage_addresses">アドレスを管理</string>
     <string name="max">最大</string>
     <string name="menu">メニュー</string>
@@ -207,11 +206,9 @@
     <string name="select_time">時刻を選択</string>
     <string name="select_chat">チャットを選択</string>
     <string name="send">送信</string>
-    <string name="send_all_kaspa_to_primary_spend">すべてのKaspaをメインの使用アドレスに送信</string>
     <string name="send_from_cold_storage">コールドストレージから送信</string>
     <string name="send_photo">写真を送信</string>
     <string name="sending">送信中</string>
-    <string name="sends_every_other_spending_address_s">他のすべての使用アドレスの残高を現在のお気に入りアドレスに送信します。残高のある各アドレスはそれぞれ独自の実際の取引であるため、少し時間がかかる場合があります。</string>
     <string name="sent">送信済み</string>
     <string name="settings">設定</string>
     <string name="show_more">もっと見る</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">QRコードを表示</string>
     <string name="skip">スキップ</string>
     <string name="some_changes_failed_to_save">一部の変更を保存できませんでした:</string>
-    <string name="spending_kaspa_on_kachat_will_come">KaChatでのKaspaの使用は今後このアドレスからのみ行われます。現在の使用アドレスに残っているKaspaは自動的にこの新しいアドレスに送信されます。</string>
     <string name="start_a_new_chat_by_adding">連絡先を追加して新しいチャットを始めましょう</string>
     <string name="status">ステータス</string>
     <string name="still_indexing_it_ll_show_up">まだインデックス作成中です。まもなく上に表示されます。</string>
@@ -322,7 +318,6 @@
     <string name="security">セキュリティ</string>
     <string name="send_handshake">通信リクエストを送信</string>
     <string name="send_photo_2">写真を送信</string>
-    <string name="set_as_primary_address">メインアドレスとして設定</string>
     <string name="setup_guide">セットアップガイド</string>
     <string name="show_fee_estimate">手数料見積もりを表示</string>
     <string name="sound_vibration">サウンドとバイブレーション</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">スライドして統合</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">送信元</string>
-    <string name="send_from_hint">送信元の支払い用アドレスを選びます</string>
     <string name="primary">プライマリ</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">先頭に固定しました</string>
     <string name="chats_unpinned">固定を解除しました</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Kaspaを送信</string>
-    <string name="chats_send_kaspa_hint">支払い用アドレスからKaspaを送ります。</string>
+    <string name="chats_send_kaspa_hint">どのアドレスからでも Kaspa を送れます。</string>
     <string name="spending_address_unlocking">支払い用アドレスのロックを解除しています。戻ってもう一度お試しください。</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">先頭に固定</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">KaChat を開いたままにしてください。非公開のコミットが承認されてから約1分後に名前が登録されます。アプリを離れても、戻ったときに続きから再開します。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">チップ</string>
-    <string name="tip_goes_to_fresh_address">相手が共有した新しいプライベートアドレスに送られます</string>
-    <string name="tip_goes_to_public_address">相手の公開チャットアドレスに送られます</string>
-    <string name="available_amount_kas">利用可能: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">登録された名前</string>
     <string name="ks_kachat_renewals">名前の更新</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">ノードエンドポイントをコピーしました。</string>
     <string name="clear">クリア</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">問題が発生しました</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">コインを選択</string>
     <string name="couldn_t_read_this_swap_s">このスワップの金額を読み取れませんでした</string>

@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">Добавим больше информации о вас</string>
     <string name="log_out">Выйти</string>
     <string name="longer_retention_means_more_messages_stay">Более длительное хранение означает, что больше сообщений остаётся в кэше на вашем устройстве, что может со временем замедлить приложение, особенно для активных комнат.</string>
-    <string name="make_active_address">Сделать активным адресом</string>
     <string name="manage_addresses">Управление адресами</string>
     <string name="max">Макс</string>
     <string name="menu">Меню</string>
@@ -207,11 +206,9 @@
     <string name="select_time">Выбрать время</string>
     <string name="select_chat">Выбрать чат</string>
     <string name="send">Отправить</string>
-    <string name="send_all_kaspa_to_primary_spend">Отправить весь Kaspa на основной адрес для трат</string>
     <string name="send_from_cold_storage">Отправить из холодного хранилища</string>
     <string name="send_photo">Отправить фото</string>
     <string name="sending">Отправка</string>
-    <string name="sends_every_other_spending_address_s">Отправляет баланс всех остальных адресов для трат на ваш текущий избранный. Каждый адрес с балансом - это отдельная реальная транзакция, поэтому это может занять некоторое время.</string>
     <string name="sent">Отправил</string>
     <string name="settings">Настройки</string>
     <string name="show_more">Показать больше</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">Показать QR-код</string>
     <string name="skip">Пропустить</string>
     <string name="some_changes_failed_to_save">Некоторые изменения не удалось сохранить:</string>
-    <string name="spending_kaspa_on_kachat_will_come">Трата Kaspa в KaChat теперь будет происходить только с этого адреса. Любая Kaspa, всё ещё находящаяся на вашем текущем адресе для трат, будет автоматически отправлена на этот новый.</string>
     <string name="start_a_new_chat_by_adding">Начните новый чат, добавив контакт</string>
     <string name="status">Статус</string>
     <string name="still_indexing_it_ll_show_up">Ещё индексируется. Скоро появится выше.</string>
@@ -322,7 +318,6 @@
     <string name="security">Безопасность</string>
     <string name="send_handshake">Отправить запрос на общение</string>
     <string name="send_photo_2">Отправить фото</string>
-    <string name="set_as_primary_address">Сделать основным адресом</string>
     <string name="setup_guide">Руководство по настройке</string>
     <string name="show_fee_estimate">Показать оценку комиссии</string>
     <string name="sound_vibration">Звук и вибрация</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">Сдвиньте, чтобы объединить</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Отправить с</string>
-    <string name="send_from_hint">Выберите адрес для трат, с которого отправить</string>
     <string name="primary">Основной</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Закреплено в начале</string>
     <string name="chats_unpinned">Откреплено</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Отправить Kaspa</string>
-    <string name="chats_send_kaspa_hint">Отправить Kaspa с вашего адреса для трат.</string>
+    <string name="chats_send_kaspa_hint">Отправляйте Kaspa с любого из ваших адресов.</string>
     <string name="spending_address_unlocking">Адрес для трат разблокируется — вернитесь и попробуйте снова.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Закрепить в начале</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">Не закрывайте KaChat: имя регистрируется примерно через минуту после подтверждения скрытого обязательства. Если вы выйдете, процесс продолжится с того же места, когда вы вернётесь.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Чаевые</string>
-    <string name="tip_goes_to_fresh_address">Уйдут на новый приватный адрес, которым он поделился</string>
-    <string name="tip_goes_to_public_address">Уйдут на его публичный адрес для чатов</string>
-    <string name="available_amount_kas">доступно: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Зарегистрировано имён</string>
     <string name="ks_kachat_renewals">Продления имён</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">Эндпоинт узла скопирован.</string>
     <string name="clear">Очистить</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Что-то пошло не так</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">Выберите монету</string>
     <string name="couldn_t_read_this_swap_s">Не удалось прочитать суммы этого обмена</string>

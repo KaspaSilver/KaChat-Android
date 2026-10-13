@@ -397,20 +397,18 @@ fun CreatePaymentRequestSheet(
             ) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PaymentRequestDestinationPill(
+                        SelectablePill(
                             title = stringResource(R.string.pr_fresh_address),
                             selected = destination == PaymentRequestDestination.FRESH,
                             modifier = Modifier.weight(1f),
                         ) {
-                            haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
                             destination = PaymentRequestDestination.FRESH
                         }
-                        PaymentRequestDestinationPill(
+                        SelectablePill(
                             title = stringResource(R.string.pr_choose_an_address),
                             selected = destination == PaymentRequestDestination.CHOSEN,
                             modifier = Modifier.weight(1f),
                         ) {
-                            haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
                             destination = PaymentRequestDestination.CHOSEN
                             showAddressPicker = true
                         }
@@ -563,299 +561,14 @@ fun CreatePaymentRequestSheet(
         }
 
         if (showAddressPicker) {
-            PaymentRequestAddressPicker(
-                walletViewModel = walletViewModel,
+            OwnAddressPicker(
+                title = stringResource(R.string.pr_choose_an_address),
                 selected = chosenAddress,
-                onPick = { chosenAddress = it },
+                walletViewModel = walletViewModel,
+                onPick = { picked -> chosenAddress = picked.address(chattingAddress) },
                 onDismiss = { showAddressPicker = false },
             )
         }
-    }
-}
-
-/** A pill like the amount's currency switch (iOS `destinationPill`, 86dfd2d): the chosen one filled in. */
-@Composable
-private fun PaymentRequestDestinationPill(
-    title: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    val shape = RoundedCornerShape(50)
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .clip(shape)
-            .then(
-                if (selected) Modifier.background(KaspaTeal)
-                else Modifier.background(colors.surface).border(1.dp, KaspaTeal.copy(alpha = 0.35f), shape)
-            )
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 6.dp),
-    ) {
-        Text(
-            title,
-            color = if (selected) Color.Black else colors.textPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/**
- * Choose an Address (iOS `PaymentRequestAddressPicker`, 6dee531 / 338d9f5): which of your
- * addresses a payment request asks to be paid to - your chatting address, then your spending
- * addresses (the ones Manage Addresses shows, plus hidden ones holding Kaspa), each with its name,
- * balance and whether it was ever used. Used is checked the way Manage Addresses does: a balance
- * means used, else the cached answer, else a history lookup, eight at a time. An address whose
- * lookup hasn't answered shows Checking, never a possibly-wrong Unused.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PaymentRequestAddressPicker(
-    walletViewModel: WalletViewModel,
-    selected: String?,
-    onPick: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
-    val chattingAddress by walletViewModel.address.collectAsState()
-    val chattingBalance by walletViewModel.balanceSompi.collectAsState()
-    val allEntries by walletViewModel.manageAddresses.collectAsState()
-    var loaded by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        walletViewModel.loadManageAddressesAndAwait()
-        loaded = true
-    }
-    val entries = remember(allEntries) {
-        allEntries.filter { !it.hidden || it.balanceSompi > 0 }.sortedBy { it.index }
-    }
-    /** Used / unused per address; missing while its lookup is out (or failed). */
-    val used = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
-    val items = buildList {
-        chattingAddress?.let { add(it to chattingBalance) }
-        entries.forEach { add(it.address to it.balanceSompi) }
-    }
-    LaunchedEffect(items) {
-        val toProbe = mutableListOf<String>()
-        for ((address, balance) in items) {
-            if (used[address] == true) continue
-            if (balance > 0L) {
-                used[address] = true
-                continue
-            }
-            val cached = walletViewModel.cachedSpendingAddressUsedState(address)
-            if (cached != null) used[address] = cached else toProbe.add(address)
-        }
-        // a few at a time, like Manage Addresses (a burst gets rate-limited)
-        val gate = kotlinx.coroutines.sync.Semaphore(8)
-        kotlinx.coroutines.coroutineScope {
-            toProbe.forEach { address ->
-                launch {
-                    gate.acquire()
-                    try {
-                        // a failed lookup leaves it Checking, never a guessed Unused
-                        walletViewModel.spendingAddressUsedState(address)?.let { used[address] = it }
-                    } finally {
-                        gate.release()
-                    }
-                }
-            }
-        }
-    }
-
-    val pick: (String) -> Unit = { address ->
-        onPick(address)
-        onDismiss()
-    }
-
-    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
-        val colors = LocalAppColors.current
-        androidx.compose.material3.ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
-            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
-            windowInsets = WindowInsets.statusBars,
-            onDismissRequest = onDismiss,
-            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = colors.background,
-            dragHandle = null,
-        ) {
-            Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = halfScreen, largeDetent = true) {
-                    Column(Modifier.fillMaxSize()) {
-                        IosSheetNavBar(
-                            title = stringResource(R.string.pr_choose_an_address),
-                            leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = onDismiss) },
-                        )
-                        Column(
-                            Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            val chatting = chattingAddress
-                            if (chatting != null) {
-                                PaymentRequestPickerSectionHeader(stringResource(R.string.chatting_address))
-                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
-                                    PaymentRequestPickerRow(
-                                        title = stringResource(R.string.chatting_address),
-                                        address = chatting,
-                                        balance = chattingBalance,
-                                        badge = null,
-                                        used = used[chatting],
-                                        isSelected = chatting == selected,
-                                        onClick = { pick(chatting) },
-                                    )
-                                }
-                                Box(Modifier.size(12.dp))
-                            }
-                            PaymentRequestPickerSectionHeader(stringResource(R.string.pr_spending_addresses))
-                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(colors.surface)) {
-                                if (entries.isEmpty() && !loaded) {
-                                    Box(Modifier.fillMaxWidth().padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
-                                        com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary)
-                                    }
-                                } else {
-                                    val primaryLabel = stringResource(R.string.primary)
-                                    entries.forEachIndexed { i, entry ->
-                                        if (i > 0) IosListRowDivider()
-                                        PaymentRequestPickerRow(
-                                            title = entry.label?.trim()?.takeIf { it.isNotEmpty() }
-                                                ?: stringResource(R.string.address_number, entry.index),
-                                            address = entry.address,
-                                            balance = entry.balanceSompi,
-                                            badge = if (entry.isCurrent) primaryLabel else null,
-                                            used = used[entry.address],
-                                            isSelected = entry.address == selected,
-                                            onClick = { pick(entry.address) },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PaymentRequestPickerSectionHeader(title: String) {
-    Text(
-        title.uppercase(),
-        color = LocalAppColors.current.textSecondary,
-        fontSize = 13.sp,
-        modifier = Modifier.padding(start = 16.dp, top = 4.dp),
-    )
-}
-
-@Composable
-private fun PaymentRequestPickerRow(
-    title: String,
-    address: String,
-    balance: Long?,
-    badge: String?,
-    used: Boolean?,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    title,
-                    color = colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                PaymentRequestUsedTag(used)
-                if (badge != null) {
-                    Text(
-                        badge,
-                        color = KaspaTeal,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(KaspaTeal.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
-            }
-            Text(
-                if (address.length > 20) "${address.take(14)}...${address.takeLast(6)}" else address,
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1,
-            )
-        }
-        if (balance != null) {
-            Text(
-                "${KaspaUnit.plain(balance)} ${KaspaUnit.symbol}",
-                color = if (balance > 0L) colors.textPrimary else colors.textSecondary,
-                fontSize = 15.sp,
-                maxLines = 1,
-            )
-        }
-        if (isSelected) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-/** Used / Unused, or Checking while the lookup is out (iOS `usedTag`, 338d9f5). */
-@Composable
-private fun PaymentRequestUsedTag(used: Boolean?) {
-    val colors = LocalAppColors.current
-    when (used) {
-        true -> Text(
-            stringResource(R.string.pr_used),
-            color = colors.textSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(colors.textSecondary.copy(alpha = 0.15f))
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-        )
-        false -> Text(
-            stringResource(R.string.pr_unused),
-            color = colors.success,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(colors.success.copy(alpha = 0.15f))
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-        )
-        null -> Text(
-            stringResource(R.string.pr_checking),
-            color = colors.textSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-        )
     }
 }
 

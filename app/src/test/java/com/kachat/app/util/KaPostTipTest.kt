@@ -13,7 +13,7 @@ import org.junit.Test
 import java.math.BigInteger
 import java.security.SecureRandom
 
-/** The KaPosts tip (iOS 0e08006): a chat payment's memo payload and destination. */
+/** The KaPosts tip (iOS 0e08006): a chat payment's memo payload. */
 class KaPostTipTest {
 
     private fun randomScalarBytes(): ByteArray {
@@ -23,12 +23,6 @@ class KaPostTipTest {
             val d = BigInteger(1, candidate)
             if (d != BigInteger.ZERO && d < Secp256k1.N) return candidate
         }
-    }
-
-    @Test
-    fun `the tip goes to a fresh private address only when one is waiting`() {
-        assertEquals(KaPostTip.Destination.FRESH_PRIVATE_ADDRESS, KaPostTip.destination(paysViaFreshPoolAddress = true))
-        assertEquals(KaPostTip.Destination.PUBLIC_CHATTING_ADDRESS, KaPostTip.destination(paysViaFreshPoolAddress = false))
     }
 
     @Test
@@ -76,42 +70,5 @@ class KaPostTipTest {
         val pub = Schnorr.publicKeyXOnly(randomScalarBytes())
         val payload = MessageProtocol.paymentMemoPayload("thanks", 1_000_000_000L, pub)!!
         assertEquals(payload.size, MessageProtocol.estimatedPaymentPayloadSize("thanks", 1_000_000_000L))
-    }
-
-    private fun coin(amount: Long, isCoinbase: Boolean = false, index: Int = 0) = UtxoEntry(
-        address = "kaspa:qtest",
-        outpoint = Outpoint(transactionId = "tx$index", index = index),
-        utxoEntry = UtxoData(amount = amount, scriptPublicKey = ScriptPublicKey(""), blockDaaScore = 0L, isCoinbase = isCoinbase),
-    )
-
-    @Test
-    fun `available leaves out coinbase coins, as iOS does`() {
-        val coins = listOf(
-            coin(100_000_000L, index = 0),
-            coin(500_000_000L, isCoinbase = true, index = 1),
-            coin(25_000_000L, index = 2),
-        )
-        assertEquals(125_000_000L, KaPostTip.availableSompi(coins))
-    }
-
-    @Test
-    fun `available is zero when every coin is coinbase or there are none`() {
-        assertEquals(0L, KaPostTip.availableSompi(listOf(coin(500_000_000L, isCoinbase = true))))
-        assertEquals(0L, KaPostTip.availableSompi(emptyList()))
-    }
-
-    @Test
-    fun `available is unknown when a counted coin's amount is not real`() {
-        assertNull(KaPostTip.availableSompi(listOf(coin(-1L), coin(1L, index = 1))))
-        // A broken coinbase coin is left out, so it can't spoil the total.
-        assertEquals(1L, KaPostTip.availableSompi(listOf(coin(-1L, isCoinbase = true), coin(1L, index = 1))))
-    }
-
-    @Test
-    fun `the available pill reads -- until the coins are known`() {
-        assertEquals("--", KaPostTip.AVAILABLE_PLACEHOLDER)
-        assertEquals("--", KaPostTip.availableAmountText(null) { "x" })
-        assertEquals("1.5", KaPostTip.availableAmountText(150_000_000L) { (it / 100_000_000.0).toString() })
-        assertEquals("0", KaPostTip.availableAmountText(0L) { it.toString() })
     }
 }

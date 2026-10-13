@@ -150,7 +150,6 @@
     <string name="security_warning">Peringatan Keamanan</string>
     <string name="seed_phrase">Frasa Pemulihan</string>
     <string name="send">Kirim</string>
-    <string name="send_all_kaspa_to_primary_spend">Kirim Semua Kaspa ke Alamat Pengeluaran Utama</string>
     <string name="send_from_cold_storage">Kirim dari Penyimpanan Dingin</string>
     <string name="send_photo">Kirim Foto</string>
     <string name="sent">Terkirim</string>
@@ -226,7 +225,6 @@
     <string name="save_your_own_node_addresses_here">Simpan alamat node Anda di sini, lalu ketuk salah satu untuk menyalin dan menempelkannya ke bidang Node Kaspa di atas.</string>
     <string name="send_handshake">Kirim Handshake</string>
     <string name="send_photo_2">Kirim Foto</string>
-    <string name="set_as_primary_address">Atur sebagai Alamat Utama</string>
     <string name="setup_guide">Panduan Penyiapan</string>
     <string name="sound_vibration">Suara &amp; Getaran</string>
     <string name="storage">Penyimpanan</string>
@@ -740,13 +738,12 @@
     <string name="slide_to_consolidate">Geser untuk menggabungkan</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Kirim Dari</string>
-    <string name="send_from_hint">Pilih alamat pengeluaran untuk mengirim</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Disematkan di depan</string>
     <string name="chats_unpinned">Sematan dilepas</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Kirim Kaspa</string>
-    <string name="chats_send_kaspa_hint">Kirim Kaspa dari alamat pengeluaran Anda.</string>
+    <string name="chats_send_kaspa_hint">Kirim Kaspa dari alamat Anda yang mana pun.</string>
     <string name="spending_address_unlocking">Alamat pengeluaran sedang dibuka — kembali dan coba lagi.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Sematkan di Depan</string>
@@ -860,9 +857,6 @@
     <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tip</string>
-    <string name="tip_goes_to_fresh_address">Dikirim ke alamat pribadi baru yang mereka bagikan</string>
-    <string name="tip_goes_to_public_address">Dikirim ke alamat chat publik mereka</string>
-    <string name="available_amount_kas">tersedia: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Nama Terdaftar</string>
     <string name="ks_kachat_renewals">Perpanjangan Nama</string>
@@ -909,7 +903,6 @@
     <string name="node_endpoint_copied">Endpoint node disalin.</string>
     <string name="clear">Hapus</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Terjadi Kesalahan</string>
     <!-- .kachat sale tile: expiry flag -->
     <string name="kn_expires_soon">Segera kedaluwarsa</string>
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->

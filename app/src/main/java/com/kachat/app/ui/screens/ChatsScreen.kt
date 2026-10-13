@@ -2118,52 +2118,29 @@ private val ChatsNewTileSize = 104.dp
 private val ChatsNewTileSpacing = 14.dp
 
 /**
- * The New sheet's "Send Kaspa" (iOS f81e8d6 `SpendingSendLauncher`): the same send Profile opens
- * for the current spending address - [SpendingAddressSendFlow] - in a sheet of its own, as iOS
- * presents it over Chats once the New sheet has gone, with Cancel leading its bar. It loads that
- * address's balance first (it shows in the screen's Available pill): a spinner until then, or a
- * line saying the address is still unlocking.
+ * The New sheet's "Send Kaspa" (iOS 6333dd3): Send Kaspa ([SpendingAddressSendFlow]) in a sheet of
+ * its own, as iOS presents it over Chats once the New sheet has gone, with Cancel leading its bar,
+ * which only Cancel closes. It starts from the chatting address, and From picks any other.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: () -> Unit) {
-    val address by walletViewModel.spendingAddress.collectAsState()
-    val index by walletViewModel.primarySpendingIndex.collectAsState()
-    var balanceSompi by remember { mutableStateOf<Long?>(null) }
-    LaunchedEffect(Unit) {
-        if (walletViewModel.spendingAddress.value == null) walletViewModel.refreshSpendingAddress()
-        walletViewModel.refreshSpendingBalanceAndAwait()
-        balanceSompi = walletViewModel.spendingBalanceSompi.value
+    val chattingAddress by walletViewModel.address.collectAsState()
+    val chattingBalance by walletViewModel.balanceSompi.collectAsState()
+    val from = chattingAddress
+    if (from == null) {
+        LaunchedEffect(Unit) { onDone() }
+        return
     }
-    val from = address
-    val spendingIndex = index
-    val balance = balanceSompi
-    val ready = from != null && spendingIndex != null && balance != null
-    // Only Cancel closes the send itself (iOS's SpendingAddressWithdrawView is
-    // .interactiveDismissDisabled()); the spinner and the "unlocking" line before it swipe away.
-    IosFullSheet(onDismissed = onDone, swipeToDismiss = !ready) { close ->
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (!ready) androidx.activity.compose.BackHandler(onBack = close)
-            when {
-                ready -> SpendingAddressSendFlow(
-                    fromAddress = from!!,
-                    balanceSompi = balance!!,
-                    title = stringResource(R.string.chats_send_kaspa),
-                    spendingIndex = spendingIndex,
-                    viewModel = walletViewModel,
-                    onDone = close,
-                    presentedAsSheet = true,
-                )
-                // Loaded, and still no spending address to send from.
-                balance != null -> Text(
-                    stringResource(R.string.spending_address_unlocking),
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(16.dp),
-                )
-                else -> com.kachat.app.ui.theme.IosActivityIndicator(color = LocalAppColors.current.textSecondary)
-            }
-        }
+    IosFullSheet(onDismissed = onDone, swipeToDismiss = false) { close ->
+        SpendingAddressSendFlow(
+            fromAddress = from,
+            balanceSompi = chattingBalance,
+            title = stringResource(R.string.chats_send_kaspa),
+            viewModel = walletViewModel,
+            onDone = close,
+            presentedAsSheet = true,
+        )
     }
 }
 

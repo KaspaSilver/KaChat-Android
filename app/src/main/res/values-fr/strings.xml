@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">Ajoutons plus de details sur vous</string>
     <string name="log_out">Déconnexion</string>
     <string name="longer_retention_means_more_messages_stay">Une retention plus longue signifie que plus de messages restent en cache sur votre appareil, ce qui peut ralentir l\'application avec le temps, surtout pour les salons tres actifs.</string>
-    <string name="make_active_address">Definir comme adresse active</string>
     <string name="manage_addresses">Gerer les adresses</string>
     <string name="max">Max</string>
     <string name="menu">Menu</string>
@@ -207,11 +206,9 @@
     <string name="select_time">Selectionner l\'heure</string>
     <string name="select_chat">Selectionner la discussion</string>
     <string name="send">Envoyer</string>
-    <string name="send_all_kaspa_to_primary_spend">Envoyer tout le Kaspa vers l\'adresse de depense principale</string>
     <string name="send_from_cold_storage">Envoyer depuis le stockage a froid</string>
     <string name="send_photo">Envoyer une photo</string>
     <string name="sending">Envoi en cours</string>
-    <string name="sends_every_other_spending_address_s">Envoie le solde de toutes les autres adresses de depense vers votre adresse favorite actuelle. Chaque adresse avec un solde est sa propre transaction reelle, cela peut donc prendre quelques instants.</string>
     <string name="sent">Envoyé(s)</string>
     <string name="settings">Réglages</string>
     <string name="show_more">Voir plus</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">Afficher le code QR</string>
     <string name="skip">Ignorer</string>
     <string name="some_changes_failed_to_save">Certaines modifications n\'ont pas pu etre enregistrees :</string>
-    <string name="spending_kaspa_on_kachat_will_come">Depenser du Kaspa sur KaChat proviendra desormais uniquement de cette adresse. Tout Kaspa restant sur votre adresse de depense actuelle sera automatiquement envoye vers cette nouvelle adresse.</string>
     <string name="start_a_new_chat_by_adding">Démarrez une nouvelle discussion en ajoutant un contact</string>
     <string name="status">Statut</string>
     <string name="still_indexing_it_ll_show_up">Indexation en cours. Cela apparaitra ci-dessus sous peu.</string>
@@ -322,7 +318,6 @@
     <string name="security">Securite</string>
     <string name="send_handshake">Envoyer une demande de communication</string>
     <string name="send_photo_2">Envoyer une photo</string>
-    <string name="set_as_primary_address">Definir comme adresse principale</string>
     <string name="setup_guide">Guide de configuration</string>
     <string name="show_fee_estimate">Afficher l\'estimation des frais</string>
     <string name="sound_vibration">Son et vibration</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">Glisser pour regrouper</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Envoyer depuis</string>
-    <string name="send_from_hint">Choisissez l\'adresse de dépense d\'où envoyer</string>
     <string name="primary">Primaire</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Épinglé en tête</string>
     <string name="chats_unpinned">Désépinglé</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Envoyer du Kaspa</string>
-    <string name="chats_send_kaspa_hint">Envoyez des Kaspa depuis votre adresse de dépense.</string>
+    <string name="chats_send_kaspa_hint">Envoyez des Kaspa depuis n’importe laquelle de vos adresses.</string>
     <string name="spending_address_unlocking">L\'adresse de dépense se déverrouille — revenez en arrière et réessayez.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Épingler en tête</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">Gardez KaChat ouvert : le nom est enregistré environ une minute après la confirmation de l\'engagement masqué. Si vous partez, il reprendra là où il s\'était arrêté à votre retour.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Pourboire</string>
-    <string name="tip_goes_to_fresh_address">Va à une nouvelle adresse privée qu’il a partagée</string>
-    <string name="tip_goes_to_public_address">Va à son adresse de discussion publique</string>
-    <string name="available_amount_kas">disponible : %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Noms enregistrés</string>
     <string name="ks_kachat_renewals">Renouvellements de noms</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">Point d\'accès du nœud copié.</string>
     <string name="clear">Effacer</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Un probleme est survenu</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">Choisir la piece</string>
     <string name="couldn_t_read_this_swap_s">Impossible de lire les montants de cet echange</string>

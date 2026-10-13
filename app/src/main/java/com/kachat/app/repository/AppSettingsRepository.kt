@@ -844,22 +844,6 @@ class AppSettingsRepository @Inject constructor(
     }
 
     /**
-     * Per-account "Chats Payment Privacy" toggle (MESSAGING.md, "Fresh-Address Payment Pools",
-     * User Toggle) — mirrors iOS's `AppSettings.chatsPrivacyEnabled(for:)`: keyed by the
-     * account's chatting address, default ON (unset key == enabled), each wallet on the same
-     * install decides independently. Gates the SEND side only: pool consumption, addr_pool /
-     * addr_pool_request emission, serving inbound requests, and the payment funding source
-     * (spending chain when ON, chatting address when OFF). Inbound payment_notice handling and
-     * previously offered reservations stay active regardless.
-     */
-    fun chatsPaymentPrivacyEnabled(address: String): Flow<Boolean> = dataStore.data.map {
-        it[chatsPaymentPrivacyKey(address)] ?: true
-    }
-
-    suspend fun setChatsPaymentPrivacyEnabled(address: String, value: Boolean) =
-        dataStore.edit { it[chatsPaymentPrivacyKey(address)] = value }
-
-    /**
      * Per-account toggle for whether the "Setup Guide" re-entry points (the Profile screen's
      * "Welcome Guide" row and the "Edit KNS Profile" screen's "Setup Guide" section) are shown.
      * Keyed per-address like [paymentSyncBaseline] so switching accounts on the same device
@@ -1123,7 +1107,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setHandshakeOutSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeOutSyncCursorKey(address)] = value }
     suspend fun setShowSetupGuides(address: String, value: Boolean) = dataStore.edit { it[showSetupGuidesKey(address)] = value }
 
-    private fun chatsPaymentPrivacyKey(address: String) = booleanPreferencesKey("chats_payment_privacy_$address")
     private fun paymentSyncBaselineKey(address: String) = longPreferencesKey("payment_sync_baseline_$address")
     private fun liveNotificationBaselineKey(address: String) = longPreferencesKey("live_notification_baseline_$address")
     private fun handshakeSyncCursorKey(address: String) = longPreferencesKey("handshake_sync_cursor_$address")

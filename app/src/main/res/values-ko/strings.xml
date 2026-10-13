@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">당신에 대한 세부 정보를 더 추가해 봅시다</string>
     <string name="log_out">로그아웃</string>
     <string name="longer_retention_means_more_messages_stay">보관 기간이 길수록 기기에 더 많은 메시지가 캐시된 상태로 남아 있으며, 이는 특히 활발한 방의 경우 시간이 지남에 따라 앱 속도를 저하시킬 수 있습니다.</string>
-    <string name="make_active_address">활성 주소로 설정</string>
     <string name="manage_addresses">주소 관리</string>
     <string name="max">최대</string>
     <string name="menu">메뉴</string>
@@ -207,11 +206,9 @@
     <string name="select_time">시간 선택</string>
     <string name="select_chat">채팅 선택</string>
     <string name="send">보내기</string>
-    <string name="send_all_kaspa_to_primary_spend">모든 Kaspa를 기본 지출 주소로 보내기</string>
     <string name="send_from_cold_storage">콜드 스토리지에서 보내기</string>
     <string name="send_photo">사진 보내기</string>
     <string name="sending">보내는 중</string>
-    <string name="sends_every_other_spending_address_s">다른 모든 지출 주소의 잔액을 현재 즐겨찾기 주소로 보냅니다. 잔액이 있는 각 주소는 자체 실제 거래이므로 잠시 시간이 걸릴 수 있습니다.</string>
     <string name="sent">전송된</string>
     <string name="settings">설정</string>
     <string name="show_more">더 보기</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">QR 코드 표시</string>
     <string name="skip">건너뛰기</string>
     <string name="some_changes_failed_to_save">일부 변경 사항을 저장하지 못했습니다:</string>
-    <string name="spending_kaspa_on_kachat_will_come">이제부터 KaChat에서 Kaspa 지출은 이 주소에서만 이루어집니다. 현재 지출 주소에 남아 있는 Kaspa는 자동으로 이 새 주소로 전송됩니다.</string>
     <string name="start_a_new_chat_by_adding">연락처를 추가해 새 채팅을 시작하세요</string>
     <string name="status">상태</string>
     <string name="still_indexing_it_ll_show_up">아직 색인 중입니다. 곧 위에 표시됩니다.</string>
@@ -322,7 +318,6 @@
     <string name="security">보안</string>
     <string name="send_handshake">통신 요청 보내기</string>
     <string name="send_photo_2">사진 보내기</string>
-    <string name="set_as_primary_address">기본 주소로 설정</string>
     <string name="setup_guide">설정 가이드</string>
     <string name="show_fee_estimate">수수료 예상 표시</string>
     <string name="sound_vibration">소리 및 진동</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">밀어서 통합</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">보내는 주소</string>
-    <string name="send_from_hint">보낼 지출 주소를 선택합니다</string>
     <string name="primary">기본</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">맨 앞에 고정됨</string>
     <string name="chats_unpinned">고정 해제됨</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Kaspa 보내기</string>
-    <string name="chats_send_kaspa_hint">지출 주소에서 Kaspa를 보냅니다.</string>
+    <string name="chats_send_kaspa_hint">내 주소 중 어디서든 Kaspa를 보냅니다.</string>
     <string name="spending_address_unlocking">지출 주소 잠금을 해제하는 중입니다. 뒤로 가서 다시 시도하세요.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">맨 앞에 고정</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">KaChat을 열어 두세요. 숨겨진 커밋이 확인되고 약 1분 후에 이름이 등록됩니다. 앱을 나가도 돌아오면 이어서 진행됩니다.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">팁</string>
-    <string name="tip_goes_to_fresh_address">상대가 공유한 새 비공개 주소로 가요</string>
-    <string name="tip_goes_to_public_address">상대의 공개 채팅 주소로 가요</string>
-    <string name="available_amount_kas">사용 가능: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">등록된 이름</string>
     <string name="ks_kachat_renewals">이름 갱신</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">노드 엔드포인트가 복사되었습니다.</string>
     <string name="clear">지우기</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">문제가 발생했습니다</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">코인 선택</string>
     <string name="couldn_t_read_this_swap_s">이 스왑의 금액을 읽을 수 없습니다</string>

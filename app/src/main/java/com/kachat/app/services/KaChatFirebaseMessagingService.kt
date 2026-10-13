@@ -297,11 +297,12 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
             return
         }
-        // Chats Payment Privacy's fresh-address pool control envelopes (addr_pool /
-        // addr_pool_request) are invisible protocol traffic - the app processes them under the
-        // hood when it syncs, and nothing about them is for the reader. No banner at all, as on
-        // iOS's notification service extension (isSilentPoolEnvelope). A payment_notice IS a
-        // payment the reader should see, so it falls through and is worded like one below.
+        // The retired Chats Payment Privacy pool control envelopes (addr_pool /
+        // addr_pool_request) another client may still send are invisible protocol traffic - the
+        // app swallows them when it syncs, and nothing about them is for the reader. No banner at
+        // all, as on iOS's notification service extension (isSilentPoolEnvelope). A
+        // payment_notice IS a payment the reader should see, so it falls through and is worded
+        // like one below.
         when (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)) {
             is com.kachat.app.util.PaymentPoolProtocol.Envelope.Pool,
             is com.kachat.app.util.PaymentPoolProtocol.Envelope.Request -> {

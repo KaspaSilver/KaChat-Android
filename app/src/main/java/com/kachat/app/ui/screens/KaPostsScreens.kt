@@ -5533,13 +5533,12 @@ private fun notificationKindTint(kind: KaPostsViewModel.NotificationItem.Kind, s
 
 /**
  * Tipping a poster: the same Send Kaspa sheet as a payment inside a chat ([SendKasSheet], iOS
- * 0e08006 `KaPostTipSheet`) - the big amount with the KAS / currency switch and Max, an encrypted
- * memo sent with the tip (140 characters), where it goes (a fresh private address they shared, or
- * their public chatting address), the available balance, the fee card with speed, custom fee and
- * coin control, the small-amount question, and slide-to-send so a tip can't go out on a stray
- * touch. The send is ChatViewModel.sendPayment, a chat payment's: the same `kchat:1:pay:` memo
- * payload, destination and funding (Chats Payment Privacy), and the payment bubble lands in the
- * 1:1 conversation.
+ * 0e08006 `KaPostTipSheet`) - From (Chatting Address or Choose an Address, iOS 6333dd3), the big
+ * amount with the KAS / currency switch and Max, an encrypted memo sent with the tip (140
+ * characters), the fee card with speed, custom fee and coin control, the small-amount question,
+ * and slide-to-send so a tip can't go out on a stray touch. The send is ChatViewModel.sendPayment,
+ * a chat payment's: the same `kchat:1:pay:` memo payload, paid to their chatting address from the
+ * From, and the payment bubble lands in the 1:1 conversation.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -5567,41 +5566,28 @@ fun KaPostTipSheet(
     // the transaction id is handed over rather than the sheet just closing on nothing.
     var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
-    val paysViaPool by chatViewModel.paysToFreshPoolAddress.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
-    // The FUNDING SOURCE's coins, exactly what the send will spend: the primary spending address
-    // when Chats Payment Privacy is on, the chatting address when it's off.
-    val fundingUtxos by chatViewModel.spendingUtxos.collectAsState()
-    val fundsFromSpending by chatViewModel.spendingUtxosFromSpendingAddress.collectAsState()
-    val spendingAddress by walletViewModel.spendingAddress.collectAsState()
     val chattingAddress by walletViewModel.address.collectAsState()
     val priceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
     val currencyCode by portfolioViewModel.currency.collectAsState()
-    val fundingBalanceSompi = remember(fundingUtxos) {
-        com.kachat.app.util.UtxoMath.checkedTotal(fundingUtxos.map { it.utxoEntry.amount }) ?: 0L
-    }
-    // Available, as iOS shows it: "--" until this sheet's read of the funding source's coins is
-    // done, then every coin but the coinbase (mining-reward) ones.
-    var fundingLoaded by remember { mutableStateOf(false) }
-    val availableSompi = remember(fundingUtxos, fundingLoaded) {
-        if (fundingLoaded) com.kachat.app.util.KaPostTip.availableSompi(fundingUtxos) else null
-    }
+    /** Where the tip comes from (the From section, iOS 6333dd3): the chatting address by default. */
+    var source by remember { mutableStateOf<SendSource>(SendSource.Chatting) }
+    /** The From address's balance, loaded by [SendFromSection]. */
+    var availableSompi by remember { mutableStateOf<Long?>(null) }
 
     val resetPaymentState: () -> Unit = {
         chatViewModel.setPaymentAmount("")
         chatViewModel.setPaymentNote("")
         chatViewModel.setPaymentManualUtxos(null)
         chatViewModel.setFeeRateOverride(null)
+        chatViewModel.setPaymentSource(null)
     }
     LaunchedEffect(address) {
         // Deliberately does NOT create a contact here: opening the tip sheet and cancelling must
         // leave no trace in the Chats list. The contact is created on the send, right before the
         // payment goes out.
         resetPaymentState()
-        chatViewModel.refreshFreshPoolIndicator(address)
-        chatViewModel.setPaymentSource(null)
-        chatViewModel.refreshSpendingUtxos().join()
-        fundingLoaded = true
+        chatViewModel.refreshSpendingUtxos()
     }
     // The memo rides in the payload, so the fee preview prices it (as in a chat).
     LaunchedEffect(memo) { chatViewModel.setPaymentNote(memo) }
@@ -5628,19 +5614,26 @@ fun KaPostTipSheet(
             currencyCode = currencyCode,
             note = memo,
             onNoteChange = { memo = it },
-            // The funding source's spendable balance: never a picker here (iOS SendInfoPill).
-            availableText = KaspaUnit.label(
-                stringResource(
-                    R.string.available_amount_kas,
-                    com.kachat.app.util.KaPostTip.availableAmountText(availableSompi) { ChatRepository.formatKas(it) },
+            fromSection = {
+                SendFromSection(
+                    source = source,
+                    onSourceChange = { picked ->
+                        if (picked != source) {
+                            source = picked
+                            chatViewModel.setPaymentSource(picked.spendingIndex)
+                            // coins picked on one address can't pay from another
+                            manualUtxos = null
+                            chatViewModel.setPaymentManualUtxos(null)
+                        }
+                    },
+                    availableSompi = availableSompi,
+                    onAvailableSompiChange = { availableSompi = it },
+                    walletViewModel = walletViewModel,
+                    enabled = !isSending,
                 )
-            ),
-            availableTappable = false,
-            onAvailableClick = {},
-            availableSourceLabel = null,
-            paysToFreshAddress = paysViaPool,
+            },
             maxKas = {
-                chatViewModel.paymentMaxSompi(fundingBalanceSompi, feeTier.multiplier, customExtraFeeSompi).toDouble() / 100_000_000.0
+                chatViewModel.paymentMaxSompi(availableSompi ?: 0L, feeTier.multiplier, customExtraFeeSompi).toDouble() / 100_000_000.0
             },
             maxRefreshKey = Triple(feeTier, customExtraFeeSompi, extraFeeSompi),
             feeControls = {
@@ -5687,6 +5680,7 @@ fun KaPostTipSheet(
                         address,
                         amountText.trim(),
                         memo,
+                        sourceSpendingIndex = source.spendingIndex,
                         extraFeeSompi = extraFeeSompi,
                         manualUtxos = manualUtxos,
                     ) { ok, error, txId ->
@@ -5706,32 +5700,12 @@ fun KaPostTipSheet(
                 }
             },
             onDismiss = closeSheet,
-            destinationLine = {
-                // Which of the privacy scenarios this tip will actually hit (the same signal as
-                // the chat composer's fresh-address indicator).
-                val fresh = com.kachat.app.util.KaPostTip.destination(paysViaPool) ==
-                    com.kachat.app.util.KaPostTip.Destination.FRESH_PRIVATE_ADDRESS
-                val tint = if (fresh) colors.success else colors.textSecondary
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(
-                        if (fresh) Icons.Default.Lock else Icons.Default.Public,
-                        contentDescription = null,
-                        tint = tint,
-                        modifier = Modifier.size(12.dp),
-                    )
-                    Text(
-                        stringResource(if (fresh) R.string.tip_goes_to_fresh_address else R.string.tip_goes_to_public_address),
-                        color = tint,
-                        fontSize = 12.sp,
-                    )
-                }
-            },
         )
     }
 
     // Coin control on the address the tip comes from - over the tip sheet, as in a chat.
     if (showCoinControl) {
-        val coinControlAddress = if (fundsFromSpending) spendingAddress else chattingAddress
+        val coinControlAddress = source.address(chattingAddress)
         if (coinControlAddress != null) {
             CoinControlSheet(
                 fromAddress = coinControlAddress,

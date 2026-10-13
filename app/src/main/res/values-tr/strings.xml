@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">Hakkinizda daha fazla detay ekleyelim</string>
     <string name="log_out">Çıkış Yap</string>
     <string name="longer_retention_means_more_messages_stay">Daha uzun saklama, cihazinizda daha fazla mesajin onbellekte kalmasi anlamina gelir, bu da ozellikle hareketli odalarda uygulamayi zamanla yavaslatabilir.</string>
-    <string name="make_active_address">Aktif Adres Yap</string>
     <string name="manage_addresses">Adresleri Yonet</string>
     <string name="max">Maks</string>
     <string name="menu">Menu</string>
@@ -207,11 +206,9 @@
     <string name="select_time">Saat Sec</string>
     <string name="select_chat">Sohbet sec</string>
     <string name="send">Gonder</string>
-    <string name="send_all_kaspa_to_primary_spend">Tum Kaspa\'yi Ana Harcama Adresine Gonder</string>
     <string name="send_from_cold_storage">Soguk Depolamadan Gonder</string>
     <string name="send_photo">Fotograf gonder</string>
     <string name="sending">Gonderiliyor</string>
-    <string name="sends_every_other_spending_address_s">Diger tum harcama adreslerinin bakiyesini su anki favori adresinize gonderir. Bakiyesi olan her adres kendi gercek islemidir, bu yuzden biraz zaman alabilir.</string>
     <string name="sent">Gönderilmiş</string>
     <string name="settings">Ayarlar</string>
     <string name="show_more">Daha Fazla Goster</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">QR Kodu Goster</string>
     <string name="skip">Atla</string>
     <string name="some_changes_failed_to_save">Bazi degisiklikler kaydedilemedi:</string>
-    <string name="spending_kaspa_on_kachat_will_come">KaChat\'te Kaspa harcamak artik yalnizca bu adresten yapilacak. Mevcut harcama adresinizde kalan Kaspa otomatik olarak bu yeniye gonderilecek.</string>
     <string name="start_a_new_chat_by_adding">Bir kişi ekleyerek yeni bir sohbet başlat</string>
     <string name="status">Durum</string>
     <string name="still_indexing_it_ll_show_up">Hala dizinleniyor. Kisa surede yukarida gorunecek.</string>
@@ -322,7 +318,6 @@
     <string name="security">Guvenlik</string>
     <string name="send_handshake">Iletisim Istegi Gonder</string>
     <string name="send_photo_2">Fotograf Gonder</string>
-    <string name="set_as_primary_address">Birincil Adres Olarak Ayarla</string>
     <string name="setup_guide">Kurulum Rehberi</string>
     <string name="show_fee_estimate">Ucret Tahminini Goster</string>
     <string name="sound_vibration">Ses ve Titreşim</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">Birleştirmek için kaydır</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Gönderen</string>
-    <string name="send_from_hint">Hangi harcama adresinden gönderileceğini seç</string>
     <string name="primary">Birincil</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Başa sabitlendi</string>
     <string name="chats_unpinned">Sabitleme kaldırıldı</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Kaspa Gonder</string>
-    <string name="chats_send_kaspa_hint">Harcama adresinden Kaspa gönder.</string>
+    <string name="chats_send_kaspa_hint">Kaspa\'yı adreslerinizin herhangi birinden gönderin.</string>
     <string name="spending_address_unlocking">Harcama adresinin kilidi açılıyor — geri dönüp tekrar dene.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Başa sabitle</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Bahşiş</string>
-    <string name="tip_goes_to_fresh_address">Paylaştığı yeni özel bir adrese gider</string>
-    <string name="tip_goes_to_public_address">Herkese açık sohbet adresine gider</string>
-    <string name="available_amount_kas">kullanılabilir: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Kaydedilen Adlar</string>
     <string name="ks_kachat_renewals">Ad Yenilemeleri</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">Düğüm uç noktası kopyalandı.</string>
     <string name="clear">Temizle</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Bir Seyler Ters Gitti</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">Coin Sec</string>
     <string name="couldn_t_read_this_swap_s">Bu takasin tutarlari okunamadi</string>

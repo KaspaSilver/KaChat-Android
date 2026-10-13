@@ -46,20 +46,13 @@ import javax.inject.Singleton
  * - The notification itself is gated by Settings > Notifications > Wallet > "Address Activity"
  *   (default ON) plus the global notifications toggle.
  *
- * Chatting-address receipts never notify here (chat payment detection owns those), and offered
- * payment-pool reservation addresses are excluded from the NOTIFIABLE set (a pool payment
- * already produces a payment bubble + notification via its payment_notice) while still being
- * watched for the UI event and baseline bookkeeping.
+ * Chatting-address receipts never notify here (chat payment detection owns those).
  */
 @Singleton
 class AddressActivityNotifier @Inject constructor(
     @ApplicationContext context: Context,
     private val walletManager: WalletManager,
     private val coldStorageManager: ColdStorageManager,
-    private val paymentPoolStore: PaymentPoolStore,
-    // Lazy: PaymentPoolService's own graph (WalletService/ChatRepository) is heavy and this
-    // notifier only calls it on the rare reserved-address funding event.
-    private val paymentPoolServiceLazy: dagger.Lazy<PaymentPoolService>,
     private val networkService: NetworkService,
     private val settingsRepository: AppSettingsRepository,
     private val notificationHelper: NotificationHelper,
@@ -157,16 +150,13 @@ class AddressActivityNotifier @Inject constructor(
         val watched = spending + coldLabels.keys
         if (watched.isEmpty()) return@withLock
 
-        // NOTIFIABLE = watched minus chatting address minus pool reservations - pool payments
-        // already notify via their payment_notice envelope. Uses the HISTORICAL reservation
-        // mapping (not the active offered set): a payment racing a revoke/supersession still
-        // arrives with a payment_notice, so it must stay suppressed here too.
-        val poolReserved = paymentPoolStore.allReservationAddresses(walletAddress).toSet()
+        // NOTIFIABLE = watched minus the chatting address (its receives are chat/payment
+        // classified).
         // Per account: each cold-storage account has its own switch, and the spending chain has
         // one of its own. An account switched off is still ours - still watched, still counted
         // for the self-send test - just quiet (iOS ba352a2).
         val spendingMuted = if (settingsRepository.spendingReceiveNotifications.first()) emptySet() else spending
-        val notifiable = watched - walletAddress - poolReserved - coldMutedAddresses - spendingMuted
+        val notifiable = watched - walletAddress - coldMutedAddresses - spendingMuted
         // "Ours" for the self-send input test includes the chatting address too.
         val ownAll = watched + walletAddress
 
@@ -197,13 +187,6 @@ class AddressActivityNotifier @Inject constructor(
             if (balance != previous) {
                 changed = true
                 changedAddresses.add(address)
-            }
-            if (balance > previous && !isFirstRun && address in poolReserved) {
-                // The UTXO-watch half of pool funding detection (payment_notice is the other):
-                // marks the reservation funded and triggers the additive replenish, so the
-                // contact's pool refills even when the sender's notice never arrives. No
-                // notification here - pool payments notify via their payment_notice/chat bubble.
-                paymentPoolServiceLazy.get().handleReservedAddressFunded(address)
             }
             if (balance > previous && !isFirstRun && address in notifiable) {
                 attributeAndMaybeNotifyIncrease(

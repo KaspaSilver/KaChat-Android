@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">চলুন আপনার সম্পর্কে আরও বিস্তারিত যোগ করি</string>
     <string name="log_out">লগ আউট</string>
     <string name="longer_retention_means_more_messages_stay">দীর্ঘ ধারণক্ষমতার অর্থ হলো আপনার ডিভাইসে বেশি বার্তা ক্যাশে থাকে, যা সময়ের সাথে অ্যাপকে ধীর করে দিতে পারে, বিশেষ করে ব্যস্ত রুমের জন্য।</string>
-    <string name="make_active_address">সক্রিয় ঠিকানা করুন</string>
     <string name="manage_addresses">ঠিকানা পরিচালনা করুন</string>
     <string name="max">সর্বোচ্চ</string>
     <string name="menu">মেনু</string>
@@ -207,11 +206,9 @@
     <string name="select_time">সময় নির্বাচন করুন</string>
     <string name="select_chat">চ্যাট নির্বাচন করুন</string>
     <string name="send">পাঠান</string>
-    <string name="send_all_kaspa_to_primary_spend">সমস্ত কাস্পা প্রধান খরচের ঠিকানায় পাঠান</string>
     <string name="send_from_cold_storage">কোল্ড স্টোরেজ থেকে পাঠান</string>
     <string name="send_photo">ছবি পাঠান</string>
     <string name="sending">পাঠানো হচ্ছে</string>
-    <string name="sends_every_other_spending_address_s">অন্য সব খরচের ঠিকানার ব্যালেন্স আপনার বর্তমান পছন্দের ঠিকানায় পাঠায়। ব্যালেন্স সহ প্রতিটি ঠিকানা তার নিজস্ব প্রকৃত লেনদেন, তাই এতে কিছুটা সময় লাগতে পারে।</string>
     <string name="sent">পাঠানো হয়েছে</string>
     <string name="settings">সেটিংস</string>
     <string name="show_more">আরও দেখান</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">QR কোড দেখান</string>
     <string name="skip">এড়িয়ে যান</string>
     <string name="some_changes_failed_to_save">কিছু পরিবর্তন সংরক্ষণ করা যায়নি:</string>
-    <string name="spending_kaspa_on_kachat_will_come">KaChat-এ কাস্পা খরচ করা এখন থেকে শুধুমাত্র এই ঠিকানা থেকে হবে। আপনার বর্তমান খরচের ঠিকানায় এখনো থাকা যেকোনো কাস্পা স্বয়ংক্রিয়ভাবে এই নতুন ঠিকানায় পাঠানো হবে।</string>
     <string name="start_a_new_chat_by_adding">নতুন চ্যাট শুরু করতে একটি কন্টাক্ট যোগ করুন</string>
     <string name="status">স্থিতি</string>
     <string name="still_indexing_it_ll_show_up">এখনও ইনডেক্স হচ্ছে। শীঘ্রই উপরে দেখা যাবে।</string>
@@ -322,7 +318,6 @@
     <string name="security">নিরাপত্তা</string>
     <string name="send_handshake">যোগাযোগের অনুরোধ পাঠান</string>
     <string name="send_photo_2">ছবি পাঠান</string>
-    <string name="set_as_primary_address">প্রধান ঠিকানা হিসেবে সেট করুন</string>
     <string name="setup_guide">সেটআপ গাইড</string>
     <string name="show_fee_estimate">ফি অনুমান দেখান</string>
     <string name="sound_vibration">শব্দ ও কম্পন</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">একত্র করতে স্লাইড করুন</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">যেখান থেকে পাঠাবেন</string>
-    <string name="send_from_hint">কোন খরচের ঠিকানা থেকে পাঠাবেন তা বেছে নিন</string>
     <string name="primary">প্রাথমিক</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">সামনে পিন করা হয়েছে</string>
     <string name="chats_unpinned">পিন সরানো হয়েছে</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">কাস্পা পাঠান</string>
-    <string name="chats_send_kaspa_hint">আপনার খরচের ঠিকানা থেকে Kaspa পাঠান।</string>
+    <string name="chats_send_kaspa_hint">আপনার যেকোনো ঠিকানা থেকে Kaspa পাঠান।</string>
     <string name="spending_address_unlocking">খরচের ঠিকানাটি আনলক হচ্ছে — ফিরে গিয়ে আবার চেষ্টা করুন।</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">সামনে পিন করুন</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">KaChat খোলা রাখুন: গোপন প্রতিশ্রুতি নিশ্চিত হওয়ার প্রায় এক মিনিট পরে নামটি নিবন্ধিত হয়। আপনি চলে গেলে, ফিরে এলে যেখানে থেমেছিল সেখান থেকে চলবে।</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">টিপ</string>
-    <string name="tip_goes_to_fresh_address">তাদের শেয়ার করা একটি নতুন ব্যক্তিগত ঠিকানায় যায়</string>
-    <string name="tip_goes_to_public_address">তাদের সর্বজনীন চ্যাটিং ঠিকানায় যায়</string>
-    <string name="available_amount_kas">উপলব্ধ: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">নিবন্ধিত নাম</string>
     <string name="ks_kachat_renewals">নাম নবায়ন</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">নোড এন্ডপয়েন্ট কপি করা হয়েছে।</string>
     <string name="clear">মুছুন</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">কিছু ভুল হয়েছে</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">কয়েন বেছে নিন</string>
     <string name="couldn_t_read_this_swap_s">এই অদলবদলের পরিমাণগুলো পড়া যায়নি</string>

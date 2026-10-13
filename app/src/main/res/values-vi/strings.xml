@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">Hãy thêm chi tiết hơn về bạn</string>
     <string name="log_out">Đăng xuất</string>
     <string name="longer_retention_means_more_messages_stay">Thời gian lưu giữ lâu hơn nghĩa là nhiều tin nhắn hơn được lưu trong bộ nhớ đệm trên thiết bị của bạn, điều này có thể làm chậm ứng dụng theo thời gian, đặc biệt với các phòng đông đúc.</string>
-    <string name="make_active_address">Đặt làm địa chỉ hoạt động</string>
     <string name="manage_addresses">Quản lý địa chỉ</string>
     <string name="max">Tối đa</string>
     <string name="menu">Menu</string>
@@ -207,11 +206,9 @@
     <string name="select_time">Chọn giờ</string>
     <string name="select_chat">Chọn trò chuyện</string>
     <string name="send">Gửi</string>
-    <string name="send_all_kaspa_to_primary_spend">Gửi toàn bộ Kaspa đến địa chỉ chi tiêu chính</string>
     <string name="send_from_cold_storage">Gửi từ lưu trữ lạnh</string>
     <string name="send_photo">Gửi ảnh</string>
     <string name="sending">Đang gửi</string>
-    <string name="sends_every_other_spending_address_s">Gửi số dư của tất cả các địa chỉ chi tiêu khác đến địa chỉ yêu thích hiện tại của bạn. Mỗi địa chỉ có số dư là một giao dịch thực sự riêng, vì vậy điều này có thể mất một chút thời gian.</string>
     <string name="sent">Đã gửi</string>
     <string name="settings">Cài đặt</string>
     <string name="show_more">Hiện thêm</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">Hiện mã QR</string>
     <string name="skip">Bỏ qua</string>
     <string name="some_changes_failed_to_save">Một số thay đổi không thể lưu:</string>
-    <string name="spending_kaspa_on_kachat_will_come">Việc chi tiêu Kaspa trên KaChat từ giờ chỉ đến từ địa chỉ này. Bất kỳ Kaspa nào vẫn còn trên địa chỉ chi tiêu hiện tại của bạn sẽ được tự động gửi đến địa chỉ mới này.</string>
     <string name="start_a_new_chat_by_adding">Bắt đầu cuộc trò chuyện mới bằng cách thêm liên hệ</string>
     <string name="status">Trạng thái</string>
     <string name="still_indexing_it_ll_show_up">Vẫn đang lập chỉ mục. Sẽ xuất hiện ở trên trong giây lát.</string>
@@ -322,7 +318,6 @@
     <string name="security">Bảo mật</string>
     <string name="send_handshake">Gửi yêu cầu liên lạc</string>
     <string name="send_photo_2">Gửi ảnh</string>
-    <string name="set_as_primary_address">Đặt làm địa chỉ chính</string>
     <string name="setup_guide">Hướng dẫn thiết lập</string>
     <string name="show_fee_estimate">Hiển thị ước tính phí</string>
     <string name="sound_vibration">Âm thanh &amp; Rung</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">Trượt để gộp</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Gửi từ</string>
-    <string name="send_from_hint">Chọn địa chỉ chi tiêu để gửi</string>
     <string name="primary">Chính</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">Đã ghim lên đầu</string>
     <string name="chats_unpinned">Đã bỏ ghim</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">Gửi Kaspa</string>
-    <string name="chats_send_kaspa_hint">Gửi Kaspa từ địa chỉ chi tiêu của bạn.</string>
+    <string name="chats_send_kaspa_hint">Gửi Kaspa từ bất kỳ địa chỉ nào của bạn.</string>
     <string name="spending_address_unlocking">Địa chỉ chi tiêu đang mở khóa — hãy quay lại và thử lại.</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">Ghim lên đầu</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">Tiền tip</string>
-    <string name="tip_goes_to_fresh_address">Gửi tới một địa chỉ riêng mới mà họ đã chia sẻ</string>
-    <string name="tip_goes_to_public_address">Gửi tới địa chỉ trò chuyện công khai của họ</string>
-    <string name="available_amount_kas">khả dụng: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">Tên đã đăng ký</string>
     <string name="ks_kachat_renewals">Gia hạn tên</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">Đã sao chép điểm cuối nút.</string>
     <string name="clear">Xóa</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">Đã xảy ra lỗi</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">Chon dong tien</string>
     <string name="couldn_t_read_this_swap_s">Không thể đọc số tiền của giao dịch hoán đổi này</string>

@@ -73,7 +73,7 @@ import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.util.showAddressCopiedToast
 
-private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING, PAYMENT_PRIVACY }
+private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
 
 private enum class UserTypeChoice { ADULT, CHILD }
 
@@ -254,15 +254,10 @@ fun WelcomeGuideScreen(
                     icon = Icons.AutoMirrored.Filled.Chat,
                     title = stringResource(R.string.starting_a_conversation),
                     body = stringResource(R.string.welcome_starting_conversation_body),
-                    buttonLabel = stringResource(R.string.next),
+                    // The guide's final step (iOS 6333dd3 removed Chat Payment Privacy after it).
+                    buttonLabel = stringResource(R.string.finish),
                     onPrevious = goBack,
-                    onNext = { step = WelcomeGuideStep.PAYMENT_PRIVACY }
-                )
-                WelcomeGuideStep.PAYMENT_PRIVACY -> WelcomeGuidePaymentPrivacyStep(
-                    walletViewModel = walletViewModel,
-                    settingsViewModel = settingsViewModel,
-                    onPrevious = goBack,
-                    onFinish = {
+                    onNext = {
                         // Reaching Finish is what completes an onboarding run — clear the
                         // persisted re-presentation marker (no-op on replays, which never set it).
                         walletViewModel.clearOnboardingWizardPending()
@@ -271,100 +266,6 @@ fun WelcomeGuideScreen(
                 )
             }
         }
-    }
-}
-
-/**
- * "Chat Payment Privacy" — the wizard's final step (after Starting a Conversation), ported from
- * iOS WelcomeGuideView's paymentPrivacy step with its exact copy. On is preselected (Recommended);
- * tapping either option writes the per-account value IMMEDIATELY (not deferred to Finish), via
- * [WalletViewModel.setChatsPaymentPrivacyFromWizard] — which deliberately skips the Settings
- * toggle's revoke/re-offer propagation, matching iOS.
- */
-@Composable
-private fun WelcomeGuidePaymentPrivacyStep(
-    walletViewModel: WalletViewModel,
-    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
-    onPrevious: (() -> Unit)?,
-    onFinish: () -> Unit
-) {
-    val stored by settingsViewModel.chatsPaymentPrivacyEnabled.collectAsState()
-    var choice by remember { mutableStateOf(true) }
-    var seeded by remember { mutableStateOf(false) }
-    // Seed once from the stored per-account value (default ON for a new account, the current
-    // value on a replay) — after that the user's taps own the state.
-    androidx.compose.runtime.LaunchedEffect(stored) {
-        if (!seeded) {
-            choice = stored
-            seeded = true
-        }
-    }
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Column(
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            Icons.Default.VisibilityOff,
-            contentDescription = null,
-            tint = KaspaTeal,
-            modifier = Modifier.size(56.dp)
-        )
-        Spacer(Modifier.height(20.dp))
-        Text(
-            "Chat Payment Privacy",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = LocalAppColors.current.textPrimary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "How would you like to send and receive payments in chats?",
-            color = LocalAppColors.current.textSecondary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(20.dp))
-
-        NodeChoiceRow(
-            selected = choice,
-            title = "On",
-            badge = stringResource(R.string.recommended),
-            subtitle = CHATS_PRIVACY_ON_DESCRIPTION,
-            onClick = {
-                choice = true
-                walletViewModel.setChatsPaymentPrivacyFromWizard(true)
-            }
-        )
-        Spacer(Modifier.height(10.dp))
-        NodeChoiceRow(
-            selected = !choice,
-            title = "Off",
-            badge = null,
-            subtitle = CHATS_PRIVACY_OFF_DESCRIPTION,
-            onClick = {
-                choice = false
-                walletViewModel.setChatsPaymentPrivacyFromWizard(false)
-            }
-        )
-
-    }
-        Spacer(Modifier.height(16.dp))
-        WelcomeGuideButtonRow(
-            onPrevious = onPrevious,
-            onNext = {
-                walletViewModel.setChatsPaymentPrivacyFromWizard(choice)
-                onFinish()
-            },
-            nextLabel = stringResource(R.string.finish)
-        )
     }
 }
 
@@ -1058,15 +959,3 @@ private fun AddressMockRow(title: String, address: String, caption: String) {
         Text(caption, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
     }
 }
-
-/**
- * The Chat Payment Privacy setting, described once.
- *
- * Shared with Settings > Security's toggle footer: they are the same setting, so a change to one
- * must not leave the other saying something different.
- */
-const val CHATS_PRIVACY_ON_DESCRIPTION =
-    "Anytime you receive Kaspa KaChat will do its best make sure the Kaspa goes to a fresh address not tied to your chatting identity. Sending Kaspa KaChat will always make sure it comes out of your primary spend address which is never associated with your chatting identity."
-
-const val CHATS_PRIVACY_OFF_DESCRIPTION =
-    "All Kaspa will flow in and out of your chatting address"

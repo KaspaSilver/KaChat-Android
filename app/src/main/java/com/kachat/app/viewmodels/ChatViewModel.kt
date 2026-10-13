@@ -71,7 +71,6 @@ class ChatViewModel @Inject constructor(
     private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
-    private val paymentPoolService: com.kachat.app.services.PaymentPoolService,
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
     private val kaPostsService: com.kachat.app.services.KaPostsService,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
@@ -140,11 +139,6 @@ class ChatViewModel @Inject constructor(
         // change — keep the direct-share conversation shortcuts current. refresh() diffs against
         // what's already published, so this is free when nothing changed.
         shareShortcutsManager.refresh(conversations.value)
-        // Fresh-address payment pools: lazily offer our pool once per established contact,
-        // and top up our stored pool of theirs if it has run low (both throttled/marker-
-        // guarded inside the service) — the Android equivalent of iOS's enterConversation
-        // hook. Fire-and-forget on the service's own scope.
-        paymentPoolService.onConversationOpened(contactId)
         // What arrived while the app was away, straight away rather than on the poll's next
         // tick (iOS 360e5d2).
         viewModelScope.launch {
@@ -966,11 +960,10 @@ class ChatViewModel @Inject constructor(
      *  payload, so the fee preview below prices it in. Empty outside the sheet. */
     private val _paymentNote = MutableStateFlow("")
 
-    /** Whether [spendingUtxos] were read from the payment's spending address (Chats Payment
-     *  Privacy on) or the chatting address - the KaPosts tip sheet says which (iOS). Declared
-     *  ahead of [estimatedFeeSompi], which reads it. */
+    /** Whether [spendingUtxos] were read from a spending address the payment's From chose
+     *  (its send sweeps it - KaspaWalletEngine.sendSpendingPayment) or the chatting address.
+     *  Declared ahead of [estimatedFeeSompi], which reads it. */
     private val _spendingUtxosFromSpendingAddress = MutableStateFlow(false)
-    val spendingUtxosFromSpendingAddress: StateFlow<Boolean> = _spendingUtxosFromSpendingAddress.asStateFlow()
 
     /** The Send KAS sheet's coin control: the payment spends exactly these coins of its source
      *  address; null = automatic (iOS 62c2773). The fee preview prices this set. */
@@ -1409,45 +1402,10 @@ class ChatViewModel @Inject constructor(
     /** The account in use - never offered as a group member from the Address Book. */
     val activeAddress: String? get() = walletManager.activeAddressFlow.value
 
-    /**
-     * Whether the ACTIVE account's Chats Payment Privacy toggle is on (default true) — drives the
-     * payment composer's funding-source display: which balance the Available pill shows, whether
-     * it's tappable, and which UTXO set the fee/Max estimators price against.
-     */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val chatsPaymentPrivacyOn: StateFlow<Boolean> = walletManager.activeAddressFlow
-        .flatMapLatest { address ->
-            if (address == null) kotlinx.coroutines.flow.flowOf(true) else settings.chatsPaymentPrivacyEnabled(address)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-
-    /** True when the NEXT payment to the open contact would go to a fresh pool address the
-     *  contact shared — drives the subtle fresh-address arrow merged into the Available pill.
-     *  Refreshed on entering payment mode and after each send, matching iOS. */
-    private val _paysToFreshPoolAddress = MutableStateFlow(false)
-    val paysToFreshPoolAddress: StateFlow<Boolean> = _paysToFreshPoolAddress.asStateFlow()
-
-    fun refreshFreshPoolIndicator(contactId: String) {
-        viewModelScope.launch {
-            _paysToFreshPoolAddress.value = try {
-                paymentPoolService.willPayViaFreshPoolAddress(contactId)
-            } catch (e: Exception) {
-                false
-            }
-        }
-    }
-
-    /**
-     * Same as [refreshUtxos] but for the PAYMENT FUNDING SOURCE — the current spending address
-     * when Chats Payment Privacy is on, the chatting/identity address when off. The fee preview
-     * and the Max button both price against this set, so they always agree with what
-     * [sendPayment] will actually spend (estimators must use the same source the send uses).
-     */
-
-    /** The spending address the open Send KAS sheet pays from when it isn't the primary (Chats
-     *  Payment Privacy on), picked from its Available pill; null = the primary. The sheet resets
-     *  it each time it opens and closes. [refreshSpendingUtxos] reads this source's UTXOs, so the
-     *  fee preview and Max price what the send will actually spend (iOS dae8a01). */
+    /** Where the open Send KAS sheet (or KaPosts tip) pays from - its From (iOS 6333dd3
+     *  `SendSource`): null = the chatting address (the default), else that spending address.
+     *  The sheet resets it each time it opens and closes. [refreshSpendingUtxos] reads this
+     *  source's UTXOs, so the fee preview and Max price what the send will actually spend. */
     private val _paymentSourceIndex = MutableStateFlow<Int?>(null)
 
     fun setPaymentSource(index: Int?) {
@@ -1456,19 +1414,15 @@ class ChatViewModel @Inject constructor(
         refreshSpendingUtxos()
     }
 
-    /** Re-reads the payment source's coins into [spendingUtxos]; the returned job completes when
-     *  the read is done (the KaPosts tip sheet shows "--" until then). */
+    /** Re-reads the payment source's coins into [spendingUtxos] (iOS
+     *  `paymentFundingSourceAddress`: the chatting address, or the chosen spending address); the
+     *  returned job completes when the read is done. */
     fun refreshSpendingUtxos(): kotlinx.coroutines.Job {
         val source = _paymentSourceIndex.value
         return viewModelScope.launch {
             try {
-                val privacy = paymentPoolService.isChatsPrivacyEnabled()
-                _spendingUtxosFromSpendingAddress.value = privacy
-                val address = if (privacy) {
-                    source?.let { walletManager.deriveSpendingAddress(it) } ?: walletManager.currentSpendingAddress()
-                } else {
-                    walletManager.getAddress()
-                }
+                _spendingUtxosFromSpendingAddress.value = source != null
+                val address = if (source != null) walletManager.deriveSpendingAddress(source) else walletManager.getAddress()
                 val api = networkService.kaspaRestApi.value ?: return@launch
 
                 try {
@@ -3029,11 +2983,12 @@ class ChatViewModel @Inject constructor(
      *  sender's own bubble keeps it from send time ("Sent X KAS — memo", iOS 2be75ed). A payment
      *  with no memo carries no payload at all, as before.
      *
-     *  [sourceSpendingIndex] pays from that spending address instead of the primary (Chats
-     *  Payment Privacy on; the Send KAS sheet's Available pill) without moving the primary - see
-     *  [com.kachat.app.services.KaspaWalletEngine.sendSpendingPayment]. null = the primary, as
-     *  always; ignored with privacy off, which always pays from the chatting address (iOS
-     *  dae8a01). */
+     *  [sourceSpendingIndex] is the payment's From (iOS 6333dd3 `sendPayment(sourceSpendingIndex:)`):
+     *  null = the chatting address (the default) - signed with the identity key, change back to
+     *  it; else that spending address - signed with its own key, change to a never-used address,
+     *  which is revealed in Manage Addresses (no primary moves) - see
+     *  [com.kachat.app.services.KaspaWalletEngine.sendSpendingPayment]. Either way it is paid to
+     *  the contact's chatting address. */
     fun sendPayment(
         contactId: String,
         amount: String,
@@ -3080,34 +3035,27 @@ class ChatViewModel @Inject constructor(
                     )
                 )
 
-                // Fresh-address payment pools (MESSAGING.md): pay a fresh address from the
-                // contact's stored pool when one is available (consumed at selection, persisted
-                // - never offered to another payment even if this one fails), falling back to
-                // the chatting address when no pool exists or Chats Payment Privacy is off.
-                val destination = paymentPoolService.poolPaymentDestination(contactId, pendingId)
-
-                // FUNDING SOURCE - keyed on the per-account Chats Payment Privacy toggle:
-                // ON (default) spends from the spending chain with change routed to a fresh
-                // never-used index (payInKaspa); OFF is chatting-to-chatting end to end - funded
-                // from the chatting address with the identity key, change back to the chatting
-                // address, sharing the exact same UTXO/outpoint bookkeeping message sends use
-                // (KaspaWalletEngine's pending-spent tracking), so an immediately-following
-                // message can't race onto the just-spent outpoints.
-                val privacyOn = paymentPoolService.isChatsPrivacyEnabled()
-                // Sealed to the contact's chatting key even when paying a pool address - the key
-                // every reader opens payment payloads with (iOS 6b20d77, MESSAGING.md).
+                // Paid to the contact's chatting address, the memo sealed to its key (iOS
+                // 6333dd3: no payment-pool destinations any more).
+                val destination = contactId
                 val payload = if (memo.isEmpty()) null else MessageProtocol.paymentMemoPayload(
                     memo = memo,
                     amountSompi = sompi,
-                    recipientXOnlyPubKey = com.kachat.app.util.PaymentPoolProtocol.paymentPayloadSealKey(contactId)
+                    recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
                 )
-                val txId = if (privacyOn) {
+                // FUNDING SOURCE - the From the person chose (iOS sendPaymentInternal): the
+                // chatting address (null, the default) is funded with the identity key, change
+                // back to it, sharing the exact same UTXO/outpoint bookkeeping message sends use
+                // (KaspaWalletEngine's pending-spent tracking), so an immediately-following message
+                // can't race onto the just-spent outpoints; a spending address is signed with its
+                // own key and its change goes to a never-used address.
+                val txId = if (sourceSpendingIndex != null) {
                     walletService.payInKaspa(
                         toAddress = destination,
                         amountSompi = sompi,
+                        sourceSpendingIndex = sourceSpendingIndex,
                         feeRateOverride = feeRate,
                         payloadBytes = payload,
-                        sourceSpendingIndex = sourceSpendingIndex,
                         manualUtxos = manualUtxos,
                         extraFeeSompi = extraFeeSompi,
                     )
@@ -3122,16 +3070,8 @@ class ChatViewModel @Inject constructor(
                     )
                 }
 
-                // Pool-address payments announce themselves to the recipient (payment_notice) -
-                // their payment detection only watches the chatting address. No-op when the
-                // destination is the chatting address.
-                paymentPoolService.handlePoolPaymentSubmitted(contactId, txId, sompi, destination, pendingId, memo = memo)
-
-                // The Available pill tracks the post-send state: the fresh-address indicator may
-                // flip (an address was consumed), and the rotated-to spending address's balance
-                // lags the send — retry the balance shortly after, then again once the change
-                // output has typically landed (~1.5s and ~4s, matching iOS's retry schedule).
-                refreshFreshPoolIndicator(contactId)
+                // The From's balance lags the send - retry it shortly after, then again once the
+                // change output has typically landed (~1.5s and ~4s).
                 launch {
                     delay(1_500)
                     walletService.refreshSpendingBalance()

@@ -128,7 +128,6 @@
     <string name="let_s_add_more_details_about">让我们添加更多关于您的详细信息</string>
     <string name="log_out">退出登录</string>
     <string name="longer_retention_means_more_messages_stay">更长的保留时间意味着更多消息会保留在您设备的缓存中,这可能会随着时间推移拖慢应用速度,尤其是在活跃的房间中。</string>
-    <string name="make_active_address">设为活动地址</string>
     <string name="manage_addresses">管理地址</string>
     <string name="max">最大</string>
     <string name="menu">菜单</string>
@@ -207,11 +206,9 @@
     <string name="select_time">选择时间</string>
     <string name="select_chat">选择聊天</string>
     <string name="send">发送</string>
-    <string name="send_all_kaspa_to_primary_spend">将所有 Kaspa 发送到主消费地址</string>
     <string name="send_from_cold_storage">从冷存储发送</string>
     <string name="send_photo">发送照片</string>
     <string name="sending">正在发送</string>
-    <string name="sends_every_other_spending_address_s">将所有其他消费地址的余额发送到您当前收藏的地址。每个有余额的地址都是其自己的真实交易,因此可能需要一些时间。</string>
     <string name="sent">发送</string>
     <string name="settings">设置</string>
     <string name="show_more">显示更多</string>
@@ -219,7 +216,6 @@
     <string name="show_qr_code">显示二维码</string>
     <string name="skip">跳过</string>
     <string name="some_changes_failed_to_save">部分更改未能保存:</string>
-    <string name="spending_kaspa_on_kachat_will_come">从现在起,在 KaChat 上花费 Kaspa 将仅来自此地址。您当前消费地址上仍然存在的任何 Kaspa 都将自动发送到这个新地址。</string>
     <string name="start_a_new_chat_by_adding">添加联系人以开始新聊天</string>
     <string name="status">状态</string>
     <string name="still_indexing_it_ll_show_up">仍在索引中。稍后将显示在上方。</string>
@@ -322,7 +318,6 @@
     <string name="security">安全</string>
     <string name="send_handshake">发送通信请求</string>
     <string name="send_photo_2">发送照片</string>
-    <string name="set_as_primary_address">设为主地址</string>
     <string name="setup_guide">设置指南</string>
     <string name="show_fee_estimate">显示手续费估算</string>
     <string name="sound_vibration">声音和振动</string>
@@ -859,14 +854,13 @@
     <string name="slide_to_consolidate">滑动合并</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">发送自</string>
-    <string name="send_from_hint">选择从哪个支出地址发送</string>
     <string name="primary">主节点</string>
     <!-- Chats circles row (iOS a062577) -->
     <string name="chats_pinned_to_front">已置顶</string>
     <string name="chats_unpinned">已取消置顶</string>
     <!-- Chats New sheet Send Kaspa (iOS f81e8d6) -->
     <string name="chats_send_kaspa">发送 Kaspa</string>
-    <string name="chats_send_kaspa_hint">从你的支出地址发送 Kaspa。</string>
+    <string name="chats_send_kaspa_hint">从你的任一地址发送 Kaspa。</string>
     <string name="spending_address_unlocking">支出地址正在解锁，请返回后重试。</string>
     <!-- Chats circle half sheet (iOS f90a70a) -->
     <string name="chats_circle_pin_to_front">置顶</string>
@@ -980,9 +974,6 @@
     <string name="kn_keep_open_claiming">请保持 KaChat 打开：隐藏承诺确认约一分钟后名称即会注册。如果你离开，回来时会从中断处继续。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <string name="kaposts_tip_title">打赏</string>
-    <string name="tip_goes_to_fresh_address">发送到对方分享的新私人地址</string>
-    <string name="tip_goes_to_public_address">发送到对方的公开聊天地址</string>
-    <string name="available_amount_kas">可用: %1$s KAS</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <string name="ks_kachat_registrations">已注册名称</string>
     <string name="ks_kachat_renewals">名称续期</string>
@@ -1029,7 +1020,6 @@
     <string name="node_endpoint_copied">节点端点已复制。</string>
     <string name="clear">清除</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
-    <string name="something_went_wrong_title">出错了</string>
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="choose_coin">选择币种</string>
     <string name="couldn_t_read_this_swap_s">无法读取此次兑换的金额</string>

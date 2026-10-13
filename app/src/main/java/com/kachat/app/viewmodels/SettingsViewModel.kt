@@ -19,8 +19,6 @@ class SettingsViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     pushState: com.kachat.app.services.PushState,
     private val childModeService: com.kachat.app.services.ChildModeService,
-    private val walletManager: com.kachat.app.services.WalletManager,
-    private val paymentPoolService: com.kachat.app.services.PaymentPoolService
 ) : ViewModel() {
 
     /** Read-only push diagnostics for Settings > Notifications (see PushState.PushDiagnostics). */
@@ -98,27 +96,6 @@ class SettingsViewModel @Inject constructor(
     fun setKaPostsNotifyComments(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyComments(value) }
     fun setKaPostsNotifyMentions(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyMentions(value) }
     fun setKaPostsDefaultTipSompi(value: Long?) = viewModelScope.launch { settings.setKaPostsDefaultTipSompi(value) }
-
-    // ------------------------------------------------------------------
-    // Chats Payment Privacy (per-account) — fresh-address payment pools.
-    // ------------------------------------------------------------------
-
-    /** The ACTIVE account's Chats Payment Privacy value, re-scoped on account switches. Default ON. */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val chatsPaymentPrivacyEnabled = walletManager.activeAddressFlow
-        .flatMapLatest { address ->
-            if (address == null) kotlinx.coroutines.flow.flowOf(true)
-            else settings.chatsPaymentPrivacyEnabled(address)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-
-    /** Persists the per-account flag, then propagates the transition (revoke on OFF from
-     *  persisted pool state, proactive re-offer on ON) — see PaymentPoolService. */
-    fun setChatsPaymentPrivacyEnabled(value: Boolean) = viewModelScope.launch {
-        val address = try { walletManager.getAddress() } catch (e: Exception) { return@launch }
-        settings.setChatsPaymentPrivacyEnabled(address, value)
-        paymentPoolService.handleChatsPrivacyToggleChanged(value)
-    }
 
     // ------------------------------------------------------------------
     // Simple Mode (Settings > Security > Simple Mode + the Welcome Guide's

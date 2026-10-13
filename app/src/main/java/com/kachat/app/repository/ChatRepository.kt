@@ -77,9 +77,6 @@ class ChatRepository @Inject constructor(
     private val callServiceLazy: dagger.Lazy<com.kachat.app.services.CallService>,
     // Lazy: ContactNoteService sends through WalletService, which itself depends on this.
     private val contactNotesLazy: dagger.Lazy<com.kachat.app.services.ContactNoteService>,
-    // Lazy for the same cycle reason: PaymentPoolService sends its envelopes through
-    // WalletService, which depends on this repository.
-    private val paymentPoolServiceLazy: dagger.Lazy<com.kachat.app.services.PaymentPoolService>,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val peerAliasStore: com.kachat.app.services.PeerAliasStore,
     /** Message Requests state - accepted, private, blocked (NO_HANDSHAKE_MESSAGING.md). */
@@ -1962,25 +1959,10 @@ class ChatRepository @Inject constructor(
             return
         }
 
-        // Fresh-address payment pool envelopes (addr_pool / addr_pool_request / payment_notice)
-        // are invisible, exactly like reactions - intercepted before a MessageEntity is ever
-        // created. A payment_notice produces a payment bubble, but the envelope itself never
-        // renders. See MESSAGING.md "Fresh-Address Payment Pools" and PaymentPoolService.
-        val poolEnvelope = com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)
-        if (poolEnvelope != null) {
-            try {
-                paymentPoolServiceLazy.get().handleIncomingEnvelope(
-                    envelope = poolEnvelope,
-                    txId = message.txId,
-                    blockTime = message.blockTime,
-                    contact = contact,
-                    myAddress = myAddress
-                )
-            } catch (e: Exception) {
-                Log.w("ChatRepository", "Failed to handle payment pool envelope ${message.txId}", e)
-            }
-            return
-        }
+        // The retired payment-pool envelopes (addr_pool / addr_pool_request / payment_notice)
+        // another client may still send: never bubbles, swallowed exactly like reactions (iOS
+        // isRetiredPaymentPoolEnvelope, 6333dd3 - Chats Payment Privacy was removed).
+        if (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext) != null) return
 
         val backfill = isBackfill(message.blockTime)
         insertMessage(

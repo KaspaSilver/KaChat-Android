@@ -1465,6 +1465,7 @@ fun MainShell(
                     viewModel = walletViewModel,
                     onBack = { navController.popBackStack() },
                     onNavigateToTxHistory = { index -> navController.navigate("spending_address_detail/$index") },
+                    onOpenChattingAddress = { navController.navigate("identity_address_detail") },
                     onNavigateToHidden = { navController.navigate("manage_addresses_hidden") },
                     onNavigateToVisibility = { navController.navigate("manage_addresses_visibility") }
                 )
