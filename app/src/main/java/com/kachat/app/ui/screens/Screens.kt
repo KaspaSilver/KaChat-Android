@@ -2915,7 +2915,7 @@ fun MessageBubble(
         ChatReactionsSheet(
             reactions = reactions,
             isMe = { it == myReactorAddress },
-            nameFor = { contactAvatarFallback.ifBlank { it.takeLast(10) } },
+            nameFor = { contactAvatarFallback.ifBlank { com.kachat.app.util.KaspaAddress.shortDisplay(it) } },
             // Two people in a 1:1, so a reactor is either you or them - my own avatar for mine,
             // theirs for theirs.
             avatarFor = { if (it == myReactorAddress) myAvatarUrl else contactAvatarUrl },
