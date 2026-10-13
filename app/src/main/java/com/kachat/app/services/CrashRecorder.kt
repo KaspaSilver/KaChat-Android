@@ -49,7 +49,11 @@ object CrashRecorder {
     fun install(context: Context) {
         if (installed) return
         installed = true
-        val appContext = context.applicationContext
+        // Called from attachBaseContext, where the Application's applicationContext is still null
+        // (the same trap KaspaNetwork.init documents) - and a null context here meant every
+        // recorded crash failed on filesDir, so a crash at launch left no report at all. The
+        // Application itself, its base context attached, is what the record needs.
+        val appContext: Context = context.applicationContext ?: context
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {

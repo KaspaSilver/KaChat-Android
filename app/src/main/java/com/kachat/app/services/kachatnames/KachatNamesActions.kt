@@ -122,7 +122,7 @@ class KachatNamesActions @Inject constructor(
      *  ([ownAddress], iOS 881ada6). Read only: their keys never live here. */
     private val coldStorageManager: com.kachat.app.services.ColdStorageManager
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("KachatNamesActions"))
     private val gson = Gson()
     private val lock = Any()
 

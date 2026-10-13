@@ -1,8 +1,6 @@
 package com.kachat.app.services
 
 import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.kachat.app.models.PortfolioEntity
 import com.kachat.app.services.database.KaChatDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,16 +51,13 @@ class PortfolioManager @Inject constructor(
         private const val ACTIVE_PORTFOLIO_KEY_PREFIX = "active_portfolio_"
     }
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val sharedPrefs = EncryptedSharedPreferences.create(
+    // The same encrypted file as always. Where the Keystore refuses to open it (seen on hardened
+    // ROMs), the selection lives in memory for this session and the file is left alone - built at
+    // startup through PortfolioRepository, this store must never be what stops the app opening.
+    private val sharedPrefs = com.kachat.app.util.StartupSafety.encryptedPrefsOrInMemory(
         context,
         SECURE_PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        "PortfolioManager"
     )
 
     /** Set immediately by [setActivePortfolio] so the switch is reflected instantly, without waiting on a disk round-trip through [activePortfolioIdFlow]'s recomputation. */
@@ -71,8 +66,11 @@ class PortfolioManager @Inject constructor(
     private fun activePortfolioKey(walletAddress: String) =
         ACTIVE_PORTFOLIO_KEY_PREFIX + walletAddress.replace(":", "_")
 
+    // A value that cannot be decrypted is "no stored selection" (the first portfolio), not a crash.
     private fun loadStoredActiveId(walletAddress: String): String? =
-        sharedPrefs.getString(activePortfolioKey(walletAddress), null)
+        runCatching { sharedPrefs.getString(activePortfolioKey(walletAddress), null) }
+            .onFailure { android.util.Log.w("PortfolioManager", "Stored portfolio selection unreadable", it) }
+            .getOrNull()
 
     /** Every portfolio for the currently active wallet — seeds a default "Portfolio 1" inline on first read for a wallet that has none yet, same "claim/seed before read" shape as [com.kachat.app.services.database.PortfolioDao.claimUnscopedTransactions]. */
     fun getPortfolios(): Flow<List<PortfolioEntity>> =
@@ -217,7 +215,8 @@ class PortfolioManager @Inject constructor(
 
     fun setActivePortfolio(id: String) {
         val address = walletManager.getAddress()
-        sharedPrefs.edit().putString(activePortfolioKey(address), id).apply()
+        runCatching { sharedPrefs.edit().putString(activePortfolioKey(address), id).apply() }
+            .onFailure { android.util.Log.w("PortfolioManager", "Portfolio selection not saved", it) }
         activePortfolioIdOverride.value = id
     }
 }

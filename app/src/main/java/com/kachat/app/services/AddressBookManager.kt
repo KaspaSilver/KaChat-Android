@@ -77,7 +77,8 @@ class AddressBookManager @Inject constructor(
 ) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val gson = Gson()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Built at startup: a failure in one of its background jobs is logged, never the end of the app.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler(TAG))
 
     private class Book(
         val wallet: String?,
@@ -109,7 +110,16 @@ class AddressBookManager @Inject constructor(
     init {
         instance = this
         scope.launch {
-            walletManager.activeAddressFlow.collect { setActiveWalletAddress(it) }
+            walletManager.activeAddressFlow.collect {
+                // One wallet's book failing to load must not stop the next wallet load's.
+                try {
+                    setActiveWalletAddress(it)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Address Book could not load this wallet's book", e)
+                }
+            }
         }
     }
 

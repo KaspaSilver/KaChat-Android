@@ -424,7 +424,7 @@ class PortfolioRepository @Inject constructor(
     /** Parsed series held in memory, so only the first read of each touches disk. */
     private val priceHistoryMemory = java.util.concurrent.ConcurrentHashMap<String, PersistedPriceHistory>()
 
-    private val priceHistoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val priceHistoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("PortfolioRepository"))
 
     init {
         priceHistoryScope.launch { runCatching { migrateLegacyPriceHistoryEntries() } }
@@ -613,7 +613,7 @@ class PortfolioRepository @Inject constructor(
 
     /** Runs the background price backfill — outlives the import dialog's coroutine on purpose,
      *  so closing the progress dialog (or leaving the screen) never kills the backfill. */
-    private val priceBackfillScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val priceBackfillScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("PortfolioRepository"))
 
     /** The one background price-backfill loop ([startPriceBackfillIfNeeded]) while it runs - iOS's
      *  single `priceBackfillTask`. Cancelled on a wallet switch so a pass never writes into the
@@ -638,10 +638,18 @@ class PortfolioRepository @Inject constructor(
         if (walletAddress.isEmpty() || priceBackfillJob?.isActive == true) return
         priceBackfillWallet = walletAddress
         priceBackfillJob = priceBackfillScope.launch {
-            for (delayMillis in PRICE_BACKFILL_PASS_DELAYS_MILLIS) {
-                if (delayMillis > 0) delay(delayMillis)
-                if (!isActive || !isActiveWallet(walletAddress) || !hasPendingPriceRows(walletAddress)) break
-                runPriceBackfillPass(walletAddress)
+            // Started by every wallet load, at launch too: a failing pass is logged and the
+            // rows keep waiting for the next start, never taking the app down with it.
+            try {
+                for (delayMillis in PRICE_BACKFILL_PASS_DELAYS_MILLIS) {
+                    if (delayMillis > 0) delay(delayMillis)
+                    if (!isActive || !isActiveWallet(walletAddress) || !hasPendingPriceRows(walletAddress)) break
+                    runPriceBackfillPass(walletAddress)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("PortfolioRepository", "Price backfill stopped", e)
             }
         }
     }
@@ -1050,7 +1058,13 @@ class PortfolioRepository @Inject constructor(
         // the class on purpose: the backfill runs on another thread and reads properties declared
         // above, which must all be initialized before it can start.
         priceBackfillScope.launch {
-            walletManager.activeAddressFlow.collect { onWalletLoaded(it) }
+            walletManager.activeAddressFlow.collect {
+                try {
+                    onWalletLoaded(it)
+                } catch (e: Exception) {
+                    android.util.Log.w("PortfolioRepository", "Wallet-load price backfill not started", e)
+                }
+            }
         }
     }
 

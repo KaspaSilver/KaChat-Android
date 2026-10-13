@@ -83,7 +83,7 @@ class BroadcastScanningService @Inject constructor(
     // known to equal output 0's - see BroadcastSenderVerifier.
     private val senderVerifier: BroadcastSenderVerifier,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("BroadcastScanningService"))
     private var scanJob: Job? = null
     private var lastPruneAt = 0L
     private var wantCount = 0

@@ -149,7 +149,23 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Covers returning from the notification-permission dialog, and from system Settings.
-        refreshBatteryRationale()
+        guarded("battery rationale") { refreshBatteryRationale() }
+    }
+
+    /** A side step of opening the app: a failure is logged, never the end of it. */
+    private fun guarded(what: String, block: () -> Unit) =
+        com.kachat.app.util.StartupSafety.step("MainActivity", what, block)
+
+    /** The launching (or new) Intent's notification target, links, share and call answer. */
+    private fun handleLaunchIntent(intent: Intent?) {
+        if (intent == null) return
+        guarded("notification target") { consumeNotificationTarget(intent) }
+        guarded("broadcast link") { handleBroadcastDeepLink(intent) }
+        guarded("profile link") { handleProfileDeepLink(intent) }
+        guarded("payment request link") { handlePaymentRequestDeepLink(intent) }
+        guarded("share") { handleShareIntent(intent) }
+        guarded("clear intent payload") { clearConsumedIntentPayload(intent) }
+        guarded("call answer") { consumeCallAnswer(intent) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -171,16 +187,13 @@ class MainActivity : AppCompatActivity() {
             setRecentsScreenshotEnabled(false)
         }
         enableEdgeToEdge()
-        maybeRequestNotificationPermission()
-        refreshBatteryRationale()
-        intent?.let(::consumeNotificationTarget)
-        intent?.let(::handleBroadcastDeepLink)
-        intent?.let(::handleProfileDeepLink)
-        intent?.let(::handlePaymentRequestDeepLink)
-        intent?.let(::handleShareIntent)
-        intent?.let(::clearConsumedIntentPayload)
-        intent?.let(::consumeCallAnswer)
-        observeCallForLockScreen()
+        // Everything up to setContent is a side step - a permission prompt, a notification or
+        // link to route, the call window wiring. Each is guarded on its own: one that throws is
+        // logged, and the app still opens (KaChatApplication's startup rule).
+        guarded("notification permission") { maybeRequestNotificationPermission() }
+        guarded("battery rationale") { refreshBatteryRationale() }
+        handleLaunchIntent(intent)
+        guarded("call window") { observeCallForLockScreen() }
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
             val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
@@ -289,13 +302,7 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        consumeNotificationTarget(intent)
-        handleBroadcastDeepLink(intent)
-        handleProfileDeepLink(intent)
-        handlePaymentRequestDeepLink(intent)
-        handleShareIntent(intent)
-        clearConsumedIntentPayload(intent)
-        consumeCallAnswer(intent)
+        handleLaunchIntent(intent)
     }
 
     /**

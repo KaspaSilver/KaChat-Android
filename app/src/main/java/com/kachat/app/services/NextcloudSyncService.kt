@@ -199,7 +199,7 @@ class NextcloudSyncService @Inject constructor(
             stringPreferencesKey("${KEY_MERGED_ETAG}_${NextcloudService.walletHashSuffix(address)}")
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("NextcloudSyncService"))
 
     /** Serializes uploads and restores so they can never interleave half-written state. */
     private val syncMutex = Mutex()

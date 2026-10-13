@@ -49,7 +49,7 @@ class KaPostsNotificationPoller @Inject constructor(
     private val chatRepository: com.kachat.app.repository.ChatRepository,
     private val knsService: KnsService,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("KaPostsNotificationPoller"))
     private var pollJob: Job? = null
 
     /** Session cache: one alias/KNS resolution per actor per process, not one per poll. */

@@ -80,7 +80,7 @@ class KachatNamesRegistry @Inject constructor(
     /** The address profile this wallet last wrote (the walker cannot read anyone's profile). */
     data class OwnProfile(val address: String, val profile: Profile, val txId: String, val at: Long)
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("KachatNamesRegistry"))
 
     private val http: OkHttpClient = okHttpClient.newBuilder()
         .readTimeout(15, TimeUnit.SECONDS)
@@ -1206,7 +1206,7 @@ class KachatSocialImageResolver @Inject constructor(
         .callTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("KachatSocialImageResolver"))
 
     init {
         // ContactAvatar reads .kachat avatars through the companion (iOS e52357d)

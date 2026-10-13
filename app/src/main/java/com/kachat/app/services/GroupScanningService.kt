@@ -69,7 +69,7 @@ class GroupScanningService @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val meteredNetwork: MeteredNetwork
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("GroupScanningService"))
     private var scanJob: Job? = null
 
     // ---- Live delivery from the indexer (iOS a56fb98) -------------------------------------

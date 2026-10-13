@@ -65,7 +65,7 @@ class AddressActivityNotifier @Inject constructor(
     private val notificationHelper: NotificationHelper,
     private val notificationCenter: GlobalNotificationCenterStore
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("AddressActivityNotifier"))
     private val runMutex = Mutex()
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()

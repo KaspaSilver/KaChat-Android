@@ -75,7 +75,7 @@ class PushRegistrationManager @Inject constructor(
     private val pushState: PushState,
     private val peerAliasStore: PeerAliasStore,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("PushRegistrationManager"))
     // Serialize registrations so an account switch + a token refresh can't race.
     private val mutex = Mutex()
 

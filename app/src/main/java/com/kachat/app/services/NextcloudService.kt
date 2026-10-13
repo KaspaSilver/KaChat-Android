@@ -4,8 +4,6 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import android.util.Xml
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
@@ -226,16 +224,14 @@ class NextcloudService @Inject constructor(
         }
     }
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val prefs = EncryptedSharedPreferences.create(
+    // The same encrypted file as always. Built at startup (NextcloudSyncService, CallService):
+    // where the Keystore refuses to open it (seen on hardened ROMs), Nextcloud shows as not
+    // connected for this session and the file - the saved account included - is left as it is
+    // for the next launch, rather than the app failing to open.
+    private val prefs = com.kachat.app.util.StartupSafety.encryptedPrefsOrInMemory(
         context,
         SECURE_PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        "NextcloudService"
     )
 
     // Longer write timeout than LinkPreviewService's scrape client — backup PUTs can be multi-MB
@@ -284,7 +280,9 @@ class NextcloudService @Inject constructor(
     @Volatile
     private var currentSuffix: String? = null
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val serviceScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate + com.kachat.app.util.StartupSafety.logOnlyHandler("NextcloudService")
+    )
 
     init {
         // Load the current wallet's state synchronously (the settings screens may compose before
