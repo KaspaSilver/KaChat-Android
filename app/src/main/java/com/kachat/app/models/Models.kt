@@ -195,6 +195,17 @@ data class ContactEntity(
 // A contact's stored .kas name is not shown since 5.2 (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY):
 // the name you gave them, else their Address Book name, else (testnet) their .kachat name, else
 // their address.
+/**
+ * True for a bare `.kas` domain ("bob.kas") (iOS `Contact.isKasDomainName`, ce0b636): since 5.2
+ * never anyone's name in the app (a person is the name you gave them, their .kachat name or their
+ * address). Names like that came from KNS - set by old builds or by other platforms - not from
+ * the person.
+ */
+fun isKasDomainName(name: String?): Boolean {
+    val trimmed = name?.trim()?.lowercase() ?: return false
+    return trimmed.length > 4 && trimmed.endsWith(".kas") && trimmed.none { it.isWhitespace() }
+}
+
 val ContactEntity.displayName: String
     get() = addressDisplayName(
         id, alias, knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }

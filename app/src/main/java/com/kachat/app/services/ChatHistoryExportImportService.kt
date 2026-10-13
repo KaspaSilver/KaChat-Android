@@ -308,13 +308,17 @@ class ChatHistoryExportImportService @Inject constructor(
             val deletionFloor = chatRepository.deletionFloor(contactAddress)
 
             val importedPhoto = conversation.contactPhoto?.takeIf { it.isNotBlank() }
+            // A .kas domain is nobody's name since 5.2: a backup still carrying one (an older build
+            // or another platform wrote it) never puts it back - a name removed here stays removed
+            // (iOS ce0b636).
+            val importedAlias = conversation.contactAlias?.trim()?.takeIf { it.isNotEmpty() && !com.kachat.app.models.isKasDomainName(it) }
             val existingContact = chatRepository.getContact(contactAddress)
             if (existingContact == null) {
                 chatRepository.addContact(
                     ContactEntity(
                         id = contactAddress,
                         walletAddress = myAddress,
-                        alias = conversation.contactAlias,
+                        alias = importedAlias,
                         knsName = null,
                         publicKeyHex = null,
                         backupPhotoBase64 = importedPhoto
@@ -322,8 +326,8 @@ class ChatHistoryExportImportService @Inject constructor(
                 )
             } else {
                 var updated = existingContact
-                if (existingContact.alias.isNullOrBlank() && !conversation.contactAlias.isNullOrBlank()) {
-                    updated = updated.copy(alias = conversation.contactAlias)
+                if (existingContact.alias.isNullOrBlank() && !importedAlias.isNullOrBlank()) {
+                    updated = updated.copy(alias = importedAlias)
                 }
                 // Adopt a backed-up photo only when this device has none for the contact yet.
                 if (updated.backupPhotoBase64.isNullOrBlank() && importedPhoto != null) {

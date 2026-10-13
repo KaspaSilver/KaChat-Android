@@ -3359,14 +3359,11 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             walletManager.activeAddressFlow.collect { address ->
                 if (address != null) runCatching { chatRepository.ensureSelfConversation(address) }
-                // .kas names stop being people's names, once per account (iOS 509c0fe).
+                // .kas names stop being people's names (iOS 509c0fe) - on every load, not once
+                // (iOS ce0b636): one can come back later (a Nextcloud backup another platform or
+                // an older build wrote) and it must not stay.
                 if (address != null && !com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) {
-                    val prefs = appContext.getSharedPreferences("kachat_identity_migrations", Context.MODE_PRIVATE)
-                    val flag = "kas_alias_reset_v1_$address"
-                    if (!prefs.getBoolean(flag, false)) {
-                        runCatching { chatRepository.clearKasDomainNames(address) }
-                            .onSuccess { prefs.edit().putBoolean(flag, true).apply() }
-                    }
+                    runCatching { chatRepository.clearKasDomainNames(address) }
                 }
             }
         }

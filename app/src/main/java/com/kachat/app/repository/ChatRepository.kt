@@ -722,17 +722,17 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * 5.2, once per account (iOS 509c0fe): a contact whose name is just a .kas domain goes back to
-     * unnamed, and stored .kas names are dropped, so everyone without a .kachat name shows as
-     * their address (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY). A name linked from the phone's
-     * Contacts app is left alone. Flagged per account rather than re-checked every launch, so a
-     * .kas-looking name typed after the update stays.
+     * 5.2 (iOS 509c0fe): a contact whose name is just a .kas domain goes back to unnamed, and
+     * stored .kas names are dropped, so everyone without a .kachat name shows as their address
+     * (KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY). A name linked from the phone's Contacts app is
+     * left alone. Every load, not once (iOS ce0b636): a .kas name can come back later - restored
+     * from a Nextcloud backup another platform wrote, or by an older build - and it must not stay
+     * (a removed one kept reappearing). The person is then shown by their .kachat name or address
+     * until named.
      */
     suspend fun clearKasDomainNames(walletAddress: String) {
         for (contact in database.contactDao().getContacts(walletAddress).first()) {
-            val alias = contact.alias?.trim()?.lowercase()
-            val aliasIsDomain = alias != null && alias.length > 4 && alias.endsWith(".kas") &&
-                alias.none { it.isWhitespace() } &&
+            val aliasIsDomain = com.kachat.app.models.isKasDomainName(contact.alias) &&
                 !(contact.systemContactId != null && contact.alias == contact.systemContactName)
             if (!aliasIsDomain && contact.knsName == null) continue
             database.contactDao().insert(
