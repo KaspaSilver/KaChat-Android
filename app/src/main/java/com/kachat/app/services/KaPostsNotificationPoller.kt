@@ -59,7 +59,7 @@ class KaPostsNotificationPoller @Inject constructor(
         actorNameCache[address]?.let { return it }
         val contact = try { chatRepository.getContacts().first().find { it.id == address } } catch (_: Exception) { null }
         val alias = contact?.alias?.trim().orEmpty()
-        val fallback = address.takeLast(10)
+        val fallback = com.kachat.app.util.KaspaAddress.shortDisplay(address)
         // A domain keeps its ".kas" here too: the suffix is part of the name.
         val name = if (alias.isNotEmpty()) {
             alias

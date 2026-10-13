@@ -371,7 +371,7 @@ fun BroadcastHiddenUsersScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        com.kachat.app.models.addressDisplayName(address, contactAliases[address], senderKnsNames[address], address.takeLast(10)),
+                        com.kachat.app.models.addressDisplayName(address, contactAliases[address], senderKnsNames[address]),
                         color = colors.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,

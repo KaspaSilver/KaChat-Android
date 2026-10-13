@@ -409,7 +409,7 @@ class CallService @Inject constructor(
     private suspend fun explainDroppedCall(contactAddress: String, reason: String) {
         if (reason.startsWith("unknown sender")) return
         val name = runCatching { chatRepository.getContact(contactAddress)?.displayName }.getOrNull()
-            ?.takeIf { it.isNotBlank() } ?: contactAddress.takeLast(8)
+            ?.takeIf { it.isNotBlank() } ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactAddress)
         val text = when {
             reason.startsWith("calls not enabled") ->
                 "Calls are off for $name. Tap the call button to turn them on, then call back."
@@ -1141,10 +1141,10 @@ class CallService @Inject constructor(
         // Identity is .kachat: your .kachat name, never a KNS one (iOS e52357d) - on every network
         // since iOS 7227d69, so on mainnet (no launched registry yet) it is the short form.
         if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
-            return com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address) ?: "KaChat ${address.takeLast(6)}"
+            return com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address) ?: com.kachat.app.util.KaspaAddress.shortDisplay(address)
         }
         val domain = runCatching { withContext(Dispatchers.IO) { knsService.identityName(address) } }.getOrNull()
-        return if (!domain.isNullOrEmpty()) domain else "KaChat ${address.takeLast(6)}"
+        return if (!domain.isNullOrEmpty()) domain else com.kachat.app.util.KaspaAddress.shortDisplay(address)
     }
 
     /**

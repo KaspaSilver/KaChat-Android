@@ -20,8 +20,8 @@ class KaPostsPosterNameTest {
 
     @Test
     fun `a kns domain is not identity with the kachat UI on`() {
-        assertEquals(address.takeLast(10), KaPostsViewModel.posterName(address, null, null, "alice.kas", showsKnsNames = false))
-        assertEquals(address.takeLast(10), KaPostsViewModel.posterName(address, null, null, "alice.kas"))
+        assertEquals("kaspatest:qr01....cdef", KaPostsViewModel.posterName(address, null, null, "alice.kas", showsKnsNames = false))
+        assertEquals("kaspatest:qr01....cdef", KaPostsViewModel.posterName(address, null, null, "alice.kas"))
     }
 
     @Test

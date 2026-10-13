@@ -124,6 +124,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.kachat.app.util.ImagePrep
+import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaUnit
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -321,7 +322,7 @@ fun GroupChatThreadScreen(
     val resolveDisplayName: (String) -> String = { address ->
         contactAliasesByAddress.liveNameFor(address)
             ?: groupMembers.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
-            ?: address.takeLast(10)
+            ?: KaspaAddress.shortDisplay(address)
     }
     // Members mentionable via the inline "@" autocomplete - only those with an explicit primary
     // KNS domain set (see groupMemberPrimaryKnsByAddress's doc comment for why this can't reuse
@@ -704,7 +705,7 @@ fun GroupChatThreadScreen(
                                         val member = group?.let(::parseGroupMembers)?.firstOrNull { it.address == address }
                                         address?.let { contactAliasesByAddress.liveNameFor(it) }
                                             ?: member?.displayName?.takeIf { it.isNotBlank() }
-                                            ?: address?.takeLast(10)
+                                            ?: address?.let { KaspaAddress.shortDisplay(it) }
                                             ?: "Unknown"
                                     }
                                     Text(
@@ -1350,7 +1351,7 @@ private fun GroupMessageBubble(
     /** Tapping the reply quote (if any) jumps to and highlights the original message. */
     onJumpToReply: (String) -> Unit = {},
     isHighlighted: Boolean = false,
-    resolveMentionName: (String) -> String = { it.takeLast(10) },
+    resolveMentionName: (String) -> String = { KaspaAddress.shortDisplay(it) },
     /** Address → explicit-primary KNS domain, so @mentions render as the domain (what the user asked). */
     mentionDomains: Map<String, String?> = emptyMap(),
     /** Tapping an avatar. The parent presents the sender half sheet for this address (see
@@ -1373,7 +1374,7 @@ private fun GroupMessageBubble(
         val address = message.senderAddress ?: return@remember "Unknown"
         if (!liveAlias.isNullOrBlank()) return@remember liveAlias
         val member = groupMembersForMentions.firstOrNull { it.address == address }
-        member?.displayName?.takeIf { it.isNotBlank() } ?: address.takeLast(10)
+        member?.displayName?.takeIf { it.isNotBlank() } ?: KaspaAddress.shortDisplay(address)
     }
     val replyContent = remember(message.content) { MessageReply.parseOrNull(message.content) }
     // Mentions display as the person's KNS domain when known (what the user asked to see), else the
@@ -1388,7 +1389,7 @@ private fun GroupMessageBubble(
         val reply = replyContent ?: return@remember null
         if (reply.replyToSender == myAddress) return@remember "You"
         val member = groupMembersForMentions.firstOrNull { it.address == reply.replyToSender }
-        member?.displayName?.takeIf { it.isNotBlank() } ?: reply.replyToSender.takeLast(10)
+        member?.displayName?.takeIf { it.isNotBlank() } ?: KaspaAddress.shortDisplay(reply.replyToSender)
     }
     val voiceContent = remember(displayContent) { VoiceMessage.parseOrNull(displayContent) }
     val imageContent = remember(displayContent) { if (voiceContent == null) ImageMessage.parseOrNull(displayContent) else null }
@@ -1455,7 +1456,7 @@ private fun GroupMessageBubble(
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
                         Text(
-                            replySenderName ?: replyContent.replyToSender.takeLast(10),
+                            replySenderName ?: KaspaAddress.shortDisplay(replyContent.replyToSender),
                             color = KaspaTeal,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -2030,7 +2031,7 @@ fun GroupChatInfoScreen(
                     members.forEachIndexed { index, member ->
                         val memberLabel = contactAliasesByAddress.liveNameFor(member.address)
                             ?: member.displayName?.takeIf { it.isNotBlank() }
-                            ?: member.address.takeLast(10)
+                            ?: KaspaAddress.shortDisplay(member.address)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2232,7 +2233,7 @@ fun GroupChatInfoScreen(
     memberToResend?.let { member ->
         val label = contactAliasesByAddress.liveNameFor(member.address)
             ?: member.displayName?.takeIf { it.isNotBlank() }
-            ?: member.address.takeLast(10)
+            ?: KaspaAddress.shortDisplay(member.address)
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { memberToResend = null },
             containerColor = LocalAppColors.current.surface,
@@ -2259,7 +2260,7 @@ fun GroupChatInfoScreen(
     memberToRemove?.let { member ->
         val label = contactAliasesByAddress.liveNameFor(member.address)
             ?: member.displayName?.takeIf { it.isNotBlank() }
-            ?: member.address.takeLast(10)
+            ?: KaspaAddress.shortDisplay(member.address)
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { memberToRemove = null },
             containerColor = LocalAppColors.current.surface,
@@ -2677,7 +2678,7 @@ fun GroupChatInfoScreen(
                         hiddenAddresses.forEach { address ->
                             val label = contactAliasesByAddress.liveNameFor(address)
                                 ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
-                                ?: address.takeLast(10)
+                                ?: KaspaAddress.shortDisplay(address)
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,

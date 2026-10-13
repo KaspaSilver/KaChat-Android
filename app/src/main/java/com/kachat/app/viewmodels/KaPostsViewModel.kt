@@ -144,8 +144,8 @@ class KaPostsViewModel @Inject constructor(
         /**
          * Who a poster is, everywhere in KaPosts (feed, quotes, engagement, follow lists,
          * notifications, search - iOS 3d6fb7c): the alias YOU set for a saved contact, else
-         * their `.kachat` name ([kachatName], `KachatLive.identityName`), else the last ten
-         * characters of the address. A KNS domain isn't identity since 5.2: [knsName] is read
+         * their `.kachat` name ([kachatName], `KachatLive.identityName`), else the short
+         * address (`KaspaAddress.shortDisplay`, iOS a80d271). A KNS domain isn't identity since 5.2: [knsName] is read
          * only with the .kachat UI off ([showsKnsNames], unreachable - kept as the switch-back).
          */
         fun posterName(
@@ -159,7 +159,7 @@ class KaPostsViewModel @Inject constructor(
             alias?.takeIf { it.isNotBlank() }?.let { return it.trim() }
             kachatName?.takeIf { it.isNotBlank() }?.let { return it }
             if (showsKnsNames) knsName?.takeIf { it.isNotBlank() }?.let { return it.trim() }
-            return address.takeLast(10)
+            return com.kachat.app.util.KaspaAddress.shortDisplay(address)
         }
 
         /** @mention token: @domain at start / after whitespace or opening punctuation (never

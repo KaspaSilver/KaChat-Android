@@ -2468,10 +2468,10 @@ fun MessageBubble(
                 Column(modifier = Modifier.padding(8.dp)) {
                     Text(
                         // Ours says "You"; anyone else is named, not called "Them" (iOS
-                        // replyDisplayName). The address tail is the last resort, for a reply
+                        // replyDisplayName). The short address is the last resort, for a reply
                         // to someone who is not this chat's contact.
                         if (replyContent.replyToSender == message.walletAddress) "You"
-                        else contactDisplayName.ifBlank { replyContent.replyToSender.takeLast(10) },
+                        else contactDisplayName.ifBlank { KaspaAddress.shortDisplay(replyContent.replyToSender) },
                         color = KaspaTeal,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold

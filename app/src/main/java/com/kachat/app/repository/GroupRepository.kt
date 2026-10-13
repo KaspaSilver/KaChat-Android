@@ -270,7 +270,7 @@ class GroupRepository @Inject constructor(
         if (!alias.isNullOrEmpty()) return alias
         val snap = fallbackDisplayName?.trim()
         if (!snap.isNullOrEmpty()) return snap
-        return address.takeLast(10)
+        return KaspaAddress.shortDisplay(address)
     }
 
     /** Best display name for a group member in a notification banner: live contact alias (most
