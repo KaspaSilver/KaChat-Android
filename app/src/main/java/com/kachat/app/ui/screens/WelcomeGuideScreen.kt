@@ -905,7 +905,7 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingA
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            stringResource(R.string.chatting_vs_spending_address),
+            stringResource(R.string.your_addresses),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = LocalAppColors.current.textPrimary,
@@ -929,7 +929,7 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingA
         AddressMockRow(
             title = stringResource(R.string.spending_address),
             address = spendingAddress.orEmpty(),
-            caption = stringResource(R.string.where_you_send_and_receive_kaspa)
+            caption = stringResource(R.string.welcome_spending_address_caption)
         )
     }
         Spacer(Modifier.height(16.dp))

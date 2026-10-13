@@ -127,7 +127,6 @@
     <string name="coinbase">Coinbase</string>
     <string name="chatting_address">Chatting Address</string>
     <string name="chatting_address_2">Chatting address</string>
-    <string name="chatting_vs_spending_address">Chatting vs. Spending Address</string>
     <string name="check_again">Check Again</string>
     <string name="checking_availability">Checking availability...</string>
     <string name="checking_your_chatting_address_balance">Checking your chatting address balance...</string>
@@ -487,7 +486,6 @@
     <string name="enter_a_node_address_you_trust">Enter a node address you trust</string>
     <string name="auto_search_for_nodes">Auto Search for Nodes</string>
     <string name="most_taxing_on_the_device_not_as">Most taxing on the device, not as reliable - depends on where you live</string>
-    <string name="where_you_send_and_receive_kaspa">Where you send and receive Kaspa you intend to use for everything else.</string>
     <string name="choose_your_language">Choose Your Language</string>
     <string name="select_the_language_youd_like_to">Select the language you\'d like to use in KaChat.</string>
     <string name="best">Best</string>
@@ -764,7 +762,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">To chat with someone, press Create Chat and enter their Kaspa address or .kachat name. Your first message reaches them as a Message Request they can accept. For the most privacy, turn on Private Chat: nothing links you on chain, and they see your messages once they start a private chat with you too.</string>
     <string name="welcome_fund_chatting_body">50 Kaspa is recommended to get started - enough to claim a .kachat name and chat for a while. 5 Kaspa is enough for about 2500 messages.</string>
-    <string name="welcome_chatting_address_caption">Your public messaging identity. Fund it with a small amount to pay message fees and for your .kachat name - never send money here that you intend to spend.</string>
+    <string name="welcome_chatting_address_caption">Your messaging identity. Messages and your .kachat name are paid from it, and every send starts from it unless you choose another address.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Close KaChat completely and open it again to finish switching to Testnet.</string>
@@ -1487,4 +1485,10 @@
     <string name="pr_unused">Unused</string>
     <string name="pr_checking">Checking</string>
     <string name="pr_spending_footer_new">Paid to a brand-new address of yours, used for this request only. The memo shows to whoever pays, but doesn\'t travel with the payment.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">Your Addresses</string>
+    <string name="welcome_spending_address_caption">More addresses of yours for sending and receiving Kaspa. Pick one under From on any send, or make a new one in Manage Addresses.</string>
+    <string name="hide_all">Hide All</string>
+    <string name="hide_all_addresses_title">Hide All Addresses?</string>
+    <string name="hide_all_addresses_message">Manage Addresses starts over with only your chatting address. Nothing is lost: bring any address back here, and its Kaspa still counts in your total.</string>
 </resources>

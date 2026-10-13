@@ -36,7 +36,6 @@
     <string name="chats">Sohbetler</string>
     <string name="chatting_address">Sohbet Adresi</string>
     <string name="chatting_address_2">Sohbet adresi</string>
-    <string name="chatting_vs_spending_address">Sohbet Adresi ve Harcama Adresi</string>
     <string name="check_again">Tekrar Kontrol Et</string>
     <string name="checking_availability">Kullanılabilirlik kontrol ediliyor...</string>
     <string name="checking_your_chatting_address_balance">Sohbet adresinizin bakiyesi kontrol ediliyor...</string>
@@ -589,7 +588,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Biriyle sohbet etmek için Sohbet Oluştur\'a dokun ve Kaspa adresini ya da .kachat adını gir. İlk mesajın ona kabul edebileceği bir Mesaj İsteği olarak ulaşır. En fazla gizlilik için Özel Sohbet\'i aç: zincirde sizi hiçbir şey bağlamaz ve o da seninle özel sohbet başlattığında mesajlarını görür.</string>
     <string name="welcome_fund_chatting_body">Başlamak için 50 Kaspa önerilir - bir .kachat adı almaya ve bir süre sohbet etmeye yeter. 5 Kaspa yaklaşık 2500 mesaja yeter.</string>
-    <string name="welcome_chatting_address_caption">Herkese açık mesajlaşma kimliğin. Mesaj ücretleri ve .kachat adın için küçük bir miktar yükle - harcamayı düşündüğün parayı asla buraya gönderme.</string>
+    <string name="welcome_chatting_address_caption">Mesajlaşma kimliğiniz. Mesajlar ve .kachat adınız buradan ödenir ve başka adres seçmedikçe her gönderim buradan başlar.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Testnet\'e geçişi tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
@@ -1285,4 +1284,10 @@
     <string name="pr_unused">Kullanılmadı</string>
     <string name="pr_checking">Kontrol ediliyor</string>
     <string name="pr_spending_footer_new">Yalnızca bu istek için kullanılan yepyeni bir adresinize ödenir. Notu ödeyen görür, ancak ödemeyle birlikte gitmez.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">Adresleriniz</string>
+    <string name="welcome_spending_address_caption">Kaspa göndermek ve almak için diğer adresleriniz. Her gönderimde «Gönderen» altında birini seçin ya da Adresleri Yönet\'te yenisini oluşturun.</string>
+    <string name="hide_all">Tümünü Gizle</string>
+    <string name="hide_all_addresses_title">Tüm adresler gizlensin mi?</string>
+    <string name="hide_all_addresses_message">Adresleri Yönet yalnızca sohbet adresinizle yeniden başlar. Hiçbir şey kaybolmaz: herhangi bir adresi buradan geri getirin; Kaspa\'sı toplamınızda sayılmaya devam eder.</string>
 </resources>

@@ -36,7 +36,6 @@
     <string name="chats">Trò chuyện</string>
     <string name="chatting_address">Địa chỉ trò chuyện</string>
     <string name="chatting_address_2">Địa chỉ trò chuyện</string>
-    <string name="chatting_vs_spending_address">Địa chỉ trò chuyện so với địa chỉ chi tiêu</string>
     <string name="check_again">Kiểm tra lại</string>
     <string name="checking_availability">Đang kiểm tra tính khả dụng...</string>
     <string name="checking_your_chatting_address_balance">Đang kiểm tra số dư địa chỉ trò chuyện của bạn...</string>
@@ -589,7 +588,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Để trò chuyện với ai đó, nhấn Tạo cuộc trò chuyện và nhập địa chỉ Kaspa hoặc tên .kachat của họ. Tin nhắn đầu tiên của bạn đến với họ dưới dạng Yêu cầu nhắn tin để họ chấp nhận. Để riêng tư nhất, bật Trò chuyện riêng tư: không có gì liên kết hai bạn trên chuỗi, và họ sẽ thấy tin nhắn khi cũng bắt đầu trò chuyện riêng tư với bạn.</string>
     <string name="welcome_fund_chatting_body">Nên có 50 Kaspa để bắt đầu - đủ để nhận một tên .kachat và trò chuyện một thời gian. 5 Kaspa đủ cho khoảng 2500 tin nhắn.</string>
-    <string name="welcome_chatting_address_caption">Danh tính nhắn tin công khai của bạn. Nạp một ít để trả phí tin nhắn và tên .kachat - đừng bao giờ gửi vào đây số tiền bạn định chi tiêu.</string>
+    <string name="welcome_chatting_address_caption">Danh tính nhắn tin của bạn. Tin nhắn và tên .kachat được trả từ đây, và mọi lần gửi đều bắt đầu từ đây trừ khi bạn chọn địa chỉ khác.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Đóng hẳn KaChat rồi mở lại để hoàn tất chuyển sang Testnet.</string>
@@ -1285,4 +1284,10 @@
     <string name="pr_unused">Chưa dùng</string>
     <string name="pr_checking">Đang kiểm tra</string>
     <string name="pr_spending_footer_new">Trả vào một địa chỉ hoàn toàn mới của bạn, chỉ dùng cho yêu cầu này. Người trả thấy ghi chú, nhưng ghi chú không đi kèm khoản thanh toán.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">Địa chỉ của bạn</string>
+    <string name="welcome_spending_address_caption">Các địa chỉ khác của bạn để gửi và nhận Kaspa. Chọn một trong mục «Từ» khi gửi, hoặc tạo mới trong Quản lý địa chỉ.</string>
+    <string name="hide_all">Ẩn tất cả</string>
+    <string name="hide_all_addresses_title">Ẩn tất cả địa chỉ?</string>
+    <string name="hide_all_addresses_message">Quản lý địa chỉ bắt đầu lại chỉ với địa chỉ trò chuyện của bạn. Không mất gì: đưa bất kỳ địa chỉ nào trở lại tại đây, và Kaspa của nó vẫn được tính vào tổng.</string>
 </resources>

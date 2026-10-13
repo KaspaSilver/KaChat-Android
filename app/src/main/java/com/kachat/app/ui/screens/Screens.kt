@@ -5098,17 +5098,10 @@ fun ManageAddressesScreen(
     var discoverySummary by remember { mutableStateOf<String?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
 
-    // Ordering (matches iOS ManageAddressesView): addresses with a balance OR an owned KNS domain
-    // first (funded before domain-only, newest index first within each group), then fresh
-    // addresses. Domain knowledge fills in asynchronously, so rows may re-partition once the
-    // batched KNS lookups land.
+    // The spending addresses in number order, #0 first, under the chatting address (iOS 245a5d2).
     val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
-    val visibleAddresses = remember(addresses, domainOwningAddresses) {
-        val rest = addresses.filterNot { it.hidden }
-            .sortedWith(compareByDescending<com.kachat.app.services.WalletService.SpendingAddressEntry> { it.balanceSompi > 0 }.thenByDescending { it.index })
-        val active = rest.filter { it.balanceSompi > 0 || it.address in domainOwningAddresses }
-        val fresh = rest.filter { it.balanceSompi == 0L && it.address !in domainOwningAddresses }
-        active + fresh
+    val visibleAddresses = remember(addresses) {
+        addresses.filterNot { it.hidden }.sortedBy { it.index }
     }
     val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
 
@@ -5232,8 +5225,8 @@ fun ManageAddressesScreen(
             // Total, then the actions button directly under it rather than a FAB floating over
             // the list: the actions are about this account, so they belong with it, and the FAB
             // covered the last address row on a short list. Same shape as Cold Storage. The total
-            // is everything this account holds: the chatting address and the visible spending
-            // addresses (iOS 6333dd3).
+            // is everything this account holds: the chatting address and every spending address,
+            // hidden ones too - the same total as Profile's Manage Addresses card (iOS 245a5d2).
             if (onAddressPicked == null) {
                 item {
                     Column(
@@ -5245,7 +5238,7 @@ fun ManageAddressesScreen(
                     ) {
                         Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         Text(
-                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (chattingBalanceSompi + visibleAddresses.sumOf { it.balanceSompi }) / 100_000_000.0),
+                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (chattingBalanceSompi + addresses.sumOf { it.balanceSompi }) / 100_000_000.0),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
@@ -5334,9 +5327,8 @@ fun ManageAddressesScreen(
                         onQrClick = { qrAddress = entry.address },
                         onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
                         onHideClick = {
-                            // iOS hideAddress: the menu offers Hide only for an unfunded address
-                            // that is not the current one; the setter re-checks and its refusal
-                            // says so.
+                            // iOS hideAddress: any address, funded too - it comes back from
+                            // Address Visibility (iOS 245a5d2).
                             viewModel.setManageAddressHidden(entry.index, true) { ok ->
                                 if (ok) IosToasts.show("Address hidden. Re-enable it in Address Visibility.")
                                 else IosToasts.show("This address can't be hidden.")
@@ -5537,7 +5529,8 @@ fun ManageAddressesHiddenScreen(
  * EVERY spending address, paged 50 at a time, so dozens can be toggled off the main Manage
  * Addresses list in one sitting. The right arrow never runs out: future pages derive addresses
  * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
- * intermediate indices hidden. The primary and funded addresses are locked visible.
+ * intermediate indices hidden. Every address toggles both ways, funded ones too, and Hide All
+ * (confirmed) starts the list over with only the chatting address (iOS 245a5d2).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -5547,6 +5540,7 @@ fun AddressVisibilityScreen(
 ) {
     val context = LocalContext.current
     val addresses by viewModel.manageAddresses.collectAsState()
+    var showHideAllConfirm by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf(0) }
     val pageSize = 50
     val byIndex = remember(addresses) { addresses.associateBy { it.index } }
@@ -5616,8 +5610,9 @@ fun AddressVisibilityScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                    // Hide All leads the bar, Done trails it (iOS 245a5d2).
+                    TextButton(onClick = { showHideAllConfirm = true }) {
+                        Text(stringResource(R.string.hide_all), color = KaspaTeal)
                     }
                 },
                 actions = {
@@ -5664,19 +5659,15 @@ fun AddressVisibilityScreen(
         ) {
             items(pageEntries, key = { it.index }) { entry ->
                 val funded = entry.balanceSompi > 0
+                // Every row toggles both ways - funded ones too (Hide All starts the list over).
                 val visible = entry.index <= listMax && !entry.hidden
                 // Used-state comes from the page's own sweep below, not a per-row effect: fifty
                 // rows each launching their own history probe fired fifty requests the moment a
                 // page appeared, which is the other half of what made this screen unusable.
                 val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
                 // The WHOLE row toggles, not just the checkmark.
-                // iOS's toggle: a locked row (the primary, or a funded address while visible) does
-                // nothing, and a hide the setter refuses leaves the row as it was - the dimmed
-                // checkmark already says it is locked.
                 val toggleVisibility: () -> Unit = {
                     when {
-                        entry.isCurrent -> Unit
-                        funded && visible -> Unit
                         entry.index > listMax ->
                             viewModel.revealSpendingAddress(entry.index)
                         else -> viewModel.setManageAddressHidden(entry.index, !entry.hidden)
@@ -5711,9 +5702,6 @@ fun AddressVisibilityScreen(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            if (entry.isCurrent) {
-                                Icon(Icons.Default.Star, "Primary address", tint = KaspaTeal, modifier = Modifier.size(14.dp))
-                            }
                             entry.label?.takeIf { it.isNotBlank() }?.let { label ->
                                 Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 1)
                             }
@@ -5743,6 +5731,28 @@ fun AddressVisibilityScreen(
                 }
             }
         }
+    }
+
+    if (showHideAllConfirm) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showHideAllConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.hide_all_addresses_title), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.hide_all_addresses_message), color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showHideAllConfirm = false
+                    viewModel.hideAllSpendingAddresses()
+                }) {
+                    Text(stringResource(R.string.hide_all), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHideAllConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
     }
 }
 
@@ -7736,9 +7746,9 @@ private fun ManageAddressRow(
                 subtitle = "Full screen, for scanning with another device.",
             ) { showMenu = false; onQrClick() }
             // Hide straight from the row - same effect as unchecking it in Address Visibility,
-            // without opening that screen. Never a funded address, nor the wallet's current
-            // receive index (iOS 6333dd3).
-            if (onHideClick != null && !entry.isCurrent && entry.balanceSompi == 0L) {
+            // without opening that screen. Any address, funded too: it comes back from there
+            // (iOS 245a5d2).
+            if (onHideClick != null) {
                 ActionSheetRow(
                     icon = Icons.Default.VisibilityOff,
                     title = "Hide Address",

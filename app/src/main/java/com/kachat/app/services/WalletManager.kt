@@ -414,14 +414,18 @@ class WalletManager @Inject constructor(
     fun getHiddenSpendingIndices(walletAddress: String): Set<Int> =
         getAllHiddenSpendingAddresses().filter { it.walletAddress == walletAddress }.map { it.index }.toSet()
 
+    /** Any address may be hidden - funded ones and the current one too (iOS 245a5d2): Address
+     *  Visibility brings it back, and Profile's total still counts it. */
     fun setSpendingAddressHidden(walletAddress: String, index: Int, hidden: Boolean) {
-        // Storage-level backstop for EVERY write path: the current spending index must always
-        // stay visible, so a hide of it never persists no matter which caller asked.
-        // (Live-balance guarding lives in WalletService.setSpendingAddressHidden; bulk paths that
-        // only touch never-funded fresh indices come straight here.)
-        if (hidden && getAccounts().any { it.address == walletAddress && it.spendingAddressIndex == index }) return
         val remaining = getAllHiddenSpendingAddresses().filterNot { it.walletAddress == walletAddress && it.index == index }
         saveHiddenSpendingAddresses(if (hidden) remaining + HiddenSpendingAddress(walletAddress, index) else remaining)
+    }
+
+    /** Replaces [walletAddress]'s whole hidden set with [indices] in one write (Address
+     *  Visibility > Hide All, iOS `hideAllSpendingAddresses`). */
+    fun setSpendingAddressesHidden(walletAddress: String, indices: Set<Int>) {
+        val others = getAllHiddenSpendingAddresses().filterNot { it.walletAddress == walletAddress }
+        saveHiddenSpendingAddresses(others + indices.sorted().map { HiddenSpendingAddress(walletAddress, it) })
     }
 
     /** A user-given nickname for one spending-chain address, shown in Manage Addresses in place of the default "Address #N" — same flat (walletAddress, index) keying as [HiddenSpendingAddress]. */

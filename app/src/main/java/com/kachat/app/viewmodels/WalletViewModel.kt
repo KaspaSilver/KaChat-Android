@@ -210,17 +210,14 @@ class WalletViewModel @Inject constructor(
     /**
      * THE isCurrent SINGLE-SOURCE RULE: the flag is DERIVED, never stored. Rendered rows stamp
      * isCurrent purely from [WalletManager.primarySpendingIndexFlow] (the authoritative live
-     * index) at combine time, and force that row visible — so no persisted or captured
-     * isCurrent is ever trusted, and a send moving the index updates every open screen
-     * instantly, no matter which stale list commit lands afterwards. Guard paths follow the same
-     * rule: they compare against the authoritative index, never a row's flag.
+     * index) at combine time — so no persisted or captured isCurrent is ever trusted. Any row
+     * may be hidden, the current one too (iOS 245a5d2).
      */
     val manageAddresses: StateFlow<List<WalletService.SpendingAddressEntry>> =
         combine(_manageAddressesRaw, walletManager.primarySpendingIndexFlow) { rows, primary ->
             rows.map { entry ->
                 val isCurrent = primary != null && entry.index == primary
-                if (entry.isCurrent == isCurrent && !(isCurrent && entry.hidden)) entry
-                else entry.copy(isCurrent = isCurrent, hidden = entry.hidden && !isCurrent)
+                if (entry.isCurrent == isCurrent) entry else entry.copy(isCurrent = isCurrent)
             }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -310,14 +307,10 @@ class WalletViewModel @Inject constructor(
 
     /**
      * Hiding is purely a display preference — the address and its label are untouched; it's just
-     * filtered out of the main Manage Addresses list. Unhiding is always allowed, but an address
-     * can never be hidden while it holds a balance or is the current spending address - cases
-     * you'd want to keep an eye on, not tuck away. The guards check the freshest row plus the
-     * AUTHORITATIVE current index (a row's isCurrent can be stale after a send moves it). Hides
-     * against a row this session live-confirmed commit instantly (see the toggle rule inline);
-     * only rows with no live-confirmed data fall back to
-     * [WalletService.setSpendingAddressHidden]'s fail-closed live re-check. [onResult] reports
-     * whether the hide actually committed.
+     * filtered out of the main Manage Addresses list. Any address can be hidden or shown, funded
+     * ones and the current one too (iOS 245a5d2): Address Visibility brings any back, and
+     * Profile's Manage Addresses total still counts it. Commits and flips the row instantly - no
+     * network. [onResult] reports whether it was persisted.
      */
     fun setManageAddressHidden(index: Int, hidden: Boolean, onResult: (Boolean) -> Unit = {}) {
         val account = walletManager.getActiveAccount()
@@ -325,45 +318,18 @@ class WalletViewModel @Inject constructor(
             onResult(false)
             return
         }
-        if (!hidden) {
-            // Unhide is always allowed and needs no network: commit and flip instantly.
-            walletManager.setSpendingAddressHidden(account.address, index, false)
-            _manageAddressesRaw.value = _manageAddressesRaw.value.map {
-                if (it.index == index) it.copy(hidden = false) else it
-            }
-            onResult(true)
-            return
+        walletManager.setSpendingAddressHidden(account.address, index, hidden)
+        _manageAddressesRaw.value = _manageAddressesRaw.value.map {
+            if (it.index == index) it.copy(hidden = hidden) else it
         }
-        val entry = _manageAddressesRaw.value.find { it.index == index }
-        // Current-index guard: ONLY the authoritative live index decides — never
-        // entry.isCurrent, which can be stale after a send moves the index.
-        if (index == account.spendingAddressIndex || (entry?.balanceSompi ?: 0L) > 0L) {
-            onResult(false)
-            return
-        }
-        // THE TOGGLE RULE: a hide trusts the fresh in-session row when one exists. This screen
-        // batch-loads live balances when it opens (loadManageAddresses), so a row marked
-        // liveChecked was balance-confirmed moments ago — the hide commits instantly with no
-        // per-toggle network round trip. Only when NO live-confirmed row exists for the index
-        // (list painted from cache, live load failed) does the fail-closed path below run: one
-        // live balance fetch, and no answer means no hide.
-        if (entry != null && entry.liveChecked) {
-            walletManager.setSpendingAddressHidden(account.address, index, true)
-            _manageAddressesRaw.value = _manageAddressesRaw.value.map {
-                if (it.index == index) it.copy(hidden = true) else it
-            }
-            onResult(true)
-            return
-        }
-        viewModelScope.launch {
-            val ok = walletService.setSpendingAddressHidden(index, true)
-            if (ok) {
-                _manageAddressesRaw.value = _manageAddressesRaw.value.map {
-                    if (it.index == index) it.copy(hidden = true) else it
-                }
-            }
-            onResult(ok)
-        }
+        onResult(true)
+    }
+
+    /** Address Visibility > Hide All (iOS 245a5d2): every revealed spending address hidden, so
+     *  Manage Addresses starts over with only the chatting address. */
+    fun hideAllSpendingAddresses() {
+        walletService.hideAllSpendingAddresses()
+        _manageAddressesRaw.value = _manageAddressesRaw.value.map { it.copy(hidden = true) }
     }
 
     /** A From address's balance (iOS `SendFromSection`: the sum of the address's UTXOs as the node
@@ -427,6 +393,7 @@ class WalletViewModel @Inject constructor(
             if (storedIndex != null) {
                 val stored = try { walletManager.deriveSpendingAddress(storedIndex) } catch (e: Exception) { null }
                 if (stored != null && !confirmedUsed(stored)) {
+                    showIfHidden(walletAddress, storedIndex)
                     onResult(stored)
                     return@launch
                 }
@@ -435,6 +402,7 @@ class WalletViewModel @Inject constructor(
             if (!confirmedUsed(current)) {
                 walletManager.getActiveAccount()?.spendingAddressIndex?.let {
                     walletManager.setReceiveAddressIndex(walletAddress, it)
+                    showIfHidden(walletAddress, it)
                 }
                 onResult(current)
                 return@launch
@@ -454,6 +422,16 @@ class WalletViewModel @Inject constructor(
                 walletManager.setReceiveAddressIndex(walletAddress, index)
                 onResult(fresh)
             }
+        }
+    }
+
+    /** An address handed out to receive into is back on the Manage Addresses list, even when the
+     *  person had hidden it (Hide All): money is about to land there (iOS 245a5d2 showIfHidden). */
+    private fun showIfHidden(walletAddress: String, index: Int) {
+        if (index !in walletManager.getHiddenSpendingIndices(walletAddress)) return
+        walletManager.setSpendingAddressHidden(walletAddress, index, false)
+        _manageAddressesRaw.value = _manageAddressesRaw.value.map {
+            if (it.index == index) it.copy(hidden = false) else it
         }
     }
 

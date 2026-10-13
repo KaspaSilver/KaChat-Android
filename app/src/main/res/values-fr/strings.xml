@@ -36,7 +36,6 @@
     <string name="chats">Discussions</string>
     <string name="chatting_address">Adresse de discussion</string>
     <string name="chatting_address_2">Adresse de discussion</string>
-    <string name="chatting_vs_spending_address">Adresse de discussion et adresse de depense</string>
     <string name="check_again">Verifier a nouveau</string>
     <string name="checking_availability">Vérification de la disponibilité...</string>
     <string name="checking_your_chatting_address_balance">Verification du solde de votre adresse de discussion...</string>
@@ -589,7 +588,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Pour discuter avec quelqu\'un, touchez Créer une discussion et saisissez son adresse Kaspa ou son nom .kachat. Votre premier message lui arrive comme une demande de message qu\'il peut accepter. Pour un maximum de confidentialité, activez Discussion privée : rien ne vous relie sur la chaîne, et il verra vos messages dès qu\'il ouvrira lui aussi une discussion privée avec vous.</string>
     <string name="welcome_fund_chatting_body">50 Kaspa sont recommandés pour commencer - assez pour réclamer un nom .kachat et discuter un moment. 5 Kaspa suffisent pour environ 2500 messages.</string>
-    <string name="welcome_chatting_address_caption">Votre identité publique de messagerie. Approvisionnez-la d\'un petit montant pour payer les frais des messages et votre nom .kachat - n\'envoyez jamais ici de l\'argent que vous comptez dépenser.</string>
+    <string name="welcome_chatting_address_caption">Votre identité de messagerie. Les messages et votre nom .kachat sont payés depuis elle, et chaque envoi part d’elle sauf si vous choisissez une autre adresse.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Fermez complètement KaChat puis rouvrez-le pour terminer le passage au Testnet.</string>
@@ -1285,4 +1284,10 @@
     <string name="pr_unused">Inutilisée</string>
     <string name="pr_checking">Vérification</string>
     <string name="pr_spending_footer_new">Payé à une toute nouvelle adresse à vous, pour cette demande uniquement. La note s’affiche pour qui paie, mais ne part pas avec le paiement.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">Vos adresses</string>
+    <string name="welcome_spending_address_caption">D’autres adresses à vous pour envoyer et recevoir des Kaspa. Choisissez-en une sous « De » à chaque envoi, ou créez-en une dans Gérer les adresses.</string>
+    <string name="hide_all">Tout masquer</string>
+    <string name="hide_all_addresses_title">Masquer toutes les adresses ?</string>
+    <string name="hide_all_addresses_message">Gérer les adresses repart avec votre seule adresse de discussion. Rien n’est perdu : réaffichez n’importe quelle adresse ici, et ses Kaspa restent comptés dans votre total.</string>
 </resources>

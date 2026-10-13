@@ -36,7 +36,6 @@
     <string name="chats">চ্যাট</string>
     <string name="chatting_address">চ্যাট ঠিকানা</string>
     <string name="chatting_address_2">চ্যাট ঠিকানা</string>
-    <string name="chatting_vs_spending_address">চ্যাট ঠিকানা বনাম খরচের ঠিকানা</string>
     <string name="check_again">আবার পরীক্ষা করুন</string>
     <string name="checking_availability">উপলব্ধতা পরীক্ষা করা হচ্ছে...</string>
     <string name="checking_your_chatting_address_balance">আপনার চ্যাট ঠিকানার ব্যালেন্স পরীক্ষা করা হচ্ছে...</string>
@@ -589,7 +588,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">কারও সঙ্গে চ্যাট করতে চ্যাট তৈরি করুন চাপুন এবং তাদের Kaspa ঠিকানা বা .kachat নাম লিখুন। আপনার প্রথম মেসেজ তাদের কাছে মেসেজ অনুরোধ হিসেবে যায়, যা তারা গ্রহণ করতে পারে। সর্বোচ্চ গোপনীয়তার জন্য প্রাইভেট চ্যাট চালু করুন: চেইনে আপনাদের কিছুই যুক্ত করে না, আর তারাও আপনার সঙ্গে প্রাইভেট চ্যাট শুরু করলে আপনার মেসেজ দেখতে পাবে।</string>
     <string name="welcome_fund_chatting_body">শুরু করতে ৫০ Kaspa সুপারিশ করা হয় - একটি .kachat নাম নেওয়া ও কিছুদিন চ্যাট করার জন্য যথেষ্ট। ৫ Kaspa দিয়ে প্রায় ২৫০০ মেসেজ পাঠানো যায়।</string>
-    <string name="welcome_chatting_address_caption">আপনার পাবলিক মেসেজিং পরিচয়। মেসেজ ফি ও আপনার .kachat নামের জন্য অল্প কিছু টাকা রাখুন - যে টাকা খরচ করতে চান তা কখনো এখানে পাঠাবেন না।</string>
+    <string name="welcome_chatting_address_caption">আপনার মেসেজিং পরিচয়। বার্তা ও আপনার .kachat নাম এখান থেকে পরিশোধ হয়, আর অন্য ঠিকানা না বাছলে প্রতিটি পাঠানো এখান থেকেই শুরু হয়।</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">টেস্টনেট</string>
     <string name="testnet_restart_to_testnet">টেস্টনেটে বদল শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।</string>
@@ -1285,4 +1284,10 @@
     <string name="pr_unused">অব্যবহৃত</string>
     <string name="pr_checking">যাচাই হচ্ছে</string>
     <string name="pr_spending_footer_new">আপনার একদম নতুন একটি ঠিকানায় পেমেন্ট হবে, শুধু এই অনুরোধের জন্য। মেমো প্রদানকারী দেখবেন, কিন্তু পেমেন্টের সাথে যাবে না।</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">আপনার ঠিকানাগুলো</string>
+    <string name="welcome_spending_address_caption">Kaspa পাঠানো ও গ্রহণের জন্য আপনার আরও ঠিকানা। যেকোনো পাঠানোয় «থেকে»-তে একটি বাছুন, বা ঠিকানা ব্যবস্থাপনায় নতুন তৈরি করুন।</string>
+    <string name="hide_all">সব লুকান</string>
+    <string name="hide_all_addresses_title">সব ঠিকানা লুকাবেন?</string>
+    <string name="hide_all_addresses_message">ঠিকানা ব্যবস্থাপনা শুধু আপনার চ্যাটিং ঠিকানা দিয়ে নতুন করে শুরু হবে। কিছুই হারাবে না: এখান থেকে যেকোনো ঠিকানা ফিরিয়ে আনুন, আর এর Kaspa আপনার মোটে গণনা হতে থাকবে।</string>
 </resources>

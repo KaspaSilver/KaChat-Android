@@ -36,7 +36,6 @@
     <string name="chats">聊天</string>
     <string name="chatting_address">聊天地址</string>
     <string name="chatting_address_2">聊天地址</string>
-    <string name="chatting_vs_spending_address">聊天地址与消费地址</string>
     <string name="check_again">重新检查</string>
     <string name="checking_availability">正在检查可用性...</string>
     <string name="checking_your_chatting_address_balance">正在检查您的聊天地址余额...</string>
@@ -589,7 +588,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">要和某人聊天，点击“创建聊天”，输入对方的 Kaspa 地址或 .kachat 名称。你的第一条消息会作为消息请求送达，对方可以接受。想要最高隐私，请开启私密聊天：链上没有任何东西把你们联系在一起，对方也和你开始私密聊天后就能看到你的消息。</string>
     <string name="welcome_fund_chatting_body">建议先准备 50 Kaspa——足够领取一个 .kachat 名称并聊上一阵子。5 Kaspa 大约可发送 2500 条消息。</string>
-    <string name="welcome_chatting_address_caption">你的公开消息身份。存入少量资金用于支付消息费用和 .kachat 名称——切勿把打算花掉的钱发到这里。</string>
+    <string name="welcome_chatting_address_caption">你的消息身份。消息和 .kachat 名称从这里支付，除非你选择其他地址，每次发送都从这里发出。</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">测试网</string>
     <string name="testnet_restart_to_testnet">请完全关闭 KaChat 后重新打开，以完成切换到测试网。</string>
@@ -1285,4 +1284,10 @@
     <string name="pr_unused">未使用</string>
     <string name="pr_checking">正在检查</string>
     <string name="pr_spending_footer_new">付到你的一个全新地址，仅用于此请求。付款人能看到备注，但备注不会随付款发送。</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">你的地址</string>
+    <string name="welcome_spending_address_caption">你用于收发 Kaspa 的其他地址。在任意发送的「发送自」中选择一个，或在「管理地址」中新建。</string>
+    <string name="hide_all">全部隐藏</string>
+    <string name="hide_all_addresses_title">隐藏所有地址？</string>
+    <string name="hide_all_addresses_message">「管理地址」将重新开始，只保留你的聊天地址。不会丢失任何东西：可在此恢复任意地址，其 Kaspa 仍计入总额。</string>
 </resources>

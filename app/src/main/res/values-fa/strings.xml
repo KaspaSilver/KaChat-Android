@@ -53,7 +53,6 @@
     <string name="coinbase">کوین‌بیس</string>
     <string name="chatting_address">آدرس گفتگو</string>
     <string name="chatting_address_2">آدرس گفتگو</string>
-    <string name="chatting_vs_spending_address">آدرس گفتگو در برابر آدرس خرج کردن</string>
     <string name="check_again">بررسی مجدد</string>
     <string name="checking_availability">بررسی در دسترس بودن...</string>
     <string name="checking_your_chatting_address_balance">در حال بررسی موجودی آدرس گفتگوی شما...</string>
@@ -626,7 +625,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">برای گفتگو با کسی، روی ایجاد گفتگو بزنید و نشانی Kaspa یا نام ‎.kachat او را وارد کنید. اولین پیام شما به‌صورت درخواست پیامی به او می‌رسد که می‌تواند بپذیرد. برای بیشترین حریم خصوصی، گفتگوی خصوصی را روشن کنید: روی زنجیره چیزی شما را به هم مرتبط نمی‌کند و او وقتی با شما گفتگوی خصوصی شروع کند پیام‌هایتان را می‌بیند.</string>
     <string name="welcome_fund_chatting_body">برای شروع ۵۰ Kaspa توصیه می‌شود - کافی برای گرفتن یک نام ‎.kachat و مدتی گفتگو. ۵ Kaspa برای حدود ۲۵۰۰ پیام کافی است.</string>
-    <string name="welcome_chatting_address_caption">هویت عمومی پیام‌رسانی شما. مبلغ کمی واریز کنید تا کارمزد پیام‌ها و نام ‎.kachat شما پرداخت شود - هرگز پولی را که قصد خرج کردنش را دارید به اینجا نفرستید.</string>
+    <string name="welcome_chatting_address_caption">هویت پیام‌رسانی شما. پیام‌ها و نام .kachat شما از آن پرداخت می‌شوند و هر ارسال از آن شروع می‌شود، مگر آدرس دیگری انتخاب کنید.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">تست‌نت</string>
     <string name="testnet_restart_to_testnet">برای تکمیل تغییر به تست‌نت، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
@@ -1316,4 +1315,10 @@
     <string name="pr_unused">استفاده‌نشده</string>
     <string name="pr_checking">در حال بررسی</string>
     <string name="pr_spending_footer_new">به یک آدرس کاملاً تازه شما پرداخت می‌شود که فقط برای همین درخواست است. پرداخت‌کننده یادداشت را می‌بیند، اما همراه پرداخت ارسال نمی‌شود.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">آدرس‌های شما</string>
+    <string name="welcome_spending_address_caption">آدرس‌های دیگر شما برای ارسال و دریافت Kaspa. در هر ارسال یکی را زیر «از» انتخاب کنید یا در مدیریت آدرس‌ها آدرس تازه بسازید.</string>
+    <string name="hide_all">پنهان کردن همه</string>
+    <string name="hide_all_addresses_title">همه آدرس‌ها پنهان شوند؟</string>
+    <string name="hide_all_addresses_message">مدیریت آدرس‌ها فقط با آدرس گفتگوی شما از نو شروع می‌شود. چیزی از دست نمی‌رود: هر آدرسی را از اینجا برگردانید و Kaspa آن همچنان در جمع کل حساب می‌شود.</string>
 </resources>

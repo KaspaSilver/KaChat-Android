@@ -36,7 +36,6 @@
     <string name="chats">Chats</string>
     <string name="chatting_address">Chat-Adresse</string>
     <string name="chatting_address_2">Chat-Adresse</string>
-    <string name="chatting_vs_spending_address">Chat- vs. Ausgabeadresse</string>
     <string name="check_again">Erneut prüfen</string>
     <string name="checking_availability">Verfügbarkeit prüfen...</string>
     <string name="checking_your_chatting_address_balance">Guthaben deiner Chat-Adresse wird geprüft...</string>
@@ -589,7 +588,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Um mit jemandem zu chatten, tippe auf Chat erstellen und gib die Kaspa-Adresse oder den .kachat-Namen ein. Deine erste Nachricht kommt als Nachrichtenanfrage an, die angenommen werden kann. Für die meiste Privatsphäre aktiviere Privater Chat: Nichts verbindet euch on-chain, und deine Nachrichten werden sichtbar, sobald auch dort ein privater Chat mit dir gestartet wird.</string>
     <string name="welcome_fund_chatting_body">Zum Start werden 50 Kaspa empfohlen - genug, um dir einen .kachat-Namen zu sichern und eine Weile zu chatten. 5 Kaspa reichen für etwa 2500 Nachrichten.</string>
-    <string name="welcome_chatting_address_caption">Deine öffentliche Chat-Identität. Lade sie mit einem kleinen Betrag auf, um Nachrichtengebühren und deinen .kachat-Namen zu bezahlen - schicke hierher nie Geld, das du ausgeben willst.</string>
+    <string name="welcome_chatting_address_caption">Deine Messaging-Identität. Nachrichten und dein .kachat-Name werden von ihr bezahlt, und jede Sendung startet hier, außer du wählst eine andere Adresse.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Schließe KaChat vollständig und öffne es erneut, um den Wechsel zum Testnet abzuschließen.</string>
@@ -1282,4 +1281,10 @@
     <string name="pr_unused">Unbenutzt</string>
     <string name="pr_checking">Wird geprüft</string>
     <string name="pr_spending_footer_new">An eine ganz neue Adresse von dir, nur für diese Anforderung. Die Notiz sieht, wer zahlt; sie wird nicht mit der Zahlung gesendet.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">Deine Adressen</string>
+    <string name="welcome_spending_address_caption">Weitere Adressen von dir zum Senden und Empfangen von Kaspa. Wähle eine unter „Von“ bei jeder Sendung oder erstelle eine neue in „Adressen verwalten“.</string>
+    <string name="hide_all">Alle ausblenden</string>
+    <string name="hide_all_addresses_title">Alle Adressen ausblenden?</string>
+    <string name="hide_all_addresses_message">„Adressen verwalten“ beginnt neu, nur mit deiner Chat-Adresse. Nichts geht verloren: Hol jede Adresse hier zurück; ihr Kaspa zählt weiter zu deinem Gesamtbetrag.</string>
 </resources>

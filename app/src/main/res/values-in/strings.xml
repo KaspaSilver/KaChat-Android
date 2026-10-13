@@ -26,7 +26,6 @@
     <string name="chats">Obrolan</string>
     <string name="chatting_address">Alamat Obrolan</string>
     <string name="chatting_address_2">Alamat obrolan</string>
-    <string name="chatting_vs_spending_address">Alamat Obrolan vs. Alamat Pengeluaran</string>
     <string name="check_again">Periksa Lagi</string>
     <string name="checking_availability">Memeriksa ketersediaan...</string>
     <string name="checking_your_chatting_address_balance">Memeriksa saldo alamat obrolan Anda...</string>
@@ -484,7 +483,7 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Untuk mengobrol dengan seseorang, tekan Buat Obrolan dan masukkan alamat Kaspa atau nama .kachat mereka. Pesan pertamamu sampai sebagai Permintaan Pesan yang bisa mereka terima. Untuk privasi maksimal, aktifkan Obrolan Privat: tidak ada yang menghubungkan kalian di chain, dan mereka melihat pesanmu setelah juga memulai obrolan privat denganmu.</string>
     <string name="welcome_fund_chatting_body">Disarankan 50 Kaspa untuk memulai - cukup untuk mengklaim nama .kachat dan mengobrol untuk sementara. 5 Kaspa cukup untuk sekitar 2500 pesan.</string>
-    <string name="welcome_chatting_address_caption">Identitas pesan publikmu. Isi dengan sedikit dana untuk membayar biaya pesan dan nama .kachat-mu - jangan pernah mengirim uang ke sini yang ingin kamu belanjakan.</string>
+    <string name="welcome_chatting_address_caption">Identitas pesan Anda. Pesan dan nama .kachat Anda dibayar dari sini, dan setiap pengiriman dimulai dari sini kecuali Anda memilih alamat lain.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.</string>
@@ -1157,4 +1156,10 @@
     <string name="pr_unused">Belum dipakai</string>
     <string name="pr_checking">Memeriksa</string>
     <string name="pr_spending_footer_new">Dibayar ke alamat Anda yang benar-benar baru, hanya untuk permintaan ini. Catatan terlihat oleh pembayar, tetapi tidak ikut terkirim bersama pembayaran.</string>
+    <!-- iOS 245a5d2: Your Addresses, Hide All -->
+    <string name="your_addresses">Alamat Anda</string>
+    <string name="welcome_spending_address_caption">Alamat lain milik Anda untuk mengirim dan menerima Kaspa. Pilih salah satu di «Dari» pada pengiriman apa pun, atau buat yang baru di Kelola Alamat.</string>
+    <string name="hide_all">Sembunyikan Semua</string>
+    <string name="hide_all_addresses_title">Sembunyikan semua alamat?</string>
+    <string name="hide_all_addresses_message">Kelola Alamat dimulai ulang hanya dengan alamat obrolan Anda. Tidak ada yang hilang: tampilkan lagi alamat mana pun di sini, dan Kaspa-nya tetap dihitung dalam total Anda.</string>
 </resources>
