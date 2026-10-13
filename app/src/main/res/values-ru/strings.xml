@@ -305,7 +305,6 @@
     <string name="latency">Задержка</string>
     <string name="message_indexer_service_for_chat_functionality">Сервис индексации сообщений для чатов</string>
     <string name="open_chat">Открыть чат</string>
-    <string name="pay_in_kaspa">Оплатить в Kaspa</string>
     <string name="play_chess">Играть в шахматы</string>
     <string name="play_sound">Воспроизвести звук</string>
     <string name="pool_status">Статус пула</string>

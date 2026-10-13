@@ -305,7 +305,6 @@
     <string name="latency">延迟</string>
     <string name="message_indexer_service_for_chat_functionality">用于聊天功能的消息索引服务</string>
     <string name="open_chat">打开聊天</string>
-    <string name="pay_in_kaspa">用 Kaspa 支付</string>
     <string name="play_chess">下棋</string>
     <string name="play_sound">播放声音</string>
     <string name="pool_status">连接池状态</string>

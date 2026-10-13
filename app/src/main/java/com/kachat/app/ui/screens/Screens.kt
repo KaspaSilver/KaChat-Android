@@ -1169,7 +1169,7 @@ fun ChatThreadScreen(
                                             // Send KAS sheet (8d208b2).
                                             ActionSheetRow(
                                                 icon = painterResource(R.drawable.ic_kaspa_logo),
-                                                title = stringResource(R.string.pay_in_kaspa),
+                                                title = stringResource(R.string.chats_send_kaspa),
                                                 subtitle = stringResource(R.string.composer_pay_subtitle),
                                             ) {
                                                 showComposerMenu = false

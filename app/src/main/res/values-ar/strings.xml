@@ -305,7 +305,6 @@
     <string name="latency">زمن الاستجابة</string>
     <string name="message_indexer_service_for_chat_functionality">خدمة فهرسة الرسائل لوظائف المحادثة</string>
     <string name="open_chat">فتح الدردشة</string>
-    <string name="pay_in_kaspa">الدفع بكاسبا</string>
     <string name="play_chess">لعب الشطرنج</string>
     <string name="play_sound">تشغيل الصوت</string>
     <string name="pool_status">حالة المجموعة</string>

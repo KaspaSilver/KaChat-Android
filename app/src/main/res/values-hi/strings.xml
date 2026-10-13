@@ -305,7 +305,6 @@
     <string name="latency">विलंबता</string>
     <string name="message_indexer_service_for_chat_functionality">चैट कार्यक्षमता के लिए संदेश इंडेक्सर सेवा</string>
     <string name="open_chat">चैट खोलें</string>
-    <string name="pay_in_kaspa">कास्पा में भुगतान करें</string>
     <string name="play_chess">शतरंज खेलें</string>
     <string name="play_sound">ध्वनि चलाएं</string>
     <string name="pool_status">पूल स्थिति</string>

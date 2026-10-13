@@ -305,7 +305,6 @@
     <string name="latency">지연 시간</string>
     <string name="message_indexer_service_for_chat_functionality">채팅 기능을 위한 메시지 인덱서 서비스</string>
     <string name="open_chat">채팅 열기</string>
-    <string name="pay_in_kaspa">Kaspa로 결제</string>
     <string name="play_chess">체스 하기</string>
     <string name="play_sound">소리 재생</string>
     <string name="pool_status">풀 상태</string>

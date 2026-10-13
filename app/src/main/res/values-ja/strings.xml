@@ -305,7 +305,6 @@
     <string name="latency">レイテンシー</string>
     <string name="message_indexer_service_for_chat_functionality">チャット機能用メッセージインデクササービス</string>
     <string name="open_chat">チャットを開く</string>
-    <string name="pay_in_kaspa">Kaspaで支払う</string>
     <string name="play_chess">チェスをする</string>
     <string name="play_sound">サウンドを再生</string>
     <string name="pool_status">プールステータス</string>

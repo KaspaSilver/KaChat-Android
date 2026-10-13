@@ -686,7 +686,7 @@ fun SenderActionsSheet(
             ) { onDismiss(); onOpenChat() }
             ActionSheetRow(
                 icon = painterResource(R.drawable.ic_kaspa_logo),
-                title = stringResource(R.string.pay_in_kaspa),
+                title = stringResource(R.string.chats_send_kaspa),
                 subtitle = "Open your chat with them in payment mode.",
             ) { onDismiss(); onPayInKaspa() }
         }

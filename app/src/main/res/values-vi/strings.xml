@@ -305,7 +305,6 @@
     <string name="latency">Độ trễ</string>
     <string name="message_indexer_service_for_chat_functionality">Dịch vụ lập chỉ mục tin nhắn cho chức năng trò chuyện</string>
     <string name="open_chat">Mở trò chuyện</string>
-    <string name="pay_in_kaspa">Thanh toán bằng Kaspa</string>
     <string name="play_chess">Chơi cờ vua</string>
     <string name="play_sound">Phát âm thanh</string>
     <string name="pool_status">Trạng thái nhóm</string>

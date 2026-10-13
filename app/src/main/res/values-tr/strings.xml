@@ -305,7 +305,6 @@
     <string name="latency">Gecikme</string>
     <string name="message_indexer_service_for_chat_functionality">Sohbet işlevi için mesaj dizinleme servisi</string>
     <string name="open_chat">Sohbeti Ac</string>
-    <string name="pay_in_kaspa">Kaspa ile Ode</string>
     <string name="play_chess">Satranc Oyna</string>
     <string name="play_sound">Ses çal</string>
     <string name="pool_status">Havuz Durumu</string>

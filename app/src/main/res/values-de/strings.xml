@@ -305,7 +305,6 @@
     <string name="latency">Latenz</string>
     <string name="message_indexer_service_for_chat_functionality">Nachrichtenindexer-Dienst für Chat-Funktionalität</string>
     <string name="open_chat">Chat öffnen</string>
-    <string name="pay_in_kaspa">Mit Kaspa bezahlen</string>
     <string name="play_chess">Schach spielen</string>
     <string name="play_sound">Ton abspielen</string>
     <string name="pool_status">Pool-Status</string>
