@@ -6754,8 +6754,10 @@ fun SpendingAddressTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
-    // The .kachat name opened from the .kachat tab (iOS 881ada6).
+    // The .kachat name opened from the Domains tab's .kachat screen (iOS 881ada6).
     var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
+    // The name service opened from the Domains tab (iOS fe52376).
+    var openedDomainService by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
 
     LaunchedEffect(address) {
         if (address.isNotEmpty()) {
@@ -6772,6 +6774,16 @@ fun SpendingAddressTxHistoryScreen(
     // your addresses holds it (iOS 881ada6).
     openedKachat?.let { info ->
         KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        return
+    }
+    // A name service opened from this address's Domains tab: its names (iOS fe52376).
+    openedDomainService?.let { tld ->
+        AddressDomainServiceScreen(
+            address = address,
+            tld = tld,
+            onBack = { openedDomainService = null },
+            onOpenKachat = { openedKachat = it },
+        )
         return
     }
 
@@ -6910,9 +6922,9 @@ fun SpendingAddressTxHistoryScreen(
                 )
             }
             // The app's tab look (Chats / Group Chats / Public Chats), not a segmented control;
-            // plain names - History, UTXOs, .kachat (iOS b96d727/718b88c).
+            // plain names - History, UTXOs, Domains (iOS b96d727/718b88c, fe52376).
             UnderlineTabBar(
-                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), ".kachat"),
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), stringResource(R.string.address_tab_domains)),
                 selectedIndex = selectedTab,
                 onSelect = { selectedTab = it },
                 modifier = Modifier.padding(top = 4.dp),
@@ -6966,7 +6978,7 @@ fun SpendingAddressTxHistoryScreen(
                         }
                     }
                 }
-                2 -> KachatAddressDomainsList(address.takeIf { it.isNotEmpty() }, onOpen = { openedKachat = it })
+                2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it })
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -7161,8 +7173,10 @@ fun IdentityAddressDetailScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
-    // The .kachat name opened from the .kachat tab (iOS 881ada6).
+    // The .kachat name opened from the Domains tab's .kachat screen (iOS 881ada6).
     var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
+    // The name service opened from the Domains tab (iOS fe52376).
+    var openedDomainService by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
 
     LaunchedEffect(address) {
         val addr = address
@@ -7177,6 +7191,16 @@ fun IdentityAddressDetailScreen(
     // your addresses holds it (iOS 881ada6).
     openedKachat?.let { info ->
         KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        return
+    }
+    // A name service opened from this address's Domains tab: its names (iOS fe52376).
+    openedDomainService?.let { tld ->
+        AddressDomainServiceScreen(
+            address = address.orEmpty(),
+            tld = tld,
+            onBack = { openedDomainService = null },
+            onOpenKachat = { openedKachat = it },
+        )
         return
     }
 
@@ -7309,10 +7333,10 @@ fun IdentityAddressDetailScreen(
             ) {
                 Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
-            // Right above what it switches, the way Chats has it: History, UTXOs, .kachat
+            // Right above what it switches, the way Chats has it: History, UTXOs, Domains
             // (iOS b96d727/718b88c).
             UnderlineTabBar(
-                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), ".kachat"),
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), stringResource(R.string.address_tab_domains)),
                 selectedIndex = selectedTab,
                 onSelect = { selectedTab = it },
             )
@@ -7365,7 +7389,7 @@ fun IdentityAddressDetailScreen(
                         }
                     }
                 }
-                2 -> KachatAddressDomainsList(address?.takeIf { it.isNotEmpty() }, onOpen = { openedKachat = it })
+                2 -> AddressDomainsTab(address.orEmpty(), onOpenService = { openedDomainService = it })
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

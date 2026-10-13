@@ -1312,4 +1312,10 @@
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
     <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
     <string name="kn_combines_coins_on_slide">KAS شما در سکه‌های کوچک زیادی است. با کشیدن، KaChat ابتدا آن‌ها را در یکی ادغام می‌کند (تراکنشی جدا با کارمزد کوچک خودش) و سپس این را ارسال می‌کند.</string>
+    <!-- An address's Domains tab: one card per name service (iOS fe52376) -->
+    <string name="address_tab_domains">دامنه‌ها</string>
+    <string name="address_domains_none">هیچ نام %1$s روی این آدرس نیست.</string>
+    <string name="address_domains_one">۱ دامنه</string>
+    <string name="address_domains_count">%1$d دامنه</string>
+    <string name="address_domains_couldnt_load">بارگیری نشد</string>
 </resources>

@@ -1150,4 +1150,10 @@
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
     <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
     <string name="kn_combines_coins_on_slide">KAS Anda tersebar di banyak koin kecil. Saat Anda menggeser, KaChat lebih dulu menggabungkannya menjadi satu (transaksi terpisah dengan biaya kecilnya sendiri), lalu mengirim ini.</string>
+    <!-- An address's Domains tab: one card per name service (iOS fe52376) -->
+    <string name="address_tab_domains">Domain</string>
+    <string name="address_domains_none">Tidak ada nama %1$s di alamat ini.</string>
+    <string name="address_domains_one">1 domain</string>
+    <string name="address_domains_count">%1$d domain</string>
+    <string name="address_domains_couldnt_load">Tidak bisa dimuat</string>
 </resources>

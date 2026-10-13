@@ -273,6 +273,23 @@ class NameServicesClient @Inject constructor(
         }
     }
 
+    /** [address]'s names on .k and .kaspa by service, for one address's Domains tab - it leaves
+     *  [owned] alone. A service whose lookup failed is missing from the result (iOS
+     *  `ownedNamesByService(of:)`, fe52376). */
+    suspend fun ownedNamesByService(of: String): Map<NameServiceTLD, List<OwnedServiceName>> {
+        val address = of.trim().lowercase()
+        if (address.isEmpty()) return emptyMap()
+        val (k, kaspa) = coroutineScope {
+            val dotk = async { runCatching { fetchDotk(address) }.getOrNull() }
+            val names = async { runCatching { fetchKaspaNames(address) }.getOrNull() }
+            dotk.await() to names.await()
+        }
+        val result = mutableMapOf<NameServiceTLD, List<OwnedServiceName>>()
+        if (k != null) result[NameServiceTLD.K] = k
+        if (kaspa != null) result[NameServiceTLD.KASPA] = kaspa
+        return result
+    }
+
     /** The .kachat names each of [addresses] holds (active or in grace), where the registry is
      *  live; empty elsewhere. Kept apart from [ownedNames] because .kachat comes first wherever
      *  names are listed (iOS 6ac48a7). */
