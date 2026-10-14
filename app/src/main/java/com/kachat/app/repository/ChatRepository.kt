@@ -1979,10 +1979,25 @@ class ChatRepository @Inject constructor(
             return
         }
 
-        // The retired payment-pool envelopes (addr_pool / addr_pool_request / payment_notice)
-        // another client may still send: never bubbles, swallowed exactly like reactions (iOS
-        // isRetiredPaymentPoolEnvelope, 6333dd3 - Chats Payment Privacy was removed).
-        if (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext) != null) return
+        // Payment-pool envelopes are never bubbles. A payment_notice may file the payment it
+        // names in this chat (a chat payment sent From a spending address - iOS 927322b);
+        // addr_pool and addr_pool_request are retired and dropped (iOS 6333dd3).
+        val poolEnvelope = com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)
+        if (poolEnvelope != null) {
+            if (poolEnvelope is com.kachat.app.util.PaymentPoolProtocol.Envelope.Notice) {
+                handlePaymentNotice(
+                    myAddress = myAddress,
+                    contact = contact,
+                    notice = poolEnvelope.content,
+                    noticeTxId = message.txId,
+                    blockTime = message.blockTime,
+                    // Self-chat aside, a notice arriving on this stream was sent by the contact.
+                    isOutgoing = contact.id == myAddress,
+                    plaintext = plaintext
+                )
+            }
+            return
+        }
 
         val backfill = isBackfill(message.blockTime)
         insertMessage(
@@ -2034,6 +2049,127 @@ class ChatRepository @Inject constructor(
                 dedupeTxId = message.txId
             )
         }
+    }
+
+    /**
+     * A `payment_notice` in a 1:1 chat (iOS 927322b `handlePaymentNotice`, MESSAGING.md "Chat
+     * Payments From a Spending Address") - theirs (they paid us From a spending address, a plain
+     * transfer we can't place on its own) or our own read back on another device. It names a
+     * payment to the receiving side's chatting address; anything else (an old app's payment to
+     * one of our former pool addresses) is dropped silently (XP-023). The payment becomes a
+     * payment bubble in this chat, with its memo; if it already showed elsewhere first (the
+     * self-chat's "From: <address>" row from [processPayment]) it moves here. Deduped by the
+     * payment's txId, so a later payment sync finds it present and does nothing. A received one
+     * is then checked against the chain ([verifyPaymentNotice]).
+     */
+    private suspend fun handlePaymentNotice(
+        myAddress: String,
+        contact: ContactEntity,
+        notice: com.kachat.app.util.PaymentPoolProtocol.PaymentNoticeContent,
+        noticeTxId: String,
+        blockTime: Long,
+        isOutgoing: Boolean,
+        plaintext: String,
+    ) {
+        val txId = com.kachat.app.util.PaymentPoolProtocol.noticeTxId(notice.txId) ?: return
+        if (notice.amountSompi <= 0) return
+        val paidAddress = if (isOutgoing) contact.id else myAddress
+        if (!notice.address.trim().equals(paidAddress, ignoreCase = true)) {
+            Log.i("ChatRepository", "Dropped payment_notice ${txId.take(12)} - not a payment to the chatting address")
+            return
+        }
+        val memo = com.kachat.app.util.PaymentPoolProtocol.noticeMemo(notice.memo)
+
+        val existing = database.messageDao().getById(txId, myAddress)
+        if (existing != null && (existing.direction == "sent") == isOutgoing &&
+            existing.contactId.equals(contact.id, ignoreCase = true)
+        ) return
+        // A chat deleted since stays deleted for anything sent before the deletion - the same
+        // check every other path makes for this chat (1bf5e4b3), keyed by the payment's txId.
+        if (isTombstoned(database.contactDao().getDeletedContact(contact.id, myAddress), txId, blockTime)) return
+
+        val formatted = formatKas(notice.amountSompi)
+        val text = if (isOutgoing) {
+            com.kachat.app.util.PaymentPoolProtocol.sentNoticeText(formatted, KaspaUnit.symbol, memo)
+        } else {
+            com.kachat.app.util.PaymentPoolProtocol.receivedNoticeText(formatted, KaspaUnit.symbol, memo)
+        }
+        val backfill = isBackfill(blockTime)
+        // Shown elsewhere first (the self-chat): it belongs to this chat. Same primary key, so the
+        // insert below replaces that row with this chat's, in the notice's wording.
+        if (existing != null) {
+            Log.i("ChatRepository", "Moving payment ${txId.take(12)} from ${existing.contactId.takeLast(8)} into its chat")
+        }
+        insertMessage(
+            MessageEntity(
+                id = txId,
+                contactId = contact.id,
+                walletAddress = myAddress,
+                type = "pay",
+                direction = if (isOutgoing) "sent" else "received",
+                plaintextBody = text,
+                encryptedPayload = "",
+                amountSompi = notice.amountSompi,
+                blockTimestamp = blockTime,
+                isRead = isOutgoing || backfill || existing?.isRead == true ||
+                    notificationHelper.isViewingContact(contact.id),
+                deliveryStatus = "sent"
+            )
+        )
+        Log.i("ChatRepository", "Payment ${txId.take(12)} filed in its chat from a payment_notice")
+        if (isOutgoing) return
+
+        // The chain is the judge - in the background, so a sync is never held up by it.
+        scope.launch {
+            try {
+                verifyPaymentNotice(myAddress, txId, notice.address, notice.amountSompi, memo)
+            } catch (e: Exception) {
+                Log.d("ChatRepository", "payment_notice check for ${txId.take(12)} failed: ${e.message}")
+            }
+        }
+
+        // Only a payment newly shown counts: one the payment sync already put in the self-chat
+        // rang then. "Received payment" without the claimed amount, the push's wording (IOS-080);
+        // the remote push is the only banner source while push is active (see PushState).
+        if (existing == null && !backfill && !pushState.isActive &&
+            !notifyAsMessageRequest(contact, myAddress, noticeTxId)
+        ) {
+            notificationHelper.show(
+                contactId = contact.id,
+                title = contact.displayName,
+                text = com.kachat.app.util.dmNotificationText(plaintext, notificationHelper.dmNotificationLabels()),
+                notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride),
+                dedupeTxId = noticeTxId
+            )
+        }
+    }
+
+    /**
+     * The chain is the judge of a received notice (iOS `verifyPaymentNotice`): the amount shown
+     * is what the transaction really paid our chatting address, and a transaction that paid it
+     * nothing keeps the claimed amount but is marked "warning" (the card's "Unverified on-chain").
+     * Silent when the transaction can't be fetched.
+     */
+    private suspend fun verifyPaymentNotice(myAddress: String, txId: String, paidAddress: String, claimedSompi: Long, memo: String?) {
+        val api = networkService.kaspaRestApi.value ?: return
+        val tx = try { api.getTransaction(txId) } catch (e: Exception) { return }
+        val paid = tx.outputs
+            .filter { it.scriptPublicKeyAddress?.equals(paidAddress, ignoreCase = true) == true }
+            .sumOf { it.amount }
+        if (paid == claimedSompi) return
+        if (paid == 0L) {
+            Log.w("ChatRepository", "payment_notice ${txId.take(12)} FAILED verification - pays nothing to the chatting address")
+        }
+        val row = database.messageDao().getById(txId, myAddress) ?: return
+        if (row.direction != "received") return
+        val shownSompi = if (paid == 0L) claimedSompi else paid
+        database.messageDao().insert(
+            row.copy(
+                plaintextBody = com.kachat.app.util.PaymentPoolProtocol.receivedNoticeText(formatKas(shownSompi), KaspaUnit.symbol, memo),
+                amountSompi = shownSompi,
+                deliveryStatus = if (paid == 0L) "warning" else "sent"
+            )
+        )
     }
 
     /**
@@ -2151,7 +2287,9 @@ class ChatRepository @Inject constructor(
             // chat with us, so it opens their own chat - a Message Request until accepted - and
             // from then on their messages are fetched like anyone else's (the contact row is
             // their routing state). Internal moves from our own spending chain still surface
-            // nowhere in chats, and a sender rejected in Message Requests is kept out.
+            // nowhere in chats, and a sender rejected in Message Requests is kept out. Since iOS
+            // 927322b a chat payment From a spending address is a plain transfer plus a
+            // payment_notice ([handlePaymentNotice]), so this is an older app's payment.
             if (walletManager.isOwnSpendingAddress(sender)) return true
             if (chatRequestStore.isBlocked(sender)) return true
             // A chat you deleted stays deleted for anything sent before the deletion.
@@ -2172,7 +2310,8 @@ class ChatRepository @Inject constructor(
             // with the stranger. Internal moves from our own spending chain surface nowhere
             // in chats; genuinely unknown senders collect in the SELF-chat (the conversation
             // with our own chatting address) with the sender noted in the bubble. The wallet
-            // notification below still fires either way.
+            // notification below still fires either way. A payment_notice naming it later moves
+            // it into the payer's chat ([handlePaymentNotice]).
             if (walletManager.isOwnSpendingAddress(sender)) return true
             val selfDeleted = database.contactDao().getDeletedContact(myAddress, myAddress)
             if (isTombstoned(selfDeleted, tx.transactionId, blockTime)) return true

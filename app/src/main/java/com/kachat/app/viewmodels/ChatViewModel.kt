@@ -3036,7 +3036,12 @@ class ChatViewModel @Inject constructor(
                 // Paid to the contact's chatting address, the memo sealed to its key (iOS
                 // 6333dd3: no payment-pool destinations any more).
                 val destination = contactId
-                val payload = if (memo.isEmpty()) null else MessageProtocol.paymentMemoPayload(
+                // From a spending address it is a plain transfer, and the chatting address tells
+                // the chat about it right after ([sendSpendingPaymentNotice]): the payee has never
+                // seen that address, so a chat payment from it would open a stranger's Message
+                // Request on their side instead of landing in this chat (iOS 927322b, XP-022).
+                val fromChattingAddress = sourceSpendingIndex == null
+                val payload = if (memo.isEmpty() || !fromChattingAddress) null else MessageProtocol.paymentMemoPayload(
                     memo = memo,
                     amountSompi = sompi,
                     recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
@@ -3067,6 +3072,7 @@ class ChatViewModel @Inject constructor(
                         extraFeeSompi = extraFeeSompi,
                     )
                 }
+                if (!fromChattingAddress) sendSpendingPaymentNotice(contactId, txId, sompi, memo)
 
                 // The From's balance lags the send - retry it shortly after, then again once the
                 // change output has typically landed (~1.5s and ~4s).
@@ -3106,6 +3112,33 @@ class ChatViewModel @Inject constructor(
                 // for is a record of nothing. The caller surfaces the reason instead.
                 chatRepository.deleteMessage(pendingId)
                 onResult?.invoke(false, e.message, null)
+            }
+        }
+    }
+
+    /**
+     * Tells the chat about a payment just sent From a spending address (iOS 927322b
+     * `sendSpendingPaymentNotice`): an encrypted `payment_notice` from the chatting address, so
+     * the payee's app files the payment (and its memo, which travels only here) in the chat with
+     * us. Our own bubble is already there. Fire-and-forget, and not tied to this screen's
+     * lifetime: if it fails, the payee still has the KAS, shown in their self-chat.
+     */
+    private fun sendSpendingPaymentNotice(contactId: String, txId: String, amountSompi: Long, memo: String) {
+        val payload = com.kachat.app.util.PaymentPoolProtocol.encode(
+            com.kachat.app.util.PaymentPoolProtocol.PaymentNoticeContent(
+                txId = txId.lowercase(),
+                amountSompi = amountSompi,
+                address = contactId,
+                memo = com.kachat.app.util.PaymentPoolProtocol.noticeMemo(memo)
+            )
+        )
+        viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
+            try {
+                // Untagged, like iOS sendEnvelopeInternal: kchat:1:comm:, never a first-contact dm.
+                walletService.sendKasiaMessage(contactId, payload, firstContactTag = false)
+                Log.i("ChatViewModel", "Sent payment_notice for ${txId.take(12)}")
+            } catch (e: Exception) {
+                Log.w("ChatViewModel", "payment_notice send failed for ${txId.take(12)}: ${e.message}")
             }
         }
     }

@@ -1303,4 +1303,6 @@
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
     <string name="kn_locked_claim_note">名前を保有している間、%1$s が名前とともにロックされます（保証金 + レジストリ預託金）。名前を手放すと戻ってきます。</string>
     <string name="kn_locked_receipt_note">%1$s がこの名前とともにロックされています。名前を手放すとあなたに戻ります。</string>
+    <!-- Payment notice push (iOS 927322b) -->
+    <string name="dm_notif_received_payment">支払いを受け取りました</string>
 </resources>

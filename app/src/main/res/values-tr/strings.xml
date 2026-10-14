@@ -1303,4 +1303,6 @@
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
     <string name="kn_locked_claim_note">Adınız sizde kaldıkça %1$s onunla birlikte kilitli kalır (teminat + kayıt depozitosu). Adı bıraktığınızda geri alırsınız.</string>
     <string name="kn_locked_receipt_note">%1$s bu adla birlikte kilitli. Adı bıraktığınızda size geri döner.</string>
+    <!-- Payment notice push (iOS 927322b) -->
+    <string name="dm_notif_received_payment">Ödeme alındı</string>
 </resources>

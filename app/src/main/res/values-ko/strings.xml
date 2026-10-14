@@ -1303,4 +1303,6 @@
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
     <string name="kn_locked_claim_note">이름을 보유하는 동안 %1$s이(가) 이름과 함께 잠깁니다(보증금 + 레지스트리 예치금). 이름을 놓으면 돌려받습니다.</string>
     <string name="kn_locked_receipt_note">%1$s이(가) 이 이름과 함께 잠겨 있습니다. 이름을 놓으면 돌아옵니다.</string>
+    <!-- Payment notice push (iOS 927322b) -->
+    <string name="dm_notif_received_payment">결제를 받았습니다</string>
 </resources>

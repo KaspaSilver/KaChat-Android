@@ -5,17 +5,21 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
 /**
- * Wire codec for the retired fresh-address payment pool protocol (MESSAGING.md, "Fresh-Address
- * Payment Pools") - three invisible JSON envelope types embedded in the normal encrypted
- * contextual content, exactly like reactions ([MessageReaction]). Field names/types match the
- * iOS reference (`PaymentPoolCodec` in Models.swift).
+ * Wire codec for the payment-pool envelopes (MESSAGING.md, "Chat Payments From a Spending
+ * Address" and its "Retired" note) - three invisible JSON envelope types embedded in the normal
+ * encrypted contextual content, exactly like reactions ([MessageReaction]). Field names/types
+ * match the iOS reference (`PaymentPoolCodec` in Models.swift).
  *
- * Chats Payment Privacy was removed (iOS 6333dd3): this app never sends these any more. Other
- * clients may still send them; ChatRepository.processContextualMessage swallows all three so
- * they never show as text, and the push path keeps addr_pool / addr_pool_request silent and
- * words a payment_notice as a payment (iOS NotificationService, unchanged). Unknown `type`
- * values fall through to the normal message pipeline, and unknown extra fields inside these
- * envelopes are ignored (Gson does both naturally).
+ * Chats Payment Privacy was removed (iOS 6333dd3): `addr_pool` / `addr_pool_request` are never
+ * sent any more, and other clients' copies are swallowed (no bubble, no banner).
+ *
+ * `payment_notice` lives on for one job (iOS 927322b, XP-022): a 1:1 chat payment sent From a
+ * spending address is a plain transfer the payee can't place, so the chatting address sends a
+ * notice naming it right after (ChatViewModel.sendPayment), and both sides file it in their 1:1
+ * chat (ChatRepository.handlePaymentNotice). A notice naming any other address - an old app
+ * paying one of our former pool addresses - is dropped, and its push stays silent (XP-023).
+ * Unknown `type` values fall through to the normal message pipeline, and unknown extra fields
+ * inside these envelopes are ignored (Gson does both naturally).
  */
 object PaymentPoolProtocol {
 
@@ -33,11 +37,11 @@ object PaymentPoolProtocol {
         val type: String = "addr_pool_request"
     )
 
-    /** Sent by the PAYER alongside a pool-address payment - payment detection only watches the
-     *  chatting address, so without this the recipient's chat would show nothing. [memo]
-     *  (optional, absent when empty - Gson omits nulls) is the payer's note: the notice is the
-     *  only part of a pool payment the recipient's chat reads, and it already travels encrypted
-     *  to the contact (iOS 6b20d77, MESSAGING.md "payment_notice"). */
+    /** Sent by the PAYER's chatting address right after a chat payment From a spending address
+     *  (a plain transfer the payee has never seen the source of): [txId] (lowercase hex) and
+     *  [amountSompi] of that payment, [address] = the payee's chatting address it paid. [memo]
+     *  (optional, absent when empty - Gson omits nulls) is the payer's note, which travels only
+     *  here (iOS 927322b / 6b20d77, MESSAGING.md "payment_notice"). */
     data class PaymentNoticeContent(
         val type: String = "payment_notice",
         val txId: String,
@@ -73,6 +77,21 @@ object PaymentPoolProtocol {
     fun receivedNoticeText(formattedAmount: String, symbol: String, memo: String?): String {
         val note = noticeMemo(memo)
         return "Received $formattedAmount $symbol" + (note?.let { " — $it" } ?: "")
+    }
+
+    /** The payer's bubble for a notice read back on another of its devices: "Sent X KAS", or
+     *  "Sent X KAS — memo" - the shape ChatViewModel.sendPayment writes. */
+    fun sentNoticeText(formattedAmount: String, symbol: String, memo: String?): String {
+        val note = noticeMemo(memo)
+        return "Sent $formattedAmount $symbol" + (note?.let { " — $it" } ?: "")
+    }
+
+    /** A notice's txId as both sides key the payment by: trimmed, lowercase, and exactly 64 hex
+     *  characters - null for anything else (iOS handlePaymentNotice). */
+    fun noticeTxId(raw: String?): String? {
+        val txId = raw?.trim()?.lowercase() ?: return null
+        if (txId.length != 64 || !txId.all { it in '0'..'9' || it in 'a'..'f' }) return null
+        return txId
     }
 
     sealed class Envelope {

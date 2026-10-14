@@ -566,8 +566,12 @@ class WalletService @Inject constructor(
      * [WalletManager.theirDeterministicAlias]). Only a pre-existing legacy handshake chat - one
      * whose handshake from an older build stored a random alias of ours - keeps writing on that
      * alias (XP-003, [HandshakeAliasPolicy]).
+     *
+     * [firstContactTag] false: never the first-contact inbox tag - an invisible envelope that
+     * is not a message (a `payment_notice`, as iOS `sendEnvelopeInternal` sends it) must not use
+     * up the one tagged first message.
      */
-    suspend fun sendKasiaMessage(toContactId: String, text: String, feeRateOverride: Long? = null): SendResult {
+    suspend fun sendKasiaMessage(toContactId: String, text: String, feeRateOverride: Long? = null, firstContactTag: Boolean = true): SendResult {
         // Writing to someone is consent: their chat is accepted, and a block on them lifts
         // (NO_HANDSHAKE_MESSAGING.md §4).
         if (!toContactId.equals(walletManager.getAddress(), ignoreCase = true)) chatRepository.acceptChat(toContactId)
@@ -582,7 +586,7 @@ class WalletService @Inject constructor(
 
         val encrypted = MessageProtocol.encrypt(text, recipientPubKey)
         // First contact carries their inbox tag so they can find it (NO_HANDSHAKE_MESSAGING.md §3).
-        val inboxTag = chatRepository.firstContactInboxTag(toContactId)
+        val inboxTag = if (firstContactTag) chatRepository.firstContactInboxTag(toContactId) else null
         val payloadBytes = MessageProtocol.buildCommPayload(alias, encrypted, inboxTag)
 
         val txId = sendKaspa(toAddress = walletManager.getAddress(), amountSompi = 0, payloadBytes = payloadBytes, feeRateOverride = feeRateOverride)

@@ -297,20 +297,25 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
             return
         }
-        // The retired Chats Payment Privacy pool control envelopes (addr_pool /
-        // addr_pool_request) another client may still send are invisible protocol traffic - the
-        // app swallows them when it syncs, and nothing about them is for the reader. No banner at
-        // all, as on iOS's notification service extension (isSilentPoolEnvelope). A
-        // payment_notice IS a payment the reader should see, so it falls through and is worded
-        // like one below.
-        when (com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)) {
-            is com.kachat.app.util.PaymentPoolProtocol.Envelope.Pool,
-            is com.kachat.app.util.PaymentPoolProtocol.Envelope.Request -> {
-                Log.i(TAG, "Payment pool envelope push kept silent")
-                data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
-                return
+        // Payment-pool envelopes are invisible protocol traffic - no banner at all, as on iOS's
+        // notification service extension (isSilentPoolEnvelope, 927322b): the retired addr_pool /
+        // addr_pool_request, and a payment_notice naming anything but our chatting address (an
+        // old app's payment to one of our former pool addresses, which the app drops - XP-023).
+        // A payment_notice for a payment to our chatting address (a chat payment sent From the
+        // contact's spending address) IS a payment the reader should see, so it falls through and
+        // reads "Received payment" below (dmNotificationText).
+        val silentPoolEnvelope = when (val pool = com.kachat.app.util.PaymentPoolProtocol.parse(plaintext)) {
+            null -> false
+            is com.kachat.app.util.PaymentPoolProtocol.Envelope.Notice -> {
+                val myAddress = runCatching { walletManager.getAddress() }.getOrNull()
+                myAddress.isNullOrBlank() || !pool.content.address.trim().equals(myAddress, ignoreCase = true)
             }
-            else -> {}
+            else -> true
+        }
+        if (silentPoolEnvelope) {
+            Log.i(TAG, "Payment pool envelope push kept silent")
+            data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+            return
         }
 
         // Message Requests (NO_HANDSHAKE_MESSAGING.md §4): one "New message request" per new

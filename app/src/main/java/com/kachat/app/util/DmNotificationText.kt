@@ -12,6 +12,7 @@ data class DmNotificationLabels(
     val sentVideo: String,
     val sentFile: String,
     val newMessage: String,
+    val receivedPayment: String = "Received payment",
 ) {
     companion object {
         val ENGLISH = DmNotificationLabels(sentVideo = "Sent a video", sentFile = "Sent a file", newMessage = "New message")
@@ -20,6 +21,7 @@ data class DmNotificationLabels(
             sentVideo = context.getString(R.string.dm_notif_sent_video),
             sentFile = context.getString(R.string.dm_notif_sent_file),
             newMessage = context.getString(R.string.dm_notif_new_message),
+            receivedPayment = context.getString(R.string.dm_notif_received_payment),
         )
     }
 }
@@ -35,12 +37,11 @@ data class DmNotificationLabels(
  * envelope on a lock screen (iOS NotificationService).
  */
 fun dmNotificationText(plaintext: String, labels: DmNotificationLabels = DmNotificationLabels.ENGLISH): String {
-    // A payment made to a fresh address reads like a payment, not like its JSON envelope
-    // (iOS paymentNoticePreviewText).
-    (PaymentPoolProtocol.parse(plaintext) as? PaymentPoolProtocol.Envelope.Notice)?.let { notice ->
-        val sompi = notice.content.amountSompi
-        return if (sompi > 0) String.format(java.util.Locale.US, "Received %.8f %s", sompi / 100_000_000.0, KaspaUnit.symbol) else "Received payment"
-    }
+    // A payment_notice reads like a payment, not like its JSON envelope - and without an amount:
+    // it is only what the sender claims, and the app checks it against the chain before the chat
+    // shows one (iOS paymentNoticePreviewText, IOS-080). One naming a payment to anything but our
+    // chatting address never gets this far: both callers keep it silent (XP-023).
+    if (PaymentPoolProtocol.parse(plaintext) is PaymentPoolProtocol.Envelope.Notice) return labels.receivedPayment
     CallCodec.parseOrNull(plaintext)?.let { return CallCodec.notificationPreview(it) }
     MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
     if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"

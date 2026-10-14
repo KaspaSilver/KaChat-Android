@@ -1504,4 +1504,6 @@
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
     <string name="kn_locked_claim_note">%1$s stays locked with your name while you hold it (bond + registry deposit). You get it back when you release the name.</string>
     <string name="kn_locked_receipt_note">%1$s is locked with this name. It comes back to you when you release it.</string>
+    <!-- Payment notice push (iOS 927322b) -->
+    <string name="dm_notif_received_payment">Received payment</string>
 </resources>
