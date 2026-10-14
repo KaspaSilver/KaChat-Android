@@ -1176,7 +1176,7 @@ object KachatProfileCache {
  * `KachatSocialImageResolver` (KachatNamesRegistry.swift, ad32798 / 1322216).
  *
  * The cache holds the picture URLs and the bio; Coil downloads and keeps the images. An answer is
- * fresh for 24 hours; a stale one is still shown while it is looked up again. When the platform
+ * fresh for 5 days; a stale one is still shown while it is looked up again. When the platform
  * answers but no longer shows something (taken down, account gone), it is dropped at once, so the
  * platform's moderation carries over. When the platform can't be reached, the last answer stays.
  *
@@ -1533,7 +1533,9 @@ class KachatSocialImageResolver @Inject constructor(
         private const val CACHE_FILE = "social.json"
         /** Where the cache lived before (SharedPreferences): moved into [CACHE_FILE] once. */
         private const val LEGACY_CACHE_KEY = "kachat_social_profile_cache"
-        private const val FRESH_FOR_MS = 24L * 3600 * 1000
+        /** Avatars, banners and bios are looked up afresh once their answer is 5 days old, so an
+         *  updated profile reaches everyone eventually (the last answer shows meanwhile; iOS 46b26d9). */
+        private const val FRESH_FOR_MS = 5L * 24 * 3600 * 1000
         /** An unreachable platform is asked again after ten minutes (iOS `unreachableRetry`). */
         private const val UNREACHABLE_RETRY_MS = 600_000L
         private const val MAX_ENTRIES = 500
