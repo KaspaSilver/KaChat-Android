@@ -5799,6 +5799,9 @@ fun SpendingAddressSendFlow(
      *  (paymentRequest:)`): its address is locked in, its amount and memo filled in. A request
      *  pasted into the recipient field does the same (not in Compound). */
     paymentRequest: com.kachat.app.models.PaymentRequest? = null,
+    /** Opened from one address's history (its Send button, iOS 7a8102b `lockedSource`): the Kaspa
+     *  leaves from that address and the From section offers no other. */
+    lockedSource: SendSource? = null,
     /** Pays a chatting-address request as a chat payment (the memo encrypted to them inside it);
      *  null takes the app's own (the activity's), as every iOS send screen has ChatService. */
     chatViewModel: com.kachat.app.viewmodels.ChatViewModel? = null,
@@ -5855,7 +5858,7 @@ fun SpendingAddressSendFlow(
 
     // Where the Kaspa leaves from (the From section, iOS 6333dd3): the chatting address by
     // default. Compound UTXOs has no From - it merges [fromAddress] ([spendingIndex]) itself.
-    var source by remember { mutableStateOf<SendSource>(SendSource.Chatting) }
+    var source by remember { mutableStateOf<SendSource>(lockedSource ?: SendSource.Chatting) }
     /** The From address's balance, loaded by [SendFromSection]. */
     var sourceBalanceSompi by remember { mutableStateOf<Long?>(null) }
     val chattingAddress by viewModel.address.collectAsState()
@@ -6252,6 +6255,7 @@ fun SpendingAddressSendFlow(
                     onAvailableSompiChange = { sourceBalanceSompi = it },
                     walletViewModel = viewModel,
                     enabled = !isSending,
+                    isLocked = lockedSource != null,
                 )
             }
 
@@ -6452,6 +6456,8 @@ fun SpendingAddressTxHistoryScreen(
                 portfolioViewModel = portfolioViewModel,
                 onDone = close,
                 presentedAsSheet = true,
+                // Send from this address's own page: it is the From, with no other to pick.
+                lockedSource = SendSource.Spending(entry.index, entry.address, spendingAddressDisplayLabel(entry.index, entry.label)),
             )
         }
     }
@@ -6869,6 +6875,7 @@ fun IdentityAddressDetailScreen(
                 portfolioViewModel = portfolioViewModel,
                 onDone = close,
                 presentedAsSheet = true,
+                lockedSource = SendSource.Chatting,
             )
         }
     }

@@ -797,6 +797,9 @@ fun SendFromSection(
     walletViewModel: WalletViewModel,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Opened from one address's own page (its history's Send, iOS 7a8102b): that address only,
+     *  no Chatting Address / Choose an Address choice. */
+    isLocked: Boolean = false,
 ) {
     val colors = LocalAppColors.current
     val chattingAddress by walletViewModel.address.collectAsState()
@@ -816,17 +819,19 @@ fun SendFromSection(
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SelectablePill(
-                title = stringResource(R.string.chatting_address),
-                selected = source is SendSource.Chatting,
-                modifier = Modifier.weight(1f),
-            ) { if (enabled) onSourceChange(SendSource.Chatting) }
-            SelectablePill(
-                title = stringResource(R.string.pr_choose_an_address),
-                selected = source !is SendSource.Chatting,
-                modifier = Modifier.weight(1f),
-            ) { if (enabled) showPicker = true }
+        if (!isLocked) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SelectablePill(
+                    title = stringResource(R.string.chatting_address),
+                    selected = source is SendSource.Chatting,
+                    modifier = Modifier.weight(1f),
+                ) { if (enabled) onSourceChange(SendSource.Chatting) }
+                SelectablePill(
+                    title = stringResource(R.string.pr_choose_an_address),
+                    selected = source !is SendSource.Chatting,
+                    modifier = Modifier.weight(1f),
+                ) { if (enabled) showPicker = true }
+            }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
