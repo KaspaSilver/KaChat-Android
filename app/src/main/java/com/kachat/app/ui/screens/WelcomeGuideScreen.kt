@@ -701,15 +701,17 @@ private fun WelcomeGuideFundingStep(
             Spacer(Modifier.height(20.dp))
             Text(
                 chattingAddress,
-                style = MaterialTheme.typography.bodySmall,
+                // iOS: .footnote.monospaced(), at most two lines, 24pt in from the sides.
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                 color = LocalAppColors.current.textPrimary,
                 textAlign = TextAlign.Center,
+                maxLines = 2,
                 modifier = Modifier
                     .clickable {
                         clipboardManager.setText(AnnotatedString(chattingAddress))
                         showAddressCopiedToast(context, chattingAddress)
                     }
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 24.dp)
             )
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = { showQr = true }) {

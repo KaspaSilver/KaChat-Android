@@ -12952,7 +12952,8 @@ fun ChatInfoScreen(
                                     // profiles are not loaded, so this is what a .kas owner shows
                                     // until .kachat profiles exist (iOS d6ded9d).
                                     !usesKnsProfile || ownedDomains.isEmpty() || bio == null -> Text(
-                                        text = com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                                        // iOS ChatInfoView.formatAddress: the first 12 and last 8.
+                                        text = if (contactId.length > 20) "${contactId.take(12)}...${contactId.takeLast(8)}" else contactId,
                                         color = LocalAppColors.current.textSecondary,
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 1,
