@@ -12707,7 +12707,8 @@ fun ChatInfoScreen(
     fun rescanProfile() {
         if (rescanning) return
         rescanning = true
-        rescanScope.launch {
+        // Not tied to this screen, like iOS's Task: leaving User Info mid-rescan still finishes it.
+        rescanScope.launch(kotlinx.coroutines.NonCancellable) {
             try {
                 val pictures = mutableListOf<String>()
                 if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
