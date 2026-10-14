@@ -1315,7 +1315,6 @@
     <string name="kn_not_enough_on_this_address">Bu adreste bu ad için yeterli KAS yok.</string>
     <string name="kn_send_kas_to_buy_with">Bu adresle satın almak için bu adrese KAS gönderin.</string>
     <string name="kn_choose_market_address">Pazar yerinin satın alırken kullandığı adresi seçin</string>
-    <string name="kn_buy_from_note">Buradaki talepler, satın almalar ve teklifler bu adresten ödenir ve talep ettiğiniz ya da satın aldığınız adlar ona ait olur. Bir adı sohbet adresinizden ayrı tutmak için yeni bir adres kullanın.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Kendi adresiniz: %1$s</string>
     <!-- User Info: look the person's avatar, banner and bio up again now -->

@@ -172,14 +172,9 @@ class KachatNamesActions @Inject constructor(
      */
     val marketSource: StateFlow<SendSource> = _marketSource.asStateFlow()
 
-    private val _marketSourceIsFresh = MutableStateFlow(false)
-    /** [marketSource] was made with Buy From's Fresh Address (which pill shows as chosen). */
-    val marketSourceIsFresh: StateFlow<Boolean> = _marketSourceIsFresh.asStateFlow()
-
     /** Picks the marketplace's address; a spending address is remembered for this wallet
      *  ([marketAddresses], iOS `marketSource.didSet`). */
-    fun setMarketSource(source: SendSource, fresh: Boolean = false) {
-        _marketSourceIsFresh.value = fresh
+    fun setMarketSource(source: SendSource) {
         _marketSource.value = source
         if (source is SendSource.Spending) rememberMarketAddress(source.address)
     }

@@ -1315,7 +1315,6 @@
     <string name="kn_not_enough_on_this_address">इस नाम के लिए इस पते पर पर्याप्त KAS नहीं है।</string>
     <string name="kn_send_kas_to_buy_with">इससे खरीदने के लिए इस पते पर KAS भेजें।</string>
     <string name="kn_choose_market_address">वह पता चुनें जिससे मार्केटप्लेस खरीदता है</string>
-    <string name="kn_buy_from_note">यहाँ दावे, खरीद और ऑफ़र इसी पते से चुकाए जाते हैं, और आप जो नाम दावा करते या खरीदते हैं वे इसी के होते हैं। किसी नाम को अपने चैटिंग पते से अलग रखने के लिए नया पता इस्तेमाल करें।</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">आपका अपना पता: %1$s</string>
     <!-- User Info: look the person's avatar, banner and bio up again now -->

@@ -1767,13 +1767,11 @@ private fun KachatMarketSourceSheet(
     onDismiss: () -> Unit,
 ) {
     val source by vm.actions.marketSource.collectAsState()
-    val isFresh by vm.actions.marketSourceIsFresh.collectAsState()
     val chattingAddress by walletViewModel.address.collectAsState()
     val chattingBalance by walletViewModel.balanceSompi.collectAsState()
     var balance by remember { mutableStateOf<Long?>(null) }
     var showChooser by remember { mutableStateOf(false) }
     var showFund by remember { mutableStateOf(false) }
-    var makingFresh by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -1795,28 +1793,6 @@ private fun KachatMarketSourceSheet(
         if (copied) {
             kotlinx.coroutines.delay(1_500)
             copied = false
-        }
-    }
-
-    /** A never-used spending address (revealed in Manage Addresses), the same one Receive offers. */
-    fun makeFresh() {
-        if (makingFresh) return
-        makingFresh = true
-        walletViewModel.resolveFreshReceiveAddress(revealing = true) { fresh ->
-            scope.launch {
-                try {
-                    val key = fresh?.let { com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(it) } ?: return@launch
-                    val own = vm.actions.ownAddress(key) as? com.kachat.app.services.kachatnames.KachatNamesActions.OwnAddress.Spending
-                        ?: return@launch
-                    val label = walletViewModel.manageAddresses.value.firstOrNull { it.index == own.index }?.label
-                    vm.actions.setMarketSource(
-                        SendSource.Spending(own.index, own.address, spendingAddressDisplayLabel(own.index, label)),
-                        fresh = true,
-                    )
-                } finally {
-                    makingFresh = false
-                }
-            }
         }
     }
 
@@ -1846,22 +1822,21 @@ private fun KachatMarketSourceSheet(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            Text(stringResource(R.string.kn_buy_from_note), color = colors.textSecondary, fontSize = 15.sp)
+                            // Just Chatting Address and Choose an Address (iOS ca39de7): a
+                            // never-used address is one tap away in the chooser, marked Unused.
                             Row(
-                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
                                 SelectablePill(
                                     title = stringResource(R.string.chatting_address),
                                     selected = !isSpending,
+                                    modifier = Modifier.weight(1f),
                                 ) { vm.actions.setMarketSource(SendSource.Chatting) }
                                 SelectablePill(
-                                    title = stringResource(R.string.pr_fresh_address),
-                                    selected = isSpending && isFresh,
-                                ) { makeFresh() }
-                                SelectablePill(
                                     title = stringResource(R.string.pr_choose_an_address),
-                                    selected = isSpending && !isFresh,
+                                    selected = isSpending,
+                                    modifier = Modifier.weight(1f),
                                 ) { showChooser = true }
                             }
                             // the address card
@@ -1894,7 +1869,7 @@ private fun KachatMarketSourceSheet(
                                     }
                                 }
                                 val shown = shownBalance
-                                if (makingFresh || shown == null) {
+                                if (shown == null) {
                                     com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(18.dp), color = colors.textSecondary, strokeWidth = 2.dp)
                                 } else {
                                     Text(
