@@ -461,40 +461,70 @@ fun KaspaAmountEntry(
 }
 
 /**
- * Thousands commas on an amount field while it's shown ("12,345.5"), the plain number kept as the
- * field's value (iOS 40c5258 `KaspaAmountEntry.grouped` / `ungrouped`, `Binding.groupedAmount`).
+ * Thousands separators on an amount field while it's shown ("12,345.5", or "12 345.5" where "," is
+ * the decimal point), the plain number kept as the field's value (iOS 40c5258 `KaspaAmountEntry.grouped` / `ungrouped`, `Binding.groupedAmount`).
  * Used by [KaspaAmountEntry], the .kachat offer and list price, Add to Portfolio and a portfolio
  * transaction's quantity: put [visualTransformation] on the field and pass what's typed through
- * [ungrouped] before it's stored. The commas are only drawn, so the value never contains them.
+ * [ungrouped] before it's stored. The separators are only drawn, so the value never contains them.
  */
 object KaspaAmountGrouping {
-    /** "12345.5" -> "12,345.5": commas every three digits of the whole part, the rest as typed. */
-    fun grouped(plain: String): String {
+    /**
+     * Where the device writes the decimal point as "," (de, fr, es, it, pt, ru, tr, id, vi...), a
+     * comma is ALWAYS the decimal point - "0,001" pasted from a chat is 0.001, never 1 (iOS 73af28a,
+     * IOS-078) - and thousands show as a thin space ("2 500"), which no reader takes for a decimal.
+     * Elsewhere thousands show as "," ("12,345.5").
+     */
+    fun usesCommaDecimal(locale: java.util.Locale = java.util.Locale.getDefault()): Boolean =
+        java.text.DecimalFormatSymbols.getInstance(locale).decimalSeparator == ','
+
+    fun groupingSeparator(locale: java.util.Locale = java.util.Locale.getDefault()): Char =
+        if (usesCommaDecimal(locale)) '\u202F' else ','
+
+    /** "12345.5" -> "12,345.5" (or "12 345.5"): a separator every three digits of the whole part,
+     *  the rest as typed. */
+    fun grouped(plain: String, locale: java.util.Locale = java.util.Locale.getDefault()): String {
         val dot = plain.indexOf('.')
         val whole = if (dot >= 0) plain.substring(0, dot) else plain
         if (whole.length <= 3 || !whole.all { it in '0'..'9' }) return plain
+        val separator = groupingSeparator(locale)
         val out = StringBuilder()
         for ((i, ch) in whole.withIndex()) {
-            if (i > 0 && (whole.length - i) % 3 == 0) out.append(',')
+            if (i > 0 && (whole.length - i) % 3 == 0) out.append(separator)
             out.append(ch)
         }
         return if (dot >= 0) out.toString() + plain.substring(dot) else out.toString()
     }
 
     /**
-     * The edited field back to a plain number. [edited] is the field's value after the edit and
-     * [previous] its value before (both without the drawn commas), so every comma in [edited] was
-     * typed or pasted. As on iOS, a comma typed as the decimal point (comma-decimal keyboards)
-     * stays one: typed at the end, or a single comma not three digits from the end in a number
-     * that showed no grouping ("0,5" pasted is 0.5, never 5). Any other comma goes.
+     * The edited field back to a plain number ("." the decimal point). [edited] is the field's
+     * value after the edit and [previous] its value before (both without the drawn separators),
+     * so every comma in [edited] was typed or pasted.
+     * - Comma-decimal device: a "," is the decimal point; a pasted "1.234,5" (dots as grouping, a
+     *   comma decimal) is 1234.5. Pasted spaces go.
+     * - Otherwise: a comma TYPED as the decimal point stays one: typed at the end, or a single
+     *   comma not three digits from the end in a number that showed no grouping ("0,5" is 0.5),
+     *   or after a lone leading zero ("0,001" is 0.001, as no grouped number starts "0,"). Any
+     *   other comma goes.
      */
-    fun ungrouped(edited: String, previous: String): String {
+    fun ungrouped(edited: String, previous: String, locale: java.util.Locale = java.util.Locale.getDefault()): String {
+        if (usesCommaDecimal(locale)) {
+            var text = edited.replace("\u202F", "").replace(" ", "").replace("\u00A0", "")
+            val first = text.indexOf(',')
+            if (first >= 0) {
+                // a comma is the decimal point; dots beside it can only be grouping
+                val head = text.substring(0, first).replace(".", "")
+                val tail = text.substring(first + 1).replace(".", "").replace(",", "")
+                text = "$head.$tail"
+            }
+            return text
+        }
         if (edited == "$previous,") {
             return previous.replace(",", "") + "."
         }
         val comma = edited.indexOf(',')
-        if (!grouped(previous).contains(',') && !edited.contains('.') &&
-            edited.count { it == ',' } == 1 && edited.length - (comma + 1) != 3
+        if (!grouped(previous, locale).contains(',') && !edited.contains('.') &&
+            edited.count { it == ',' } == 1 &&
+            (edited.substring(0, comma) == "0" || comma == 0 || edited.length - (comma + 1) != 3)
         ) {
             return edited.replace(',', '.')
         }
