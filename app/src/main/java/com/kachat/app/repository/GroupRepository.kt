@@ -264,10 +264,12 @@ class GroupRepository @Inject constructor(
     fun membersOf(group: GroupEntity): List<GroupMember> =
         try { gson.fromJson<List<GroupMember>>(group.membersJson, membersListType) ?: emptyList() } catch (e: Exception) { emptyList() }
 
-    /** Best display name for a membership system line: live contact alias → roster snapshot name → short address. */
+    /** Best display name for a membership system line: live contact alias → Address Book name → roster snapshot name → short address. */
     private suspend fun groupMemberLabel(address: String, walletAddress: String, fallbackDisplayName: String?): String {
         val alias = try { database.contactDao().getContact(address, walletAddress)?.alias?.trim() } catch (e: Exception) { null }
         if (!alias.isNullOrEmpty()) return alias
+        // A name saved in the Address Book, right after the contact alias (iOS 9ba6c8c).
+        com.kachat.app.services.AddressBookManager.nameFor(address)?.let { return it }
         val snap = fallbackDisplayName?.trim()
         if (!snap.isNullOrEmpty()) return snap
         return KaspaAddress.shortDisplay(address)

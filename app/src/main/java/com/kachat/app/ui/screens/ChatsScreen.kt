@@ -1514,6 +1514,10 @@ internal fun ConversationRow(
         Spacer(Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
+            // ContactsManager.displayName's order, as iOS 9ba6c8c: the name you gave the chat,
+            // else its Address Book name, else who it is on chain, else the short address. The
+            // contact is the live database row (a rename shows at once), and the Address Book and
+            // .kachat reads are snapshot state, so the row redraws when either changes.
             val contactLabel = convo.contact.displayName
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
