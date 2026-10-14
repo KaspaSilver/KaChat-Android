@@ -121,11 +121,12 @@ interface MessageDao {
     suspend fun hasSentToContact(contactId: String, walletAddress: String): Boolean
 
     /** Anything they sent us we can see - a message, payment or handshake. */
-    /** Whether they have sent us anything in this conversation, whatever the case its address
-     *  was stored in (audit IOS-008). [contactIdLowercase] must already be lowercased; Kaspa
-     *  addresses are ASCII, so SQLite's LOWER folds them fully. */
-    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE walletAddress = :walletAddress AND LOWER(contactId) = :contactIdLowercase AND direction = 'received')")
-    suspend fun hasReceivedFromContactIgnoringCase(contactIdLowercase: String, walletAddress: String): Boolean
+    /** Whether they have sent us a MESSAGE in this conversation - a payment from them doesn't
+     *  count (iOS 1eb4708) - whatever the case its address was stored in (audit IOS-008).
+     *  [contactIdLowercase] must already be lowercased; Kaspa addresses are ASCII, so SQLite's
+     *  LOWER folds them fully. */
+    @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE walletAddress = :walletAddress AND LOWER(contactId) = :contactIdLowercase AND direction = 'received' AND type != 'pay')")
+    suspend fun hasMessageFromContactIgnoringCase(contactIdLowercase: String, walletAddress: String): Boolean
 
     @Query("SELECT * FROM messages WHERE id = :id AND walletAddress = :walletAddress")
     suspend fun getById(id: String, walletAddress: String): MessageEntity?

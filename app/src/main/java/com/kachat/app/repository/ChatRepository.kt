@@ -281,6 +281,11 @@ class ChatRepository @Inject constructor(
      * fetches everything after it by sender and alias, unlinked. So: not once a tagged message
      * has gone out to them ([ChatRequestState.inboxTagged], set on a successful submit), not once
      * they have written to us, never in a Private chat, and only when the indexer files `dm`.
+     *
+     * Only a MESSAGE from them counts as "written to us" - a payment does not (iOS 1eb4708).
+     * Someone who just sent KAS (a wallet send, or a chat payment) may have no chat with us at
+     * all, so an untagged reply would never reach them. Tagging costs nothing there: the payment
+     * already links the two addresses on chain.
      */
     suspend fun firstContactInboxTag(address: String): String? {
         val me = runCatching { walletManager.getAddress() }.getOrNull() ?: return null
@@ -288,7 +293,7 @@ class ChatRepository @Inject constructor(
             address = address,
             me = me,
             state = chatRequestStore.state(me),
-            hasReceivedFrom = { lowered -> database.messageDao().hasReceivedFromContactIgnoringCase(lowered, me) },
+            hasReceivedFrom = { lowered -> database.messageDao().hasMessageFromContactIgnoringCase(lowered, me) },
             inboxSupported = { inboxSupported() },
         )
     }
@@ -405,6 +410,21 @@ class ChatRepository @Inject constructor(
             database.contactDao().insert(activated)
             noteConversationActivated(existing, activated)
         }
+    }
+
+    /**
+     * Paying someone watches for their messages (iOS 1eb4708, the routing state
+     * `addMessageToConversation` gives the destination of any outgoing payment): the payment
+     * opened a chat with them, and their reply must be found even when their app didn't tag it
+     * for our inbox (an older client, or Kasia). A contact row is what every sync and sweep
+     * covers ([syncContextualMessages]), so one is made when the destination has none yet. The
+     * account in use is never one; another of your own accounts is refused as any auto-add is.
+     */
+    suspend fun watchPaymentDestination(address: String) {
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotBlank() } ?: return
+        if (address.isBlank() || address.equals(myAddress, ignoreCase = true)) return
+        if (database.contactDao().getContact(address, myAddress) != null) return
+        addContact(ContactEntity(id = address, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
     }
 
     /**
@@ -2125,7 +2145,27 @@ class ChatRepository @Inject constructor(
                 .getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
         } else null
         var displayText = "Received ${formatKas(receivedSompi)} ${KaspaUnit.symbol}" + (memo?.let { " — $it" } ?: "")
-        if (existingContact == null) {
+        if (existingContact == null && isPaymentPayload) {
+            // A CHAT payment (one carrying a KaChat payment payload) from someone we have no
+            // contact for is different from a plain one (iOS 1eb4708): the sender paid us from a
+            // chat with us, so it opens their own chat - a Message Request until accepted - and
+            // from then on their messages are fetched like anyone else's (the contact row is
+            // their routing state). Internal moves from our own spending chain still surface
+            // nowhere in chats, and a sender rejected in Message Requests is kept out.
+            if (walletManager.isOwnSpendingAddress(sender)) return true
+            if (chatRequestStore.isBlocked(sender)) return true
+            val senderPubKeyHex = runCatching {
+                KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
+            }.getOrNull()
+            database.contactDao().insert(
+                ContactEntity(
+                    id = sender, walletAddress = myAddress, alias = null, knsName = null,
+                    publicKeyHex = senderPubKeyHex,
+                    // Not accepted yet: a Message Request, out of the push watch list.
+                    conversationStatus = "pending",
+                )
+            )
+        } else if (existingContact == null) {
             // A plain payment from an address we have NO contact for must not open a chat
             // with the stranger. Internal moves from our own spending chain surface nowhere
             // in chats; genuinely unknown senders collect in the SELF-chat (the conversation
@@ -2177,7 +2217,8 @@ class ChatRepository @Inject constructor(
          * "have they written to us" lookup included: it used to match the stored conversation
          * exactly, so an address typed or scanned in upper case sent an established contact a
          * tagged first-contact message, landing in their Message Requests (iOS 1e07e72, audit
-         * IOS-008). [hasReceivedFrom] is handed the lowercased address.
+         * IOS-008). [hasReceivedFrom] is handed the lowercased address, and answers whether they
+         * sent us a message - a payment from them is not one (iOS 1eb4708).
          */
         internal suspend fun firstContactInboxTagFor(
             address: String,

@@ -3008,8 +3008,13 @@ class ChatViewModel @Inject constructor(
         // The amount as sent, not as typed ("1,5" or "01.50" both read "1.5").
         val bubbleText = "Sent ${KaspaUnit.plain(sompi)} ${KaspaUnit.symbol}" + if (memo.isEmpty()) "" else " — $memo"
         viewModelScope.launch {
-            // Paying someone is reaching out to them, like writing to them.
-            if (!contactId.equals(walletManager.getAddress(), ignoreCase = true)) chatRepository.acceptChat(contactId)
+            // Paying someone is reaching out to them, like writing to them - and watches for
+            // their messages from now on, so a reply their app didn't tag for our inbox still
+            // arrives (iOS 1eb4708).
+            if (!contactId.equals(walletManager.getAddress(), ignoreCase = true)) {
+                chatRepository.acceptChat(contactId)
+                chatRepository.watchPaymentDestination(contactId)
+            }
             val pendingId = "pending_${java.util.UUID.randomUUID()}"
             try {
                 val myAddress = walletManager.getAddress()
