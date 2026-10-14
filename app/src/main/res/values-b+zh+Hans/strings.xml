@@ -1300,4 +1300,7 @@
     <string name="kg_names_help_title">.kachat 名称指南</string>
     <string name="kg_names_help_body">认领一个 .kachat 名称，让它成为你的名字并保留它。</string>
     <string name="kg_names_setup_footer">一步步认领你的 .kachat 名称并让它成为你的。</string>
+    <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
+    <string name="kn_locked_claim_note">只要你持有该名称，%1$s 就会随名称锁定（保证金 + 注册表押金）。释放名称时会退还给你。</string>
+    <string name="kn_locked_receipt_note">%1$s 已随此名称锁定。释放名称时会退还给你。</string>
 </resources>

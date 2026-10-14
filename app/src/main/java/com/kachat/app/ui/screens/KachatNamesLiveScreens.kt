@@ -1223,7 +1223,13 @@ private fun SearchChecking(name: String) {
 /** A name transaction that went out: what it did and its id, for [KachatTxDoneSheet] (iOS
  *  `KachatTxDone`, 0870fcc). [accepted]: already known to be in a block (a registration the
  *  driver saw land) - no progress to follow (iOS e426432). */
-data class KachatTxDone(val txId: String, @StringRes val title: Int = R.string.kn_done_tx_sent, val accepted: Boolean = false)
+data class KachatTxDone(
+    val txId: String,
+    @StringRes val title: Int = R.string.kn_done_tx_sent,
+    val accepted: Boolean = false,
+    /** A line under the headline - a registration says how much stays locked with the name (iOS b3b62f5). */
+    val note: String? = null,
+)
 
 /**
  * The receipt every name transaction ends on, in the Send receipt's style (iOS e426432
@@ -1293,6 +1299,17 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
                             color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 4.dp, start = 28.dp, end = 28.dp)
                         )
+
+                        done.note?.let { note ->
+                            Row(
+                                Modifier.padding(top = 12.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(14.dp).padding(12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = KaspaTeal, modifier = Modifier.padding(top = 1.dp).size(15.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(note, color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
+                            }
+                        }
 
                         Column(
                             Modifier.padding(top = 18.dp, start = 20.dp, end = 20.dp).fillMaxWidth().sendKaspaGlass(16.dp).padding(14.dp),
@@ -1583,9 +1600,15 @@ fun KachatRegistrationCard(registration: PendingRegistration, vm: KachatLiveView
     var done by remember(registration.id) { mutableStateOf<KachatTxDone?>(null) }
     val tCommit = manifest?.params?.tCommit ?: 600L
 
+    // The receipt's line for a registration: how much stays locked with the name - the bond and
+    // the gap value from the registry's params, not a hard-coded 2 KAS (iOS b3b62f5 `KachatLive.lockedNote`).
+    val lockedNote: String? = manifest?.params?.let { p ->
+        stringResource(R.string.kn_locked_receipt_note, KaspaUnit.amount(p.bond + p.gapValue))
+    }
+
     // The finished registration (or cancelled commit) as the half sheet shows it (iOS 0870fcc).
     val finished: KachatTxDone? = when (registration.stage) {
-        PendingRegistration.Stage.REGISTERED -> registration.registerTxId?.let { KachatTxDone(it, R.string.kn_done_registered, accepted = true) }
+        PendingRegistration.Stage.REGISTERED -> registration.registerTxId?.let { KachatTxDone(it, R.string.kn_done_registered, accepted = true, note = lockedNote) }
         PendingRegistration.Stage.CANCELLED -> registration.cancelTxId?.let { KachatTxDone(it, R.string.kn_done_commit_cancelled, accepted = true) }
         else -> null
     }
@@ -2777,6 +2800,15 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                                         KachatCardRow(stringResource(R.string.kn_network_fees), KaspaUnit.amount(q.networkFee))
                                         HorizontalDivider(color = colors.divider)
                                         KachatCardRow(stringResource(R.string.kl_total), KaspaUnit.amount(q.total), bold = true)
+                                        // the bond and the deposit stay with the name: said once, as one amount (iOS b3b62f5)
+                                        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.Top) {
+                                            Icon(Icons.Default.Lock, contentDescription = null, tint = KaspaTeal, modifier = Modifier.padding(top = 1.dp).size(15.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                stringResource(R.string.kn_locked_claim_note, KaspaUnit.amount(q.bond + q.gapDeposit)),
+                                                color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
                                     }
                                     qe != null -> Text(qe, color = colors.danger)
                                     notOpen != null -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

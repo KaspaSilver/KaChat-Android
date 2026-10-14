@@ -1300,4 +1300,7 @@
     <string name="kg_names_help_title">Guide des noms .kachat</string>
     <string name="kg_names_help_body">Réservez un nom .kachat, faites-en votre nom et gardez-le.</string>
     <string name="kg_names_setup_footer">Étape par étape : réserver votre nom .kachat et le faire vôtre.</string>
+    <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
+    <string name="kn_locked_claim_note">%1$s restent bloqués avec votre nom tant que vous le détenez (caution + dépôt du registre). Vous les récupérez en libérant le nom.</string>
+    <string name="kn_locked_receipt_note">%1$s sont bloqués avec ce nom. Ils vous reviennent quand vous le libérez.</string>
 </resources>

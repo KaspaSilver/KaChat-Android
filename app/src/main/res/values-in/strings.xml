@@ -1172,4 +1172,7 @@
     <string name="kg_names_help_title">Panduan Nama .kachat</string>
     <string name="kg_names_help_body">Klaim nama .kachat, jadikan nama Anda, dan pertahankan.</string>
     <string name="kg_names_setup_footer">Langkah demi langkah mengklaim nama .kachat dan menjadikannya milik Anda.</string>
+    <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
+    <string name="kn_locked_claim_note">%1$s tetap terkunci bersama nama Anda selama Anda memilikinya (jaminan + deposit registri). Anda mendapatkannya kembali saat melepas nama itu.</string>
+    <string name="kn_locked_receipt_note">%1$s terkunci bersama nama ini. Kembali kepada Anda saat Anda melepasnya.</string>
 </resources>

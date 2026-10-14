@@ -1331,4 +1331,7 @@
     <string name="kg_names_help_title">راهنمای نام‌های .kachat</string>
     <string name="kg_names_help_body">یک نام .kachat ثبت کنید، نام خودتان کنید و نگهش دارید.</string>
     <string name="kg_names_setup_footer">گام‌به‌گام ثبت نام .kachat و از آنِ خود کردنش.</string>
+    <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
+    <string name="kn_locked_claim_note">%1$s تا وقتی نام را دارید همراه آن قفل می‌ماند (وثیقه + سپرده ثبت). وقتی نام را آزاد کنید پس می‌گیرید.</string>
+    <string name="kn_locked_receipt_note">%1$s همراه این نام قفل است. وقتی آن را آزاد کنید به شما برمی‌گردد.</string>
 </resources>

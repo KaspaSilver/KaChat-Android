@@ -1300,4 +1300,7 @@
     <string name="kg_names_help_title">.kachat নাম গাইড</string>
     <string name="kg_names_help_body">একটি .kachat নাম দাবি করুন, নিজের নাম করুন এবং ধরে রাখুন।</string>
     <string name="kg_names_setup_footer">.kachat নাম দাবি ও নিজের করার ধাপগুলো দেখুন।</string>
+    <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
+    <string name="kn_locked_claim_note">নামটি আপনার কাছে থাকা পর্যন্ত %1$s এর সাথে লক থাকে (বন্ড + রেজিস্ট্রি জমা)। নাম ছেড়ে দিলে আপনি তা ফেরত পাবেন।</string>
+    <string name="kn_locked_receipt_note">%1$s এই নামের সাথে লক আছে। নাম ছেড়ে দিলে আপনার কাছে ফিরে আসবে।</string>
 </resources>
