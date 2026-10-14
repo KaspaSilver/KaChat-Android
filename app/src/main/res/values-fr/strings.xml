@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">Les enregistrements, achats et offres ici sont payés depuis cette adresse, et les noms que vous enregistrez ou achetez lui appartiennent. Utilisez une nouvelle adresse pour séparer un nom de votre adresse de discussion.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Votre propre adresse : %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">Actualiser le profil</string>
+    <string name="profile_rescanned">Profil actualisé.</string>
 </resources>

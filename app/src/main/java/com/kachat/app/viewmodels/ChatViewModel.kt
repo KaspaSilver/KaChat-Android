@@ -2095,30 +2095,46 @@ class ChatViewModel @Inject constructor(
             _knsProfiles.update { it + (contactId to KnsProfileUiState()) }
             return
         }
-        viewModelScope.launch {
-            val contact = chatRepository.getContact(contactId)
-            val ownedAssets = knsService.getOwnedDomains(contactId)
-            val ownedNames = ownedAssets.mapNotNull { it.asset }
+        viewModelScope.launch { loadKnsProfile(contactId) }
+    }
 
-            if (ownedNames.isEmpty()) {
-                _knsProfiles.update { it + (contactId to KnsProfileUiState()) }
-                return@launch
-            }
-
-            // The real answer, before pickActiveDomain folds in the user's pinned choice.
-            val explicitPrimary = knsService.getExplicitPrimaryDomain(contactId)
-            val primary = explicitPrimary ?: ownedAssets.firstOrNull()?.asset
-            val activeName = KnsService.pickActiveDomain(ownedNames, contact?.knsName, primary)
-            val activeAsset = ownedAssets.firstOrNull { it.asset == activeName }
-            val profile = activeAsset?.assetId?.let { knsService.getProfile(it) }
-
-            _knsProfiles.update { it + (contactId to KnsProfileUiState(ownedNames, activeName, profile, explicitPrimary)) }
-
-            // Keep the chat list's cached avatar current — only meaningful for an actual saved contact.
-            if (contact != null && profile?.avatarUrl != contact.knsAvatarUrl) {
-                chatRepository.addContact(contact.copy(knsAvatarUrl = profile?.avatarUrl))
-            }
+    /**
+     * [refreshKnsProfile], awaited: the address's .kas profile asked for again now (User Info >
+     * Rescan Profile, iOS bc95d17 `fetchProfile(force: true)`). Returns the profile, null when it
+     * has none or names are not shown.
+     */
+    suspend fun refreshKnsProfileNow(contactId: String): KnsProfileFields? {
+        if (!com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY) {
+            _knsProfiles.update { it + (contactId to KnsProfileUiState()) }
+            return null
         }
+        return loadKnsProfile(contactId)
+    }
+
+    private suspend fun loadKnsProfile(contactId: String): KnsProfileFields? {
+        val contact = chatRepository.getContact(contactId)
+        val ownedAssets = knsService.getOwnedDomains(contactId)
+        val ownedNames = ownedAssets.mapNotNull { it.asset }
+
+        if (ownedNames.isEmpty()) {
+            _knsProfiles.update { it + (contactId to KnsProfileUiState()) }
+            return null
+        }
+
+        // The real answer, before pickActiveDomain folds in the user's pinned choice.
+        val explicitPrimary = knsService.getExplicitPrimaryDomain(contactId)
+        val primary = explicitPrimary ?: ownedAssets.firstOrNull()?.asset
+        val activeName = KnsService.pickActiveDomain(ownedNames, contact?.knsName, primary)
+        val activeAsset = ownedAssets.firstOrNull { it.asset == activeName }
+        val profile = activeAsset?.assetId?.let { knsService.getProfile(it) }
+
+        _knsProfiles.update { it + (contactId to KnsProfileUiState(ownedNames, activeName, profile, explicitPrimary)) }
+
+        // Keep the chat list's cached avatar current — only meaningful for an actual saved contact.
+        if (contact != null && profile?.avatarUrl != contact.knsAvatarUrl) {
+            chatRepository.addContact(contact.copy(knsAvatarUrl = profile?.avatarUrl))
+        }
+        return profile
     }
 
     /**

@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">ここでの取得・購入・オファーはこのアドレスから支払われ、取得または購入した名前はこのアドレスのものになります。名前をチャットアドレスと切り離すには、新しいアドレスを使ってください。</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">あなた自身のアドレス: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">プロフィールを再取得</string>
+    <string name="profile_rescanned">プロフィールを再取得しました。</string>
 </resources>

@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">תביעות, רכישות והצעות כאן משולמות מהכתובת הזו, והשמות שתתבעו או תקנו שייכים לה. השתמשו בכתובת חדשה כדי להפריד שם מכתובת הצ\'אט שלכם.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">הכתובת שלך: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">סריקה מחדש של הפרופיל</string>
+    <string name="profile_rescanned">הפרופיל נסרק מחדש.</string>
 </resources>

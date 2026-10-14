@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">여기서의 등록, 구매, 제안은 이 주소에서 결제되며, 등록하거나 구매한 이름은 이 주소에 속합니다. 이름을 채팅 주소와 분리해 두려면 새 주소를 사용하세요.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">내 주소: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">프로필 다시 불러오기</string>
+    <string name="profile_rescanned">프로필을 다시 불러왔습니다.</string>
 </resources>

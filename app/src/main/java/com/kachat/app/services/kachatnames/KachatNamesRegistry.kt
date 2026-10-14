@@ -775,6 +775,36 @@ class KachatNamesRegistry @Inject constructor(
      * address. When an answer lands, composables that read it re-render (iOS e52357d
      * `cachedIdentity(for:)`).
      */
+    /**
+     * Looks the address's identity up now, whatever the cache holds (User Info > Rescan Profile),
+     * and stores the answer for every composable that reads [cachedIdentity] (iOS bc95d17
+     * `refreshIdentity(address:)`). Null when profiles are off, the address isn't on this network,
+     * or the lookup failed.
+     */
+    suspend fun refreshIdentity(address: String): Identity? {
+        if (!KachatNamesService.profilesEnabled) return null
+        val key = address.trim().lowercase()
+        if (KaspaNetwork.ofAddress(key) == null || !KaspaNetwork.isOnActiveNetwork(key)) return null
+        val found = try {
+            identity(key)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return null
+        }
+        val now = System.currentTimeMillis()
+        identityMisses.remove(key)
+        identityAsked[key] = _revision.value to now
+        synchronized(identityLock) {
+            identityStoredAt[key] = now
+            if (identities[key] != found) {
+                identities = identities + (key to found)
+                persistIdentitiesSoon()
+            }
+        }
+        return found
+    }
+
     fun cachedIdentity(address: String): Identity? {
         // Every network since iOS d36fc42: profiles need no registry. Mainnet has no names yet,
         // so there an address keeps its short form and only its profile (avatar...) shows.
@@ -1312,6 +1342,21 @@ class KachatSocialImageResolver @Inject constructor(
             }
         }
         return deferred.await()
+    }
+
+    /**
+     * Looks these profile links up again now, whatever the cache holds (User Info > Rescan
+     * Profile): an avatar, banner or bio changed on the platform shows at once. Returns the fresh
+     * answers by link (iOS bc95d17 `rescan(_:)`).
+     */
+    suspend fun rescan(links: List<String?>): Map<String, SocialProfile> {
+        val answers = HashMap<String, SocialProfile>()
+        for (link in links.filterNotNull().toSet()) {
+            val source = SocialSource.from(link, SocialSource.Kind.AVATAR) ?: continue
+            unreachableAt.remove(source.link)
+            resolve(source, maxAgeMs = 0).profile?.let { answers[link] = it }
+        }
+        return answers
     }
 
     /** The cache file, or the SharedPreferences copy of earlier builds moved into it (once). */

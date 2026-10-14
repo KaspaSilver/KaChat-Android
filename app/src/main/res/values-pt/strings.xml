@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">Registros, compras e ofertas aqui são pagos a partir deste endereço, e os nomes que você registrar ou comprar pertencem a ele. Use um endereço novo para manter um nome separado do seu endereço de chat.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Seu próprio endereço: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">Reescanear perfil</string>
+    <string name="profile_rescanned">Perfil reescaneado.</string>
 </resources>

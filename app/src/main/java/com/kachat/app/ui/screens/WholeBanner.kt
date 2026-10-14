@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 
 /**
  * A profile banner shown whole: full width at the picture's own proportions (held to 1.5:1 to
@@ -35,13 +36,20 @@ fun WholeBanner(
 ) {
     var aspect by remember(model) { mutableStateOf<Float?>(null) }
     val sized = aspect?.let { Modifier.aspectRatio(it) } ?: Modifier.height(placeholderHeight)
+    // A new request once User Info > Rescan Profile downloaded this banner again (iOS bc95d17).
+    val refetched = rememberProfileImageModel(model as? String)
     Box(modifier.fillMaxWidth().then(sized).clip(shape)) {
         SubcomposeAsyncImage(
-            model = model,
+            model = if (model is String) refetched else model,
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize(),
-            loading = { Box(Modifier.fillMaxSize()) { placeholder() } },
+            // While a rescanned banner reloads, the cached picture stays up rather than the
+            // placeholder (its placeholder is the picture itself).
+            loading = { state ->
+                if (state.painter != null) SubcomposeAsyncImageContent(Modifier.fillMaxSize())
+                else Box(Modifier.fillMaxSize()) { placeholder() }
+            },
             error = { Box(Modifier.fillMaxSize()) { placeholder() } },
             onSuccess = { state: AsyncImagePainter.State.Success ->
                 val size = state.painter.intrinsicSize

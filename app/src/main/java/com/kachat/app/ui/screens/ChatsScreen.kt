@@ -1727,6 +1727,8 @@ private fun decodeBase64Avatar(base64: String?): ImageBitmap? {
 private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fontSize: TextUnit, backupBitmap: ImageBitmap? = null) {
     var failedCount by remember(candidates) { mutableIntStateOf(0) }
     val current = candidates.getOrNull(failedCount)
+    // A new request once User Info > Rescan Profile downloaded this picture again (iOS bc95d17).
+    val model = rememberProfileImageModel(current)
     if (current == null) {
         if (backupBitmap != null) {
             Image(
@@ -1745,7 +1747,7 @@ private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fon
         // The glyph shows while the image loads, as the loading slot did before.
         if (!loaded) AvatarInitials(fallbackText, fontSize)
         coil.compose.AsyncImage(
-            model = current,
+            model = model,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,

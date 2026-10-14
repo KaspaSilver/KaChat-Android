@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">Регистрации, покупки и предложения здесь оплачиваются с этого адреса, а имена, которые вы регистрируете или покупаете, принадлежат ему. Используйте новый адрес, чтобы имя не было связано с вашим адресом для чата.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Ваш собственный адрес: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">Обновить профиль</string>
+    <string name="profile_rescanned">Профиль обновлён.</string>
 </resources>

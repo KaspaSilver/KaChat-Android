@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">这里的注册、购买和出价都从此地址支付，你注册或购买的名称归此地址所有。使用新地址可让名称与你的聊天地址保持分离。</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">你自己的地址：%1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">重新获取资料</string>
+    <string name="profile_rescanned">资料已重新获取。</string>
 </resources>

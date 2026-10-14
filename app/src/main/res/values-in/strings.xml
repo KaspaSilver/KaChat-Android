@@ -1190,4 +1190,7 @@
     <string name="kn_buy_from_note">Klaim, pembelian, dan penawaran di sini dibayar dari alamat ini, dan nama yang Anda klaim atau beli menjadi miliknya. Gunakan alamat baru agar nama terpisah dari alamat chat Anda.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Alamat Anda sendiri: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">Pindai Ulang Profil</string>
+    <string name="profile_rescanned">Profil sudah dipindai ulang.</string>
 </resources>

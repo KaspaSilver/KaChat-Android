@@ -1349,4 +1349,7 @@
     <string name="kn_buy_from_note">ثبت‌ها، خریدها و پیشنهادهای اینجا از این آدرس پرداخت می‌شوند و نام‌هایی که ثبت یا خریداری می‌کنید به آن تعلق دارند. برای جدا نگه داشتن یک نام از آدرس گفتگوی خود، از یک آدرس تازه استفاده کنید.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">آدرس خودتان: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">بررسی دوباره نمایه</string>
+    <string name="profile_rescanned">نمایه دوباره بررسی شد.</string>
 </resources>

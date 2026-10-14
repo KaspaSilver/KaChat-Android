@@ -12698,6 +12698,46 @@ fun ChatInfoScreen(
     val context = LocalContext.current
     val infoHaptic = com.kachat.app.util.rememberHaptics()
 
+    // Rescan Profile is looking everything up again (iOS bc95d17).
+    var rescanning by remember(contactId) { mutableStateOf(false) }
+    val rescanScope = rememberCoroutineScope()
+    // The on-chain profile (which links it uses) asked for again, each link's avatar, banner and
+    // bio looked up again, and both pictures downloaded again whatever the caches hold - so a
+    // change shows now, here and everywhere this person appears.
+    fun rescanProfile() {
+        if (rescanning) return
+        rescanning = true
+        rescanScope.launch {
+            try {
+                val pictures = mutableListOf<String>()
+                if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+                    val registry = com.kachat.app.services.kachatnames.KachatNamesRegistry.shared
+                    registry?.refreshIdentity(contactId)?.let { identity ->
+                        kachatLabel = identity.label
+                        kachatProfile = (if (isSelf) registry?.ownProfile(contactId)?.profile else null) ?: identity.profile
+                    }
+                    val links = kachatProfile
+                    val answers = com.kachat.app.services.kachatnames.KachatSocialImageResolver.instance
+                        ?.rescan(listOf(links?.avatar, links?.banner, links?.bio))
+                        .orEmpty()
+                    links?.avatar?.let { answers[it]?.avatar }?.let { pictures.add(it) }
+                    links?.banner?.let { answers[it]?.banner }?.let { pictures.add(it) }
+                }
+                if (usesKnsProfile) {
+                    chatViewModel.refreshKnsProfileNow(contactId)?.let { info ->
+                        info.avatarUrl?.takeIf { it.isNotBlank() }?.let { pictures.add(it) }
+                        info.bannerUrl?.takeIf { it.isNotBlank() }?.let { pictures.add(it) }
+                    }
+                }
+                ProfileImageRefetch.refetch(context, pictures)
+                infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                IosToasts.show(context.getString(R.string.profile_rescanned))
+            } finally {
+                rescanning = false
+            }
+        }
+    }
+
     // Pair aliases (ported from iOS ChatInfoView): the deterministic aliases identifying
     // this conversation's messages on-chain. Receiving = the alias on messages this
     // contact sends me (what my sync watches - WalletManager.myDeterministicAlias, my
@@ -13075,6 +13115,22 @@ fun ChatInfoScreen(
                     icon = Icons.Default.Info,
                 ) { infoSheet = "info" }
                 }
+
+                // Rescan Profile: the avatar, banner and bio looked up again now (iOS bc95d17).
+                // They refresh by themselves once every 5 days; this is for someone who just
+                // changed theirs. Yours and anyone's.
+                InfoSectionCard(
+                    title = stringResource(R.string.rescan_profile),
+                    icon = Icons.Default.Refresh,
+                    enabled = !rescanning,
+                    trailing = {
+                        if (rescanning) CircularProgressIndicator(
+                            color = LocalAppColors.current.textSecondary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                ) { rescanProfile() }
 
                 // This person's kachat.app profile link, the same link-only share your own
                 // Profile uses: it previews with their name and avatar, opens a chat with them
@@ -13725,6 +13781,9 @@ private fun InfoSectionCard(
     showDivider: Boolean = true,
     /** Dimmed and not tappable when there is nothing to open (iOS `.disabled`). */
     enabled: Boolean = true,
+    /** Shown at the end in place of the chevron, for a row that acts rather than opens
+     *  (Rescan Profile's spinner). */
+    trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -13740,12 +13799,16 @@ private fun InfoSectionCard(
             Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(14.dp))
             Text(title, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = colors.textSecondary,
-                modifier = Modifier.size(18.dp),
-            )
+            if (trailing != null) {
+                trailing()
+            } else {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
         if (showDivider) {
             HorizontalDivider(

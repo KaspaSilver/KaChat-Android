@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">Việc đăng ký, mua và đề nghị ở đây được trả từ địa chỉ này, và các tên bạn đăng ký hoặc mua thuộc về nó. Dùng một địa chỉ mới để giữ tên tách khỏi địa chỉ trò chuyện của bạn.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Địa chỉ của chính bạn: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">Quét lại hồ sơ</string>
+    <string name="profile_rescanned">Đã quét lại hồ sơ.</string>
 </resources>

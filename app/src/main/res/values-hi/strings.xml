@@ -1318,4 +1318,7 @@
     <string name="kn_buy_from_note">यहाँ दावे, खरीद और ऑफ़र इसी पते से चुकाए जाते हैं, और आप जो नाम दावा करते या खरीदते हैं वे इसी के होते हैं। किसी नाम को अपने चैटिंग पते से अलग रखने के लिए नया पता इस्तेमाल करें।</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">आपका अपना पता: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">प्रोफ़ाइल दोबारा स्कैन करें</string>
+    <string name="profile_rescanned">प्रोफ़ाइल दोबारा स्कैन हो गई।</string>
 </resources>

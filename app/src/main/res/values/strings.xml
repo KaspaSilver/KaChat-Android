@@ -1519,4 +1519,7 @@
     <string name="kn_buy_from_note">Claims, purchases and offers here are paid from this address, and the names you claim or buy belong to it. Use a fresh address to keep a name apart from your chatting address.</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Your own address: %1$s</string>
+    <!-- User Info: look the person's avatar, banner and bio up again now -->
+    <string name="rescan_profile">Rescan Profile</string>
+    <string name="profile_rescanned">Profile rescanned.</string>
 </resources>
