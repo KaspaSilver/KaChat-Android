@@ -23,16 +23,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.WavingHand
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -253,7 +252,7 @@ fun HelpScreen(
             ) {
                 Column {
                     HelpRow(
-                        androidx.compose.material.icons.Icons.Default.WavingHand,
+                        androidx.compose.material.icons.Icons.Default.AutoAwesome,
                         "Welcome Guide",
                         androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_welcome_body),
                         onWelcomeGuide,
@@ -261,7 +260,7 @@ fun HelpScreen(
                     androidx.compose.material3.HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 52.dp))
                     // .kachat's guide since 5.2 (iOS b000310).
                     HelpRow(
-                        androidx.compose.material.icons.Icons.Default.AlternateEmail,
+                        androidx.compose.material.icons.Icons.Default.Badge,
                         androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_names_help_title),
                         androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_names_help_body),
                         onKnsGuide,
