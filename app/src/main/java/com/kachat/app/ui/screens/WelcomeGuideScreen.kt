@@ -958,11 +958,11 @@ private fun AddressMockRow(icon: ImageVector, title: String, address: String, ca
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)
             if (address.isNotEmpty()) {
-                Text(
+                MiddleEllipsisText(
                     address,
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 11.sp,
-                    maxLines = 1
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 )
             }
             Spacer(Modifier.height(4.dp))
