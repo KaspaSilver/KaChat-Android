@@ -106,6 +106,12 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     var liveSheet by remember { mutableStateOf<KachatHubSheet?>(null) }
     if (live != null) {
         LaunchedEffect(Unit) { live.start() }
+        // Only the marketplace buys from another address: leaving it, everything else (Your
+        // Domains' renew and extend, the profile) pays from the chatting address again (iOS
+        // eb9b027 `.onDisappear`).
+        DisposableEffect(Unit) {
+            onDispose { live.actions.setMarketSource(SendSource.Chatting) }
+        }
     }
     // Mainnet before its public opening shows the countdown instead of search and the pages;
     // flips by itself when the moment comes (`KachatNamesService.publicLaunchMs`, iOS c6ebf74).
@@ -205,7 +211,12 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(".kachat", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                // the address the marketplace buys with, and its balance - tap to pick another (iOS
+                // eb9b027; the principal item stands where the title would be)
+                title = {
+                    if (live != null) KachatMarketSourcePill(live)
+                    else Text(".kachat", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                },
                 navigationIcon = {
                     if (onBack != null) IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
@@ -1656,4 +1667,319 @@ private fun KaChatBotCard(
             )
         }
     }
+}
+
+// MARK: - The address the marketplace buys with (iOS eb9b027)
+
+/** An address's balance: the sum of its UTXOs as a node (else the REST API) sees them; null when
+ *  neither answers (iOS `KachatMarketSourceSheet.balance(of:)`). */
+private suspend fun kachatAddressBalance(vm: KachatLiveViewModel, address: String): Long? = try {
+    vm.service.utxosByAddresses(listOf(address)).sumOf { it.entry.amount }
+} catch (e: kotlinx.coroutines.CancellationException) {
+    throw e
+} catch (_: Exception) {
+    null
+}
+
+/** Buy From's name for [source]: "Chatting Address", or the spending address's label. */
+@Composable
+private fun kachatMarketSourceTitle(source: SendSource): String = when (source) {
+    SendSource.Chatting -> stringResource(R.string.chatting_address)
+    is SendSource.Spending -> source.label
+}
+
+/**
+ * The marketplace's balance pill, in place of the chatting balance every other screen shows: the
+ * balance of the address it buys with and which address that is
+ * ([com.kachat.app.services.kachatnames.KachatNamesActions.marketSource]). Tapping it picks
+ * another - the chatting address, a fresh never-used one, or any of yours - so a name can be
+ * bought from an address nothing links to your chats (iOS eb9b027 `KachatMarketSourcePill`).
+ */
+@Composable
+fun KachatMarketSourcePill(vm: KachatLiveViewModel, walletViewModel: com.kachat.app.viewmodels.WalletViewModel = hiltViewModel()) {
+    val colors = LocalAppColors.current
+    val source by vm.actions.marketSource.collectAsState()
+    val chattingAddress by walletViewModel.address.collectAsState()
+    val chattingBalance by walletViewModel.balanceSompi.collectAsState()
+    var balance by remember { mutableStateOf<Long?>(null) }
+    var showSheet by remember { mutableStateOf(false) }
+    val shownBalance = if (source is SendSource.Chatting) chattingBalance else balance
+
+    LaunchedEffect(source) {
+        balance = null
+        if (source is SendSource.Chatting) walletViewModel.refreshBalance()
+        while (true) {
+            val s = source
+            if (s is SendSource.Spending) balance = kachatAddressBalance(vm, s.address)
+            kotlinx.coroutines.delay(15_000)
+        }
+    }
+
+    val hint = stringResource(R.string.kn_choose_market_address)
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClickLabel = hint) { showSheet = true }
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            androidx.compose.ui.res.painterResource(R.drawable.ic_kaspa_logo),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(15.dp),
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "%.8f %s".format(java.util.Locale.US, (shownBalance ?: 0L).toDouble() / 100_000_000.0, KaspaUnit.symbol),
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
+                maxLines = 1,
+            )
+            Text(
+                kachatMarketSourceTitle(source) + " · " +
+                    com.kachat.app.services.kachatnames.KachatNamesRegistry.compactAddress(source.address(chattingAddress) ?: ""),
+                color = colors.textSecondary,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+    }
+
+    if (showSheet) KachatMarketSourceSheet(vm, walletViewModel, onDismiss = { showSheet = false })
+}
+
+/**
+ * Buy From: which address the marketplace pays with - claims, purchases and offers - and so which
+ * address a new name lands on. An empty address gets a Fund button: its QR code and a copy button,
+ * to send KAS to it from anywhere (iOS eb9b027 `KachatMarketSourceSheet`).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KachatMarketSourceSheet(
+    vm: KachatLiveViewModel,
+    walletViewModel: com.kachat.app.viewmodels.WalletViewModel,
+    onDismiss: () -> Unit,
+) {
+    val source by vm.actions.marketSource.collectAsState()
+    val isFresh by vm.actions.marketSourceIsFresh.collectAsState()
+    val chattingAddress by walletViewModel.address.collectAsState()
+    val chattingBalance by walletViewModel.balanceSompi.collectAsState()
+    var balance by remember { mutableStateOf<Long?>(null) }
+    var showChooser by remember { mutableStateOf(false) }
+    var showFund by remember { mutableStateOf(false) }
+    var makingFresh by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val haptic = com.kachat.app.util.rememberHaptics()
+    val isSpending = source !is SendSource.Chatting
+    val shownBalance = if (source is SendSource.Chatting) chattingBalance else balance
+    val address = source.address(chattingAddress)
+    val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
+
+    LaunchedEffect(source) {
+        balance = null
+        while (true) {
+            val s = source
+            if (s is SendSource.Spending) balance = kachatAddressBalance(vm, s.address)
+            kotlinx.coroutines.delay(10_000)
+        }
+    }
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(1_500)
+            copied = false
+        }
+    }
+
+    /** A never-used spending address (revealed in Manage Addresses), the same one Receive offers. */
+    fun makeFresh() {
+        if (makingFresh) return
+        makingFresh = true
+        walletViewModel.resolveFreshReceiveAddress(revealing = true) { fresh ->
+            scope.launch {
+                try {
+                    val key = fresh?.let { com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(it) } ?: return@launch
+                    val own = vm.actions.ownAddress(key) as? com.kachat.app.services.kachatnames.KachatNamesActions.OwnAddress.Spending
+                        ?: return@launch
+                    val label = walletViewModel.manageAddresses.value.firstOrNull { it.index == own.index }?.label
+                    vm.actions.setMarketSource(
+                        SendSource.Spending(own.index, own.address, spendingAddressDisplayLabel(own.index, label)),
+                        fresh = true,
+                    )
+                } finally {
+                    makingFresh = false
+                }
+            }
+        }
+    }
+
+    com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+        val colors = LocalAppColors.current
+        ModalBottomSheet(
+            shape = com.kachat.app.ui.theme.IosSheetShape,
+            tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = colors.background,
+            dragHandle = null,
+        ) {
+            Column(Modifier.navigationBarsPadding()) {
+                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                    Column(Modifier.fillMaxWidth().fillMaxHeight()) {
+                        IosSheetNavBar(
+                            title = stringResource(R.string.kn_buy_from),
+                            trailing = { IosBarTextButton(stringResource(R.string.done), onClick = onDismiss, bold = true) },
+                        )
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Text(stringResource(R.string.kn_buy_from_note), color = colors.textSecondary, fontSize = 15.sp)
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                SelectablePill(
+                                    title = stringResource(R.string.chatting_address),
+                                    selected = !isSpending,
+                                ) { vm.actions.setMarketSource(SendSource.Chatting) }
+                                SelectablePill(
+                                    title = stringResource(R.string.pr_fresh_address),
+                                    selected = isSpending && isFresh,
+                                ) { makeFresh() }
+                                SelectablePill(
+                                    title = stringResource(R.string.pr_choose_an_address),
+                                    selected = isSpending && !isFresh,
+                                ) { showChooser = true }
+                            }
+                            // the address card
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(colors.surface)
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        kachatMarketSourceTitle(source),
+                                        color = colors.textPrimary,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    if (address != null) {
+                                        Text(
+                                            com.kachat.app.services.kachatnames.KachatNamesRegistry.compactAddress(address),
+                                            color = colors.textSecondary,
+                                            fontSize = 12.sp,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                }
+                                val shown = shownBalance
+                                if (makingFresh || shown == null) {
+                                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(18.dp), color = colors.textSecondary, strokeWidth = 2.dp)
+                                } else {
+                                    Text(
+                                        "${KaspaUnit.plain(shown)} ${KaspaUnit.symbol}",
+                                        color = colors.textPrimary,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
+                                    )
+                                }
+                                if (address != null) {
+                                    IconButton(
+                                        onClick = {
+                                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(address))
+                                            haptic(com.kachat.app.util.IosHaptic.SUCCESS)
+                                            copied = true
+                                        },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        Icon(
+                                            if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                                            contentDescription = stringResource(R.string.kn_copy_address_a11y),
+                                            tint = KaspaTeal,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                            if (shownBalance == 0L) {
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(CircleShape)
+                                        .background(KaspaTeal)
+                                        .clickable { showFund = true }
+                                        .padding(vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(Icons.Default.QrCode, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.kn_fund), color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                    IosSheetGrabber(Modifier.align(Alignment.TopCenter))
+                }
+            }
+        }
+    }
+
+    if (showChooser) {
+        OwnAddressPicker(
+            title = stringResource(R.string.kn_buy_from),
+            selected = address,
+            walletViewModel = walletViewModel,
+            onPick = { picked -> vm.actions.setMarketSource(picked) },
+            onDismiss = { showChooser = false },
+        )
+    }
+    if (showFund && address != null) {
+        KachatAddressFundSheet(vm, address, onDismiss = { showFund = false })
+    }
+}
+
+/** Fund: the address's QR code and a copy button. Closes by itself once KAS arrives (iOS eb9b027
+ *  `KachatAddressFundSheet`). */
+@Composable
+private fun KachatAddressFundSheet(vm: KachatLiveViewModel, address: String, onDismiss: () -> Unit) {
+    val dismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(address) {
+        while (true) {
+            kotlinx.coroutines.delay(8_000)
+            val balance = kachatAddressBalance(vm, address)
+            if (balance != null && balance > 0) {
+                dismiss()
+                return@LaunchedEffect
+            }
+        }
+    }
+    ZeroBalanceFundingDialog(
+        walletAddress = address,
+        onDismiss = onDismiss,
+        title = stringResource(R.string.kn_send_kas_to_buy_with),
+    )
 }

@@ -1307,4 +1307,13 @@
     <string name="dm_notif_received_payment">Платеж получен</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">Недостаточно средств. Отправьте не менее 1 KAS на ваш адрес для чата.</string>
+    <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
+    <string name="kn_from_value">С адреса: %1$s</string>
+    <string name="kn_buy_from">Покупать с</string>
+    <string name="kn_fund">Пополнить</string>
+    <string name="kn_copy_address_a11y">Копировать адрес</string>
+    <string name="kn_not_enough_on_this_address">На этом адресе недостаточно KAS для этого имени.</string>
+    <string name="kn_send_kas_to_buy_with">Отправьте KAS на этот адрес, чтобы покупать с него.</string>
+    <string name="kn_choose_market_address">Выберите адрес, с которого маркетплейс покупает</string>
+    <string name="kn_buy_from_note">Регистрации, покупки и предложения здесь оплачиваются с этого адреса, а имена, которые вы регистрируете или покупаете, принадлежат ему. Используйте новый адрес, чтобы имя не было связано с вашим адресом для чата.</string>
 </resources>

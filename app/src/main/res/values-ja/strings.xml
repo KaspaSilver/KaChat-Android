@@ -1307,4 +1307,13 @@
     <string name="dm_notif_received_payment">支払いを受け取りました</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">残高が足りません。チャットアドレスに 1 KAS 以上を送ってください。</string>
+    <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
+    <string name="kn_from_value">送信元: %1$s</string>
+    <string name="kn_buy_from">購入に使うアドレス</string>
+    <string name="kn_fund">入金</string>
+    <string name="kn_copy_address_a11y">アドレスをコピー</string>
+    <string name="kn_not_enough_on_this_address">このアドレスにはこの名前に必要な KAS が足りません。</string>
+    <string name="kn_send_kas_to_buy_with">このアドレスで購入するには、ここに KAS を送ってください。</string>
+    <string name="kn_choose_market_address">マーケットで購入に使うアドレスを選ぶ</string>
+    <string name="kn_buy_from_note">ここでの取得・購入・オファーはこのアドレスから支払われ、取得または購入した名前はこのアドレスのものになります。名前をチャットアドレスと切り離すには、新しいアドレスを使ってください。</string>
 </resources>

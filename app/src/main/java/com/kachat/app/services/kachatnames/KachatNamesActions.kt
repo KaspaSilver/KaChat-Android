@@ -11,6 +11,7 @@ import com.google.gson.reflect.TypeToken
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.WalletManager
 import com.kachat.app.ui.screens.ColdFeeTier
+import com.kachat.app.ui.screens.SendSource
 import com.kachat.app.services.kachatnames.KachatNames.Codec
 import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.services.kachatnames.KachatNames.unhex
@@ -160,6 +161,28 @@ class KachatNamesActions @Inject constructor(
 
     @Volatile private var pendingWallet: String? = null
     @Volatile private var driver: Job? = null
+
+    private val _marketSource = MutableStateFlow<SendSource>(SendSource.Chatting)
+    /**
+     * The address the marketplace pays and buys with: claims, purchases, offers, and extend or
+     * renew opened from the marketplace. A name claimed or bought this way belongs to that
+     * address. The chatting address unless the person picked another with the marketplace's
+     * balance pill (`KachatMarketSourcePill`); back to it when the marketplace closes (iOS
+     * eb9b027 `marketSource`).
+     */
+    val marketSource: StateFlow<SendSource> = _marketSource.asStateFlow()
+
+    private val _marketSourceIsFresh = MutableStateFlow(false)
+    /** [marketSource] was made with Buy From's Fresh Address (which pill shows as chosen). */
+    val marketSourceIsFresh: StateFlow<Boolean> = _marketSourceIsFresh.asStateFlow()
+
+    /** Picks the marketplace's address; a spending address is remembered for this wallet
+     *  ([marketAddresses], iOS `marketSource.didSet`). */
+    fun setMarketSource(source: SendSource, fresh: Boolean = false) {
+        _marketSourceIsFresh.value = fresh
+        _marketSource.value = source
+        if (source is SendSource.Spending) rememberMarketAddress(source.address)
+    }
 
     /** Action errors; English like iOS's service errors (iOS localizes these five). */
     sealed class ActionError(message: String) : Exception(message) {
@@ -318,8 +341,10 @@ class KachatNamesActions @Inject constructor(
      * The signer for [op]. Owner-only actions (transfer, list/delist, accept, release) on a name
      * held by one of this wallet's spending addresses sign - and pay their fee - from that
      * address, and so does a decline of an offer made to one (with the key the offer was made to).
-     * Everything else, including extend and renew (anyone may pay those), uses the chatting
-     * address (iOS 881ada6 `signer(for:)`, decline from 49c0baa).
+     * An offer is withdrawn (or refunded) with the key it was made from. Buy, offer, extend and
+     * renew are paid by - and a buy or an offer belongs to - the marketplace's address
+     * ([marketSource], the chatting address outside the marketplace); everything else uses the
+     * chatting address (iOS 881ada6 `signer(for:)`, decline from 49c0baa, eb9b027).
      */
     private suspend fun signer(op: Operation): Signer {
         val heldBy: ByteArray? = when (op) {
@@ -333,19 +358,132 @@ class KachatNamesActions @Inject constructor(
         }
         val spending = heldBy?.let { ownAddress(it) } as? OwnAddress.Spending
         if (heldBy != null && spending != null) {
-            service.requireLaunched()
-            // the spending address must be on the network the app runs on (iOS d657ee3, ef6b21e)
-            val address = spending.address.lowercase()
-            if (!address.startsWith(KachatNamesService.addressPrefix + ":") || !KaspaNetwork.isOnActiveNetwork(address)) {
-                throw KachatNamesService.ServiceError.WrongAddressNetwork()
-            }
-            val key = try { walletManager.getSpendingPrivateKeyBytes(spending.index) } catch (_: Exception) { throw ActionError.NoWallet() }
-            val me = KachatNamesService.xonlyKey(key)
-            if (!me.contentEquals(heldBy)) throw ActionError.KeyMismatch()
-            return Signer(address, key, me)
+            return spendingSigner(spending.index, spending.address, expected = heldBy)
         }
-        return signer()
+        return when (op) {
+            // an offer is withdrawn with the key it was made from (a refund is anyone's, but the
+            // buyer's own address pays its fee the same way)
+            is Operation.Withdraw -> ownerSignerOrNull(op.offer.buyer) ?: signer()
+            is Operation.Refund -> ownerSignerOrNull(op.offer.buyer) ?: signer()
+            // paid by, and (buy, offer) belonging to, the marketplace's address
+            is Operation.Buy, is Operation.Offer, is Operation.Extend, is Operation.Renew -> buyerSigner()
+            else -> signer()
+        }
     }
+
+    /** A spending address's signer, checked against the key it must have ([expected], else the
+     *  address's own key; iOS eb9b027 `spendingSigner`). */
+    private fun spendingSigner(index: Int, address: String, expected: ByteArray?): Signer {
+        service.requireLaunched()
+        // the spending address must be on the network the app runs on (iOS d657ee3, ef6b21e)
+        val a = address.lowercase()
+        if (!a.startsWith(KachatNamesService.addressPrefix + ":") || !KaspaNetwork.isOnActiveNetwork(a)) {
+            throw KachatNamesService.ServiceError.WrongAddressNetwork()
+        }
+        val key = try { walletManager.getSpendingPrivateKeyBytes(index) } catch (_: Exception) { throw ActionError.NoWallet() }
+        val me = KachatNamesService.xonlyKey(key)
+        val must = expected ?: KachatNamesRegistry.keyOf(a)
+        if (must == null || !me.contentEquals(must)) throw ActionError.KeyMismatch()
+        return Signer(a, key, me)
+    }
+
+    /** The signer for whichever of this wallet's addresses holds [owner] (the chatting address or
+     *  a spending address) - a claim in progress keeps the address it was started from (iOS
+     *  eb9b027 `ownerSigner`). */
+    private suspend fun ownerSigner(owner: ByteArray): Signer = when (val own = ownAddress(owner)) {
+        OwnAddress.Chatting -> signer()
+        is OwnAddress.Spending -> spendingSigner(own.index, own.address, expected = owner)
+        else -> throw ActionError.KeyMismatch()
+    }
+
+    /** [ownerSigner], or null when it can't sign (iOS `try?`). */
+    private suspend fun ownerSignerOrNull(owner: ByteArray): Signer? = try {
+        ownerSigner(owner)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
+
+    /** The marketplace's address ([marketSource]; iOS eb9b027 `buyerSigner`). */
+    fun buyerSigner(): Signer {
+        val source = _marketSource.value as? SendSource.Spending ?: return signer()
+        return spendingSigner(source.index, source.address, expected = null)
+    }
+
+    /**
+     * Who pays [op] (and, for a buy or an offer, who it belongs to), for the confirmation's
+     * balance line - the same choice [signer] makes, without touching a private key: the address
+     * and its x-only key (iOS eb9b027 `payer(for:)`).
+     */
+    suspend fun payer(op: Operation): Pair<String, ByteArray>? {
+        val held: ByteArray? = when (op) {
+            is Operation.Transfer -> op.name.owner
+            is Operation.List -> op.name.owner
+            is Operation.Release -> op.name.owner
+            is Operation.Accept -> op.name.owner
+            is Operation.Decline -> op.offer.seller
+            is Operation.Withdraw -> op.offer.buyer
+            is Operation.Refund -> op.offer.buyer
+            else -> null
+        }
+        if (held != null) {
+            val own = ownAddress(held)
+            if (own is OwnAddress.Spending) return own.address.lowercase() to held
+        }
+        when (op) {
+            is Operation.Buy, is Operation.Offer, is Operation.Extend, is Operation.Renew -> {
+                val source = _marketSource.value
+                if (source is SendSource.Spending) {
+                    val key = KachatNamesRegistry.keyOf(source.address)
+                    if (key != null) return source.address.lowercase() to key
+                }
+            }
+            else -> Unit
+        }
+        val me = myKey ?: return null
+        val address = myAddress ?: return null
+        return address to me
+    }
+
+    // Addresses the marketplace bought with (iOS eb9b027)
+
+    private val marketPrefs: SharedPreferences
+        get() = context.getSharedPreferences(MARKET_PREFS_NAME, Context.MODE_PRIVATE)
+
+    private val marketAddressesKey: String? get() = myAddress?.let { "kachat_market_addresses.$it" }
+
+    /** Spending addresses picked to buy with in the marketplace, per wallet: Your Domains and the
+     *  marketplace list the names and offers they hold next to the chatting address's. */
+    val marketAddresses: List<String>
+        get() {
+            val key = marketAddressesKey ?: return emptyList()
+            val raw = marketPrefs.getString(key, null) ?: return emptyList()
+            return runCatching { gson.fromJson<List<String>>(raw, STRING_LIST_TYPE) }.getOrNull().orEmpty()
+        }
+
+    private fun rememberMarketAddress(address: String) {
+        val key = marketAddressesKey ?: return
+        synchronized(lock) {
+            val list = marketAddresses
+            val a = address.lowercase()
+            if (a in list) return
+            marketPrefs.edit().putString(key, gson.toJson(list + a)).apply()
+        }
+    }
+
+    /** The keys whose names and offers count as this wallet's in the marketplace and Your
+     *  Domains: the chatting address's, then each address bought with. */
+    val ownMarketKeys: List<ByteArray>
+        get() {
+            val keys = mutableListOf<ByteArray>()
+            myKey?.let { keys.add(it) }
+            for (address in marketAddresses) {
+                val key = KachatNamesRegistry.keyOf(address) ?: continue
+                if (keys.none { it.contentEquals(key) }) keys.add(key)
+            }
+            return keys
+        }
 
     /** The current wallet's x-only key, without touching the private key. */
     val myKey: ByteArray? get() = walletManager.getActiveAccount()?.address?.let { KachatNamesRegistry.keyOf(it) }
@@ -468,7 +606,7 @@ class KachatNamesActions @Inject constructor(
 
     /** What the wallet can spend on names right now (sompi). */
     suspend fun spendable(): Long = withContext(Dispatchers.IO) {
-        val s = signer()
+        val s = buyerSigner()
         val utxos = service.utxosByAddresses(listOf(s.address))
         val daa = service.currentVirtualDaaScore() ?: 0L
         KachatNamesService.fundingUtxos(utxos, s.me, daa).sumOf { it.entry.amount }
@@ -889,10 +1027,10 @@ class KachatNamesActions @Inject constructor(
      * `withdrawDeclinedOffers` (the seller field since 49c0baa).
      */
     suspend fun withdrawDeclinedOffers(offers: List<OfferInfo>) {
-        if (!KachatNamesService.isLaunched) return
-        val me = myKey ?: return
-        val mine = offers.filter {
-            it.buyer.contentEquals(me) && it.id !in _withdrawingOffers.value && it.id !in _returningOffers.value
+        val keys = ownMarketKeys
+        if (!KachatNamesService.isLaunched || keys.isEmpty()) return
+        val mine = offers.filter { o ->
+            keys.any { it.contentEquals(o.buyer) } && o.id !in _withdrawingOffers.value && o.id !in _returningOffers.value
         }
         if (mine.isEmpty()) return
         // the name's current owner; null inside = the name is free (released): every offer on it is declined
@@ -990,7 +1128,7 @@ class KachatNamesActions @Inject constructor(
     /** The cost of registering [name] for [years], estimated by building both transactions
      *  (nothing is signed or sent); the price from the manifest's fixed tables (registry v4, iOS c8f1086). */
     suspend fun quote(name: String, years: Long, gap: GapInfo, feeTier: ColdFeeTier = ColdFeeTier.NORMAL): Quote = withContext(Dispatchers.IO) {
-        val s = signer()
+        val s = buyerSigner()
         val m = registry.prepare()
         requireRegistrationOpen(m, service)
         val c = context(s, feerate(feeTier))
@@ -1051,13 +1189,16 @@ class KachatNamesActions @Inject constructor(
         maxPrice: Long,
         feeTier: ColdFeeTier = ColdFeeTier.NORMAL
     ): String = withContext(Dispatchers.IO) {
-        val s = signer()
+        // paid by, and belonging to, the marketplace's address (iOS eb9b027)
+        val s = buyerSigner()
+        // kept with the wallet's claims (and its salt under the wallet), whichever address pays
+        val walletAddress = myAddress ?: throw ActionError.NoWallet()
         val name = Codec.normalize(raw)
         Codec.validate(name)
         // never a commit that couldn't be registered: v5 opens register at its migration deadline (iOS dd836cb)
         requireRegistrationOpen(registry.prepare(), service)
         // Claims can run side by side: no one-at-a-time rule any more (iOS b219bb0).
-        loadPending(s.address)
+        loadPending(walletAddress)
         registry.refresh()
         // Expired past grace: free to claim. The commit and the reclaim that frees the old record
         // both go out now; the driver registers once the commit has aged (iOS eea52b2, beb9c45).
@@ -1071,14 +1212,14 @@ class KachatNamesActions @Inject constructor(
         val plan = c.builder.commit(c.env, c.wallet, name, salt)
         val script = plan.newCommit?.utxo?.entry?.script ?: throw KachatNames.Failure("commit: no record")
         val id = UUID.randomUUID().toString().uppercase()
-        saveSalt(salt, id, s.address)
+        saveSalt(salt, id, walletAddress)
         val now = System.currentTimeMillis()
         var record = PendingRegistration(
             id = id, name = name, years = years, owner = hex(s.me), commitTxId = plan.unsignedTx.idHex,
             commitScript = hex(script), stage = PendingRegistration.Stage.COMMITTING, createdAt = now, updatedAt = now,
             maxPrice = maxPrice, feeTier = feeTier.label
         )
-        loadPending(s.address)
+        loadPending(walletAddress)
         upsert(record)
         try {
             val txId = service.signAndSubmit(plan, s.privateKey, c.env)
@@ -1111,8 +1252,9 @@ class KachatNamesActions @Inject constructor(
 
     /** Spends the commit back (the name was taken, or the person changed their mind). */
     suspend fun cancel(p: PendingRegistration): String = withContext(Dispatchers.IO) {
-        val s = signer()
-        val salt = loadSalt(p.id, s.address) ?: throw ActionError.NoSalt()
+        // the address the claim was started from (iOS eb9b027)
+        val s = ownerSigner(unhex32(p.owner))
+        val salt = loadSalt(p.id, pendingWallet ?: s.address) ?: throw ActionError.NoSalt()
         val b = service.builder()
         val env = service.environment(s.privateKey, feerate())
         val commitUtxo = service.liveUtxo(unhex(p.commitScript), commitOutpoint(p))
@@ -1330,9 +1472,9 @@ class KachatNamesActions @Inject constructor(
      *  current fee, after a node dropped the first one (iOS b219bb0). */
     private suspend fun resendCommit(p: PendingRegistration) {
         try {
-            val s = signer()
-            if (hex(s.me) != p.owner) return
-            val salt = loadSalt(p.id, s.address) ?: throw ActionError.NoSalt()
+            val owner = runCatching { unhex32(p.owner) }.getOrNull() ?: return
+            val s = ownerSignerOrNull(owner) ?: return
+            val salt = loadSalt(p.id, pendingWallet ?: s.address) ?: throw ActionError.NoSalt()
             val c = context(s, registrationFeerate(p))
             val plan = c.builder.commit(c.env, c.wallet, p.name, salt)
             val script = plan.newCommit?.utxo?.entry?.script
@@ -1361,7 +1503,6 @@ class KachatNamesActions @Inject constructor(
     /** This wallet holds [name] as a live registration (a lapsed old record of it doesn't count:
      *  that is what claiming an expired name registers over, iOS eea52b2). */
     private suspend fun ownsName(name: String): Boolean {
-        val me = myKey ?: return false
         val l = try {
             registry.lookup(name)
         } catch (e: CancellationException) {
@@ -1369,14 +1510,17 @@ class KachatNamesActions @Inject constructor(
         } catch (_: Exception) {
             return false
         }
-        return holdsLive(l, me, registry.graceMs)
+        // held by any of this wallet's addresses (a claim from a spending address, iOS eb9b027)
+        val owner = (l as? Lookup.Registered)?.info?.owner ?: return false
+        return ownAddress(owner) != null && holdsLive(l, owner, registry.graceMs)
     }
 
     private suspend fun register(p: PendingRegistration, commit: Utxo) {
         try {
-            val s = signer()
-            if (hex(s.me) != p.owner) return
-            val salt = loadSalt(p.id, s.address) ?: throw ActionError.NoSalt()
+            // the address the claim was started from signs and pays, chatting or spending (iOS eb9b027)
+            val owner = runCatching { unhex32(p.owner) }.getOrNull() ?: return
+            val s = ownerSignerOrNull(owner) ?: return
+            val salt = loadSalt(p.id, pendingWallet ?: s.address) ?: throw ActionError.NoSalt()
             registry.refresh()
             val m = registry.prepare()
             // A commit isn't bound to a registry: one sent before a migration registers on the new
@@ -1569,6 +1713,9 @@ class KachatNamesActions @Inject constructor(
         private const val TAG = "KachatNames"
         private const val SALT_PREFS_NAME = "kachat_names_secure_prefs"
         private val PENDING_LIST_TYPE = object : TypeToken<List<PendingRegistration>>() {}.type
+        /** iOS keeps these in UserDefaults.standard (`kachat_market_addresses.<wallet>`). */
+        private const val MARKET_PREFS_NAME = "kachat_market_addresses"
+        private val STRING_LIST_TYPE = object : TypeToken<List<String>>() {}.type
 
         fun registerStep(lookup: Lookup, me: ByteArray, graceMs: Long, nowMs: Long = KachatNames.nowMs()): RegisterStep = when (lookup) {
             is Lookup.Registered -> when {

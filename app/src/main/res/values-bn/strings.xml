@@ -1307,4 +1307,13 @@
     <string name="dm_notif_received_payment">পেমেন্ট পাওয়া গেছে</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">আপনার পর্যাপ্ত তহবিল নেই। অনুগ্রহ করে আপনার চ্যাটিং ঠিকানায় অন্তত 1 KAS পাঠান।</string>
+    <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
+    <string name="kn_from_value">থেকে: %1$s</string>
+    <string name="kn_buy_from">যেখান থেকে কিনবেন</string>
+    <string name="kn_fund">ফান্ড করুন</string>
+    <string name="kn_copy_address_a11y">ঠিকানা কপি করুন</string>
+    <string name="kn_not_enough_on_this_address">এই নামের জন্য এই ঠিকানায় যথেষ্ট KAS নেই।</string>
+    <string name="kn_send_kas_to_buy_with">এটি দিয়ে কিনতে এই ঠিকানায় KAS পাঠান।</string>
+    <string name="kn_choose_market_address">মার্কেটপ্লেস যে ঠিকানা দিয়ে কেনে তা বেছে নিন</string>
+    <string name="kn_buy_from_note">এখানে দাবি, কেনাকাটা ও অফারের অর্থ এই ঠিকানা থেকে দেওয়া হয়, এবং আপনি যে নাম দাবি করেন বা কেনেন তা এই ঠিকানার হয়। কোনো নামকে আপনার চ্যাটিং ঠিকানা থেকে আলাদা রাখতে একটি নতুন ঠিকানা ব্যবহার করুন।</string>
 </resources>

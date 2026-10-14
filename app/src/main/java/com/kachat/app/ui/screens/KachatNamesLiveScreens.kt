@@ -560,10 +560,17 @@ class KachatLiveViewModel @Inject constructor(
             } catch (_: Exception) {
                 emptyList()
             }
-            val me = myKey
-            if (me != null) {
-                mine = registry.names(me, includeInactive = true)
-                myOffers = registry.myOffers(me)
+            // the chatting address and every address the marketplace bought with (iOS eb9b027)
+            val keys = actions.ownMarketKeys
+            if (keys.isNotEmpty()) {
+                val names = mutableListOf<NameInfo>()
+                val offers = mutableListOf<OfferInfo>()
+                for (key in keys) {
+                    names += registry.names(key, includeInactive = true)
+                    offers += registry.myOffers(key)
+                }
+                mine = names
+                myOffers = offers
                 if (myOffers.isNotEmpty()) {
                     actions.refreshVirtualDaa()
                     // Your own expired offers come back to you on their own, and so do the ones
@@ -2426,6 +2433,34 @@ fun KachatTxSheet(
     val feeEstimate by vm.actions.feeEstimate.collectAsState()
     // bumped to build the plan again (the price moved at send time, iOS 4f5d95e `rebuild()`)
     var rebuilds by remember { mutableIntStateOf(0) }
+    /** Who pays this transaction ([KachatNamesActions.payer]: its address and x-only key), worked
+     *  out once per operation (iOS eb9b027 `payerInfo`). */
+    var payerInfo by remember { mutableStateOf<Pair<String, ByteArray>?>(null) }
+    /** The paying address's balance when it isn't the chatting address (iOS `payerBalance`). */
+    var payerBalance by remember { mutableStateOf<Long?>(null) }
+    val marketSource by vm.actions.marketSource.collectAsState()
+
+    LaunchedEffect(operationKey) {
+        val op = currentOperation
+        payerInfo = op?.let { vm.actions.payer(it) }
+        val address = payerInfo?.first ?: return@LaunchedEffect
+        if (address == vm.actions.myAddress) return@LaunchedEffect
+        val utxos = try {
+            vm.service.utxosByAddresses(listOf(address))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            emptyList()
+        }
+        payerBalance = utxos.sumOf { it.entry.amount }
+    }
+
+    /** "Address #3" (or its name) for the marketplace's address, else the short address. */
+    fun payerLabel(address: String): String {
+        val source = marketSource
+        if (source is SendSource.Spending && source.address.equals(address, ignoreCase = true)) return source.label
+        return KachatNamesRegistry.compactAddress(address)
+    }
 
     fun feeChoice(): KachatNamesActions.FeeChoice =
         customFee?.let { KachatNamesActions.FeeChoice.CustomTotal(it) } ?: KachatNamesActions.FeeChoice.Tier(feeTier)
@@ -2539,14 +2574,20 @@ fun KachatTxSheet(
                 showsCoinControl = false,
             )
 
-            val me = vm.myKey
-            if (p != null && me != null) {
-                // Names always spend from, and pay back to, the chatting address.
-                val change = KachatLive.balanceChange(p, me)
-                Row(Modifier.fillMaxWidth()) {
+            val payer = payerInfo ?: vm.myKey?.let { me -> vm.actions.myAddress?.let { it to me } }
+            if (p != null && payer != null) {
+                // Spends from, and pays back to, the address that pays: the chatting address, the
+                // marketplace's chosen one, or the spending address holding the name (iOS eb9b027).
+                val change = KachatLive.balanceChange(p, payer.second)
+                val fromChatting = payer.first == vm.actions.myAddress
+                val balance = if (fromChatting) chattingBalance.takeIf { chattingBalanceKnown } else payerBalance
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!fromChatting) {
+                        SendInfoPill { Text(stringResource(R.string.kn_from_value, payerLabel(payer.first))) }
+                    }
                     SendInfoPill {
                         Text(
-                            if (chattingBalanceKnown) stringResource(R.string.kn_balance_after_value, KaspaUnit.amount(maxOf(0L, chattingBalance + change)))
+                            if (balance != null) stringResource(R.string.kn_balance_after_value, KaspaUnit.amount(maxOf(0L, balance + change)))
                             else stringResource(R.string.kn_balance_change_value, KaspaUnit.signed(change))
                         )
                     }
@@ -2641,6 +2682,8 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
     var feeTouched by remember { mutableStateOf(false) }
     val feeEstimate by vm.actions.feeEstimate.collectAsState()
+    // The marketplace's address: it pays, and the name lands on it (iOS eb9b027).
+    val marketSource by vm.actions.marketSource.collectAsState()
     // Once the registration started, this sheet shows its progress (iOS `progressId`).
     var progressId by remember { mutableStateOf<String?>(null) }
     val maxYears = manifest?.params?.maxYears ?: 2L
@@ -2838,7 +2881,11 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                             }
 
                             quote?.let { q ->
-                                Row(Modifier.fillMaxWidth()) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // the marketplace's address pays, and the name will be on it (iOS eb9b027)
+                                    (marketSource as? SendSource.Spending)?.let { source ->
+                                        SendInfoPill { Text(stringResource(R.string.kn_from_value, source.label)) }
+                                    }
                                     SendInfoPill { Text(stringResource(R.string.kn_available_value, KaspaUnit.amount(q.spendable))) }
                                 }
                                 // said up front: the KAS is in many small coins (iOS f1c16ec)
@@ -2874,7 +2921,12 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
 
                             val q = quote
                             if (q != null && !q.affordable) {
-                                Text(KaspaUnit.label(stringResource(R.string.kn_not_enough)), color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+                                Text(
+                                    KaspaUnit.label(
+                                        stringResource(if (marketSource is SendSource.Spending) R.string.kn_not_enough_on_this_address else R.string.kn_not_enough)
+                                    ),
+                                    color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth()
+                                )
                             } else {
                                 Text(stringResource(R.string.kn_claim_footer), color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
                             }
@@ -4001,22 +4053,35 @@ fun KachatLiveDomainsTab(
         val key = KachatNamesRegistry.keyOf(walletAddress)
         if (vm == null || key == null) { loaded = true; return@LaunchedEffect }
         if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
+        // Your own list (the chatting address's) also holds what the marketplace bought with your
+        // other addresses: a name claimed from a fresh address is still yours to find here (iOS
+        // eb9b027).
+        val keys = mutableListOf(key)
+        if (walletAddress.lowercase() == vm.actions.myAddress) {
+            keys += vm.actions.ownMarketKeys.filter { !it.contentEquals(key) }
+        }
         // A lapsed name is no longer yours: it moves to the marketplace's Available tab (and the
         // bell says so, KachatNamesNotifier). Expired names in grace stay, to be renewed (iOS e26562e).
-        names = try {
-            vm.registry.heldNames(key)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            emptyList()
+        val held = mutableListOf<NameInfo>()
+        val offers = mutableListOf<OfferInfo>()
+        for (k in keys) {
+            held += try {
+                vm.registry.heldNames(k)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            offers += try {
+                vm.registry.myOffers(k)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
         }
-        myOffers = try {
-            vm.registry.myOffers(key)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            emptyList()
-        }
+        names = held
+        myOffers = offers
         if (myOffers.isNotEmpty()) {
             // expired offers, and ones made to an earlier owner, come back on their own (iOS ba07975)
             vm.actions.refreshVirtualDaa()
