@@ -132,7 +132,21 @@ class BroadcastScanningService @Inject constructor(
         scope.launch {
             notificationHelper.appForegroundFlow.collect { foreground ->
                 if (foreground) startForegroundSweep() else stopForegroundSweep()
+                // On app open: which rooms the indexer tracks (at most hourly, iOS 21c480d).
+                if (foreground) refreshIndexerTrackedRooms()
             }
+        }
+        // And on wallet switch, as iOS does on every wallet load.
+        scope.launch {
+            broadcastRepository.activeAddressFlow.collect { address ->
+                if (address != null) refreshIndexerTrackedRooms()
+            }
+        }
+        // A room the indexer turned out to track (or stopped tracking): the metered gate's
+        // "any wanted room without another delivery path?" answer may have flipped. The screens
+        // collect the same flow for their wording.
+        scope.launch {
+            IndexerTrackedRooms.changes.collect { reevaluate() }
         }
         scope.launch {
             meteredNetwork.isMeteredFlow.collect { reevaluate() }
@@ -203,6 +217,10 @@ class BroadcastScanningService @Inject constructor(
     private fun stopForegroundSweep() {
         sweepJob?.cancel()
         sweepJob = null
+    }
+
+    private fun refreshIndexerTrackedRooms() {
+        scope.launch { broadcastRepository.refreshIndexerTrackedRooms() }
     }
 
     private fun myAddressOrNull(): String? = runCatching { broadcastRepository.myAddress() }.getOrNull()
@@ -301,8 +319,8 @@ class BroadcastScanningService @Inject constructor(
      * channel mix). Unmetered (WiFi) keeps the original behavior exactly: stream whenever
      * anything wants it, foreground or background. On METERED networks the full-block stream
      * (roughly 1-4 GB/day if left running) is only justified for a wanted channel with NO
-     * other delivery path — the featured indexer-backed rooms already get an 8s indexer poll
-     * while open (BroadcastViewModel.startIndexerBackfill) plus a 30-day history backfill on
+     * other delivery path — the indexer-tracked rooms (curated, or added on the indexer)
+     * already get an 8s indexer poll while open (BroadcastViewModel.startIndexerBackfill) plus a 30-day history backfill on
      * open, and their bell notifications ride remote push, so only non-indexed always-listen /
      * live-viewed channels need the stream — and even then only while the app is foregrounded
      * (backgrounded metered streaming trades the whole data budget for messages nobody is
@@ -316,7 +334,7 @@ class BroadcastScanningService @Inject constructor(
                 (
                     notificationHelper.isAppInForeground &&
                         (alwaysListenChannelNames + liveViewedChannelNames)
-                            .any { it !in FeaturedBroadcastChannels.INDEXED_NAMES }
+                            .any { !FeaturedBroadcastChannels.isIndexerTracked(it) }
                     )
             )
         if (shouldRun) startInternal() else stopInternal()
@@ -513,14 +531,17 @@ class BroadcastScanningService @Inject constructor(
             ?: MAX_PRUNE_INTERVAL_MILLIS
         if (now - lastPruneAt > pruneInterval) {
             lastPruneAt = now
+            // Every room the indexer tracks - the curated ones and any added on the indexer
+            // (iOS 21c480d) - keeps its full window.
+            val fullWindowChannels = FeaturedBroadcastChannels.indexerTrackedNames()
             retentions.forEach { retention ->
-                // Featured indexer-backed rooms keep the indexer's FULL 30-day window regardless
+                // Indexer-tracked rooms keep the indexer's FULL 30-day window regardless
                 // of the stored per-channel value (their retention gear is hidden in the UI) —
                 // the 3-day cap was pruning history the backfill had just fetched.
                 // The chess arena is served by the indexer too and read back on every open
                 // (ChessTournamentService), so the 3-hour default would delete the history a
                 // backfill had just fetched - and with it the tournaments people are in.
-                val effective = if (retention.channelName in FeaturedBroadcastChannels.INDEXED_NAMES ||
+                val effective = if (retention.channelName in fullWindowChannels ||
                     retention.channelName in ChessTournamentService.SERVICE_CHANNELS
                 ) {
                     BroadcastRetention.INDEXER_MILLIS

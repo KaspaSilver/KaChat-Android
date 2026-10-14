@@ -155,7 +155,7 @@ object BroadcastDeepLink {
     fun request(rawName: String): Boolean {
         val name = KaChatLink.sanitizeChannelName(rawName) ?: return false
         // Curated rooms are permanent fixtures that always exist, so they just open.
-        if (name !in FeaturedBroadcastChannels.INDEXED_NAMES) joinRequests.add(name)
+        if (name !in FeaturedBroadcastChannels.CURATED_NAMES) joinRequests.add(name)
         _pendingChannel.value = name
         return true
     }
@@ -324,7 +324,10 @@ fun BroadcastListScreen(
     // Square tiles, three to a row, like every long-press menu (iOS cdac6d0).
     roomActionTarget?.let { name ->
         val channel = channels.firstOrNull { it.channelName == name }
-        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
+        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.CURATED_NAMES
+        // the indexer keeps it, so push covers it with the app closed (iOS 21c480d)
+        val trackedRoomsVersion by com.kachat.app.services.IndexerTrackedRooms.changes.collectAsState()
+        val isTracked = remember(name, trackedRoomsVersion) { com.kachat.app.models.FeaturedBroadcastChannels.isIndexerTracked(name) }
         val notifyOn = channel?.notifyEnabled == true
         val summaries by broadcastViewModel.roomSummaries.collectAsState()
         val hasUnread = (summaries[name]?.unreadCount ?: 0) > 0
@@ -349,7 +352,7 @@ fun BroadcastListScreen(
                         title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
                         subtitle = when {
                             notifyOn -> "No notification for new messages in this room."
-                            isCurated -> "Notifies you of new messages, even when the app is closed."
+                            isTracked -> "Notifies you of new messages, even when the app is closed."
                             else -> "Notifies you of new messages while the app is open."
                         },
                     ) {
@@ -359,7 +362,7 @@ fun BroadcastListScreen(
                         say(
                             when {
                                 notifyOn -> "Notifications are off for this public chat"
-                                isCurated -> "You'll get notifications for new messages in this public chat, even when the app is closed"
+                                isTracked -> "You'll get notifications for new messages in this public chat, even when the app is closed"
                                 else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
                             }
                         )
@@ -666,9 +669,13 @@ fun BroadcastChannelScreen(
     walletViewModel: WalletViewModel = hiltViewModel(),
     settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel()
 ) {
-    // A room made here, rather than one of the curated indexed rooms: messages in it reach only
-    // whoever is in it at the time, which the info button in the header says.
-    val isCuratedRoom = channelName in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
+    // A room the indexer tracks (the curated ones, or one added on the indexer): history comes
+    // from the public chat indexer and retention is fixed at 30 days. Any other room reaches only
+    // whoever is in it at the time, which the info button in the header says (iOS 21c480d).
+    val trackedRoomsVersion by com.kachat.app.services.IndexerTrackedRooms.changes.collectAsState()
+    val isIndexedRoom = remember(channelName, trackedRoomsVersion) {
+        com.kachat.app.models.FeaturedBroadcastChannels.isIndexerTracked(channelName)
+    }
     var showOwnRoomExplainer by remember { mutableStateOf(false) }
     /** The bell in the top-right corner: this room's notifications, on a sheet. */
     var showNotifySheet by remember { mutableStateOf(false) }
@@ -679,7 +686,7 @@ fun BroadcastChannelScreen(
         ActionSheetContainer(
             title = "#$channelName",
             subtitle = if (roomNotifyEnabled) {
-                if (isCuratedRoom) "You're notified of new messages here, even when the app is closed."
+                if (isIndexedRoom) "You're notified of new messages here, even when the app is closed."
                 else "You're notified of new messages here while the app is open."
             } else {
                 "New messages here don't notify you. The room still updates when you open it."
@@ -691,7 +698,7 @@ fun BroadcastChannelScreen(
                 title = if (roomNotifyEnabled) "Turn Off Notifications" else "Turn On Notifications",
                 subtitle = if (roomNotifyEnabled) {
                     "No notification for new messages in this room."
-                } else if (isCuratedRoom) {
+                } else if (isIndexedRoom) {
                     "Notifies you of new messages, even when the app is closed."
                 } else {
                     "Notifies you of new messages while the app is open."
@@ -878,9 +885,9 @@ fun BroadcastChannelScreen(
     }
 
     // Live messages appear while this screen is open even if this channel isn't marked
-    // always-listen — bounded to exactly as long as this composable is on screen. Featured
-    // rooms additionally backfill from the broadcast indexer (once + every 8s) so history
-    // sent while the app was closed shows up too.
+    // always-listen — bounded to exactly as long as this composable is on screen. Every room
+    // additionally backfills from its broadcast indexer (once + every 8s) so history sent while
+    // the app was closed shows up too.
     DisposableEffect(channelName) {
         broadcastViewModel.startLiveViewing(channelName)
         broadcastViewModel.startIndexerBackfill(channelName)
@@ -970,9 +977,10 @@ fun BroadcastChannelScreen(
                     }
                 },
                 actions = {
-                    // A room you made yourself: what "public" does and does not mean here. The
-                    // curated rooms are indexed, so they need no such warning (iOS ac34790).
-                    if (!isCuratedRoom) {
+                    // A room you made yourself: what "public" does and does not mean here. Rooms
+                    // the indexer tracks keep their history there, so they need no such warning
+                    // (iOS ac34790, 21c480d).
+                    if (!isIndexedRoom) {
                         IconButton(onClick = { showOwnRoomExplainer = true }) {
                             Icon(Icons.Default.Info, contentDescription = "About this room", tint = KaspaTeal)
                         }

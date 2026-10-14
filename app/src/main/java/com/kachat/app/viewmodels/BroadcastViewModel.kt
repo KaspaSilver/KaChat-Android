@@ -398,7 +398,7 @@ class BroadcastViewModel @Inject constructor(
      * toggle in Public Chats settings, and that toggle brings it back (iOS e08c4cc).
      */
     fun removeFromList(channelName: String) {
-        if (channelName in FeaturedBroadcastChannels.INDEXED_NAMES) setCuratedRoomShown(channelName, false)
+        if (channelName in FeaturedBroadcastChannels.CURATED_NAMES) setCuratedRoomShown(channelName, false)
         else leaveChannel(channelName)
     }
 
@@ -426,7 +426,7 @@ class BroadcastViewModel @Inject constructor(
      * and a language room as it was (iOS d5c7613).
      */
     fun setCuratedRoomShown(channelName: String, shown: Boolean) {
-        if (channelName !in FeaturedBroadcastChannels.INDEXED_NAMES) return
+        if (channelName !in FeaturedBroadcastChannels.CURATED_NAMES) return
         readState.setCuratedShown(channelName, shown)
         val joined = joinedChannels.value.any { it.channelName == channelName }
         if (!joined) return
@@ -476,7 +476,7 @@ class BroadcastViewModel @Inject constructor(
         viewModelScope.launch { broadcastRepository.unhideSender(senderAddress, channelName) }
     }
 
-    // MARK: - Indexer backfill (featured rooms): once on open, then every 8s while the room
+    // MARK: - Indexer backfill (every open room): once on open, then every 8s while the room
     // stays open - messages sent while the app was closed appear, and the room stays fresh
     // even when live block scanning lags. Dedupe by txId happens in the DAO's REPLACE insert.
 
@@ -502,8 +502,14 @@ class BroadcastViewModel @Inject constructor(
 
     private var indexerPollJob: kotlinx.coroutines.Job? = null
 
+    /**
+     * Every open room asks its indexer, not just the curated ones (iOS
+     * `startIndexerPollingIfConfigured`): a room the operator adds on the indexer has its history
+     * there, a room can point at its own indexer in Room Info, and rows coming back are how the
+     * app learns the indexer tracks the room (IndexerTrackedRooms, iOS 21c480d). With no indexer
+     * configured each pass is a no-op ([BroadcastRepository.backfillFromIndexer] returns -1).
+     */
     fun startIndexerBackfill(channelName: String) {
-        if (channelName !in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES) return
         stopIndexerBackfill()
         indexerPollJob = viewModelScope.launch {
             while (true) {

@@ -46,7 +46,7 @@ object FeaturedBroadcastChannels {
 
     /**
      * Curated per-language rooms, listed behind the collapsible "Other Languages" category under
-     * Popular. Indexer-tracked exactly like [NAMES] (30-day retention, indexer history, no
+     * Popular. Curated and indexer-tracked exactly like [NAMES] (30-day retention, indexer history, no
      * retention gear, push-eligible) but deliberately NOT auto-joined: a row is created on first
      * open or bell tap. Auto-joining eleven more rooms would multiply push registrations,
      * block-scan subscriptions and cellular cost for every user, including the majority who want
@@ -69,12 +69,29 @@ object FeaturedBroadcastChannels {
     )
 
     /**
-     * Every indexer-tracked room. EVERYTHING that follows from "the indexer serves this room's
-     * history" keys off this set — 30-day retention, no per-room retention override, no Leave,
-     * the indexer backfill poll, and the metered block-stream skip. Only auto-join and the
-     * pinned Popular list use [NAMES] alone.
+     * The rooms the app ships as defaults (Popular + the language rooms): always in the list,
+     * switched off rather than left, "Popular" in Room Info. Only auto-join and the pinned
+     * Popular list use [NAMES] alone (iOS `curatedChannels`).
      */
-    val INDEXED_NAMES: List<String> = NAMES + LANGUAGE_NAMES
+    val CURATED_NAMES: List<String> = NAMES + LANGUAGE_NAMES
+
+    /**
+     * Whether the indexer keeps this room's history: the curated rooms, and any other room the
+     * indexer tracks - one the operator adds on the indexer (it then keeps 30 days of it) needs no
+     * app update. EVERYTHING that follows from "the indexer serves this room's history" keys off
+     * this - 30-day retention, the indexer backfill, the metered block-stream skip, the "even when
+     * the app is closed" wording, "Kept for 30 days" in Room Info. See
+     * [com.kachat.app.services.IndexerTrackedRooms] for how the app learns the extra rooms
+     * (iOS `PublicChatService.isIndexerTracked`, 21c480d).
+     */
+    fun isIndexerTracked(channelName: String): Boolean {
+        val name = channelName.trim().lowercase()
+        return name in CURATED_NAMES || com.kachat.app.services.IndexerTrackedRooms.contains(name)
+    }
+
+    /** Every room [isIndexerTracked] says yes to, as far as this phone knows. */
+    fun indexerTrackedNames(): Set<String> =
+        CURATED_NAMES.toSet() + com.kachat.app.services.IndexerTrackedRooms.all()
 
     /**
      * Native-language label for a curated language room, e.g. "kaspa-espanol" -> "Español".

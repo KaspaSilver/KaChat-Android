@@ -101,7 +101,10 @@ fun BroadcastRoomInfoScreen(
         if (!seeded) { indexerText = storedOverride; seeded = true }
     }
 
-    val isCurated = normalized in FeaturedBroadcastChannels.INDEXED_NAMES
+    val isCurated = normalized in FeaturedBroadcastChannels.CURATED_NAMES
+    // Collected so "Kept for" follows the moment the indexer turns out to track this room.
+    val trackedRoomsVersion by com.kachat.app.services.IndexerTrackedRooms.changes.collectAsState()
+    val isTracked = remember(normalized, trackedRoomsVersion) { FeaturedBroadcastChannels.isIndexerTracked(normalized) }
     val channel = joinedChannels.firstOrNull { it.channelName == normalized }
     val participants = remember(messages) { messages.map { it.senderAddress }.distinct().size }
     val hiddenHere = remember(hiddenSenders, normalized) {
@@ -165,13 +168,12 @@ fun BroadcastRoomInfoScreen(
                 messages.minOfOrNull { it.blockTimestamp }?.let {
                     InfoRow("Oldest held", com.kachat.app.util.IosDateStyle.mediumDateShortTime(it, is24Hour))
                 }
-                // Only the curated rooms have history worth a number: the indexer keeps theirs. A
-                // room you made holds nothing for anyone who was not there (see its info button).
-                if (isCurated) {
-                    channel?.retentionMillis?.takeIf { it > 0 }?.let { millis ->
-                        val days = Math.round(millis / 86_400_000.0).toInt()
-                        InfoRow("Kept for", if (days == 1) "1 day" else "$days days")
-                    }
+                // Only rooms the indexer tracks have history worth a number: the indexer keeps
+                // theirs, 30 days, which is what this phone keeps too. A room you made holds
+                // nothing for anyone who was not there (see its info button). iOS 21c480d.
+                if (isTracked) {
+                    val days = Math.round(com.kachat.app.models.BroadcastRetention.INDEXER_MILLIS / 86_400_000.0).toInt()
+                    InfoRow("Kept for", if (days == 1) "1 day" else "$days days")
                 }
             }
 

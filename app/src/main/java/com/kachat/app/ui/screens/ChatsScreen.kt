@@ -1353,7 +1353,10 @@ private fun ChatCircleActionSheet(
     } else if (id.startsWith("r:")) {
         val name = id.removePrefix("r:")
         val channel = listedRooms.firstOrNull { it.channelName == name }
-        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES
+        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.CURATED_NAMES
+        // the indexer keeps it, so push covers it with the app closed (iOS 21c480d)
+        val trackedRoomsVersion by com.kachat.app.services.IndexerTrackedRooms.changes.collectAsState()
+        val isTracked = remember(name, trackedRoomsVersion) { com.kachat.app.models.FeaturedBroadcastChannels.isIndexerTracked(name) }
         val notifyOn = channel?.notifyEnabled == true
         TileActionSheet(title = "#$name", onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
                 if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
@@ -1381,7 +1384,7 @@ private fun ChatCircleActionSheet(
                     title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
                     subtitle = when {
                         notifyOn -> "No notification for new messages in this room."
-                        isCurated -> "Notifies you of new messages, even when the app is closed."
+                        isTracked -> "Notifies you of new messages, even when the app is closed."
                         else -> "Notifies you of new messages while the app is open."
                     },
                 ) {
@@ -1390,7 +1393,7 @@ private fun ChatCircleActionSheet(
                     toast(
                         when {
                             notifyOn -> "Notifications are off for this public chat"
-                            isCurated -> "You'll get notifications for new messages in this public chat, even when the app is closed"
+                            isTracked -> "You'll get notifications for new messages in this public chat, even when the app is closed"
                             else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
                         }
                     )

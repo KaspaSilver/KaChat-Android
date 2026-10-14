@@ -44,6 +44,9 @@ class BroadcastRepository @Inject constructor(
     // every row it serves is verified (input 0's address == output 0's) before it is stored.
     private val senderVerifier: com.kachat.app.services.BroadcastSenderVerifier,
 ) {
+    /** The active account's address - the scanner refreshes the indexer's tracked rooms on a switch. */
+    val activeAddressFlow: kotlinx.coroutines.flow.StateFlow<String?> get() = walletManager.activeAddressFlow
+
     /** Channels joined by whichever account is currently active — re-emits automatically on account switch. */
     fun getJoinedChannels(): Flow<List<BroadcastChannelEntity>> {
         return walletManager.activeAddressFlow.flatMapLatest { address ->
@@ -63,8 +66,9 @@ class BroadcastRepository @Inject constructor(
     /** Removes the channel from the joined list AND permanently deletes every cached message for it — the UI must confirm this with the user first, since it's destructive and can't be undone (rejoining later starts with no history). Featured rooms can't be left (matches iOS). */
     suspend fun leaveChannel(channelName: String) {
         // Curated rooms (Popular and the language rooms alike) are permanent fixtures of the
-        // list screen, so no UI offers Leave; guard against stray paths.
-        if (channelName in FeaturedBroadcastChannels.INDEXED_NAMES) return
+        // list screen, so no UI offers Leave; guard against stray paths. A room the indexer
+        // tracks that you added yourself stays one you can leave (iOS 21c480d).
+        if (channelName in FeaturedBroadcastChannels.CURATED_NAMES) return
         database.broadcastDao().leaveChannel(channelName, walletManager.getAddress())
         database.broadcastDao().deleteMessagesForChannel(channelName)
     }
@@ -114,9 +118,9 @@ class BroadcastRepository @Inject constructor(
 
     /** Per-channel override of local message retention, set via the settings icon next to a channel — clamped to [1 second, BroadcastRetention.MAX_MILLIS] so the UI's 3-day cap can't be bypassed by a bad input. */
     suspend fun setRetentionMillis(channelName: String, retentionMillis: Long) {
-        // Featured rooms have a FIXED 3-day retention (their indexer serves 3 days of history
-        // and the room shows a permanent banner saying so) - no per-room override.
-        if (channelName in FeaturedBroadcastChannels.INDEXED_NAMES) return
+        // Rooms the indexer tracks have a FIXED 30-day retention (the indexer serves 30 days of
+        // history and the prune keeps all of it) - no per-room override.
+        if (FeaturedBroadcastChannels.isIndexerTracked(channelName)) return
         val clamped = retentionMillis.coerceIn(1_000L, BroadcastRetention.MAX_MILLIS)
         database.broadcastDao().setRetentionMillis(channelName, walletManager.getAddress(), clamped)
     }
@@ -328,6 +332,9 @@ class BroadcastRepository @Inject constructor(
          *  messages" adds. iOS's `roomWindowSize`. */
         const val ROOM_WINDOW_SIZE = 400
 
+        /** How often the app-wide indexer is asked which rooms it tracks (iOS: hourly). */
+        private const val TRACKED_ROOMS_CHECK_INTERVAL_MS = 60L * 60 * 1000
+
         /** Deep backfill re-runs while some rows' senders are still unverified (XP-012). */
         private const val DEEP_UNVERIFIED_RETRIES = 3
 
@@ -399,6 +406,8 @@ class BroadcastRepository @Inject constructor(
             android.util.Log.w("BroadcastRepository", "Sweep fetch failed for $channelName", e)
             return emptyList()
         }
+        // An indexer only stores the rooms it tracks: rows back mean it keeps this room's history.
+        if (!page.messages.isNullOrEmpty()) com.kachat.app.services.IndexerTrackedRooms.markServed(channelName)
         // Neither a reaction nor an edit is a message anyone reads; the room's own backfill is
         // what persists them.
         val wanted = page.messages.orEmpty().filter { message ->
@@ -513,6 +522,38 @@ class BroadcastRepository @Inject constructor(
         return complete
     }
 
+    /** When the app-wide indexer was last asked which rooms it tracks: (base URL, millis). */
+    @Volatile
+    private var trackedRoomsCheckedAt: Pair<String, Long>? = null
+
+    /**
+     * Asks the app-wide public chat indexer which rooms it tracks (`/broadcast-channels`), at
+     * most once an hour per indexer - on app open and wallet switch. An indexer without the
+     * endpoint answers nothing and the set keeps what it learned from served rows
+     * (iOS `PublicChatService.refreshIndexerTrackedRooms`, 21c480d).
+     */
+    suspend fun refreshIndexerTrackedRooms() {
+        val base = settings.broadcastIndexerUrl.first().trim()
+        if (base.isEmpty()) return
+        val now = System.currentTimeMillis()
+        synchronized(this) {
+            val last = trackedRoomsCheckedAt
+            if (last != null && last.first == base && now - last.second < TRACKED_ROOMS_CHECK_INTERVAL_MS) return
+            trackedRoomsCheckedAt = base to now
+        }
+        val api = networkService.broadcastIndexerApiFor(base) ?: return
+        val channels: List<String>? = try {
+            api.getTrackedChannels().channels?.filterNotNull()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("BroadcastRepository", "Tracked rooms not listed by $base: ${e.message}")
+            null
+        }
+        if (channels == null) return
+        com.kachat.app.services.IndexerTrackedRooms.setReported(channels)
+    }
+
     suspend fun backfillFromIndexer(channelName: String): Int {
         // This room's own indexer where it has one, the app-wide client otherwise. A broadcast is
         // on-chain, so any indexer watching the same network serves the same room.
@@ -541,6 +582,9 @@ class BroadcastRepository @Inject constructor(
                 pagesLeft -= 1
                 val response = api.getBroadcasts(channel = channelName, limit = pageLimit, before = before)
                 val messages = response.messages.orEmpty()
+                // An indexer only stores the rooms it tracks: rows back mean it keeps this
+                // room's history (iOS 21c480d).
+                if (messages.isNotEmpty()) com.kachat.app.services.IndexerTrackedRooms.markServed(channelName)
                 // Stored only with a verified sender (audit XP-012).
                 unverified += admitIndexerRows(channelName, messages).unknown
                 fetched += messages.size

@@ -1006,7 +1006,7 @@ fun KaChatInternalLinkCard(
     // so the card says which before you tap (iOS).
     val roomChannel = (ref as? KaChatLinkRef.BroadcastRoom)?.channel
     var roomIsKnown by remember(roomChannel) {
-        mutableStateOf(roomChannel != null && roomChannel in com.kachat.app.models.FeaturedBroadcastChannels.INDEXED_NAMES)
+        mutableStateOf(roomChannel != null && roomChannel in com.kachat.app.models.FeaturedBroadcastChannels.CURATED_NAMES)
     }
     if (roomChannel != null && !roomIsKnown) {
         val rooms: KaChatLinkCardViewModel = hiltViewModel()

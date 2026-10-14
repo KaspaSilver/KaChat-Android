@@ -17,7 +17,19 @@ interface BroadcastIndexerApi {
         @Query("limit") limit: Int = 200,
         @Query("before") before: Long? = null,
     ): BroadcastHistoryResponse
+
+    /**
+     * GET /broadcast-channels -> {"channels": [...]}: the rooms this indexer tracks now (set on
+     * the indexer's dashboard). An indexer that predates the endpoint answers 404, which throws
+     * (iOS `PublicChatIndexerClient.fetchTrackedChannels`, 21c480d).
+     */
+    @GET("broadcast-channels")
+    suspend fun getTrackedChannels(): BroadcastTrackedChannelsResponse
 }
+
+data class BroadcastTrackedChannelsResponse(
+    val channels: List<String?>?,
+)
 
 data class BroadcastHistoryResponse(
     val messages: List<BroadcastHistoryRow>?,
