@@ -2154,6 +2154,8 @@ class ChatRepository @Inject constructor(
             // nowhere in chats, and a sender rejected in Message Requests is kept out.
             if (walletManager.isOwnSpendingAddress(sender)) return true
             if (chatRequestStore.isBlocked(sender)) return true
+            // A chat you deleted stays deleted for anything sent before the deletion.
+            if (isTombstoned(database.contactDao().getDeletedContact(sender, myAddress), tx.transactionId, blockTime)) return true
             val senderPubKeyHex = runCatching {
                 KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
             }.getOrNull()
