@@ -356,7 +356,6 @@
     <string name="choose_your_language">Choisissez votre langue</string>
     <string name="select_the_language_youd_like_to">Selectionnez la langue que vous souhaitez utiliser dans KaChat.</string>
     <string name="best">Meilleur</string>
-    <string name="spending_address">Adresse de depense</string>
     <string name="enter_as_host_port_or_grpcs_host">Saisissez au format host:port ou grpcs://host</string>
     <string name="receive_kaspa">Recevoir Kaspa</string>
     <string name="currency">Devise</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Pour discuter avec quelqu\'un, touchez Créer une discussion et saisissez son adresse Kaspa ou son nom .kachat. Votre premier message lui arrive comme une demande de message qu\'il peut accepter. Pour un maximum de confidentialité, activez Discussion privée : rien ne vous relie sur la chaîne, et il verra vos messages dès qu\'il ouvrira lui aussi une discussion privée avec vous.</string>
     <string name="welcome_fund_chatting_body">50 Kaspa sont recommandés pour commencer - assez pour réclamer un nom .kachat et discuter un moment. 5 Kaspa suffisent pour environ 2500 messages.</string>
-    <string name="welcome_chatting_address_caption">Votre identité de messagerie. Les messages et votre nom .kachat sont payés depuis elle, et chaque envoi part d’elle sauf si vous choisissez une autre adresse.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Fermez complètement KaChat puis rouvrez-le pour terminer le passage au Testnet.</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">Vérification</string>
     <string name="pr_spending_footer_new">Payé à une toute nouvelle adresse à vous, pour cette demande uniquement. La note s’affiche pour qui paie, mais ne part pas avec le paiement.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">Vos adresses</string>
-    <string name="welcome_spending_address_caption">D’autres adresses à vous pour envoyer et recevoir des Kaspa. Choisissez-en une sous « De » à chaque envoi, ou créez-en une dans Gérer les adresses.</string>
     <string name="hide_all">Tout masquer</string>
     <string name="hide_all_addresses_title">Masquer toutes les adresses ?</string>
     <string name="hide_all_addresses_message">Gérer les adresses repart avec votre seule adresse de discussion. Rien n’est perdu : réaffichez n’importe quelle adresse ici, et ses Kaspa restent comptés dans votre total.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">Votre adresse de discussion</string>
+    <string name="welcome_chatting_address_identity_caption">Votre identité sur KaChat, à vous seul. On vous écrit dessus, votre nom .kachat et votre profil y sont liés, et chaque message envoyé est payé depuis elle. Tout ce qu’elle fait est public sur le réseau Kaspa et lié à vous.</string>
+    <string name="welcome_everything_else">Tout le reste</string>
+    <string name="welcome_everything_else_caption">Pour protéger votre vie privée, utilisez vos autres adresses pour toute autre activité sur le réseau Kaspa. Recevoir des Kaspa vous en donne une nouvelle, et Gérer les adresses les liste toutes.</string>
 </resources>

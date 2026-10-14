@@ -108,7 +108,6 @@ fun WelcomeGuideScreen(
         mutableStateOf(if (startAtUserType) WelcomeGuideStep.USER_TYPE else WelcomeGuideStep.WELCOME)
     }
     val chattingAddress by walletViewModel.address.collectAsState()
-    val spendingAddress by walletViewModel.spendingAddress.collectAsState()
     val justImportedWallet by walletViewModel.justImportedWallet.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
 
@@ -246,7 +245,6 @@ fun WelcomeGuideScreen(
                 )
                 WelcomeGuideStep.ADDRESS_EXPLAINER -> WelcomeGuideAddressExplainerStep(
                     chattingAddress = chattingAddress,
-                    spendingAddress = spendingAddress,
                     onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.CHATTING }
                 )
@@ -894,7 +892,7 @@ private fun NodeChoiceRow(
 }
 
 @Composable
-private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingAddress: String?, onPrevious: (() -> Unit)?, onNext: () -> Unit) {
+private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, onPrevious: (() -> Unit)?, onNext: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -905,31 +903,34 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingA
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            stringResource(R.string.your_addresses),
+            stringResource(R.string.welcome_your_chatting_address),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(16.dp))
+        // Profile: Receive Kaspa, the Chatting Address QR and Manage Addresses.
         Image(
-            painter = painterResource(R.drawable.address_types_explainer),
+            painter = painterResource(R.drawable.address_explainer),
             contentDescription = null,
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 340.dp)
                 .clip(RoundedCornerShape(16.dp))
         )
         Spacer(Modifier.height(16.dp))
         AddressMockRow(
+            icon = Icons.AutoMirrored.Filled.Chat,
             title = stringResource(R.string.chatting_address),
             address = chattingAddress.orEmpty(),
-            caption = stringResource(R.string.welcome_chatting_address_caption)
+            caption = stringResource(R.string.welcome_chatting_address_identity_caption)
         )
         Spacer(Modifier.height(12.dp))
         AddressMockRow(
-            title = stringResource(R.string.spending_address),
-            address = spendingAddress.orEmpty(),
-            caption = stringResource(R.string.welcome_spending_address_caption)
+            icon = Icons.Filled.Security,
+            title = stringResource(R.string.welcome_everything_else),
+            address = "",
+            caption = stringResource(R.string.welcome_everything_else_caption)
         )
     }
         Spacer(Modifier.height(16.dp))
@@ -938,24 +939,34 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, spendingA
 }
 
 @Composable
-private fun AddressMockRow(title: String, address: String, caption: String) {
-    Column(
+private fun AddressMockRow(icon: ImageVector, title: String, address: String, caption: String) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(LocalAppColors.current.surfaceVariant)
-            .padding(12.dp)
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)
-        if (address.isNotEmpty()) {
-            Text(
-                address,
-                color = LocalAppColors.current.textSecondary,
-                fontSize = 11.sp,
-                maxLines = 1
-            )
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.width(28.dp).height(22.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)
+            if (address.isNotEmpty()) {
+                Text(
+                    address,
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(caption, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
         }
-        Spacer(Modifier.height(4.dp))
-        Text(caption, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
     }
 }

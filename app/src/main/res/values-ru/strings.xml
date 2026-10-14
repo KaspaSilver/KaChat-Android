@@ -356,7 +356,6 @@
     <string name="choose_your_language">Выберите язык</string>
     <string name="select_the_language_youd_like_to">Выберите язык, который вы хотите использовать в KaChat.</string>
     <string name="best">Лучший</string>
-    <string name="spending_address">Адрес для трат</string>
     <string name="enter_as_host_port_or_grpcs_host">Введите в формате host:port или grpcs://host</string>
     <string name="receive_kaspa">Получить Kaspa</string>
     <string name="currency">Валюта</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Чтобы написать кому-то, нажмите «Создать чат» и введите его адрес Kaspa или имя .kachat. Ваше первое сообщение придёт ему как запрос на переписку, который можно принять. Для максимальной приватности включите «Приватный чат»: в блокчейне вас ничто не связывает, а ваши сообщения станут видны, когда собеседник тоже начнёт приватный чат с вами.</string>
     <string name="welcome_fund_chatting_body">Для начала рекомендуется 50 Kaspa — этого хватит, чтобы получить имя .kachat и какое-то время общаться. 5 Kaspa хватает примерно на 2500 сообщений.</string>
-    <string name="welcome_chatting_address_caption">Ваш адрес для переписки. С него оплачиваются сообщения и имя .kachat, и с него начинается любая отправка, если не выбрать другой адрес.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Полностью закройте KaChat и откройте снова, чтобы завершить переход на Testnet.</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">Проверка</string>
     <string name="pr_spending_footer_new">Оплата на совершенно новый ваш адрес, только для этого запроса. Заметку увидит плательщик, но с платежом она не отправится.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">Ваши адреса</string>
-    <string name="welcome_spending_address_caption">Другие ваши адреса для отправки и получения Kaspa. Выберите адрес в поле «От» при отправке или создайте новый в разделе «Управление адресами».</string>
     <string name="hide_all">Скрыть все</string>
     <string name="hide_all_addresses_title">Скрыть все адреса?</string>
     <string name="hide_all_addresses_message">«Управление адресами» начнётся заново только с адресом для чатов. Ничего не теряется: верните любой адрес здесь, его Kaspa по-прежнему входят в итог.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">Ваш адрес для чатов</string>
+    <string name="welcome_chatting_address_identity_caption">Ваша личность в KaChat, только ваша. Вам пишут на этот адрес, на нём ваше имя .kachat и профиль, и каждое ваше сообщение оплачивается с него. Всё, что он делает, публично в сети Kaspa и связано с вами.</string>
+    <string name="welcome_everything_else">Всё остальное</string>
+    <string name="welcome_everything_else_caption">Чтобы защитить свою приватность, используйте другие адреса для всех остальных действий в сети Kaspa. «Получить Kaspa» даёт новый адрес, а «Управление адресами» показывает все.</string>
 </resources>

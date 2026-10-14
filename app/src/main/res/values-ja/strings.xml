@@ -356,7 +356,6 @@
     <string name="choose_your_language">言語を選択してください</string>
     <string name="select_the_language_youd_like_to">KaChatで使用したい言語を選択してください。</string>
     <string name="best">最適</string>
-    <string name="spending_address">支出用アドレス</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port または grpcs://host の形式で入力してください</string>
     <string name="receive_kaspa">Kaspaを受け取る</string>
     <string name="currency">通貨</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">誰かとチャットするには「チャットを作成」を押し、相手の Kaspa アドレスか .kachat 名を入力します。最初のメッセージは、相手が承認できるメッセージリクエストとして届きます。プライバシーを最大にするにはプライベートチャットをオンに。チェーン上で二人を結ぶものはなく、相手もあなたとプライベートチャットを始めるとメッセージが見えます。</string>
     <string name="welcome_fund_chatting_body">始めるには 50 Kaspa がおすすめです。.kachat 名を取得してしばらくチャットできます。5 Kaspa で約 2500 件のメッセージを送れます。</string>
-    <string name="welcome_chatting_address_caption">あなたのメッセージ用 ID です。メッセージと .kachat 名はここから支払われ、別のアドレスを選ばない限り送金はここから行われます。</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">テストネット</string>
     <string name="testnet_restart_to_testnet">テストネットへの切り替えを完了するには、KaChat を完全に終了して開き直してください。</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">確認中</string>
     <string name="pr_spending_footer_new">このリクエスト専用の、まったく新しいあなたのアドレスに支払われます。メモは支払う人に表示されますが、支払いと一緒には送られません。</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">あなたのアドレス</string>
-    <string name="welcome_spending_address_caption">Kaspa の送受信に使える他のアドレスです。送金時の「送信元」で選ぶか、アドレス管理で新しく作成できます。</string>
     <string name="hide_all">すべて非表示</string>
     <string name="hide_all_addresses_title">すべてのアドレスを非表示にしますか？</string>
     <string name="hide_all_addresses_message">アドレス管理はチャットアドレスだけから始まります。何も失われません。ここから任意のアドレスを戻せ、その Kaspa は合計に含まれたままです。</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">あなたのチャットアドレス</string>
+    <string name="welcome_chatting_address_identity_caption">KaChat でのあなただけの ID です。メッセージはここに届き、.kachat 名とプロフィールもここにあり、送るメッセージはすべてここから支払われます。その動きはすべて Kaspa ネットワーク上で公開され、あなたに結び付きます。</string>
+    <string name="welcome_everything_else">それ以外のすべて</string>
+    <string name="welcome_everything_else_caption">プライバシーを守るため、Kaspa ネットワークでのその他の活動にはほかのアドレスを使いましょう。「Kaspa を受け取る」で新しいアドレスが得られ、「アドレス管理」ですべて確認できます。</string>
 </resources>

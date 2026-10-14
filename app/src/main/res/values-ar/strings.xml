@@ -356,7 +356,6 @@
     <string name="choose_your_language">اختر لغتك</string>
     <string name="select_the_language_youd_like_to">اختر اللغة التي ترغب في استخدامها في KaChat.</string>
     <string name="best">الأفضل</string>
-    <string name="spending_address">عنوان الإنفاق</string>
     <string name="enter_as_host_port_or_grpcs_host">أدخل بصيغة host:port أو grpcs://host</string>
     <string name="receive_kaspa">استلام Kaspa</string>
     <string name="currency">العملة</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">للدردشة مع شخص ما، اضغط إنشاء محادثة وأدخل عنوان Kaspa الخاص به أو اسم ‎.kachat. تصل رسالتك الأولى إليه كطلب رسالة يمكنه قبوله. لأقصى خصوصية، فعّل المحادثة الخاصة: لا شيء يربطكما على السلسلة، وسيرى رسائلك عندما يبدأ هو أيضًا محادثة خاصة معك.</string>
     <string name="welcome_fund_chatting_body">يُنصح بـ 50 Kaspa للبدء - ما يكفي للحصول على اسم ‎.kachat والدردشة لفترة. تكفي 5 Kaspa لنحو 2500 رسالة.</string>
-    <string name="welcome_chatting_address_caption">هويتك في المراسلة. تُدفع منها الرسائل واسم .kachat الخاص بك، وكل إرسال يبدأ منها ما لم تختر عنوانًا آخر.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">الشبكة التجريبية</string>
     <string name="testnet_restart_to_testnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام التبديل إلى الشبكة التجريبية.</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">جارٍ التحقق</string>
     <string name="pr_spending_footer_new">تُدفع إلى عنوان جديد تمامًا لك، يُستخدم لهذا الطلب فقط. تظهر الملاحظة لمن يدفع، لكنها لا تُرسل مع الدفعة.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">عناوينك</string>
-    <string name="welcome_spending_address_caption">عناوين أخرى لك لإرسال Kaspa واستلامها. اختر واحدًا تحت «من» في أي إرسال، أو أنشئ عنوانًا جديدًا في إدارة العناوين.</string>
     <string name="hide_all">إخفاء الكل</string>
     <string name="hide_all_addresses_title">إخفاء كل العناوين؟</string>
     <string name="hide_all_addresses_message">تبدأ إدارة العناوين من جديد بعنوان الدردشة فقط. لا يضيع شيء: أعد أي عنوان من هنا، ويبقى رصيده محسوبًا في الإجمالي.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">عنوان الدردشة الخاص بك</string>
+    <string name="welcome_chatting_address_identity_caption">هويتك على KaChat، وهي لك وحدك. يراسلك الناس عليه، وعليه اسم .kachat وملفك الشخصي، ومنه تُدفع كل رسالة ترسلها. كل ما يفعله علني على شبكة Kaspa ومرتبط بك.</string>
+    <string name="welcome_everything_else">كل ما عدا ذلك</string>
+    <string name="welcome_everything_else_caption">لحماية خصوصيتك، استخدم عناوينك الأخرى لكل نشاط آخر على شبكة Kaspa. يمنحك «استلام Kaspa» عنوانًا جديدًا، و«إدارة العناوين» تعرضها كلها.</string>
 </resources>

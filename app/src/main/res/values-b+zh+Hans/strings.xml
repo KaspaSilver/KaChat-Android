@@ -356,7 +356,6 @@
     <string name="choose_your_language">选择您的语言</string>
     <string name="select_the_language_youd_like_to">选择您想在 KaChat 中使用的语言。</string>
     <string name="best">最佳</string>
-    <string name="spending_address">支出地址</string>
     <string name="enter_as_host_port_or_grpcs_host">请输入 host:port 或 grpcs://host 格式</string>
     <string name="receive_kaspa">接收 Kaspa</string>
     <string name="currency">货币</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">要和某人聊天，点击“创建聊天”，输入对方的 Kaspa 地址或 .kachat 名称。你的第一条消息会作为消息请求送达，对方可以接受。想要最高隐私，请开启私密聊天：链上没有任何东西把你们联系在一起，对方也和你开始私密聊天后就能看到你的消息。</string>
     <string name="welcome_fund_chatting_body">建议先准备 50 Kaspa——足够领取一个 .kachat 名称并聊上一阵子。5 Kaspa 大约可发送 2500 条消息。</string>
-    <string name="welcome_chatting_address_caption">你的消息身份。消息和 .kachat 名称从这里支付，除非你选择其他地址，每次发送都从这里发出。</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">测试网</string>
     <string name="testnet_restart_to_testnet">请完全关闭 KaChat 后重新打开，以完成切换到测试网。</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">正在检查</string>
     <string name="pr_spending_footer_new">付到你的一个全新地址，仅用于此请求。付款人能看到备注，但备注不会随付款发送。</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">你的地址</string>
-    <string name="welcome_spending_address_caption">你用于收发 Kaspa 的其他地址。在任意发送的「发送自」中选择一个，或在「管理地址」中新建。</string>
     <string name="hide_all">全部隐藏</string>
     <string name="hide_all_addresses_title">隐藏所有地址？</string>
     <string name="hide_all_addresses_message">「管理地址」将重新开始，只保留你的聊天地址。不会丢失任何东西：可在此恢复任意地址，其 Kaspa 仍计入总额。</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">你的聊天地址</string>
+    <string name="welcome_chatting_address_identity_caption">你在 KaChat 上独一无二的身份。别人给这个地址发消息，你的 .kachat 名称和资料都在它上面，你发的每条消息也从它支付。它的一切活动在 Kaspa 网络上公开，并与你关联。</string>
+    <string name="welcome_everything_else">其他一切</string>
+    <string name="welcome_everything_else_caption">为保护隐私，在 Kaspa 网络上的其他活动请使用你的其他地址。「接收 Kaspa」会给你一个新地址，「管理地址」列出全部地址。</string>
 </resources>

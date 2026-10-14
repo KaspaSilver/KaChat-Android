@@ -356,7 +356,6 @@
     <string name="choose_your_language">আপনার ভাষা নির্বাচন করুন</string>
     <string name="select_the_language_youd_like_to">KaChat-এ আপনি যে ভাষা ব্যবহার করতে চান তা নির্বাচন করুন।</string>
     <string name="best">সেরা</string>
-    <string name="spending_address">ব্যয়ের ঠিকানা</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port অথবা grpcs://host হিসেবে লিখুন</string>
     <string name="receive_kaspa">Kaspa গ্রহণ করুন</string>
     <string name="currency">মুদ্রা</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">কারও সঙ্গে চ্যাট করতে চ্যাট তৈরি করুন চাপুন এবং তাদের Kaspa ঠিকানা বা .kachat নাম লিখুন। আপনার প্রথম মেসেজ তাদের কাছে মেসেজ অনুরোধ হিসেবে যায়, যা তারা গ্রহণ করতে পারে। সর্বোচ্চ গোপনীয়তার জন্য প্রাইভেট চ্যাট চালু করুন: চেইনে আপনাদের কিছুই যুক্ত করে না, আর তারাও আপনার সঙ্গে প্রাইভেট চ্যাট শুরু করলে আপনার মেসেজ দেখতে পাবে।</string>
     <string name="welcome_fund_chatting_body">শুরু করতে ৫০ Kaspa সুপারিশ করা হয় - একটি .kachat নাম নেওয়া ও কিছুদিন চ্যাট করার জন্য যথেষ্ট। ৫ Kaspa দিয়ে প্রায় ২৫০০ মেসেজ পাঠানো যায়।</string>
-    <string name="welcome_chatting_address_caption">আপনার মেসেজিং পরিচয়। বার্তা ও আপনার .kachat নাম এখান থেকে পরিশোধ হয়, আর অন্য ঠিকানা না বাছলে প্রতিটি পাঠানো এখান থেকেই শুরু হয়।</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">টেস্টনেট</string>
     <string name="testnet_restart_to_testnet">টেস্টনেটে বদল শেষ করতে KaChat পুরোপুরি বন্ধ করে আবার খুলুন।</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">যাচাই হচ্ছে</string>
     <string name="pr_spending_footer_new">আপনার একদম নতুন একটি ঠিকানায় পেমেন্ট হবে, শুধু এই অনুরোধের জন্য। মেমো প্রদানকারী দেখবেন, কিন্তু পেমেন্টের সাথে যাবে না।</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">আপনার ঠিকানাগুলো</string>
-    <string name="welcome_spending_address_caption">Kaspa পাঠানো ও গ্রহণের জন্য আপনার আরও ঠিকানা। যেকোনো পাঠানোয় «থেকে»-তে একটি বাছুন, বা ঠিকানা ব্যবস্থাপনায় নতুন তৈরি করুন।</string>
     <string name="hide_all">সব লুকান</string>
     <string name="hide_all_addresses_title">সব ঠিকানা লুকাবেন?</string>
     <string name="hide_all_addresses_message">ঠিকানা ব্যবস্থাপনা শুধু আপনার চ্যাটিং ঠিকানা দিয়ে নতুন করে শুরু হবে। কিছুই হারাবে না: এখান থেকে যেকোনো ঠিকানা ফিরিয়ে আনুন, আর এর Kaspa আপনার মোটে গণনা হতে থাকবে।</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">আপনার চ্যাটিং ঠিকানা</string>
+    <string name="welcome_chatting_address_identity_caption">KaChat-এ আপনার পরিচয়, শুধু আপনারই। লোকে এতে বার্তা পাঠায়, আপনার .kachat নাম ও প্রোফাইল এতেই থাকে, আর প্রতিটি বার্তা এখান থেকেই পরিশোধ হয়। এর সব কাজ Kaspa নেটওয়ার্কে প্রকাশ্য এবং আপনার সাথে যুক্ত।</string>
+    <string name="welcome_everything_else">বাকি সবকিছু</string>
+    <string name="welcome_everything_else_caption">গোপনীয়তা রক্ষায় Kaspa নেটওয়ার্কের অন্য সব কাজে আপনার অন্য ঠিকানাগুলো ব্যবহার করুন। Kaspa গ্রহণ করুন আপনাকে নতুন একটি দেয়, আর ঠিকানা ব্যবস্থাপনায় সব দেখা যায়।</string>
 </resources>

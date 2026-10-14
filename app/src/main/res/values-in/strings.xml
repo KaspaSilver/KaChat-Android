@@ -250,7 +250,6 @@
     <string name="choose_your_language">Pilih Bahasa Anda</string>
     <string name="select_the_language_youd_like_to">Pilih bahasa yang ingin digunakan di KaChat.</string>
     <string name="best">Terbaik</string>
-    <string name="spending_address">Alamat Pengeluaran</string>
     <string name="receive_kaspa">Terima Kaspa</string>
     <string name="currency">Mata Uang</string>
     <string name="choose_your_currency">Pilih Mata Uang Anda</string>
@@ -483,7 +482,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Untuk mengobrol dengan seseorang, tekan Buat Obrolan dan masukkan alamat Kaspa atau nama .kachat mereka. Pesan pertamamu sampai sebagai Permintaan Pesan yang bisa mereka terima. Untuk privasi maksimal, aktifkan Obrolan Privat: tidak ada yang menghubungkan kalian di chain, dan mereka melihat pesanmu setelah juga memulai obrolan privat denganmu.</string>
     <string name="welcome_fund_chatting_body">Disarankan 50 Kaspa untuk memulai - cukup untuk mengklaim nama .kachat dan mengobrol untuk sementara. 5 Kaspa cukup untuk sekitar 2500 pesan.</string>
-    <string name="welcome_chatting_address_caption">Identitas pesan Anda. Pesan dan nama .kachat Anda dibayar dari sini, dan setiap pengiriman dimulai dari sini kecuali Anda memilih alamat lain.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.</string>
@@ -1157,9 +1155,12 @@
     <string name="pr_checking">Memeriksa</string>
     <string name="pr_spending_footer_new">Dibayar ke alamat Anda yang benar-benar baru, hanya untuk permintaan ini. Catatan terlihat oleh pembayar, tetapi tidak ikut terkirim bersama pembayaran.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">Alamat Anda</string>
-    <string name="welcome_spending_address_caption">Alamat lain milik Anda untuk mengirim dan menerima Kaspa. Pilih salah satu di «Dari» pada pengiriman apa pun, atau buat yang baru di Kelola Alamat.</string>
     <string name="hide_all">Sembunyikan Semua</string>
     <string name="hide_all_addresses_title">Sembunyikan semua alamat?</string>
     <string name="hide_all_addresses_message">Kelola Alamat dimulai ulang hanya dengan alamat obrolan Anda. Tidak ada yang hilang: tampilkan lagi alamat mana pun di sini, dan Kaspa-nya tetap dihitung dalam total Anda.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">Alamat Obrolan Anda</string>
+    <string name="welcome_chatting_address_identity_caption">Identitas Anda di KaChat, hanya milik Anda. Orang mengirim pesan ke sini, nama .kachat dan profil Anda ada di sini, dan setiap pesan Anda dibayar dari sini. Semua aktivitasnya publik di jaringan Kaspa dan terkait dengan Anda.</string>
+    <string name="welcome_everything_else">Selain Itu</string>
+    <string name="welcome_everything_else_caption">Untuk menjaga privasi, gunakan alamat Anda yang lain untuk semua aktivitas lain di jaringan Kaspa. Terima Kaspa memberi Anda alamat baru, dan Kelola Alamat menampilkan semuanya.</string>
 </resources>

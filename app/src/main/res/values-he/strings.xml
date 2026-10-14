@@ -356,7 +356,6 @@
     <string name="choose_your_language">בחר את שפתך</string>
     <string name="select_the_language_youd_like_to">בחר את השפה שבה תרצה להשתמש ב-KaChat.</string>
     <string name="best">הכי טוב</string>
-    <string name="spending_address">כתובת הוצאה</string>
     <string name="enter_as_host_port_or_grpcs_host">הזן בפורמט host:port או grpcs://host</string>
     <string name="receive_kaspa">קבל Kaspa</string>
     <string name="currency">מטבע</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">כדי לשוחח עם מישהו, הקישו צור צ\'אט והזינו את כתובת ה-Kaspa או את שם ה-‎.kachat שלו. ההודעה הראשונה שלכם תגיע אליו כבקשת הודעה שאפשר לאשר. לפרטיות מרבית, הפעילו צ\'אט פרטי: שום דבר לא מקשר ביניכם בשרשרת, והוא יראה את ההודעות כשגם הוא יפתח איתכם צ\'אט פרטי.</string>
     <string name="welcome_fund_chatting_body">מומלץ להתחיל עם 50 Kaspa - מספיק כדי לקבל שם ‎.kachat ולשוחח לזמן מה. 5 Kaspa מספיקים לכ-2500 הודעות.</string>
-    <string name="welcome_chatting_address_caption">זהות ההודעות שלך. ההודעות ושם ה-.kachat שלך משולמים ממנה, וכל שליחה מתחילה ממנה אלא אם תבחרו כתובת אחרת.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">טסטנט</string>
     <string name="testnet_restart_to_testnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את המעבר לטסטנט.</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">בודק</string>
     <string name="pr_spending_footer_new">משולם לכתובת חדשה לגמרי שלך, לבקשה הזו בלבד. המשלם רואה את ההערה, אבל היא לא נשלחת עם התשלום.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">הכתובות שלך</string>
-    <string name="welcome_spending_address_caption">כתובות נוספות שלך לשליחת וקבלת Kaspa. בחרו אחת תחת «מאת» בכל שליחה, או צרו חדשה בניהול כתובות.</string>
     <string name="hide_all">הסתר הכל</string>
     <string name="hide_all_addresses_title">להסתיר את כל הכתובות?</string>
     <string name="hide_all_addresses_message">ניהול כתובות יתחיל מחדש רק עם כתובת הצ׳אט שלך. שום דבר לא אובד: החזירו כל כתובת מכאן, וה-Kaspa שלה ימשיך להיספר בסך הכול.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">כתובת הצ׳אט שלך</string>
+    <string name="welcome_chatting_address_identity_caption">הזהות שלך ב-KaChat, שלך בלבד. אנשים שולחים אליה הודעות, שם ה-.kachat והפרופיל שלך נמצאים עליה, וכל הודעה ששלחת משולמת ממנה. כל מה שהיא עושה ציבורי ברשת Kaspa ומקושר אליך.</string>
+    <string name="welcome_everything_else">כל השאר</string>
+    <string name="welcome_everything_else_caption">כדי להגן על הפרטיות שלך, השתמשו בכתובות האחרות שלכם לכל פעילות אחרת ברשת Kaspa. «קבלת Kaspa» נותנת כתובת חדשה, ו«ניהול כתובות» מציג את כולן.</string>
 </resources>

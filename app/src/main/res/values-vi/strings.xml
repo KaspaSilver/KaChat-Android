@@ -356,7 +356,6 @@
     <string name="choose_your_language">Chon ngon ngu cua ban</string>
     <string name="select_the_language_youd_like_to">Chon ngon ngu ban muon su dung trong KaChat.</string>
     <string name="best">Tot nhat</string>
-    <string name="spending_address">Dia chi chi tieu</string>
     <string name="enter_as_host_port_or_grpcs_host">Nhap dang host:port hoac grpcs://host</string>
     <string name="receive_kaspa">Nhan Kaspa</string>
     <string name="currency">Loai tien te</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Để trò chuyện với ai đó, nhấn Tạo cuộc trò chuyện và nhập địa chỉ Kaspa hoặc tên .kachat của họ. Tin nhắn đầu tiên của bạn đến với họ dưới dạng Yêu cầu nhắn tin để họ chấp nhận. Để riêng tư nhất, bật Trò chuyện riêng tư: không có gì liên kết hai bạn trên chuỗi, và họ sẽ thấy tin nhắn khi cũng bắt đầu trò chuyện riêng tư với bạn.</string>
     <string name="welcome_fund_chatting_body">Nên có 50 Kaspa để bắt đầu - đủ để nhận một tên .kachat và trò chuyện một thời gian. 5 Kaspa đủ cho khoảng 2500 tin nhắn.</string>
-    <string name="welcome_chatting_address_caption">Danh tính nhắn tin của bạn. Tin nhắn và tên .kachat được trả từ đây, và mọi lần gửi đều bắt đầu từ đây trừ khi bạn chọn địa chỉ khác.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Đóng hẳn KaChat rồi mở lại để hoàn tất chuyển sang Testnet.</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">Đang kiểm tra</string>
     <string name="pr_spending_footer_new">Trả vào một địa chỉ hoàn toàn mới của bạn, chỉ dùng cho yêu cầu này. Người trả thấy ghi chú, nhưng ghi chú không đi kèm khoản thanh toán.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">Địa chỉ của bạn</string>
-    <string name="welcome_spending_address_caption">Các địa chỉ khác của bạn để gửi và nhận Kaspa. Chọn một trong mục «Từ» khi gửi, hoặc tạo mới trong Quản lý địa chỉ.</string>
     <string name="hide_all">Ẩn tất cả</string>
     <string name="hide_all_addresses_title">Ẩn tất cả địa chỉ?</string>
     <string name="hide_all_addresses_message">Quản lý địa chỉ bắt đầu lại chỉ với địa chỉ trò chuyện của bạn. Không mất gì: đưa bất kỳ địa chỉ nào trở lại tại đây, và Kaspa của nó vẫn được tính vào tổng.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">Địa chỉ trò chuyện của bạn</string>
+    <string name="welcome_chatting_address_identity_caption">Danh tính của bạn trên KaChat, chỉ của riêng bạn. Mọi người nhắn tin đến đây, tên .kachat và hồ sơ của bạn nằm ở đây, và mọi tin nhắn bạn gửi đều được trả từ đây. Mọi hoạt động của nó đều công khai trên mạng Kaspa và gắn với bạn.</string>
+    <string name="welcome_everything_else">Mọi thứ khác</string>
+    <string name="welcome_everything_else_caption">Để bảo vệ quyền riêng tư, hãy dùng các địa chỉ khác của bạn cho mọi hoạt động khác trên mạng Kaspa. Nhận Kaspa cho bạn một địa chỉ mới, và Quản lý địa chỉ liệt kê tất cả.</string>
 </resources>

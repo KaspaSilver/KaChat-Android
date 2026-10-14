@@ -356,7 +356,6 @@
     <string name="choose_your_language">Dilinizi Secin</string>
     <string name="select_the_language_youd_like_to">KaChat\'te kullanmak istediginiz dili secin.</string>
     <string name="best">En iyi</string>
-    <string name="spending_address">Harcama Adresi</string>
     <string name="enter_as_host_port_or_grpcs_host">host:port veya grpcs://host olarak girin</string>
     <string name="receive_kaspa">Kaspa Al</string>
     <string name="currency">Para Birimi</string>
@@ -588,7 +587,6 @@
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
     <string name="welcome_starting_conversation_body">Biriyle sohbet etmek için Sohbet Oluştur\'a dokun ve Kaspa adresini ya da .kachat adını gir. İlk mesajın ona kabul edebileceği bir Mesaj İsteği olarak ulaşır. En fazla gizlilik için Özel Sohbet\'i aç: zincirde sizi hiçbir şey bağlamaz ve o da seninle özel sohbet başlattığında mesajlarını görür.</string>
     <string name="welcome_fund_chatting_body">Başlamak için 50 Kaspa önerilir - bir .kachat adı almaya ve bir süre sohbet etmeye yeter. 5 Kaspa yaklaşık 2500 mesaja yeter.</string>
-    <string name="welcome_chatting_address_caption">Mesajlaşma kimliğiniz. Mesajlar ve .kachat adınız buradan ödenir ve başka adres seçmedikçe her gönderim buradan başlar.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Testnet\'e geçişi tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
@@ -1285,9 +1283,12 @@
     <string name="pr_checking">Kontrol ediliyor</string>
     <string name="pr_spending_footer_new">Yalnızca bu istek için kullanılan yepyeni bir adresinize ödenir. Notu ödeyen görür, ancak ödemeyle birlikte gitmez.</string>
     <!-- iOS 245a5d2: Your Addresses, Hide All -->
-    <string name="your_addresses">Adresleriniz</string>
-    <string name="welcome_spending_address_caption">Kaspa göndermek ve almak için diğer adresleriniz. Her gönderimde «Gönderen» altında birini seçin ya da Adresleri Yönet\'te yenisini oluşturun.</string>
     <string name="hide_all">Tümünü Gizle</string>
     <string name="hide_all_addresses_title">Tüm adresler gizlensin mi?</string>
     <string name="hide_all_addresses_message">Adresleri Yönet yalnızca sohbet adresinizle yeniden başlar. Hiçbir şey kaybolmaz: herhangi bir adresi buradan geri getirin; Kaspa\'sı toplamınızda sayılmaya devam eder.</string>
+    <!-- Setup guide: Your Chatting Address step -->
+    <string name="welcome_your_chatting_address">Sohbet Adresiniz</string>
+    <string name="welcome_chatting_address_identity_caption">KaChat\'teki kimliğiniz, yalnızca size ait. İnsanlar bu adrese mesaj atar, .kachat adınız ve profiliniz buradadır ve gönderdiğiniz her mesaj buradan ödenir. Yaptığı her şey Kaspa ağında herkese açıktır ve size bağlıdır.</string>
+    <string name="welcome_everything_else">Diğer Her Şey</string>
+    <string name="welcome_everything_else_caption">Gizliliğinizi korumak için Kaspa ağındaki diğer tüm işlemlerde diğer adreslerinizi kullanın. Kaspa Al size yeni bir adres verir, Adresleri Yönet hepsini listeler.</string>
 </resources>
