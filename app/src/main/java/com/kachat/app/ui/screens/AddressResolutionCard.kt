@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +63,13 @@ fun AddressResolutionCard(
     var looking by remember { mutableStateOf(false) }
     // The address the card shows now, for a lookup that finishes after it moved on.
     val current by rememberUpdatedState(shown)
+    // One of this wallet's own addresses: you are sending to yourself (iOS 56f004f).
+    var ownLabel by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(shown) {
+        ownLabel = null
+        if (shown == null) return@LaunchedEffect
+        ownLabel = viewModel.ownAddressLabel(shown)
+    }
 
     // A new address starts clean - never the previous one's avatar or name while it loads - and
     // the spinner always stops, a cancelled lookup included; a late answer for an address the
@@ -112,6 +122,25 @@ fun AddressResolutionCard(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
             )
+            ownLabel?.let { own ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.HowToReg,
+                        contentDescription = null,
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        stringResource(R.string.your_own_address_value, own),
+                        color = KaspaTeal,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
         if (looking) {
             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
@@ -125,7 +154,15 @@ class AddressResolutionViewModel @Inject constructor(
     private val knsService: KnsService,
     private val chatRepository: com.kachat.app.repository.ChatRepository,
     private val nameServices: com.kachat.app.services.NameServicesClient,
+    private val walletManager: com.kachat.app.services.WalletManager,
 ) : ViewModel() {
+
+    /** "Chatting Address", "Address #3" or its name when [address] is one of this wallet's own,
+     *  else null ([com.kachat.app.services.WalletManager.ownAddressLabel], iOS 56f004f). Off the
+     *  main thread: a first call may derive the spending addresses. */
+    suspend fun ownAddressLabel(address: String): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+        runCatching { walletManager.ownAddressLabel(address) }.getOrNull()
+    }
 
     /** What a typed name points to on every service, .kachat first (iOS 6ac48a7) - for a field
      *  that has no model of its own (the Address Book editor). */

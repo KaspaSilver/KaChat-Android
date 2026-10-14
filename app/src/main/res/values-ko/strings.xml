@@ -1316,4 +1316,6 @@
     <string name="kn_send_kas_to_buy_with">이 주소로 구매하려면 이 주소로 KAS를 보내세요.</string>
     <string name="kn_choose_market_address">마켓에서 구매에 쓸 주소 선택</string>
     <string name="kn_buy_from_note">여기서의 등록, 구매, 제안은 이 주소에서 결제되며, 등록하거나 구매한 이름은 이 주소에 속합니다. 이름을 채팅 주소와 분리해 두려면 새 주소를 사용하세요.</string>
+    <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
+    <string name="your_own_address_value">내 주소: %1$s</string>
 </resources>

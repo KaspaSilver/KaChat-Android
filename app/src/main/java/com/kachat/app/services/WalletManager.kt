@@ -970,6 +970,38 @@ class WalletManager @Inject constructor(
     }
 
     /**
+     * Which of this wallet's own addresses [address] is: "Chatting Address", or a spending
+     * address's name ("Address #3", or the name the person gave it). Null for anyone else's.
+     * The address-to-index map is built once per account and address count, hidden addresses
+     * included, from the derivation cache ([deriveSpendingAddresses]); iOS 56f004f
+     * `ownAddressLabel(for:)`. Derives on a miss, so call it off the main thread.
+     */
+    fun ownAddressLabel(address: String): String? {
+        val target = address.trim().lowercase()
+        if (target.isEmpty()) return null
+        val account = getActiveAccount() ?: return null
+        val wallet = account.address.lowercase()
+        if (target == wallet) return context.getString(com.kachat.app.R.string.chatting_address)
+        val maxIndex = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        val key = "$wallet|$maxIndex"
+        val cached = ownAddressIndexCache
+        val map = if (cached != null && cached.first == key) {
+            cached.second
+        } else {
+            val built = deriveSpendingAddresses(0..maxIndex).entries.associate { (index, spending) -> spending.lowercase() to index }
+            // a failed derivation isn't remembered: the next call tries again
+            if (built.isNotEmpty()) ownAddressIndexCache = key to built
+            built
+        }
+        val index = map[target] ?: return null
+        val named = getSpendingAddressLabels(account.address)[index]?.trim().orEmpty()
+        return named.ifEmpty { "Address #$index" }
+    }
+
+    /** [ownAddressLabel]'s address-to-index map, keyed by "wallet|highest index". */
+    @Volatile private var ownAddressIndexCache: Pair<String, Map<String, Int>>? = null
+
+    /**
      * Addresses for an arbitrary set of indices, derived with ONE seed computation.
      *
      * [deriveSpendingAddress] is the single-lookup form and redoes the BIP-39 seed derivation

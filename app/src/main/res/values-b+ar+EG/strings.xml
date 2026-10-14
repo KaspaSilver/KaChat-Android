@@ -1316,4 +1316,6 @@
     <string name="kn_send_kas_to_buy_with">أرسل KAS إلى هذا العنوان للشراء به.</string>
     <string name="kn_choose_market_address">اختر العنوان الذي يشتري به السوق</string>
     <string name="kn_buy_from_note">تُدفع المطالبات والمشتريات والعروض هنا من هذا العنوان، وتعود ملكية الأسماء التي تطالب بها أو تشتريها إليه. استخدم عنوانًا جديدًا لإبقاء الاسم منفصلًا عن عنوان الدردشة الخاص بك.</string>
+    <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
+    <string name="your_own_address_value">عنوانك أنت: %1$s</string>
 </resources>

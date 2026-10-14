@@ -1188,4 +1188,6 @@
     <string name="kn_send_kas_to_buy_with">Kirim KAS ke alamat ini untuk membeli dengannya.</string>
     <string name="kn_choose_market_address">Pilih alamat yang dipakai pasar untuk membeli</string>
     <string name="kn_buy_from_note">Klaim, pembelian, dan penawaran di sini dibayar dari alamat ini, dan nama yang Anda klaim atau beli menjadi miliknya. Gunakan alamat baru agar nama terpisah dari alamat chat Anda.</string>
+    <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
+    <string name="your_own_address_value">Alamat Anda sendiri: %1$s</string>
 </resources>

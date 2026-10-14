@@ -1316,4 +1316,6 @@
     <string name="kn_send_kas_to_buy_with">এটি দিয়ে কিনতে এই ঠিকানায় KAS পাঠান।</string>
     <string name="kn_choose_market_address">মার্কেটপ্লেস যে ঠিকানা দিয়ে কেনে তা বেছে নিন</string>
     <string name="kn_buy_from_note">এখানে দাবি, কেনাকাটা ও অফারের অর্থ এই ঠিকানা থেকে দেওয়া হয়, এবং আপনি যে নাম দাবি করেন বা কেনেন তা এই ঠিকানার হয়। কোনো নামকে আপনার চ্যাটিং ঠিকানা থেকে আলাদা রাখতে একটি নতুন ঠিকানা ব্যবহার করুন।</string>
+    <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
+    <string name="your_own_address_value">আপনার নিজের ঠিকানা: %1$s</string>
 </resources>
