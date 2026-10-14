@@ -150,6 +150,7 @@ private fun dockOwnerRoute(route: String?): String? = when (route) {
     "chess_mode/{mode}", "chess_tournament/{tournamentId}" -> Screen.Chess.route
     "broadcast_channel/{channelName}" -> Screen.Broadcasts.route
     "cold_storage_detail/{accountId}", "cold_storage_tx_history/{address}" -> Screen.ColdStorage.route
+    "help" -> Screen.Profile.route
     Screen.Chess.route, Screen.Broadcasts.route, Screen.KaPosts.route, Screen.Portfolio.route,
     Screen.Swap.route, Screen.ColdStorage.route, Screen.KaspaWebsites.route,
     Screen.KachatNames.route, Screen.KachatStats.route, Screen.AddressBook.route,
@@ -460,7 +461,9 @@ fun MainShell(
             // one place that takes the whole screen (and the waiting room covers everything on
             // its own). Browsing rooms is browsing, one tap from anywhere else.
             dest.route == "chess_mode/{mode}" ||
-            dest.route == "chess_tournament/{tournamentId}"
+            dest.route == "chess_tournament/{tournamentId}" ||
+            // Help is pushed inside the Profile tab on iOS (ProfileHelpView): its tab bar stays.
+            dest.route == "help"
     } == true
 
     // The dock renders straight from the persisted arrangement (WalletViewModel.tabOrder, via
@@ -1618,12 +1621,14 @@ fun MainShell(
             }
 
             composable("help") {
-                @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-                HelpScreen(
-                    onBack = { navController.popBackStack() },
-                    onWelcomeGuide = { navController.navigate("welcome_guide") },
-                    onKnsGuide = { navController.navigate("kachat_setup_guide") }
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+                    HelpScreen(
+                        onBack = { navController.popBackStack() },
+                        onWelcomeGuide = { navController.navigate("welcome_guide") },
+                        onKnsGuide = { navController.navigate("kachat_setup_guide") }
+                    )
+                }
             }
 
             composable("kaspa_apps") {

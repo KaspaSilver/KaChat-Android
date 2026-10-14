@@ -227,23 +227,16 @@ fun HelpScreen(
     val colors = LocalAppColors.current
     androidx.compose.material3.Scaffold(
         containerColor = colors.background,
-        topBar = {
-            androidx.compose.material3.CenterAlignedTopAppBar(
-                title = { Text("Help", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
-            )
-        },
+        // A large title, pushed inside the Profile tab (iOS ProfileHelpView,
+        // `.navigationBarTitleDisplayMode(.large)`): the dock stays, like KaChat Bots.
+        topBar = { MainPageHeader(title = androidx.compose.ui.res.stringResource(com.kachat.app.R.string.help), onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp)
+                .padding(top = 12.dp),
         ) {
             androidx.compose.material3.Surface(
                 color = colors.surface,
@@ -279,13 +272,16 @@ private fun HelpRow(icon: ImageVector, label: String, subtitle: String, onClick:
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
-        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.padding(start = 16.dp))
-        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-            Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-            Text(subtitle, color = colors.textSecondary, fontSize = 13.sp)
+        // iOS helpRow: a 20pt icon in a 30pt frame, 14pt apart; subheadline semibold over caption.
+        Box(Modifier.width(30.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(subtitle, color = colors.textSecondary, fontSize = 12.sp)
         }
         Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = colors.textSecondary, modifier = Modifier.size(24.dp))
     }
