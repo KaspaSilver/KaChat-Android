@@ -4615,8 +4615,20 @@ fun KachatProfileSaveSheet(
     val chattingBalanceKnown by vm.wallet.balanceKnown.collectAsState()
     val currentMakeProfile by rememberUpdatedState(makeProfile)
     val none = stringResource(R.string.kn_none)
+    /** The "not enough funds" popup: the chatting address's QR to fund it (iOS 2b45d6e). */
+    var showFunding by remember { mutableStateOf(false) }
+    /** Bumped to work the fee out again (iOS `Task { await quote() }`). */
+    var quoteTick by remember { mutableIntStateOf(0) }
+    val notEnoughFundsMessage = KaspaUnit.label(stringResource(R.string.kn_not_enough_funds_send_1_kas))
 
-    LaunchedEffect(Unit) {
+    /** The save can't be paid: the chatting address has no spendable coin, or too little for the
+     *  fee (iOS `isShortOfFunds`: an "insufficient" error, or a known balance of zero). */
+    fun isShortOfFunds(e: Throwable): Boolean {
+        if (e.message?.contains("insufficient", ignoreCase = true) == true) return true
+        return vm.wallet.balanceKnown.value && vm.wallet.balance.value == 0L
+    }
+
+    LaunchedEffect(quoteTick) {
         val p = currentMakeProfile()
         profile = p
         try {
@@ -4624,7 +4636,12 @@ fun KachatProfileSaveSheet(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            quoteError = context.kachatErrorText(e)
+            if (isShortOfFunds(e)) {
+                quoteError = notEnoughFundsMessage
+                showFunding = true
+            } else {
+                quoteError = context.kachatErrorText(e)
+            }
         }
     }
 
@@ -4646,7 +4663,12 @@ fun KachatProfileSaveSheet(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    sendError = context.kachatErrorText(e)
+                    if (isShortOfFunds(e)) {
+                        sendError = notEnoughFundsMessage
+                        showFunding = true
+                    } else {
+                        sendError = context.kachatErrorText(e)
+                    }
                 }
                 sending = false
             }
@@ -4697,7 +4719,41 @@ fun KachatProfileSaveSheet(
     // Closing the finished-transaction sheet closes this sheet, and then the caller's (iOS
     // onDismiss: dismiss(); onSaved()).
     done?.let { KachatTxDoneSheet(it, onDismiss = { done = null; onClose(); onSaved() }, vm = vm) }
+
+    // Closes by itself once 1 KAS has arrived; either way the fee is worked out again (iOS
+    // 2b45d6e: ZeroBalanceFundingSheetView with dismissAtSompi 1 KAS).
+    if (showFunding) {
+        val reQuote: () -> Unit = {
+            showFunding = false
+            quoteError = null
+            sendError = null
+            fee = null
+            quoteTick++
+        }
+        LaunchedEffect(Unit) {
+            // nothing else pushes a balance update while the popup is up (see
+            // rememberZeroBalanceFundingGate): fetch now, then every 10 s
+            while (true) {
+                vm.wallet.refreshBalance()
+                delay(10_000)
+            }
+        }
+        // iOS onChange: a change of the balance, not the one it opens with
+        LaunchedEffect(Unit) {
+            vm.wallet.balance.drop(1).collect { balance ->
+                if (vm.wallet.balanceKnown.value && balance >= FUNDED_SOMPI) reQuote()
+            }
+        }
+        ZeroBalanceFundingDialog(
+            walletAddress = vm.actions.myAddress,
+            onDismiss = reQuote,
+            title = notEnoughFundsMessage,
+        )
+    }
 }
+
+/** The balance at which the profile save's "not enough funds" popup closes itself: 1 KAS. */
+private const val FUNDED_SOMPI = 100_000_000L
 
 /** iOS `@AppStorage("kachat_profile_privacy_seen")`: the first save says profiles are public. */
 private const val PRIVACY_SEEN_KEY = "kachat_profile_privacy_seen"

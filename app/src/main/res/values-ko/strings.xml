@@ -1305,4 +1305,6 @@
     <string name="kn_locked_receipt_note">%1$s이(가) 이 이름과 함께 잠겨 있습니다. 이름을 놓으면 돌아옵니다.</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">결제를 받았습니다</string>
+    <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
+    <string name="kn_not_enough_funds_send_1_kas">잔액이 부족합니다. 채팅 주소로 최소 1 KAS를 보내 주세요.</string>
 </resources>

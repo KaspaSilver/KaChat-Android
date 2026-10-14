@@ -1305,4 +1305,6 @@
     <string name="kn_locked_receipt_note">%1$s sont bloqués avec ce nom. Ils vous reviennent quand vous le libérez.</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">Paiement reçu</string>
+    <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
+    <string name="kn_not_enough_funds_send_1_kas">Vous n\'avez pas assez de fonds. Envoyez au moins 1 KAS à votre adresse de discussion.</string>
 </resources>

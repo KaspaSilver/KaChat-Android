@@ -101,9 +101,10 @@ fun Modifier.zeroBalanceComposerGate(active: Boolean): Modifier =
 
 /** The funding-gate card itself: title, a QR of the chatting address on a
  *  white plate (contrast + quiet zone is what makes it scannable regardless of theme — same
- *  reasoning as QrCodeOverlay), the address in monospace, and a copy button. */
+ *  reasoning as QrCodeOverlay), the address in monospace, and a copy button. [title] is the
+ *  headline; null = "Fund your chatting address to start chatting" (iOS 2b45d6e). */
 @Composable
-fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier) {
+fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier, title: String? = null) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     Surface(
@@ -119,7 +120,7 @@ fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "Fund your chatting address to start chatting",
+                title ?: "Fund your chatting address to start chatting",
                 color = LocalAppColors.current.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
@@ -164,10 +165,11 @@ fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier
 }
 
 /** [ZeroBalanceFundingCard] as a standalone dialog — KaPosts shows this instead of opening the
- *  post/reply composer while the gate is active (there's no persistent composer to dim there). */
+ *  post/reply composer while the gate is active (there's no persistent composer to dim there).
+ *  Also the "not enough funds" popup of a profile save, with its own [title] (iOS 2b45d6e). */
 @Composable
-fun ZeroBalanceFundingDialog(walletAddress: String?, onDismiss: () -> Unit) {
+fun ZeroBalanceFundingDialog(walletAddress: String?, onDismiss: () -> Unit, title: String? = null) {
     Dialog(onDismissRequest = onDismiss) {
-        ZeroBalanceFundingCard(walletAddress = walletAddress, modifier = Modifier.fillMaxWidth())
+        ZeroBalanceFundingCard(walletAddress = walletAddress, modifier = Modifier.fillMaxWidth(), title = title)
     }
 }

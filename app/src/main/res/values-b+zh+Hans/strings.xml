@@ -1305,4 +1305,6 @@
     <string name="kn_locked_receipt_note">%1$s 已随此名称锁定。释放名称时会退还给你。</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">收到付款</string>
+    <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
+    <string name="kn_not_enough_funds_send_1_kas">你的余额不足。请向你的聊天地址发送至少 1 KAS。</string>
 </resources>
