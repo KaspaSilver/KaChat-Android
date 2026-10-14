@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">קבלו את שם ה-‎.kachat שלכם</string>
     <string name="kg_claim_body">זה השם שבו רואים אתכם בכל KaChat - בצ\'אטים, בפוסטים ובקישור לפרופיל. בלעדיו רואים את הכתובת שלכם.</string>
-    <string name="kg_avatar_title">הוסיפו תמונת פרופיל</string>
-    <string name="kg_avatar_body">האווטאר שלכם מופיע ליד השם שלכם בכל מקום ב-KaChat.</string>
-    <string name="kg_banner_title">הוסיפו באנר</string>
-    <string name="kg_banner_body">תמונה רחבה בראש הפרופיל שלכם.</string>
-    <string name="kg_details_title">ספרו על עצמכם</string>
-    <string name="kg_details_body">ביוגרפיה קצרה והקישורים שלכם. הכול אופציונלי.</string>
-    <string name="kg_done_title">זו כל ההגדרה</string>
-    <string name="kg_done_body">שמות ‎.kachat מגיעים בקרוב. כשהם יושקו, המדריך הזה יקבל את השם שלכם וישמור את הפרופיל בבת אחת.</string>
-    <string name="kg_setup_footer">קבלו את שם ה-‎.kachat שלכם והגדירו אווטאר, באנר ופרטים שלב אחר שלב.</string>
-    <string name="kg_help_title">מדריך הגדרת פרופיל ‎.kachat</string>
-    <string name="kg_help_body">קבלו את שם ה-‎.kachat שלכם והגדירו אווטאר, באנר וביוגרפיה שלב אחר שלב.</string>
     <string name="kg_welcome_body">הסיור המלא להתחלה: ארנק, צ\'אטים, תשלומים ועוד.</string>
     <string name="kg_previous">הקודם</string>
-    <string name="kg_choose_photo">בחר תמונה</string>
     <string name="kg_setup_guide">מדריך הגדרה</string>
     <string name="kg_close">סגור</string>
     <string name="kg_next">הבא</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud כבוי כל עוד רשת הבדיקה פועלת.</string>
     <string name="nextcloud_off_on_testnet_footer">גיבויים, סנכרון, מדיה ושיחות דרך Nextcloud פועלים רק ברשת הראשית, כך שרשת הבדיקה לעולם לא תדרוס את הגיבוי של הרשת הראשית. כבה את רשת הבדיקה בהגדרות > חיבור והחיבור ל-Nextcloud יחזור כפי שהיה.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">ב-Testnet אפשר לקבל שם ב-Kaspa Hub > .kachat.</string>
     <string name="kn_live_testnet_registry">פעיל ב-Testnet (רישום testnet-10)</string>
     <string name="kn_ev_transferred">הועבר</string>
     <string name="kn_ev_delisted">הוסר מהמכירה</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">הזהות שלך ב-KaChat, שלך בלבד. אנשים שולחים אליה הודעות, שם ה-.kachat והפרופיל שלך נמצאים עליה, וכל הודעה ששלחת משולמת ממנה. כל מה שהיא עושה ציבורי ברשת Kaspa ומקושר אליך.</string>
     <string name="welcome_everything_else">כל השאר</string>
     <string name="welcome_everything_else_caption">כדי להגן על הפרטיות שלך, השתמשו בכתובות האחרות שלכם לכל פעילות אחרת ברשת Kaspa. «קבלת Kaspa» נותנת כתובת חדשה, ו«ניהול כתובות» מציג את כולן.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">חפשו את השם שאתם רוצים במרכז Kaspa &gt; .kachat ותבעו אותו.</string>
+    <string name="kg_how_title">איך שם עובד</string>
+    <string name="kg_how_body">השם שלך נמצא ברשת Kaspa ומוחזק על ידי כתובת הצ׳אט שלך. כל עוד הוא שלך, אף אחד לא יכול לקחת או לשנות אותו.</string>
+    <string name="kg_how_commit">תביעה דורשת שתי עסקאות מהירות: הראשונה שומרת את הבחירה בסוד, השנייה רושמת אותו.</string>
+    <string name="kg_how_period">משלמים על תקופה אחת בכל פעם. שמות קצרים יקרים יותר.</string>
+    <string name="kg_how_miners">המחיר הולך לכורי הרשת, לא ל-KaChat.</string>
+    <string name="kg_use_title">הפכו אותו לשם שלכם</string>
+    <string name="kg_use_body">הגדירו אותו כשם הראשי וכך תופיעו בכל מקום ב-KaChat.</string>
+    <string name="kg_use_find">אנשים יכולים למצוא אתכם ולשלוח לכם הודעה בהקלדת השם.</string>
+    <string name="kg_use_pay">הם יכולים לשלוח Kaspa ל-yourname.kachat במקום לכתובת ארוכה.</string>
+    <string name="kg_use_link">קישור הפרופיל שלך מציג את השם.</string>
+    <string name="kg_keep_title">שמרו עליו</string>
+    <string name="kg_keep_body">השמות שלכם נמצאים בפרופיל &gt; הדומיינים שלך &gt; .kachat.</string>
+    <string name="kg_keep_renew">חדשו לפני שיפוג. התאריך מופיע על כל שם.</string>
+    <string name="kg_keep_grace">אחרי שפג יש תקופת חסד לחידוש לפני שמישהו אחר יוכל לתבוע אותו.</string>
+    <string name="kg_keep_transfer">אפשר להעביר אותו, להציע אותו למכירה או לקבל הצעה עליו.</string>
+    <string name="kg_finished_title">הכול מוכן</string>
+    <string name="kg_finished_body">תבעו את השם במרכז Kaspa &gt; .kachat מתי שתרצו.</string>
+    <string name="kg_names_help_title">מדריך שמות .kachat</string>
+    <string name="kg_names_help_body">תבעו שם .kachat, הפכו אותו לשמכם ושמרו עליו.</string>
+    <string name="kg_names_setup_footer">שלב אחר שלב: תביעת שם .kachat והפיכתו לשלכם.</string>
 </resources>

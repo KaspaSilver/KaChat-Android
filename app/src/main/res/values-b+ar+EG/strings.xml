@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">احصل على اسم ‎.kachat الخاص بك</string>
     <string name="kg_claim_body">هو الاسم الذي يراك به الناس في كل KaChat - في المحادثات وعلى المنشورات وفي رابط ملفك الشخصي. بدونه يرى الناس عنوانك.</string>
-    <string name="kg_avatar_title">أضف صورة للملف الشخصي</string>
-    <string name="kg_avatar_body">تظهر صورتك الرمزية بجانب اسمك في كل مكان في KaChat.</string>
-    <string name="kg_banner_title">أضف لافتة</string>
-    <string name="kg_banner_body">صورة عريضة أعلى ملفك الشخصي.</string>
-    <string name="kg_details_title">عرّف الناس بنفسك</string>
-    <string name="kg_details_body">نبذة قصيرة وروابطك. كل ذلك اختياري.</string>
-    <string name="kg_done_title">هذا كل الإعداد</string>
-    <string name="kg_done_body">أسماء ‎.kachat قادمة قريبًا. عند إطلاقها، يحصل لك هذا الدليل على اسمك ويحفظ ملفك الشخصي دفعة واحدة.</string>
-    <string name="kg_setup_footer">احصل على اسم ‎.kachat وأعدّ صورتك الرمزية واللافتة والتفاصيل خطوة بخطوة.</string>
-    <string name="kg_help_title">دليل إعداد ملف ‎.kachat</string>
-    <string name="kg_help_body">احصل على اسم ‎.kachat وأعدّ صورتك الرمزية واللافتة والنبذة خطوة بخطوة.</string>
     <string name="kg_welcome_body">الجولة الكاملة للبداية: المحفظة والمحادثات والمدفوعات والمزيد.</string>
     <string name="kg_previous">السابق</string>
-    <string name="kg_choose_photo">اختيار صورة</string>
     <string name="kg_setup_guide">دليل الإعداد</string>
     <string name="kg_close">إغلاق</string>
     <string name="kg_next">التالي</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud مقفول طول ما الشبكة التجريبية شغالة.</string>
     <string name="nextcloud_off_on_testnet_footer">النسخ الاحتياطي والمزامنة والوسائط والمكالمات عن طريق Nextcloud بتشتغل على الشبكة الرئيسية بس، علشان الشبكة التجريبية متكتبش أبدًا فوق نسختك الاحتياطية. اقفل الشبكة التجريبية من الإعدادات > الاتصال واتصال Nextcloud هيرجع زي ما كان.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">على الشبكة التجريبية، احصل على اسم من Kaspa Hub > .kachat.</string>
     <string name="kn_live_testnet_registry">مفعّل على الشبكة التجريبية (سجل testnet-10)</string>
     <string name="kn_ev_transferred">تم النقل</string>
     <string name="kn_ev_delisted">أُزيل من البيع</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">هويتك على KaChat، وهي لك وحدك. يراسلك الناس عليه، وعليه اسم .kachat وملفك الشخصي، ومنه تُدفع كل رسالة ترسلها. كل ما يفعله علني على شبكة Kaspa ومرتبط بك.</string>
     <string name="welcome_everything_else">كل ما عدا ذلك</string>
     <string name="welcome_everything_else_caption">لحماية خصوصيتك، استخدم عناوينك الأخرى لكل نشاط آخر على شبكة Kaspa. يمنحك «استلام Kaspa» عنوانًا جديدًا، و«إدارة العناوين» تعرضها كلها.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">ابحث عن الاسم الذي تريده في مركز Kaspa &gt; .kachat، ثم احجزه.</string>
+    <string name="kg_how_title">كيف يعمل الاسم</string>
+    <string name="kg_how_body">اسمك موجود على شبكة Kaspa، ويحتفظ به عنوان الدردشة الخاص بك. لا يمكن لأحد أخذه أو تغييره ما دام لك.</string>
+    <string name="kg_how_commit">الحجز يتم بمعاملتين سريعتين: الأولى تُبقي اختيارك سرًا، والثانية تسجّله.</string>
+    <string name="kg_how_period">تدفع فترة واحدة في كل مرة. الأسماء الأقصر أغلى.</string>
+    <string name="kg_how_miners">السعر يذهب إلى معدّني الشبكة، لا إلى KaChat.</string>
+    <string name="kg_use_title">اجعله اسمك</string>
+    <string name="kg_use_body">عيّنه اسمًا أساسيًا وسيظهر به اسمك في كل مكان في KaChat.</string>
+    <string name="kg_use_find">يمكن للناس العثور عليك ومراسلتك بكتابة اسمك.</string>
+    <string name="kg_use_pay">يمكنهم إرسال Kaspa إلى yourname.kachat بدل عنوان طويل.</string>
+    <string name="kg_use_link">رابط ملفك الشخصي يُظهر اسمك.</string>
+    <string name="kg_keep_title">احتفظ به</string>
+    <string name="kg_keep_body">أسماؤك في الملف الشخصي &gt; نطاقاتك &gt; .kachat.</string>
+    <string name="kg_keep_renew">جدّده قبل أن ينتهي. يظهر الموعد على كل اسم.</string>
+    <string name="kg_keep_grace">بعد انتهائه توجد فترة سماح لتجديده قبل أن يحجزه أي شخص آخر.</string>
+    <string name="kg_keep_transfer">يمكنك نقله أو عرضه للبيع أو قبول عرض عليه.</string>
+    <string name="kg_finished_title">أنت جاهز</string>
+    <string name="kg_finished_body">احجز اسمك في مركز Kaspa &gt; .kachat متى شئت.</string>
+    <string name="kg_names_help_title">دليل أسماء .kachat</string>
+    <string name="kg_names_help_body">احجز اسم .kachat واجعله اسمك واحتفظ به.</string>
+    <string name="kg_names_setup_footer">تعرّف خطوة بخطوة على حجز اسم .kachat وجعله اسمك.</string>
 </resources>

@@ -651,20 +651,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Claim your .kachat name</string>
     <string name="kg_claim_body">It\'s the name people see you as across KaChat - in chats, on posts and on your profile link. Without one, people see your address.</string>
-    <string name="kg_avatar_title">Add a profile photo</string>
-    <string name="kg_avatar_body">Your avatar shows next to your name everywhere in KaChat.</string>
-    <string name="kg_banner_title">Add a banner</string>
-    <string name="kg_banner_body">A wide image across the top of your profile.</string>
-    <string name="kg_details_title">Tell people about you</string>
-    <string name="kg_details_body">A short bio and your links. All of it is optional.</string>
-    <string name="kg_done_title">That\'s the whole setup</string>
-    <string name="kg_done_body">.kachat names are coming soon. When they launch, this guide claims your name and saves your profile in one go.</string>
-    <string name="kg_setup_footer">Walk through claiming your .kachat name and setting up your avatar, banner and details step by step.</string>
-    <string name="kg_help_title">.kachat Profile Setup Guide</string>
-    <string name="kg_help_body">Claim your .kachat name and set up your avatar, banner and bio step by step.</string>
     <string name="kg_welcome_body">The full first-run tour: wallet, chats, payments and more.</string>
     <string name="kg_previous">Previous</string>
-    <string name="kg_choose_photo">Choose Photo</string>
     <string name="kg_setup_guide">Setup Guide</string>
     <string name="kg_close">Close</string>
     <string name="kg_next">Next</string>
@@ -770,7 +758,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud is off while Testnet is on.</string>
     <string name="nextcloud_off_on_testnet_footer">Backups, sync, media and calls through Nextcloud work on mainnet only, so testnet can never overwrite your mainnet backup. Turn off Testnet in Settings > Connection and your Nextcloud connection comes back as it was.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">On Testnet, claim one in Kaspa Hub > .kachat.</string>
     <string name="kn_live_testnet_registry">Live on Testnet (testnet-10 registry)</string>
     <string name="kn_ev_transferred">Transferred</string>
     <string name="kn_ev_delisted">Delisted</string>
@@ -1492,4 +1479,26 @@
     <string name="welcome_chatting_address_identity_caption">Your identity on KaChat, and yours alone. People message it, your .kachat name and profile live on it, and every message you send is paid from it. Everything it does is public on the Kaspa network and tied to you.</string>
     <string name="welcome_everything_else">Everything Else</string>
     <string name="welcome_everything_else_caption">To protect your privacy, use your other addresses for all other activity on the Kaspa network. Receive Kaspa gives you a fresh one, and Manage Addresses lists them all.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">Search for the name you want in Kaspa Hub &gt; .kachat, then claim it.</string>
+    <string name="kg_how_title">How a name works</string>
+    <string name="kg_how_body">Your name lives on the Kaspa network, held by your chatting address. Nobody can take it or change it while it\'s yours.</string>
+    <string name="kg_how_commit">Claiming takes two quick transactions: the first keeps your pick secret, the second registers it.</string>
+    <string name="kg_how_period">You pay for one period at a time. Shorter names cost more.</string>
+    <string name="kg_how_miners">The price goes to the network\'s miners, not to KaChat.</string>
+    <string name="kg_use_title">Make it your name</string>
+    <string name="kg_use_body">Set it as your primary name and it\'s how you appear everywhere in KaChat.</string>
+    <string name="kg_use_find">People can find you and message you by typing your name.</string>
+    <string name="kg_use_pay">They can send you Kaspa to yourname.kachat instead of a long address.</string>
+    <string name="kg_use_link">Your profile link shows your name.</string>
+    <string name="kg_keep_title">Keep it</string>
+    <string name="kg_keep_body">Your names are in Profile &gt; Your Domains &gt; .kachat.</string>
+    <string name="kg_keep_renew">Renew before it expires. It shows when, on each name.</string>
+    <string name="kg_keep_grace">After it expires there\'s a grace period to renew it before anyone else can claim it.</string>
+    <string name="kg_keep_transfer">You can transfer it, list it for sale, or accept an offer for it.</string>
+    <string name="kg_finished_title">You\'re all set</string>
+    <string name="kg_finished_body">Claim your name in Kaspa Hub &gt; .kachat whenever you\'re ready.</string>
+    <string name="kg_names_help_title">.kachat Names Guide</string>
+    <string name="kg_names_help_body">Claim a .kachat name, make it your name, and keep it.</string>
+    <string name="kg_names_setup_footer">Walk through claiming your .kachat name and making it yours.</string>
 </resources>

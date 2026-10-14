@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">领取你的 .kachat 名称</string>
     <string name="kg_claim_body">这是你在 KaChat 各处显示的名字——聊天、帖子和个人资料链接中都会用到。没有名称时，别人看到的是你的地址。</string>
-    <string name="kg_avatar_title">添加头像</string>
-    <string name="kg_avatar_body">你的头像会在 KaChat 各处显示在名字旁边。</string>
-    <string name="kg_banner_title">添加横幅</string>
-    <string name="kg_banner_body">显示在个人资料顶部的宽幅图片。</string>
-    <string name="kg_details_title">介绍一下你自己</string>
-    <string name="kg_details_body">简短的简介和你的链接，全部可选。</string>
-    <string name="kg_done_title">设置就这些</string>
-    <string name="kg_done_body">.kachat 名称即将推出。上线后，本指南会一次性领取你的名称并保存你的资料。</string>
-    <string name="kg_setup_footer">逐步领取你的 .kachat 名称，并设置头像、横幅和详细信息。</string>
-    <string name="kg_help_title">.kachat 资料设置指南</string>
-    <string name="kg_help_body">领取你的 .kachat 名称，并逐步设置头像、横幅和简介。</string>
     <string name="kg_welcome_body">完整的新手导览：钱包、聊天、付款等。</string>
     <string name="kg_previous">上一步</string>
-    <string name="kg_choose_photo">选择照片</string>
     <string name="kg_setup_guide">设置指南</string>
     <string name="kg_close">关闭</string>
     <string name="kg_next">下一步</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">测试网开启时，Nextcloud 处于关闭状态。</string>
     <string name="nextcloud_off_on_testnet_footer">通过 Nextcloud 的备份、同步、媒体和通话仅在主网可用，因此测试网绝不会覆盖你的主网备份。在“设置 > 连接”中关闭测试网，Nextcloud 连接就会恢复原样。</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">在测试网上，可在 Kaspa Hub > .kachat 领取一个。</string>
     <string name="kn_live_testnet_registry">已在测试网上线（testnet-10 注册表）</string>
     <string name="kn_ev_transferred">已转让</string>
     <string name="kn_ev_delisted">已下架</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">你在 KaChat 上独一无二的身份。别人给这个地址发消息，你的 .kachat 名称和资料都在它上面，你发的每条消息也从它支付。它的一切活动在 Kaspa 网络上公开，并与你关联。</string>
     <string name="welcome_everything_else">其他一切</string>
     <string name="welcome_everything_else_caption">为保护隐私，在 Kaspa 网络上的其他活动请使用你的其他地址。「接收 Kaspa」会给你一个新地址，「管理地址」列出全部地址。</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">在 Kaspa 中心 &gt; .kachat 搜索你想要的名称，然后认领。</string>
+    <string name="kg_how_title">名称如何运作</string>
+    <string name="kg_how_body">你的名称存在于 Kaspa 网络上，由你的聊天地址持有。只要归你所有，谁也不能拿走或更改。</string>
+    <string name="kg_how_commit">认领需要两笔很快的交易：第一笔为你的选择保密，第二笔完成注册。</string>
+    <string name="kg_how_period">每次支付一个周期。越短的名称越贵。</string>
+    <string name="kg_how_miners">费用付给网络矿工，而不是 KaChat。</string>
+    <string name="kg_use_title">让它成为你的名字</string>
+    <string name="kg_use_body">设为主名称后，你在 KaChat 各处都以它显示。</string>
+    <string name="kg_use_find">别人输入你的名称就能找到你并给你发消息。</string>
+    <string name="kg_use_pay">他们可以把 Kaspa 发到 yourname.kachat，而不是一长串地址。</string>
+    <string name="kg_use_link">你的个人资料链接显示你的名称。</string>
+    <string name="kg_keep_title">保留它</string>
+    <string name="kg_keep_body">你的名称在 个人资料 &gt; 你的域名 &gt; .kachat。</string>
+    <string name="kg_keep_renew">请在到期前续期。每个名称都会显示到期时间。</string>
+    <string name="kg_keep_grace">到期后还有宽限期，在他人能认领前你仍可续期。</string>
+    <string name="kg_keep_transfer">你可以转让它、挂牌出售，或接受报价。</string>
+    <string name="kg_finished_title">一切就绪</string>
+    <string name="kg_finished_body">准备好后就在 Kaspa 中心 &gt; .kachat 认领你的名称。</string>
+    <string name="kg_names_help_title">.kachat 名称指南</string>
+    <string name="kg_names_help_body">认领一个 .kachat 名称，让它成为你的名字并保留它。</string>
+    <string name="kg_names_setup_footer">一步步认领你的 .kachat 名称并让它成为你的。</string>
 </resources>

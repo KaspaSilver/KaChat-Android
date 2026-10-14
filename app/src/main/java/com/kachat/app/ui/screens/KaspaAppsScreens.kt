@@ -262,8 +262,8 @@ fun HelpScreen(
                     // .kachat's guide since 5.2 (iOS b000310).
                     HelpRow(
                         androidx.compose.material.icons.Icons.Default.AlternateEmail,
-                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_help_title),
-                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_help_body),
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_names_help_title),
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_names_help_body),
                         onKnsGuide,
                     )
                 }

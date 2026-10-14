@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">.kachat adını al</string>
     <string name="kg_claim_body">İnsanların seni KaChat\'in her yerinde gördüğü ad: sohbetlerde, gönderilerde ve profil bağlantında. Yoksa adresin görünür.</string>
-    <string name="kg_avatar_title">Profil fotoğrafı ekle</string>
-    <string name="kg_avatar_body">Avatarın KaChat\'in her yerinde adının yanında görünür.</string>
-    <string name="kg_banner_title">Banner ekle</string>
-    <string name="kg_banner_body">Profilinin üst kısmında geniş bir görsel.</string>
-    <string name="kg_details_title">Kendinden bahset</string>
-    <string name="kg_details_body">Kısa bir biyografi ve bağlantıların. Hepsi isteğe bağlı.</string>
-    <string name="kg_done_title">Kurulumun tamamı bu</string>
-    <string name="kg_done_body">.kachat adları yakında geliyor. Başladığında bu rehber adını alır ve profilini tek seferde kaydeder.</string>
-    <string name="kg_setup_footer">.kachat adını al; avatarını, bannerını ve bilgilerini adım adım ayarla.</string>
-    <string name="kg_help_title">.kachat Profil Kurulum Rehberi</string>
-    <string name="kg_help_body">.kachat adını al; avatarını, bannerını ve biyografini adım adım ayarla.</string>
     <string name="kg_welcome_body">Tam başlangıç turu: cüzdan, sohbetler, ödemeler ve daha fazlası.</string>
     <string name="kg_previous">Geri</string>
-    <string name="kg_choose_photo">Fotograf Sec</string>
     <string name="kg_setup_guide">Kurulum Rehberi</string>
     <string name="kg_close">Kapat</string>
     <string name="kg_next">Ileri</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">Testnet açıkken Nextcloud kapalıdır.</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud üzerinden yedekleme, eşitleme, medya ve aramalar yalnızca mainnet\'te çalışır; böylece testnet mainnet yedeğinizin üzerine asla yazamaz. Ayarlar > Bağlantı bölümünden Testnet\'i kapatın, Nextcloud bağlantınız olduğu gibi geri gelir.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">Testnet\'te Kaspa Hub > .kachat bölümünden bir tane alın.</string>
     <string name="kn_live_testnet_registry">Testnet\'te etkin (testnet-10 kaydı)</string>
     <string name="kn_ev_transferred">Devredildi</string>
     <string name="kn_ev_delisted">Satıştan kaldırıldı</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">KaChat\'teki kimliğiniz, yalnızca size ait. İnsanlar bu adrese mesaj atar, .kachat adınız ve profiliniz buradadır ve gönderdiğiniz her mesaj buradan ödenir. Yaptığı her şey Kaspa ağında herkese açıktır ve size bağlıdır.</string>
     <string name="welcome_everything_else">Diğer Her Şey</string>
     <string name="welcome_everything_else_caption">Gizliliğinizi korumak için Kaspa ağındaki diğer tüm işlemlerde diğer adreslerinizi kullanın. Kaspa Al size yeni bir adres verir, Adresleri Yönet hepsini listeler.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">İstediğiniz adı Kaspa Hub &gt; .kachat\'te arayıp alın.</string>
+    <string name="kg_how_title">Bir ad nasıl çalışır</string>
+    <string name="kg_how_body">Adınız Kaspa ağında yaşar ve sohbet adresiniz tarafından tutulur. Sizin olduğu sürece kimse onu alamaz veya değiştiremez.</string>
+    <string name="kg_how_commit">Almak iki hızlı işlem gerektirir: ilki seçiminizi gizli tutar, ikincisi kaydeder.</string>
+    <string name="kg_how_period">Her seferinde bir dönem için ödersiniz. Kısa adlar daha pahalıdır.</string>
+    <string name="kg_how_miners">Ücret KaChat\'e değil, ağın madencilerine gider.</string>
+    <string name="kg_use_title">Adınız yapın</string>
+    <string name="kg_use_body">Birincil adınız yapın; KaChat\'in her yerinde bu adla görünürsünüz.</string>
+    <string name="kg_use_find">İnsanlar adınızı yazarak sizi bulup mesaj atabilir.</string>
+    <string name="kg_use_pay">Uzun bir adres yerine adiniz.kachat\'e Kaspa gönderebilirler.</string>
+    <string name="kg_use_link">Profil bağlantınız adınızı gösterir.</string>
+    <string name="kg_keep_title">Koruyun</string>
+    <string name="kg_keep_body">Adlarınız Profil &gt; Alan Adlarınız &gt; .kachat\'te.</string>
+    <string name="kg_keep_renew">Süresi dolmadan yenileyin. Her adın üzerinde tarihi görünür.</string>
+    <string name="kg_keep_grace">Süre dolduktan sonra, başkası alabilmeden önce yenilemek için bir ek süre vardır.</string>
+    <string name="kg_keep_transfer">Onu aktarabilir, satışa çıkarabilir veya bir teklifi kabul edebilirsiniz.</string>
+    <string name="kg_finished_title">Hazırsınız</string>
+    <string name="kg_finished_body">Hazır olduğunuzda adınızı Kaspa Hub &gt; .kachat\'te alın.</string>
+    <string name="kg_names_help_title">.kachat Adları Rehberi</string>
+    <string name="kg_names_help_body">Bir .kachat adı alın, adınız yapın ve koruyun.</string>
+    <string name="kg_names_setup_footer">Adım adım .kachat adınızı alıp sizin yapın.</string>
 </resources>

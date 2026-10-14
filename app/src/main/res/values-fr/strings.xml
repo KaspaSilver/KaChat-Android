@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Réclamez votre nom .kachat</string>
     <string name="kg_claim_body">C\'est le nom sous lequel on vous voit partout dans KaChat : dans les discussions, sur les publications et sur le lien de votre profil. Sans lui, on voit votre adresse.</string>
-    <string name="kg_avatar_title">Ajoutez une photo de profil</string>
-    <string name="kg_avatar_body">Votre avatar apparaît à côté de votre nom partout dans KaChat.</string>
-    <string name="kg_banner_title">Ajoutez une bannière</string>
-    <string name="kg_banner_body">Une image large en haut de votre profil.</string>
-    <string name="kg_details_title">Parlez de vous</string>
-    <string name="kg_details_body">Une courte bio et vos liens. Tout est facultatif.</string>
-    <string name="kg_done_title">C\'est toute la configuration</string>
-    <string name="kg_done_body">Les noms .kachat arrivent bientôt. À leur lancement, ce guide réclamera votre nom et enregistrera votre profil en une seule fois.</string>
-    <string name="kg_setup_footer">Réclamez votre nom .kachat et configurez votre avatar, votre bannière et vos informations étape par étape.</string>
-    <string name="kg_help_title">Guide de configuration du profil .kachat</string>
-    <string name="kg_help_body">Réclamez votre nom .kachat et configurez votre avatar, votre bannière et votre bio étape par étape.</string>
     <string name="kg_welcome_body">La visite complète de démarrage : portefeuille, discussions, paiements et plus.</string>
     <string name="kg_previous">Précédent</string>
-    <string name="kg_choose_photo">Choisir une photo</string>
     <string name="kg_setup_guide">Guide de configuration</string>
     <string name="kg_close">Fermer</string>
     <string name="kg_next">Suivant</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud est désactivé tant que le Testnet est activé.</string>
     <string name="nextcloud_off_on_testnet_footer">Les sauvegardes, la synchronisation, les médias et les appels via Nextcloud ne fonctionnent que sur le mainnet, pour que le testnet ne puisse jamais écraser votre sauvegarde mainnet. Désactivez Testnet dans Réglages > Connexion et votre connexion Nextcloud revient telle quelle.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">Sur le Testnet, obtenez-en un dans Kaspa Hub > .kachat.</string>
     <string name="kn_live_testnet_registry">Actif sur le Testnet (registre testnet-10)</string>
     <string name="kn_ev_transferred">Transféré</string>
     <string name="kn_ev_delisted">Retiré de la vente</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">Votre identité sur KaChat, à vous seul. On vous écrit dessus, votre nom .kachat et votre profil y sont liés, et chaque message envoyé est payé depuis elle. Tout ce qu’elle fait est public sur le réseau Kaspa et lié à vous.</string>
     <string name="welcome_everything_else">Tout le reste</string>
     <string name="welcome_everything_else_caption">Pour protéger votre vie privée, utilisez vos autres adresses pour toute autre activité sur le réseau Kaspa. Recevoir des Kaspa vous en donne une nouvelle, et Gérer les adresses les liste toutes.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">Cherchez le nom voulu dans Kaspa Hub &gt; .kachat, puis réservez-le.</string>
+    <string name="kg_how_title">Comment fonctionne un nom</string>
+    <string name="kg_how_body">Votre nom vit sur le réseau Kaspa, détenu par votre adresse de discussion. Personne ne peut le prendre ni le modifier tant qu’il est à vous.</string>
+    <string name="kg_how_commit">Le réserver prend deux transactions rapides : la première garde votre choix secret, la seconde l’enregistre.</string>
+    <string name="kg_how_period">Vous payez une période à la fois. Les noms plus courts coûtent plus cher.</string>
+    <string name="kg_how_miners">Le prix va aux mineurs du réseau, pas à KaChat.</string>
+    <string name="kg_use_title">Faites-en votre nom</string>
+    <string name="kg_use_body">Définissez-le comme nom principal : c’est ainsi que vous apparaissez partout dans KaChat.</string>
+    <string name="kg_use_find">On peut vous trouver et vous écrire en tapant votre nom.</string>
+    <string name="kg_use_pay">On peut vous envoyer des Kaspa à votrenom.kachat au lieu d’une longue adresse.</string>
+    <string name="kg_use_link">Votre lien de profil affiche votre nom.</string>
+    <string name="kg_keep_title">Gardez-le</string>
+    <string name="kg_keep_body">Vos noms sont dans Profil &gt; Vos domaines &gt; .kachat.</string>
+    <string name="kg_keep_renew">Renouvelez-le avant qu’il expire. Chaque nom indique quand.</string>
+    <string name="kg_keep_grace">Après l’expiration, un délai de grâce permet de le renouveler avant qu’un autre puisse le réserver.</string>
+    <string name="kg_keep_transfer">Vous pouvez le transférer, le mettre en vente ou accepter une offre.</string>
+    <string name="kg_finished_title">Tout est prêt</string>
+    <string name="kg_finished_body">Réservez votre nom dans Kaspa Hub &gt; .kachat quand vous voulez.</string>
+    <string name="kg_names_help_title">Guide des noms .kachat</string>
+    <string name="kg_names_help_body">Réservez un nom .kachat, faites-en votre nom et gardez-le.</string>
+    <string name="kg_names_setup_footer">Étape par étape : réserver votre nom .kachat et le faire vôtre.</string>
 </resources>

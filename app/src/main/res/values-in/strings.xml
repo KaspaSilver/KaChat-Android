@@ -373,20 +373,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Klaim nama .kachat-mu</string>
     <string name="kg_claim_body">Ini nama yang dilihat orang di seluruh KaChat - di obrolan, di postingan, dan di tautan profilmu. Tanpanya, orang melihat alamatmu.</string>
-    <string name="kg_avatar_title">Tambahkan foto profil</string>
-    <string name="kg_avatar_body">Avatarmu tampil di samping namamu di seluruh KaChat.</string>
-    <string name="kg_banner_title">Tambahkan banner</string>
-    <string name="kg_banner_body">Gambar lebar di bagian atas profilmu.</string>
-    <string name="kg_details_title">Ceritakan tentang dirimu</string>
-    <string name="kg_details_body">Bio singkat dan tautanmu. Semuanya opsional.</string>
-    <string name="kg_done_title">Itu seluruh penyiapannya</string>
-    <string name="kg_done_body">Nama .kachat segera hadir. Saat diluncurkan, panduan ini mengklaim namamu dan menyimpan profilmu sekaligus.</string>
-    <string name="kg_setup_footer">Klaim nama .kachat-mu dan atur avatar, banner, serta detail langkah demi langkah.</string>
-    <string name="kg_help_title">Panduan Penyiapan Profil .kachat</string>
-    <string name="kg_help_body">Klaim nama .kachat-mu dan atur avatar, banner, serta bio langkah demi langkah.</string>
     <string name="kg_welcome_body">Tur awal lengkap: dompet, obrolan, pembayaran, dan lainnya.</string>
     <string name="kg_previous">Sebelumnya</string>
-    <string name="kg_choose_photo">Pilih Foto</string>
     <string name="kg_setup_guide">Panduan Penyiapan</string>
     <string name="kg_close">Tutup</string>
     <string name="kg_next">Berikutnya</string>
@@ -491,7 +479,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud nonaktif selama Testnet aktif.</string>
     <string name="nextcloud_off_on_testnet_footer">Cadangan, sinkronisasi, media, dan panggilan lewat Nextcloud hanya berjalan di mainnet, jadi testnet tidak akan pernah menimpa cadangan mainnet Anda. Matikan Testnet di Pengaturan > Koneksi dan koneksi Nextcloud Anda kembali seperti semula.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">Di Testnet, klaim satu di Kaspa Hub > .kachat.</string>
     <string name="kn_live_testnet_registry">Aktif di Testnet (registri testnet-10)</string>
     <string name="kn_ev_transferred">Dipindahkan</string>
     <string name="kn_ev_delisted">Ditarik dari penjualan</string>
@@ -1163,4 +1150,26 @@
     <string name="welcome_chatting_address_identity_caption">Identitas Anda di KaChat, hanya milik Anda. Orang mengirim pesan ke sini, nama .kachat dan profil Anda ada di sini, dan setiap pesan Anda dibayar dari sini. Semua aktivitasnya publik di jaringan Kaspa dan terkait dengan Anda.</string>
     <string name="welcome_everything_else">Selain Itu</string>
     <string name="welcome_everything_else_caption">Untuk menjaga privasi, gunakan alamat Anda yang lain untuk semua aktivitas lain di jaringan Kaspa. Terima Kaspa memberi Anda alamat baru, dan Kelola Alamat menampilkan semuanya.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">Cari nama yang Anda mau di Kaspa Hub &gt; .kachat, lalu klaim.</string>
+    <string name="kg_how_title">Cara kerja nama</string>
+    <string name="kg_how_body">Nama Anda ada di jaringan Kaspa, dipegang oleh alamat obrolan Anda. Selama milik Anda, tak ada yang bisa mengambil atau mengubahnya.</string>
+    <string name="kg_how_commit">Klaim butuh dua transaksi cepat: yang pertama merahasiakan pilihan Anda, yang kedua mendaftarkannya.</string>
+    <string name="kg_how_period">Anda membayar satu periode setiap kali. Nama yang lebih pendek lebih mahal.</string>
+    <string name="kg_how_miners">Harganya untuk penambang jaringan, bukan untuk KaChat.</string>
+    <string name="kg_use_title">Jadikan nama Anda</string>
+    <string name="kg_use_body">Jadikan nama utama, dan begitulah Anda tampil di seluruh KaChat.</string>
+    <string name="kg_use_find">Orang bisa menemukan dan mengirim pesan kepada Anda dengan mengetik nama Anda.</string>
+    <string name="kg_use_pay">Mereka bisa mengirim Kaspa ke namaanda.kachat alih-alih alamat yang panjang.</string>
+    <string name="kg_use_link">Tautan profil Anda menampilkan nama Anda.</string>
+    <string name="kg_keep_title">Pertahankan</string>
+    <string name="kg_keep_body">Nama Anda ada di Profil &gt; Domain Anda &gt; .kachat.</string>
+    <string name="kg_keep_renew">Perpanjang sebelum kedaluwarsa. Tanggalnya tampil di setiap nama.</string>
+    <string name="kg_keep_grace">Setelah kedaluwarsa ada masa tenggang untuk memperpanjang sebelum orang lain bisa mengklaimnya.</string>
+    <string name="kg_keep_transfer">Anda bisa mentransfer, menjualnya, atau menerima tawaran.</string>
+    <string name="kg_finished_title">Semua siap</string>
+    <string name="kg_finished_body">Klaim nama Anda di Kaspa Hub &gt; .kachat kapan saja.</string>
+    <string name="kg_names_help_title">Panduan Nama .kachat</string>
+    <string name="kg_names_help_body">Klaim nama .kachat, jadikan nama Anda, dan pertahankan.</string>
+    <string name="kg_names_setup_footer">Langkah demi langkah mengklaim nama .kachat dan menjadikannya milik Anda.</string>
 </resources>

@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Nhận tên .kachat của bạn</string>
     <string name="kg_claim_body">Đây là tên mọi người thấy bạn trên khắp KaChat - trong trò chuyện, trên bài đăng và qua liên kết hồ sơ. Nếu không có, mọi người thấy địa chỉ của bạn.</string>
-    <string name="kg_avatar_title">Thêm ảnh hồ sơ</string>
-    <string name="kg_avatar_body">Ảnh đại diện hiển thị cạnh tên bạn ở mọi nơi trong KaChat.</string>
-    <string name="kg_banner_title">Thêm ảnh bìa</string>
-    <string name="kg_banner_body">Một ảnh rộng ở đầu hồ sơ của bạn.</string>
-    <string name="kg_details_title">Giới thiệu về bạn</string>
-    <string name="kg_details_body">Tiểu sử ngắn và các liên kết. Tất cả đều không bắt buộc.</string>
-    <string name="kg_done_title">Đó là toàn bộ thiết lập</string>
-    <string name="kg_done_body">Tên .kachat sắp ra mắt. Khi ra mắt, hướng dẫn này sẽ nhận tên và lưu hồ sơ của bạn cùng lúc.</string>
-    <string name="kg_setup_footer">Nhận tên .kachat và thiết lập ảnh đại diện, ảnh bìa và thông tin từng bước.</string>
-    <string name="kg_help_title">Hướng dẫn thiết lập hồ sơ .kachat</string>
-    <string name="kg_help_body">Nhận tên .kachat và thiết lập ảnh đại diện, ảnh bìa và tiểu sử từng bước.</string>
     <string name="kg_welcome_body">Hướng dẫn đầy đủ khi bắt đầu: ví, trò chuyện, thanh toán và hơn thế.</string>
     <string name="kg_previous">Trước</string>
-    <string name="kg_choose_photo">Chọn ảnh</string>
     <string name="kg_setup_guide">Hướng dẫn thiết lập</string>
     <string name="kg_close">Đóng</string>
     <string name="kg_next">Tiếp theo</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud tắt khi Testnet đang bật.</string>
     <string name="nextcloud_off_on_testnet_footer">Sao lưu, đồng bộ, tệp phương tiện và cuộc gọi qua Nextcloud chỉ hoạt động trên mainnet, nên testnet không bao giờ ghi đè bản sao lưu mainnet của bạn. Tắt Testnet trong Cài đặt > Kết nối và kết nối Nextcloud sẽ trở lại như cũ.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">Trên Testnet, hãy nhận một tên tại Kaspa Hub > .kachat.</string>
     <string name="kn_live_testnet_registry">Đang chạy trên Testnet (sổ đăng ký testnet-10)</string>
     <string name="kn_ev_transferred">Đã chuyển</string>
     <string name="kn_ev_delisted">Đã gỡ bán</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">Danh tính của bạn trên KaChat, chỉ của riêng bạn. Mọi người nhắn tin đến đây, tên .kachat và hồ sơ của bạn nằm ở đây, và mọi tin nhắn bạn gửi đều được trả từ đây. Mọi hoạt động của nó đều công khai trên mạng Kaspa và gắn với bạn.</string>
     <string name="welcome_everything_else">Mọi thứ khác</string>
     <string name="welcome_everything_else_caption">Để bảo vệ quyền riêng tư, hãy dùng các địa chỉ khác của bạn cho mọi hoạt động khác trên mạng Kaspa. Nhận Kaspa cho bạn một địa chỉ mới, và Quản lý địa chỉ liệt kê tất cả.</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">Tìm tên bạn muốn trong Kaspa Hub &gt; .kachat, rồi nhận nó.</string>
+    <string name="kg_how_title">Tên hoạt động thế nào</string>
+    <string name="kg_how_body">Tên của bạn nằm trên mạng Kaspa, do địa chỉ trò chuyện của bạn nắm giữ. Khi còn là của bạn, không ai có thể lấy hay đổi nó.</string>
+    <string name="kg_how_commit">Nhận tên cần hai giao dịch nhanh: giao dịch đầu giữ bí mật lựa chọn, giao dịch thứ hai đăng ký.</string>
+    <string name="kg_how_period">Bạn trả cho từng kỳ một. Tên càng ngắn càng đắt.</string>
+    <string name="kg_how_miners">Khoản phí trả cho thợ đào của mạng, không phải cho KaChat.</string>
+    <string name="kg_use_title">Biến nó thành tên của bạn</string>
+    <string name="kg_use_body">Đặt làm tên chính và bạn sẽ hiện với tên đó ở mọi nơi trong KaChat.</string>
+    <string name="kg_use_find">Mọi người có thể tìm và nhắn tin cho bạn bằng cách gõ tên bạn.</string>
+    <string name="kg_use_pay">Họ có thể gửi Kaspa tới tenban.kachat thay vì một địa chỉ dài.</string>
+    <string name="kg_use_link">Liên kết hồ sơ của bạn hiển thị tên bạn.</string>
+    <string name="kg_keep_title">Giữ lấy</string>
+    <string name="kg_keep_body">Các tên của bạn nằm ở Hồ sơ &gt; Tên miền của bạn &gt; .kachat.</string>
+    <string name="kg_keep_renew">Gia hạn trước khi hết hạn. Mỗi tên đều hiện ngày.</string>
+    <string name="kg_keep_grace">Sau khi hết hạn có một thời gian ân hạn để gia hạn trước khi người khác có thể nhận.</string>
+    <string name="kg_keep_transfer">Bạn có thể chuyển nhượng, rao bán hoặc chấp nhận một lời đề nghị.</string>
+    <string name="kg_finished_title">Đã xong</string>
+    <string name="kg_finished_body">Nhận tên của bạn trong Kaspa Hub &gt; .kachat khi bạn sẵn sàng.</string>
+    <string name="kg_names_help_title">Hướng dẫn tên .kachat</string>
+    <string name="kg_names_help_body">Nhận một tên .kachat, biến nó thành tên của bạn và giữ lấy.</string>
+    <string name="kg_names_setup_footer">Từng bước nhận tên .kachat và biến nó thành của bạn.</string>
 </resources>

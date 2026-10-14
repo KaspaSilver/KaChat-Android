@@ -8114,7 +8114,7 @@ fun KachatProfileEditorScreen(
                 SettingsSection(title = null) {
                     SettingsNavigationItem(stringResource(R.string.kg_setup_guide), null, showIcon = false, onClick = onSetupGuide)
                 }
-                SettingsFooter(stringResource(R.string.kg_setup_footer))
+                SettingsFooter(stringResource(R.string.kg_names_setup_footer))
             }
             SettingsSection(title = null) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {

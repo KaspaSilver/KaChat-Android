@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">.kachat 名を取得</string>
     <string name="kg_claim_body">KaChat のあらゆる場所で表示される名前です。チャット、投稿、プロフィールリンクで使われます。名前がない場合はアドレスが表示されます。</string>
-    <string name="kg_avatar_title">プロフィール写真を追加</string>
-    <string name="kg_avatar_body">アバターは KaChat のどこでも名前の横に表示されます。</string>
-    <string name="kg_banner_title">バナーを追加</string>
-    <string name="kg_banner_body">プロフィール上部に表示される横長の画像です。</string>
-    <string name="kg_details_title">自己紹介をしよう</string>
-    <string name="kg_details_body">短い自己紹介とリンク。すべて任意です。</string>
-    <string name="kg_done_title">設定はこれで完了</string>
-    <string name="kg_done_body">.kachat 名はまもなく登場します。開始されると、このガイドで名前の取得とプロフィールの保存を一度に行えます。</string>
-    <string name="kg_setup_footer">.kachat 名の取得と、アバター・バナー・詳細の設定をステップごとに進めます。</string>
-    <string name="kg_help_title">.kachat プロフィール設定ガイド</string>
-    <string name="kg_help_body">.kachat 名を取得し、アバター・バナー・自己紹介をステップごとに設定します。</string>
     <string name="kg_welcome_body">はじめてのツアー：ウォレット、チャット、支払いなど。</string>
     <string name="kg_previous">戻る</string>
-    <string name="kg_choose_photo">写真を選択</string>
     <string name="kg_setup_guide">セットアップガイド</string>
     <string name="kg_close">閉じる</string>
     <string name="kg_next">次へ</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">テストネットがオンの間、Nextcloud はオフになります。</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud を使ったバックアップ、同期、メディア、通話はメインネットでのみ動作するため、テストネットがメインネットのバックアップを上書きすることはありません。設定 > 接続 でテストネットをオフにすると、Nextcloud の接続は元どおりに戻ります。</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">テストネットでは Kaspa Hub > .kachat で取得できます。</string>
     <string name="kn_live_testnet_registry">テストネットで稼働中（testnet-10 のレジストリ）</string>
     <string name="kn_ev_transferred">譲渡</string>
     <string name="kn_ev_delisted">出品取り下げ</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">KaChat でのあなただけの ID です。メッセージはここに届き、.kachat 名とプロフィールもここにあり、送るメッセージはすべてここから支払われます。その動きはすべて Kaspa ネットワーク上で公開され、あなたに結び付きます。</string>
     <string name="welcome_everything_else">それ以外のすべて</string>
     <string name="welcome_everything_else_caption">プライバシーを守るため、Kaspa ネットワークでのその他の活動にはほかのアドレスを使いましょう。「Kaspa を受け取る」で新しいアドレスが得られ、「アドレス管理」ですべて確認できます。</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">Kaspa ハブ &gt; .kachat で欲しい名前を検索して取得します。</string>
+    <string name="kg_how_title">名前のしくみ</string>
+    <string name="kg_how_body">名前は Kaspa ネットワーク上にあり、あなたのチャットアドレスが保有します。あなたのものである間、誰も奪ったり変えたりできません。</string>
+    <string name="kg_how_commit">取得には 2 つの短いトランザクションが必要です。1 つ目で選んだ名前を秘密にし、2 つ目で登録します。</string>
+    <string name="kg_how_period">1 期間ずつ支払います。短い名前ほど高くなります。</string>
+    <string name="kg_how_miners">料金はネットワークのマイナーに支払われ、KaChat には入りません。</string>
+    <string name="kg_use_title">あなたの名前にする</string>
+    <string name="kg_use_body">メインの名前に設定すると、KaChat のどこでもその名前で表示されます。</string>
+    <string name="kg_use_find">名前を入力するだけで、あなたを見つけてメッセージを送れます。</string>
+    <string name="kg_use_pay">長いアドレスの代わりに yourname.kachat へ Kaspa を送れます。</string>
+    <string name="kg_use_link">プロフィールリンクにも名前が表示されます。</string>
+    <string name="kg_keep_title">維持する</string>
+    <string name="kg_keep_body">名前はプロフィール &gt; あなたのドメイン &gt; .kachat にあります。</string>
+    <string name="kg_keep_renew">期限が切れる前に更新しましょう。各名前に期限が表示されます。</string>
+    <string name="kg_keep_grace">期限切れ後も、ほかの人が取得できるようになる前に更新できる猶予期間があります。</string>
+    <string name="kg_keep_transfer">移転、販売への出品、オファーの受け入れができます。</string>
+    <string name="kg_finished_title">準備完了</string>
+    <string name="kg_finished_body">準備ができたら Kaspa ハブ &gt; .kachat で名前を取得しましょう。</string>
+    <string name="kg_names_help_title">.kachat 名ガイド</string>
+    <string name="kg_names_help_body">.kachat 名を取得して自分の名前にし、維持しましょう。</string>
+    <string name="kg_names_setup_footer">.kachat 名の取得と自分の名前にする手順を確認します。</string>
 </resources>

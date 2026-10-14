@@ -478,20 +478,8 @@
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">আপনার .kachat নাম নিন</string>
     <string name="kg_claim_body">এই নামেই মানুষ আপনাকে পুরো KaChat-এ দেখে - চ্যাটে, পোস্টে ও আপনার প্রোফাইল লিংকে। না থাকলে মানুষ আপনার ঠিকানা দেখে।</string>
-    <string name="kg_avatar_title">প্রোফাইল ছবি যোগ করুন</string>
-    <string name="kg_avatar_body">আপনার অবতার KaChat-এর সব জায়গায় আপনার নামের পাশে দেখা যায়।</string>
-    <string name="kg_banner_title">ব্যানার যোগ করুন</string>
-    <string name="kg_banner_body">আপনার প্রোফাইলের উপরে একটি চওড়া ছবি।</string>
-    <string name="kg_details_title">নিজের সম্পর্কে বলুন</string>
-    <string name="kg_details_body">ছোট একটি বায়ো ও আপনার লিংক। সবই ঐচ্ছিক।</string>
-    <string name="kg_done_title">সেটআপ এটুকুই</string>
-    <string name="kg_done_body">.kachat নাম শিগগিরই আসছে। চালু হলে এই গাইড একবারে আপনার নাম নেবে ও প্রোফাইল সংরক্ষণ করবে।</string>
-    <string name="kg_setup_footer">ধাপে ধাপে আপনার .kachat নাম নিন এবং অবতার, ব্যানার ও বিবরণ সেট করুন।</string>
-    <string name="kg_help_title">.kachat প্রোফাইল সেটআপ গাইড</string>
-    <string name="kg_help_body">আপনার .kachat নাম নিন এবং ধাপে ধাপে অবতার, ব্যানার ও বায়ো সেট করুন।</string>
     <string name="kg_welcome_body">শুরুর সম্পূর্ণ পরিচিতি: ওয়ালেট, চ্যাট, পেমেন্ট ও আরও অনেক কিছু।</string>
     <string name="kg_previous">আগের</string>
-    <string name="kg_choose_photo">ছবি বেছে নিন</string>
     <string name="kg_setup_guide">সেটআপ গাইড</string>
     <string name="kg_close">বন্ধ করুন</string>
     <string name="kg_next">পরবর্তী</string>
@@ -596,7 +584,6 @@
     <string name="nextcloud_off_on_testnet">টেস্টনেট চালু থাকলে Nextcloud বন্ধ থাকে।</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud-এর মাধ্যমে ব্যাকআপ, সিঙ্ক, মিডিয়া ও কল শুধু মেইননেটে কাজ করে, তাই টেস্টনেট কখনো আপনার মেইননেট ব্যাকআপ মুছে লিখতে পারে না। সেটিংস > সংযোগ থেকে টেস্টনেট বন্ধ করলে আপনার Nextcloud সংযোগ আগের মতো ফিরে আসবে।</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_guide_testnet">টেস্টনেটে Kaspa Hub > .kachat থেকে একটি নিন।</string>
     <string name="kn_live_testnet_registry">টেস্টনেটে চালু (testnet-10 রেজিস্ট্রি)</string>
     <string name="kn_ev_transferred">হস্তান্তরিত</string>
     <string name="kn_ev_delisted">তালিকা থেকে সরানো</string>
@@ -1291,4 +1278,26 @@
     <string name="welcome_chatting_address_identity_caption">KaChat-এ আপনার পরিচয়, শুধু আপনারই। লোকে এতে বার্তা পাঠায়, আপনার .kachat নাম ও প্রোফাইল এতেই থাকে, আর প্রতিটি বার্তা এখান থেকেই পরিশোধ হয়। এর সব কাজ Kaspa নেটওয়ার্কে প্রকাশ্য এবং আপনার সাথে যুক্ত।</string>
     <string name="welcome_everything_else">বাকি সবকিছু</string>
     <string name="welcome_everything_else_caption">গোপনীয়তা রক্ষায় Kaspa নেটওয়ার্কের অন্য সব কাজে আপনার অন্য ঠিকানাগুলো ব্যবহার করুন। Kaspa গ্রহণ করুন আপনাকে নতুন একটি দেয়, আর ঠিকানা ব্যবস্থাপনায় সব দেখা যায়।</string>
+    <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
+    <string name="kg_claim_hint">Kaspa হাব &gt; .kachat-এ আপনার কাঙ্ক্ষিত নাম খুঁজে দাবি করুন।</string>
+    <string name="kg_how_title">নাম যেভাবে কাজ করে</string>
+    <string name="kg_how_body">আপনার নাম Kaspa নেটওয়ার্কে থাকে, আপনার চ্যাটিং ঠিকানার কাছে। আপনার থাকা অবস্থায় কেউ তা নিতে বা বদলাতে পারে না।</string>
+    <string name="kg_how_commit">দাবি করতে দুটি দ্রুত লেনদেন লাগে: প্রথমটি আপনার পছন্দ গোপন রাখে, দ্বিতীয়টি নিবন্ধন করে।</string>
+    <string name="kg_how_period">একবারে এক মেয়াদের জন্য অর্থ দেন। ছোট নামের দাম বেশি।</string>
+    <string name="kg_how_miners">দাম নেটওয়ার্কের মাইনারদের কাছে যায়, KaChat-এর কাছে নয়।</string>
+    <string name="kg_use_title">এটিকে আপনার নাম করুন</string>
+    <string name="kg_use_body">প্রাথমিক নাম হিসেবে সেট করুন, KaChat-এর সব জায়গায় এই নামেই দেখা যাবেন।</string>
+    <string name="kg_use_find">আপনার নাম লিখে লোকে আপনাকে খুঁজে বার্তা পাঠাতে পারে।</string>
+    <string name="kg_use_pay">লম্বা ঠিকানার বদলে তারা yourname.kachat-এ Kaspa পাঠাতে পারে।</string>
+    <string name="kg_use_link">আপনার প্রোফাইল লিংকে আপনার নাম দেখায়।</string>
+    <string name="kg_keep_title">ধরে রাখুন</string>
+    <string name="kg_keep_body">আপনার নামগুলো প্রোফাইল &gt; আপনার ডোমেইন &gt; .kachat-এ।</string>
+    <string name="kg_keep_renew">মেয়াদ শেষের আগে নবায়ন করুন। প্রতিটি নামে তারিখ দেখায়।</string>
+    <string name="kg_keep_grace">মেয়াদ শেষের পর অন্য কেউ দাবি করার আগে নবায়নের জন্য একটি গ্রেস পিরিয়ড থাকে।</string>
+    <string name="kg_keep_transfer">আপনি এটি হস্তান্তর, বিক্রির জন্য তালিকাভুক্ত বা কোনো অফার গ্রহণ করতে পারেন।</string>
+    <string name="kg_finished_title">সব প্রস্তুত</string>
+    <string name="kg_finished_body">প্রস্তুত হলে Kaspa হাব &gt; .kachat-এ আপনার নাম দাবি করুন।</string>
+    <string name="kg_names_help_title">.kachat নাম গাইড</string>
+    <string name="kg_names_help_body">একটি .kachat নাম দাবি করুন, নিজের নাম করুন এবং ধরে রাখুন।</string>
+    <string name="kg_names_setup_footer">.kachat নাম দাবি ও নিজের করার ধাপগুলো দেখুন।</string>
 </resources>

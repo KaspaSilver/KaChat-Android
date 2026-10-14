@@ -18,13 +18,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.HelpOutline
-import androidx.compose.material.icons.automirrored.outlined.FormatAlignLeft
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PanTool
-import androidx.compose.material.icons.outlined.Photo
-import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.VerifiedUser
@@ -1063,30 +1059,27 @@ private fun UnavailableCard(failure: KaChatStatsStore.Failure, onRetry: () -> Un
 }
 
 // ---------------------------------------------------------------------------------------------
-// The .kachat profile setup guide (iOS b000310, KachatSetupGuideView).
+// The .kachat names guide (iOS b000310, cdc5611, KachatSetupGuideView).
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The .kachat profile setup guide: claim your name, then avatar, banner and details, step by
- * step. Opened from Edit KaChat Profile and Profile > Help - the guide .kas used to have, rebuilt
- * for KaChat's own names (a .kas profile is edited field by field in Your Domains).
- *
- * UI only until .kachat names launch: every step can be walked through, but nothing can be
- * claimed, picked or typed, and each says so. No invented names or images anywhere. On testnet the
- * claim step points to Kaspa Hub > .kachat instead, where names are live (iOS 5df42b4).
+ * The .kachat names guide: claim a name, how a name works, make it your name, keep it. Opened
+ * from Edit KaChat Profile and Profile > Help. About the name only - an avatar, banner and bio
+ * are not part of a name (they are the address's profile, set in Edit KaChat Profile; iOS cdc5611).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KachatSetupGuideScreen(onClose: () -> Unit) {
     BackHandler(onBack = onClose)
     val colors = LocalAppColors.current
+    val context = LocalContext.current
     var step by remember { mutableIntStateOf(0) }
     val last = 4
     Scaffold(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.kg_setup_guide), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.kn_kachat_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     TextButton(onClick = onClose) { Text(stringResource(R.string.kg_close), color = KaspaTeal) }
                 },
@@ -1128,11 +1121,18 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
                 }
             }
             @Composable
-            fun disabledAction(label: String, icon: ImageVector) {
-                OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(label, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            fun bulletList(lines: List<Int>) {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface).padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    lines.forEach { line ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                            Icon(Icons.Default.CheckCircle, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(stringResource(line), color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
             when (step) {
@@ -1143,43 +1143,32 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
                             Text("yourname", color = colors.textTertiary, modifier = Modifier.weight(1f))
                             Text(".kachat", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
                         }
-                        // Testnet: .kachat is live there (iOS 5df42b4).
-                        Text(
-                            stringResource(if (KachatLive.isEnabled) R.string.kn_guide_testnet else R.string.km_registration_not_open),
-                            color = colors.textSecondary,
-                            fontSize = 12.sp
-                        )
-                    }
-                    if (!KachatLive.isEnabled) ComingSoonPill()
-                }
-                1 -> {
-                    header({ Icon(Icons.Outlined.AccountCircle, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_avatar_title, R.string.kg_avatar_body)
-                    Box(Modifier.size(120.dp).clip(CircleShape).background(colors.surface), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, null, tint = colors.textTertiary, modifier = Modifier.size(48.dp))
-                    }
-                    disabledAction(stringResource(R.string.kg_choose_photo), Icons.Outlined.Photo)
-                    ComingSoonPill()
-                }
-                2 -> {
-                    header({ Icon(Icons.Outlined.PhotoLibrary, null, tint = KaspaTeal, modifier = Modifier.size(48.dp)) }, R.string.kg_banner_title, R.string.kg_banner_body)
-                    Box(Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Photo, null, tint = colors.textTertiary, modifier = Modifier.size(36.dp))
-                    }
-                    disabledAction(stringResource(R.string.choose_banner), Icons.Outlined.PhotoLibrary)
-                    ComingSoonPill()
-                }
-                3 -> {
-                    header({ Icon(Icons.AutoMirrored.Outlined.FormatAlignLeft, null, tint = KaspaTeal, modifier = Modifier.size(46.dp)) }, R.string.kg_details_title, R.string.kg_details_body)
-                    val fields = listOf(R.string.bio, R.string.x_handle, R.string.website, R.string.telegram, R.string.discord_user_id, R.string.email, R.string.github)
-                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(colors.surface)) {
-                        fields.forEachIndexed { index, res ->
-                            Text(stringResource(res), color = colors.textSecondary, modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp))
-                            if (index < fields.lastIndex) HorizontalDivider(Modifier.padding(start = 14.dp), color = colors.divider, thickness = 0.5.dp)
+                        Text(stringResource(R.string.kg_claim_hint), color = colors.textSecondary, fontSize = 12.sp)
+                        // Mainnet before its public opening: when it opens (iOS cdc5611).
+                        val opens = com.kachat.app.services.kachatnames.KachatNamesService.publicLaunchMs
+                        if (opens != null && !com.kachat.app.services.kachatnames.KachatNamesService.isPubliclyOpenKnown(context)) {
+                            Text(
+                                stringResource(R.string.kn_not_public_yet, KachatLive.launch(opens, context)),
+                                color = KaspaTeal,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
-                    ComingSoonPill()
                 }
-                else -> header({ Icon(Icons.Default.Verified, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_done_title, R.string.kg_done_body)
+                1 -> {
+                    header({ Icon(Icons.Default.Verified, null, tint = KaspaTeal, modifier = Modifier.size(48.dp)) }, R.string.kg_how_title, R.string.kg_how_body)
+                    bulletList(listOf(R.string.kg_how_commit, R.string.kg_how_period, R.string.kg_how_miners))
+                }
+                2 -> {
+                    header({ Icon(Icons.Default.Badge, null, tint = KaspaTeal, modifier = Modifier.size(46.dp)) }, R.string.kg_use_title, R.string.kg_use_body)
+                    bulletList(listOf(R.string.kg_use_find, R.string.kg_use_pay, R.string.kg_use_link))
+                }
+                3 -> {
+                    header({ Icon(Icons.Default.Autorenew, null, tint = KaspaTeal, modifier = Modifier.size(46.dp)) }, R.string.kg_keep_title, R.string.kg_keep_body)
+                    bulletList(listOf(R.string.kg_keep_renew, R.string.kg_keep_grace, R.string.kg_keep_transfer))
+                }
+                else -> header({ Icon(Icons.Default.Verified, null, tint = KaspaTeal, modifier = Modifier.size(52.dp)) }, R.string.kg_finished_title, R.string.kg_finished_body)
             }
         }
     }
