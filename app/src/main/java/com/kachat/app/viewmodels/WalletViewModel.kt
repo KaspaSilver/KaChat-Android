@@ -1424,6 +1424,14 @@ class WalletViewModel @Inject constructor(
         sends.start(sendId)
         viewModelScope.launch {
             val result = walletEngine.sendKaspa(address, amountSompi, feeRateOverride = feeRateOverride, manualUtxos = manualUtxos, extraFeeSompi = extraFeeSompi)
+            // Paying B from the chatting address watches B from now on and files the send in the
+            // chat with B, as iOS's payment sync does for any outgoing transfer (iOS 1eb4708,
+            // NO_HANDSHAKE_MESSAGING.md section 4). Before the send is reported done, so the
+            // chat is there when the sheet closes.
+            result.getOrNull()?.let { txId ->
+                runCatching { chatRepository.recordPlainSendFromChattingAddress(address, txId, amountSompi) }
+                    .onFailure { android.util.Log.w("WalletViewModel", "Could not record the send in a chat", it) }
+            }
             sends.finish(sendId, result)
 
             if (result.isSuccess) {

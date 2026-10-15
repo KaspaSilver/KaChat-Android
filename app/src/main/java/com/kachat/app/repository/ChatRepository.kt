@@ -418,13 +418,66 @@ class ChatRepository @Inject constructor(
      * opened a chat with them, and their reply must be found even when their app didn't tag it
      * for our inbox (an older client, or Kasia). A contact row is what every sync and sweep
      * covers ([syncContextualMessages]), so one is made when the destination has none yet. The
-     * account in use is never one; another of your own accounts is refused as any auto-add is.
+     * account in use is never one, nor is one of its own spending addresses (iOS skips a move
+     * within your own wallet before any routing); another of your own accounts is refused as any
+     * auto-add is.
      */
     suspend fun watchPaymentDestination(address: String) {
         val myAddress = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotBlank() } ?: return
         if (address.isBlank() || address.equals(myAddress, ignoreCase = true)) return
+        if (isOwnSpendingAddress(address)) return
         if (database.contactDao().getContact(address, myAddress) != null) return
         addContact(ContactEntity(id = address, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+    }
+
+    /** One of the active account's own spending addresses (any revealed index). Off the main
+     *  thread: an index not derived yet costs a seed derivation. */
+    private suspend fun isOwnSpendingAddress(address: String): Boolean {
+        val normalized = address.trim().lowercase()
+        val own = kotlinx.coroutines.withContext(Dispatchers.Default) {
+            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
+        }
+        return own.any { it.trim().lowercase() == normalized }
+    }
+
+    /**
+     * A plain send from the chatting address (Send Kaspa - Chats > + > Send Kaspa, Profile, the
+     * Address Book, Donate, a payment request without `chat=1` - From: Chatting Address) is a
+     * payment we sent like any other: iOS's payment sync files every outgoing transfer of the
+     * chatting address in a chat with its destination ("Sent X KAS"), and `addMessageToConversation`
+     * gives that destination routing state (iOS 1eb4708, `isPaymentWeSent`;
+     * NO_HANDSHAKE_MESSAGING.md section 4, "We paid B"). So B is watched from now on - their reply
+     * arrives even when their app didn't tag it for our inbox - and the send shows in the chat
+     * with B. Android's payment sync skips our own outgoing transfers, so it is recorded here, at
+     * send time, as a chat payment is.
+     *
+     * Never for one of your own addresses: the account in use, another account on this device,
+     * or one of its spending addresses - moving your own money is not a conversation. A send From
+     * a spending address does not come here: iOS's payment sync only sees the chatting address's
+     * transfers, so a plain send from a spending address opens no chat and watches no one.
+     */
+    suspend fun recordPlainSendFromChattingAddress(toAddress: String, txId: String, amountSompi: Long) {
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotBlank() } ?: return
+        val destination = toAddress.trim()
+        if (destination.isBlank() || txId.isBlank()) return
+        if (isOwnAccountAddress(destination) || isOwnSpendingAddress(destination)) return
+        watchPaymentDestination(destination)
+        // Refused (or not added) - no chat to file the send in.
+        if (database.contactDao().getContact(destination, myAddress) == null) return
+        insertMessage(
+            MessageEntity(
+                id = txId,
+                contactId = destination,
+                walletAddress = myAddress,
+                type = "pay",
+                direction = "sent",
+                plaintextBody = "Sent ${KaspaUnit.plain(amountSompi)} ${KaspaUnit.symbol}",
+                encryptedPayload = "",
+                amountSompi = amountSompi,
+                blockTimestamp = System.currentTimeMillis(),
+                deliveryStatus = "sent"
+            )
+        )
     }
 
     /**
