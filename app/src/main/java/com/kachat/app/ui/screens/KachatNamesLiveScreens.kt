@@ -4680,17 +4680,30 @@ fun KachatProfileSaveSheet(
     val chattingBalanceKnown by vm.wallet.balanceKnown.collectAsState()
     val currentMakeProfile by rememberUpdatedState(makeProfile)
     val none = stringResource(R.string.kn_none)
-    /** The "not enough funds" popup: the chatting address's QR to fund it (iOS 2b45d6e). */
+    /** The "not enough funds" popup: the chatting address's QR to fund it (iOS 2b45d6e). It opens
+     *  by itself once per sheet; after that the Fund button under the message opens it (iOS
+     *  43d4bc0, IOS-084). */
     var showFunding by remember { mutableStateOf(false) }
+    var fundingShownOnce by remember { mutableStateOf(false) }
+    /** The last quote or save failed for lack of funds: the Fund button shows. */
+    var shortOfFunds by remember { mutableStateOf(false) }
     /** Bumped to work the fee out again (iOS `Task { await quote() }`). */
     var quoteTick by remember { mutableIntStateOf(0) }
     val notEnoughFundsMessage = KaspaUnit.label(stringResource(R.string.kn_not_enough_funds_send_1_kas))
 
     /** The save can't be paid: the chatting address has no spendable coin, or too little for the
-     *  fee (iOS `isShortOfFunds`: an "insufficient" error, or a known balance of zero). */
-    fun isShortOfFunds(e: Throwable): Boolean {
-        if (e.message?.contains("insufficient", ignoreCase = true) == true) return true
-        return vm.wallet.balanceKnown.value && vm.wallet.balance.value == 0L
+     *  fee - read from the error alone, an unreachable node is not "no funds" (iOS
+     *  `isShortOfFunds`, 43d4bc0). */
+    fun isShortOfFunds(e: Throwable): Boolean =
+        e.message?.contains("insufficient", ignoreCase = true) == true
+
+    /** Short of funds: the popup the first time, the Fund button after that (iOS 43d4bc0). */
+    fun noteShortOfFunds() {
+        shortOfFunds = true
+        if (!fundingShownOnce) {
+            fundingShownOnce = true
+            showFunding = true
+        }
     }
 
     LaunchedEffect(quoteTick) {
@@ -4698,12 +4711,13 @@ fun KachatProfileSaveSheet(
         profile = p
         try {
             fee = vm.actions.profileFee(p)
+            shortOfFunds = false
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             if (isShortOfFunds(e)) {
                 quoteError = notEnoughFundsMessage
-                showFunding = true
+                noteShortOfFunds()
             } else {
                 quoteError = context.kachatErrorText(e)
             }
@@ -4730,7 +4744,7 @@ fun KachatProfileSaveSheet(
                 } catch (e: Exception) {
                     if (isShortOfFunds(e)) {
                         sendError = notEnoughFundsMessage
-                        showFunding = true
+                        noteShortOfFunds()
                     } else {
                         sendError = context.kachatErrorText(e)
                     }
@@ -4755,7 +4769,7 @@ fun KachatProfileSaveSheet(
         if (f != null || qe == null) {
             FormSection(footer = {
                 when {
-                    qe != null -> FormFooter(qe, colors.danger)
+                    qe != null -> FundingErrorFooter(qe, shortOfFunds) { showFunding = true }
                     privacySeen -> FormFooter(stringResource(R.string.kn_saved_on_chain_note))
                     else -> FormFooter(stringResource(R.string.kn_profiles_public_note))
                 }
@@ -4774,9 +4788,9 @@ fun KachatProfileSaveSheet(
             }
         } else {
             // iOS: an empty section whose footer carries the quote's error.
-            FormFooter(qe, colors.danger)
+            FundingErrorFooter(qe, shortOfFunds) { showFunding = true }
         }
-        FormSection(footer = { sendError?.let { FormFooter(it, colors.danger) } }) {
+        FormSection(footer = { sendError?.let { FundingErrorFooter(it, shortOfFunds) { showFunding = true } } }) {
             FormButtonRow(confirmTitle, enabled = f != null && profile != null && !sending && done == null, busy = sending) { authorize() }
         }
     }
@@ -4785,8 +4799,8 @@ fun KachatProfileSaveSheet(
     // onDismiss: dismiss(); onSaved()).
     done?.let { KachatTxDoneSheet(it, onDismiss = { done = null; onClose(); onSaved() }, vm = vm) }
 
-    // Closes by itself once 1 KAS has arrived; either way the fee is worked out again (iOS
-    // 2b45d6e: ZeroBalanceFundingSheetView with dismissAtSompi 1 KAS).
+    // Closes by itself once any KAS has arrived; either way the fee is worked out again (iOS
+    // 43d4bc0: ZeroBalanceFundingSheetView with its default dismissAtSompi, 1 sompi).
     if (showFunding) {
         val reQuote: () -> Unit = {
             showFunding = false
@@ -4817,8 +4831,35 @@ fun KachatProfileSaveSheet(
     }
 }
 
-/** The balance at which the profile save's "not enough funds" popup closes itself: 1 KAS. */
-private const val FUNDED_SOMPI = 100_000_000L
+/** The balance at which the profile save's "not enough funds" popup closes itself: any KAS
+ *  (iOS 43d4bc0). */
+private const val FUNDED_SOMPI = 1L
+
+/**
+ * A profile save's error in red under its section and, while the last quote or save failed for
+ * lack of funds, a Fund button that opens the funding popup again (iOS 43d4bc0 / a4d3402,
+ * IOS-084: a `VStack` of the message and `Label("Fund", systemImage: "qrcode")`).
+ */
+@Composable
+private fun FundingErrorFooter(text: String, showsFund: Boolean, onFund: () -> Unit) {
+    val colors = LocalAppColors.current
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(text, fontSize = 13.sp, lineHeight = 18.sp, color = colors.danger)
+        if (showsFund) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.clickable(onClick = onFund),
+            ) {
+                Icon(Icons.Default.QrCode, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                Text(stringResource(R.string.kn_fund), color = KaspaTeal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
 
 /** iOS `@AppStorage("kachat_profile_privacy_seen")`: the first save says profiles are public. */
 private const val PRIVACY_SEEN_KEY = "kachat_profile_privacy_seen"
