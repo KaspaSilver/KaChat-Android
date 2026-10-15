@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -99,6 +100,9 @@ fun SendKasSheet(
     /** The From section ([SendFromSection]) under the heading: which of your addresses the
      *  payment comes from, and its balance. The screen owns its state, as it owns the send. */
     fromSection: @Composable () -> Unit,
+    /** A warning under the From section (iOS 710fdc0, IOS-086): a chat payment From a spending
+     *  address while the chatting address is empty, which can't tell the payee about it yet. */
+    fromWarning: String? = null,
     /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
     maxKas: () -> Double,
     /** Changes whenever the fee Max leaves room for may have changed (the speed, a custom fee,
@@ -185,6 +189,23 @@ fun SendKasSheet(
                     }
 
                     fromSection()
+
+                    if (fromWarning != null) {
+                        // iOS: Label(systemImage: "exclamationmark.triangle.fill"), footnote, orange,
+                        // leading.
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = colors.warning,
+                                modifier = Modifier.padding(top = 1.dp).size(15.dp),
+                            )
+                            Text(fromWarning, color = colors.warning, fontSize = 13.sp)
+                        }
+                    }
 
                     // The big centred amount, the KAS/fiat switch and Max - the shared Send Kaspa piece
                     // (iOS 4d0324f).

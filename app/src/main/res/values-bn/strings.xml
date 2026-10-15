@@ -1320,4 +1320,6 @@
     <!-- User Info: look the person's avatar, banner and bio up again now -->
     <string name="rescan_profile">প্রোফাইল আবার স্ক্যান করুন</string>
     <string name="profile_rescanned">প্রোফাইল আবার স্ক্যান করা হয়েছে।</string>
+    <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
+    <string name="payment_notice_chatting_empty">এই পেমেন্টের কথা %1$s কে জানাতে আপনার চ্যাটিং ঠিকানায় কোনো KAS নেই, তাই তারা এটিকে মেমো ছাড়া একটি অজানা ঠিকানা থেকে আসা পেমেন্ট হিসেবে দেখবে। আপনার চ্যাটিং ঠিকানায় কিছু KAS এলে KaChat তাদের জানাবে।</string>
 </resources>

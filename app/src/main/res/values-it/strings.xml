@@ -1320,4 +1320,6 @@
     <!-- User Info: look the person's avatar, banner and bio up again now -->
     <string name="rescan_profile">Ricarica profilo</string>
     <string name="profile_rescanned">Profilo ricaricato.</string>
+    <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
+    <string name="payment_notice_chatting_empty">Il tuo indirizzo di chat non ha KAS per avvisare %1$s di questo pagamento, quindi lo vedrà come un pagamento da un indirizzo sconosciuto, senza la nota. KaChat lo avviserà appena il tuo indirizzo di chat avrà dei KAS.</string>
 </resources>

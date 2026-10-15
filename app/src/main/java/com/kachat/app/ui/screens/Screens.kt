@@ -1870,6 +1870,14 @@ fun ChatThreadScreen(
                     enabled = !paymentSending,
                 )
             },
+            // From a spending address the chatting address tells them about it (a small message
+            // fee); an empty one can't, until it has some KAS (iOS 710fdc0, IOS-086).
+            fromWarning = if (paymentFrom != SendSource.Chatting && fundingGate.active) {
+                stringResource(
+                    R.string.payment_notice_chatting_empty,
+                    conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
+                )
+            } else null,
             maxKas = {
                 // Same source the send will use: the From address - or just the coins picked in
                 // coin control. Leaves room for the base fee (KaspaWalletEngine's mass model and

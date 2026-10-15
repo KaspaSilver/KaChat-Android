@@ -75,6 +75,8 @@ class ChatViewModel @Inject constructor(
     private val kaPostsService: com.kachat.app.services.KaPostsService,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val nameServices: com.kachat.app.services.NameServicesClient,
+    /** Payment notices the empty chatting address could not send yet (iOS 710fdc0, IOS-086). */
+    private val paymentNoticeOutbox: com.kachat.app.services.PaymentNoticeOutbox,
 ) : ViewModel() {
 
     // ---------------------------------------------------------------------
@@ -3140,7 +3142,9 @@ class ChatViewModel @Inject constructor(
      * `sendSpendingPaymentNotice`): an encrypted `payment_notice` from the chatting address, so
      * the payee's app files the payment (and its memo, which travels only here) in the chat with
      * us. Our own bubble is already there. Fire-and-forget, and not tied to this screen's
-     * lifetime: if it fails, the payee still has the KAS, shown in their self-chat.
+     * lifetime: if it fails (usually an empty chatting address) it is kept and sent once the
+     * chatting address has KAS ([com.kachat.app.services.PaymentNoticeOutbox], iOS 710fdc0,
+     * IOS-086); meanwhile the payee still has the KAS, shown in their self-chat.
      */
     private fun sendSpendingPaymentNotice(contactId: String, txId: String, amountSompi: Long, memo: String) {
         val payload = com.kachat.app.util.PaymentPoolProtocol.encode(
@@ -3157,7 +3161,13 @@ class ChatViewModel @Inject constructor(
                 walletService.sendKasiaMessage(contactId, payload, firstContactTag = false)
                 Log.i("ChatViewModel", "Sent payment_notice for ${txId.take(12)}")
             } catch (e: Exception) {
-                Log.w("ChatViewModel", "payment_notice send failed for ${txId.take(12)}: ${e.message}")
+                // usually an empty chatting address: kept, and sent once it has KAS (IOS-086)
+                Log.w("ChatViewModel", "payment_notice send failed for ${txId.take(12)}, kept for later: ${e.message}")
+                paymentNoticeOutbox.keep(
+                    com.kachat.app.services.PaymentNoticeOutbox.UnsentPaymentNotice(
+                        contactAddress = contactId, payload = payload, txId = txId
+                    )
+                )
             }
         }
     }

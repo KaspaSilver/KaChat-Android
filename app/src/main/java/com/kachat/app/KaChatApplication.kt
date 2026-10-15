@@ -154,6 +154,11 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var paymentRequestWallet: dagger.Lazy<com.kachat.app.services.PaymentRequestWallet>
 
+    /** Sends the payment notices an empty chatting address could not, once it has KAS
+     *  (iOS 710fdc0, IOS-086). */
+    @Inject
+    lateinit var paymentNoticeOutbox: dagger.Lazy<com.kachat.app.services.PaymentNoticeOutbox>
+
     // Portfolio rows still waiting for a price resume pricing whenever a wallet loads (iOS
     // PortfolioViewModel.setCurrentWallet, run by WalletManager on every wallet load) - built at
     // startup so its active-wallet observer runs from launch, not first when a screen with
@@ -216,6 +221,7 @@ class KaChatApplication : Application(), Configuration.Provider {
         // follows each wallet load - so it is still built here, at launch, only guarded.
         startupStep("Address Book") { addressBookManager.get() }
         startupStep("payment requests") { paymentRequestWallet.get() }
+        startupStep("payment notices") { paymentNoticeOutbox.get() }
 
         // Reserve the coins every still-waiting scheduled post is going to spend, before any
         // send can pick them (see the field above).
