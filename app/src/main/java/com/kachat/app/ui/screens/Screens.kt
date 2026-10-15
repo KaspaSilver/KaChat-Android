@@ -2228,7 +2228,8 @@ internal fun PaymentCardBubble(
                 )
             }
             if (isWarning) {
-                // payment_notice chain verification found no output to the claimed address.
+                // A payment_notice whose transaction the chain could not confirm yet (IOS-083):
+                // checked again when the notice is read again.
                 Text(
                     text = "⚠︎ Unverified on-chain",
                     fontSize = 11.sp,

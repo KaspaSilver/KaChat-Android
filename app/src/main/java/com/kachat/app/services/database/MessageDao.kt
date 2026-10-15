@@ -245,6 +245,43 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(message: MessageEntity)
 
+    /** Adds [message] only when no row has its id yet - never replaces one. -1 when one exists.
+     *  A payment_notice files its bubble with this, so it can never overwrite a row (IOS-083). */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(message: MessageEntity): Long
+
+    /**
+     * Moves a payment out of the self-chat into the chat a checked payment_notice names
+     * (IOS-083): only an incoming payment row that still sits in the self-chat ([selfChatId]) is
+     * ever changed, so the first notice to claim it wins and no other row - another chat's
+     * payment, a message, anything sent - can be moved or overwritten. Returns the rows moved.
+     */
+    @Query(
+        "UPDATE messages SET contactId = :contactId, plaintextBody = :body, amountSompi = :amountSompi, " +
+            "blockTimestamp = :blockTimestamp, isRead = :isRead, deliveryStatus = 'sent' " +
+            "WHERE id = :id AND walletAddress = :walletAddress AND contactId = :selfChatId " +
+            "AND type = 'pay' AND direction = 'received'"
+    )
+    suspend fun claimSelfChatPayment(
+        id: String,
+        walletAddress: String,
+        selfChatId: String,
+        contactId: String,
+        body: String,
+        amountSompi: Long,
+        blockTimestamp: Long,
+        isRead: Boolean,
+    ): Int
+
+    /** A payment_notice bubble filed unverified (no chain answer) that the chain has now
+     *  confirmed: shown as verified. Touches only that incoming payment row in [contactId]'s chat. */
+    @Query(
+        "UPDATE messages SET deliveryStatus = 'sent', plaintextBody = :body, amountSompi = :amountSompi " +
+            "WHERE id = :id AND walletAddress = :walletAddress AND contactId = :contactId " +
+            "AND type = 'pay' AND direction = 'received' AND deliveryStatus = 'warning'"
+    )
+    suspend fun confirmUnverifiedPayment(id: String, walletAddress: String, contactId: String, body: String, amountSompi: Long): Int
+
     @Query("UPDATE messages SET deliveryStatus = :status WHERE id = :id AND walletAddress = :walletAddress")
     suspend fun updateStatus(id: String, walletAddress: String, status: String)
 
