@@ -9,13 +9,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Recovers a re-imported mnemonic's spending-address index by gap-limit scanning — needed only
- * on wallet **import** (a mnemonic previously used with the spending-address feature on some
- * other install/before a wipe), not on every launch: a brand-new or already-locally-tracked
- * account has nothing to recover, its stored [WalletManager.Account.spendingAddressIndex] is
- * already the source of truth. Mirrors Kaspium's own gap-limit address-discovery pattern
- * (`lib/wallet_address/address_discovery/address_discovery.dart`) — sequential scan, small gap,
- * stop once enough consecutive addresses show no on-chain history at all.
+ * Recovers a re-imported mnemonic's spending-address index — needed only on wallet **import** (a
+ * mnemonic previously used with the spending-address feature on some other install/before a
+ * wipe), not on every launch: a brand-new or already-locally-tracked account has nothing to
+ * recover, its stored [WalletManager.Account.spendingAddressIndex] is already the source of
+ * truth. The manual "Discover Addresses" sweep ([discoverFunded]) lives here too.
  */
 @Singleton
 class SpendingAddressDiscovery @Inject constructor(
@@ -26,22 +24,64 @@ class SpendingAddressDiscovery @Inject constructor(
     private val addressActivity: AddressActivityService,
 ) {
     /**
-     * Returns the recovered index — one past the last address with any transaction history —
+     * Returns the recovered index — one past the highest address with any transaction history —
      * or 0 if the spending chain has never been used at all (including on any API failure,
      * since that's the safe default a brand-new import would already start at).
+     *
+     * ## Why not a small gap-limit walk (audit AND-037)
+     *
+     * It was one: one history lookup per address, stop after 5 unused in a row. But the app
+     * itself leaves long runs of unused addresses - every Request Payment > Fresh Address
+     * reserves a new index, and an unpaid request's address has no history - so five unpaid
+     * requests in a row ended the scan before any later request's address. Funds paid there
+     * after a restore were not counted, watched or listed, and new requests handed out addresses
+     * already in old links.
+     *
+     * So it asks the way [discoverFunded] does: [AddressActivityService.lastActivity] answers "was
+     * this ever used" for a [DEEP_SCAN_FLOOR]-address window in a few bulk requests, whatever the
+     * gaps. A window whose last [IMPORT_TAIL_GAP] addresses saw activity is followed by the next
+     * one, up to [MAX_SCAN_INDEX]. When the REST host doesn't serve that route, it falls back to a
+     * history walk with a gap of [IMPORT_FALLBACK_GAP], plus the batched balance sweep over the
+     * floor, so a funded address past any gap is still covered.
      */
-    suspend fun discoverIndex(gapLimit: Int = 5): Int {
+    suspend fun discoverIndex(): Int {
         val api = networkService.kaspaRestApi.value ?: return 0
         var lastUsedIndex = -1
-        var consecutiveUnused = 0
-        var index = 0
+        var windowStart = 0
+        var activityKnown = true
 
-        while (consecutiveUnused < gapLimit) {
-            val address = try {
-                walletManager.deriveSpendingAddress(index)
-            } catch (e: Exception) {
+        while (windowStart < MAX_SCAN_INDEX) {
+            val indices = (windowStart until minOf(windowStart + DEEP_SCAN_FLOOR, MAX_SCAN_INDEX)).toList()
+            val window = deriveOffMain(indices)
+            if (window.isEmpty()) break
+            val activity = addressActivity.lastActivity(indices.mapNotNull { window[it] })
+            if (activity == null) {
+                activityKnown = false
                 break
             }
+            for (i in indices) {
+                val address = window[i] ?: continue
+                if (activity.containsKey(address)) {
+                    // Warm the monotonic used-cache while we're here: the rebuilt install's first
+                    // Manage Addresses load then labels these "Used" instantly with no re-probe.
+                    walletManager.markAddressUsed(address)
+                    lastUsedIndex = maxOf(lastUsedIndex, i)
+                }
+            }
+            val windowEnd = indices.last()
+            // Something near the end of this window: the chain may go on past it.
+            if (lastUsedIndex < windowEnd - IMPORT_TAIL_GAP + 1) break
+            windowStart = windowEnd + 1
+        }
+        if (activityKnown) return lastUsedIndex + 1
+
+        Log.w("SpendingAddressDiscovery", "Bulk activity unavailable, using the history walk and the batched balance sweep")
+        lastUsedIndex = -1
+        val floor = deriveOffMain((0 until DEEP_SCAN_FLOOR).toList())
+        var consecutiveUnused = 0
+        var index = 0
+        while (consecutiveUnused < IMPORT_FALLBACK_GAP && index < MAX_SCAN_INDEX) {
+            val address = floor[index] ?: deriveOffMain(listOf(index))[index] ?: break
             val everUsed = try {
                 api.getTransactions(address, limit = 1).isNotEmpty()
             } catch (e: Exception) {
@@ -49,8 +89,6 @@ class SpendingAddressDiscovery @Inject constructor(
                 break
             }
             if (everUsed) {
-                // Warm the monotonic used-cache while we're here: the rebuilt install's first
-                // Manage Addresses load then labels these "Used" instantly with no re-probe.
                 walletManager.markAddressUsed(address)
                 lastUsedIndex = index
                 consecutiveUnused = 0
@@ -60,8 +98,38 @@ class SpendingAddressDiscovery @Inject constructor(
             index++
         }
 
+        // A funded address past the walk's gap: the batched balances, a handful of requests over
+        // the whole floor (funded means used).
+        var batchStart = 0
+        while (batchStart < DEEP_SCAN_FLOOR) {
+            val batch = (batchStart until minOf(batchStart + BATCH_SIZE, DEEP_SCAN_FLOOR)).toList()
+            val addresses = batch.mapNotNull { i -> floor[i]?.let { i to it } }.toMap()
+            if (addresses.isEmpty()) break
+            val balances = fetchBalances(addresses.values.toList()) ?: break
+            for (i in batch) {
+                val address = addresses[i] ?: continue
+                if ((balances[address] ?: 0L) > 0L) {
+                    walletManager.markAddressUsed(address)
+                    lastUsedIndex = maxOf(lastUsedIndex, i)
+                }
+            }
+            batchStart += batch.size
+        }
+
         return lastUsedIndex + 1
     }
+
+    /** Address derivation is CPU work (and a seed derivation when nothing is cached yet) - kept
+     *  off the main thread the import's coroutine runs on. Empty when it fails. */
+    private suspend fun deriveOffMain(indices: List<Int>): Map<Int, String> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            try {
+                walletManager.deriveSpendingAddresses(indices)
+            } catch (e: Exception) {
+                Log.w("SpendingAddressDiscovery", "Could not derive spending addresses", e)
+                emptyMap()
+            }
+        }
 
     /** Where a scan currently is, so the UI can count up instead of showing an unmoving spinner.
      *  Mirrors [ColdStorageAddressDiscovery.DiscoveryProgress]. */
@@ -76,6 +144,12 @@ class SpendingAddressDiscovery @Inject constructor(
         const val BATCH_SIZE = 100
         /** KNS has no bulk endpoint, so domain ownership is only probed this far in. */
         const val KNS_PROBE_DEPTH = 200
+        /** Import recovery: activity this close to a window's end looks at the next window too. */
+        const val IMPORT_TAIL_GAP = 60
+        /** Import recovery's history walk, used only when the bulk activity route is unavailable:
+         *  the usual BIP44 gap (the batched balance sweep beside it covers funded addresses past
+         *  any longer run of unpaid Fresh Address requests). */
+        const val IMPORT_FALLBACK_GAP = 20
     }
 
     /**
