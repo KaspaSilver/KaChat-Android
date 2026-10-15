@@ -461,7 +461,7 @@ fun KaspaAmountEntry(
 }
 
 /**
- * Thousands separators on an amount field while it's shown ("12,345.5", or "12 345.5" where "," is
+ * Thousands separators on an amount field while it's shown ("12,345.5", or "12 345,5" where "," is
  * the decimal point), the plain number kept as the field's value (iOS 40c5258 `KaspaAmountEntry.grouped` / `ungrouped`, `Binding.groupedAmount`).
  * Used by [KaspaAmountEntry], the .kachat offer and list price, Add to Portfolio and a portfolio
  * transaction's quantity: put [visualTransformation] on the field and pass what's typed through
@@ -480,27 +480,38 @@ object KaspaAmountGrouping {
     fun groupingSeparator(locale: java.util.Locale = java.util.Locale.getDefault()): Char =
         if (usesCommaDecimal(locale)) '\u202F' else ','
 
-    /** "12345.5" -> "12,345.5" (or "12 345.5"): a separator every three digits of the whole part,
-     *  the rest as typed. */
+    /** The decimal point as the device writes it: "," where [usesCommaDecimal], else ".". */
+    fun decimalPoint(locale: java.util.Locale = java.util.Locale.getDefault()): Char =
+        if (usesCommaDecimal(locale)) ',' else '.'
+
+    /** "12345.5" -> "12,345.5", or "12 345,5" where "," is the decimal point: a separator every
+     *  three digits of the whole part, the decimal point the device's own (so the person sees the
+     *  "," they typed and doesn't type it again - iOS b383ff0, IOS-082), the rest as typed. */
     fun grouped(plain: String, locale: java.util.Locale = java.util.Locale.getDefault()): String {
         val dot = plain.indexOf('.')
         val whole = if (dot >= 0) plain.substring(0, dot) else plain
-        if (whole.length <= 3 || !whole.all { it in '0'..'9' }) return plain
-        val separator = groupingSeparator(locale)
+        if (!whole.all { it in '0'..'9' }) return plain
         val out = StringBuilder()
-        for ((i, ch) in whole.withIndex()) {
-            if (i > 0 && (whole.length - i) % 3 == 0) out.append(separator)
-            out.append(ch)
+        if (whole.length > 3) {
+            val separator = groupingSeparator(locale)
+            for ((i, ch) in whole.withIndex()) {
+                if (i > 0 && (whole.length - i) % 3 == 0) out.append(separator)
+                out.append(ch)
+            }
+        } else {
+            out.append(whole)
         }
-        return if (dot >= 0) out.toString() + plain.substring(dot) else out.toString()
+        return if (dot >= 0) out.toString() + decimalPoint(locale) + plain.substring(dot + 1) else out.toString()
     }
 
     /**
      * The edited field back to a plain number ("." the decimal point). [edited] is the field's
      * value after the edit and [previous] its value before (both without the drawn separators),
      * so every comma in [edited] was typed or pasted.
-     * - Comma-decimal device: a "," is the decimal point; a pasted "1.234,5" (dots as grouping, a
-     *   comma decimal) is 1234.5. Pasted spaces go.
+     * - Comma-decimal device: the first "," is the decimal point and any further one is dropped -
+     *   a "," typed where the value already has its point (shown as ",") changes nothing, so a
+     *   second tap on the key never moves the point (iOS b383ff0, IOS-082). A pasted "1.234,5"
+     *   (dots as grouping, a comma decimal) is 1234.5. Pasted spaces go.
      * - Otherwise: a comma TYPED as the decimal point stays one: typed at the end, or a single
      *   comma not three digits from the end in a number that showed no grouping ("0,5" is 0.5),
      *   or after a lone leading zero ("0,001" is 0.001, as no grouped number starts "0,"). Any
@@ -509,6 +520,8 @@ object KaspaAmountGrouping {
     fun ungrouped(edited: String, previous: String, locale: java.util.Locale = java.util.Locale.getDefault()): String {
         if (usesCommaDecimal(locale)) {
             var text = edited.replace("\u202F", "").replace(" ", "").replace("\u00A0", "")
+            // Only commas were added to a value that already has its point: it stays as it was.
+            if (previous.contains('.') && text.replace(",", "") == previous) return previous
             val first = text.indexOf(',')
             if (first >= 0) {
                 // a comma is the decimal point; dots beside it can only be grouping
@@ -539,6 +552,7 @@ private object GroupedAmountTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val plain = text.text
         val shown = KaspaAmountGrouping.grouped(plain)
+        val point = KaspaAmountGrouping.decimalPoint()
         if (shown == plain) return TransformedText(text, OffsetMapping.Identity)
         // Each plain character's position in the shown text; a cursor just before a digit that
         // has a comma in front of it sits after that comma.
@@ -548,8 +562,9 @@ private object GroupedAmountTransformation : VisualTransformation {
         for (t in shown.indices) {
             toPlain[t] = o
             // Only the drawn commas are extra: grouped() inserts them, and a groupable whole part
-            // has none of its own (the fraction is copied as is, so it lines up 1:1 again).
-            if (o < plain.length && shown[t] == plain[o]) {
+            // has none of its own (the fraction is copied as is, so it lines up 1:1 again). The
+            // plain "." is drawn as the device's own decimal point.
+            if (o < plain.length && (shown[t] == plain[o] || (plain[o] == '.' && shown[t] == point))) {
                 toShown[o] = t
                 o++
             }
