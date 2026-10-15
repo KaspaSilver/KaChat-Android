@@ -2,14 +2,28 @@ package com.kachat.app.services.kachatnames
 
 import android.content.Context
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.kachat.app.R
 import com.kachat.app.services.GlobalNotificationCenterStore
+import com.kachat.app.services.NotificationHelper
 import com.kachat.app.util.KaspaUnit
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,6 +45,8 @@ class KachatNamesNotifier @Inject constructor(
     private val actions: KachatNamesActions,
     private val service: KachatNamesService,
     private val bell: GlobalNotificationCenterStore,
+    /** Local renewal reminders for names on the wallet's other addresses (iOS d1026de, XP-024). */
+    private val reminders: KachatNameReminders,
 ) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val checking = AtomicBoolean(false)
@@ -44,13 +60,21 @@ class KachatNamesNotifier @Inject constructor(
         val p = service.manifest.value?.params ?: return
         if (!checking.compareAndSet(false, true)) return
         try {
-            val owned = orNull { registry.names(me, includeInactive = true) } ?: return
-            val myOpenOffers = orNull { registry.myOffers(me) } ?: return
+            // every address of this wallet, not only the chatting one: a name claimed with Buy From
+            // gets its notices too (iOS d1026de, IOS-085 / XP-024)
+            val own = orNull { actions.ownNamesAndOffers(heldOnly = false) } ?: return
+            val owned = own.first
+            val myOpenOffers = own.second
+            val ownKeys = actions.allOwnKeys()
             val offersOnMine = ArrayList<OfferInfo>()
             for (n in owned) {
                 if (n.status(p.graceMs) != Status.ACTIVE) continue
-                offersOnMine += (orNull { registry.offers(n.name) } ?: emptyList()).filter { it.seller.contentEquals(me) }
+                offersOnMine += (orNull { registry.offers(n.name) } ?: emptyList())
+                    .filter { o -> ownKeys.any { it.contentEquals(o.seller) } }
             }
+            // The indexer pushes name reminders only to the chatting address: for a name on another
+            // address of this wallet the phone schedules its own (XP-024).
+            reminders.schedule(owned.filter { !it.owner.contentEquals(me) }, p)
             // a different wallet signed in meanwhile: this answer isn't its
             if (actions.myAddress != wallet) return
 
@@ -309,5 +333,135 @@ class KachatNamesNotifier @Inject constructor(
             // the first check only records where things stand
             return next to (if (old == null) emptyList() else news)
         }
+    }
+}
+
+/**
+ * Local reminders for .kachat names held by one of this wallet's spending addresses (Buy From):
+ * the indexer's renewal and expiry pushes reach only the chatting address, so the phone schedules
+ * its own - renewal opens, the name expired, and a day before grace ends - from each name's expiry
+ * (iOS d1026de `KachatNameReminders`, XP-024). Nothing leaves the phone. Rescheduled on every
+ * notifier check: a renewed name moves its reminders, a name that left the wallet loses them.
+ * Each one is a one-time [KachatNameReminderWorker] under its own unique work name; tapping it
+ * opens the name, like the pushes ([NotificationHelper.showKachatName]).
+ */
+@Singleton
+class KachatNameReminders @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    private class Reminder(val date: Long, val title: String, val body: String, val name: String)
+
+    /** The reminders scheduled so far: unique work name -> when it fires (unix ms). */
+    private fun scheduled(): Map<String, Long> = runCatching {
+        val root = JsonParser.parseString(prefs.getString(KEY, null) ?: return emptyMap()).asJsonObject
+        root.entrySet().associate { (k, v) -> k to v.asLong }
+    }.getOrNull() ?: emptyMap()
+
+    private fun save(map: Map<String, Long>) {
+        val root = JsonObject()
+        for ((k, v) in map) root.addProperty(k, v)
+        prefs.edit().putString(KEY, root.toString()).apply()
+    }
+
+    private fun s(res: Int, vararg args: Any): String = KaspaUnit.label(context.getString(res, *args))
+
+    private fun day(ms: Long): String = com.kachat.app.ui.screens.KachatLive.day(ms)
+
+    suspend fun schedule(names: List<NameInfo>, params: Params) = withContext(Dispatchers.IO) {
+        val p = params
+        val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return@withContext
+        val pending = scheduled()
+        // notifications are off for the app: nothing is kept waiting (iOS: not authorized)
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            for (id in pending.keys) work.cancelUniqueWork(id)
+            if (pending.isNotEmpty()) save(emptyMap())
+            return@withContext
+        }
+        val now = KachatNames.nowMs()
+        val wanted = LinkedHashMap<String, Reminder>()
+        val bases = HashSet<String>()
+        for (n in names) {
+            val display = "${n.name}.kachat"
+            val base = "$PREFIX${n.name}-${n.expiresAt}-"
+            bases += base
+            val renewAt = n.expiresAt - p.renewWindowMs
+            if (renewAt > now) {
+                wanted[base + "renew"] = Reminder(
+                    renewAt, s(R.string.kn_bell_renew_title, display),
+                    s(R.string.kn_bell_renewal_open, day(n.expiresAt)), n.name
+                )
+            }
+            if (n.expiresAt > now) {
+                wanted[base + "grace"] = Reminder(
+                    n.expiresAt, s(R.string.kn_bell_expired_title, display),
+                    s(R.string.kn_bell_expired_body, day(n.expiresAt + p.graceMs)), n.name
+                )
+            }
+            val lastCall = n.expiresAt + p.graceMs - minOf(p.graceMs / 2, 86_400_000L)
+            if (lastCall > now) {
+                wanted[base + "lastcall"] = Reminder(
+                    lastCall, s(R.string.kn_bell_expired_title, display),
+                    s(R.string.kn_bell_expired_body, day(n.expiresAt + p.graceMs)), n.name
+                )
+            }
+        }
+        // iOS hands a due notification to the system at its time; WorkManager may run one a little
+        // late (Doze), so one just past its time for a name that is still here is left to fire
+        val keep = HashMap<String, Long>()
+        for ((id, date) in pending) {
+            if (wanted.containsKey(id)) continue
+            val overdue = date <= now && now - date < 86_400_000L && bases.any { id.startsWith(it) }
+            if (overdue) keep[id] = date else work.cancelUniqueWork(id)
+        }
+        for ((id, r) in wanted) {
+            if (pending.containsKey(id)) continue
+            val request = OneTimeWorkRequestBuilder<KachatNameReminderWorker>()
+                .setInitialDelay(maxOf(1_000L, r.date - now), TimeUnit.MILLISECONDS)
+                .setInputData(
+                    workDataOf(
+                        KachatNameReminderWorker.KEY_ID to id,
+                        KachatNameReminderWorker.KEY_TITLE to r.title,
+                        KachatNameReminderWorker.KEY_BODY to r.body,
+                        KachatNameReminderWorker.KEY_NAME to r.name,
+                    )
+                )
+                .addTag(PREFIX)
+                .build()
+            work.enqueueUniqueWork(id, ExistingWorkPolicy.REPLACE, request)
+        }
+        save(keep + wanted.mapValues { it.value.date })
+    }
+
+    private companion object {
+        const val PREFS = "kachat_name_reminders"
+        const val KEY = "scheduled"
+        const val PREFIX = "kachat-local-"
+    }
+}
+
+/** Shows one [KachatNameReminders] reminder when its time comes (iOS: the scheduled local
+ *  notification, thread "kachat-names"); tapping it opens the name. */
+@HiltWorker
+class KachatNameReminderWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val notifications: NotificationHelper,
+) : CoroutineWorker(appContext, workerParams) {
+    override suspend fun doWork(): Result {
+        val id = inputData.getString(KEY_ID) ?: return Result.success()
+        val title = inputData.getString(KEY_TITLE) ?: return Result.success()
+        val body = inputData.getString(KEY_BODY) ?: return Result.success()
+        val name = inputData.getString(KEY_NAME) ?: return Result.success()
+        notifications.showKachatName(title, body, name, dedupeKey = id)
+        return Result.success()
+    }
+
+    companion object {
+        const val KEY_ID = "id"
+        const val KEY_TITLE = "title"
+        const val KEY_BODY = "body"
+        const val KEY_NAME = "name"
     }
 }

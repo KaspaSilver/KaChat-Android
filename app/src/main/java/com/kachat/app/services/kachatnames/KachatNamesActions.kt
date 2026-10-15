@@ -25,6 +25,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -121,7 +126,10 @@ class KachatNamesActions @Inject constructor(
     private val walletEngine: com.kachat.app.services.KaspaWalletEngine,
     /** KasSigner (watch-only) accounts, to tell which of this wallet's addresses holds a name
      *  ([ownAddress], iOS 881ada6). Read only: their keys never live here. */
-    private val coldStorageManager: com.kachat.app.services.ColdStorageManager
+    private val coldStorageManager: com.kachat.app.services.ColdStorageManager,
+    /** Whether a spending address was ever used ([ownNameKeys], iOS d1026de: ChatService's
+     *  `spendingAddressUsedState`). Lazy: only read when the registry is asked about them. */
+    private val walletService: dagger.Lazy<com.kachat.app.services.WalletService>
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("KachatNamesActions"))
     private val gson = Gson()
@@ -448,8 +456,9 @@ class KachatNamesActions @Inject constructor(
 
     private val marketAddressesKey: String? get() = myAddress?.let { "kachat_market_addresses.$it" }
 
-    /** Spending addresses picked to buy with in the marketplace, per wallet: Your Domains and the
-     *  marketplace list the names and offers they hold next to the chatting address's. */
+    /** Spending addresses picked to buy with in the marketplace, per wallet: known used, so
+     *  [ownNameKeys] asks about them without a history lookup (every revealed address's names
+     *  count as the wallet's since iOS d1026de). */
     val marketAddresses: List<String>
         get() {
             val key = marketAddressesKey ?: return emptyList()
@@ -467,18 +476,117 @@ class KachatNamesActions @Inject constructor(
         }
     }
 
-    /** The keys whose names and offers count as this wallet's in the marketplace and Your
-     *  Domains: the chatting address's, then each address bought with. */
-    val ownMarketKeys: List<ByteArray>
-        get() {
-            val keys = mutableListOf<ByteArray>()
-            myKey?.let { keys.add(it) }
-            for (address in marketAddresses) {
-                val key = KachatNamesRegistry.keyOf(address) ?: continue
-                if (keys.none { it.contentEquals(key) }) keys.add(key)
-            }
-            return keys
+    // This wallet's keys (iOS d1026de, IOS-085 / XP-024)
+
+    /** "wallet|highest revealed spending index|addresses Buy From was set to": when this changes,
+     *  the wallet's keys are worked out again. */
+    private fun ownKeysCacheKey(wallet: String): String {
+        val account = walletManager.getActiveAccount()
+        val max = maxOf(0, account?.spendingAddressIndex ?: 0, account?.maxSpendingAddressIndex ?: 0)
+        return "$wallet|$max|${marketAddresses.size}"
+    }
+
+    /** Every revealed spending address, index order (iOS `spendingAddresses(inRange:)`); empty
+     *  when they can't be derived. Derives on a cache miss, so off the main thread. */
+    private fun revealedSpendingAddresses(): List<String> {
+        val account = walletManager.getActiveAccount() ?: return emptyList()
+        val max = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        return runCatching { walletManager.deriveSpendingAddresses(0..max) }.getOrNull().orEmpty()
+            .entries.sortedBy { it.key }.map { it.value }
+    }
+
+    @Volatile private var ownKeyCache: Pair<String, List<ByteArray>>? = null
+
+    /**
+     * The chatting key and every revealed spending address's key: a name or an offer on any of
+     * them is this wallet's, on every device restored from the seed - not only on the one that
+     * bought it. Worked out once per account and address count (iOS d1026de `allOwnKeys`, which
+     * is a property there; here it may derive addresses, so it runs on [Dispatchers.IO]).
+     */
+    suspend fun allOwnKeys(): List<ByteArray> = withContext(Dispatchers.IO) {
+        val wallet = myAddress ?: return@withContext emptyList()
+        val cacheKey = ownKeysCacheKey(wallet)
+        ownKeyCache?.takeIf { it.first == cacheKey }?.let { return@withContext it.second }
+        val keys = ArrayList<ByteArray>()
+        fun add(key: ByteArray?) {
+            if (key != null && keys.none { it.contentEquals(key) }) keys.add(key)
         }
+        add(myKey)
+        val spending = revealedSpendingAddresses()
+        for (address in spending) add(KachatNamesRegistry.keyOf(address))
+        for (address in marketAddresses) add(KachatNamesRegistry.keyOf(address))
+        // a failed derivation isn't remembered: the next call tries again
+        if (spending.isNotEmpty()) ownKeyCache = cacheKey to keys
+        keys
+    }
+
+    /** [key] is one of this wallet's (iOS `isOwnKey`). */
+    suspend fun isOwnKey(key: ByteArray): Boolean = allOwnKeys().any { it.contentEquals(key) }
+
+    @Volatile private var nameKeysCache: Triple<String, Long, List<ByteArray>>? = null
+
+    /**
+     * The keys worth asking the registry about (one lookup each): the chatting key, then every
+     * revealed spending address that has ever been used - a name or an offer needs KAS on its
+     * address - and the addresses Buy From was set to. The used/unused answers are cached (used
+     * is for good), so after the first time this costs no requests; the list itself is kept ten
+     * minutes. Probed eight at a time (iOS d1026de `ownNameKeys`).
+     */
+    suspend fun ownNameKeys(): List<ByteArray> = withContext(Dispatchers.IO) {
+        val wallet = myAddress ?: return@withContext emptyList()
+        val me = myKey ?: return@withContext emptyList()
+        val cacheKey = ownKeysCacheKey(wallet)
+        nameKeysCache?.let { (key, at, keys) ->
+            if (key == cacheKey && System.currentTimeMillis() - at < 600_000L) return@withContext keys
+        }
+        val spending = revealedSpendingAddresses()
+        val hints = marketAddresses.toSet()
+        val wallets = walletService.get()
+        val used = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+        val toProbe = ArrayList<String>()
+        for (address in spending) {
+            if (address.lowercase() in hints) { used[address] = true; continue }
+            val known = wallets.cachedSpendingAddressUsedState(address)
+            if (known != null) used[address] = known else toProbe += address
+        }
+        val gate = Semaphore(8)
+        coroutineScope {
+            toProbe.map { address ->
+                async { gate.withPermit { used[address] = wallets.spendingAddressUsedState(address) ?: false } }
+            }.awaitAll()
+        }
+        val keys = mutableListOf(me)
+        fun add(key: ByteArray?) {
+            if (key != null && keys.none { it.contentEquals(key) }) keys.add(key)
+        }
+        for (address in spending) if (used[address] == true) add(KachatNamesRegistry.keyOf(address))
+        for (address in marketAddresses) add(KachatNamesRegistry.keyOf(address))
+        // a different wallet signed in meanwhile: this answer isn't its
+        if (myAddress != wallet) return@withContext emptyList()
+        nameKeysCache = Triple(cacheKey, System.currentTimeMillis(), keys)
+        keys
+    }
+
+    /**
+     * Every name ([heldOnly] false: inactive ones too) or held name, and every open offer, on
+     * this wallet's keys ([ownNameKeys]), asked four keys at a time (iOS d1026de
+     * `ownNamesAndOffers`). Throws when a lookup fails, as iOS.
+     */
+    suspend fun ownNamesAndOffers(heldOnly: Boolean): Pair<List<NameInfo>, List<OfferInfo>> {
+        val keys = ownNameKeys()
+        val gate = Semaphore(4)
+        val answers = coroutineScope {
+            keys.map { key ->
+                async {
+                    gate.withPermit {
+                        val n = if (heldOnly) registry.heldNames(key) else registry.names(key, includeInactive = true)
+                        n to registry.myOffers(key)
+                    }
+                }
+            }.awaitAll()
+        }
+        return answers.flatMap { it.first } to answers.flatMap { it.second }
+    }
 
     /** The current wallet's x-only key, without touching the private key. */
     val myKey: ByteArray? get() = walletManager.getActiveAccount()?.address?.let { KachatNamesRegistry.keyOf(it) }
@@ -1022,8 +1130,9 @@ class KachatNamesActions @Inject constructor(
      * `withdrawDeclinedOffers` (the seller field since 49c0baa).
      */
     suspend fun withdrawDeclinedOffers(offers: List<OfferInfo>) {
-        val keys = ownMarketKeys
-        if (!KachatNamesService.isLaunched || keys.isEmpty()) return
+        if (!KachatNamesService.isLaunched) return
+        val keys = allOwnKeys()
+        if (keys.isEmpty()) return
         val mine = offers.filter { o ->
             keys.any { it.contentEquals(o.buyer) } && o.id !in _withdrawingOffers.value && o.id !in _returningOffers.value
         }

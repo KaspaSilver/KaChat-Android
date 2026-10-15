@@ -494,6 +494,10 @@ class KachatLiveViewModel @Inject constructor(
 
     /** This wallet's x-only key. Read once here: it parses the account list, too slow per row. */
     var myKey by mutableStateOf(if (KachatNamesService.isLaunched) actions.myKey else null); private set
+    /** Every key of this wallet - the chatting address's and each revealed spending address's
+     *  ([KachatNamesActions.allOwnKeys], iOS d1026de). Worked out off the main thread on start and
+     *  every reload; until then just the chatting key. */
+    var ownKeys by mutableStateOf<List<ByteArray>>(listOfNotNull(myKey)); private set
 
     val isLive: Boolean get() = KachatLive.isEnabled && ready == true
     val graceMs: Long get() = registry.graceMs
@@ -507,7 +511,19 @@ class KachatLiveViewModel @Inject constructor(
         }
     }
 
-    fun isMine(key: ByteArray): Boolean = myKey?.contentEquals(key) == true
+    /** A key of this wallet: the chatting address or any revealed spending address (iOS d1026de
+     *  `KachatLive.isMine`, IOS-085). */
+    fun isMine(key: ByteArray): Boolean =
+        myKey?.contentEquals(key) == true || ownKeys.any { it.contentEquals(key) }
+
+    /** The chatting address's own key only: Set as Primary applies only to its names (iOS d1026de). */
+    fun isChattingKey(key: ByteArray): Boolean = myKey?.contentEquals(key) == true
+
+    /** Works [ownKeys] out again (cached per account and address count, so cheap after the first). */
+    suspend fun loadOwnKeys() {
+        val keys = actions.allOwnKeys()
+        if (keys.size != ownKeys.size || keys.indices.any { !keys[it].contentEquals(ownKeys[it]) }) ownKeys = keys
+    }
 
     suspend fun start() {
         if (!KachatLive.isEnabled) {
@@ -515,6 +531,7 @@ class KachatLiveViewModel @Inject constructor(
             return
         }
         myKey = actions.myKey
+        loadOwnKeys()
         try {
             registry.prepare(forceSourceCheck = true)
             ready = true
@@ -560,15 +577,10 @@ class KachatLiveViewModel @Inject constructor(
             } catch (_: Exception) {
                 emptyList()
             }
-            // the chatting address and every address the marketplace bought with (iOS eb9b027)
-            val keys = actions.ownMarketKeys
-            if (keys.isNotEmpty()) {
-                val names = mutableListOf<NameInfo>()
-                val offers = mutableListOf<OfferInfo>()
-                for (key in keys) {
-                    names += registry.names(key, includeInactive = true)
-                    offers += registry.myOffers(key)
-                }
+            // the chatting address and every used address of this wallet (iOS d1026de, IOS-085)
+            loadOwnKeys()
+            if (actions.myKey != null) {
+                val (names, offers) = actions.ownNamesAndOffers(heldOnly = false)
                 mine = names
                 myOffers = offers
                 if (myOffers.isNotEmpty()) {
@@ -3027,8 +3039,9 @@ fun KachatLiveNameDetailScreen(
     // address), or null for someone else's. Resolved on load: it derives addresses (iOS 881ada6).
     var heldBy by remember(initial.name) { mutableStateOf<KachatNamesActions.OwnAddress?>(null) }
 
-    // Held by the chatting address: the identity, so "Set as Primary" applies.
-    val mine = heldBy == KachatNamesActions.OwnAddress.Chatting || (heldBy == null && vm.isMine(info.owner))
+    // Held by the chatting address: the identity, so "Set as Primary" applies (only there, iOS
+    // d1026de).
+    val mine = heldBy == KachatNamesActions.OwnAddress.Chatting || (heldBy == null && vm.isChattingKey(info.owner))
     // Held by an address this app can sign for: every owner action is available.
     val canActAsOwner = when (heldBy) {
         KachatNamesActions.OwnAddress.Chatting, is KachatNamesActions.OwnAddress.Spending -> true
@@ -3069,6 +3082,8 @@ fun KachatLiveNameDetailScreen(
         } catch (_: Exception) {
         }
         val owner = KachatNamesRegistry.address(info.owner)
+        // this wallet's keys, for "yours" below (iOS d1026de `KachatLive.isMine`)
+        vm.loadOwnKeys()
         val held = runCatching { vm.actions.ownAddress(info.owner) }.getOrNull()
         heldBy = held
         if (held == null && !vm.isMine(info.owner) && owner != null) {
@@ -4053,35 +4068,41 @@ fun KachatLiveDomainsTab(
         val key = KachatNamesRegistry.keyOf(walletAddress)
         if (vm == null || key == null) { loaded = true; return@LaunchedEffect }
         if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
-        // Your own list (the chatting address's) also holds what the marketplace bought with your
-        // other addresses: a name claimed from a fresh address is still yours to find here (iOS
-        // eb9b027).
-        val keys = mutableListOf(key)
-        if (walletAddress.lowercase() == vm.actions.myAddress) {
-            keys += vm.actions.ownMarketKeys.filter { !it.contentEquals(key) }
-        }
         // A lapsed name is no longer yours: it moves to the marketplace's Available tab (and the
         // bell says so, KachatNamesNotifier). Expired names in grace stay, to be renewed (iOS e26562e).
-        val held = mutableListOf<NameInfo>()
-        val offers = mutableListOf<OfferInfo>()
-        for (k in keys) {
-            held += try {
-                vm.registry.heldNames(k)
+        // Your own list (the chatting address's) holds the names and offers on every address of
+        // this wallet - one claimed with Buy From too, on any device restored from the seed (iOS
+        // d1026de, IOS-085).
+        val own = if (walletAddress.lowercase() == vm.actions.myAddress) {
+            try {
+                vm.actions.ownNamesAndOffers(heldOnly = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+        if (own != null) {
+            names = own.first
+            myOffers = own.second
+        } else {
+            names = try {
+                vm.registry.heldNames(key)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 emptyList()
             }
-            offers += try {
-                vm.registry.myOffers(k)
+            myOffers = try {
+                vm.registry.myOffers(key)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 emptyList()
             }
         }
-        names = held
-        myOffers = offers
         if (myOffers.isNotEmpty()) {
             // expired offers, and ones made to an earlier owner, come back on their own (iOS ba07975)
             vm.actions.refreshVirtualDaa()
