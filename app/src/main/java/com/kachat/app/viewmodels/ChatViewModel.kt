@@ -1138,11 +1138,10 @@ class ChatViewModel @Inject constructor(
         
         if (total < sompiNeeded && isPayment) return@combine null
         
-        // A payment carries a payload only when it has a memo (see sendPayment) - and then the
-        // whole sealed memo is on chain, so the fee prices it (iOS estimatePaymentFee(note:)).
+        // A chat payment always carries its sealed `kchat:1:pay:` payload, memo or not (see
+        // sendPayment), so the fee prices it - as iOS estimatePaymentFee(note:) always does.
         val payloadSize = if (isPayment) {
-            val note = paymentNote.trim()
-            if (note.isEmpty()) 0 else MessageProtocol.estimatedPaymentPayloadSize(note, sompiNeeded)
+            MessageProtocol.estimatedPaymentPayloadSize(paymentNote.trim(), sompiNeeded)
         } else {
             textPayloadSize
         }
@@ -1175,7 +1174,7 @@ class ChatViewModel @Inject constructor(
      * extra). With coin control on, only the picked coins count. Every coin counted is an input,
      * as a send of everything spends them all (coin control's exact set, or the source's coins -
      * the chatting address or a spending address alike, iOS estimateMaxPaymentAmount). The
-     * memo's payload is priced in, so a Max payment carrying a memo still covers its fee.
+     * payment's `kchat:1:pay:` payload (memo or not) is priced in, so a Max payment still covers its fee.
      *
      * The extra is worked out here, from the base this prices ([feeMultiplier] - 1 times it, or
      * [customExtraFeeSompi]) - not taken from the sheet, whose extra comes from the fee estimate
@@ -2990,7 +2989,8 @@ class ChatViewModel @Inject constructor(
      *  [note] is the Send KAS sheet's memo (iOS 8d208b2): sealed to the recipient in a
      *  `kchat:1:pay:` payload, so only they can read it back from the chain - which is why the
      *  sender's own bubble keeps it from send time ("Sent X KAS — memo", iOS 2be75ed). A payment
-     *  with no memo carries no payload at all, as before.
+     *  from the chatting address carries that payload even with no memo (iOS buildPaymentTx);
+     *  one from a spending address carries none (see below).
      *
      *  [sourceSpendingIndex] is the payment's From (iOS 6333dd3 `sendPayment(sourceSpendingIndex:)`):
      *  null = the chatting address (the default) - signed with the identity key, change back to
@@ -3057,7 +3057,10 @@ class ChatViewModel @Inject constructor(
                 // seen that address, so a chat payment from it would open a stranger's Message
                 // Request on their side instead of landing in this chat (iOS 927322b, XP-022).
                 val fromChattingAddress = sourceSpendingIndex == null
-                val payload = if (memo.isEmpty() || !fromChattingAddress) null else MessageProtocol.paymentMemoPayload(
+                // From the chatting address it is a chat payment, which always carries its
+                // `kchat:1:pay:` payload - an empty memo too (iOS buildPaymentTx): that payload is
+                // what opens our chat on the payee's side when they don't know us yet (iOS 1eb4708).
+                val payload = if (!fromChattingAddress) null else MessageProtocol.paymentMemoPayload(
                     memo = memo,
                     amountSompi = sompi,
                     recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
@@ -3446,8 +3449,8 @@ class ChatViewModel @Inject constructor(
             feeMultiplier: Long,
             customExtraFeeSompi: Long?,
         ): Long {
-            val trimmed = note.trim()
-            val payloadSize = if (trimmed.isEmpty()) 0 else MessageProtocol.estimatedPaymentPayloadSize(trimmed, balanceSompi)
+            // Every chat payment carries its payload, an empty memo too (iOS estimateMaxPaymentAmount).
+            val payloadSize = MessageProtocol.estimatedPaymentPayloadSize(note.trim(), balanceSompi)
             val rate = kotlin.math.ceil(feeRate).toLong().coerceAtLeast(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             return com.kachat.app.util.SendFeeModel.maxAfterFees(
                 totalSompi = balanceSompi,
