@@ -137,6 +137,11 @@ class NotificationHelper @Inject constructor(
         if (!txId.isNullOrBlank()) notifiedTxIds[txId] = true
     }
 
+    /** Claims [txId] for a banner another path posts itself: false when one was already shown
+     *  for it. A plain payment to the chatting address can banner from the payment sync and from
+     *  [AddressActivityNotifier] (iOS 56b75c8) - whichever comes first is the only one. */
+    fun claimForBanner(txId: String): Boolean = claimTxId(txId)
+
     /** Screens showing a 1:1 conversation, newest last. The chat thread and the chess board over
      *  it both hold the contact, and Compose Navigation disposes the thread only after the board
      *  has entered - a plain "set null on dispose" then cleared the board's hold, which stopped
@@ -554,6 +559,9 @@ class NotificationHelper @Inject constructor(
         const val EXTRA_WALLET_ACTIVITY_KIND = "wallet_activity_kind"
         const val KIND_COLD = "cold"
         const val KIND_SPENDING = "spending"
+        /** The chatting address (iOS 56b75c8): its receipt always names the address, so the tap
+         *  opens its History; as a fallback it lands where a spending receipt does. */
+        const val KIND_CHATTING = "chatting"
         /** The single own address an address-activity notification is about; its tap opens
          *  that address's History (iOS 13046ad). Absent for a receipt across several addresses. */
         const val EXTRA_WALLET_ACTIVITY_ADDRESS = "wallet_activity_address"
