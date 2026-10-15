@@ -2111,11 +2111,14 @@ class ChatRepository @Inject constructor(
         // Call events (invite / answer / hang-up) ring through the chat itself. They DO stay as
         // bubbles - the chat shows "Voice call · 4:12" the way a phone's history would - so this
         // only hands the envelope to CallService and carries on.
-        if (contact.id != myAddress) {
-            com.kachat.app.util.CallCodec.parseOrNull(plaintext)?.let { envelope ->
-                callServiceLazy.get().handleIncoming(envelope, contact.id, message.blockTime, isOutgoing = false)
-            }
+        val callEnvelope = if (contact.id != myAddress) com.kachat.app.util.CallCodec.parseOrNull(plaintext) else null
+        callEnvelope?.let { envelope ->
+            callServiceLazy.get().handleIncoming(envelope, contact.id, message.blockTime, isOutgoing = false)
         }
+        // A call from someone calls are off for (or never turned on) is ignored silently: no
+        // "Incoming call" banner either (MESSAGING.md "Consent before ringing", iOS 88aa3c1).
+        val unwantedCall = callEnvelope != null && com.kachat.app.util.CallCodec.isOpeningCall(callEnvelope) &&
+            contact.callsEnabled != true
 
         val replyContent = MessageReply.parseOrNull(plaintext)
         // A reply to a message this device never received is the one signal that a message was
@@ -2129,7 +2132,7 @@ class ChatRepository @Inject constructor(
         val notificationText = com.kachat.app.util.dmNotificationText(plaintext, notificationHelper.dmNotificationLabels())
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. Only a device with no push at all banners from here.
-        if (!backfill && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, message.txId)) {
+        if (!backfill && !unwantedCall && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, message.txId)) {
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.displayName,

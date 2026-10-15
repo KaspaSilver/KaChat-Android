@@ -349,22 +349,44 @@ class NextcloudService @Inject constructor(
     }
 
     /** Asks the server's capabilities whether Talk is installed with calls on, and publishes
-     *  the answer. Best effort: a failed lookup leaves the button hidden until the next try. */
+     *  the answer. A lookup that couldn't reach the server changes nothing: it used to store
+     *  "no Talk" until the next wallet load, and a phone with Talk then asked the other side to
+     *  host every call it made (iOS 88aa3c1). */
     fun refreshTalkAvailability() {
-        val account = _account.value ?: run { _talkCallsAvailable.value = false; _talkAvailabilityReason.value = "no Nextcloud account connected"; return }
-        val owner = currentWalletAddress
-        serviceScope.launch {
-            val (available, reason) = withContext(Dispatchers.IO) { probeTalkCalls(account) }
-            if (currentWalletAddress != owner || _account.value?.server != account.server) return@launch
-            _talkAvailabilityReason.value = reason
-            if (_talkCallsAvailable.value != available) _talkCallsAvailable.value = available
-            scopedKey(PREF_TALK_CALLS)?.let { prefs.edit().putBoolean(it, available).apply() }
-            Log.i("NextcloudService", "Talk calls ${if (available) "available" else "NOT available"} on ${account.server}: $reason")
-        }
+        serviceScope.launch { recheckTalkAvailability() }
     }
 
-    /** Whether the server has Talk with calls enabled, and the reason in words. */
-    private fun probeTalkCalls(account: NextcloudAccount): Pair<Boolean, String> {
+    /** The same, awaited: what a call about to start (or a request about to be hosted) asks when
+     *  Talk isn't known to be there. Returns what is known afterwards. */
+    suspend fun recheckTalkAvailability(): Boolean = withContext(Dispatchers.Main.immediate) {
+        val account = _account.value ?: run {
+            _talkCallsAvailable.value = false
+            _talkAvailabilityReason.value = "no Nextcloud account connected"
+            return@withContext false
+        }
+        val owner = currentWalletAddress
+        val (available, reason) = withContext(Dispatchers.IO) { probeTalkCalls(account) }
+        if (currentWalletAddress != owner || _account.value?.server != account.server) return@withContext _talkCallsAvailable.value
+        if (available == null) {
+            // Not an answer about Talk (offline, a timeout, an error page): keep what we knew.
+            _talkAvailabilityReason.value = "$reason - keeping ${_talkCallsAvailable.value}"
+            Log.i("NextcloudService", "Talk check could not reach ${account.server}: $reason - keeping ${_talkCallsAvailable.value}")
+            return@withContext _talkCallsAvailable.value
+        }
+        _talkAvailabilityReason.value = reason
+        if (_talkCallsAvailable.value != available) _talkCallsAvailable.value = available
+        scopedKey(PREF_TALK_CALLS)?.let { prefs.edit().putBoolean(it, available).apply() }
+        Log.i("NextcloudService", "Talk calls ${if (available) "available" else "NOT available"} on ${account.server}: $reason")
+        available
+    }
+
+    /** Bounded like iOS's 20 s capabilities request: a call waits on this answer. */
+    private val talkProbeClient by lazy { client.newBuilder().callTimeout(20, TimeUnit.SECONDS).build() }
+
+    /** Whether the server has Talk with calls enabled, and the reason in words. The answer is
+     *  null when the server couldn't be asked (offline, timeout, an error page) - that is not
+     *  an answer about Talk. */
+    private fun probeTalkCalls(account: NextcloudAccount): Pair<Boolean?, String> {
         return try {
             val request = Request.Builder()
                 .url("${account.server.trimEnd('/')}/ocs/v2.php/cloud/capabilities?format=json")
@@ -372,12 +394,13 @@ class NextcloudService @Inject constructor(
                 .header("OCS-APIRequest", "true")
                 .header("Accept", "application/json")
                 .build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return false to "capabilities answered HTTP ${response.code}"
-                val body = response.body?.string() ?: return false to "capabilities answered an empty body"
+            talkProbeClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null to "capabilities answered HTTP ${response.code}"
+                val body = response.body?.string() ?: return null to "capabilities answered an empty body"
                 val capabilities = runCatching {
                     JSONObject(body).getJSONObject("ocs").getJSONObject("data").getJSONObject("capabilities")
-                }.getOrNull() ?: return false to "capabilities answer was not the OCS shape"
+                }.getOrNull() ?: return null to "capabilities answer was not the OCS shape"
+                // The server answered: no "spreed" entry means Talk isn't installed.
                 val spreed = capabilities.optJSONObject("spreed") ?: return false to "Nextcloud Talk (spreed) is not installed or not enabled for this user"
                 val features = spreed.optJSONArray("features")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } } ?: emptyList()
                 val missing = listOf("conversation-v4", "signaling-v3").filter { it !in features }
@@ -394,7 +417,7 @@ class NextcloudService @Inject constructor(
                 if (enabled) true to "Talk with calls enabled" else false to "Talk is installed but calls are switched off in its settings"
             }
         } catch (e: Exception) {
-            false to "capabilities request failed: ${e.message}"
+            null to "capabilities request failed: ${e.message}"
         }
     }
 

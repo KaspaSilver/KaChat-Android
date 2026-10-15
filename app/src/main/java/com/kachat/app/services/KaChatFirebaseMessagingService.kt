@@ -329,6 +329,17 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // posts the full-screen call notification. The invite and the request are the two that
         // ring; everything else about a call still reads as an ordinary line in the chat.
         val callEnvelope = plaintext?.let { com.kachat.app.util.CallCodec.parseOrNull(it) }
+        // A call from someone this phone hasn't allowed calls from ("Allow calls" off, or never
+        // turned on): ignored silently, decided here before anything waits or rings - no ring,
+        // no "Incoming call" notification (MESSAGING.md "Consent before ringing", iOS 88aa3c1).
+        if (callEnvelope != null && com.kachat.app.util.CallCodec.isOpeningCall(callEnvelope)) {
+            val allowed = runCatching { chatRepository.getContact(sender)?.callsEnabled == true }.getOrDefault(false)
+            if (!allowed) {
+                Log.i(TAG, "Call push ${callEnvelope.callId.take(8)} from ${sender.takeLast(8)} ignored: calls are off for them")
+                data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                return
+            }
+        }
         if (callEnvelope != null) {
             val sentAtMs = pushSentAtMs(data)
             val opening = callEnvelope is com.kachat.app.util.CallEnvelope.Invite ||
@@ -340,8 +351,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                 data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
                 return
             }
-            // Turned away - calls off for this contact, already over, nothing to host with, or
-            // another call in progress. It used to vanish without a trace; now the ordinary
+            // Turned away - already over, nothing to host with, or another call in progress
+            // (calls off for this contact never get here: silent, above). It used to vanish without a trace; now the ordinary
             // notification says a call came, and the chat it opens says why it did not ring.
         }
 

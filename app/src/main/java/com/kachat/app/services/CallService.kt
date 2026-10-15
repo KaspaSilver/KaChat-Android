@@ -263,12 +263,39 @@ class CallService @Inject constructor(
     val canHost: Boolean
         get() = nextcloudService.account.value != null && nextcloudService.talkCallsAvailable.value
 
+    /** Whether this device can host right now, asking the server first when Nextcloud is
+     *  connected but Talk isn't known to be there (never checked, or the last check failed). */
+    private suspend fun canHostNow(): Boolean {
+        if (canHost) return true
+        if (nextcloudService.account.value == null) return false
+        nextcloudService.recheckTalkAvailability()
+        return canHost
+    }
+
     // ---- Outgoing ----
+
+    /** [startCall] is re-entered once after asking the server about Talk (never twice). */
+    private var talkRecheckedForCall = false
 
     fun startCall(contact: ContactEntity, video: Boolean) {
         if (_session.value != null) return
         _isMinimized.value = false
         if (contact.callsEnabled != true) return
+        // Nextcloud connected but Talk not known to be there (never checked, or the last check
+        // failed): ask the server now. Asking the contact to host while this phone could host
+        // left two phones each waiting for the other (iOS 88aa3c1).
+        if (nextcloudService.account.value != null && !nextcloudService.talkCallsAvailable.value && !talkRecheckedForCall) {
+            talkRecheckedForCall = true
+            scope.launch {
+                try {
+                    nextcloudService.recheckTalkAvailability()
+                    startCall(contact, video)
+                } finally {
+                    talkRecheckedForCall = false
+                }
+            }
+            return
+        }
         _lastError.value = null
         val callId = UUID.randomUUID().toString().lowercase()
         markHandled(callId)
@@ -466,8 +493,10 @@ class CallService @Inject constructor(
         if (contact == null) return dropped(id, "unknown sender")
         if (contact.callsEnabled != true) return dropped(id, "calls not enabled for this contact")
         if (!fresh) return dropped(id, "stale")
+        // Talk not known to be there (never checked, or the last check failed): ask the server
+        // before turning the request away (iOS 88aa3c1).
         val account = nextcloudService.account.value
-        if (!canHost || account == null) {
+        if (!canHostNow() || account == null) {
             // Neither side can host. Nothing goes on chain from this side - the caller is the
             // only one who pays for a call - so the requester's ring-out is what tells them one
             // of the two needs Nextcloud Talk.

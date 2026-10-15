@@ -105,6 +105,13 @@ object CallCodec {
         }
     }
 
+    /** A message that would ring this phone: a `call_request`, or a `call_invite` that isn't the
+     *  answer to our own request. From someone whose "Allow calls" is off (or never turned on)
+     *  it is ignored silently - no ring, no "Incoming call" notification (MESSAGING.md "Consent
+     *  before ringing", iOS 88aa3c1). */
+    fun isOpeningCall(envelope: CallEnvelope): Boolean =
+        envelope is CallEnvelope.Request || (envelope is CallEnvelope.Invite && !envelope.viaRequest)
+
     private fun clock(seconds: Int): String = String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60)
 
     /** The chat list row (iOS ChatListView.formatPreview). */
