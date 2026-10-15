@@ -1724,21 +1724,25 @@ fun KachatMarketSourcePill(vm: KachatLiveViewModel, walletViewModel: com.kachat.
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(
-            androidx.compose.ui.res.painterResource(R.drawable.ic_kaspa_logo),
-            contentDescription = null,
-            tint = Color.Unspecified,
-            modifier = Modifier.size(15.dp),
-        )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "%.8f %s".format(java.util.Locale.US, (shownBalance ?: 0L).toDouble() / 100_000_000.0, KaspaUnit.symbol),
-                color = colors.textSecondary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-                maxLines = 1,
-            )
+            // the logo sits right beside the balance, as on every other screen - not out at the
+            // side of the wider address line under it (iOS dbb8b9b)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    androidx.compose.ui.res.painterResource(R.drawable.ic_kaspa_logo),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(15.dp),
+                )
+                Text(
+                    "%.8f %s".format(java.util.Locale.US, (shownBalance ?: 0L).toDouble() / 100_000_000.0, KaspaUnit.symbol),
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
+                    maxLines = 1,
+                )
+            }
             Text(
                 kachatMarketSourceTitle(source) + " · " +
                     com.kachat.app.services.kachatnames.KachatNamesRegistry.compactAddress(source.address(chattingAddress) ?: ""),
