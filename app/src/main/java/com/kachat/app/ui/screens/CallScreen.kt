@@ -64,6 +64,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -92,7 +96,7 @@ import java.util.Locale
  * ringing out, connecting, connected and the brief "Call ended" beat - whichever screen is
  * showing underneath; a call is not a page of the chat it started from. Dismissal only ever
  * comes from the service clearing the session: swiping or backing out of a live call is not a
- * way to hang up. Mirrors iOS's MainTabView.fullScreenCover + CallView.
+ * way to hang up. Mirrors iOS's CallWindowPresenter + CallView.
  */
 @Composable
 fun CallOverlay(callService: CallService) {
@@ -116,12 +120,54 @@ fun CallOverlay(callService: CallService) {
         CallReturnBar(call = live, onReturn = { callService.restore() })
         return
     }
-    // Drawn straight into the activity's window, not a Dialog: a Compose Dialog sizes its
-    // window from content measured against the nominal screen height, so the bottom of a
-    // full-screen layout - the control bar here - lands under the navigation bar on many
-    // phones (the same trap the KaPosts overlays hit). The activity is edge-to-edge and knows
-    // the real insets on every device, so `safeDrawing` padding below is right everywhere.
-    // Back does nothing while a call is up, and the sheet swallows touches so the app
+    // A window of its own, above everything: drawn into the activity's own window it sat
+    // UNDER any dialog or bottom sheet that was open (each is a window of its own), so a call
+    // that rang - or was answered from the notification - while one was up stayed hidden behind
+    // it (iOS 40b1461 CallWindowPresenter). The window is forced to the full screen with the
+    // real insets reaching the content (CallWindowSetup), which is what the plain Dialog got
+    // wrong before: sized from measured content, its control bar landed under the navigation bar.
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        CallWindowSetup()
+        CallFullScreen(live = live, callService = callService)
+    }
+}
+
+/**
+ * Makes the call's dialog window really full-screen and edge to edge: MATCH_PARENT (a Compose
+ * Dialog otherwise sizes its window from the content it measured), no decor fitting so the real
+ * insets reach `safeDrawing` inside, no dimming, and light system-bar icons over the black call
+ * screen. Set once per window.
+ */
+@Composable
+private fun CallWindowSetup() {
+    val view = LocalView.current
+    LaunchedEffect(Unit) {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@LaunchedEffect
+        window.setLayout(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+        )
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
+    }
+}
+
+/** The full call screen: ringing, connecting, connected and the "Call ended" beat. */
+@Composable
+private fun CallFullScreen(live: CallService.ActiveCall, callService: CallService) {
+    // Back does nothing while a call is up, and the screen swallows touches so the app
     // beneath cannot be poked through it.
     BackHandler(enabled = true) {}
     val view = LocalView.current

@@ -2386,7 +2386,11 @@ class ChatViewModel @Inject constructor(
         // mirrors — promote it explicitly since the conversations flow only reorders after the
         // pending insert lands. Diffed inside refresh(), so repeat sends to the same top chat are free.
         shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
-        val reply = if (plain) null else _replyingTo.value
+        // Never a call message: a call_invite / request / end sent while a reply was queued went
+        // out as a reply, and the other phone never saw a call (iOS 40b1461). The reply stays
+        // queued for the person's next text.
+        val isCallEnvelope = com.kachat.app.util.CallCodec.parseOrNull(text) != null
+        val reply = if (plain || isCallEnvelope) null else _replyingTo.value
         val feeRate = if (plain) null else _feeRateOverride.value
         if (!plain) _feeRateOverride.value = null
         run {
@@ -2441,7 +2445,7 @@ class ChatViewModel @Inject constructor(
                         deliveryStatus = "sent"
                     )
                 )
-                if (!plain) _replyingTo.value = null
+                if (!plain && !isCallEnvelope) _replyingTo.value = null
                 return true
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)

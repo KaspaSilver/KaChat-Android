@@ -83,9 +83,15 @@ class CallService @Inject constructor(
         private const val AUDIO_WATCHDOG_MS = 2_500L
         /** A ring push is only worth sending while the phone is still ringing. */
         private const val RING_PUSH_TIMEOUT_MS = 15_000L
-        /** How long a call woken by a push waits for the wallet and the Talk probe behind the
-         *  decision to ring: eighty steps of 100 ms, so eight seconds at worst. */
+        /** How long a call woken by a push waits for the wallet behind the decision to ring:
+         *  eighty steps of 100 ms, so eight seconds at worst. */
         private const val READY_WAIT_STEPS = 80
+        /** How long the other phone has to turn up in the room after Answer before the call
+         *  ends as "X didn't join" instead of hanging on Connecting (iOS 40b1461). */
+        private const val JOIN_TIMEOUT_MS = 30_000L
+        /** A hosted request's invite is sent up to this many times, [INVITE_RETRY_MS] apart. */
+        private const val INVITE_SEND_ATTEMPTS = 3
+        private const val INVITE_RETRY_MS = 1_500L
         /** How long a request to switch to video waits for an answer. */
         private const val VIDEO_REQUEST_TIMEOUT_MS = 30_000L
         /** How long a notice ("Alex declined video") stays on the call screen. */
@@ -456,36 +462,27 @@ class CallService @Inject constructor(
     }
 
     /**
-     * Waits, briefly, for the things a call is judged against: a wallet to read contacts with,
-     * and the answer to "can this device host a call?". A push that starts the app races both,
-     * and the capabilities probe behind the second one is a network round trip.
+     * Waits, briefly, for a wallet to read contacts with - a push that starts the app races it.
      *
-     * Returns as soon as there is nothing left to wait for: no wallet at all, no Nextcloud
-     * account (so hosting was never possible), or a probe that has answered - including from
-     * what it answered last time, which is remembered per wallet.
+     * Not for the Talk probe any more (iOS 40b1461): the Nextcloud account and the last Talk
+     * answer are read from storage the moment [NextcloudService] exists (the Android side of
+     * iOS's `peekCallHosting`), so whether this phone can host is known without the network. A
+     * request is rung at once and Talk is re-checked behind the ring when it isn't known to be
+     * there ([hostRequestedCall]).
      */
     private suspend fun waitUntilReadyForCalls() {
         var waited = 0
         while (waited < READY_WAIT_STEPS) {
-            val hasWallet = runCatching { walletManager.hasWallet() }.getOrDefault(false)
-            if (!hasWallet) {
-                delay(READY_WAIT_STEP_MS)
-                waited++
-                continue
-            }
-            if (nextcloudService.account.value == null) return
-            if (nextcloudService.talkCallsAvailable.value) return
-            if (nextcloudService.talkAvailabilityReason.value != "not probed yet") return
+            if (runCatching { walletManager.hasWallet() }.getOrDefault(false)) return
             delay(READY_WAIT_STEP_MS)
             waited++
         }
-        if (waited >= READY_WAIT_STEPS) {
-            CallDiagnostics.log(TAG, "still not ready to judge a call after ${READY_WAIT_STEPS * READY_WAIT_STEP_MS / 1000}s - deciding anyway")
-        }
+        CallDiagnostics.log(TAG, "no wallet after ${READY_WAIT_STEPS * READY_WAIT_STEP_MS / 1000}s - deciding anyway")
     }
 
     /** The contact has no Nextcloud and asks us to host their call - only if their "Allow calls"
-     *  switch is on and this device can host; if it cannot, say so at once with no_host. */
+     *  switch is on for them. If this phone cannot host either, nothing goes on chain from here:
+     *  the requester's ring-out tells them one of the two needs Nextcloud Talk. */
     private suspend fun handleRequest(request: CallEnvelope.Request, contactAddress: String, fresh: Boolean): String? {
         val id = request.callId
         if (hasHandled(id)) return dropped(id, "already handled")
@@ -493,25 +490,34 @@ class CallService @Inject constructor(
         if (contact == null) return dropped(id, "unknown sender")
         if (contact.callsEnabled != true) return dropped(id, "calls not enabled for this contact")
         if (!fresh) return dropped(id, "stale")
-        // Talk not known to be there (never checked, or the last check failed): ask the server
-        // before turning the request away (iOS 88aa3c1).
-        val account = nextcloudService.account.value
-        if (!canHostNow() || account == null) {
-            // Neither side can host. Nothing goes on chain from this side - the caller is the
-            // only one who pays for a call - so the requester's ring-out is what tells them one
-            // of the two needs Nextcloud Talk.
-            markHandled(request.callId)
-            return dropped(id, "cannot host (no Nextcloud Talk)")
-        }
         // Busy: silent, and the caller rings out. Same request delivered twice: ignored.
         if (_session.value != null) return dropped(id, "busy")
         markHandled(request.callId)
+        if (!hostRequestedCall(request.callId, contact, request.video)) {
+            return dropped(id, "cannot host (no Nextcloud Talk)")
+        }
+        return null
+    }
+
+    /**
+     * Hosts a call the contact asked for (MESSAGING.md "Hosting a request", iOS 40b1461). Returns
+     * false when this phone has no Nextcloud to host with.
+     *
+     * The session exists - and rings - at once, so an Answer tapped while the room is still being
+     * opened finds the call ([acceptIncoming] waits for the room); whether Talk is really there
+     * is checked behind the ring. Then the room is opened and checked usable (internal signaling,
+     * not the external HPB) before the invite goes out, the invite is sent again if a send fails,
+     * and it is also pushed to the requester so their phone joins without waiting for the chain.
+     */
+    private fun hostRequestedCall(callId: String, contact: ContactEntity, video: Boolean): Boolean {
+        val account = nextcloudService.account.value ?: return false
+        if (_session.value != null) return false
         val server = account.server.trimEnd('/')
-        val pipes = Plumbing(request.callId)
+        val pipes = Plumbing(callId)
         plumbing = pipes
-        CallDiagnostics.log(TAG, "request ${request.callId} from ${contact.id.takeLast(8)}: hosting on $server")
+        CallDiagnostics.log(TAG, "request $callId from ${contact.id.takeLast(8)}: hosting on $server")
         _isMinimized.value = false
-        _session.value = ActiveCall(id = request.callId, contact = contact, isOutgoing = false, server = server, token = "", hostsThisCall = true, video = request.video, phase = Phase.RingingIn)
+        _session.value = ActiveCall(id = callId, contact = contact, isOutgoing = false, server = server, token = "", hostsThisCall = true, video = video, phase = Phase.RingingIn)
         startRinging(pipes)
         pipes.timeoutJob = scope.launch {
             delay(INCOMING_RING_MS)
@@ -520,33 +526,70 @@ class CallService @Inject constructor(
         // Open the room now so the requester can already be waiting in it as a guest when we
         // accept; we join the call itself on accept.
         scope.launch {
+            if (!canHostNow()) {
+                CallDiagnostics.log(TAG, "requested call ${callId.take(8)} can't be hosted: Nextcloud Talk isn't available")
+                if (plumbing !== pipes) return@launch
+                _lastError.value = "Calls from ${contact.displayName} need Nextcloud Talk here, and it isn't available right now."
+                finish("failed")
+                return@launch
+            }
+            if (plumbing !== pipes) return@launch
             val client = NextcloudTalkClient(server, NextcloudTalkClient.Auth.Basic(account.username, account.appPassword))
             pipes.client = client
             try {
                 val token = withContext(Dispatchers.IO) { client.createPublicConversation("KaChat call with ${contact.displayName}") }
                 if (plumbing !== pipes) { withContext(Dispatchers.IO) { client.deleteConversation(token) }; return@launch }
+                // The room must be one the two phones can signal over (not the external HPB).
+                val settings = withContext(Dispatchers.IO) { client.signalingSettings(token) }
+                if (settings.mode.equals("external", ignoreCase = true)) {
+                    withContext(Dispatchers.IO) { client.deleteConversation(token) }
+                    throw NextcloudTalkClient.externalSignalingUnsupported()
+                }
                 update { it.copy(token = token) }
-                sendCallMessage(contact.id, CallCodec.encode(CallEnvelope.Invite(callId = request.callId, server = server, token = token, video = request.video, viaRequest = true)))
+                val inviteContent = CallCodec.encode(CallEnvelope.Invite(callId = callId, server = server, token = token, video = video, viaRequest = true))
+                var lastFailure: Exception? = null
+                var payloadHex: String? = null
+                for (attempt in 0 until INVITE_SEND_ATTEMPTS) {
+                    if (plumbing !== pipes) break
+                    try {
+                        payloadHex = sendCallMessage(contact.id, inviteContent)
+                        lastFailure = null
+                        break
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        lastFailure = e
+                        CallDiagnostics.log(TAG, "invite for ${callId.take(8)} not sent (try ${attempt + 1}): ${e.message}")
+                        delay(INVITE_RETRY_MS)
+                    }
+                }
+                // The requester learns the room from the push too - faster than the chain.
+                val pushPayload = payloadHex
+                    ?: runCatching { withContext(Dispatchers.IO) { walletService.buildKasiaPayloadHex(contact.id, inviteContent) } }.getOrNull()
+                if (pushPayload != null) requestRing(contact.id, callId, video, kind = "invite", payloadHex = pushPayload)
+                if (lastFailure != null && plumbing === pipes && _session.value?.phase == Phase.RingingIn) throw lastFailure
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Hosting a requested call failed", e)
                 CallDiagnostics.log(TAG, "hosting failed: ${e.message}")
+                if (plumbing !== pipes) return@launch
                 _lastError.value = UserFacingError.message(e, "Call failed")
                 finish("failed")
             }
         }
-        return null
+        return true
     }
 
     private suspend fun handleInvite(invite: CallEnvelope.Invite, contactAddress: String, fresh: Boolean): String? {
         val server = invite.server.trimEnd('/')
         if (!server.startsWith("https://", ignoreCase = true)) return dropped(invite.callId, "bad server in invite")
         // The contact hosting the call WE asked for: this invite answers our request, so join it
-        // straight away as a guest - their phone is the one ringing.
+        // straight away as a guest - their phone is the one ringing. It comes from their invite on
+        // chain or the copy their phone pushed (receivePushedCall), whichever is first; the second
+        // finds the room already set and is ignored (iOS 40b1461 joinHostedInvite).
         val current = _session.value
         val pipes = plumbing
         if (current != null && pipes != null && current.isOutgoing && !current.hostsThisCall &&
-            current.id == invite.callId && current.phase == Phase.RingingOut
+            current.id == invite.callId && current.phase == Phase.RingingOut && current.token.isEmpty()
         ) {
             pipes.timeoutJob?.cancel()
             update { it.copy(server = server, token = invite.token, phase = Phase.Connecting) }
@@ -595,6 +638,18 @@ class CallService @Inject constructor(
         stopRinging(pipes)
         pipes.timeoutJob?.cancel()
         update { it.copy(phase = Phase.Connecting) }
+        // Answered: the call screen comes up, whatever was tucked away before.
+        _isMinimized.value = false
+        // The other phone has 30 s to show up in the room; a call stuck on "Connecting" forever
+        // (they gave up ringing, or never got the room) ends instead, saying so (iOS 40b1461).
+        // Cancelled by the other side appearing in the call (UsersInRoom) or by the call ending.
+        pipes.timeoutJob = scope.launch {
+            delay(JOIN_TIMEOUT_MS)
+            val live = _session.value
+            if (plumbing !== pipes || live == null || live.connectedAtMs != null || live.phase != Phase.Connecting) return@launch
+            _lastError.value = "${live.contact.displayName} didn't join the call."
+            finish("failed")
+        }
         CallForegroundService.start(context, call.contact.displayName, call.video)
         scope.launch {
             if (call.hostsThisCall) {

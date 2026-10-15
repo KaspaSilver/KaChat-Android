@@ -597,6 +597,23 @@ class WalletService @Inject constructor(
     }
 
     /**
+     * The payload [sendKasiaMessage] would put on chain for [text], built without sending it -
+     * what a ring push carries when the chain send itself failed (iOS CallService.requestRing
+     * builds its own the same way: the alias, the encrypted text, no inbox tag).
+     */
+    suspend fun buildKasiaPayloadHex(toContactId: String, text: String): String {
+        val recipientPubKey = KaspaAddress.decode(toContactId).second
+        val contact = chatRepository.getContact(toContactId)
+        val alias = HandshakeAliasPolicy.messageAlias(
+            handshakeComplete = contact?.handshakeComplete == true,
+            myAlias = contact?.myAlias,
+            deterministicAlias = walletManager.theirDeterministicAlias(toContactId),
+        )
+        val encrypted = MessageProtocol.encrypt(text, recipientPubKey)
+        return MessageProtocol.buildCommPayload(alias, encrypted, null).toHexString()
+    }
+
+    /**
      * Sends a broadcast message to a public channel — a "bcast" self-stash transaction, same
      * shape as [sendKasiaMessage] but never encrypted (broadcasts are plaintext by design, since
      * they're public one-to-many channels rather than a 1:1 conversation — matches Kasia).
