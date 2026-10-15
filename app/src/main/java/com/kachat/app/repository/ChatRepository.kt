@@ -119,6 +119,9 @@ class ChatRepository @Inject constructor(
                 // combined flow, no polling) on foreground or push loss, then sync immediately
                 // so the reopened app's chat list is current without waiting a cycle.
                 if (!notificationHelper.isAppInForeground && pushState.isActive) {
+                    // Payments made while paused are never pushed (a plain KAS payment gets no
+                    // push): the first sync back fetches them from here on (iOS 20155aa).
+                    requestPaymentCatchUp(lookBackMs = 2 * 60 * 1000L)
                     combine(notificationHelper.appForegroundFlow, pushState.pushActive) { foreground, pushActive ->
                         foreground || !pushActive
                     }.first { it }
@@ -1338,11 +1341,23 @@ class ChatRepository @Inject constructor(
         // heaviest GET in the cycle) and has no cursor, so polling it every fast tick
         // re-downloaded the same recent window over and over. A payment surfacing within ~20s
         // is still well inside "feels live" for a payment bubble.
+        // A payment that may have been missed (the poll paused in the background, a sender not
+        // resolved yet - [paymentCatchUpSince]) is fetched now, back to when the gap opened,
+        // even on the poll path (iOS 20155aa).
         val now = System.currentTimeMillis()
-        if (!fromPollLoop || now - lastPaymentPollAt >= PAYMENT_POLL_INTERVAL_MS) {
+        val catchUpSince = paymentCatchUpSince
+        if (!fromPollLoop || catchUpSince != null || now - lastPaymentPollAt >= PAYMENT_POLL_INTERVAL_MS) {
             networkService.kaspaRestApi.value?.let {
-                syncPayments(myAddress, it, limit = if (fromPollLoop) PAYMENT_POLL_LIMIT else 50)
+                val caughtUp = syncPayments(
+                    myAddress, it,
+                    limit = if (fromPollLoop && catchUpSince == null) PAYMENT_POLL_LIMIT else 50,
+                    since = catchUpSince
+                )
                 lastPaymentPollAt = now
+                // caught up: a gap that opened during this fetch would have set an earlier one
+                if (caughtUp && catchUpSince != null) {
+                    synchronized(this) { if (paymentCatchUpSince == catchUpSince) paymentCatchUpSince = null }
+                }
             }
         }
         // After this launch's first sync: old chats whose first messages are no longer stored
@@ -1490,6 +1505,27 @@ class ChatRepository @Inject constructor(
     /** Last time the poll path actually hit the payments endpoint — see [syncMessages]. */
     @Volatile
     private var lastPaymentPollAt = 0L
+
+    /**
+     * Payments may have been missed from this block time (ms) on (iOS 20155aa
+     * `paymentCatchUpSince`): the next sync fetches them - right away, past the poll path's
+     * slower cadence and small page, back to this time - and clears it once caught up. Set by
+     * [requestPaymentCatchUp]; null = nothing missed.
+     */
+    @Volatile
+    private var paymentCatchUpSince: Long? = null
+
+    /** Payments whose unresolved sender already asked for a catch-up ([syncPayments]). */
+    private val unresolvedPaymentCatchUps = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /** Payments may have been missed: the next sync fetches them from [lookBackMs] ago (the
+     *  earliest such moment wins). */
+    private fun requestPaymentCatchUp(lookBackMs: Long) {
+        val since = (System.currentTimeMillis() - lookBackMs).coerceAtLeast(0L)
+        synchronized(this) {
+            paymentCatchUpSince = minOf(paymentCatchUpSince ?: since, since)
+        }
+    }
 
     /** Throttle stamp for the full contact sweep on the poll path — see [syncContextualMessages]. */
     @Volatile
@@ -2354,19 +2390,36 @@ class ChatRepository @Inject constructor(
      * otherwise a fresh install would immediately dredge up years of old payment history
      * as a wall of "new" chats. See AppSettingsRepository.paymentSyncBaseline.
      */
-    private suspend fun syncPayments(myAddress: String, restApi: KaspaRestApi, limit: Int = 50) {
+    /**
+     * [since] (a payment catch-up, iOS 20155aa): pages further back - up to
+     * [PAYMENT_CATCH_UP_MAX_PAGES] pages - until the transactions are older than it. Returns
+     * whether every page needed was fetched.
+     */
+    private suspend fun syncPayments(myAddress: String, restApi: KaspaRestApi, limit: Int = 50, since: Long? = null): Boolean {
         val baseline = settingsRepository.paymentSyncBaseline(myAddress).first()
         if (baseline == null) {
             settingsRepository.setPaymentSyncBaseline(myAddress, System.currentTimeMillis())
-            return
+            return true
         }
 
-        val transactions = try {
-            restApi.getTransactions(myAddress, limit = limit)
-        } catch (e: Exception) {
-            noteIndexerError()
-            Log.w("ChatRepository", "Failed to fetch transactions", e)
-            return
+        val transactions = mutableListOf<TransactionResponse>()
+        var complete = true
+        var page = 0
+        while (true) {
+            val batch = try {
+                restApi.getTransactions(myAddress, limit = limit, offset = page * limit)
+            } catch (e: Exception) {
+                noteIndexerError()
+                Log.w("ChatRepository", "Failed to fetch transactions", e)
+                if (page == 0) return false
+                complete = false
+                break
+            }
+            transactions += batch
+            page++
+            if (since == null || batch.size < limit || page >= PAYMENT_CATCH_UP_MAX_PAGES) break
+            val oldest = batch.mapNotNull { it.blockTime }.minOrNull() ?: break
+            if (oldest < since) break
         }
 
         // Once per process per wallet: drop the payment bubbles older builds made from .kachat
@@ -2394,11 +2447,20 @@ class ChatRepository @Inject constructor(
                 // Only a FINAL outcome marks the id seen — a transient input-resolution gap
                 // (processPayment returns false) must stay retryable on the next poll, exactly
                 // as it was before the seen-set existed.
-                if (processPayment(myAddress, tx)) seenPaymentTxIds.add(seenKey)
+                if (processPayment(myAddress, tx)) {
+                    seenPaymentTxIds.add(seenKey)
+                } else if (unresolvedPaymentCatchUps.add(seenKey)) {
+                    // Sender not resolved yet: the next sync fetches payments from a little
+                    // before, past the poll path's small page (iOS 20155aa) - once per payment,
+                    // so one that never resolves can't keep the catch-up open.
+                    requestPaymentCatchUp(lookBackMs = 10 * 60 * 1000L)
+                }
             } catch (e: Exception) {
                 Log.w("ChatRepository", "Failed to process transaction ${tx.transactionId}", e)
             }
         }
+        if (since != null) Log.i("ChatRepository", "Payment catch-up: ${transactions.size} transaction(s), complete=$complete")
+        return complete
     }
 
     /** Returns true when the outcome is FINAL (recorded, or permanently irrelevant) — false only
@@ -2662,6 +2724,8 @@ class ChatRepository @Inject constructor(
         /** Poll-path payments cadence/page — see [syncMessages]; manual refresh keeps limit 50. */
         private const val PAYMENT_POLL_INTERVAL_MS = 20_000L
         private const val PAYMENT_POLL_LIMIT = 10
+        /** How far back a payment catch-up pages at most (x 50 transactions) - iOS 20155aa. */
+        private const val PAYMENT_CATCH_UP_MAX_PAGES = 4
 
         /** Poll-path contact-sweep shape — see [syncContextualMessages]. Matches iOS's
          *  startForegroundContactSweep (5s between sweeps, 100-120ms between contacts, cap 40). */
