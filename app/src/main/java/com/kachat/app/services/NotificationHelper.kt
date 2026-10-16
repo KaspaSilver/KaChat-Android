@@ -67,6 +67,37 @@ class NotificationHelper @Inject constructor(
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 200
     }
 
+    // A KaPosts tip is also a chat payment, and its two pushes - "tipped your post" and the chat
+    // payment - carry the same txid (IDX-028, KAPOSTS_INDEXER.md 5.11). The phone keeps one
+    // notification, as iOS does through the shared apns-collapse-id (FCM's collapse_key only
+    // collapses undelivered messages, never a posted banner): the KaPosts banner replaces the
+    // payment banner when it arrives, and a payment banner for a tip whose KaPosts banner already
+    // shows is not posted. Without a KaPosts banner the payment one stays.
+    // chatBannerTxIds: which tx each chat banner was last posted for (notification id -> txid).
+    // kaPostsBannerTxIds: the txids a KaPosts banner was posted for, LRU-capped.
+    private val chatBannerTxIds = HashMap<Int, String>()
+    private val kaPostsBannerTxIds = object : LinkedHashMap<String, Boolean>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?) = size > 200
+    }
+
+    @Synchronized
+    private fun hasKaPostsBanner(txId: String): Boolean = kaPostsBannerTxIds.containsKey(txId)
+
+    @Synchronized
+    private fun recordChatBanner(notificationId: Int, txId: String?) {
+        if (txId.isNullOrBlank()) chatBannerTxIds.remove(notificationId) else chatBannerTxIds[notificationId] = txId
+    }
+
+    /** Records [txId]'s KaPosts banner and returns the chat banners still showing that same tx
+     *  (a tip's payment banner), which it replaces. */
+    @Synchronized
+    private fun takeChatBannersReplacedByKaPosts(txId: String): List<Int> {
+        kaPostsBannerTxIds[txId] = true
+        val ids = chatBannerTxIds.filterValues { it == txId }.keys.toList()
+        ids.forEach { chatBannerTxIds.remove(it) }
+        return ids
+    }
+
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // A channel's sound/vibration is fixed by the OS once created — the app can't
@@ -217,6 +248,9 @@ class NotificationHelper @Inject constructor(
         if (!settings.notificationsEnabled.first()) return
         if (notificationOverride == ContactNotificationMode.OFF) return
         if (!claimTxId(dedupeTxId)) return // the other delivery path (poll vs push) got here first
+        // A tip's payment: its KaPosts "tipped your post" banner already shows, and that is the
+        // tip's one notification (IDX-028).
+        if (!dedupeTxId.isNullOrBlank() && hasKaPostsBanner(dedupeTxId)) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -259,6 +293,7 @@ class NotificationHelper @Inject constructor(
 
         try {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
+            recordChatBanner(notificationId, dedupeTxId)
         } catch (e: SecurityException) {
             // POST_NOTIFICATIONS not granted — skip rather than crash.
         }
@@ -336,6 +371,12 @@ class NotificationHelper @Inject constructor(
         try {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
             synchronized(shownKaPostsIds) { shownKaPostsIds.add(notificationId) }
+            // A tip: its payment banner, if one shows, gives way to this one (IDX-028).
+            val replaced = takeChatBannersReplacedByKaPosts(actionTxId)
+            if (replaced.isNotEmpty()) {
+                val manager = NotificationManagerCompat.from(context)
+                replaced.forEach { manager.cancel(it) }
+            }
         } catch (_: SecurityException) {}
     }
 
