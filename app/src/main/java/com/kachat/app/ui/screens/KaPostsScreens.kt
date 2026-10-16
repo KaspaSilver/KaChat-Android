@@ -6545,13 +6545,6 @@ fun KaPostsSettingsOverlay(
                         Text(KaspaUnit.symbol, color = colors.textSecondary, fontSize = 15.sp)
                     }
                 }
-                SettingsFooter(
-                    if (instantTipEnabled) {
-                        "Tapping Tip on a post sends this amount straight away, with no amount screen. It goes out exactly like a payment in that person's chat: from your primary spending address when Chats Payment Privacy is on, and to a fresh private address of theirs when they shared one."
-                    } else {
-                        "Off: tapping Tip opens the amount screen every time."
-                    }
-                )
             }
 
             SettingsSection(title = stringResource(R.string.notifications)) {
@@ -6566,7 +6559,6 @@ fun KaPostsSettingsOverlay(
                 SettingsSwitchItem("Comments", comments) { settingsViewModel.setKaPostsNotifyComments(it) }
                 SettingsDivider()
                 SettingsSwitchItem("Mentions", mentions) { settingsViewModel.setKaPostsNotifyMentions(it) }
-                SettingsFooter("Choose which KaPosts activity reaches you. Anything switched off sends no notification and does not appear in the KaPosts bell. Quotes of your posts count as reposts.")
             }
             Spacer(Modifier.height(24.dp))
         }
