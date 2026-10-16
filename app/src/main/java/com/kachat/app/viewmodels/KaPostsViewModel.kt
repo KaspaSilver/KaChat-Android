@@ -1540,6 +1540,13 @@ class KaPostsViewModel @Inject constructor(
      * lists without an occurrence keep their instance (mutatePostIn returns them reference-
      * equal) so their flows never tick.
      */
+    /** A tip just sent counts on its post at once; the indexer's own count takes over on the
+     *  next refresh (iOS 0f241ce `countTip`). */
+    fun countTip(tip: com.kachat.app.models.KaPostTip?) {
+        val postId = tip?.postId ?: return
+        mutateEverywhere(KaPostDraft.stableId(postId)) { it.copy(tips = it.tips + 1) }
+    }
+
     private fun mutateEverywhere(id: String, transform: (KaPostDraft) -> KaPostDraft) {
         for (flow in allPostLists()) {
             val (updated, hit) = mutatePostIn(flow.value, id, transform)

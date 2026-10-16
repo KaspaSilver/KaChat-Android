@@ -704,6 +704,7 @@ private fun KaPostsFeedScreen(
             val kasText = kasAmountText(amount)
             chatViewModel.sendPayment(address, kasText, tip = target) { ok, error, txId ->
                 if (ok) {
+                    viewModel.countTip(target)
                     viewModel.showTipToast("Tipped $kasText ${KaspaUnit.symbol} to $name", txId.orEmpty())
                 } else {
                     // iOS: "Tip didn't send: " and the reason, as UserFacingError words it.
@@ -1539,6 +1540,7 @@ private fun KaPostsFeedScreen(
             address = tipAddress,
             displayName = tipName,
             tip = tipPost,
+            onTipped = { viewModel.countTip(tipPost) },
             onDismiss = { tipTarget = null },
         )
     }
@@ -2888,49 +2890,56 @@ private fun EngagementRow(
                 onCancel = onCancelCountdown,
             )
         }
-        if (onTip != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onTip() }
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-            ) {
-                // The real Kaspa logo, matching iOS's Tip button.
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
-                // how many times it was tipped, beside the button like the likes
-                if (post.tips > 0) {
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text("${post.tips}", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+        // How many times it was tipped, the way likes and comments show theirs: a gray number
+        // beside its mark - against the Tip button on someone else's post, the Kaspa mark and the
+        // count on your own. A tap lists who tipped (Post Activity > Tips lists them too; iOS 0f241ce).
+        val tippersLabel = stringResource(R.string.kaposts_who_tipped)
+        val tipCount: @Composable (withMark: Boolean) -> Unit = { withMark ->
+            if (post.tips > 0 && onShowTippers != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onShowTippers() }
+                        .semantics { contentDescription = tippersLabel }
+                        .padding(start = if (withMark) 4.dp else 1.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                ) {
+                    if (withMark) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text("${post.tips}", color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
         }
-        // Your own post has no Tip button: its count shows on its own, and a tap lists who tipped
-        // (Post Activity > Tips lists them for any post).
-        if (post.tips > 0 && onShowTippers != null && onTip == null) {
-            val tippersLabel = stringResource(R.string.kaposts_who_tipped)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onShowTippers() }
-                    .semantics { contentDescription = tippersLabel }
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-            ) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text("${post.tips}", color = colors.textSecondary, fontSize = 14.sp, maxLines = 1)
+        if (onTip != null) {
+            // The count sits against the Tip button like a like count against its heart.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onTip() }
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                ) {
+                    // The real Kaspa logo, matching iOS's Tip button.
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                }
+                tipCount(false)
             }
+        } else {
+            // Your own post (no Tip button): the Kaspa mark and the count.
+            tipCount(true)
         }
             }
             Spacer(modifier = Modifier.width(gap))
@@ -5646,6 +5655,8 @@ fun KaPostTipSheet(
     /** The post being tipped: then it is a tip that names the post, paid from the chatting
      *  address only - no From choice (iOS a6bd60a). */
     tip: com.kachat.app.models.KaPostTip? = null,
+    /** Called once the tip has gone out: the post's count goes up at once (iOS 0f241ce). */
+    onTipped: () -> Unit = {},
     chatViewModel: ChatViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
@@ -5788,6 +5799,8 @@ fun KaPostTipSheet(
                     ) { ok, error, txId ->
                         isSending = false
                         if (ok) {
+                            // the post's count goes up at once (iOS 0f241ce onTipped)
+                            onTipped()
                             if (txId.isNullOrEmpty()) {
                                 // Queued rather than sent (no confirmed inputs yet): there is no
                                 // transaction to show, so the sheet just closes (iOS).
