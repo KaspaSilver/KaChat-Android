@@ -83,6 +83,9 @@ class ChatRepository @Inject constructor(
     private val chatRequestStore: ChatRequestStore,
     /** 1:1 messages a push told us about, until they are stored (iOS 60c9fd0). */
     private val pushedMessageQueue: com.kachat.app.services.PushedMessageQueue,
+    /** Cold Storage (KasSigner) watch accounts - their addresses are ours to a payment_notice
+     *  (IOS-083, [ownAddressesForNotices]). */
+    private val coldStorageManager: com.kachat.app.services.ColdStorageManager,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -2155,8 +2158,9 @@ class ChatRepository @Inject constructor(
      * Any contact can send a notice naming any public txid (IOS-083), so a received one is
      * checked on chain BEFORE anything is filed ([checkNoticeOnChain]): the tx must pay our
      * chatting address exactly the amount, carry no payload (a plain transfer) and be paid by
-     * nobody we know as another contact. Only a plain transfer from an unknown address that
-     * landed in the self-chat may move into the chat ([isClaimableSelfChatPayment]); another
+     * none of our own addresses ([ownAddressesForNotices]) and nobody we know as another contact.
+     * Only a plain transfer from an unknown address that is none of ours and that landed in the
+     * self-chat may move into the chat ([isClaimableSelfChatPayment]); another
      * chat's payment, a message, or anything sent by us is never touched - the filing itself
      * can only add a row ([MessageDao.insertIfAbsent]) or move a self-chat payment
      * ([MessageDao.claimSelfChatPayment]), never replace one.
@@ -2235,9 +2239,16 @@ class ChatRepository @Inject constructor(
         }
         when (val check = checkNoticeOnChain(myAddress, txId, notice.amountSompi, contact.id)) {
             is NoticeCheck.Valid -> {
+                // Placement again, after the await (iOS fca61dc): another notice for the same txid
+                // may have claimed it meanwhile (first notice wins), or the record may have appeared.
                 if (!isActiveWalletAddress(myAddress)) return
+                val current = dao.getById(txId, myAddress)
+                if (current != null && !isClaimableSelfChatPayment(current, myAddress)) {
+                    Log.i("ChatRepository", "Dropped payment_notice ${txId.take(12)} - claimed or filed while it was checked")
+                    return
+                }
                 fileNoticeBubble(myAddress, contact, notice, txId, memo, noticeTxId, blockTime, isOutgoing = false,
-                    status = "sent", moving = existing, plaintext = plaintext)
+                    status = "sent", moving = current, plaintext = plaintext)
             }
             is NoticeCheck.Invalid ->
                 Log.i("ChatRepository", "Dropped payment_notice ${txId.take(12)} - ${check.reason}")
@@ -2254,15 +2265,48 @@ class ChatRepository @Inject constructor(
     /**
      * A stored row a received notice may claim (iOS `isClaimableSelfChatPayment`): an incoming
      * payment that sits in the self-chat - a plain transfer from an address that is no contact of
-     * ours ([processPayment]'s "From: <address>" row) - and not our own.
+     * ours ([processPayment]'s "From: <address>" row) - and none of our own
+     * ([ownAddressesForNotices]).
      */
     private suspend fun isClaimableSelfChatPayment(row: MessageEntity, myAddress: String): Boolean {
         if (row.type != "pay" || row.direction != "received") return false
         if (!row.contactId.equals(myAddress, ignoreCase = true)) return false
         val sender = row.plaintextBody?.substringAfterLast("\nFrom: ", "")?.trim().orEmpty()
-        if (sender.isEmpty() || sender.equals(myAddress, ignoreCase = true)) return false
+        if (sender.isEmpty() || sender.lowercase() in ownAddressesForNotices(myAddress)) return false
         return !isKnownContact(sender, myAddress)
     }
+
+    /**
+     * Every address this phone knows as the person's own, lowercased (iOS
+     * `ownAddressesForNotices`): the chatting address, every revealed spending address, every
+     * saved account's chatting address and every Cold Storage receive address (0..maxDerivedIndex
+     * of each of this wallet's accounts). A transfer from any of them is the person moving their
+     * own money, which no contact's notice may ever claim (IOS-083). Off the main thread: a
+     * spending index not derived yet costs a seed derivation, and each cold address a key
+     * derivation.
+     */
+    private suspend fun ownAddressesForNotices(myAddress: String): Set<String> =
+        kotlinx.coroutines.withContext(Dispatchers.Default) {
+            val own = HashSet<String>()
+            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
+                .forEach { own.add(it.trim().lowercase()) }
+            own.add(myAddress.trim().lowercase())
+            runCatching { walletManager.getAllAccounts() }.getOrDefault(emptyList())
+                .forEach { own.add(it.address.trim().lowercase()) }
+            val coldAccounts = runCatching { coldStorageManager.getAccounts() }.getOrDefault(emptyList())
+            for (account in coldAccounts) {
+                val rootKey = com.kachat.app.util.KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
+                    ?.let { runCatching { com.kachat.app.util.KaspaExtendedPublicKey.toDeterministicKey(it) }.getOrNull() }
+                    ?: continue
+                for (index in 0..maxOf(account.maxDerivedIndex, 0)) {
+                    runCatching {
+                        com.kachat.app.util.KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index)
+                    }.getOrNull()?.let { own.add(it.trim().lowercase()) }
+                }
+            }
+            own.remove("")
+            own
+        }
 
     /** A contact of this wallet (any status), matched like iOS `getContact(byAddress:)`. */
     private suspend fun isKnownContact(address: String, myAddress: String): Boolean {
@@ -2361,8 +2405,8 @@ class ChatRepository @Inject constructor(
     /**
      * What the chain says about a received notice (iOS `checkNoticeOnChain`): the tx pays our
      * chatting address ([myAddress]) exactly [claimedSompi], carries no payload (a chat payment
-     * or a message is never a notice's payment), and none of its inputs is ours or another
-     * contact's than [payer].
+     * or a message is never a notice's payment), and none of its inputs is ours (any of
+     * [ownAddressesForNotices]) or another contact's than [payer].
      */
     private suspend fun checkNoticeOnChain(myAddress: String, txId: String, claimedSompi: Long, payer: String): NoticeCheck {
         val api = networkService.kaspaRestApi.value ?: return NoticeCheck.Unknown
@@ -2374,8 +2418,9 @@ class ChatRepository @Inject constructor(
         if (!tx.payload.isNullOrEmpty()) return NoticeCheck.Invalid("the transaction carries a payload")
         val inputs = tx.inputs.mapNotNull { it.previousOutpointAddress?.trim()?.lowercase()?.takeIf { a -> a.isNotEmpty() } }
         if (inputs.isEmpty()) return NoticeCheck.Unknown
+        val own = ownAddressesForNotices(myAddress)
         for (input in inputs) {
-            if (input == myAddress.trim().lowercase()) return NoticeCheck.Invalid("paid by our own address")
+            if (input in own) return NoticeCheck.Invalid("paid by one of our own addresses")
             if (input != payer.trim().lowercase() && isKnownContact(input, myAddress)) {
                 return NoticeCheck.Invalid("paid by another contact")
             }
