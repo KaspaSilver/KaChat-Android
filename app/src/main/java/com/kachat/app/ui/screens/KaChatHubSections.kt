@@ -112,26 +112,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
             onDispose { live.actions.setMarketSource(SendSource.Chatting) }
         }
     }
-    // Mainnet before its public opening shows the countdown instead of search and the pages;
-    // flips by itself when the moment comes (`KachatNamesService.publicLaunchMs`, iOS c6ebf74).
-    // The first draw uses the last known network time (iOS 6975e3e, XP-020).
-    val launchContext = LocalContext.current
-    var publiclyOpen by remember {
-        mutableStateOf(com.kachat.app.services.kachatnames.KachatNamesService.isPubliclyOpenKnown(launchContext))
-    }
-    // the countdown ends while the screen is open: the marketplace opens without a relaunch
-    LaunchedEffect(com.kachat.app.services.kachatnames.KachatNamesService.networkName) {
-        val names = com.kachat.app.services.kachatnames.KachatNamesService
-        // on the network's clock (iOS 6975e3e, XP-020); closed until a node has said what time it is
-        publiclyOpen = live?.service?.isPubliclyOpen() ?: names.isPubliclyOpenKnown(launchContext)
-        while (!publiclyOpen) {
-            val opens = names.publicLaunchMs ?: break
-            val now = names.networkNowMs() ?: com.kachat.app.services.kachatnames.KachatNames.nowMs()
-            val left = maxOf(0L, opens - now)
-            kotlinx.coroutines.delay(minOf(left, 60_000L) + 50L)
-            publiclyOpen = live?.service?.isPubliclyOpen() ?: names.isPubliclyOpenKnown(launchContext)
-        }
-    }
     // A name a tapped notification pointed at (where names are live).
     // One name screen at a time (iOS b799091): the same name again leaves the open one as it is,
     // and another name replaces it (closed first, then opened) instead of piling up.
@@ -273,10 +253,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     }
                 }
             }
-            val launchMs = com.kachat.app.services.kachatnames.KachatNamesService.publicLaunchMs
-            if (!publiclyOpen && launchMs != null) {
-                KachatLaunchCountdown(launchMs)
-            } else {
             // Search
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -358,7 +334,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                     else -> ActivityPage()
                 }
             }
-            }
         }
         if (isLive) PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
       }
@@ -385,85 +360,6 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
-    }
-}
-
-/**
- * Mainnet's countdown to the public opening (`KachatNamesService.publicLaunchMs`): days, hours,
- * minutes and seconds ticking down, and the moment in the person's own time zone (iOS c6ebf74
- * `KachatLaunchCountdown`).
- */
-@Composable
-private fun KachatLaunchCountdown(opensMs: Long) {
-    val colors = LocalAppColors.current
-    val context = LocalContext.current
-    // iOS `TimelineView(.periodic(from: .now, by: 1))`; the network's time when known, so a
-    // changed device date doesn't move it (iOS 6975e3e, XP-020)
-    fun currentMs(): Long =
-        com.kachat.app.services.kachatnames.KachatNamesService.networkNowMs() ?: System.currentTimeMillis()
-    var nowMs by remember { mutableLongStateOf(currentMs()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(1000L)
-            nowMs = currentMs()
-        }
-    }
-    val left = maxOf(0L, (opensMs - nowMs) / 1000)
-    Column(
-        Modifier
-            .padding(horizontal = 16.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(colors.surface)
-            .padding(20.dp)
-            .semantics(mergeDescendants = true) {},
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Text(stringResource(R.string.kn_names_open_in), color = colors.textSecondary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LaunchCountdownUnit(left / 86_400, stringResource(R.string.kn_countdown_days))
-            LaunchCountdownUnit(left % 86_400 / 3_600, stringResource(R.string.kn_countdown_hours))
-            LaunchCountdownUnit(left % 3_600 / 60, stringResource(R.string.kn_countdown_minutes))
-            LaunchCountdownUnit(left % 60, stringResource(R.string.kn_countdown_seconds))
-        }
-        Text(
-            KachatLive.launch(opensMs, context),
-            color = colors.textPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            stringResource(R.string.kn_launch_then_anyone),
-            color = colors.textSecondary,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-/** One of the countdown's four tiles: the number over its unit (iOS `KachatLaunchCountdown.unit`). */
-@Composable
-private fun RowScope.LaunchCountdownUnit(value: Long, label: String) {
-    val colors = LocalAppColors.current
-    Column(
-        Modifier
-            .weight(1f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(KaspaTeal.copy(alpha = 0.12f))
-            .padding(vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            String.format(java.util.Locale.US, "%02d", value),
-            color = colors.textPrimary,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold,
-            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum")
-        )
-        KachatFitText(label, color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, minScale = 0.7f)
     }
 }
 
@@ -1246,7 +1142,6 @@ private fun UnavailableCard(failure: KaChatStatsStore.Failure, onRetry: () -> Un
 fun KachatSetupGuideScreen(onClose: () -> Unit) {
     BackHandler(onBack = onClose)
     val colors = LocalAppColors.current
-    val context = LocalContext.current
     var step by remember { mutableIntStateOf(0) }
     val last = 4
     Scaffold(
@@ -1318,16 +1213,6 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
                             Text(".kachat", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
                         }
                         Text(stringResource(R.string.kg_claim_hint), color = colors.textSecondary, fontSize = 12.sp)
-                        // Mainnet before its public opening: when it opens (iOS cdc5611).
-                        val opens = com.kachat.app.services.kachatnames.KachatNamesService.publicLaunchMs
-                        if (opens != null && !com.kachat.app.services.kachatnames.KachatNamesService.isPubliclyOpenKnown(context)) {
-                            Text(
-                                stringResource(R.string.kn_not_public_yet, KachatLive.launch(opens, context)),
-                                color = KaspaTeal,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
                     }
                 }
                 1 -> {

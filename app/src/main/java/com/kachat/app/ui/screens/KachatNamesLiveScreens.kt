@@ -227,15 +227,6 @@ object KachatLive {
             date(ms)
         }
 
-    /**
-     * "Friday, October 16 at 8:00 AM" in the person's own time zone and the app's language: iOS
-     * c6ebf74 `KachatNamesActions.launchString`, the date-format template "EEEEMMMMdjmm".
-     */
-    fun launch(ms: Long, context: Context): String {
-        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
-        return android.icu.text.DateFormat.getInstanceForSkeleton("EEEEMMMMdjmm", locale).format(Date(ms))
-    }
-
     /** The registry parameters, once the manifest is verified (iOS `KachatLive.params`, bd2c54a). */
     fun params(service: KachatNamesService): Params? = service.manifest.value?.params
 
@@ -380,8 +371,6 @@ fun Context.kachatErrorText(e: Throwable): String {
         is KachatNamesActions.ActionError.FeeChanged -> getString(R.string.kn_err_fee_changed, KaspaUnit.amount(e.fee))
         // localized on iOS too (dd836cb)
         is KachatNamesActions.ActionError.RegistrationNotOpen -> getString(R.string.kn_registration_not_open, KachatLive.day(e.opensMs))
-        // localized on iOS too (c6ebf74)
-        is KachatNamesActions.ActionError.NotPublicYet -> getString(R.string.kn_not_public_yet, KachatLive.launch(e.opensMs, this))
         // localized on iOS too (71128c4)
         is KachatNamesActions.ActionError.ExpiredTooLongToRenew -> getString(R.string.kn_err_renew_expired_too_long)
         is KachatNamesActions.ActionError.OfferNameNotActive -> getString(R.string.kn_err_offer_name_not_active)
@@ -407,10 +396,6 @@ fun Context.kachatPendingError(m: String): String {
     REGISTRATION_NOT_OPEN.matchEntire(m)?.groupValues?.get(1)?.toLongOrNull()?.let {
         return getString(R.string.kn_registration_not_open, KachatLive.day(it))
     }
-    // a commit waiting for mainnet's public opening (iOS c6ebf74)
-    NOT_PUBLIC_YET.matchEntire(m)?.groupValues?.get(1)?.toLongOrNull()?.let {
-        return getString(R.string.kn_not_public_yet, KachatLive.launch(it, this))
-    }
     return when (m) {
         "The commit never reached the chain." -> getString(R.string.kn_err_commit_never)
         "The commit is no longer on chain." -> getString(R.string.kn_err_commit_gone)
@@ -429,9 +414,6 @@ private val FREEING_NAME = Regex("Freeing (.+) for you\\.\\.\\.")
 
 /** [KachatNamesActions.registrationNotOpenNote] (iOS dd836cb). */
 private val REGISTRATION_NOT_OPEN = Regex("Names are moving to the new registry\\. New names can be claimed from (\\d+)\\.")
-
-/** [KachatNamesActions.notPublicYetNote] (iOS c6ebf74). */
-private val NOT_PUBLIC_YET = Regex("\\.kachat names open to everyone on (\\d+)\\.")
 
 /** iOS `Haptics.success()`. */
 private fun android.view.View.successHaptic() = com.kachat.app.util.Haptics.perform(this, com.kachat.app.util.IosHaptic.SUCCESS)
@@ -2684,8 +2666,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     var years by remember { mutableLongStateOf(1L) }
     var quote by remember { mutableStateOf<KachatNamesActions.Quote?>(null) }
     var quoteError by remember { mutableStateOf<String?>(null) }
-    // Registry v5 before its migration deadline, or mainnet before its public opening: why
-    // claiming waits, and until when (iOS dd836cb, c6ebf74).
+    // Registry v5 before its migration deadline: why claiming waits, and until when (iOS dd836cb).
     var notOpen by remember { mutableStateOf<String?>(null) }
     var notOpenIsMigration by remember { mutableStateOf(false) }
     var starting by remember { mutableStateOf(false) }
@@ -2746,8 +2727,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
         } catch (e: Exception) {
             // cancelled on the way out: not an error to show (iOS 5e707f4)
             ensureActive()
-            // before registry v5's migration deadline, or mainnet's public opening: a notice, not
-            // an error (iOS dd836cb, c6ebf74)
+            // before registry v5's migration deadline: a notice, not an error (iOS dd836cb)
             if (e is KachatNamesActions.ActionError && e.isNotOpenYet) {
                 notOpen = context.kachatErrorText(e)
                 notOpenIsMigration = e is KachatNamesActions.ActionError.RegistrationNotOpen
