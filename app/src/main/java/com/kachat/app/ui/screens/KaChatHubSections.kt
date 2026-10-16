@@ -67,7 +67,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.text.NumberFormat
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -937,8 +936,6 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
             pullState.endRefresh()
         }
     }
-    val numberFormat = remember { NumberFormat.getIntegerInstance() }
-
     // The kinds with a card of their own. .kachat's five are one card, .kachat Domains.
     val chatCategories = KaChatStatCategory.entries.filterNot { it.isKachat }
     // The .kachat Domains counts: the registry's own, else the indexer's five .kachat kinds
@@ -998,7 +995,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                     Icon(Icons.Default.BarChart, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
                     when {
                         allTimeTotal != null -> KachatFitText(
-                            numberFormat.format(allTimeTotal.coerceAtLeast(0L)),
+                            kaChatStatsGrouped(allTimeTotal.coerceAtLeast(0L)),
                             color = colors.textPrimary,
                             fontSize = 44.sp,
                             fontWeight = FontWeight.Black,
@@ -1025,7 +1022,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                                     color = category.color,
                                     title = stringResource(category.title),
                                     detail = KaspaUnit.label(stringResource(category.detail)),
-                                    values = listOf(counts?.last24h, counts?.last7d, counts?.total).map { v -> v?.let { numberFormat.format(it) } },
+                                    values = listOf(counts?.last24h, counts?.last7d, counts?.total).map { v -> v?.let { kaChatStatsGrouped(it.coerceAtLeast(0L)) } },
                                 )
                             }
                         } else {
@@ -1048,7 +1045,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                                 color = KachatDomainsMint,
                                 title = stringResource(R.string.ks_kachat_domains),
                                 detail = stringResource(R.string.ks_kachat_transactions),
-                                values = listOf(kachat.last24h, kachat.last7d, kachat.total).map { numberFormat.format(it) },
+                                values = listOf(kachat.last24h, kachat.last7d, kachat.total).map { kaChatStatsGrouped(it) },
                             )
                         }
                     }
@@ -1060,7 +1057,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                                 color = KachatDomainsMint,
                                 title = stringResource(R.string.ks_kachat_domains),
                                 detail = stringResource(R.string.ks_kachat_fees_detail),
-                                values = listOf(fees.last24h, fees.last7d, fees.total).map { "${KaspaUnit.plain(it)} ${KaspaUnit.symbol}" },
+                                values = listOf(fees.last24h, fees.last7d, fees.total).map { kaChatStatsKas(it) },
                             )
                             kachatLoaded -> Column(
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(18.dp),
@@ -1181,6 +1178,22 @@ private fun RowScope.KaChatStatColumn(title: String, value: String?, redacted: B
 @Composable
 private fun StatsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface), content = content)
+}
+
+/** Every number on KaChat Stats with commas, whatever the language, and at most two decimals
+ *  (iOS b6f55a5 `groupedFormatter`). A new one each time: DecimalFormat isn't thread-safe. */
+private fun kaChatStatsFormatter(): java.text.DecimalFormat =
+    java.text.DecimalFormat("#,##0.##", java.text.DecimalFormatSymbols(java.util.Locale.US)).apply {
+        roundingMode = java.math.RoundingMode.HALF_EVEN
+    }
+
+/** "774,086" (iOS b6f55a5 `grouped`). */
+fun kaChatStatsGrouped(value: Long): String = kaChatStatsFormatter().format(value)
+
+/** Sompi as KAS with commas and at most two decimals: "21,035.5 KAS" (iOS b6f55a5 `kas`). */
+fun kaChatStatsKas(sompi: Long): String {
+    val value = java.math.BigDecimal.valueOf(sompi).movePointLeft(8)
+    return "${kaChatStatsFormatter().format(value)} ${KaspaUnit.symbol}"
 }
 
 @Composable
