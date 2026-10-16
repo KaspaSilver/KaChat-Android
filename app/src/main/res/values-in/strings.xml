@@ -1202,4 +1202,12 @@
     <string name="customize_dock_hub_order">Sesuai urutan yang ditampilkan %1$s.</string>
     <string name="customize_dock_move_to">Pindahkan %1$s ke %2$s</string>
     <string name="customize_dock_add">Tambahkan %1$s ke dock</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Tip</string>
+    <string name="kaposts_no_tips_yet">Belum ada tip.</string>
+    <string name="kaposts_who_tipped">Siapa yang memberi tip pada postingan ini</string>
+    <string name="kaposts_bell_on_note">Anda sekarang akan diberi tahu saat %1$s memposting.</string>
+    <string name="kaposts_bell_off_note">Anda tidak akan lagi diberi tahu tentang postingan %1$s.</string>
+    <string name="kaposts_bell_stop">Matikan notifikasi postingan</string>
+    <string name="kaposts_bell_notify">Beri tahu saat dia memposting</string>
 </resources>

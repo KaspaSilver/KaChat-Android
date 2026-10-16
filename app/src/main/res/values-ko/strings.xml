@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">%1$s에 표시되는 순서입니다.</string>
     <string name="customize_dock_move_to">%1$s을(를) %2$s(으)로 이동</string>
     <string name="customize_dock_add">%1$s을(를) 독에 추가</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">팁</string>
+    <string name="kaposts_no_tips_yet">아직 팁이 없습니다.</string>
+    <string name="kaposts_who_tipped">이 게시물에 팁을 보낸 사람</string>
+    <string name="kaposts_bell_on_note">이제 %1$s님이 게시하면 알림을 받습니다.</string>
+    <string name="kaposts_bell_off_note">이제 %1$s님의 게시물 알림을 받지 않습니다.</string>
+    <string name="kaposts_bell_stop">게시물 알림 끄기</string>
+    <string name="kaposts_bell_notify">게시하면 알려 주기</string>
 </resources>

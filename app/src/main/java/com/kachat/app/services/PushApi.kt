@@ -74,6 +74,12 @@ data class PushRegistrationRequest(
     @SerializedName("kaposts_notify_comments") val kaPostsNotifyComments: Boolean = true,
     @SerializedName("kaposts_notify_reposts") val kaPostsNotifyReposts: Boolean = true,
     @SerializedName("kaposts_notify_follows") val kaPostsNotifyFollows: Boolean = true,
+    /**
+     * Authors whose new posts this device wants a push for - the bell beside Follow (the iOS
+     * repo's PUSH_EXTENSIONS.md section 3a). Pubkeys, 66-hex compressed. Sent on every
+     * registration, empty when none, as iOS does.
+     */
+    @SerializedName("kaposts_watch_authors") val kaPostsWatchAuthors: List<String> = emptyList(),
     @SerializedName("auth") val auth: PushAuthRequest? = null,
 )
 

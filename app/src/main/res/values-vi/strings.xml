@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">Theo thứ tự %1$s hiển thị.</string>
     <string name="customize_dock_move_to">Chuyển %1$s vào %2$s</string>
     <string name="customize_dock_add">Thêm %1$s vào dock</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Tiền tip</string>
+    <string name="kaposts_no_tips_yet">Chưa có tiền tip.</string>
+    <string name="kaposts_who_tipped">Ai đã tip cho bài viết này</string>
+    <string name="kaposts_bell_on_note">Từ giờ bạn sẽ được thông báo khi %1$s đăng bài.</string>
+    <string name="kaposts_bell_off_note">Bạn sẽ không còn được thông báo về bài viết của %1$s.</string>
+    <string name="kaposts_bell_stop">Tắt thông báo bài viết</string>
+    <string name="kaposts_bell_notify">Báo cho tôi khi người này đăng bài</string>
 </resources>

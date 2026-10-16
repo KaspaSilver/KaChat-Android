@@ -65,7 +65,25 @@ class KaPostsViewModel @Inject constructor(
     private val scheduledStore: com.kachat.app.services.KaPostsScheduledStore,
     /** Every name service, .kachat first - @mentions resolve through it (iOS d0c5b09). */
     private val nameServices: com.kachat.app.services.NameServicesClient,
+    /** KaPosts' bell beside Follow: whose new posts this account is notified about (iOS a6bd60a). */
+    private val watchStore: com.kachat.app.services.KaPostsWatchStore,
 ) : ViewModel() {
+
+    // MARK: - The bell (PUSH_EXTENSIONS.md section 3a)
+
+    /** The authors (lowercased addresses) this account asked to hear about when they post. */
+    val watchedAuthors: kotlinx.coroutines.flow.StateFlow<Set<String>> = watchStore.watching
+
+    /** Turns the bell on or off for [address]; returns whether it is now on. The push
+     *  registration follows by itself (PushRegistrationManager observes the store). */
+    fun toggleWatch(address: String): Boolean = watchStore.toggle(address)
+
+    // MARK: - Tips (KAPOSTS_INDEXER.md section 5.11)
+
+    /** One page of who tipped [postId], newest first: the tips, the next cursor and whether there
+     *  is more (iOS fetchTippers). */
+    suspend fun fetchTippers(postId: String, before: String? = null): com.kachat.app.services.KPage<com.kachat.app.services.KTip> =
+        kaPostsService.fetchTippersPage(postId, before = before)
 
     // MARK: - Scheduled posts (KAPOSTS_INDEXER.md section 5.10)
 
@@ -1473,6 +1491,7 @@ class KaPostsViewModel @Inject constructor(
             likes = post.upVotesCount ?: 0,
             dislikes = post.downVotesCount ?: 0,
             reposts = post.quotesCount ?: 0,
+            tips = post.tipsCount ?: 0,
             likedByMe = post.isUpvoted ?: false,
             dislikedByMe = post.isDownvoted ?: false,
             remoteReplyCount = post.repliesCount ?: 0,

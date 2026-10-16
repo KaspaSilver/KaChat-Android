@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">उसी क्रम में जिसमें %1$s उन्हें दिखाता है।</string>
     <string name="customize_dock_move_to">%1$s को %2$s में ले जाएँ</string>
     <string name="customize_dock_add">%1$s को डॉक में जोड़ें</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">टिप</string>
+    <string name="kaposts_no_tips_yet">अभी कोई टिप नहीं।</string>
+    <string name="kaposts_who_tipped">इस पोस्ट पर किसने टिप दी</string>
+    <string name="kaposts_bell_on_note">अब %1$s के पोस्ट करने पर आपको सूचना मिलेगी।</string>
+    <string name="kaposts_bell_off_note">अब आपको %1$s की पोस्ट की सूचना नहीं मिलेगी।</string>
+    <string name="kaposts_bell_stop">पोस्ट सूचनाएँ बंद करें</string>
+    <string name="kaposts_bell_notify">पोस्ट करने पर मुझे बताएँ</string>
 </resources>

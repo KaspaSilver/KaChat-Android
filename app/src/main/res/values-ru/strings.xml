@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">В том порядке, в каком их показывает %1$s.</string>
     <string name="customize_dock_move_to">Переместить %1$s в %2$s</string>
     <string name="customize_dock_add">Добавить %1$s в док</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Чаевые</string>
+    <string name="kaposts_no_tips_yet">Чаевых пока нет.</string>
+    <string name="kaposts_who_tipped">Кто отправил чаевые за этот пост</string>
+    <string name="kaposts_bell_on_note">Теперь вы будете получать уведомления о новых постах %1$s.</string>
+    <string name="kaposts_bell_off_note">Вы больше не будете получать уведомления о постах %1$s.</string>
+    <string name="kaposts_bell_stop">Отключить уведомления о постах</string>
+    <string name="kaposts_bell_notify">Уведомлять о новых постах</string>
 </resources>

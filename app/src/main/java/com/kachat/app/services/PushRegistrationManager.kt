@@ -74,6 +74,8 @@ class PushRegistrationManager @Inject constructor(
     private val settings: AppSettingsRepository,
     private val pushState: PushState,
     private val peerAliasStore: PeerAliasStore,
+    /** KaPosts' bell: whose new posts this account wants a push for (PUSH_EXTENSIONS.md 3a). */
+    private val kaPostsWatchStore: KaPostsWatchStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("PushRegistrationManager"))
     // Serialize registrations so an account switch + a token refresh can't race.
@@ -110,6 +112,9 @@ class PushRegistrationManager @Inject constructor(
         /** Groups silenced on this device. They are dropped from the watched ids, so silencing
          *  one has to reach the service the moment the switch flips. */
         val silentGroups: Set<String>,
+        /** The bell beside Follow on KaPosts (PUSH_EXTENSIONS.md 3a): a change re-registers,
+         *  like iOS's KaPostsWatchStore.toggle. */
+        val kaPostsWatchAuthors: Set<String>,
     )
 
     /** The five per-kind KaPosts switches as one flow, so a flip of any of them is one input. */
@@ -140,6 +145,7 @@ class PushRegistrationManager @Inject constructor(
                 settings.childModeEnabled,
                 kaPostsKindsFlow,
                 settings.groupSilent,
+                kaPostsWatchStore.watching,
             ) { values ->
                 @Suppress("UNCHECKED_CAST")
                 Snapshot(
@@ -151,6 +157,7 @@ class PushRegistrationManager @Inject constructor(
                     childModeEnabled = values[5] as Boolean,
                     kaPostsKinds = values[6] as KaPostsNotifyKinds,
                     silentGroups = values[7] as Set<String>,
+                    kaPostsWatchAuthors = values[8] as Set<String>,
                 )
             }
                 .distinctUntilChanged()
@@ -411,6 +418,9 @@ class PushRegistrationManager @Inject constructor(
         // The reader's per-kind KaPosts switches, so the server can skip a push at the source.
         // Part of the fingerprint AND an init-observer input, so a flip re-registers at once.
         val kaPostsKinds = kaPostsKindsFlow.first()
+        // The authors this account asked to hear about when they post (KaPosts' bell). Empty in
+        // Child Mode, like the KaPosts identity itself (iOS collectKaPostsWatchAuthors).
+        val kaPostsWatchAuthors = if (childMode) emptyList() else kaPostsWatchStore.watchedPubkeys()
 
         // Own address included alongside active contacts, matching iOS's collectWatchedAddresses
         // — the server routes by SENDER (find_devices_watching), so without it a handshake from a
@@ -433,7 +443,7 @@ class PushRegistrationManager @Inject constructor(
         // one actual registration.
         val fingerprint = registrationFingerprint(
             token, walletAddress, watchedAddresses, aliases, broadcastChannels, hiddenSenders, kaPostsPubkey,
-            watchedGroupIds, kaPostsKinds,
+            watchedGroupIds, kaPostsKinds, kaPostsWatchAuthors,
         )
         if (fingerprint == lastRegisteredFingerprint) return@withLock
 
@@ -441,6 +451,7 @@ class PushRegistrationManager @Inject constructor(
             submitRegistration(
                 api, token, privateKey, walletAddress, kaPostsPubkey,
                 watchedAddresses, aliases, broadcastChannels, hiddenSenders, watchedGroupIds, kaPostsKinds,
+                kaPostsWatchAuthors,
             )
         } catch (e: HttpException) {
             // Wallet-binding conflict: this token is still bound to a previously active wallet
@@ -453,6 +464,7 @@ class PushRegistrationManager @Inject constructor(
             submitRegistration(
                 api, token, privateKey, walletAddress, kaPostsPubkey,
                 watchedAddresses, aliases, broadcastChannels, hiddenSenders, watchedGroupIds, kaPostsKinds,
+                kaPostsWatchAuthors,
             )
         }
 
@@ -484,6 +496,7 @@ class PushRegistrationManager @Inject constructor(
         hiddenSenders: Map<String, List<String>>,
         watchedGroupIds: List<String>,
         kaPostsKinds: KaPostsNotifyKinds,
+        kaPostsWatchAuthors: List<String>,
     ) {
         try {
             val auth = buildAuth(
@@ -514,6 +527,7 @@ class PushRegistrationManager @Inject constructor(
                     kaPostsNotifyComments = kaPostsKinds.comments,
                     kaPostsNotifyReposts = kaPostsKinds.reposts,
                     kaPostsNotifyFollows = kaPostsKinds.follows,
+                    kaPostsWatchAuthors = kaPostsWatchAuthors,
                     auth = auth,
                 )
             )
@@ -601,6 +615,7 @@ class PushRegistrationManager @Inject constructor(
         kaPostsPubkey: String?,
         watchedGroupIds: List<String>,
         kaPostsKinds: KaPostsNotifyKinds,
+        kaPostsWatchAuthors: List<String>,
     ): String = sha256Hex(
         listOf(
             token,
@@ -612,6 +627,7 @@ class PushRegistrationManager @Inject constructor(
             kaPostsPubkey.orEmpty(),
             canonicalizeAddresses(watchedGroupIds).joinToString(","),
             kaPostsKinds.fingerprint(),
+            kaPostsWatchAuthors.sorted().joinToString("+"),
         ).joinToString("\n")
     )
 

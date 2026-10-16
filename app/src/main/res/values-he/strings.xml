@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">בסדר שבו %1$s מציג אותם.</string>
     <string name="customize_dock_move_to">העברת %1$s אל %2$s</string>
     <string name="customize_dock_add">הוספת %1$s למעגן</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">טיפים</string>
+    <string name="kaposts_no_tips_yet">עדיין אין טיפים.</string>
+    <string name="kaposts_who_tipped">מי נתן טיפ לפוסט הזה</string>
+    <string name="kaposts_bell_on_note">מעכשיו תקבלו התראה כש־%1$s מפרסם.</string>
+    <string name="kaposts_bell_off_note">לא תקבלו עוד התראות על פוסטים של %1$s.</string>
+    <string name="kaposts_bell_stop">כיבוי התראות על פוסטים</string>
+    <string name="kaposts_bell_notify">תודיעו לי כשמפרסם</string>
 </resources>

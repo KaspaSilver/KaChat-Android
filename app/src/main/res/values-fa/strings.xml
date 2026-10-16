@@ -1361,4 +1361,12 @@
     <string name="customize_dock_hub_order">به ترتیبی که %1$s نشانشان می‌دهد.</string>
     <string name="customize_dock_move_to">انتقال %1$s به %2$s</string>
     <string name="customize_dock_add">افزودن %1$s به داک</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">انعام‌ها</string>
+    <string name="kaposts_no_tips_yet">هنوز انعامی نیست.</string>
+    <string name="kaposts_who_tipped">چه کسانی به این پست انعام دادند</string>
+    <string name="kaposts_bell_on_note">از این پس وقتی %1$s پست بگذارد به شما اطلاع داده می‌شود.</string>
+    <string name="kaposts_bell_off_note">دیگر درباره پست‌های %1$s به شما اطلاع داده نمی‌شود.</string>
+    <string name="kaposts_bell_stop">خاموش کردن اعلان پست‌ها</string>
+    <string name="kaposts_bell_notify">وقتی پست گذاشت خبرم کن</string>
 </resources>

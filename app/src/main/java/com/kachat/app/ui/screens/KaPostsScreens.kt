@@ -160,6 +160,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.setValue
@@ -677,8 +678,9 @@ private fun KaPostsFeedScreen(
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
     // The profile whose follow list is open: null = my own list, non-null = another user's.
     var followListPubkey by remember { mutableStateOf<String?>(null) }
-    // Tip sheet target: (poster address, display name).
-    var tipTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    // Tip sheet target: (poster address, display name, the post tipped). The post is null only
+    // for something that isn't on the network yet.
+    var tipTarget by remember { mutableStateOf<Triple<String, String, com.kachat.app.models.KaPostTip?>?>(null) }
     val defaultTipSompi by settingsViewModel.kaPostsDefaultTipSompi.collectAsState()
     /**
      * Tipping a poster. With a default amount set (KaPosts Settings) it goes out at once,
@@ -688,14 +690,18 @@ private fun KaPostsFeedScreen(
      * still be made by hand.
      */
     val tipFailedContext = LocalContext.current
-    val tip: (String, String) -> Unit = { address, name ->
+    val tip: (KaPostDraft) -> Unit = { post ->
+        val address = post.posterAddress
+        val name = viewModel.posterDisplayName(address)
+        // A tip names the post it is for, so the post counts it (KAPOSTS_INDEXER.md 5.11).
+        val target = com.kachat.app.models.KaPostTip.of(post)
         val amount = defaultTipSompi
         if (amount == null || amount <= 0) {
-            tipTarget = address to name
+            tipTarget = Triple(address, name, target)
         } else {
             chatViewModel.addContact(address, null)
             val kasText = kasAmountText(amount)
-            chatViewModel.sendPayment(address, kasText) { ok, error, txId ->
+            chatViewModel.sendPayment(address, kasText, tip = target) { ok, error, txId ->
                 if (ok) {
                     viewModel.showTipToast("Tipped $kasText ${KaspaUnit.symbol} to $name", txId.orEmpty())
                 } else {
@@ -706,7 +712,7 @@ private fun KaPostsFeedScreen(
                             com.kachat.app.util.UserFacingError.message(error, tipFailedContext.getString(R.string.something_went_wrong)),
                         )
                     )
-                    tipTarget = address to name
+                    tipTarget = Triple(address, name, target)
                 }
             }
         }
@@ -1126,7 +1132,7 @@ private fun KaPostsFeedScreen(
                                     // The reply bubble opens the Reply composer; the card opens
                                     // the thread (iOS feed cells).
                                     onReply = { replyComposerTarget = post },
-                                    onTip = { tip(post.posterAddress, viewModel.posterDisplayName(post.posterAddress)) },
+                                    onTip = { tip(post) },
                                 )
                                 // X-style "View thread" under a thread root - opens the detail,
                                 // where the full continuation renders as a connected section.
@@ -1522,15 +1528,16 @@ private fun KaPostsFeedScreen(
             onViewEngagement = { engagementTarget = it },
             onOpenQuoted = { openSharedFromProfile(KaPostsProfileReturn.Poster(profile.address, profile.pubkey), it) },
             onOpenFollowList = { followListPubkey = profile.pubkey; followListKind = it },
-            onTip = { tip(it.posterAddress, viewModel.posterDisplayName(it.posterAddress)) },
+            onTip = { tip(it) },
             onReply = { replyComposerTarget = it },
         )
     }
 
-    tipTarget?.let { (tipAddress, tipName) ->
+    tipTarget?.let { (tipAddress, tipName, tipPost) ->
         KaPostTipSheet(
             address = tipAddress,
             displayName = tipName,
+            tip = tipPost,
             onDismiss = { tipTarget = null },
         )
     }
@@ -1604,7 +1611,7 @@ private fun KaPostsFeedScreen(
             // bookmarks Dialog, so they open in place.
             onViewEngagement = { engagementTarget = it },
             onRepostTap = { repostHandler(it) },
-            onTip = { tip(it.posterAddress, viewModel.posterDisplayName(it.posterAddress)) },
+            onTip = { tip(it) },
         )
     }
 }
@@ -2168,6 +2175,18 @@ fun KaPostCell(
     val contactPhoto by viewModel.contactPhotos.collectSelectedAsState(post.posterAddress) { it[post.posterAddress] }
     val name = posterDisplayNameState(viewModel, post.posterAddress)
     val isFollowingPoster by viewModel.following.collectSelectedAsState(post.posterAddress) { post.posterAddress in it }
+    // The bell beside Follow: notified when this author posts (KaPostsWatchStore, iOS a6bd60a).
+    val isWatchingPoster by viewModel.watchedAuthors.collectSelectedAsState(post.posterAddress) { post.posterAddress.lowercase() in it }
+    // What the bell just did, said for a moment under the name.
+    var bellNote by remember(post.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(bellNote) {
+        if (bellNote != null) {
+            delay(2_800)
+            bellNote = null
+        }
+    }
+    // The post whose tippers are listed (the tip count's sheet).
+    var showTippers by remember(post.id) { mutableStateOf(false) }
     val hapticView = LocalView.current
     fun lightHaptic() { hapticView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP) }
     val cellDeadlines by viewModel.undoDeadlines.collectSelectedAsState(post.id) {
@@ -2286,6 +2305,27 @@ fun KaPostCell(
                                 viewModel.toggleFollow(post.posterAddress, post.posterPubkey)
                             },
                         )
+                        // Notified when this person posts - its own switch, beside Follow. On says
+                        // "you'll be notified when they post", off says it won't, for a moment,
+                        // right under the name.
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            if (isWatchingPoster) Icons.Default.Notifications else Icons.Default.NotificationsNone,
+                            contentDescription = stringResource(
+                                if (isWatchingPoster) R.string.kaposts_bell_stop else R.string.kaposts_bell_notify
+                            ),
+                            tint = KaspaTeal,
+                            modifier = Modifier
+                                .size(15.dp)
+                                .clickable {
+                                    lightHaptic()
+                                    val on = viewModel.toggleWatch(post.posterAddress)
+                                    bellNote = context.getString(
+                                        if (on) R.string.kaposts_bell_on_note else R.string.kaposts_bell_off_note,
+                                        name,
+                                    )
+                                },
+                        )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
@@ -2394,6 +2434,14 @@ fun KaPostCell(
                             }
                         }
                     }
+                }
+                AnimatedVisibility(visible = bellNote != null, enter = fadeIn(), exit = fadeOut()) {
+                    Text(
+                        bellNote.orEmpty(),
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp,
+                    )
                 }
                 Spacer(modifier = Modifier.height(3.dp))
                 // ClickableText (not Text): tapping an @mention resolves the KNS domain and
@@ -2540,6 +2588,10 @@ fun KaPostCell(
                         }
                     },
                     onTip = if (!isMine) onTip?.let { tip -> { lightHaptic(); tip() } } else null,
+                    // How many times it was tipped; a tap lists who (your own posts too).
+                    onShowTippers = if (post.remoteId != null) {
+                        { lightHaptic(); showTippers = true }
+                    } else null,
                     // X-style repost sheet; quote routes through the VM's quoteRequest flow so
                     // the main screen's composer opens from any cell. "Undo Repost" submits the
                     // unquote counter-action rather than a second repost.
@@ -2550,6 +2602,11 @@ fun KaPostCell(
                     onRetry = { lightHaptic(); viewModel.retryPost(post) },
                     onHaptic = { lightHaptic() },
                 )
+                if (showTippers) {
+                    post.remoteId?.let { remoteId ->
+                        KaPostTippersSheet(postId = remoteId, viewModel = viewModel, onDismiss = { showTippers = false })
+                    }
+                }
                 // When the post was made - the full date and time, in its own row under the
                 // actions, with "· edited" after it when the text was changed (iOS b31ff59).
                 Spacer(modifier = Modifier.height(6.dp))
@@ -2672,6 +2729,8 @@ private fun EngagementRow(
     // Share sits in the action row itself, as on iOS, rather than only behind the overflow menu.
     onShare: (() -> Unit)? = null,
     onTip: (() -> Unit)? = null,
+    /** Lists who tipped the post (the tip count's tap); null while it isn't on the network. */
+    onShowTippers: (() -> Unit)? = null,
     // X-style repost menu: when BOTH are set (and the post is on-chain), tapping repost opens
     // a compact anchored two-row menu (Repost / Quote) instead of the old dialog.
     onRepostConfirm: (() -> Unit)? = null,
@@ -2844,6 +2903,28 @@ private fun EngagementRow(
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+            }
+        }
+        // How many times it was tipped; a tap lists who (your own posts too).
+        if (post.tips > 0 && onShowTippers != null) {
+            val tippersLabel = stringResource(R.string.kaposts_who_tipped)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onShowTippers() }
+                    .semantics { contentDescription = tippersLabel }
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+            ) {
+                if (onTip == null) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                }
+                Text("${post.tips}", color = colors.textSecondary, fontSize = 14.sp, maxLines = 1)
             }
         }
             }
@@ -5546,6 +5627,9 @@ fun KaPostTipSheet(
     address: String,
     displayName: String,
     onDismiss: () -> Unit,
+    /** The post being tipped: then it is a tip that names the post, paid from the chatting
+     *  address only - no From choice (iOS a6bd60a). */
+    tip: com.kachat.app.models.KaPostTip? = null,
     chatViewModel: ChatViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),
     portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
@@ -5630,6 +5714,7 @@ fun KaPostTipSheet(
                     onAvailableSompiChange = { availableSompi = it },
                     walletViewModel = walletViewModel,
                     enabled = !isSending,
+                    isLocked = tip != null,
                 )
             },
             maxKas = {
@@ -5683,6 +5768,7 @@ fun KaPostTipSheet(
                         sourceSpendingIndex = source.spendingIndex,
                         extraFeeSompi = extraFeeSompi,
                         manualUtxos = manualUtxos,
+                        tip = tip,
                     ) { ok, error, txId ->
                         isSending = false
                         if (ok) {
@@ -6271,6 +6357,121 @@ fun KaPostEngagementOverlay(
                 }
             }
         }
+    }
+}
+
+/**
+ * Who tipped a post, newest first: name, avatar, amount and when - from the indexer's
+ * `get-post-tippers` (KAPOSTS_INDEXER.md 5.11, iOS `KaPostTippersView`).
+ */
+@Composable
+fun KaPostTippersSheet(
+    postId: String,
+    viewModel: KaPostsViewModel,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    var tips by remember(postId) { mutableStateOf<List<com.kachat.app.services.KTip>>(emptyList()) }
+    var nextCursor by remember(postId) { mutableStateOf<String?>(null) }
+    var hasMore by remember(postId) { mutableStateOf(false) }
+    var loading by remember(postId) { mutableStateOf(true) }
+    var loadError by remember(postId) { mutableStateOf<String?>(null) }
+    var loadMoreRequests by remember(postId) { mutableStateOf(0) }
+
+    suspend fun load(more: Boolean) {
+        if (more && nextCursor == null) return
+        loading = true
+        try {
+            val page = viewModel.fetchTippers(postId, before = if (more) nextCursor else null)
+            val known = tips.map { it.id }.toSet()
+            tips = (if (more) tips else emptyList()) + page.items.filter { !more || it.id !in known }
+            nextCursor = page.cursor
+            hasMore = page.hasMore && page.cursor != null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            loadError = com.kachat.app.util.UserFacingError.message(e, context.getString(R.string.something_went_wrong))
+            hasMore = false
+        } finally {
+            loading = false
+        }
+    }
+    LaunchedEffect(postId) { load(more = false) }
+    LaunchedEffect(loadMoreRequests) { if (loadMoreRequests > 0) load(more = true) }
+
+    ActionSheetContainer(title = stringResource(R.string.kaposts_tips), subtitle = null, onDismiss = onDismiss) {
+        when {
+            loading && tips.isEmpty() -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+            }
+            tips.isEmpty() -> Text(
+                loadError ?: stringResource(R.string.kaposts_no_tips_yet),
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+            )
+            else -> Column(Modifier.fillMaxWidth()) {
+                tips.forEach { tip ->
+                    KaPostTipRow(tip = tip, viewModel = viewModel, amountColor = colors.textPrimary)
+                }
+                if (hasMore) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+                    }
+                    LaunchedEffect(tips.size) { if (!loading) loadMoreRequests += 1 }
+                }
+            }
+        }
+    }
+}
+
+/** One tip: who (avatar and name), when, and how much. */
+@Composable
+private fun KaPostTipRow(
+    tip: com.kachat.app.services.KTip,
+    viewModel: KaPostsViewModel,
+    amountColor: Color,
+) {
+    val colors = LocalAppColors.current
+    val address = remember(tip.userPublicKey) { com.kachat.app.services.KaPostsService.kaspaAddressFromPubkey(tip.userPublicKey).orEmpty() }
+    LaunchedEffect(address) { if (address.isNotEmpty()) viewModel.ensureSenderProfileFetched(address) }
+    val avatar by viewModel.senderProfiles.collectSelectedAsState(address) { it[address] }
+    val name = if (address.isEmpty()) tip.userPublicKey else posterDisplayNameState(viewModel, address)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        ContactAvatar(
+            imageUrl = avatar,
+            fallbackText = name,
+            size = 38.dp,
+            address = address.ifEmpty { null },
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                name,
+                color = colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                remember(tip.timestamp) { relativePostTime(tip.timestamp) },
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            "${KaspaUnit.plain(tip.amountSompi)} ${KaspaUnit.symbol}",
+            color = amountColor,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            maxLines = 1,
+        )
     }
 }
 

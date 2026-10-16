@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">%1$s যে ক্রমে দেখায়।</string>
     <string name="customize_dock_move_to">%1$s কে %2$s-এ সরান</string>
     <string name="customize_dock_add">%1$s ডকে যোগ করুন</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">টিপ</string>
+    <string name="kaposts_no_tips_yet">এখনও কোনো টিপ নেই।</string>
+    <string name="kaposts_who_tipped">কে এই পোস্টে টিপ দিয়েছে</string>
+    <string name="kaposts_bell_on_note">%1$s পোস্ট করলে এখন আপনাকে জানানো হবে।</string>
+    <string name="kaposts_bell_off_note">%1$s-এর পোস্ট সম্পর্কে আর জানানো হবে না।</string>
+    <string name="kaposts_bell_stop">পোস্টের নোটিফিকেশন বন্ধ করুন</string>
+    <string name="kaposts_bell_notify">পোস্ট করলে আমাকে জানাও</string>
 </resources>

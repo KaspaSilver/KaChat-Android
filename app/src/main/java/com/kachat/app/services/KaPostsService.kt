@@ -38,6 +38,8 @@ data class KPost(
     val quotesCount: Int?,
     val upVotesCount: Int?,
     val downVotesCount: Int?,
+    /** How many times it was tipped (KAPOSTS_INDEXER.md 5.11); absent on an older indexer. */
+    val tipsCount: Int? = null,
     val parentPostId: String?,
     val mentionedPubkeys: List<String>?,
     val isUpvoted: Boolean?,
@@ -127,6 +129,17 @@ data class KNotification(
 ) {
     val decodedContent: String? get() = postContent?.let { KaPostsProtocol.decodeB64(it) }
 }
+
+/** One tip of a post: who, how much, when (`get-post-tippers`, KAPOSTS_INDEXER.md 5.11). */
+data class KTip(
+    /** The tip's txid. */
+    val id: String,
+    val userPublicKey: String,
+    val amountSompi: Long,
+    val timestamp: Long,
+)
+
+data class KTippersResponse(val tippers: List<KTip>?, val pagination: KPagination?)
 
 data class KNotificationsResponse(val notifications: List<KNotification>?, val pagination: KPagination?)
 
@@ -232,6 +245,14 @@ interface KaPostApi {
         @Query("limit") limit: Int = 100,
         @Query("before") before: String? = null,
     ): KNotificationsResponse
+
+    /** Who tipped a post, newest first (KAPOSTS_INDEXER.md 5.11). */
+    @GET("get-post-tippers")
+    suspend fun getPostTippers(
+        @Query("postId") postId: String,
+        @Query("limit") limit: Int = 50,
+        @Query("before") before: String? = null,
+    ): KTippersResponse
 
     @GET("get-post-engagement")
     suspend fun getPostEngagement(
@@ -527,6 +548,21 @@ class KaPostsService @Inject constructor(
         pageOf(raw, raw, response.pagination, limit) { it.actionTxId }
     }
 
+    /** Who tipped a post, newest first (`get-post-tippers`, KAPOSTS_INDEXER.md 5.11). */
+    suspend fun fetchTippersPage(postId: String, limit: Int = 50, before: String? = null): KPage<KTip> =
+        rethrowingApiError {
+            val response = api().getPostTippers(postId, limit, before)
+            val raw = response.tippers.orEmpty()
+            val cursor = response.pagination?.nextCursor
+            KPage(
+                items = raw,
+                rawIds = raw.map { it.id },
+                cursor = cursor,
+                // iOS: more only when the server says so AND hands a cursor.
+                hasMore = response.pagination?.hasMore == true && cursor != null,
+            )
+        }
+
     /** Who [pubkey] follows (followers=false) or who follows them (followers=true). */
     suspend fun fetchFollowListPage(
         pubkey: String,
@@ -783,6 +819,17 @@ class KaPostsService @Inject constructor(
     suspend fun submitUnquote(contentId: String): String {
         val signature = sign(KaPostsProtocol.unquoteSigningString(contentId))
         return submitPayloadTx(KaPostsProtocol.unquotePayload(requesterPubkey(), signature, contentId))
+    }
+
+    /**
+     * A tip's payload (KAPOSTS_INDEXER.md 5.11): `kchat:1:tip:<pubkey>:<signature>:<post_id>:
+     * <author_pubkey>:<sealed_hex>`, signed by this account like every KaPosts action. The
+     * transaction itself is a chat payment to the author (ChatViewModel.sendPayment).
+     */
+    fun tipPayload(postId: String, authorPubkey: String, sealedHex: String): ByteArray {
+        val signature = sign(KaPostsProtocol.tipSigningString(postId, authorPubkey, sealedHex))
+        return KaPostsProtocol.tipPayload(requesterPubkey(), signature, postId, authorPubkey, sealedHex)
+            .toByteArray(Charsets.UTF_8)
     }
 
     private fun sign(message: String): String =

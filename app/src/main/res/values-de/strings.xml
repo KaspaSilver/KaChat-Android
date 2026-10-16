@@ -1327,4 +1327,12 @@
     <string name="customize_dock_hub_order">In der Reihenfolge, in der %1$s sie zeigt.</string>
     <string name="customize_dock_move_to">%1$s nach %2$s verschieben</string>
     <string name="customize_dock_add">%1$s zum Dock hinzufügen</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Trinkgelder</string>
+    <string name="kaposts_no_tips_yet">Noch keine Trinkgelder.</string>
+    <string name="kaposts_who_tipped">Wer diesem Beitrag Trinkgeld gab</string>
+    <string name="kaposts_bell_on_note">Du wirst jetzt benachrichtigt, wenn %1$s etwas postet.</string>
+    <string name="kaposts_bell_off_note">Du wirst nicht mehr über Beiträge von %1$s benachrichtigt.</string>
+    <string name="kaposts_bell_stop">Beitragsbenachrichtigungen aus</string>
+    <string name="kaposts_bell_notify">Benachrichtige mich bei neuen Beiträgen</string>
 </resources>

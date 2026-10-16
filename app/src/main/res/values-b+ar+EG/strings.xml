@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">بالترتيب الذي يعرضها به %1$s.</string>
     <string name="customize_dock_move_to">نقل %1$s إلى %2$s</string>
     <string name="customize_dock_add">إضافة %1$s إلى الشريط</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">الإكراميات</string>
+    <string name="kaposts_no_tips_yet">لا توجد إكراميات بعد.</string>
+    <string name="kaposts_who_tipped">من أرسل إكرامية لهذا المنشور</string>
+    <string name="kaposts_bell_on_note">سيصلك إشعار عندما ينشر %1$s.</string>
+    <string name="kaposts_bell_off_note">لن يصلك إشعار بمنشورات %1$s بعد الآن.</string>
+    <string name="kaposts_bell_stop">إيقاف إشعارات المنشورات</string>
+    <string name="kaposts_bell_notify">أعلمني عندما ينشر</string>
 </resources>

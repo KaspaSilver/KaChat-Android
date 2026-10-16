@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">Nell\'ordine in cui %1$s li mostra.</string>
     <string name="customize_dock_move_to">Sposta %1$s in %2$s</string>
     <string name="customize_dock_add">Aggiungi %1$s al dock</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Mance</string>
+    <string name="kaposts_no_tips_yet">Ancora nessuna mancia.</string>
+    <string name="kaposts_who_tipped">Chi ha dato una mancia a questo post</string>
+    <string name="kaposts_bell_on_note">D\'ora in poi riceverai una notifica quando %1$s pubblica.</string>
+    <string name="kaposts_bell_off_note">Non riceverai più notifiche per i post di %1$s.</string>
+    <string name="kaposts_bell_stop">Disattiva notifiche dei post</string>
+    <string name="kaposts_bell_notify">Avvisami quando pubblica</string>
 </resources>

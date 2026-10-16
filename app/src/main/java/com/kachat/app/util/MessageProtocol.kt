@@ -160,6 +160,55 @@ object MessageProtocol {
     }
 
     /**
+     * The encrypted payment record (`{"type":"payment","message","amount","timestamp","version"}`
+     * sealed to the recipient's chat key) as lowercase hex - what a KaPosts tip carries in its last
+     * field (iOS `KasiaTransactionBuilder.sealedPaymentHex`, KAPOSTS_INDEXER.md 5.11). The same
+     * bytes [buildPaymentPayload] puts after `kchat:1:pay:`.
+     */
+    fun sealedPaymentHex(note: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): String {
+        val json = com.google.gson.Gson().toJson(
+            PaymentPayload(message = note, amount = amountSompi, timestamp = System.currentTimeMillis())
+        )
+        return encrypt(json, recipientXOnlyPubKey).toBytes().joinToString("") { "%02x".format(it) }
+    }
+
+    // -------------------------------------------------------------------------
+    // KaPosts tip: `kchat:1:tip:<pubkey>:<signature>:<post_id>:<author_pubkey>:<sealed_hex>`
+    // (KAPOSTS_INDEXER.md 5.11) - a chat payment to the post's author that names the post.
+    // -------------------------------------------------------------------------
+
+    const val TIP_PREFIX = "$PREFIX:$VERSION:tip:"
+    private val TIP_PREFIX_BYTES = TIP_PREFIX.toByteArray(Charsets.US_ASCII)
+
+    /** A tip's parts (iOS `ChatService.tipParts`). */
+    data class TipParts(val pubkey: String, val postId: String, val authorPubkey: String, val sealedHex: String)
+
+    /** The tip's parts, or null when [rawBytes] isn't a well-formed tip. */
+    fun tipParts(rawBytes: ByteArray): TipParts? {
+        if (rawBytes.size <= TIP_PREFIX_BYTES.size ||
+            !rawBytes.copyOfRange(0, TIP_PREFIX_BYTES.size).contentEquals(TIP_PREFIX_BYTES)) return null
+        val text = try { String(rawBytes, Charsets.UTF_8) } catch (e: Exception) { return null }
+        val fields = text.substring(TIP_PREFIX.length).split(":")
+        if (fields.size != 5 || fields[4].isEmpty()) return null
+        return TipParts(pubkey = fields[0], postId = fields[2], authorPubkey = fields[3], sealedHex = fields[4])
+    }
+
+    /** The sealed payment record inside a tip, as bytes (iOS `tipSealedBytes`). */
+    private fun tipSealedBytes(rawBytes: ByteArray): ByteArray? {
+        val hex = tipParts(rawBytes)?.sealedHex ?: return null
+        if (hex.length % 2 != 0) return null
+        return try {
+            ByteArray(hex.length / 2) { i -> hex.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
+        } catch (e: NumberFormatException) {
+            null
+        }
+    }
+
+    /** True for a KaPosts tip payload (iOS `isPaymentRawPayload`'s tip root). */
+    fun isTipPayload(rawBytes: ByteArray): Boolean =
+        rawBytes.size > TIP_PREFIX_BYTES.size && rawBytes.copyOfRange(0, TIP_PREFIX_BYTES.size).contentEquals(TIP_PREFIX_BYTES)
+
+    /**
      * The payload a chat payment from the chatting address carries - a 1:1 payment, a KaPosts tip
      * or a chat payment request alike: always [buildPaymentPayload] of the trimmed memo, sealed to
      * [recipientXOnlyPubKey], even when the memo is empty (then `"message":""`), exactly as iOS
@@ -171,14 +220,19 @@ object MessageProtocol {
     fun paymentMemoPayload(memo: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): ByteArray =
         buildPaymentPayload(memo.trim(), amountSompi, recipientXOnlyPubKey)
 
-    /** True for a payment payload of any root (new or legacy). */
-    fun isPaymentPayload(rawBytes: ByteArray): Boolean = paymentPrefixLength(rawBytes) != null
+    /** True for a payment payload of any root (new or legacy) - and a KaPosts tip, which is a chat
+     *  payment to the post's author that names the post (iOS a6bd60a). */
+    fun isPaymentPayload(rawBytes: ByteArray): Boolean = paymentPrefixLength(rawBytes) != null || isTipPayload(rawBytes)
 
     /** The decrypted [PaymentPayload] of a payment addressed to [privateKey]'s owner, or null
-     *  when it isn't one or can't be opened (sent to someone else, corrupt). */
+     *  when it isn't one or can't be opened (sent to someone else, corrupt). A tip's sealed record
+     *  is read from its last field, the same record a chat payment carries. */
     fun decryptPaymentPayload(rawBytes: ByteArray, privateKey: ByteArray): PaymentPayload? {
-        val prefixLen = paymentPrefixLength(rawBytes) ?: return null
-        val sealed = KasiaCipher.EncryptedMessage.fromBytes(rawBytes.copyOfRange(prefixLen, rawBytes.size)) ?: return null
+        val sealedBytes = tipSealedBytes(rawBytes) ?: run {
+            val prefixLen = paymentPrefixLength(rawBytes) ?: return null
+            rawBytes.copyOfRange(prefixLen, rawBytes.size)
+        }
+        val sealed = KasiaCipher.EncryptedMessage.fromBytes(sealedBytes) ?: return null
         return try {
             val payload = com.google.gson.Gson().fromJson(decrypt(sealed, privateKey), PaymentPayload::class.java)
             // Gson leaves a missing field null rather than failing - a payload without its memo

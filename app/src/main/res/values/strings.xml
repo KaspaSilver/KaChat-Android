@@ -1531,4 +1531,12 @@
     <string name="customize_dock_hub_order">In the order %1$s shows them.</string>
     <string name="customize_dock_move_to">Move %1$s to %2$s</string>
     <string name="customize_dock_add">Add %1$s to your dock</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Tips</string>
+    <string name="kaposts_no_tips_yet">No tips yet.</string>
+    <string name="kaposts_who_tipped">Who tipped this post</string>
+    <string name="kaposts_bell_on_note">You\'ll now be notified when %1$s posts.</string>
+    <string name="kaposts_bell_off_note">You won\'t be notified about %1$s\'s posts anymore.</string>
+    <string name="kaposts_bell_stop">Stop post notifications</string>
+    <string name="kaposts_bell_notify">Notify me when they post</string>
 </resources>

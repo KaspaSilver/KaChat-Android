@@ -3003,7 +3003,11 @@ class ChatViewModel @Inject constructor(
      *  it; else that spending address - signed with its own key, change to a never-used address,
      *  which is revealed in Manage Addresses (no primary moves) - see
      *  [com.kachat.app.services.KaspaWalletEngine.sendSpendingPayment]. Either way it is paid to
-     *  the contact's chatting address. */
+     *  the contact's chatting address.
+     *
+     *  [tip] makes it a KaPosts tip (iOS a6bd60a, KAPOSTS_INDEXER.md 5.11): the same sealed note,
+     *  inside a signed `kchat:1:tip:` payload that names the post - always from the chatting
+     *  address, whatever [sourceSpendingIndex] says. */
     fun sendPayment(
         contactId: String,
         amount: String,
@@ -3013,8 +3017,11 @@ class ChatViewModel @Inject constructor(
          *  control pick (null = automatic) - both paid / spent exactly (iOS 62c2773). */
         extraFeeSompi: Long = 0L,
         manualUtxos: List<com.kachat.app.services.UtxoEntry>? = null,
+        tip: com.kachat.app.models.KaPostTip? = null,
         onResult: ((Boolean, String?, String?) -> Unit)? = null,
     ) {
+        // A tip is always paid from the chatting address (iOS sendPaymentInternal).
+        val sourceSpendingIndex = if (tip == null) sourceSpendingIndex else null
         // Exact (iOS 16b64bc, AND-013): "2.3" pays 230,000,000 sompi - a Double multiply and
         // toLong() paid 229,999,999. Comma or dot, at most 8 decimals, nothing above the supply.
         val sompi = KaspaUnit.sompiFromUserText(amount)?.takeIf { it > 0 }
@@ -3066,7 +3073,15 @@ class ChatViewModel @Inject constructor(
                 // From the chatting address it is a chat payment, which always carries its
                 // `kchat:1:pay:` payload - an empty memo too (iOS buildPaymentTx): that payload is
                 // what opens our chat on the payee's side when they don't know us yet (iOS 1eb4708).
-                val payload = if (!fromChattingAddress) null else MessageProtocol.paymentMemoPayload(
+                val payload = if (!fromChattingAddress) null else if (tip != null) {
+                    // A tip: the same sealed note, inside a signed payload that names the post.
+                    val sealed = MessageProtocol.sealedPaymentHex(
+                        note = memo,
+                        amountSompi = sompi,
+                        recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
+                    )
+                    kaPostsService.tipPayload(postId = tip.postId, authorPubkey = tip.authorPubkey, sealedHex = sealed)
+                } else MessageProtocol.paymentMemoPayload(
                     memo = memo,
                     amountSompi = sompi,
                     recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second

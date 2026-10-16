@@ -39,6 +39,8 @@ data class KaPostDraft(
     val likes: Int = 0,
     val dislikes: Int = 0,
     val reposts: Int = 0,
+    /** How many times it was tipped (KAPOSTS_INDEXER.md 5.11). */
+    val tips: Int = 0,
     val likedByMe: Boolean = false,
     val dislikedByMe: Boolean = false,
     val repostedByMe: Boolean = false,
@@ -111,6 +113,22 @@ data class KaPostDraft(
         fun stableId(txId: String): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(txId.toByteArray(Charsets.UTF_8))
             return digest.take(16).joinToString("") { "%02x".format(it) }
+        }
+    }
+}
+
+/**
+ * The post a KaPosts tip is for (KAPOSTS_INDEXER.md 5.11): its txid and its author's pubkey.
+ * Mirrors iOS's `KaPostTip`.
+ */
+@Immutable
+data class KaPostTip(val postId: String, val authorPubkey: String) {
+    companion object {
+        /** The tip target of [post]; null only for something that isn't on the network yet. */
+        fun of(post: KaPostDraft): KaPostTip? {
+            val id = post.remoteId ?: return null
+            val author = post.posterPubkey ?: return null
+            return KaPostTip(postId = id, authorPubkey = author)
         }
     }
 }

@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">%1$s に表示される順番です。</string>
     <string name="customize_dock_move_to">%1$s を %2$s に移動</string>
     <string name="customize_dock_add">%1$s をドックに追加</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">チップ</string>
+    <string name="kaposts_no_tips_yet">まだチップはありません。</string>
+    <string name="kaposts_who_tipped">この投稿にチップを送った人</string>
+    <string name="kaposts_bell_on_note">%1$s が投稿すると通知されるようになりました。</string>
+    <string name="kaposts_bell_off_note">%1$s の投稿は今後通知されません。</string>
+    <string name="kaposts_bell_stop">投稿の通知をオフ</string>
+    <string name="kaposts_bell_notify">投稿したら通知する</string>
 </resources>

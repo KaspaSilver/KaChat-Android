@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">按 %1$s 显示的顺序。</string>
     <string name="customize_dock_move_to">将 %1$s 移到 %2$s</string>
     <string name="customize_dock_add">将 %1$s 添加到程序坞</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">打赏</string>
+    <string name="kaposts_no_tips_yet">暂无打赏。</string>
+    <string name="kaposts_who_tipped">谁打赏了这条帖子</string>
+    <string name="kaposts_bell_on_note">%1$s 发帖时你将收到通知。</string>
+    <string name="kaposts_bell_off_note">你将不再收到 %1$s 的发帖通知。</string>
+    <string name="kaposts_bell_stop">关闭发帖通知</string>
+    <string name="kaposts_bell_notify">发帖时通知我</string>
 </resources>

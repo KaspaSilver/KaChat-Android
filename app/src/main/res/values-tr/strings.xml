@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">%1$s içinde göründükleri sırayla.</string>
     <string name="customize_dock_move_to">%1$s öğesini %2$s içine taşı</string>
     <string name="customize_dock_add">%1$s öğesini dock\'a ekle</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Bahşişler</string>
+    <string name="kaposts_no_tips_yet">Henüz bahşiş yok.</string>
+    <string name="kaposts_who_tipped">Bu gönderiye kim bahşiş verdi</string>
+    <string name="kaposts_bell_on_note">Artık %1$s paylaşım yaptığında bildirim alacaksınız.</string>
+    <string name="kaposts_bell_off_note">Artık %1$s kişisinin gönderileri için bildirim almayacaksınız.</string>
+    <string name="kaposts_bell_stop">Gönderi bildirimlerini kapat</string>
+    <string name="kaposts_bell_notify">Paylaşım yapınca bana bildir</string>
 </resources>

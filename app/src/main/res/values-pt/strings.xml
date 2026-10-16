@@ -1330,4 +1330,12 @@
     <string name="customize_dock_hub_order">Na ordem em que o %1$s os mostra.</string>
     <string name="customize_dock_move_to">Mover %1$s para %2$s</string>
     <string name="customize_dock_add">Adicionar %1$s ao dock</string>
+    <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
+    <string name="kaposts_tips">Gorjetas</string>
+    <string name="kaposts_no_tips_yet">Ainda sem gorjetas.</string>
+    <string name="kaposts_who_tipped">Quem deu gorjeta a este post</string>
+    <string name="kaposts_bell_on_note">Agora você será avisado quando %1$s postar.</string>
+    <string name="kaposts_bell_off_note">Você não será mais avisado sobre os posts de %1$s.</string>
+    <string name="kaposts_bell_stop">Desativar avisos de posts</string>
+    <string name="kaposts_bell_notify">Avise-me quando postar</string>
 </resources>

@@ -77,6 +77,13 @@ object KaPostsProtocol {
     fun pollVoteSigningString(pollId: String, optionIndex: Int) = "pollvote:$pollId:$optionIndex"
 
     /**
+     * A tip (section 5.11): the sealed note is in what is signed, so two tips of one post never
+     * share a signature.
+     */
+    fun tipSigningString(postId: String, authorPubkey: String, sealedHex: String) =
+        "tip:$postId:$authorPubkey:$sealedHex"
+
+    /**
      * Scheduled posts (section 5.10): what the phone signs to hand a signed transaction to the
      * indexer for submission later, and to take it back before then.
      */
@@ -218,4 +225,9 @@ object KaPostsProtocol {
     /** One vote in a poll. One per pubkey: a later vote replaces the earlier one (5.9). */
     fun pollVotePayload(pubkey: String, signature: String, pollId: String, optionIndex: Int) =
         "${PREFIX}pollvote:$pubkey:$signature:$pollId:$optionIndex"
+
+    /** A tip that names the post (5.11): a chat payment to [authorPubkey]'s chatting address,
+     *  its sealed payment record as [sealedHex]. */
+    fun tipPayload(pubkey: String, signature: String, postId: String, authorPubkey: String, sealedHex: String) =
+        "${PREFIX}tip:$pubkey:$signature:$postId:$authorPubkey:$sealedHex"
 }
