@@ -1210,4 +1210,7 @@
     <string name="kaposts_bell_off_note">Anda tidak akan lagi diberi tahu tentang postingan %1$s.</string>
     <string name="kaposts_bell_stop">Matikan notifikasi postingan</string>
     <string name="kaposts_bell_notify">Beri tahu saat dia memposting</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">Sent you %1$s KAS</string>
+    <string name="push_sent_you_payment">Sent you a payment</string>
 </resources>

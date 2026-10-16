@@ -1338,4 +1338,7 @@
     <string name="kaposts_bell_off_note">你将不再收到 %1$s 的发帖通知。</string>
     <string name="kaposts_bell_stop">关闭发帖通知</string>
     <string name="kaposts_bell_notify">发帖时通知我</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">向你发送了 %1$s KAS</string>
+    <string name="push_sent_you_payment">向你发送了一笔付款</string>
 </resources>

@@ -1338,4 +1338,7 @@
     <string name="kaposts_bell_off_note">%1$s-এর পোস্ট সম্পর্কে আর জানানো হবে না।</string>
     <string name="kaposts_bell_stop">পোস্টের নোটিফিকেশন বন্ধ করুন</string>
     <string name="kaposts_bell_notify">পোস্ট করলে আমাকে জানাও</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">আপনাকে %1$s KAS পাঠিয়েছে</string>
+    <string name="push_sent_you_payment">আপনাকে একটি পেমেন্ট পাঠিয়েছে</string>
 </resources>

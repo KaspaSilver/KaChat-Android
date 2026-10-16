@@ -1338,4 +1338,7 @@
     <string name="kaposts_bell_off_note">이제 %1$s님의 게시물 알림을 받지 않습니다.</string>
     <string name="kaposts_bell_stop">게시물 알림 끄기</string>
     <string name="kaposts_bell_notify">게시하면 알려 주기</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">%1$s KAS를 보냈습니다</string>
+    <string name="push_sent_you_payment">결제를 보냈습니다</string>
 </resources>

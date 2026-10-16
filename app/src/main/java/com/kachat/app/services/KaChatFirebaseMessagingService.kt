@@ -248,7 +248,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         notificationHelper.show(
                             contactId = sender,
                             title = contactTitle(sender, sender),
-                            text = body.ifEmpty { "New message" },
+                            // A payment: "<who> - Sent you 1.5 KAS" (iOS dcb329a).
+                            text = if (type == "payment") paymentPushBody(data["amount"]) else body.ifEmpty { "New message" },
                             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
                         )
                     }
@@ -480,10 +481,31 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
     private suspend fun contactTitle(senderId: String, default: String): String {
         val contact = runCatching { chatRepository.getContact(senderId) }.getOrNull()
-        // A name you gave the chat, else the Address Book's (iOS 00767a4), else who it is.
-        return contact?.alias?.takeIf { it.isNotBlank() }
-            ?: AddressBookManager.nameFor(senderId)
-            ?: contact?.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY } ?: default.takeLast(12)
+        // Who they are in the app: a name you gave them (chat or Address Book), else their
+        // .kachat name, else the short address - so a push from someone with a .kachat name says
+        // it, not their address (iOS dcb329a, ContactsManager.displayName).
+        if (contact != null) {
+            return com.kachat.app.models.addressDisplayName(
+                senderId,
+                alias = contact.alias,
+                knsName = contact.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY },
+            )
+        }
+        return AddressBookManager.nameFor(senderId) ?: default.takeLast(12)
+    }
+
+    /**
+     * A chat payment's body under the sender's name: "Sent you 1.5 KAS", the amount without
+     * trailing zeros; with no amount on the push, "Sent you a payment" (iOS dcb329a
+     * NotificationService.handlePayment). TKAS on testnet.
+     */
+    private fun paymentPushBody(amount: String?): String {
+        val text = amount?.trim().orEmpty()
+        val sompi = text.toLongOrNull() ?: text.toDoubleOrNull()?.toLong()
+        if (sompi == null || sompi <= 0) return getString(com.kachat.app.R.string.push_sent_you_payment)
+        return com.kachat.app.util.KaspaUnit.label(
+            getString(com.kachat.app.R.string.push_sent_you_kas, com.kachat.app.util.KaspaUnit.plain(sompi))
+        )
     }
 
     private suspend fun contactOverride(senderId: String): ContactNotificationMode? {

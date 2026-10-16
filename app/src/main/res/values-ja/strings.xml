@@ -1338,4 +1338,7 @@
     <string name="kaposts_bell_off_note">%1$s の投稿は今後通知されません。</string>
     <string name="kaposts_bell_stop">投稿の通知をオフ</string>
     <string name="kaposts_bell_notify">投稿したら通知する</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">%1$s KAS を送ってきました</string>
+    <string name="push_sent_you_payment">支払いを送ってきました</string>
 </resources>

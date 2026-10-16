@@ -1338,4 +1338,7 @@
     <string name="kaposts_bell_off_note">Artık %1$s kişisinin gönderileri için bildirim almayacaksınız.</string>
     <string name="kaposts_bell_stop">Gönderi bildirimlerini kapat</string>
     <string name="kaposts_bell_notify">Paylaşım yapınca bana bildir</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">Size %1$s KAS gönderdi</string>
+    <string name="push_sent_you_payment">Size bir ödeme gönderdi</string>
 </resources>

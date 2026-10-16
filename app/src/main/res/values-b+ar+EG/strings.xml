@@ -1338,4 +1338,7 @@
     <string name="kaposts_bell_off_note">لن يصلك إشعار بمنشورات %1$s بعد الآن.</string>
     <string name="kaposts_bell_stop">إيقاف إشعارات المنشورات</string>
     <string name="kaposts_bell_notify">أعلمني عندما ينشر</string>
+    <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
+    <string name="push_sent_you_kas">أرسل لك %1$s KAS</string>
+    <string name="push_sent_you_payment">أرسل لك دفعة</string>
 </resources>
