@@ -1187,13 +1187,24 @@ private fun kaChatStatsFormatter(): java.text.DecimalFormat =
         roundingMode = java.math.RoundingMode.HALF_EVEN
     }
 
-/** "774,086" (iOS b6f55a5 `grouped`). */
-fun kaChatStatsGrouped(value: Long): String = kaChatStatsFormatter().format(value)
+/** "774,086"; from a million on, short: "1M", "1.01M", "2.5B" (rounded down, so it never shows
+ *  a figure not yet reached; iOS b6f55a5, 1df1bcb `grouped`). */
+fun kaChatStatsGrouped(value: Long): String =
+    kaChatStatsCompact(value.toDouble()) ?: kaChatStatsFormatter().format(value)
 
-/** Sompi as KAS with commas and at most two decimals: "21,035.5 KAS" (iOS b6f55a5 `kas`). */
+/** Sompi as KAS with commas and at most two decimals: "21,035.5 KAS" (short from a million KAS
+ *  on, like the counts; iOS b6f55a5, 1df1bcb `kas`). */
 fun kaChatStatsKas(sompi: Long): String {
     val value = java.math.BigDecimal.valueOf(sompi).movePointLeft(8)
-    return "${kaChatStatsFormatter().format(value)} ${KaspaUnit.symbol}"
+    val text = kaChatStatsCompact(value.toDouble()) ?: kaChatStatsFormatter().format(value)
+    return "$text ${KaspaUnit.symbol}"
+}
+
+/** Null below a million (iOS 1df1bcb `compact`). */
+private fun kaChatStatsCompact(value: Double): String? {
+    val (size, suffix) = listOf(1e12 to "T", 1e9 to "B", 1e6 to "M").firstOrNull { value >= it.first } ?: return null
+    val scaled = kotlin.math.floor(value / size * 100) / 100
+    return kaChatStatsFormatter().format(scaled) + suffix
 }
 
 @Composable
