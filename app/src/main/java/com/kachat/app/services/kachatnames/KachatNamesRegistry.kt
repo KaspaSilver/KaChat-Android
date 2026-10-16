@@ -140,9 +140,9 @@ class KachatNamesRegistry @Inject constructor(
      *  re-asked answer that is unchanged re-renders nothing. */
     private val identityAsked = ConcurrentHashMap<String, Pair<Int, Long>>()
     private val identityLookups = ConcurrentHashMap.newKeySet<String>()
-    /** When an address's lookup last failed (unix ms): it isn't asked again for five minutes, so a
+    /** When an address's lookup last failed (unix ms): it isn't asked again for a minute, so a
      *  composable that reads [cachedIdentity] can't turn an unreachable indexer into a request
-     *  loop (iOS d36fc42). */
+     *  loop (iOS d36fc42; a minute, not five, since iOS 3214a2b). */
     private val identityMisses = ConcurrentHashMap<String, Long>()
     /** Set when the indexer said it doesn't serve profiles (503) - see [profileOnlyIdentity]. */
     @Volatile private var profilesUnavailableUntil: Long = 0L
@@ -775,6 +775,68 @@ class KachatNamesRegistry @Inject constructor(
      * address. When an answer lands, composables that read it re-render (iOS e52357d
      * `cachedIdentity(for:)`).
      */
+    // MARK: - People shown as an address (iOS 3214a2b)
+
+    private val unnamedSweepStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var unnamedSweepRunning = false
+
+    /**
+     * While the app is open, once a minute: everyone the app is showing as an address - a contact
+     * with no name you gave them (chat or Address Book) and no .kachat name known - is asked again
+     * whether they have one. A "no name" answer or a failed lookup is not trusted for long: a name
+     * can be registered at any moment, and a lookup can fail while the registry is still loading.
+     * An address only shows when no name exists. Started once, at launch.
+     *
+     * [isActive] says whether the app is on screen; [candidates] lists the contacts with no name
+     * you gave them, the people you talk to most recently first, your own address left out.
+     */
+    fun startUnnamedIdentitySweep(isActive: () -> Boolean, candidates: suspend () -> List<String>) {
+        if (!unnamedSweepStarted.compareAndSet(false, true)) return
+        scope.launch {
+            // the first pass once the app has settled after launch
+            delay(8_000)
+            while (true) {
+                if (isActive()) {
+                    try {
+                        refreshUnnamedIdentities(isActive, candidates)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "unnamed identity sweep failed", e)
+                    }
+                }
+                delay(60_000)
+            }
+        }
+    }
+
+    private suspend fun refreshUnnamedIdentities(isActive: () -> Boolean, candidates: suspend () -> List<String>) {
+        if (!KachatNamesService.profilesEnabled || unnamedSweepRunning) return
+        unnamedSweepRunning = true
+        try {
+            val now = System.currentTimeMillis()
+            val targets = candidates().asSequence()
+                .map { it.trim().lowercase() }
+                .filter { key ->
+                    if (KaspaNetwork.ofAddress(key) == null || !KaspaNetwork.isOnActiveNetwork(key)) return@filter false
+                    val known = identities[key] ?: return@filter true
+                    if (known.label != null) return@filter false
+                    // a "no name" answer stands for a minute
+                    identityAsked[key]?.let { now - it.second >= 60_000L } ?: true
+                }
+                .distinct()
+                // a few at a time, the people you talk to most recently first
+                .take(40)
+                .toList()
+            for (key in targets) {
+                if (!isActive()) return
+                refreshIdentity(key)
+            }
+        } finally {
+            unnamedSweepRunning = false
+        }
+    }
+
     /**
      * Looks the address's identity up now, whatever the cache holds (User Info > Rescan Profile),
      * and stores the answer for every composable that reads [cachedIdentity] (iOS bc95d17
@@ -821,7 +883,9 @@ class KachatNamesRegistry @Inject constructor(
         val stale = asked == null || (now - asked.second).let { age ->
             age > (if (known == null) 60_000L else 300_000L) || (asked.first != rev && age > 60_000L)
         }
-        val missedRecently = identityMisses[key]?.let { now - it < 300_000L } == true
+        // a failed lookup (the registry still loading, a network blip) is asked again after a
+        // minute, not five - until then the person shows as their address (iOS 3214a2b)
+        val missedRecently = identityMisses[key]?.let { now - it < 60_000L } == true
         if (stale && !missedRecently && identityLookups.add(key)) {
             identityAsked[key] = rev to now
             scope.launch {
@@ -839,7 +903,7 @@ class KachatNamesRegistry @Inject constructor(
                     throw e
                 } catch (_: Exception) {
                     // the registry or profiles are not there (being upgraded, offline, a 503):
-                    // this address is asked again in five minutes
+                    // this address is asked again in a minute
                     identityMisses[key] = System.currentTimeMillis()
                 } finally {
                     identityLookups.remove(key)

@@ -20,6 +20,7 @@ import com.kachat.app.services.KaPostsNotificationPoller
 import com.kachat.app.services.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -144,6 +145,10 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var kachatSocialImages: dagger.Lazy<com.kachat.app.services.kachatnames.KachatSocialImageResolver>
 
+    /** The contacts the .kachat sweep below asks about (iOS 3214a2b). */
+    @Inject
+    lateinit var chatRepository: dagger.Lazy<com.kachat.app.repository.ChatRepository>
+
     // The Address Book (iOS 00767a4): built at startup because every display name reads it
     // through its companion (addressDisplayName), and it follows the active wallet on its own.
     @Inject
@@ -234,6 +239,17 @@ class KaChatApplication : Application(), Configuration.Provider {
             if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) {
                 startupStep(".kachat registry") { kachatNamesRegistry.get() }
                 startupStep(".kachat social images") { kachatSocialImages.get() }
+                // People shown as their address are asked again for a .kachat name, once a
+                // minute while the app is open (iOS 3214a2b).
+                startupStep(".kachat unnamed sweep") {
+                    kachatNamesRegistry.get().startUnnamedIdentitySweep(
+                        isActive = {
+                            ProcessLifecycleOwner.get().lifecycle.currentState
+                                .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+                        },
+                        candidates = { unnamedContactAddresses() },
+                    )
+                }
             }
         }
 
@@ -374,5 +390,25 @@ class KaChatApplication : Application(), Configuration.Provider {
 
     private companion object {
         const val TAG = "KaChatApplication"
+    }
+
+    /**
+     * The contacts the app shows as an address unless they have a .kachat name: no name you gave
+     * them in the chat or the Address Book, not your own address - the people you talk to most
+     * recently first (iOS KachatNamesRegistry.refreshUnnamedIdentities).
+     */
+    private suspend fun unnamedContactAddresses(): List<String> {
+        val repo = chatRepository.get()
+        val contacts = repo.getContacts().first()
+        val latest = repo.getLatestMessages().first().associate { it.contactId to it.blockTimestamp }
+        return contacts
+            .filter { contact ->
+                contact.alias.isNullOrBlank() &&
+                    com.kachat.app.services.AddressBookManager.nameFor(contact.id) == null &&
+                    // the self-chat: a contact row of the account's own address
+                    !contact.id.equals(contact.walletAddress, ignoreCase = true)
+            }
+            .sortedByDescending { latest[it.id] ?: 0L }
+            .map { it.id }
     }
 }
