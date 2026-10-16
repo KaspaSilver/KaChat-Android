@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,25 +22,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,6 +50,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,12 +71,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.lifecycle.viewModelScope
-import androidx.navigation.NavController
 import com.kachat.app.R
 import com.kachat.app.ui.MAX_DOCK_ITEMS
 import com.kachat.app.ui.PINNED_DOCK_ROUTES
@@ -84,16 +81,64 @@ import com.kachat.app.ui.resolveDock
 import com.kachat.app.ui.tabIconModifier
 import com.kachat.app.ui.tabIconPainter
 import com.kachat.app.ui.theme.AppColors
+import com.kachat.app.ui.theme.IosSheetColors
+import com.kachat.app.ui.theme.IosSheetShape
+import com.kachat.app.ui.theme.IosSheetTonalElevation
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * Settings > Customization > Customize Dock: two lists ordered by dragging - the way Brave
- * arranges its menu actions. Matches iOS's MenuVisibilityView.
+ * Opens Customize Dock (iOS `Notification.Name.openCustomizeDock`). Settings > Customization and
+ * Kaspa Hub's customize button set it rather than navigating: that screen EDITS the dock, so it is
+ * presented by MainShell as a sheet above the dock and the NavHost ([CustomizeDockSheet]), where
+ * nothing it does to the dock can close it. MainShell clears it when the sheet is dismissed.
+ */
+object CustomizeDock {
+    val isOpen = MutableStateFlow(false)
+
+    fun open() {
+        isOpen.value = true
+    }
+}
+
+/**
+ * Customize Dock as iOS presents it from MainTabView: a sheet above the whole shell with Done top
+ * right. It sits outside the NavHost and outside the dock's `key(dockArrangementKey)`, so the dock
+ * rebuilding under it on every move neither pops it nor resets what is on it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomizeDockSheet(walletViewModel: WalletViewModel, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    // A List in a sheet on iOS: the grouped sheet palette.
+    IosSheetColors(grouped = true) {
+        ModalBottomSheet(
+            shape = IosSheetShape,
+            tonalElevation = IosSheetTonalElevation,
+            windowInsets = WindowInsets.statusBars,
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = LocalAppColors.current.background,
+            dragHandle = null,
+        ) {
+            MenuVisibilityScreen(
+                walletViewModel = walletViewModel,
+                // Done slides the sheet down, as iOS's does, then removes it.
+                onDone = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() } },
+            )
+        }
+    }
+}
+
+/**
+ * Customize Dock: two lists ordered by dragging - the way Brave arranges its menu actions.
+ * Matches iOS's MenuVisibilityView.
  *
  * Your Dock is the dock itself, all of it, in order: every row drags, Chats, Kaspa Hub and Profile
  * included ([PINNED_DOCK_ROUTES] - always there, so they carry a lock instead of a remove button),
@@ -101,15 +146,15 @@ import kotlin.math.roundToInt
  * lists everything else in its grid order, also by dragging, each with a green plus that moves it
  * into the dock - shown only while the dock has room ([MAX_DOCK_ITEMS] at most).
  *
- * The arrangement is a draft until this screen is left (or the app goes to the background), so
- * the dock under this screen is not rebuilt on every move. On leaving, it is applied once the
- * screen has finished closing, as it was when the screen closed.
+ * Every move is applied at once, so the dock is already right when Done is tapped. A new
+ * arrangement rebuilds the whole dock, which is why this screen only ever opens as
+ * [CustomizeDockSheet], above it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuVisibilityScreen(
-    navController: NavController,
-    walletViewModel: WalletViewModel = hiltViewModel()
+    walletViewModel: WalletViewModel,
+    onDone: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
@@ -118,42 +163,25 @@ fun MenuVisibilityScreen(
     val hubRoutes by walletViewModel.hubTabs.collectAsState()
     val haptics = LocalHapticFeedback.current
 
-    // The draft, seeded once from the stored arrangement as the screen opens.
-    val openedDock = remember { resolveDock(dockRoutes, hiddenTabs, childModeOn) }
-    val openedHub = remember { kaspaHubSections(dockRoutes, hubRoutes, hiddenTabs, childModeOn) }
-    var dock by remember { mutableStateOf(openedDock) }
-    var hub by remember { mutableStateOf(openedHub) }
+    // The two lists, seeded once from the stored arrangement as the screen opens; every move
+    // below writes them straight back.
+    var dock by remember { mutableStateOf(resolveDock(dockRoutes, hiddenTabs, childModeOn)) }
+    var hub by remember { mutableStateOf(kaspaHubSections(dockRoutes, hubRoutes, hiddenTabs, childModeOn)) }
     val dockIsFull = dock.size >= MAX_DOCK_ITEMS
+    // What this screen last wrote (at first, what was stored). Compared against instead of the
+    // stored flows, which lag a write in flight: a move undone before the first write lands would
+    // otherwise look like "no change" and leave the first one standing.
+    var written by remember { mutableStateOf(dockRoutes to hubRoutes) }
 
-    /** Writes an arrangement to the real settings, and so rebuilds the dock. */
-    fun applyArrangement(newDock: List<String>, newHub: List<String>) {
-        // Nothing arranged, or already written (backgrounding): no write.
-        if (newDock == openedDock.map { it.route } && newHub == openedHub.map { it.route }) return
-        if (newDock == walletViewModel.dockTabs.value && newHub == walletViewModel.hubTabs.value) return
-        walletViewModel.setPlacement(newDock, newHub)
-    }
-
-    DisposableEffect(Unit) {
-        // Backgrounding is the one way off this screen that never disposes it, and an app killed
-        // from the background would otherwise lose the arrangement - so it saves at once.
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) applyArrangement(dock.map { it.route }, hub.map { it.route })
-        }
-        val processLifecycle = ProcessLifecycleOwner.get().lifecycle
-        processLifecycle.addObserver(observer)
-        onDispose {
-            processLifecycle.removeObserver(observer)
-            // Applied once this screen has finished closing (iOS waits 0.6 s after it disappears):
-            // a new arrangement rebuilds the whole dock, and it should not be rebuilt under the
-            // page that is closing. What was arranged is taken now, at close, and applied on the
-            // main thread from the activity's view model, which outlives this screen.
-            val closedDock = dock.map { it.route }
-            val closedHub = hub.map { it.route }
-            walletViewModel.viewModelScope.launch {
-                delay(APPLY_AFTER_CLOSE_MS)
-                applyArrangement(closedDock, closedHub)
-            }
-        }
+    /**
+     * Writes the arrangement to the real settings, and so rebuilds the dock under this sheet -
+     * only when it changed. Live, after every move (iOS onChange(of: dock / hub)).
+     */
+    fun persist() {
+        val arrangement = dock.map { it.route } to hub.map { it.route }
+        if (arrangement == written) return
+        written = arrangement
+        walletViewModel.setPlacement(arrangement.first, arrangement.second)
     }
 
     /** Red minus: out of the dock, to the top of Kaspa Hub where it can be seen. */
@@ -162,6 +190,7 @@ fun MenuVisibilityScreen(
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         dock = dock.filter { it != screen }
         hub = listOf(screen) + hub.filter { it != screen }
+        persist()
     }
 
     /** Green plus: into the dock, at its end; drag it to where it should sit. */
@@ -170,6 +199,7 @@ fun MenuVisibilityScreen(
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         hub = hub.filter { it != screen }
         dock = dock.filter { it != screen } + screen
+        persist()
     }
 
     Scaffold(
@@ -183,9 +213,11 @@ fun MenuVisibilityScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
+                // iOS's sheet: no back, Done as its confirmation action, top right. Nothing is
+                // left to apply by then.
+                actions = {
+                    TextButton(onClick = onDone) {
+                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
@@ -215,6 +247,7 @@ fun MenuVisibilityScreen(
                 onMove = { from, to ->
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     dock = dock.toMutableList().apply { add(to, removeAt(from)) }
+                    persist()
                 },
             ) { screen ->
                 if (screen.route in PINNED_DOCK_ROUTES) {
@@ -260,6 +293,7 @@ fun MenuVisibilityScreen(
                 onMove = { from, to ->
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     hub = hub.toMutableList().apply { add(to, removeAt(from)) }
+                    persist()
                 },
             ) { screen ->
                 if (!dockIsFull) {
@@ -289,9 +323,6 @@ fun MenuVisibilityScreen(
         }
     }
 }
-
-/** How long after Customize Dock has closed its arrangement is applied (iOS: 0.6 s). */
-private const val APPLY_AFTER_CLOSE_MS = 600L
 
 /** A row's height, shared by the layout and by the drag's slot arithmetic. */
 private val ROW_HEIGHT = 52.dp

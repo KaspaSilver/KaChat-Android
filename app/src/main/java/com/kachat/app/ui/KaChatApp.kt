@@ -197,7 +197,7 @@ const val SWAP_FEATURE_ENABLED = false
 
 /** Routes that are part of the Settings stack - a sheet on iOS (see IosSheetColors). */
 val SETTINGS_SHEET_ROUTES = setOf(
-    "settings", "settings_section/{sectionKey}", "storage_nextcloud", "settings_menu",
+    "settings", "settings_section/{sectionKey}", "storage_nextcloud",
     "cache_settings", "child_mode_settings", "connection_settings", "language_settings",
     "currency_settings", "kaspa_explorer_settings", "notification_settings",
     "wallet_notification_settings", "quick_reaction_settings",
@@ -671,6 +671,19 @@ fun MainShell(
                 onDismiss = { ownAddressSheet = null },
             )
         }
+    }
+
+    // Customize Dock (Settings > Customization, Kaspa Hub's customize button): a sheet above the
+    // whole shell, as iOS's MainTabView presents it, never a route. It edits the dock live, and
+    // the dock rebuilds on every move (key(dockArrangementKey) below); hosted here, outside the
+    // NavHost and the dock, nothing that rebuild does can close it or reset it. The activity's
+    // WalletViewModel, the one the dock itself reads.
+    val customizeDockOpen by CustomizeDock.isOpen.collectAsState()
+    if (customizeDockOpen) {
+        CustomizeDockSheet(
+            walletViewModel = walletViewModel,
+            onDismiss = { CustomizeDock.isOpen.value = false },
+        )
     }
 
     // A .kachat registration in flight: its progress half sheet, back up after a relaunch (iOS 61fb0fc).
@@ -1684,13 +1697,6 @@ fun MainShell(
                     title = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("title") ?: "", "UTF-8"),
                     onClose = { navController.popBackStack() }
                 )
-            }
-
-            composable("settings_menu") {
-                // The activity's WalletViewModel, not one scoped to this entry: the draft is
-                // seeded from its live dock flows, and the arrangement is applied after the
-                // screen has closed, which an entry-scoped view model would not outlive.
-                MenuVisibilityScreen(navController = navController, walletViewModel = walletViewModel)
             }
 
             composable("cache_settings") {

@@ -160,7 +160,7 @@ fun KaspaHubScreen(
         else -> HubGrid(
             sections = sections,
             onOpenSection = { openSectionRoute = it.route },
-            onCustomize = { navController.navigate("settings_menu") },
+            onCustomize = { CustomizeDock.open() },
             colors = colors,
             badgeCount = { badgeCount(it) },
         )

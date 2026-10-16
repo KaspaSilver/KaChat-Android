@@ -8955,8 +8955,10 @@ fun SettingsScreen(
                     walletViewModel.setDarkModeEnabled(enabled)
                 }
                 SettingsDivider()
+                // The sheet above the dock (MainShell), never a page in here: the dock updates live
+                // as it is arranged (iOS 476ea20).
                 SettingsNavigationItem(stringResource(R.string.menu), Icons.Default.Apps, onClick = {
-                    navController.navigate("settings_menu")
+                    CustomizeDock.open()
                 })
                 SettingsDivider()
                 SettingsNavigationItem(stringResource(R.string.language), Icons.Default.Translate, onClick = {
