@@ -2588,7 +2588,7 @@ fun KaPostCell(
                         }
                     },
                     onTip = if (!isMine) onTip?.let { tip -> { lightHaptic(); tip() } } else null,
-                    // How many times it was tipped; a tap lists who (your own posts too).
+                    // Your own post's tip count lists who tipped (Post Activity > Tips for any post).
                     onShowTippers = if (post.remoteId != null) {
                         { lightHaptic(); showTippers = true }
                     } else null,
@@ -2903,10 +2903,16 @@ private fun EngagementRow(
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                // how many times it was tipped, beside the button like the likes
+                if (post.tips > 0) {
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text("${post.tips}", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1)
+                }
             }
         }
-        // How many times it was tipped; a tap lists who (your own posts too).
-        if (post.tips > 0 && onShowTippers != null) {
+        // Your own post has no Tip button: its count shows on its own, and a tap lists who tipped
+        // (Post Activity > Tips lists them for any post).
+        if (post.tips > 0 && onShowTippers != null && onTip == null) {
             val tippersLabel = stringResource(R.string.kaposts_who_tipped)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -2916,14 +2922,12 @@ private fun EngagementRow(
                     .semantics { contentDescription = tippersLabel }
                     .padding(horizontal = 4.dp, vertical = 4.dp),
             ) {
-                if (onTip == null) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                }
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(3.dp))
                 Text("${post.tips}", color = colors.textSecondary, fontSize = 14.sp, maxLines = 1)
             }
         }
@@ -6187,7 +6191,10 @@ fun KaPostsFollowListOverlay(
     }
 }
 
-// MARK: - Engagement overlay (who liked/disliked/reposted/quoted)
+// MARK: - Engagement overlay (who liked/disliked/reposted/quoted, and who tipped)
+
+/** Post Activity's Tips tab - after Likes, Dislikes, Reposts and Quotes (iOS 8015069). */
+private const val TIPS_TAB = 4
 
 @Composable
 fun KaPostEngagementOverlay(
@@ -6209,12 +6216,37 @@ fun KaPostEngagementOverlay(
 
     LaunchedEffect(post.remoteId) { viewModel.loadEngagement(post) }
     // The stream carries all four kinds at once, so the loop targets the OPEN tab: switching tabs
-    // re-arms the trigger against the kind the reader is now looking at.
+    // re-arms the trigger against the kind the reader is now looking at. Tips page on their own.
     EndlessScroll(listState = listState, key = post.remoteId to selectedTab) {
-        viewModel.loadMoreEngagement(post, selectedTab)
+        if (selectedTab != TIPS_TAB) viewModel.loadMoreEngagement(post, selectedTab)
     }
 
-    val tabs = listOf("Likes", "Dislikes", "Reposts", "Quotes")
+    // Who tipped the post (`get-post-tippers`, iOS 8015069): its own list, with amounts.
+    var tips by remember(post.remoteId) { mutableStateOf<List<com.kachat.app.services.KTip>>(emptyList()) }
+    var tipsCursor by remember(post.remoteId) { mutableStateOf<String?>(null) }
+    var tipsHasMore by remember(post.remoteId) { mutableStateOf(false) }
+    var tipsLoaded by remember(post.remoteId) { mutableStateOf(false) }
+    var tipsMoreRequests by remember(post.remoteId) { mutableStateOf(0) }
+    suspend fun loadTips(more: Boolean) {
+        val postId = post.remoteId ?: run { tipsLoaded = true; return }
+        if (more && tipsCursor == null) return
+        try {
+            val page = viewModel.fetchTippers(postId, before = if (more) tipsCursor else null)
+            val known = tips.map { it.id }.toSet()
+            tips = (if (more) tips else emptyList()) + page.items.filter { !more || it.id !in known }
+            tipsCursor = page.cursor
+            tipsHasMore = page.hasMore && page.cursor != null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            tipsHasMore = false
+        }
+        tipsLoaded = true
+    }
+    LaunchedEffect(post.remoteId) { loadTips(more = false) }
+    LaunchedEffect(tipsMoreRequests) { if (tipsMoreRequests > 0) loadTips(more = true) }
+
+    val tabs = listOf("Likes", "Dislikes", "Reposts", "Quotes", "Tips")
 
     KaPostsOverlayScaffold(title = "Post Activity", onClose = onClose) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -6226,9 +6258,10 @@ fun KaPostEngagementOverlay(
                             0 -> maxOf(post.likes, it.likes.size)
                             1 -> maxOf(post.dislikes, it.dislikes.size)
                             2 -> it.reposts.size
-                            else -> it.quotes.size
+                            3 -> it.quotes.size
+                            else -> maxOf(post.tips, tips.size)
                         }
-                    } ?: 0
+                    } ?: if (index == TIPS_TAB) maxOf(post.tips, tips.size) else 0
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -6265,7 +6298,33 @@ fun KaPostEngagementOverlay(
             } ?: emptyList()
 
             Box(modifier = Modifier.weight(1f)) {
-                if (!loaded) {
+                if (selectedTab == TIPS_TAB) {
+                    // Tips: who tipped, how much and when, newest first.
+                    if (!tipsLoaded) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+                        }
+                    } else if (tips.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.kaposts_no_tips_yet), color = colors.textSecondary)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(tips, key = { it.id }) { tip ->
+                                KaPostTipRow(tip = tip, viewModel = viewModel, amountColor = KaspaTeal)
+                                HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
+                            }
+                            if (tipsHasMore) {
+                                item(key = "tips-more") {
+                                    Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                                        com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+                                    }
+                                    LaunchedEffect(tips.size) { tipsMoreRequests += 1 }
+                                }
+                            }
+                        }
+                    }
+                } else if (!loaded) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                     }
