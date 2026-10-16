@@ -2877,8 +2877,10 @@ class KaPostsViewModel @Inject constructor(
         val timestampMs: Long,
         /** Post to open in-app on row tap; null for follows. */
         val targetTxId: String?,
+        /** Tips only: what the tip paid, in sompi (iOS 09f6ae0). */
+        val tipAmountSompi: Long? = null,
     ) {
-        enum class Kind { LIKE, DISLIKE, REPLY, QUOTE, REPOST, FOLLOW, MENTION, OTHER }
+        enum class Kind { LIKE, DISLIKE, REPLY, QUOTE, REPOST, FOLLOW, MENTION, TIP, OTHER }
     }
 
     private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
@@ -2943,6 +2945,8 @@ class KaPostsViewModel @Inject constructor(
                 kind = if (n.voteType == "downvote") NotificationItem.Kind.DISLIKE else NotificationItem.Kind.LIKE
                 target = n.contentId
             }
+            // A tip names the post it paid for (KAPOSTS_INDEXER.md 5.11); the row opens it.
+            "tip" -> { kind = NotificationItem.Kind.TIP; target = n.contentId }
             // The row targets the REPLY itself (iOS). Landing on it goes through the same
             // reply rule as a shared link: the parent's thread opens with this reply spliced
             // into the comments and scrolled into view - see [openSharedPost].
@@ -2960,6 +2964,7 @@ class KaPostsViewModel @Inject constructor(
         return NotificationItem(
             id = n.id, actorAddress = address, kind = kind,
             snippet = text.ifEmpty { null }, timestampMs = n.timestamp, targetTxId = target,
+            tipAmountSompi = if (kind == NotificationItem.Kind.TIP) n.tipAmountSompi else null,
         )
     }
 

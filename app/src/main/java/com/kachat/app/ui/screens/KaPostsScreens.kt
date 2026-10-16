@@ -128,6 +128,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbDownOffAlt
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Delete
@@ -5468,12 +5469,21 @@ fun KaPostsNotificationsOverlay(
                                     .background(colors.background),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
-                                    notificationKindIcon(item.kind),
-                                    contentDescription = null,
-                                    tint = notificationKindTint(item.kind, colors.textSecondary),
-                                    modifier = Modifier.size(11.dp),
-                                )
+                                if (item.kind == KaPostsViewModel.NotificationItem.Kind.TIP) {
+                                    // the Tip button's own mark (iOS 09f6ae0)
+                                    androidx.compose.foundation.Image(
+                                        painter = androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kaspa_logo),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                    )
+                                } else {
+                                    Icon(
+                                        notificationKindIcon(item.kind),
+                                        contentDescription = null,
+                                        tint = notificationKindTint(item.kind, colors.textSecondary),
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -5482,7 +5492,7 @@ fun KaPostsNotificationsOverlay(
                                 text = androidx.compose.ui.text.buildAnnotatedString {
                                     withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold)) { append(actorName) }
                                     append(" ")
-                                    append(notificationActionText(item.kind))
+                                    append(notificationActionText(item.kind, item.tipAmountSompi))
                                 },
                                 color = colors.textPrimary,
                                 fontSize = 15.sp,
@@ -5603,6 +5613,8 @@ private fun notificationKindIcon(kind: KaPostsViewModel.NotificationItem.Kind): 
     KaPostsViewModel.NotificationItem.Kind.QUOTE, KaPostsViewModel.NotificationItem.Kind.REPOST -> Icons.Default.Repeat
     KaPostsViewModel.NotificationItem.Kind.FOLLOW -> Icons.Default.PersonAdd
     KaPostsViewModel.NotificationItem.Kind.MENTION -> Icons.Default.AlternateEmail
+    // drawn as the Kaspa logo in the row
+    KaPostsViewModel.NotificationItem.Kind.TIP -> Icons.Default.MonetizationOn
     KaPostsViewModel.NotificationItem.Kind.OTHER -> Icons.Default.Notifications
 }
 
@@ -6050,6 +6062,14 @@ private fun annotatedPostText(source: String): androidx.compose.ui.text.Annotate
     }
 }
 
+/** "tipped your post: 1.5 KAS" for a tip with its amount, else the kind's own text (iOS 09f6ae0). */
+private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind, tipAmountSompi: Long?): String {
+    if (kind == KaPostsViewModel.NotificationItem.Kind.TIP && tipAmountSompi != null) {
+        return "${notificationActionText(kind)}: ${KaspaUnit.plain(tipAmountSompi)} ${KaspaUnit.symbol}"
+    }
+    return notificationActionText(kind)
+}
+
 private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind): String = when (kind) {
     KaPostsViewModel.NotificationItem.Kind.LIKE -> "liked your post"
     KaPostsViewModel.NotificationItem.Kind.DISLIKE -> "disliked your post"
@@ -6058,6 +6078,7 @@ private fun notificationActionText(kind: KaPostsViewModel.NotificationItem.Kind)
     KaPostsViewModel.NotificationItem.Kind.REPOST -> "reposted your post"
     KaPostsViewModel.NotificationItem.Kind.FOLLOW -> "followed you"
     KaPostsViewModel.NotificationItem.Kind.MENTION -> "mentioned you in a post"
+    KaPostsViewModel.NotificationItem.Kind.TIP -> "tipped your post"
     KaPostsViewModel.NotificationItem.Kind.OTHER -> "interacted with your post"
 }
 

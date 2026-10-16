@@ -176,7 +176,7 @@ class KaPostsNotificationPoller @Inject constructor(
             val text = KaPostsProtocol.stripMarker(n.decodedContent ?: "").trim()
             val name = actorDisplayName(actor)
             notificationHelper.showKaPosts(
-                text = "$name ${actionText(n.contentType, n.voteType, text)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
+                text = "$name ${actionText(n.contentType, n.voteType, text, n.tipAmountSompi)}" + if (text.isEmpty()) "" else ": ${text.take(120)}",
                 actionTxId = n.id,
                 // Same per-kind target rule as the in-app notifications overlay and iOS: a
                 // reply targets the reply ITSELF, and the landing rule opens its parent's thread
@@ -199,8 +199,11 @@ class KaPostsNotificationPoller @Inject constructor(
         const val POLL_INTERVAL_MS = 30_000L
     }
 
-    private fun actionText(contentType: String?, voteType: String?, text: String): String = when (contentType) {
+    private fun actionText(contentType: String?, voteType: String?, text: String, tipAmountSompi: Long? = null): String = when (contentType) {
         "vote" -> if (voteType == "downvote") "disliked your post" else "liked your post"
+        // "tipped your post: 1.5 KAS" (iOS 09f6ae0)
+        "tip" -> tipAmountSompi?.let { "tipped your post: ${com.kachat.app.util.KaspaUnit.plain(it)} ${com.kachat.app.util.KaspaUnit.symbol}" }
+            ?: "tipped your post"
         "reply" -> "replied to your post"
         "quote" -> if (text.isEmpty()) "reposted your post" else "quoted your post"
         "follow" -> "followed you"

@@ -126,6 +126,8 @@ data class KNotification(
     val contentType: String?,
     val voteType: String?,
     val contentId: String?,
+    /** contentType "tip" only: what the tip paid you, in sompi (contentId = the tipped post). */
+    val tipAmountSompi: Long? = null,
 ) {
     val decodedContent: String? get() = postContent?.let { KaPostsProtocol.decodeB64(it) }
 }
