@@ -1322,4 +1322,12 @@
     <string name="profile_rescanned">Profil actualisé.</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">Votre adresse de discussion n\'a pas de KAS pour prévenir %1$s de ce paiement : il le verra comme un paiement d\'une adresse inconnue, sans la note. KaChat le préviendra dès que votre adresse de discussion aura des KAS.</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">Votre dock</string>
+    <string name="customize_dock_always_in_dock">Toujours dans votre dock</string>
+    <string name="customize_dock_always_stay">%1$s, %2$s et %3$s restent toujours dans votre dock.</string>
+    <string name="customize_dock_full">Votre dock est plein. Retirez-en un pour ajouter l\'un de ceux-ci.</string>
+    <string name="customize_dock_hub_order">Dans l\'ordre où %1$s les affiche.</string>
+    <string name="customize_dock_move_to">Déplacer %1$s vers %2$s</string>
+    <string name="customize_dock_add">Ajouter %1$s au dock</string>
 </resources>

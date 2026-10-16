@@ -1353,4 +1353,12 @@
     <string name="profile_rescanned">نمایه دوباره بررسی شد.</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">آدرس گفتگوی شما KAS ندارد تا %1$s را از این پرداخت باخبر کند، پس آن را پرداختی از یک آدرس ناشناس و بدون یادداشت می‌بیند. وقتی آدرس گفتگوی شما کمی KAS داشته باشد، KaChat به او خبر می‌دهد.</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">داک شما</string>
+    <string name="customize_dock_always_in_dock">همیشه در داک شما</string>
+    <string name="customize_dock_always_stay">%1$s، %2$s و %3$s همیشه در داک شما می‌مانند.</string>
+    <string name="customize_dock_full">داک شما پر است. برای افزودن یکی از این‌ها، یکی را از آن بردارید.</string>
+    <string name="customize_dock_hub_order">به ترتیبی که %1$s نشانشان می‌دهد.</string>
+    <string name="customize_dock_move_to">انتقال %1$s به %2$s</string>
+    <string name="customize_dock_add">افزودن %1$s به داک</string>
 </resources>

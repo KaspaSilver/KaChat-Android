@@ -1194,4 +1194,12 @@
     <string name="profile_rescanned">Profil sudah dipindai ulang.</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">Alamat chat Anda tidak punya KAS untuk memberi tahu %1$s tentang pembayaran ini, jadi mereka melihatnya sebagai pembayaran dari alamat tak dikenal, tanpa catatan. KaChat akan memberi tahu mereka setelah alamat chat Anda punya KAS.</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">Dock Anda</string>
+    <string name="customize_dock_always_in_dock">Selalu di dock Anda</string>
+    <string name="customize_dock_always_stay">%1$s, %2$s, dan %3$s selalu ada di dock Anda.</string>
+    <string name="customize_dock_full">Dock Anda penuh. Hapus satu darinya untuk menambahkan salah satu dari ini.</string>
+    <string name="customize_dock_hub_order">Sesuai urutan yang ditampilkan %1$s.</string>
+    <string name="customize_dock_move_to">Pindahkan %1$s ke %2$s</string>
+    <string name="customize_dock_add">Tambahkan %1$s ke dock</string>
 </resources>

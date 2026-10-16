@@ -1322,4 +1322,12 @@
     <string name="profile_rescanned">资料已重新获取。</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">你的聊天地址没有 KAS，无法告知 %1$s 这笔付款，因此对方会看到一笔来自未知地址、没有备注的付款。等你的聊天地址有 KAS 后，KaChat 会告知对方。</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">你的程序坞</string>
+    <string name="customize_dock_always_in_dock">始终在程序坞中</string>
+    <string name="customize_dock_always_stay">%1$s、%2$s 和 %3$s 始终在程序坞中。</string>
+    <string name="customize_dock_full">程序坞已满。请先移出一项，再添加这里的项目。</string>
+    <string name="customize_dock_hub_order">按 %1$s 显示的顺序。</string>
+    <string name="customize_dock_move_to">将 %1$s 移到 %2$s</string>
+    <string name="customize_dock_add">将 %1$s 添加到程序坞</string>
 </resources>

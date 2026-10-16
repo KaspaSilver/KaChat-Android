@@ -1322,4 +1322,12 @@
     <string name="profile_rescanned">プロフィールを再取得しました。</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">チャットアドレスに KAS がないため、この支払いを %1$s に知らせられません。相手には不明なアドレスからのメモなしの支払いとして表示されます。チャットアドレスに KAS が入ると KaChat が知らせます。</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">あなたのドック</string>
+    <string name="customize_dock_always_in_dock">常にドックに表示</string>
+    <string name="customize_dock_always_stay">%1$s、%2$s、%3$s は常にドックにあります。</string>
+    <string name="customize_dock_full">ドックがいっぱいです。これらを追加するには、ドックから1つ外してください。</string>
+    <string name="customize_dock_hub_order">%1$s に表示される順番です。</string>
+    <string name="customize_dock_move_to">%1$s を %2$s に移動</string>
+    <string name="customize_dock_add">%1$s をドックに追加</string>
 </resources>

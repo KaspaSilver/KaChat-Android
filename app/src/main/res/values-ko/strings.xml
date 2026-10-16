@@ -1322,4 +1322,12 @@
     <string name="profile_rescanned">프로필을 다시 불러왔습니다.</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">채팅 주소에 KAS가 없어 이 결제를 %1$s에게 알릴 수 없습니다. 상대에게는 알 수 없는 주소에서 온 메모 없는 결제로 보입니다. 채팅 주소에 KAS가 생기면 KaChat이 알려 줍니다.</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">내 독</string>
+    <string name="customize_dock_always_in_dock">항상 독에 있음</string>
+    <string name="customize_dock_always_stay">%1$s, %2$s, %3$s은(는) 항상 독에 있습니다.</string>
+    <string name="customize_dock_full">독이 가득 찼습니다. 이 중 하나를 추가하려면 독에서 하나를 빼세요.</string>
+    <string name="customize_dock_hub_order">%1$s에 표시되는 순서입니다.</string>
+    <string name="customize_dock_move_to">%1$s을(를) %2$s(으)로 이동</string>
+    <string name="customize_dock_add">%1$s을(를) 독에 추가</string>
 </resources>

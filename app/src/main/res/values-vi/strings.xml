@@ -1322,4 +1322,12 @@
     <string name="profile_rescanned">Đã quét lại hồ sơ.</string>
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">Địa chỉ trò chuyện của bạn không có KAS để báo cho %1$s về khoản thanh toán này, nên họ sẽ thấy đây là khoản thanh toán từ một địa chỉ lạ, không có ghi chú. KaChat sẽ báo cho họ khi địa chỉ trò chuyện của bạn có KAS.</string>
+    <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
+    <string name="customize_dock_your_dock">Dock của bạn</string>
+    <string name="customize_dock_always_in_dock">Luôn có trong dock</string>
+    <string name="customize_dock_always_stay">%1$s, %2$s và %3$s luôn ở trong dock của bạn.</string>
+    <string name="customize_dock_full">Dock của bạn đã đầy. Hãy bỏ một mục ra để thêm một trong những mục này.</string>
+    <string name="customize_dock_hub_order">Theo thứ tự %1$s hiển thị.</string>
+    <string name="customize_dock_move_to">Chuyển %1$s vào %2$s</string>
+    <string name="customize_dock_add">Thêm %1$s vào dock</string>
 </resources>

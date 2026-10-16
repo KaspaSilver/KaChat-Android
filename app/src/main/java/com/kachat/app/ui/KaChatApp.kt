@@ -174,14 +174,17 @@ val Screen.hubTitle: String
     }
 
 /**
- * Tabs that always hold a dock slot and cannot be moved into Kaspa Hub.
+ * Tabs that always hold a dock slot and cannot be moved into Kaspa Hub (iOS
+ * `AppTab.pinnedToDock`).
  *
- * Kaspa Hub, because it is what HOLDS whatever is not in the dock - move it inside itself and
- * everything it holds becomes unreachable. Profile, because it is the way to Settings, the account
- * list and the wallet's own addresses, so it must never be a level deeper than the dock. Listed in
- * the order a fresh dock places them, so a missing one can be reinserted sensibly.
+ * Chats, because it is what KaChat is. Kaspa Hub, because it is what HOLDS whatever is not in the
+ * dock - move it inside itself and everything it holds becomes unreachable. Profile, because it is
+ * the way to Settings, the account list and the wallet's own addresses, so it must never be a
+ * level deeper than the dock. Listed in the order a fresh dock places them, so a missing one can
+ * be reinserted sensibly; where they sit among the five is the person's (Customize Dock), that
+ * they are there is not.
  */
-val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Profile.route)
+val PINNED_DOCK_ROUTES = listOf(Screen.Chats.route, Screen.KaspaHub.route, Screen.Profile.route)
 
 /**
  * ChangeNOW Swap, off for now (iOS f94db5a). An in-app crypto exchange - a third-party one like
@@ -200,7 +203,7 @@ val SETTINGS_SHEET_ROUTES = setOf(
     "wallet_notification_settings", "quick_reaction_settings",
 )
 
-/** Tabs the user can place. Excludes the pinned two. */
+/** Tabs the user can place. Chats is listed but pinned (see [PINNED_DOCK_ROUTES]). */
 val ASSIGNABLE_TAB_ROUTES = listOf(
     Screen.Chats.route, Screen.Portfolio.route, Screen.ColdStorage.route,
     Screen.Swap.route, Screen.KaPosts.route,
@@ -234,6 +237,9 @@ val bottomNavItems = listOf(
 
 /** The dock renders at most this many items (matches iOS's AppTab.maxDockItems). */
 const val MAX_DOCK_ITEMS = 5
+
+/** Slots the person actually fills: the cap minus the pinned tabs (iOS `assignableDockSlots`). */
+val ASSIGNABLE_DOCK_SLOTS: Int get() = MAX_DOCK_ITEMS - PINNED_DOCK_ROUTES.size
 
 /**
  * Routes hard-hidden everywhere while Child Mode is on (Settings > Security > Child Mode) —
@@ -297,11 +303,26 @@ fun resolveTabOrder(routes: List<String>, hiddenTabs: Set<String>, childMode: Bo
  */
 fun resolveDock(dockRoutes: List<String>, hiddenTabs: Set<String>, childMode: Boolean = false): List<Screen> {
     val byRoute = bottomNavItems.associateBy { it.route }
-    val placed = dockRoutes.mapNotNull { byRoute[it] }
-        .filter { SWAP_FEATURE_ENABLED || it != Screen.Swap }
-        .filter { it.route !in hiddenTabs || it.route in ALWAYS_VISIBLE_TAB_ROUTES }
-        .filter { !(childMode && it.route in CHILD_MODE_HIDDEN_ROUTES) }
-        .toMutableList()
+    // The stored order (matches iOS AppTab.visible), deduplicated defensively - a repeated route
+    // would render the same tab twice - with at most ASSIGNABLE_DOCK_SLOTS picks besides the
+    // pinned tabs. A saved arrangement from before Chats was pinned keeps its first two picks;
+    // anything past them is not lost, it is listed in Kaspa Hub (see kaspaHubSections).
+    var picks = 0
+    val placed = mutableListOf<Screen>()
+    for (screen in dockRoutes.mapNotNull { byRoute[it] }) {
+        if (!SWAP_FEATURE_ENABLED && screen == Screen.Swap) continue
+        if (screen.route in hiddenTabs && screen.route !in ALWAYS_VISIBLE_TAB_ROUTES) continue
+        if (childMode && screen.route in CHILD_MODE_HIDDEN_ROUTES) continue
+        if (screen.route !in PINNED_DOCK_ROUTES && screen.route !in ASSIGNABLE_TAB_ROUTES) continue
+        if (screen in placed) continue
+        if (screen.route !in PINNED_DOCK_ROUTES) {
+            if (picks >= ASSIGNABLE_DOCK_SLOTS) continue
+            picks++
+        }
+        placed.add(screen)
+    }
+    // Reinserted whatever the stored list says, so no saved arrangement - or a hand-edited one -
+    // can leave the app without Chats, the Hub that holds everything else, or Profile.
     for (route in PINNED_DOCK_ROUTES) {
         val screen = byRoute[route] ?: continue
         if (screen !in placed) {
@@ -309,7 +330,7 @@ fun resolveDock(dockRoutes: List<String>, hiddenTabs: Set<String>, childMode: Bo
             placed.add(minOf(position, placed.size), screen)
         }
     }
-    return placed.distinct().take(MAX_DOCK_ITEMS)
+    return placed
 }
 
 /**
@@ -333,6 +354,7 @@ fun kaspaHubSections(
     val byRoute = bottomNavItems.associateBy { it.route }
     val inDock = resolveDock(dockRoutes, hiddenTabs, childMode).toSet()
     fun eligible(screen: Screen) = screen.route in ASSIGNABLE_TAB_ROUTES &&
+        screen.route !in PINNED_DOCK_ROUTES &&
         (SWAP_FEATURE_ENABLED || screen != Screen.Swap) &&
         screen !in inDock &&
         screen.route !in hiddenTabs &&
@@ -1658,7 +1680,10 @@ fun MainShell(
             }
 
             composable("settings_menu") {
-                MenuVisibilityScreen(navController = navController)
+                // The activity's WalletViewModel, not one scoped to this entry: the draft is
+                // seeded from its live dock flows, and the arrangement is applied after the
+                // screen has closed, which an entry-scoped view model would not outlive.
+                MenuVisibilityScreen(navController = navController, walletViewModel = walletViewModel)
             }
 
             composable("cache_settings") {
