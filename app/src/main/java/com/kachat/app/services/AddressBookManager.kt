@@ -458,15 +458,17 @@ class AddressBookManager @Inject constructor(
         val rawEntries = runCatching { root.getAsJsonArray("entries") }.getOrNull()
         if (type != EXPORT_KIND || rawEntries == null) throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
         // Like iOS's Codable decode, one entry that can't be read makes the whole file "not an
-        // Address Book export"; readable entries with no name or a bad address are then skipped.
+        // Address Book export"; readable entries with a bad address are then skipped.
         val decoded = rawEntries.map { element ->
             runCatching { gson.fromJson(element, ArchiveAddressBookEntry::class.java)?.toEntry() }.getOrNull()
                 ?: throw ImportException(ImportError.NOT_AN_ADDRESS_BOOK)
         }
-        val named = decoded.filter { it.name.isNotBlank() && KaspaAddress.isValid(normalize(it.address)) }
-        val valid = named.filter { KaspaAddress.isValidOnActiveNetwork(normalize(it.address)) }
-        val skipped = named.size - valid.size
-        if (named.isEmpty()) throw ImportException(ImportError.EMPTY)
+        // A nameless entry counts like any other (IOS-089): it may carry a note and a photo, and a
+        // name cleared elsewhere must clear here too when it is the newer one.
+        val addressed = decoded.filter { KaspaAddress.isValid(normalize(it.address)) }
+        val valid = addressed.filter { KaspaAddress.isValidOnActiveNetwork(normalize(it.address)) }
+        val skipped = addressed.size - valid.size
+        if (addressed.isEmpty()) throw ImportException(ImportError.EMPTY)
         if (valid.isEmpty()) throw ImportException(ImportError.OTHER_NETWORK)
 
         val list = current.entries.toMutableList()
@@ -481,7 +483,7 @@ class AddressBookManager @Inject constructor(
             // too large or can't be decoded is dropped, and leaves the photo already here alone.
             val sentPhoto = raw.photo?.takeIf { it.isNotBlank() }
             val photo = sentPhoto?.let { importedPhoto(it) }
-            var incoming = raw.copy(address = address, photo = null)
+            var incoming = raw.copy(address = address, name = raw.name.trim(), photo = null)
             val i = index[address]
             if (i != null) {
                 val have = list[i]
@@ -594,7 +596,10 @@ class AddressBookManager @Inject constructor(
             runCatching {
                 gson.fromJson<List<AddressBookEntry>>(raw, object : TypeToken<List<AddressBookEntry>>() {}.type)
             }.getOrNull()
-        }.orEmpty().filter { !it.address.isNullOrBlank() && !it.name.isNullOrBlank() }
+        }.orEmpty().filter { !it.address.isNullOrBlank() }
+            // A nameless entry is a real one (IOS-089, NEXTCLOUD_SYNC.md): it keeps its note and
+            // photo. A name Gson left null (none stored) reads as no name.
+            .mapNotNull { e -> if ((e.name as String?) != null) e else runCatching { e.copy(name = "") }.getOrNull() }
 
     private fun readTombstones(wallet: String): List<AddressBookTombstone> =
         prefs.getString(DELETED_KEY_PREFIX + wallet, null)?.let { raw ->
@@ -833,7 +838,11 @@ class AddressBookManager @Inject constructor(
 
         fun ArchiveAddressBookEntry.toEntry(): AddressBookEntry? {
             val a = address?.let(::normalize)?.takeIf { it.isNotEmpty() } ?: return null
-            val n = name?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            // An empty name is a real entry (IOS-089, NEXTCLOUD_SYNC.md): no name the person gave,
+            // the address goes by its .kachat name or itself. It merges like any other, so a newer
+            // nameless entry clears an older one's name. Only a missing `name` is unreadable, as
+            // in iOS's decode.
+            val n = name?.trim() ?: return null
             val updated = parseDate(updatedAt) ?: return null
             return AddressBookEntry(
                 id = id?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().uppercase(),
