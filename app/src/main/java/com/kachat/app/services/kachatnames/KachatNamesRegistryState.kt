@@ -1581,6 +1581,44 @@ object IndexerApi {
         }
     }
 
+    /**
+     * `GET /stats/names`, the parts the app reads: transaction counts and fees (sompi as strings),
+     * each over 24 hours, 7 days and all time (iOS f5d34f4 `StatsJSON`).
+     */
+    class StatsJson(
+        val transactions: Counts?,
+        val activity: Map<String, Counts>?,
+        val fees: Fees?,
+    ) {
+        class Counts(val total: Long, val last24h: Long, val last7d: Long)
+        class Fees(val total: String, val last24h: String, val last7d: String)
+
+        companion object {
+            private fun counts(o: JsonObject?): Counts? {
+                o ?: return null
+                return Counts(
+                    o.long("total") ?: return null,
+                    o.long("last24h") ?: return null,
+                    o.long("last7d") ?: return null,
+                )
+            }
+
+            fun parse(e: JsonElement): StatsJson {
+                val o = objectOf(e)
+                val activity = o.obj("activity")?.entrySet()?.mapNotNull { (kind, v) ->
+                    counts(v?.takeIf { it.isJsonObject }?.asJsonObject)?.let { kind to it }
+                }?.toMap()
+                val fees = o.obj("fees")?.let { f ->
+                    val total = f.str("total")
+                    val day = f.str("last24h")
+                    val week = f.str("last7d")
+                    if (total != null && day != null && week != null) Fees(total, day, week) else null
+                }
+                return StatsJson(counts(o.obj("transactions")), activity, fees)
+            }
+        }
+    }
+
     class StatusJson(
         val network: String?,
         val registryCovenantId: String?,

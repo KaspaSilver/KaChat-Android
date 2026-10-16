@@ -658,6 +658,46 @@ class KachatNamesRegistry @Inject constructor(
         }
     }
 
+    /** A count or amount over the last 24 hours, the last 7 days and all time. */
+    data class Totals(val last24h: Long, val last7d: Long, val total: Long)
+
+    /**
+     * How many .kachat transactions there were and what they paid, across the registry - for
+     * KaChat Stats and the market's Activity page (iOS f5d34f4). An indexer reports both
+     * (`GET /stats/names`: fees = what each transaction paid miners, the registry's price
+     * included, since that is how the price is paid). Read from the chain instead, the walker
+     * counts its events and prices each registration, extension and renewal at the registry's
+     * fixed prices. The fees are null where they can't be worked out (an indexer too old to
+     * record them).
+     */
+    suspend fun activityTotals(): Pair<Totals, Totals?> {
+        val m = prepare()
+        return when (val src = _source.value) {
+            is Source.Indexer -> {
+                val j = IndexerApi.StatsJson.parse(get(src.base, "/stats/names"))
+                val fees = j.fees?.let { f ->
+                    val t = f.total.toLongOrNull()
+                    val d = f.last24h.toLongOrNull()
+                    val w = f.last7d.toLongOrNull()
+                    if (t != null && d != null && w != null) Totals(last24h = d, last7d = w, total = t) else null
+                }
+                val t = j.transactions
+                if (t != null) {
+                    Totals(last24h = t.last24h, last7d = t.last7d, total = t.total) to fees
+                } else {
+                    // an indexer from before `transactions`: the per-kind figures, added up
+                    val kinds = j.activity.orEmpty().values
+                    Totals(
+                        last24h = kinds.sumOf { it.last24h },
+                        last7d = kinds.sumOf { it.last7d },
+                        total = kinds.sumOf { it.total },
+                    ) to fees
+                }
+            }
+            else -> totals(_chainState.value?.events ?: emptyList(), m.params)
+        }
+    }
+
     /**
      * The fixed prices (registry v4, baked into the pinned templates; iOS c8f1086): sompi for a
      * name's first period, and for every further one, by length 1, 2, 3, 4, 5+ bytes. Null until a
@@ -1186,6 +1226,39 @@ class KachatNamesRegistry @Inject constructor(
         /** Testnet: `<label>.kachat` for an address with an active name (its primary one), null
          *  otherwise or while it is looked up; always null on mainnet. */
         fun kachatName(address: String): String? = cachedIdentityOf(address)?.label?.let { "$it.kachat" }
+
+        /** Counts and prices a walker's events ([activityTotals] from the chain), one per
+         *  transaction (iOS f5d34f4 `totals(of:params:)`). */
+        fun totals(
+            events: List<Event>,
+            params: Params,
+            nowMs: Long = KachatNames.nowMs(),
+        ): Pair<Totals, Totals?> {
+            val d1 = nowMs - 86_400_000L
+            val d7 = nowMs - 7 * 86_400_000L
+            val at = HashMap<String, Long>()
+            val paid = HashMap<String, Long>()
+            for (e in events) {
+                at[e.txId] = maxOf(at[e.txId] ?: 0L, e.at ?: 0L)
+                val name = e.name ?: continue
+                val years = e.years ?: continue
+                if (years <= 0) continue
+                val length = name.toByteArray(Charsets.UTF_8).size
+                when (e.op) {
+                    "register" -> paid[e.txId] = (paid[e.txId] ?: 0L) + params.registerCost(forLength = length, years = years)
+                    "extend", "renew" -> paid[e.txId] = (paid[e.txId] ?: 0L) + params.renewPrice(forLength = length) * years
+                }
+            }
+            var txTotal = 0L; var tx7 = 0L; var tx1 = 0L
+            var feeTotal = 0L; var fee7 = 0L; var fee1 = 0L
+            for ((tx, time) in at) {
+                val fee = paid[tx] ?: 0L
+                txTotal += 1; feeTotal += fee
+                if (time > d7) { tx7 += 1; fee7 += fee }
+                if (time > d1) { tx1 += 1; fee1 += fee }
+            }
+            return Totals(last24h = tx1, last7d = tx7, total = txTotal) to Totals(last24h = fee1, last7d = fee7, total = feeTotal)
+        }
 
         // Addresses
 

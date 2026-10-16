@@ -1341,4 +1341,8 @@
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">Vous a envoyé %1$s KAS</string>
     <string name="push_sent_you_payment">Vous a envoyé un paiement</string>
+    <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
+    <string name="kn_fees">Frais</string>
+    <string name="ks_kachat_domains">Domaines .kachat</string>
+    <string name="ks_kachat_transactions">Transactions sur le registre .kachat</string>
 </resources>

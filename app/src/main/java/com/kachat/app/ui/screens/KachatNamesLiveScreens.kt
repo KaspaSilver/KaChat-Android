@@ -489,6 +489,9 @@ class KachatLiveViewModel @Inject constructor(
     var mine by mutableStateOf<List<NameInfo>>(emptyList()); private set
     var myOffers by mutableStateOf<List<OfferInfo>>(emptyList()); private set
     var activity by mutableStateOf<List<Event>>(emptyList()); private set
+    /** What .kachat transactions paid (sompi) over 24 hours, 7 days and all time; null until
+     *  known, or where it can't be worked out (iOS f5d34f4). */
+    var fees by mutableStateOf<KachatNamesRegistry.Totals?>(null); private set
     var loadError by mutableStateOf<Throwable?>(null); private set
     var loaded by mutableStateOf(false); private set
 
@@ -595,6 +598,13 @@ class KachatLiveViewModel @Inject constructor(
                 myOffers = emptyList()
             }
             activity = registry.activity()
+            try {
+                fees = registry.activityTotals().second
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // keeps what it showed
+            }
             loadError = null
         } catch (e: CancellationException) {
             throw e
@@ -1890,6 +1900,21 @@ fun KachatMyOffersSection(offers: List<OfferInfo>, vm: KachatLiveViewModel, onOp
 @Composable
 fun KachatLiveActivityPage(vm: KachatLiveViewModel?) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
+        // Fees for 24 Hours, 7 Days and All Time, above Recent activity (iOS f5d34f4).
+        vm?.fees?.let { fees ->
+            val colors = LocalAppColors.current
+            KachatLiveSectionHeader(stringResource(R.string.kn_fees), null)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 6.dp).kachatGlass(colors).padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                KachatFeeColumn(stringResource(R.string.ks_range_day), fees.last24h)
+                VerticalDivider(Modifier.height(34.dp), color = colors.divider)
+                KachatFeeColumn(stringResource(R.string.ks_range_week), fees.last7d)
+                VerticalDivider(Modifier.height(34.dp), color = colors.divider)
+                KachatFeeColumn(stringResource(R.string.ks_range_all), fees.total)
+            }
+        }
         KachatLiveSectionHeader(stringResource(R.string.km_recent_activity), stringResource(R.string.kn_activity_all_detail))
         if (vm == null || vm.activity.isEmpty()) {
             KachatLiveEmpty(if (vm?.loaded != false) stringResource(R.string.kn_nothing_yet) else null)
@@ -1902,6 +1927,27 @@ fun KachatLiveActivityPage(vm: KachatLiveViewModel?) {
                 }
             }
         }
+    }
+}
+
+/** One of the Fees columns: the amount, and its range under it. */
+@Composable
+private fun RowScope.KachatFeeColumn(title: String, sompi: Long) {
+    val colors = LocalAppColors.current
+    Column(
+        Modifier.weight(1f).padding(horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            "${KaspaUnit.plain(sompi)} ${KaspaUnit.symbol}",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(title, color = colors.textSecondary, fontSize = 12.sp)
     }
 }
 

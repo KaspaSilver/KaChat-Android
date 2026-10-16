@@ -843,12 +843,47 @@ class KaChatStatsStore @Inject constructor(private val settings: AppSettingsRepo
 }
 
 @HiltViewModel
-class KaChatStatsViewModel @Inject constructor(val store: KaChatStatsStore) : ViewModel() {
+class KaChatStatsViewModel @Inject constructor(
+    val store: KaChatStatsStore,
+    /** The .kachat registry, for the Domains card (iOS f5d34f4). */
+    private val kachatRegistry: com.kachat.app.services.kachatnames.KachatNamesRegistry,
+) : ViewModel() {
+    /** .kachat registry transactions over 24 hours, 7 days and all time - from the registry
+     *  itself (its indexer, or the chain), so it shows wherever names are live. */
+    private val _kachatTransactions = MutableStateFlow<com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals?>(null)
+    val kachatTransactions: StateFlow<com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals?> = _kachatTransactions.asStateFlow()
+
     fun refresh(force: Boolean) {
-        viewModelScope.launch { store.refresh(force) }
+        viewModelScope.launch {
+            store.refresh(force)
+            loadKachatTransactions()
+        }
     }
 
-    suspend fun refreshAndAwait() = store.refresh(force = true)
+    suspend fun refreshAndAwait() {
+        store.refresh(force = true)
+        loadKachatTransactions()
+    }
+
+    private suspend fun loadKachatTransactions() {
+        if (!KachatLive.isEnabled) {
+            _kachatTransactions.value = null
+            return
+        }
+        try {
+            kachatRegistry.refreshIfStale()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
+        try {
+            _kachatTransactions.value = kachatRegistry.activityTotals().first
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // keeps what it showed
+        }
+    }
 }
 
 /**
@@ -865,6 +900,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     val snapshot by viewModel.store.snapshot.collectAsState()
     val failure by viewModel.store.failure.collectAsState()
     val loading by viewModel.store.loading.collectAsState()
+    val kachatTransactions by viewModel.kachatTransactions.collectAsState()
     var range by remember { mutableStateOf(KaChatStatRange.ALL) }
     var showInfo by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refresh(force = false) }
@@ -979,6 +1015,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                         }
                     }
                 }
+                kachatTransactions?.let { KachatDomainsCard(it, range, numberFormat) }
                 snapshot?.let { snap ->
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 24.dp),
@@ -1020,6 +1057,50 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
+    }
+}
+
+/** The .kachat Domains card: how many registry transactions there were in each range, the
+ *  selected range highlighted (iOS f5d34f4). */
+@Composable
+private fun KachatDomainsCard(
+    totals: com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals,
+    range: KaChatStatRange,
+    numberFormat: NumberFormat,
+) {
+    val colors = LocalAppColors.current
+    StatsCard {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // iOS Color.mint
+            Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF00C7BE)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.ks_kachat_domains), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(stringResource(R.string.ks_kachat_transactions), color = colors.textSecondary, fontSize = 12.sp)
+            }
+        }
+        HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
+        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            KachatDomainsColumn(KaChatStatRange.DAY, totals.last24h, range, numberFormat)
+            VerticalDivider(Modifier.height(34.dp), color = colors.background)
+            KachatDomainsColumn(KaChatStatRange.WEEK, totals.last7d, range, numberFormat)
+            VerticalDivider(Modifier.height(34.dp), color = colors.background)
+            KachatDomainsColumn(KaChatStatRange.ALL, totals.total, range, numberFormat)
+        }
+    }
+}
+
+@Composable
+private fun RowScope.KachatDomainsColumn(column: KaChatStatRange, value: Long, range: KaChatStatRange, numberFormat: NumberFormat) {
+    val colors = LocalAppColors.current
+    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(numberFormat.format(value), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1)
+        Text(stringResource(column.title), color = if (column == range) KaspaTeal else colors.textSecondary, fontSize = 12.sp)
     }
 }
 
