@@ -282,6 +282,15 @@ interface MessageDao {
     )
     suspend fun confirmUnverifiedPayment(id: String, walletAddress: String, contactId: String, body: String, amountSompi: Long): Int
 
+    /** A payment_notice bubble filed unverified whose re-check says the claim is false: removed,
+     *  but only while it is still that incoming unverified payment row in [contactId]'s chat
+     *  (IOS-083 run 11). Returns the rows removed. */
+    @Query(
+        "DELETE FROM messages WHERE id = :id AND walletAddress = :walletAddress AND contactId = :contactId " +
+            "AND type = 'pay' AND direction = 'received' AND deliveryStatus = 'warning'"
+    )
+    suspend fun deleteUnverifiedPayment(id: String, walletAddress: String, contactId: String): Int
+
     @Query("UPDATE messages SET deliveryStatus = :status WHERE id = :id AND walletAddress = :walletAddress")
     suspend fun updateStatus(id: String, walletAddress: String, status: String)
 

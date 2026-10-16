@@ -86,6 +86,9 @@ class ChatRepository @Inject constructor(
     /** Cold Storage (KasSigner) watch accounts - their addresses are ours to a payment_notice
      *  (IOS-083, [ownAddressesForNotices]). */
     private val coldStorageManager: com.kachat.app.services.ColdStorageManager,
+    /** Txids of the payment bubbles received payment_notices filed - only the notice's own chain
+     *  check may confirm, move or remove them (IOS-083 run 11, [fileNoticeBubble]). */
+    private val noticeBubbleStore: com.kachat.app.services.NoticeBubbleStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -833,6 +836,18 @@ class ChatRepository @Inject constructor(
         }
         database.messageDao().insert(message)
         scheduleAutoBackupIfEnabled()
+    }
+
+    /** [insertMessage] that never replaces a stored row ([MessageDao.insertIfAbsent]): false when
+     *  nothing was filed - the id is stored already, or the row is from the other network. */
+    private suspend fun insertMessageIfAbsent(message: MessageEntity): Boolean {
+        if (!com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(message.contactId)) {
+            Log.i("ChatRepository", "Dropped a message from the other network")
+            return false
+        }
+        if (database.messageDao().insertIfAbsent(message) == -1L) return false
+        scheduleAutoBackupIfEnabled()
+        return true
     }
 
     /**
@@ -2222,11 +2237,14 @@ class ChatRepository @Inject constructor(
                     is NoticeCheck.Invalid -> if (isActiveWalletAddress(myAddress)) {
                         // the claim was false: its unverified bubble goes (a real payment under
                         // that txid is filed where it belongs by the next payment fetch; iOS 566b4ef)
+                        // - only while it is still this notice's unverified bubble after the await
+                        // (iOS df1ecfb), and it stops being a notice bubble
                         val again = dao.getById(txId, myAddress)
                         if (again != null && again.contactId.equals(existing.contactId, ignoreCase = true) &&
-                            again.type == "pay" && again.deliveryStatus == "warning"
+                            again.type == "pay" && again.direction == "received" && again.deliveryStatus == "warning" &&
+                            dao.deleteUnverifiedPayment(txId, myAddress, again.contactId) > 0
                         ) {
-                            dao.deleteById(txId, myAddress)
+                            noticeBubbleStore.unmark(myAddress, txId)
                             Log.i("ChatRepository", "Removed unverified payment_notice bubble ${txId.take(12)} - ${check.reason}")
                         }
                     }
@@ -2354,6 +2372,9 @@ class ChatRepository @Inject constructor(
         val backfill = isBackfill(blockTime)
         val isRead = isOutgoing || backfill || moving?.isRead == true || notificationHelper.isViewingContact(contact.id)
         val dao = database.messageDao()
+        // A received notice's bubble is that notice's to confirm (its chain check): the generic
+        // payment sync leaves it alone ([processPayment]; iOS df1ecfb, IOS-083 run 11).
+        if (!isOutgoing) noticeBubbleStore.mark(myAddress, txId)
         if (moving != null) {
             val moved = dao.claimSelfChatPayment(
                 id = txId, walletAddress = myAddress, selfChatId = moving.contactId, contactId = contact.id,
@@ -2505,6 +2526,8 @@ class ChatRepository @Inject constructor(
                     seenPaymentTxIds.add(seenKey)
                     continue
                 }
+                // A stored txid is never touched again - above all a payment_notice's bubble,
+                // which only that notice's own chain check may confirm or move (IOS-083 run 11).
                 if (database.messageDao().exists(tx.transactionId, myAddress)) {
                     seenPaymentTxIds.add(seenKey)
                     continue
@@ -2622,7 +2645,13 @@ class ChatRepository @Inject constructor(
         }
 
         val backfill = isBackfill(blockTime)
-        insertMessage(
+        // A payment_notice's bubble is that notice's to confirm (iOS df1ecfb, IOS-083 run 11): one
+        // filed while this ran (the sync's exists check is behind the awaits above) stays as it is.
+        if (noticeBubbleStore.isNoticeBubble(myAddress, tx.transactionId) &&
+            database.messageDao().exists(tx.transactionId, myAddress)
+        ) return true
+        // Never over a stored row: a REPLACE would refile it in this conversation as "sent".
+        val filed = insertMessageIfAbsent(
             MessageEntity(
                 id = tx.transactionId,
                 contactId = conversationId,
@@ -2636,6 +2665,7 @@ class ChatRepository @Inject constructor(
                 isRead = backfill || notificationHelper.isViewingContact(conversationId)
             )
         )
+        if (!filed) return true
 
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. Only a device with no push at all banners from here.
