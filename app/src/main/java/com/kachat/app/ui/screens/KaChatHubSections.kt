@@ -901,7 +901,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     val failure by viewModel.store.failure.collectAsState()
     val loading by viewModel.store.loading.collectAsState()
     val kachatTransactions by viewModel.kachatTransactions.collectAsState()
-    var range by remember { mutableStateOf(KaChatStatRange.ALL) }
+    var range by remember { mutableStateOf(KaChatStatRange.DAY) }
     var showInfo by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refresh(force = false) }
 

@@ -664,17 +664,28 @@ class KachatNamesRegistry @Inject constructor(
     /**
      * How many .kachat transactions there were and what they paid, across the registry - for
      * KaChat Stats and the market's Activity page (iOS f5d34f4). An indexer reports both
-     * (`GET /stats/names`: fees = what each transaction paid miners, the registry's price
-     * included, since that is how the price is paid). Read from the chain instead, the walker
-     * counts its events and prices each registration, extension and renewal at the registry's
-     * fixed prices. The fees are null where they can't be worked out (an indexer too old to
-     * record them).
+     * (`GET /names/activity/stats`, else `GET /stats/names`: fees = what each transaction paid
+     * miners, the registry's price included, since that is how the price is paid). Neither
+     * answering (mainnet's `/stats/names` is a 503 today), or read from the chain instead, the
+     * events are counted and each registration, extension and renewal priced at the registry's
+     * fixed prices (iOS 4a0f256). The fees are null where they can't be worked out (an indexer
+     * too old to record them).
      */
     suspend fun activityTotals(): Pair<Totals, Totals?> {
         val m = prepare()
         return when (val src = _source.value) {
             is Source.Indexer -> {
-                val j = IndexerApi.StatsJson.parse(get(src.base, "/stats/names"))
+                // `/names/activity/stats` first: a proxy may send /stats/* to a server without the
+                // names module (mainnet today). Neither answering, the activity feed is counted.
+                suspend fun stats(path: String): IndexerApi.StatsJson? = try {
+                    IndexerApi.StatsJson.parse(get(src.base, path))
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+                val j = stats("/names/activity/stats") ?: stats("/stats/names")
+                    ?: return totals(allIndexerEvents(src.base), m.params)
                 val fees = j.fees?.let { f ->
                     val t = f.total.toLongOrNull()
                     val d = f.last24h.toLongOrNull()
@@ -696,6 +707,22 @@ class KachatNamesRegistry @Inject constructor(
             }
             else -> totals(_chainState.value?.events ?: emptyList(), m.params)
         }
+    }
+
+    /** Every registry event an indexer's `/names/activity` holds, newest first, page by page (at
+     *  most 50 pages of 200; iOS 4a0f256). */
+    private suspend fun allIndexerEvents(base: String): List<Event> {
+        val events = ArrayList<Event>()
+        var cursor: String? = null
+        for (i in 0 until 50) {
+            var path = "/names/activity?length=200"
+            if (cursor != null) path += "&cursor=$cursor"
+            val (page, next) = IndexerApi.EventJson.parseEventsPage(get(base, path))
+            events += page
+            if (next.isNullOrEmpty() || page.isEmpty()) break
+            cursor = next
+        }
+        return events
     }
 
     /**
@@ -1227,8 +1254,9 @@ class KachatNamesRegistry @Inject constructor(
          *  otherwise or while it is looked up; always null on mainnet. */
         fun kachatName(address: String): String? = cachedIdentityOf(address)?.label?.let { "$it.kachat" }
 
-        /** Counts and prices a walker's events ([activityTotals] from the chain), one per
-         *  transaction (iOS f5d34f4 `totals(of:params:)`). */
+        /** Counts and prices registry events ([activityTotals] without an indexer's figures), one
+         *  per transaction: registrations, extensions and renewals at the registry's fixed prices
+         *  (iOS f5d34f4, 4a0f256 `totals(of:params:)`). */
         fun totals(
             events: List<Event>,
             params: Params,

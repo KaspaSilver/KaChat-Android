@@ -1503,6 +1503,13 @@ object IndexerApi {
 
             /** `{"events": [...], "next"}` */
             fun parseEvents(e: JsonElement): List<Event> = objectOf(e).array("events").map { from(objectOf(it)).event }
+
+            /** `{"events": [...], "next"}`: one page's events and the cursor of the next (iOS
+             *  `EventsJSON`). */
+            fun parseEventsPage(e: JsonElement): Pair<List<Event>, String?> {
+                val o = objectOf(e)
+                return o.array("events").map { from(objectOf(it)).event } to o.str("next")
+            }
         }
     }
 
