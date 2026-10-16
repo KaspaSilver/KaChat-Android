@@ -1376,4 +1376,8 @@
     <string name="kn_fees">کارمزدها</string>
     <string name="ks_kachat_domains">دامنه‌های ‎.kachat</string>
     <string name="ks_kachat_transactions">تراکنش‌ها در رجیستری ‎.kachat</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">پرداخت‌شده برای ثبت‌ها و تمدیدها</string>
+    <string name="ks_fees_unavailable">کارمزدها هنوز در دسترس نیستند</string>
+    <string name="ks_fees_unavailable_body">ایندکسر شما هنوز آن‌ها را گزارش نمی‌کند. وقتی گزارش کند اینجا نمایش داده می‌شوند.</string>
 </resources>

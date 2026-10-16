@@ -1217,4 +1217,8 @@
     <string name="kn_fees">Biaya</string>
     <string name="ks_kachat_domains">Domain .kachat</string>
     <string name="ks_kachat_transactions">Transaksi di registri .kachat</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">Dibayar untuk pendaftaran dan perpanjangan</string>
+    <string name="ks_fees_unavailable">Biaya belum tersedia</string>
+    <string name="ks_fees_unavailable_body">Indexer Anda belum melaporkannya. Akan muncul di sini setelah dilaporkan.</string>
 </resources>

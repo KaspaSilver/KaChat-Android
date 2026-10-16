@@ -1345,4 +1345,8 @@
     <string name="kn_fees">Ücretler</string>
     <string name="ks_kachat_domains">.kachat Alan Adları</string>
     <string name="ks_kachat_transactions">.kachat kayıt defterindeki işlemler</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">Kayıtlar ve yenilemeler için ödenen</string>
+    <string name="ks_fees_unavailable">Ücretler henüz mevcut değil</string>
+    <string name="ks_fees_unavailable_body">Dizinleyiciniz bunları henüz bildirmiyor. Bildirdiğinde burada görünecek.</string>
 </resources>

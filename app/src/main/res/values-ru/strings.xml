@@ -1345,4 +1345,8 @@
     <string name="kn_fees">Комиссии</string>
     <string name="ks_kachat_domains">Домены .kachat</string>
     <string name="ks_kachat_transactions">Транзакции в реестре .kachat</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">Оплачено за регистрации и продления</string>
+    <string name="ks_fees_unavailable">Комиссии пока недоступны</string>
+    <string name="ks_fees_unavailable_body">Ваш индексатор их пока не сообщает. Они появятся здесь, когда начнёт.</string>
 </resources>

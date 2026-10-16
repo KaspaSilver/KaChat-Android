@@ -696,6 +696,11 @@ enum class KaChatStatCategory(val key: String, val title: Int, val detail: Int, 
     KACHAT_OFFERS("kachatOffers", R.string.ks_kachat_offers, R.string.ks_kachat_offers_detail, Icons.Default.PanTool, Color(0xFFD98C1A)),
     KACHAT_ACTIVITY("kachatActivity", R.string.ks_kachat_activity, R.string.ks_kachat_activity_detail, Icons.Default.LocalOffer, Color(0xFF7373BF)),
     SELF_STASH("selfStash", R.string.ks_self_stash, R.string.ks_self_stash_detail, Icons.Default.Inventory2, Color(0xFF8E8E93));
+
+    /** One of the .kachat registry kinds - shown together as the .kachat Domains card (iOS 4924787). */
+    val isKachat: Boolean
+        get() = this == KACHAT_REGISTRATIONS || this == KACHAT_RENEWALS || this == KACHAT_SALES ||
+            this == KACHAT_OFFERS || this == KACHAT_ACTIVITY
 }
 
 enum class KaChatStatRange(val title: Int, val caption: Int) {
@@ -848,26 +853,33 @@ class KaChatStatsViewModel @Inject constructor(
     /** The .kachat registry, for the Domains card (iOS f5d34f4). */
     private val kachatRegistry: com.kachat.app.services.kachatnames.KachatNamesRegistry,
 ) : ViewModel() {
-    /** .kachat registry transactions over 24 hours, 7 days and all time - from the registry
-     *  itself (its indexer, or the chain), so it shows wherever names are live. */
+    /** .kachat registry transactions and what they paid (sompi), over 24 hours, 7 days and all
+     *  time - from the registry itself (its indexer, or the chain), so it shows wherever names
+     *  are live (iOS 4924787). */
     private val _kachatTransactions = MutableStateFlow<com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals?>(null)
     val kachatTransactions: StateFlow<com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals?> = _kachatTransactions.asStateFlow()
+    private val _kachatFees = MutableStateFlow<com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals?>(null)
+    val kachatFees: StateFlow<com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals?> = _kachatFees.asStateFlow()
+    private val _kachatLoaded = MutableStateFlow(false)
+    val kachatLoaded: StateFlow<Boolean> = _kachatLoaded.asStateFlow()
 
     fun refresh(force: Boolean) {
         viewModelScope.launch {
             store.refresh(force)
-            loadKachatTransactions()
+            loadKachat()
         }
     }
 
     suspend fun refreshAndAwait() {
         store.refresh(force = true)
-        loadKachatTransactions()
+        loadKachat()
     }
 
-    private suspend fun loadKachatTransactions() {
+    private suspend fun loadKachat() {
         if (!KachatLive.isEnabled) {
             _kachatTransactions.value = null
+            _kachatFees.value = null
+            _kachatLoaded.value = true
             return
         }
         try {
@@ -877,20 +889,31 @@ class KaChatStatsViewModel @Inject constructor(
         } catch (_: Exception) {
         }
         try {
-            _kachatTransactions.value = kachatRegistry.activityTotals().first
+            val totals = kachatRegistry.activityTotals()
+            _kachatTransactions.value = totals.first
+            _kachatFees.value = totals.second
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {
             // keeps what it showed
         }
+        _kachatLoaded.value = true
     }
 }
+
+/** KaChat Stats' two tabs (iOS 4924787). */
+private enum class KaChatStatsPage { TRANSACTIONS, FEES }
+
+/** iOS Color.mint: the .kachat Domains card. */
+private val KachatDomainsMint = Color(0xFF00C7BE)
 
 /**
  * Kaspa Hub > KaChat Stats: how many transactions KaChat has put on Kaspa, split by kind. The
  * numbers are the indexers' (`GET /stats`), never this phone's own traffic. A category no indexer
  * reports is left out rather than shown as zero; while loading, or when the indexer has no stats
- * yet, the rows keep their real names with the numbers blanked, so nothing invented is on screen.
+ * yet, the cards keep their real names with the numbers blanked, so nothing invented is on screen.
+ * Each kind is a card with its 24 Hours, 7 Days and All Time figures; .kachat's five kinds are the
+ * one .kachat Domains card, and the Fees tab shows what .kachat transactions paid (iOS 4924787).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -901,7 +924,9 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     val failure by viewModel.store.failure.collectAsState()
     val loading by viewModel.store.loading.collectAsState()
     val kachatTransactions by viewModel.kachatTransactions.collectAsState()
-    var range by remember { mutableStateOf(KaChatStatRange.DAY) }
+    val kachatFees by viewModel.kachatFees.collectAsState()
+    val kachatLoaded by viewModel.kachatLoaded.collectAsState()
+    var page by remember { mutableStateOf(KaChatStatsPage.TRANSACTIONS) }
     var showInfo by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refresh(force = false) }
 
@@ -913,11 +938,32 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
         }
     }
     val numberFormat = remember { NumberFormat.getIntegerInstance() }
-    val percentFormat = remember { NumberFormat.getPercentInstance().apply { maximumFractionDigits = 1 } }
 
-    // The categories the indexer reports, in the fixed display order.
-    val rows = snapshot?.let { snap -> kaChatStatRows(snap.counts, range) }
-    val total = rows?.let { kaChatStatsTotal(it) }
+    // The kinds with a card of their own. .kachat's five are one card, .kachat Domains.
+    val chatCategories = KaChatStatCategory.entries.filterNot { it.isKachat }
+    // The .kachat Domains counts: the registry's own, else the indexer's five .kachat kinds
+    // added up.
+    val kachatTotals = kachatTransactions ?: snapshot?.let { snap ->
+        val counts = KaChatStatCategory.entries.filter { it.isKachat }.mapNotNull { snap.counts[it] }
+        if (counts.isEmpty()) null
+        else com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals(
+            last24h = counts.sumOf { (it.last24h ?: 0L).coerceAtLeast(0L) },
+            last7d = counts.sumOf { (it.last7d ?: 0L).coerceAtLeast(0L) },
+            total = counts.sumOf { (it.total ?: 0L).coerceAtLeast(0L) },
+        )
+    }
+    // Every KaChat transaction, all time: each kind's all-time count plus .kachat's.
+    val allTimeTotal: Long? = run {
+        var sum = 0L
+        var any = false
+        snapshot?.let { snap ->
+            for (category in chatCategories) {
+                snap.counts[category]?.total?.let { sum += it; any = true }
+            }
+        }
+        kachatTotals?.let { sum += it.total; any = true }
+        if (any) sum else null
+    }
 
     Scaffold(
         containerColor = colors.background,
@@ -951,71 +997,90 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                 ) {
                     Icon(Icons.Default.BarChart, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
                     when {
-                        total != null -> Text(numberFormat.format(total), color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp, maxLines = 1)
-                        snapshot != null -> Text("—", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp)
+                        allTimeTotal != null -> KachatFitText(
+                            numberFormat.format(allTimeTotal.coerceAtLeast(0L)),
+                            color = colors.textPrimary,
+                            fontSize = 44.sp,
+                            fontWeight = FontWeight.Black,
+                            minScale = 0.5f,
+                        )
+                        snapshot != null || failure != null -> Text("—", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp)
                         else -> Box(Modifier.padding(vertical = 8.dp)) { Redacted(180, 40) }
                     }
-                    Text(stringResource(range.caption), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
-                    // A kind the indexer counts all time only has no number for 24 Hours / 7 Days,
-                    // so the total above leaves it out - say so rather than let it look complete.
-                    if (range != KaChatStatRange.ALL && rows?.any { it.second == null } == true) {
-                        Text(stringResource(R.string.ks_all_time_only_note), color = colors.textSecondary, fontSize = 12.sp, textAlign = TextAlign.Center)
-                    }
+                    Text(stringResource(R.string.ks_caption_all), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
                 UnderlineTabBar(
-                    titles = KaChatStatRange.entries.map { stringResource(it.title) },
-                    selectedIndex = range.ordinal,
-                    onSelect = { range = KaChatStatRange.entries[it] },
+                    titles = listOf(stringResource(R.string.transactions), stringResource(R.string.kn_fees)),
+                    selectedIndex = page.ordinal,
+                    onSelect = { page = KaChatStatsPage.entries[it] },
                 )
-                if (rows != null) {
-                    // Each category's share of the range's total as one segmented bar.
-                    val parts = rows.filter { (it.second ?: 0) > 0 }
-                    val sum = parts.sumOf { it.second ?: 0 }
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(12.dp).clip(RoundedCornerShape(50)),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        if (sum > 0) {
-                            parts.forEach { (category, value) ->
-                                Box(Modifier.weight(((value ?: 0).toFloat() / sum).coerceAtLeast(0.01f)).fillMaxHeight().background(category.color))
+                when (page) {
+                    KaChatStatsPage.TRANSACTIONS -> {
+                        val snap = snapshot
+                        if (snap != null) {
+                            chatCategories.filter { snap.counts[it] != null }.forEach { category ->
+                                val counts = snap.counts[category]
+                                KaChatStatCard(
+                                    icon = category.icon,
+                                    color = category.color,
+                                    title = stringResource(category.title),
+                                    detail = KaspaUnit.label(stringResource(category.detail)),
+                                    values = listOf(counts?.last24h, counts?.last7d, counts?.total).map { v -> v?.let { numberFormat.format(it) } },
+                                )
                             }
                         } else {
-                            Box(Modifier.fillMaxSize().background(colors.surface))
-                        }
-                    }
-                    StatsCard {
-                        rows.forEachIndexed { index, (category, value) ->
-                            StatsRow(category) {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    if (value != null) {
-                                        Text(numberFormat.format(value), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                        if ((total ?: 0) > 0) {
-                                            Text(percentFormat.format(value.toDouble() / (total ?: 1)), color = colors.textSecondary, fontSize = 12.sp)
-                                        }
-                                    } else {
-                                        Text("—", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                        // Reported, but without this range - the indexer keeps an
-                                        // all-time counter for it only.
-                                        if (range != KaChatStatRange.ALL) {
-                                            Text(stringResource(R.string.ks_all_time_only), color = colors.textSecondary, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
+                            val shownFailure = failure
+                            if (shownFailure != null && !loading) UnavailableCard(shownFailure) { viewModel.refresh(force = true) }
+                            chatCategories.forEach { category ->
+                                KaChatStatCard(
+                                    icon = category.icon,
+                                    color = category.color,
+                                    title = stringResource(category.title),
+                                    detail = KaspaUnit.label(stringResource(category.detail)),
+                                    values = emptyList(),
+                                    redacted = true,
+                                )
                             }
-                            if (index < rows.lastIndex) HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
+                        }
+                        kachatTotals?.let { kachat ->
+                            KaChatStatCard(
+                                icon = Icons.Default.AlternateEmail,
+                                color = KachatDomainsMint,
+                                title = stringResource(R.string.ks_kachat_domains),
+                                detail = stringResource(R.string.ks_kachat_transactions),
+                                values = listOf(kachat.last24h, kachat.last7d, kachat.total).map { numberFormat.format(it) },
+                            )
                         }
                     }
-                } else {
-                    val shownFailure = failure
-                    if (shownFailure != null && !loading) UnavailableCard(shownFailure) { viewModel.refresh(force = true) }
-                    StatsCard {
-                        KaChatStatCategory.entries.forEachIndexed { index, category ->
-                            StatsRow(category) { Redacted(50) }
-                            if (index < KaChatStatCategory.entries.lastIndex) HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
+                    KaChatStatsPage.FEES -> {
+                        val fees = kachatFees
+                        when {
+                            fees != null -> KaChatStatCard(
+                                icon = Icons.Default.AlternateEmail,
+                                color = KachatDomainsMint,
+                                title = stringResource(R.string.ks_kachat_domains),
+                                detail = stringResource(R.string.ks_kachat_fees_detail),
+                                values = listOf(fees.last24h, fees.last7d, fees.total).map { "${KaspaUnit.plain(it)} ${KaspaUnit.symbol}" },
+                            )
+                            kachatLoaded -> Column(
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(colors.surface).padding(18.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(stringResource(R.string.ks_fees_unavailable), color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.ks_fees_unavailable_body), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                            }
+                            else -> KaChatStatCard(
+                                icon = Icons.Default.AlternateEmail,
+                                color = KachatDomainsMint,
+                                title = stringResource(R.string.ks_kachat_domains),
+                                detail = stringResource(R.string.ks_kachat_fees_detail),
+                                values = emptyList(),
+                                redacted = true,
+                            )
                         }
                     }
                 }
-                kachatTransactions?.let { KachatDomainsCard(it, range, numberFormat) }
                 snapshot?.let { snap ->
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 24.dp),
@@ -1060,13 +1125,16 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     }
 }
 
-/** The .kachat Domains card: how many registry transactions there were in each range, the
- *  selected range highlighted (iOS f5d34f4). */
+/** One kind: its icon, name and what it counts, then its 24 Hours, 7 Days and All Time figures
+ *  side by side. A figure the indexer doesn't keep shows a dash (iOS 4924787 `statCard`). */
 @Composable
-private fun KachatDomainsCard(
-    totals: com.kachat.app.services.kachatnames.KachatNamesRegistry.Totals,
-    range: KaChatStatRange,
-    numberFormat: NumberFormat,
+private fun KaChatStatCard(
+    icon: ImageVector,
+    color: Color,
+    title: String,
+    detail: String,
+    values: List<String?>,
+    redacted: Boolean = false,
 ) {
     val colors = LocalAppColors.current
     StatsCard {
@@ -1074,55 +1142,45 @@ private fun KachatDomainsCard(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // iOS Color.mint
-            Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF00C7BE)), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+            Box(Modifier.size(32.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.ks_kachat_domains), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text(stringResource(R.string.ks_kachat_transactions), color = colors.textSecondary, fontSize = 12.sp)
+                Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(detail, color = colors.textSecondary, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
         HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            KachatDomainsColumn(KaChatStatRange.DAY, totals.last24h, range, numberFormat)
-            VerticalDivider(Modifier.height(34.dp), color = colors.background)
-            KachatDomainsColumn(KaChatStatRange.WEEK, totals.last7d, range, numberFormat)
-            VerticalDivider(Modifier.height(34.dp), color = colors.background)
-            KachatDomainsColumn(KaChatStatRange.ALL, totals.total, range, numberFormat)
+            KaChatStatRange.entries.forEachIndexed { index, range ->
+                if (index > 0) VerticalDivider(Modifier.height(34.dp), color = colors.background)
+                KaChatStatColumn(stringResource(range.title), values.getOrNull(index), redacted)
+            }
         }
     }
 }
 
 @Composable
-private fun RowScope.KachatDomainsColumn(column: KaChatStatRange, value: Long, range: KaChatStatRange, numberFormat: NumberFormat) {
+private fun RowScope.KaChatStatColumn(title: String, value: String?, redacted: Boolean) {
     val colors = LocalAppColors.current
-    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(numberFormat.format(value), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1)
-        Text(stringResource(column.title), color = if (column == range) KaspaTeal else colors.textSecondary, fontSize = 12.sp)
+    Column(
+        Modifier.weight(1f).padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        when {
+            redacted -> Box(Modifier.padding(vertical = 2.dp)) { Redacted(44, 18) }
+            value != null -> KachatFitText(value, color = colors.textPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, minScale = 0.6f)
+            else -> Text("—", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1)
+        }
+        Text(title, color = colors.textSecondary, fontSize = 12.sp, maxLines = 1)
     }
 }
 
 @Composable
 private fun StatsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface), content = content)
-}
-
-@Composable
-private fun StatsRow(category: KaChatStatCategory, value: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(32.dp).clip(CircleShape).background(category.color), contentAlignment = Alignment.Center) {
-            Icon(category.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(category.title), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Text(KaspaUnit.label(stringResource(category.detail)), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 2)
-        }
-        Spacer(Modifier.width(8.dp))
-        value()
-    }
 }
 
 @Composable

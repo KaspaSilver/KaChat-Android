@@ -1345,4 +1345,8 @@
     <string name="kn_fees">עמלות</string>
     <string name="ks_kachat_domains">דומיינים של ‎.kachat</string>
     <string name="ks_kachat_transactions">עסקאות במרשם ‎.kachat</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">שולם עבור רישומים וחידושים</string>
+    <string name="ks_fees_unavailable">העמלות עדיין לא זמינות</string>
+    <string name="ks_fees_unavailable_body">האינדקסר שלך עדיין לא מדווח עליהן. הן יופיעו כאן כשהוא ידווח.</string>
 </resources>

@@ -1345,4 +1345,8 @@
     <string name="kn_fees">费用</string>
     <string name="ks_kachat_domains">.kachat 域名</string>
     <string name="ks_kachat_transactions">.kachat 注册表上的交易</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">注册和续费支付的金额</string>
+    <string name="ks_fees_unavailable">暂无费用数据</string>
+    <string name="ks_fees_unavailable_body">你的索引器尚未提供这些数据。提供后会显示在这里。</string>
 </resources>

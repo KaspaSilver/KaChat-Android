@@ -1345,4 +1345,8 @@
     <string name="kn_fees">الرسوم</string>
     <string name="ks_kachat_domains">نطاقات ‎.kachat</string>
     <string name="ks_kachat_transactions">المعاملات على سجل ‎.kachat</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">المدفوع مقابل التسجيلات والتجديدات</string>
+    <string name="ks_fees_unavailable">الرسوم غير متاحة بعد</string>
+    <string name="ks_fees_unavailable_body">المفهرس لديك لا يعرضها بعد. ستظهر هنا عندما يفعل.</string>
 </resources>

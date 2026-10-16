@@ -1345,4 +1345,8 @@
     <string name="kn_fees">शुल्क</string>
     <string name="ks_kachat_domains">.kachat डोमेन</string>
     <string name="ks_kachat_transactions">.kachat रजिस्ट्री पर लेन-देन</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">पंजीकरण और नवीनीकरण के लिए भुगतान</string>
+    <string name="ks_fees_unavailable">शुल्क अभी उपलब्ध नहीं हैं</string>
+    <string name="ks_fees_unavailable_body">आपका इंडेक्सर अभी इन्हें नहीं बताता। बताते ही ये यहाँ दिखेंगे।</string>
 </resources>

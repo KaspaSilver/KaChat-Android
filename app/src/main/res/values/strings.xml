@@ -1546,4 +1546,8 @@
     <string name="kn_fees">Fees</string>
     <string name="ks_kachat_domains">.kachat Domains</string>
     <string name="ks_kachat_transactions">Transactions on the .kachat registry</string>
+    <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
+    <string name="ks_kachat_fees_detail">Paid for registrations and renewals</string>
+    <string name="ks_fees_unavailable">Fees aren\'t available yet</string>
+    <string name="ks_fees_unavailable_body">Your indexer doesn\'t report them yet. They\'ll show here once it does.</string>
 </resources>
