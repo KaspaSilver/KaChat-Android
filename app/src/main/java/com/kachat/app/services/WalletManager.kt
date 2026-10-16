@@ -909,6 +909,11 @@ class WalletManager @Inject constructor(
         return parsed
     }
 
+    /** Every spending address this phone has derived, for every account it holds (the saved
+     *  ones too, whose seeds aren't decrypted) - what a payment_notice may never claim as a
+     *  contact's payment (IOS-083, iOS `cachedSpendingAddresses(ofAccount:)`). */
+    fun allCachedSpendingAddresses(): List<String> = getAllCachedSpendingAddresses().map { it.address }
+
     private fun cacheSpendingAddresses(walletAddress: String, byIndex: Map<Int, String>) {
         if (byIndex.isEmpty()) return
         val existing = getAllCachedSpendingAddresses()

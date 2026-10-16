@@ -2210,15 +2210,27 @@ class ChatRepository @Inject constructor(
         if (existing != null) {
             if ((existing.direction == "sent") == isOutgoing && existing.contactId.equals(contact.id, ignoreCase = true)) {
                 // already in this chat; one filed unverified gets its chain check again
-                if (!isOutgoing && existing.type == "pay" && existing.deliveryStatus == "warning" &&
-                    checkNoticeOnChain(myAddress, txId, notice.amountSompi, contact.id) is NoticeCheck.Valid &&
-                    isActiveWalletAddress(myAddress)
-                ) {
-                    dao.confirmUnverifiedPayment(
-                        id = txId, walletAddress = myAddress, contactId = existing.contactId,
-                        body = noticeBubbleText(notice.amountSompi, memo, isOutgoing = false),
-                        amountSompi = notice.amountSompi
-                    )
+                if (isOutgoing || existing.type != "pay" || existing.deliveryStatus != "warning") return
+                when (val check = checkNoticeOnChain(myAddress, txId, notice.amountSompi, contact.id)) {
+                    is NoticeCheck.Valid -> if (isActiveWalletAddress(myAddress)) {
+                        dao.confirmUnverifiedPayment(
+                            id = txId, walletAddress = myAddress, contactId = existing.contactId,
+                            body = noticeBubbleText(notice.amountSompi, memo, isOutgoing = false),
+                            amountSompi = notice.amountSompi
+                        )
+                    }
+                    is NoticeCheck.Invalid -> if (isActiveWalletAddress(myAddress)) {
+                        // the claim was false: its unverified bubble goes (a real payment under
+                        // that txid is filed where it belongs by the next payment fetch; iOS 566b4ef)
+                        val again = dao.getById(txId, myAddress)
+                        if (again != null && again.contactId.equals(existing.contactId, ignoreCase = true) &&
+                            again.type == "pay" && again.deliveryStatus == "warning"
+                        ) {
+                            dao.deleteById(txId, myAddress)
+                            Log.i("ChatRepository", "Removed unverified payment_notice bubble ${txId.take(12)} - ${check.reason}")
+                        }
+                    }
+                    NoticeCheck.Unknown -> Unit
                 }
                 return
             }
@@ -2293,6 +2305,10 @@ class ChatRepository @Inject constructor(
             own.add(myAddress.trim().lowercase())
             runCatching { walletManager.getAllAccounts() }.getOrDefault(emptyList())
                 .forEach { own.add(it.address.trim().lowercase()) }
+            // every spending address this phone derived for any of its accounts, saved ones
+            // included (run 10: B's Address #2 topping up A's chatting address is ours too; iOS 566b4ef)
+            runCatching { walletManager.allCachedSpendingAddresses() }.getOrDefault(emptyList())
+                .forEach { own.add(it.trim().lowercase()) }
             val coldAccounts = runCatching { coldStorageManager.getAccounts() }.getOrDefault(emptyList())
             for (account in coldAccounts) {
                 val rootKey = com.kachat.app.util.KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
@@ -2416,8 +2432,9 @@ class ChatRepository @Inject constructor(
             .sumOf { it.amount }
         if (paid != claimedSompi) return NoticeCheck.Invalid("it pays $paid sompi, not $claimedSompi")
         if (!tx.payload.isNullOrEmpty()) return NoticeCheck.Invalid("the transaction carries a payload")
-        val inputs = tx.inputs.mapNotNull { it.previousOutpointAddress?.trim()?.lowercase()?.takeIf { a -> a.isNotEmpty() } }
-        if (inputs.isEmpty()) return NoticeCheck.Unknown
+        // an input without a resolved address could be one of ours: no chain answer yet (iOS 566b4ef)
+        val inputs = tx.inputs.map { it.previousOutpointAddress?.trim()?.lowercase().orEmpty() }
+        if (inputs.isEmpty() || inputs.any { it.isEmpty() }) return NoticeCheck.Unknown
         val own = ownAddressesForNotices(myAddress)
         for (input in inputs) {
             if (input in own) return NoticeCheck.Invalid("paid by one of our own addresses")
