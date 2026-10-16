@@ -5698,8 +5698,12 @@ fun KaPostTipSheet(
         // leave no trace in the Chats list. The contact is created on the send, right before the
         // payment goes out.
         resetPaymentState()
+        // A tip carries its own, larger `kchat:1:tip:` payload: the fee and Max price that one
+        // (iOS 470bfa7, AND-041).
+        chatViewModel.setPaymentTip(address, tip)
         chatViewModel.refreshSpendingUtxos()
     }
+    DisposableEffect(Unit) { onDispose { chatViewModel.setPaymentTip(null, null) } }
     // The memo rides in the payload, so the fee preview prices it (as in a chat).
     LaunchedEffect(memo) { chatViewModel.setPaymentNote(memo) }
 
