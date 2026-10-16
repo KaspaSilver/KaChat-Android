@@ -929,6 +929,12 @@ fun MainShell(
                         localTabOrder.indexOfFirst { it.route == owner }.takeIf { it >= 0 }
                             ?: localTabOrder.indexOfFirst { it.route == Screen.KaspaHub.route }
                     }
+                    // A new dock arrangement builds a fresh bar (iOS d7c3fcf keys its TabView the
+                    // same way), so every icon, label and the glass lens start from the tabs the
+                    // bar now holds rather than from whichever tab held that slot before. The key
+                    // changes only when the arrangement does.
+                    val dockArrangementKey = localTabOrder.joinToString(",") { it.route }
+                    key(dockArrangementKey) {
                     // Fixed at the bar's own height so the lens can stand proud of it without
                     // growing the dock or shifting it up the screen.
                     BoxWithConstraints(Modifier.fillMaxWidth().height(80.dp)) {
@@ -1208,6 +1214,7 @@ fun MainShell(
                         }
                     }
                     }
+                    } // key(dockArrangementKey)
                     }
                 }
             }
