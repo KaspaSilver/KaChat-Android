@@ -21,6 +21,8 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -74,9 +76,9 @@ class KachatNamesNotifier @Inject constructor(
             }
             // The indexer pushes name reminders only to the chatting address: for a name on another
             // address of this wallet the phone schedules its own (XP-024).
-            reminders.schedule(owned.filter { !it.owner.contentEquals(me) }, p)
             // a different wallet signed in meanwhile: this answer isn't its
             if (actions.myAddress != wallet) return
+            reminders.schedule(owned.filter { !it.owner.contentEquals(me) }, p, wallet)
 
             val old = prefs.getString(key(wallet), null)?.let(Snapshot::decode)
             val now = KachatNames.nowMs()
@@ -344,6 +346,9 @@ class KachatNamesNotifier @Inject constructor(
  * notifier check: a renewed name moves its reminders, a name that left the wallet loses them.
  * Each one is a one-time [KachatNameReminderWorker] under its own unique work name; tapping it
  * opens the name, like the pushes ([NotificationHelper.showKachatName]).
+ *
+ * Names are `kachat-reminder-<network>-<wallet tag>-<name>-<expiresAt>-<kind>`: each wallet and
+ * network keeps its own set, so a check on one never removes another's (iOS 6128f1e, IOS-088).
  */
 @Singleton
 class KachatNameReminders @Inject constructor(
@@ -352,6 +357,27 @@ class KachatNameReminders @Inject constructor(
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     private class Reminder(val date: Long, val title: String, val body: String, val name: String)
+
+    /** [schedule] and [removeAll] read and rewrite the one saved map (iOS: @MainActor). */
+    private val mutex = Mutex()
+
+    /** A short, stable tag for a wallet in the names (the address's last 12 characters). */
+    private fun walletTag(wallet: String): String = wallet.lowercase().takeLast(12)
+
+    private fun prefix(wallet: String, network: String): String = "$ROOT$network-${walletTag(wallet)}-"
+
+    /** A wallet's reminders on every network, for when it leaves this phone (iOS 6128f1e). */
+    suspend fun removeAll(forWallet: String) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return@withLock
+            val tag = "-${walletTag(forWallet)}-"
+            val pending = scheduled()
+            val ids = pending.keys.filter { it.startsWith(ROOT) && it.contains(tag) }
+            if (ids.isEmpty()) return@withLock
+            for (id in ids) work.cancelUniqueWork(id)
+            save(pending - ids.toSet())
+        }
+    }
 
     /** The reminders scheduled so far: unique work name -> when it fires (unix ms). */
     private fun scheduled(): Map<String, Long> = runCatching {
@@ -369,22 +395,33 @@ class KachatNameReminders @Inject constructor(
 
     private fun day(ms: Long): String = com.kachat.app.ui.screens.KachatLive.day(ms)
 
-    suspend fun schedule(names: List<NameInfo>, params: Params) = withContext(Dispatchers.IO) {
+    suspend fun schedule(names: List<NameInfo>, params: Params, wallet: String) = withContext(Dispatchers.IO) {
+        mutex.withLock { scheduleLocked(names, params, wallet) }
+    }
+
+    private fun scheduleLocked(names: List<NameInfo>, params: Params, wallet: String) {
         val p = params
-        val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return@withContext
-        val pending = scheduled()
+        val work = runCatching { WorkManager.getInstance(context) }.getOrNull() ?: return
+        val all = scheduled()
+        // the first build's names, one device-wide set: removed wherever they are found
+        val legacy = all.keys.filter { it.startsWith(LEGACY_PREFIX) }
+        for (id in legacy) work.cancelUniqueWork(id)
+        val prefix = prefix(wallet, KachatNamesService.networkName)
+        // only this wallet's reminders on this network are this call's to keep or drop
+        val others = all.filterKeys { !it.startsWith(LEGACY_PREFIX) && !it.startsWith(prefix) }
+        val pending = all.filterKeys { it.startsWith(prefix) }
         // notifications are off for the app: nothing is kept waiting (iOS: not authorized)
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             for (id in pending.keys) work.cancelUniqueWork(id)
-            if (pending.isNotEmpty()) save(emptyMap())
-            return@withContext
+            if (pending.isNotEmpty() || legacy.isNotEmpty()) save(others)
+            return
         }
         val now = KachatNames.nowMs()
         val wanted = LinkedHashMap<String, Reminder>()
         val bases = HashSet<String>()
         for (n in names) {
             val display = "${n.name}.kachat"
-            val base = "$PREFIX${n.name}-${n.expiresAt}-"
+            val base = "$prefix${n.name}-${n.expiresAt}-"
             bases += base
             val renewAt = n.expiresAt - p.renewWindowMs
             if (renewAt > now) {
@@ -427,17 +464,20 @@ class KachatNameReminders @Inject constructor(
                         KachatNameReminderWorker.KEY_NAME to r.name,
                     )
                 )
-                .addTag(PREFIX)
+                .addTag(ROOT)
                 .build()
             work.enqueueUniqueWork(id, ExistingWorkPolicy.REPLACE, request)
         }
-        save(keep + wanted.mapValues { it.value.date })
+        save(others + keep + wanted.mapValues { it.value.date })
     }
 
     private companion object {
         const val PREFS = "kachat_name_reminders"
         const val KEY = "scheduled"
-        const val PREFIX = "kachat-local-"
+        /** `kachat-reminder-<network>-<wallet tag>-<name>-<expiresAt>-<kind>` (IOS-088). */
+        const val ROOT = "kachat-reminder-"
+        /** The first build's names, one device-wide set: removed wherever they are found. */
+        const val LEGACY_PREFIX = "kachat-local-"
     }
 }
 

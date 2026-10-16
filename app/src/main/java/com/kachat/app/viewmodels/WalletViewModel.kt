@@ -60,6 +60,8 @@ class WalletViewModel @Inject constructor(
     /** .kachat owners count toward the "Contains domain" tag (iOS 881ada6). Lazy, and only asked
      *  where the registry is launched, so mainnet never builds it (iOS 7227d69). */
     private val kachatRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>,
+    /** A deleted account's .kachat local reminders go with it (iOS 6128f1e, IOS-088). */
+    private val kachatNameReminders: com.kachat.app.services.kachatnames.KachatNameReminders,
 ) : ViewModel() {
 
     /** Refreshes what the active account owns on .k and .kaspa. */
@@ -1170,6 +1172,9 @@ class WalletViewModel @Inject constructor(
             for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
                 runCatching { chatRepository.wipeAllLocalDataForAddress(variant) }
                     .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
+                // its .kachat reminders would keep firing for names this phone no longer holds
+                runCatching { kachatNameReminders.removeAll(variant) }
+                    .onFailure { android.util.Log.w("WalletViewModel", ".kachat reminder removal failed for a deleted account", it) }
             }
         }
         walletManager.deleteAccount(address)
