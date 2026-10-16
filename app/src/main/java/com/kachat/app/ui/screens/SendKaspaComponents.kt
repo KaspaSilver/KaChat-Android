@@ -509,10 +509,11 @@ object KaspaAmountGrouping {
      * The edited field back to a plain number ("." the decimal point). [edited] is the field's
      * value after the edit and [previous] its value before (both without the drawn separators),
      * so every comma in [edited] was typed or pasted.
-     * - Comma-decimal device: the first "," is the decimal point and any further one is dropped -
-     *   a "," typed where the value already has its point (shown as ",") changes nothing, so a
-     *   second tap on the key never moves the point (iOS b383ff0, IOS-082). A pasted "1.234,5"
-     *   (dots as grouping, a comma decimal) is 1234.5. Pasted spaces go.
+     * - Comma-decimal device: the first "," is the decimal point and any further one is dropped,
+     *   the value's own point (drawn as ",") counting as one - so a second tap on the key at the
+     *   end never moves the point (iOS b383ff0, IOS-082), and a "," typed before the point becomes
+     *   the point, as on iOS, Desktop and the extension (XP-027). A pasted "1.234,5" (dots as
+     *   grouping, a comma decimal) is 1234.5. Pasted spaces go.
      * - Otherwise: a comma TYPED as the decimal point stays one: typed at the end, or a single
      *   comma not three digits from the end in a number that showed no grouping ("0,5" is 0.5),
      *   or after a lone leading zero ("0,001" is 0.001, as no grouped number starts "0,"). Any
@@ -521,8 +522,9 @@ object KaspaAmountGrouping {
     fun ungrouped(edited: String, previous: String, locale: java.util.Locale = java.util.Locale.getDefault()): String {
         if (usesCommaDecimal(locale)) {
             var text = edited.replace("\u202F", "").replace(" ", "").replace("\u00A0", "")
-            // Only commas were added to a value that already has its point: it stays as it was.
-            if (previous.contains('.') && text.replace(",", "") == previous) return previous
+            // The field keeps its point as "." but draws it as ",": that point is the "," the
+            // reader sees, so it counts as one here - exactly the text iOS edits (XP-027).
+            if (previous.contains('.') && text.count { it == '.' } == 1) text = text.replace('.', ',')
             val first = text.indexOf(',')
             if (first >= 0) {
                 // a comma is the decimal point; dots beside it can only be grouping
