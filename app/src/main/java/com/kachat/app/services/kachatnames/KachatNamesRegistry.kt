@@ -849,10 +849,12 @@ class KachatNamesRegistry @Inject constructor(
 
     /**
      * While the app is open, once a minute: everyone the app is showing as an address - a contact
-     * with no name you gave them (chat or Address Book) and no .kachat name known - is asked again
-     * whether they have one. A "no name" answer or a failed lookup is not trusted for long: a name
-     * can be registered at any moment, and a lookup can fail while the registry is still loading.
-     * An address only shows when no name exists. Started once, at launch.
+     * with no name you gave them (chat or Address Book) and no .kachat name known - may be asked
+     * again whether they have one. Never asked yet, or the last lookup failed (the registry still
+     * loading at launch): this pass. A "no name" answer backs off - asked again after 1, then 5,
+     * 15 and 60 minutes - and sooner (after a minute) only once the registry has seen new
+     * transactions ([revision]), since a name only appears through one (iOS cbb8a83, IOS-087).
+     * Started once, at launch.
      *
      * [isActive] says whether the app is on screen; [candidates] lists the contacts with no name
      * you gave them, the people you talk to most recently first, your own address left out.
@@ -882,14 +884,20 @@ class KachatNamesRegistry @Inject constructor(
         unnamedSweepRunning = true
         try {
             val now = System.currentTimeMillis()
+            val rev = _revision.value
             val targets = candidates().asSequence()
                 .map { it.trim().lowercase() }
                 .filter { key ->
                     if (KaspaNetwork.ofAddress(key) == null || !KaspaNetwork.isOnActiveNetwork(key)) return@filter false
                     val known = identities[key] ?: return@filter true
                     if (known.label != null) return@filter false
-                    // a "no name" answer stands for a minute
-                    identityAsked[key]?.let { now - it.second >= 60_000L } ?: true
+                    val asked = identityAsked[key] ?: return@filter true
+                    // a "no name" answer stands for 1, 5, 15 then 60 minutes as they repeat, or a
+                    // minute once the registry moved on
+                    val age = now - asked.second
+                    val backoff = UNNAMED_BACKOFF_MS[minOf(unnamedAnswers[key] ?: 0, UNNAMED_BACKOFF_MS.size - 1)]
+                    val registryMoved = asked.first != rev && age > 60_000L
+                    age >= backoff || registryMoved
                 }
                 .distinct()
                 // a few at a time, the people you talk to most recently first
@@ -897,12 +905,17 @@ class KachatNamesRegistry @Inject constructor(
                 .toList()
             for (key in targets) {
                 if (!isActive()) return
-                refreshIdentity(key)
+                val found = refreshIdentity(key) ?: continue
+                // one more "no name" in a row backs the next ask off further
+                if (found.label == null) unnamedAnswers[key] = (unnamedAnswers[key] ?: 0) + 1 else unnamedAnswers.remove(key)
             }
         } finally {
             unnamedSweepRunning = false
         }
     }
+
+    /** "No name" answers in a row, per address (in memory: a relaunch starts over at a minute). */
+    private val unnamedAnswers = ConcurrentHashMap<String, Int>()
 
     /**
      * Looks the address's identity up now, whatever the cache holds (User Info > Rescan Profile),
@@ -1177,6 +1190,9 @@ class KachatNamesRegistry @Inject constructor(
         /** The identities in [KachatProfileCache] (iOS 5e408f7), at most [IDENTITIES_KEEP] people. */
         private const val IDENTITIES_FILE = "identities.json"
         private const val IDENTITIES_KEEP = 1000
+        /** How long a "no name" answer is trusted by the unnamed-identity sweep, by how many came
+         *  in a row (iOS cbb8a83, IOS-087). */
+        private val UNNAMED_BACKOFF_MS = longArrayOf(60_000L, 300_000L, 900_000L, 3_600_000L)
 
         /**
          * An indexer further behind the network than this (DAA scores, about a minute) isn't
