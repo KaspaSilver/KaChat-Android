@@ -2628,7 +2628,9 @@ class ChatRepository @Inject constructor(
                 title = "Payment received",
                 text = displayText,
                 notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride),
-                dedupeTxId = tx.transactionId
+                dedupeTxId = tx.transactionId,
+                // a KaPosts tip: one notification with its "tipped your post" banner (IDX-030)
+                tipTxId = tx.transactionId.takeIf { MessageProtocol.isTipPayload(payloadBytes) },
             )
         }
         return true

@@ -243,7 +243,13 @@ class NotificationHelper @Inject constructor(
         )
     }
 
-    suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null, dedupeTxId: String? = null) {
+    /**
+     * [tipTxId]: this payment is a KaPosts tip (IDX-030). Its banner is posted under tag = the
+     * tip's txid, id 0 - the tag the indexer puts on the OS-drawn "tipped your post" push while
+     * the app is in the background - so whichever arrives second replaces the other and the tip
+     * keeps one notification, as iOS does with its collapse id.
+     */
+    suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null, dedupeTxId: String? = null, tipTxId: String? = null) {
         if (activeContactId.value == contactId) return // already looking at this conversation
         if (!settings.notificationsEnabled.first()) return
         if (notificationOverride == ContactNotificationMode.OFF) return
@@ -251,6 +257,8 @@ class NotificationHelper @Inject constructor(
         // A tip's payment: its KaPosts "tipped your post" banner already shows, and that is the
         // tip's one notification (IDX-028).
         if (!dedupeTxId.isNullOrBlank() && hasKaPostsBanner(dedupeTxId)) return
+        // ...or the OS drew it from the push (tagged with the txid): it stays the one notification.
+        if (!tipTxId.isNullOrBlank() && isTagShowing(tipTxId)) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -292,8 +300,12 @@ class NotificationHelper @Inject constructor(
             .build()
 
         try {
-            NotificationManagerCompat.from(context).notify(notificationId, notification)
-            recordChatBanner(notificationId, dedupeTxId)
+            if (!tipTxId.isNullOrBlank()) {
+                NotificationManagerCompat.from(context).notify(tipTxId, TIP_TAG_ID, notification)
+            } else {
+                NotificationManagerCompat.from(context).notify(notificationId, notification)
+                recordChatBanner(notificationId, dedupeTxId)
+            }
         } catch (e: SecurityException) {
             // POST_NOTIFICATIONS not granted — skip rather than crash.
         }
@@ -373,12 +385,22 @@ class NotificationHelper @Inject constructor(
             synchronized(shownKaPostsIds) { shownKaPostsIds.add(notificationId) }
             // A tip: its payment banner, if one shows, gives way to this one (IDX-028).
             val replaced = takeChatBannersReplacedByKaPosts(actionTxId)
-            if (replaced.isNotEmpty()) {
-                val manager = NotificationManagerCompat.from(context)
-                replaced.forEach { manager.cancel(it) }
-            }
+            val manager = NotificationManagerCompat.from(context)
+            replaced.forEach { manager.cancel(it) }
+            // ...and so does a tip's payment banner posted under its txid tag (IDX-030).
+            if (actionTxId.isNotBlank()) manager.cancel(actionTxId, TIP_TAG_ID)
         } catch (_: SecurityException) {}
     }
+
+    /** Whether a notification tagged [tag] is showing - the OS draws a push's notification under
+     *  the tag the server sets (android.notification.tag), id 0. */
+    private fun isTagShowing(tag: String): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            runCatching {
+                context.getSystemService(NotificationManager::class.java)
+                    .activeNotifications.any { it.tag == tag }
+            }.getOrDefault(false)
+        } else false
 
     /** Ids of the KaPosts banners posted this process, so the Notifications screen can take
      *  them down once the reader has seen the stream (iOS clears the "kaposts" thread). */
@@ -552,6 +574,9 @@ class NotificationHelper @Inject constructor(
     }
 
     companion object {
+        /** The id a tagged tip banner uses: the OS posts an FCM notification under its tag with
+         *  id 0, so ours must match it to replace it (IDX-030). */
+        const val TIP_TAG_ID = 0
         /**
          * Friendly one-line preview for a broadcast room's notification, mirroring the mapping
          * 1:1 chats use (`ChatRepository`'s `notificationText`, and the identical one in

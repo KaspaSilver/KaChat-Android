@@ -251,6 +251,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             // A payment: "<who> - Sent you 1.5 KAS" (iOS dcb329a).
                             text = if (type == "payment") paymentPushBody(data["amount"]) else body.ifEmpty { "New message" },
                             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
+                            // A tip's payment push carries the tip's txid as its collapse key
+                            // (IDX-028): its banner shares a tag with the KaPosts one (IDX-030).
+                            tipTxId = data["tx_id"]?.takeIf {
+                                type == "payment" && it.isNotBlank() && message.collapseKey == it
+                            },
                         )
                     }
 
