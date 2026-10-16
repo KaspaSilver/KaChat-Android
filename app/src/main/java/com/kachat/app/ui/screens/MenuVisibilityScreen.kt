@@ -72,6 +72,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.kachat.app.R
 import com.kachat.app.ui.MAX_DOCK_ITEMS
@@ -87,6 +88,7 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -100,7 +102,8 @@ import kotlin.math.roundToInt
  * into the dock - shown only while the dock has room ([MAX_DOCK_ITEMS] at most).
  *
  * The arrangement is a draft until this screen is left (or the app goes to the background), so
- * the dock under this screen is not rebuilt on every move.
+ * the dock under this screen is not rebuilt on every move. On leaving, it is applied once the
+ * screen has finished closing, as it was when the screen closed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,27 +125,34 @@ fun MenuVisibilityScreen(
     var hub by remember { mutableStateOf(openedHub) }
     val dockIsFull = dock.size >= MAX_DOCK_ITEMS
 
-    /** Writes the draft to the real settings, and so rebuilds the dock - once, on the way out. */
-    fun persist() {
-        val newDock = dock.map { it.route }
-        val newHub = hub.map { it.route }
+    /** Writes an arrangement to the real settings, and so rebuilds the dock. */
+    fun applyArrangement(newDock: List<String>, newHub: List<String>) {
         // Nothing arranged, or already written (backgrounding): no write.
         if (newDock == openedDock.map { it.route } && newHub == openedHub.map { it.route }) return
         if (newDock == walletViewModel.dockTabs.value && newHub == walletViewModel.hubTabs.value) return
         walletViewModel.setPlacement(newDock, newHub)
     }
 
-    // Backgrounding is the one way off this screen that never disposes it, and an app killed from
-    // the background would otherwise lose the arrangement.
     DisposableEffect(Unit) {
+        // Backgrounding is the one way off this screen that never disposes it, and an app killed
+        // from the background would otherwise lose the arrangement - so it saves at once.
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) persist()
+            if (event == Lifecycle.Event.ON_STOP) applyArrangement(dock.map { it.route }, hub.map { it.route })
         }
         val processLifecycle = ProcessLifecycleOwner.get().lifecycle
         processLifecycle.addObserver(observer)
         onDispose {
             processLifecycle.removeObserver(observer)
-            persist()
+            // Applied once this screen has finished closing (iOS waits 0.6 s after it disappears):
+            // a new arrangement rebuilds the whole dock, and it should not be rebuilt under the
+            // page that is closing. What was arranged is taken now, at close, and applied on the
+            // main thread from the activity's view model, which outlives this screen.
+            val closedDock = dock.map { it.route }
+            val closedHub = hub.map { it.route }
+            walletViewModel.viewModelScope.launch {
+                delay(APPLY_AFTER_CLOSE_MS)
+                applyArrangement(closedDock, closedHub)
+            }
         }
     }
 
@@ -279,6 +289,9 @@ fun MenuVisibilityScreen(
         }
     }
 }
+
+/** How long after Customize Dock has closed its arrangement is applied (iOS: 0.6 s). */
+private const val APPLY_AFTER_CLOSE_MS = 600L
 
 /** A row's height, shared by the layout and by the drag's slot arithmetic. */
 private val ROW_HEIGHT = 52.dp
