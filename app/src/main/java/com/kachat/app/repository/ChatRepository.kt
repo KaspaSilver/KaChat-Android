@@ -2284,8 +2284,11 @@ class ChatRepository @Inject constructor(
                 Log.i("ChatRepository", "Dropped payment_notice ${txId.take(12)} - ${check.reason}")
             NoticeCheck.Unknown -> {
                 // no chain answer: never move a record on an unchecked claim; with nothing stored
-                // yet, show it marked unverified (checked again when the notice is read again)
+                // yet, show it marked unverified (checked again when the notice is read again).
+                // After the await: still this wallet, and still nothing stored under that txid
+                // (iOS 364e680, IOS-090).
                 if (existing != null || !isActiveWalletAddress(myAddress)) return
+                if (dao.getById(txId, myAddress) != null) return
                 fileNoticeBubble(myAddress, contact, notice, txId, memo, noticeTxId, blockTime, isOutgoing = false,
                     status = "warning", moving = null, plaintext = plaintext)
             }
