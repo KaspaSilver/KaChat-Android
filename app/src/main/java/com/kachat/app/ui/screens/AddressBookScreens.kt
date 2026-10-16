@@ -525,7 +525,8 @@ fun AddressBookRow(entry: AddressBookEntry, modifier: Modifier = Modifier) {
         AddressBookAvatar(entry.address, size = 38.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(entry.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // No name you gave it: who it is on chain - its .kachat name, else the address (iOS 2831fab).
+            Text(entry.customName ?: com.kachat.app.models.addressDisplayName(entry.address), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 KaspaAddress.shortDisplay(entry.address),
                 color = colors.textSecondary,
@@ -620,7 +621,7 @@ fun AddressBookEntryDetail(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     AddressBookAvatar(entry.address, size = 76.dp)
-                    Text(entry.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, textAlign = TextAlign.Center)
+                    Text(entry.customName ?: com.kachat.app.models.addressDisplayName(entry.address), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, textAlign = TextAlign.Center)
                     if (entry.note.isNotEmpty()) {
                         Text(entry.note, color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                     }
@@ -706,7 +707,7 @@ fun AddressBookEntryDetail(
     if (confirmDelete && entry != null) {
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.ab_delete_confirm, entry.name)) },
+            title = { Text(stringResource(R.string.ab_delete_confirm, entry.customName ?: com.kachat.app.models.addressDisplayName(entry.address))) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
@@ -866,7 +867,8 @@ fun AddressBookEntryEditor(
                     IosBarTextButton(
                         stringResource(R.string.save),
                         bold = true,
-                        enabled = name.isNotBlank() && effectiveAddress.isNotEmpty(),
+                        // an empty name saves too: the address goes by its .kachat name or itself
+                        enabled = effectiveAddress.isNotEmpty(),
                         onClick = {
                             try {
                                 val photo = when {
@@ -874,7 +876,10 @@ fun AddressBookEntryEditor(
                                     pendingRemoved -> AddressBookManager.PhotoChange.Removed
                                     else -> AddressBookManager.PhotoChange.Unchanged
                                 }
-                                book.save(effectiveAddress, name, note, photo)
+                                val saved = book.save(effectiveAddress, name, note, photo)
+                                // One name per person: a chat with them goes by the same one - so
+                                // clearing it here really clears it (iOS 2831fab).
+                                book.applyNameToChat(saved)
                                 onDone(AddressBookEditResult.SAVED)
                                 close()
                             } catch (e: AddressBookManager.SaveException) {

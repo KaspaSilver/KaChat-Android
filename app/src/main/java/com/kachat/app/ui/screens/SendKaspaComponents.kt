@@ -248,13 +248,14 @@ fun SendRecipientCard(
             // typed, else the address's own .kachat name (iOS 6ac48a7).
             AddressResolutionCard(address = resolvedAddress ?: trimmed.takeIf { isValidAddress }, domain = resolvedName)
             // The name it has in your Address Book (iOS 00767a4).
-            val saved = remember(addressBook, resolvedAddress, trimmed) {
-                AddressBookManager.shared?.entry(resolvedAddress ?: trimmed)
+            // Only a name you gave it - an entry without one shows nothing here (iOS 2831fab).
+            val savedName = remember(addressBook, resolvedAddress, trimmed) {
+                AddressBookManager.shared?.entry(resolvedAddress ?: trimmed)?.customName
             }
-            if (saved != null) {
+            if (savedName != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Filled.Book, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
-                    Text(saved.name, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(savedName, color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (trimmed.isNotEmpty()) {

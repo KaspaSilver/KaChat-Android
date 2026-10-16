@@ -33,6 +33,8 @@ import javax.inject.Singleton
 data class AddressBookEntry(
     val id: String = UUID.randomUUID().toString().uppercase(),
     val address: String,
+    /** May be empty: the person removed the name they gave, and the address goes by who it is on
+     *  chain again (its .kachat name, else the address). Read it through [customName] (iOS 2831fab). */
     val name: String,
     val note: String = "",
     val createdAt: Long = System.currentTimeMillis(),
@@ -40,7 +42,11 @@ data class AddressBookEntry(
     /** The assigned photo as base64 JPEG - only on the way to or from the backup. On the device it
      *  is a file ([AddressBookManager.photo]), so this stays null everywhere else. */
     val photo: String? = null,
-)
+) {
+    /** The name the person gave this address, or null when it has none. */
+    val customName: String?
+        get() = name.trim().takeIf { it.isNotEmpty() }
+}
 
 /** A deleted Address Book entry, kept so a backup merge from another device never brings it back. */
 data class AddressBookTombstone(val address: String, val deletedAt: Long)
@@ -224,8 +230,9 @@ class AddressBookManager @Inject constructor(
         val current = book
         val wallet = current.wallet ?: throw SaveException(SaveError.NO_WALLET)
         val normalized = normalize(address)
+        // An empty name is allowed: the entry keeps its note and photo, and the address goes by
+        // who it is on chain again ([AddressBookEntry.customName], iOS 2831fab).
         val cleanName = name.trim()
-        if (cleanName.isEmpty()) throw SaveException(SaveError.EMPTY_NAME)
         // The network the app runs on only: the other network's address is the same key on the
         // other chain, a chat with it is never read and is dropped on the next launch (iOS 218dc42, IOS-063).
         if (KaspaAddress.otherNetwork(normalized) != null) throw SaveException(SaveError.OTHER_NETWORK)
@@ -245,6 +252,23 @@ class AddressBookManager @Inject constructor(
         persist()
         didChange()
         return saved
+    }
+
+    /**
+     * One name per person (iOS 2831fab): a chat with [saved]'s address goes by the same name as
+     * its Address Book entry - so clearing it here really clears it, and they go by their .kachat
+     * name or their address.
+     */
+    fun applyNameToChat(saved: AddressBookEntry) {
+        val rawWallet = runCatching { walletManager.getAddress() }.getOrNull() ?: return
+        scope.launch {
+            val dao = database.contactDao()
+            val contact = runCatching { dao.getContact(saved.address, rawWallet) }.getOrNull() ?: return@launch
+            val assigned = contact.alias?.trim()?.takeIf { it.isNotEmpty() }
+            if (assigned == saved.customName) return@launch
+            runCatching { dao.insert(contact.copy(alias = saved.customName)) }
+                .onFailure { Log.w(TAG, "Could not give the chat its Address Book name", it) }
+        }
     }
 
     @Synchronized
@@ -600,7 +624,7 @@ class AddressBookManager @Inject constructor(
         val shared: AddressBookManager? get() = instance
 
         /** The Address Book name of [address] in the active wallet's book, if it is saved. */
-        fun nameFor(address: String?): String? = instance?.entry(address)?.name
+        fun nameFor(address: String?): String? = instance?.entry(address)?.customName
 
         /** Kaspa addresses are lowercase; a pasted or scanned one may carry spaces or a `?amount=` query. */
         fun normalize(address: String): String {

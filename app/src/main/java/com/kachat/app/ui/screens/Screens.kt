@@ -12691,9 +12691,12 @@ fun ChatInfoScreen(
 
     var contactName by remember { mutableStateOf("") }
 
-    // Synchronize local state with database when it loads
+    // Synchronize local state with database when it loads: the name you gave them, wherever you
+    // gave it (the chat or the Address Book, iOS 2831fab).
     LaunchedEffect(conversation?.contact?.alias) {
-        contactName = conversation?.contact?.alias ?: ""
+        contactName = conversation?.contact?.alias?.takeIf { it.isNotBlank() }
+            ?: com.kachat.app.services.AddressBookManager.shared?.entry(contactId)?.customName
+            ?: ""
     }
 
     LaunchedEffect(contactId) {
@@ -12819,6 +12822,15 @@ fun ChatInfoScreen(
                     } else {
                         TextButton(onClick = {
                             chatViewModel.updateContactName(contactId, contactName)
+                            // One name per person: the Address Book entry, if there is one, takes
+                            // the same name - so clearing it here really clears it, and they go by
+                            // their .kachat name or their address (iOS 2831fab).
+                            val book = com.kachat.app.services.AddressBookManager.shared
+                            val entry = book?.entry(contactId)
+                            val trimmedName = contactName.trim()
+                            if (book != null && entry != null && entry.customName != trimmedName.ifEmpty { null }) {
+                                runCatching { book.save(entry.address, trimmedName, entry.note) }
+                            }
                             onBack()
                         }) {
                             Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
