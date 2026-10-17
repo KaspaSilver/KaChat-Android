@@ -162,16 +162,20 @@ fun KnsCreateProfileWizardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.create_kns_profile), color = LocalAppColors.current.textPrimary) },
+            androidx.compose.material3.CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.create_kns_profile), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
                     // Close only. Step navigation is the Previous/Next bar at the bottom of every
-                    // step, where a wizard's navigation belongs.
-                    IconButton(onClick = { onFinished(wroteSomething) }) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = LocalAppColors.current.textPrimary)
-                    }
+                    // step, where a wizard's navigation belongs. iOS 26: the "x" on a glass disc.
+                    SheetBarIconButton(
+                        Icons.Default.Close,
+                        stringResource(R.string.close),
+                        onClick = { onFinished(wroteSomething) },
+                        modifier = Modifier.padding(start = 12.dp),
+                        tint = LocalAppColors.current.textPrimary,
+                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         },
         containerColor = LocalAppColors.current.background

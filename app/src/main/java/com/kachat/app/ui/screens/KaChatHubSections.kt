@@ -1263,9 +1263,9 @@ fun KachatSetupGuideScreen(onClose: () -> Unit) {
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.kn_kachat_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.kn_kachat_names), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    TextButton(onClick = onClose) { Text(stringResource(R.string.kg_close), color = KaspaTeal) }
+                    SheetBarButton(stringResource(R.string.kg_close), onClick = onClose, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1364,8 +1364,8 @@ private fun KachatListingScreen(onBack: () -> Unit, onBuy: () -> Unit, onOffer: 
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.kl_listing), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = KaspaTeal) } },
+                title = { Text(stringResource(R.string.kl_listing), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -1455,8 +1455,8 @@ private fun KachatFormSheet(title: String, onClose: () -> Unit, content: @Compos
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
-                navigationIcon = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel), color = KaspaTeal) } },
+                title = { Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarButton(stringResource(R.string.cancel), onClick = onClose, modifier = Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -1982,9 +1982,9 @@ private fun KachatMarketSourceSheet(
             Column(Modifier.navigationBarsPadding()) {
                 IosSheetDetents(height = halfScreen, largeDetent = true) {
                     Column(Modifier.fillMaxWidth().fillMaxHeight()) {
-                        IosSheetNavBar(
+                        SheetNavBar(
                             title = stringResource(R.string.kn_buy_from),
-                            trailing = { IosBarTextButton(stringResource(R.string.done), onClick = onDismiss, bold = true) },
+                            trailing = { SheetBarButton(stringResource(R.string.done), onClick = onDismiss) },
                         )
                         Column(
                             Modifier

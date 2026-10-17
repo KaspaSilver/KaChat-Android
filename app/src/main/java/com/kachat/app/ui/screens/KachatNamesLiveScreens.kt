@@ -956,12 +956,13 @@ private fun KachatLiveForm(title: String, onClose: () -> Unit, finished: Boolean
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                // iOS 26: the bar's buttons on glass capsules, 16 in from the edges.
                 navigationIcon = {
-                    if (!finished) TextButton(onClick = onClose) { Text(stringResource(R.string.cancel), color = KaspaTeal) }
+                    if (!finished) SheetBarButton(stringResource(R.string.cancel), onClick = onClose, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
-                    if (finished) TextButton(onClick = onClose) { Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                    if (finished) SheetBarButton(stringResource(R.string.done), onClick = onClose, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -991,24 +992,17 @@ private fun KachatSheetStep(
     val colors = LocalAppColors.current
     if (!finished) BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
-            if (!finished) {
-                TextButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                    Text(backTitle, color = KaspaTeal, fontSize = 17.sp, maxLines = 1)
-                }
-            } else {
-                TextButton(onClick = onDone, modifier = Modifier.align(Alignment.CenterEnd)) {
-                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                }
-            }
-            Text(
-                title,
-                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
+        // iOS 26's pushed step: the back chevron on a glass disc (iOS 26 shows no back title),
+        // Done on a glass capsule once it's finished.
+        SheetNavBar(
+            title = title,
+            leading = {
+                if (!finished) SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, backTitle, onClick = onBack)
+            },
+            trailing = {
+                if (finished) SheetBarButton(stringResource(R.string.done), onClick = onDone)
+            },
+        )
         Column(
             Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp),
             content = content,
@@ -1497,7 +1491,16 @@ fun KachatClaimsButton(vm: KachatLiveViewModel) {
     var showList by remember { mutableStateOf(false) }
     if (open.isNotEmpty()) {
         val label = stringResource(R.string.kn_names_being_claimed)
-        IconButton(onClick = { showList = true }, modifier = Modifier.semantics { contentDescription = label }) {
+        // A 44 item on the bar's glass, beside "How it works" (a Material IconButton is 48 and
+        // would stretch the shared capsule).
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .clickable { showList = true }
+                .semantics { contentDescription = label },
+        ) {
             Box {
                 Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = KaspaTeal)
                 Box(
@@ -1556,18 +1559,11 @@ private fun KachatClaimsListSheet(vm: KachatLiveViewModel, onDismiss: () -> Unit
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {
-                // The inline navigation bar: "Claiming" and Done (right).
-                Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
-                    Text(
-                        stringResource(R.string.kn_claiming_title),
-                        color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                    TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterEnd)) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    }
-                }
+                // The inline navigation bar: "Claiming" and Done (right) on glass.
+                SheetNavBar(
+                    title = stringResource(R.string.kn_claiming_title),
+                    trailing = { SheetBarButton(stringResource(R.string.done), onClick = { dismiss() }) },
+                )
                 Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -2116,18 +2112,11 @@ fun KachatOfferDetailSheet(state: KachatOfferState, onClose: () -> Unit, vm: Kac
                     )
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                        // The inline navigation bar: Close (left) and "Offer".
-                        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
-                            TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                                Text(stringResource(R.string.close), color = KaspaTeal, fontSize = 17.sp)
-                            }
-                            Text(
-                                stringResource(R.string.kl_offer),
-                                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                        }
+                        // The inline navigation bar: Close (left, on glass) and "Offer".
+                        SheetNavBar(
+                            title = stringResource(R.string.kl_offer),
+                            leading = { SheetBarButton(stringResource(R.string.close), onClick = { dismiss() }) },
+                        )
                         Column(
                             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -2780,18 +2769,11 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                     KachatRegistrationProgressContent(shown, vm)
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                        // The inline navigation bar: Cancel (left) and "Claim Name".
-                        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
-                            TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                                Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                            }
-                            Text(
-                                stringResource(R.string.kn_claim_name_title),
-                                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                        }
+                        // The inline navigation bar: Cancel (left) and "Claim Name", Cancel on glass.
+                        SheetNavBar(
+                            title = stringResource(R.string.kn_claim_name_title),
+                            leading = { SheetBarButton(stringResource(R.string.cancel), onClick = { dismiss() }) },
+                        )
                         Column(
                             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -3164,10 +3146,8 @@ fun KachatLiveNameDetailScreen(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(info.display, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal) }
-                },
+                title = { Text(info.display, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -3700,18 +3680,11 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
                     KachatRenewReview(info, chosen.toLong(), onBack = { showReview = false }, onClose = { dismiss() }, vm = vm)
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                        // The inline navigation bar: Cancel (left) and "Renew".
-                        Box(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 8.dp)) {
-                            TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                                Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                            }
-                            Text(
-                                stringResource(R.string.kn_renew),
-                                color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                        }
+                        // The inline navigation bar: Cancel (left) and "Renew", Cancel on glass.
+                        SheetNavBar(
+                            title = stringResource(R.string.kn_renew),
+                            leading = { SheetBarButton(stringResource(R.string.cancel), onClick = { dismiss() }) },
+                        )
                         Column(
                             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -4261,7 +4234,7 @@ private fun KachatRoutePage(onBack: () -> Unit, content: @Composable () -> Unit)
         topBar = {
             CenterAlignedTopAppBar(
                 title = {},
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal) } },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
