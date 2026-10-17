@@ -10206,32 +10206,42 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
         )
     }
 
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.connection_status), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                actions = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
+    // iOS presents Connection Status as a sheet holding a Form (ConnectionStatusDetailView): the
+    // grouped sheet palette, rounded top 10 below the status bar, the screen behind dimmed, an
+    // inline bar with Done on glass.
+    val primaryHost = activeNodes.firstOrNull()?.ip?.let { ip ->
+        com.kachat.app.services.grpc.parseNodeAddress(ip)?.host ?: ip.substringAfter("://")
+    }
+    // iOS writes "138 ms" and colours it by speed: green under 100, the primary colour under
+    // 200, orange under 500, red above.
+    val latencyMs = activeNodes.firstOrNull()?.latency?.removeSuffix("ms")?.trim()?.toIntOrNull()
+    val latencyColor = when {
+        latencyMs == null -> LocalAppColors.current.textSecondary
+        latencyMs < 100 -> LocalAppColors.current.success
+        latencyMs < 200 -> LocalAppColors.current.textPrimary
+        latencyMs < 500 -> LocalAppColors.current.warning
+        else -> LocalAppColors.current.danger
+    }
+    // iOS shows the indexer's host alone (URLComponents.host): no scheme, port or path.
+    val indexerHost = indexerUrl.substringAfter("://").substringBefore("/").substringBefore(":")
+
+    IosSheetPage(grouped = true) {
+        SheetNavBar(
+            title = stringResource(R.string.connection_status),
+            trailing = { SheetBarButton(stringResource(R.string.done), onClick = onBack) },
+        )
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .fillMaxWidth()
+                .weight(1f)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             SettingsSection(title = stringResource(R.string.connection_status)) {
-                ConnectionInfoRow(stringResource(R.string.status), statusText, statusColor)
+                ConnectionStatusRow(stringResource(R.string.status), statusText, dot = statusColor)
                 SettingsDivider()
-                ConnectionInfoRow(
+                ConnectionStatusRow(
                     stringResource(R.string.protocol),
                     if (activeNodes.firstOrNull()?.ip?.let { com.kachat.app.services.grpc.parseNodeAddress(it)?.secure } == true) {
                         "gRPC (secure)"
@@ -10239,28 +10249,35 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                         "gRPC (plaintext)"
                     }
                 )
-                SettingsDivider()
-                ConnectionInfoRow(stringResource(R.string.connected_node), activeNodes.firstOrNull()?.ip ?: "None")
-                SettingsDivider()
-                ConnectionInfoRow(stringResource(R.string.latency), activeNodes.firstOrNull()?.latency ?: "—", statusColor)
-                SettingsDivider()
-                ConnectionInfoRow(stringResource(R.string.indexer), indexerUrl.substringAfter("://").substringBefore("/"))
-                SettingsDivider()
-                ConnectionInfoRow(stringResource(R.string.last_sync), lastSyncAt)
                 // Honest all-blocked explanation: only shown once the pool has concluded that
                 // NO node answers at all on this network (see NodePoolManager's
                 // nodeConnectionsBlocked doc) - a plain red "Disconnected" with no reason
-                // otherwise reads as an app bug on firewalled/captive networks.
+                // otherwise reads as an app bug on firewalled/captive networks. Laid out as
+                // iOS's "Node Network: Blocked" row with its caption under it.
                 if (nodeConnectionsBlocked && status == ConnStatus.DISCONNECTED) {
                     SettingsDivider()
+                    ConnectionStatusRow("Node Network", "Blocked", valueColor = LocalAppColors.current.warning)
                     Text(
                         stringResource(R.string.node_connections_blocked),
-                        color = LocalAppColors.current.warning,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.padding(16.dp)
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
                     )
                 }
+                // iOS leaves the node and latency rows out until there is one.
+                if (primaryHost != null) {
+                    SettingsDivider()
+                    ConnectionStatusRow(stringResource(R.string.connected_node), primaryHost, monospaced = true)
+                }
+                if (latencyMs != null) {
+                    SettingsDivider()
+                    ConnectionStatusRow(stringResource(R.string.latency), "$latencyMs ms", valueColor = latencyColor)
+                }
+                SettingsDivider()
+                ConnectionStatusRow(stringResource(R.string.indexer), indexerHost, monospaced = true)
+                SettingsDivider()
+                ConnectionStatusRow(stringResource(R.string.last_sync), lastSyncAt)
             }
 
             if (showPoolSections) {
@@ -10282,7 +10299,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
             }
 
             // iOS's Actions section: plain text buttons, a spinner in the row while it runs, no
-            // toast; Clear asks first. The primary node is the section's footer.
+            // toast; Clear asks first. The primary node's host is the section's footer.
             Column {
                 SettingsSection(title = stringResource(R.string.actions)) {
                     // Refresh/Clear operate on pool discovery, which is off while pinned to a
@@ -10310,7 +10327,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                         enabled = poolActionsEnabled,
                     ) { viewModel.reconnect() }
                 }
-                activeNodes.firstOrNull()?.ip?.let { primary ->
+                primaryHost?.let { primary ->
                     Text(
                         text = "Primary: $primary",
                         color = LocalAppColors.current.textSecondary,
@@ -10324,19 +10341,19 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
             if (showPoolSections) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(8.dp).background(LocalAppColors.current.success, CircleShape))
                         Spacer(Modifier.width(8.dp))
-                        Text(text = stringResource(R.string.active_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                        Text(text = stringResource(R.string.active_nodes), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textSecondary)
                     }
                     Text(text = activeNodes.size.toString(), color = LocalAppColors.current.textSecondary)
                 }
                 Column(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(LocalAppColors.current.surface)
                 ) {
                     activeNodes.forEachIndexed { index, node ->
                         Box(Modifier.clickable { copyNodeEndpoint(node) }) { ActiveNodeRow(node) }
@@ -10345,25 +10362,25 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                 }
                 Text(
                     text = stringResource(R.string.tap_a_node_to_copy_host_port),
-                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 13.sp,
                     color = LocalAppColors.current.textSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(8.dp).background(LocalAppColors.current.textSecondary, CircleShape))
                         Spacer(Modifier.width(8.dp))
-                        Text(text = stringResource(R.string.other_nodes), style = MaterialTheme.typography.titleMedium, color = LocalAppColors.current.textPrimary)
+                        Text(text = stringResource(R.string.other_nodes), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textSecondary)
                     }
                     Text(text = otherNodes.size.toString(), color = LocalAppColors.current.textSecondary)
                 }
                 Column(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(LocalAppColors.current.surface)
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(LocalAppColors.current.surface)
                 ) {
                     otherNodes.forEachIndexed { index, node ->
                         AllNodeRow(node)
@@ -10373,7 +10390,7 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
                 Text(
                     text = stringResource(R.string.all_discovered_nodes_sorted_by_state),
-                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 13.sp,
                     color = LocalAppColors.current.textSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
@@ -10382,6 +10399,42 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
 
             Spacer(modifier = Modifier.height(100.dp))
         }
+    }
+}
+
+/** A label/value row of iOS ConnectionStatusDetailView's first section: the label 17pt, the value
+ *  trailing in the secondary colour (or [valueColor]) - a host name in monospaced caption, as iOS
+ *  writes the node and indexer - and, for Status, a 10pt dot in [dot]'s colour before it. */
+@Composable
+private fun ConnectionStatusRow(
+    label: String,
+    value: String,
+    valueColor: Color = LocalAppColors.current.textSecondary,
+    monospaced: Boolean = false,
+    dot: Color? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = LocalAppColors.current.textPrimary, fontSize = 17.sp, maxLines = 1)
+        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.weight(1f))
+        if (dot != null) {
+            Box(modifier = Modifier.size(10.dp).background(dot, CircleShape))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            value,
+            color = valueColor,
+            fontSize = if (monospaced) 12.sp else 17.sp,
+            fontFamily = if (monospaced) FontFamily.Monospace else null,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -10765,52 +10818,68 @@ private fun KaspaNodeQuickAccessSection(viewModel: ConnectionViewModel) {
         else -> normalizedTrusted
     }
 
+    // iOS: a Picker row in a Form - the "Kaspa Node" label, the current choice trailing in the
+    // accent colour with the menu's up/down chevrons - and the explanation as the section's
+    // footer, under the card rather than in it.
+    Column {
     SettingsSection(title = stringResource(R.string.kaspa_node)) {
-        Box {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = true }
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    selectedLabel,
-                    color = LocalAppColors.current.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(Icons.Default.ArrowDropDown, null, tint = LocalAppColors.current.textSecondary)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                // The shipped default node is a mainnet node - not offered on testnet (iOS bdae4b7).
-                val selectedNetwork by com.kachat.app.util.KaspaNetwork.selected.collectAsState()
-                if (selectedNetwork == com.kachat.app.util.KaspaNetwork.Type.MAINNET || normalizedTrusted == defaultAddress.trim()) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.default_recommended)) },
-                    onClick = {
-                        expanded = false
-                        viewModel.setTrustedNodeAddress(defaultAddress)
-                    }
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+                .heightIn(min = 52.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.kaspa_node),
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 17.sp,
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.weight(1f))
+            Box {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        selectedLabel,
+                        color = KaspaTeal,
+                        fontSize = 17.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.UnfoldMore, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.automatic_scan)) },
-                    onClick = {
-                        expanded = false
-                        viewModel.setTrustedNodeAddress("")
-                    }
-                )
-                savedNodeAddresses.forEach { entry ->
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    // The shipped default node is a mainnet node - not offered on testnet (iOS bdae4b7).
+                    val selectedNetwork by com.kachat.app.util.KaspaNetwork.selected.collectAsState()
+                    if (selectedNetwork == com.kachat.app.util.KaspaNetwork.Type.MAINNET || normalizedTrusted == defaultAddress.trim()) {
                     DropdownMenuItem(
-                        text = { Text(entry.label.ifBlank { entry.address }) },
+                        text = { Text(stringResource(R.string.default_recommended)) },
                         onClick = {
                             expanded = false
-                            viewModel.setTrustedNodeAddress(entry.address)
+                            viewModel.setTrustedNodeAddress(defaultAddress)
                         }
                     )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.automatic_scan)) },
+                        onClick = {
+                            expanded = false
+                            viewModel.setTrustedNodeAddress("")
+                        }
+                    )
+                    savedNodeAddresses.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry.label.ifBlank { entry.address }) },
+                            onClick = {
+                                expanded = false
+                                viewModel.setTrustedNodeAddress(entry.address)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -10824,7 +10893,14 @@ private fun KaspaNodeQuickAccessSection(viewModel: ConnectionViewModel) {
                 Text(stringResource(R.string.connected_only_to_this_node), color = KaspaTeal, fontSize = 13.sp)
             }
         }
-        SettingsFooter(stringResource(R.string.kaspa_node_quick_access_footer))
+    }
+    Text(
+        stringResource(R.string.kaspa_node_quick_access_footer),
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        color = LocalAppColors.current.textSecondary,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp)
+    )
     }
 }
 
