@@ -38,6 +38,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -189,27 +190,24 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                // the address the marketplace buys with, and its balance - tap to pick another (iOS
-                // eb9b027; the principal item stands where the title would be)
-                title = {
-                    if (live != null) KachatMarketSourcePill(live)
-                    else Text(".kachat", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+            // iOS's bar: the connection dot on glass leading, the address the marketplace buys
+            // with and its balance as the principal item - tap to pick another (iOS eb9b027) - and
+            // the claims button and "?" on one piece of glass trailing.
+            HubSectionTopBar(
+                onBack = onBack,
+                principal = {
+                    if (live != null) KachatMarketSourcePill(live) else BalanceTopBarLabel()
                 },
-                navigationIcon = {
-                    if (onBack != null) IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
-                actions = {
-                    // names being claimed: shown only while there are some (iOS b219bb0)
-                    if (live != null) KachatClaimsButton(live)
-                    IconButton(onClick = { showHowItWorks = true }) {
-                        Icon(Icons.Outlined.HelpOutline, contentDescription = stringResource(R.string.km_how_it_works), tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
-            )
+            ) {
+                // names being claimed: shown only while there are some (iOS b219bb0)
+                if (live != null) KachatClaimsButton(live)
+                ToolbarIconButton(
+                    Icons.Outlined.HelpOutline,
+                    stringResource(R.string.km_how_it_works),
+                    onClick = { showHowItWorks = true },
+                    iconSize = HubHelpIconSize,
+                )
+            }
         }
     ) { padding ->
       Box(Modifier.fillMaxSize().padding(padding).then(if (isLive) Modifier.nestedScroll(pullState.nestedScrollConnection) else Modifier)) {
@@ -300,7 +298,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 }
             }
             // Registrations in flight: the claims button in the top bar (KachatClaimsButton, iOS b219bb0).
-            UnderlineTabBar(
+            HubUnderlineTabBar(
                 // Names for sale, expired names anyone may claim, names in their grace period
                 // (counting down to release), and everything that happens in the registry. Your own
                 // names (and the offers you made) live in Profile > Your Domains (iOS 0765ce0,
@@ -360,6 +358,96 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
+    }
+}
+
+/** iOS's "questionmark.circle" in a toolbar: a 22pt glyph, which Material's 20/24 circle reaches
+ *  at 26. */
+internal val HubHelpIconSize = 26.dp
+
+/**
+ * The bar of a Kaspa Hub section that iOS gives the main pages' toolbar with no large title
+ * (.kachat, KaChat Stats, the Address Book): the connection dot on a glass disc leading, the
+ * [principal] item (the balance, unless the section has its own) centred, and [actions] on one
+ * piece of glass trailing. Inside the Hub there is no back arrow, as on iOS (the system Back
+ * still closes the section); reached some other way with [onBack], it sits before the dot.
+ */
+@Composable
+internal fun HubSectionTopBar(
+    onBack: (() -> Unit)?,
+    principal: @Composable () -> Unit = { BalanceTopBarLabel() },
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.background)
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (onBack != null && !LocalInHubSection.current) {
+                ToolbarGlassGroup {
+                    ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+                }
+            }
+            ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
+        }
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) { principal() }
+        ToolbarGlassGroup(content = actions)
+    }
+}
+
+/**
+ * iOS's UnderlineTabBar: equal-width tabs, each label 15pt bold on one line - the selected one in
+ * the accent colour, the rest at half strength - shrinking to fit down to 75% rather than being
+ * cut ("Marketplace" stays whole), 12 above it, a 2.5pt accent underline 8 below it under the
+ * selected tab, and a hairline under the whole bar.
+ */
+@Composable
+private fun HubUnderlineTabBar(
+    titles: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    Column(modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
+            titles.forEachIndexed { index, title ->
+                val isSelected = index == selectedIndex
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null,
+                            role = androidx.compose.ui.semantics.Role.Tab,
+                        ) { onSelect(index) }
+                        .semantics { selected = isSelected },
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    KachatFitText(
+                        title,
+                        color = if (isSelected) KaspaTeal else KaspaTeal.copy(alpha = 0.5f),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        minScale = 0.75f,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    )
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.5.dp)
+                            .background(if (isSelected) KaspaTeal else Color.Transparent)
+                    )
+                }
+            }
+        }
+        HorizontalDivider(thickness = 0.5.dp, color = colors.divider)
     }
 }
 
