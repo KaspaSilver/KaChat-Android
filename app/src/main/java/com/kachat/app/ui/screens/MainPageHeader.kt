@@ -125,10 +125,10 @@ fun MainPageHeader(
     modifier: Modifier = Modifier,
     /** A back arrow beside the dot. Null on the dock destinations, which are not pushed into. */
     onBack: (() -> Unit)? = null,
-    actions: @Composable RowScope.() -> Unit = {},
     /** The connection dot and the balance. A pushed page iOS gives only a back button and its
      *  title (Help) passes false. */
     showStatus: Boolean = true,
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalAppColors.current
     Column(
