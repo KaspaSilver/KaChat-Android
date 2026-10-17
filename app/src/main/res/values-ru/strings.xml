@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">Оплачено за регистрации и продления</string>
     <string name="ks_fees_unavailable">Комиссии пока недоступны</string>
     <string name="ks_fees_unavailable_body">Ваш индексатор их пока не сообщает. Они появятся здесь, когда начнёт.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">Нет аккаунтов холодного хранилища</string>
+    <string name="cold_storage_empty_body">Отсканируйте или вставьте kpub, экспортированный с вашего устройства KasSigner, чтобы отслеживать его баланс.</string>
 </resources>

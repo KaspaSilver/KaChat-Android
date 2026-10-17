@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallReceived
@@ -184,16 +185,28 @@ fun ColdStorageListScreen(
         }
     ) { padding ->
         if (accounts.isEmpty()) {
+            // iOS ColdStorageView.emptyState: at the top of the list, 40 down - a 40pt shield, a
+            // headline, the subheadline note in the secondary colour, 12 apart.
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(padding)
+                    .padding(horizontal = 24.dp, vertical = 40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.Default.Security, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(16.dp))
+                Icon(Icons.Outlined.Security, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(44.dp))
                 Text(
-                    stringResource(R.string.no_cold_storage_accounts_yet_scan),
+                    stringResource(R.string.cold_storage_empty_title),
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                Text(
+                    stringResource(R.string.cold_storage_empty_body),
                     color = LocalAppColors.current.textSecondary,
+                    fontSize = 15.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }

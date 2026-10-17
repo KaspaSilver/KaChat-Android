@@ -1372,4 +1372,7 @@
     <string name="ks_kachat_fees_detail">پرداخت‌شده برای ثبت‌ها و تمدیدها</string>
     <string name="ks_fees_unavailable">کارمزدها هنوز در دسترس نیستند</string>
     <string name="ks_fees_unavailable_body">ایندکسر شما هنوز آن‌ها را گزارش نمی‌کند. وقتی گزارش کند اینجا نمایش داده می‌شوند.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">هیچ حساب ذخیره سردی وجود ندارد</string>
+    <string name="cold_storage_empty_body">یک kpub صادرشده از دستگاه KasSigner خود را اسکن یا بچسبانید تا موجودی آن را زیر نظر بگیرید.</string>
 </resources>

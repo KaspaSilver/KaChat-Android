@@ -1213,4 +1213,7 @@
     <string name="ks_kachat_fees_detail">Dibayar untuk pendaftaran dan perpanjangan</string>
     <string name="ks_fees_unavailable">Biaya belum tersedia</string>
     <string name="ks_fees_unavailable_body">Indexer Anda belum melaporkannya. Akan muncul di sini setelah dilaporkan.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">Tidak Ada Akun Penyimpanan Dingin</string>
+    <string name="cold_storage_empty_body">Pindai atau tempel kpub yang diekspor dari perangkat KasSigner Anda untuk memantau saldonya.</string>
 </resources>

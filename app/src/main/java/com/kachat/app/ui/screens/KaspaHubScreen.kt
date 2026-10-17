@@ -117,6 +117,11 @@ fun KaspaHubScreen(
         if (openSectionRoute != null && openSection == null) openSectionRoute = null
     }
 
+    // System Back inside a section steps back out to the grid, as re-tapping the Kaspa Hub tab
+    // does - never past it to the start destination. Registered before the section, so a
+    // section's own BackHandler (an open sheet, a page inside it) still comes first.
+    androidx.activity.compose.BackHandler(enabled = openSection != null) { openSectionRoute = null }
+    androidx.compose.runtime.CompositionLocalProvider(LocalInHubSection provides (openSection != null)) {
     when {
         openSection == Screen.KaspaWebsites -> KaspaAppsScreen(
             onBack = { openSectionRoute = null },
@@ -164,6 +169,7 @@ fun KaspaHubScreen(
             colors = colors,
             badgeCount = { badgeCount(it) },
         )
+    }
     }
 }
 

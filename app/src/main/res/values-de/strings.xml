@@ -1338,4 +1338,7 @@
     <string name="ks_kachat_fees_detail">Bezahlt für Registrierungen und Verlängerungen</string>
     <string name="ks_fees_unavailable">Gebühren sind noch nicht verfügbar</string>
     <string name="ks_fees_unavailable_body">Dein Indexer meldet sie noch nicht. Sie erscheinen hier, sobald er es tut.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">Keine Kaltlagerungskonten</string>
+    <string name="cold_storage_empty_body">Scanne oder füge eine von deinem KasSigner-Gerät exportierte kpub ein, um ihr Guthaben zu beobachten.</string>
 </resources>

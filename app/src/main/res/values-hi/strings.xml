@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">पंजीकरण और नवीनीकरण के लिए भुगतान</string>
     <string name="ks_fees_unavailable">शुल्क अभी उपलब्ध नहीं हैं</string>
     <string name="ks_fees_unavailable_body">आपका इंडेक्सर अभी इन्हें नहीं बताता। बताते ही ये यहाँ दिखेंगे।</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">कोई कोल्ड स्टोरेज खाता नहीं</string>
+    <string name="cold_storage_empty_body">अपने KasSigner डिवाइस से निर्यात किया गया kpub स्कैन करें या पेस्ट करें ताकि उसके बैलेंस पर नज़र रख सकें।</string>
 </resources>

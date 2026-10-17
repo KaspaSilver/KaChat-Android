@@ -1542,4 +1542,7 @@
     <string name="ks_kachat_fees_detail">Paid for registrations and renewals</string>
     <string name="ks_fees_unavailable">Fees aren\'t available yet</string>
     <string name="ks_fees_unavailable_body">Your indexer doesn\'t report them yet. They\'ll show here once it does.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">No Cold Storage Accounts</string>
+    <string name="cold_storage_empty_body">Scan or paste a kpub exported from your KasSigner device to watch its balance.</string>
 </resources>

@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">Pagado por registros y renovaciones</string>
     <string name="ks_fees_unavailable">Las comisiones aún no están disponibles</string>
     <string name="ks_fees_unavailable_body">Tu indexador aún no las informa. Aparecerán aquí cuando lo haga.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">Sin cuentas de almacenamiento en frio</string>
+    <string name="cold_storage_empty_body">Escanea o pega una kpub exportada desde tu dispositivo KasSigner para vigilar su saldo.</string>
 </resources>

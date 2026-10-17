@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">注册和续费支付的金额</string>
     <string name="ks_fees_unavailable">暂无费用数据</string>
     <string name="ks_fees_unavailable_body">你的索引器尚未提供这些数据。提供后会显示在这里。</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">没有冷存储账户</string>
+    <string name="cold_storage_empty_body">扫描或粘贴从您的 KasSigner 设备导出的 kpub 以监控其余额。</string>
 </resources>

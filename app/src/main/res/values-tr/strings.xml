@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">Kayıtlar ve yenilemeler için ödenen</string>
     <string name="ks_fees_unavailable">Ücretler henüz mevcut değil</string>
     <string name="ks_fees_unavailable_body">Dizinleyiciniz bunları henüz bildirmiyor. Bildirdiğinde burada görünecek.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">Soguk Depolama Hesabi Yok</string>
+    <string name="cold_storage_empty_body">Bakiyesini izlemek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin veya yapistirin.</string>
 </resources>

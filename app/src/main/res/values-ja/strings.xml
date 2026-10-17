@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">登録と更新の支払い</string>
     <string name="ks_fees_unavailable">手数料はまだ利用できません</string>
     <string name="ks_fees_unavailable_body">インデクサーはまだこれを報告していません。報告されるとここに表示されます。</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">コールドストレージアカウントがありません</string>
+    <string name="cold_storage_empty_body">残高を監視するには、KasSignerデバイスからエクスポートされたkpubをスキャンまたは貼り付けてください。</string>
 </resources>

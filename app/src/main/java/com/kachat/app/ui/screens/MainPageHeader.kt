@@ -111,6 +111,11 @@ fun ToolbarIconButton(
     }
 }
 
+/** True inside a Kaspa Hub section: iOS opens the section in the Hub's own place with no back
+ *  button (re-tapping the Kaspa Hub tab steps back out), so the header leaves its back arrow off.
+ *  The system Back still closes the section - each one keeps its BackHandler. */
+val LocalInHubSection = androidx.compose.runtime.compositionLocalOf { false }
+
 /** iOS's large navigation title: 34pt bold. */
 val LargeTitleSize = 34.sp
 
@@ -121,6 +126,9 @@ fun MainPageHeader(
     /** A back arrow beside the dot. Null on the dock destinations, which are not pushed into. */
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    /** The connection dot and the balance. A pushed page iOS gives only a back button and its
+     *  title (Help) passes false. */
+    showStatus: Boolean = true,
 ) {
     val colors = LocalAppColors.current
     Column(
@@ -141,15 +149,15 @@ fun MainPageHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (onBack != null) {
+                if (onBack != null && !LocalInHubSection.current) {
                     ToolbarGlassGroup {
                         ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
                     }
                 }
-                ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
+                if (showStatus) ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
             }
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                BalanceTopBarLabel()
+                if (showStatus) BalanceTopBarLabel()
             }
             ToolbarGlassGroup(content = actions)
         }

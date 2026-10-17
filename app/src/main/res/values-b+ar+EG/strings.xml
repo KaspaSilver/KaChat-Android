@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">المدفوع مقابل التسجيلات والتجديدات</string>
     <string name="ks_fees_unavailable">الرسوم غير متاحة بعد</string>
     <string name="ks_fees_unavailable_body">المفهرس لديك لا يعرضها بعد. ستظهر هنا عندما يفعل.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">لا توجد حسابات تخزين بارد</string>
+    <string name="cold_storage_empty_body">امسح ضوئيًا أو الصق kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده.</string>
 </resources>

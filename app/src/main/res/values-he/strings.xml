@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">שולם עבור רישומים וחידושים</string>
     <string name="ks_fees_unavailable">העמלות עדיין לא זמינות</string>
     <string name="ks_fees_unavailable_body">האינדקסר שלך עדיין לא מדווח עליהן. הן יופיעו כאן כשהוא ידווח.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">אין חשבונות אחסון קר</string>
+    <string name="cold_storage_empty_body">סרוק או הדבק kpub שיוצא מהמכשיר KasSigner שלך כדי לעקוב אחר היתרה שלו.</string>
 </resources>

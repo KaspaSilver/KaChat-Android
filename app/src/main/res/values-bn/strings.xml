@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">নিবন্ধন ও নবায়নের জন্য প্রদত্ত</string>
     <string name="ks_fees_unavailable">ফি এখনও পাওয়া যাচ্ছে না</string>
     <string name="ks_fees_unavailable_body">আপনার ইনডেক্সার এখনও এগুলো জানায় না। জানালে এখানে দেখাবে।</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">কোনো কোল্ড স্টোরেজ অ্যাকাউন্ট নেই</string>
+    <string name="cold_storage_empty_body">এর ব্যালেন্স নজরে রাখতে আপনার KasSigner ডিভাইস থেকে এক্সপোর্ট করা একটি kpub স্ক্যান বা পেস্ট করুন।</string>
 </resources>

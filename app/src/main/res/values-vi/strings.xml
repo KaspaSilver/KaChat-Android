@@ -1341,4 +1341,7 @@
     <string name="ks_kachat_fees_detail">Đã trả cho đăng ký và gia hạn</string>
     <string name="ks_fees_unavailable">Chưa có dữ liệu phí</string>
     <string name="ks_fees_unavailable_body">Trình lập chỉ mục của bạn chưa báo cáo. Dữ liệu sẽ hiện ở đây khi có.</string>
+    <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
+    <string name="cold_storage_empty_title">Không có tài khoản lưu trữ lạnh</string>
+    <string name="cold_storage_empty_body">Quét hoặc dán một kpub được xuất từ thiết bị KasSigner của bạn để theo dõi số dư của nó.</string>
 </resources>
