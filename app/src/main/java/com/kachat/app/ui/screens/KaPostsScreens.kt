@@ -116,18 +116,26 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbDownOffAlt
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PanTool
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Save
@@ -248,7 +256,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.ui.text.style.TextAlign
 
@@ -892,12 +899,22 @@ private fun KaPostsFeedScreen(
     Scaffold(
         containerColor = colors.background,
         floatingActionButton = {
-            // iOS createPostButton: a 56pt circle in the material fill with the pencil in accent,
+            // iOS createPostButton: a 56pt circle in the material fill with an outlined
+            // square.and.pencil in accent (22pt semibold, so drawn a size up from the icon row's),
             // not a filled accent button - the chat list's create-chat button shape.
+            //
+            // iOS sits it 16pt above the tab bar. The shell already lifts this screen clear of the
+            // dock (and the system bar under it), but the Scaffold adds the navigation-bar inset
+            // to its FAB again, which parked the button an extra bar-height up the feed. While the
+            // dock shows, that second inset is taken back off; with the dock hidden (a thread is
+            // open) the inset is the real one and stays.
+            val dockHidden by walletViewModel.hideBottomBar.collectAsState()
+            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             com.kachat.app.ui.theme.IosGlassFab(
                 onClick = { if (fundingGate.active) showFundingGate = true else showComposer = true },
-                icon = Icons.Default.Edit,
+                icon = SquareAndPencilLarge,
                 contentDescription = "New post",
+                modifier = Modifier.offset(y = if (dockHidden) 0.dp else navBarBottom),
             )
         },
     ) { padding ->
@@ -932,32 +949,40 @@ private fun KaPostsFeedScreen(
                 // where the hamburger used to be: five icons and three tabs do not fit one row on
                 // a phone, and the point of the change is that every destination is one tap,
                 // which a cramped row would undo.
+                //
+                // iOS sideMenuIconRow: SideMenuItem's order (profile, search, bell, drafts,
+                // bookmarks, muted, blocked, scheduled, settings), outline symbols in the primary
+                // colour, each in a 42pt frame, 2pt apart, the row inset 6pt. Nine of them come to
+                // 406pt, a few points more than the iPhone's 402, so iOS lets the row (and the feed
+                // under it) spill ~2pt past each edge; the first icon lands ~4pt in, which the
+                // 4dp start here reproduces on a phone wide enough to hold the row as written.
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    KaPostsMenuIcon(Icons.Default.AccountCircle, "Profile") {
+                    KaPostsMenuIcon(Icons.Outlined.AccountCircle, "Profile") {
                         showMyProfile = true; viewModel.loadMyProfile()
                     }
-                    KaPostsMenuIcon(Icons.Default.Search, "Search") { showSearch = true }
+                    KaPostsMenuIcon(Icons.Outlined.Search, "Search") { showSearch = true }
                     KaPostsMenuIcon(
-                        Icons.Default.Notifications,
+                        Icons.Outlined.Notifications,
                         "Notifications",
                         onClick = { showNotifications = true },
                         badgeCount = kaPostsUnseen,
                     )
-                    KaPostsMenuIcon(Icons.Default.EditNote, "Drafts") {
+                    KaPostsMenuIcon(SquareAndPencil, "Drafts") {
                         drafts = KaPostDraftStore.load(draftContext, myAddressForDrafts.orEmpty())
                         showDrafts = true
                     }
-                    KaPostsMenuIcon(Icons.Default.Schedule, "Scheduled") {
+                    KaPostsMenuIcon(Icons.Outlined.BookmarkBorder, "Bookmarks") { showBookmarks = true }
+                    KaPostsMenuIcon(Icons.Outlined.VolumeOff, "Muted") { moderationKind = false }
+                    KaPostsMenuIcon(Icons.Outlined.PanTool, "Blocked") { moderationKind = true }
+                    KaPostsMenuIcon(Icons.Outlined.Schedule, "Scheduled") {
                         viewModel.refreshScheduledPosts()
                         showScheduled = true
                     }
-                    KaPostsMenuIcon(Icons.Default.BookmarkBorder, "Bookmarks") { showBookmarks = true }
-                    KaPostsMenuIcon(Icons.Default.VolumeOff, "Muted") { moderationKind = false }
-                    KaPostsMenuIcon(Icons.Default.Block, "Blocked") { moderationKind = true }
-                    KaPostsMenuIcon(Icons.Default.Settings, "KaPosts Settings") { showKaPostsSettings = true }
+                    KaPostsMenuIcon(Icons.Outlined.Settings, "KaPosts Settings") { showKaPostsSettings = true }
                     Spacer(Modifier.weight(1f))
                 }
                 FeedTabsRow(
@@ -1051,10 +1076,12 @@ private fun KaPostsFeedScreen(
                             item {
                                 Box(modifier = Modifier.fillParentMaxHeight(0.8f).fillMaxWidth()) {
                                     FeedEmptyState(
+                                        // iOS emptyStateIcon: person.2, square.and.pencil and flame,
+                                        // all outline symbols.
                                         icon = when (tab) {
-                                            KaPostsViewModel.FeedTab.FOLLOWING -> Icons.Default.Group
-                                            KaPostsViewModel.FeedTab.FEED -> Icons.Default.Edit
-                                            KaPostsViewModel.FeedTab.POPULAR -> Icons.Default.LocalFireDepartment
+                                            KaPostsViewModel.FeedTab.FOLLOWING -> Icons.Outlined.Group
+                                            KaPostsViewModel.FeedTab.FEED -> SquareAndPencil
+                                            KaPostsViewModel.FeedTab.POPULAR -> Icons.Outlined.LocalFireDepartment
                                         },
                                         title = when (tab) {
                                             KaPostsViewModel.FeedTab.FOLLOWING -> "Nothing from people you follow"
@@ -1162,8 +1189,9 @@ private fun KaPostsFeedScreen(
                                             tint = KaspaTeal,
                                             modifier = Modifier.size(14.dp),
                                         )
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("View thread", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        // iOS: 6pt apart, the label in caption semibold.
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("View thread", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                                     }
                                 }
                                 HorizontalDivider(
@@ -2285,62 +2313,78 @@ fun KaPostCell(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
+                // iOS: name (subheadline bold), Follow (caption bold) and the bell (caption bold),
+                // 6pt apart, then a Spacer that puts the "..." at the line's far right.
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = name,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    // When the post was made, and whether it was edited, sit in their own row
-                    // under the actions now - this line carries only Follow / Following (iOS).
-                    if (!isMine) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val isFollowing = isFollowingPoster
+                    // The name, Follow and the bell share what the "..." leaves, so a long name
+                    // truncates instead of pushing the menu off the line.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f),
+                    ) {
                         Text(
-                            text = if (isFollowing) "Following" else "Follow",
-                            color = if (isFollowing) colors.textSecondary else KaspaTeal,
+                            text = name,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            modifier = Modifier.clickable {
-                                lightHaptic()
-                                viewModel.toggleFollow(post.posterAddress, post.posterPubkey)
-                            },
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
-                        // Notified when this person posts - its own switch, beside Follow. On says
-                        // "you'll be notified when they post", off says it won't, for a moment,
-                        // right under the name.
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            if (isWatchingPoster) Icons.Default.Notifications else Icons.Default.NotificationsNone,
-                            contentDescription = stringResource(
-                                if (isWatchingPoster) R.string.kaposts_bell_stop else R.string.kaposts_bell_notify
-                            ),
-                            tint = KaspaTeal,
-                            modifier = Modifier
-                                .size(15.dp)
-                                .clickable {
+                        // When the post was made, and whether it was edited, sit in their own row
+                        // under the actions now - this line carries only Follow / Following (iOS).
+                        if (!isMine) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val isFollowing = isFollowingPoster
+                            Text(
+                                text = if (isFollowing) "Following" else "Follow",
+                                color = if (isFollowing) colors.textSecondary else KaspaTeal,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.clickable {
                                     lightHaptic()
-                                    val on = viewModel.toggleWatch(post.posterAddress)
-                                    bellNote = context.getString(
-                                        if (on) R.string.kaposts_bell_on_note else R.string.kaposts_bell_off_note,
-                                        name,
-                                    )
+                                    viewModel.toggleFollow(post.posterAddress, post.posterPubkey)
                                 },
+                            )
+                            // Notified when this person posts - its own switch, beside Follow. On says
+                            // "you'll be notified when they post", off says it won't, for a moment,
+                            // right under the name.
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                if (isWatchingPoster) Icons.Default.Notifications else Icons.Default.NotificationsNone,
+                                contentDescription = stringResource(
+                                    if (isWatchingPoster) R.string.kaposts_bell_stop else R.string.kaposts_bell_notify
+                                ),
+                                tint = KaspaTeal,
+                                // iOS's caption-bold bell is ~12pt across; this glyph is 2/3 of its box.
+                                modifier = Modifier
+                                    .size(17.dp)
+                                    .clickable {
+                                        lightHaptic()
+                                        val on = viewModel.toggleWatch(post.posterAddress)
+                                        bellNote = context.getString(
+                                            if (on) R.string.kaposts_bell_on_note else R.string.kaposts_bell_off_note,
+                                            name,
+                                        )
+                                    },
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    // iOS: the subheadline "ellipsis" in a 30 x 24pt tap frame at the line's end.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(width = 30.dp, height = 24.dp)
+                            .clickable { showOverflow = true },
+                    ) {
+                        Icon(
+                            Icons.Default.MoreHoriz,
+                            contentDescription = "More",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        Icons.Default.MoreHoriz,
-                        contentDescription = "More",
-                        tint = colors.textSecondary,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { showOverflow = true },
-                    )
                     if (editing) {
                         // Edit mode: no threading and no draft prompt - this is a change to
                         // something already posted, not a new one being written.
@@ -2448,7 +2492,8 @@ fun KaPostCell(
                         fontSize = 11.sp,
                     )
                 }
-                Spacer(modifier = Modifier.height(3.dp))
+                // iOS stacks the cell's rows 6pt apart.
+                Spacer(modifier = Modifier.height(6.dp))
                 // ClickableText (not Text): tapping an @mention resolves the KNS domain and
                 // opens that user's profile, tapping a link opens the Copy/Open dialog (iOS
                 // parity - links never auto-open). ClickableText consumes EVERY tap on the
@@ -2468,10 +2513,11 @@ fun KaPostCell(
                         text = postAnnotated,
                         // The post a thread is FOCUSED on reads larger than the posts around it,
                         // the way X sizes the one you opened against its ancestors and replies.
+                        // iOS: body (17/22) in a feed, title3 (20/25) for the focused post.
                         style = TextStyle(
                             color = colors.textPrimary,
-                            fontSize = if (isRoot) 18.sp else 15.sp,
-                            lineHeight = if (isRoot) 24.sp else 20.sp,
+                            fontSize = if (isRoot) 20.sp else 17.sp,
+                            lineHeight = if (isRoot) 25.sp else 22.sp,
                         ),
                         maxLines = if (foldText) 8 else Int.MAX_VALUE,
                         overflow = if (foldText) TextOverflow.Ellipsis else TextOverflow.Clip,
@@ -2517,12 +2563,12 @@ fun KaPostCell(
                     )
                 }
                 if (truncatesLongText && isLongPost) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         if (textExpanded) "Show less" else "Show more",
                         color = KaspaTeal,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         modifier = Modifier.clickable { textExpanded = !textExpanded },
                     )
                 }
@@ -2535,7 +2581,8 @@ fun KaPostCell(
                     onShowTranslation = { viewModel.showTranslation(post) },
                 )
                 post.poll?.let { poll ->
-                    Spacer(modifier = Modifier.height(10.dp))
+                    // The stack's 6pt plus the card's own 6pt top padding (iOS).
+                    Spacer(modifier = Modifier.height(12.dp))
                     KaPostPollCard(
                         poll = poll,
                         // A poll of someone else's is votable; a closed one, or one still on its
@@ -2547,7 +2594,7 @@ fun KaPostCell(
                     )
                 }
                 post.quoted?.let { quoted ->
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     // Same per-address slices for the quoted author as for the cell's own.
                     val quotedAvatarUrl by viewModel.senderProfiles
                         .collectSelectedAsState(quoted.posterAddress) { it[quoted.posterAddress] }
@@ -2564,7 +2611,9 @@ fun KaPostCell(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                // iOS: the stack's 6pt plus the row's 2pt top padding (applied inside the row) -
+                // less the 4dp the actions here keep above their icons as touch padding.
+                Spacer(modifier = Modifier.height(2.dp))
                 EngagementRow(
                     post = post,
                     commentCount = viewModel.commentCount(post),
@@ -2621,8 +2670,9 @@ fun KaPostCell(
                     text = remember(post.timestamp, post.editedAt) {
                         postTimestampLabel(post.timestamp) + if (post.editedAt != null) " · edited" else ""
                     },
+                    // iOS: caption (12pt), secondary.
                     color = colors.textSecondary,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                 )
             }
         }
@@ -2764,19 +2814,24 @@ private fun EngagementRow(
     }
     // Seven actions - comment, like, dislike, repost, bookmark, share, Tip - plus the delivery
     // mark, on screens from 320dp up and at whatever font scale the reader has set. iOS spaces
-    // them 18pt on a width it can count on; here the gap gives way first (18 -> 12 -> 8dp by
-    // available width), and only if that is still not enough does the row wrap to a second line,
-    // so nothing is ever clipped off the end. Tip keeps its intrinsic width throughout - iOS
-    // gives its label layoutPriority for the same reason.
+    // them 18pt apart; each action here carries 4dp of touch padding either side of its icon,
+    // which is already 8 of those 18, and the symbols' own frames run a little wider than these
+    // glyphs, so a 10dp gap puts the icons as far apart as on the iPhone (measured side by side).
+    // The gap gives way first on narrow rows (10 -> 7 -> 4dp by available width), and only if
+    // that is still not enough does the row wrap to a second line, so nothing is ever clipped off
+    // the end. Tip keeps its intrinsic width throughout - iOS gives its label layoutPriority for
+    // the same reason.
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 2.dp)) {
         val gap = when {
-            maxWidth >= 330.dp -> 18.dp
-            maxWidth >= 290.dp -> 12.dp
-            else -> 8.dp
+            maxWidth >= 300.dp -> 10.dp
+            maxWidth >= 270.dp -> 7.dp
+            else -> 4.dp
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.foundation.layout.FlowRow(
-                modifier = Modifier.weight(1f),
+                // iOS's buttons have no padding, so the comment bubble starts flush with the post
+                // text above it; pulled back by this row's 4dp touch padding to do the same.
+                modifier = Modifier.weight(1f).offset(x = (-4).dp),
                 horizontalArrangement = Arrangement.spacedBy(gap),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
@@ -2784,7 +2839,8 @@ private fun EngagementRow(
             EngagementAction(
                 countdownKey = null,
                 deadline = null,
-                icon = { Icon(Icons.Outlined.ChatBubbleOutline, null, tint = colors.textSecondary, modifier = Modifier.size(18.dp)) },
+                // Icon boxes sized so each glyph comes out as wide as its subheadline SF symbol.
+                icon = { Icon(Icons.Outlined.ChatBubbleOutline, null, tint = colors.textSecondary, modifier = Modifier.size(19.dp)) },
                 count = commentCount,
                 onTap = { onHaptic(); onComment() },
                 onCancel = onCancelCountdown,
@@ -2803,6 +2859,8 @@ private fun EngagementRow(
                 },
                 count = post.likes,
                 countTint = if (post.likedByMe) likeRed else null,
+                // iOS's like button keeps 5pt between heart and count; the others 4pt.
+                countGap = 5.dp,
                 onTap = onLike,
                 onCancel = onCancelCountdown,
             )
@@ -2815,7 +2873,7 @@ private fun EngagementRow(
                 Icon(
                     if (post.dislikedByMe) Icons.Outlined.ThumbDown else Icons.Outlined.ThumbDownOffAlt, null,
                     tint = if (post.dislikedByMe) dislikeOrange else colors.textSecondary,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(17.dp),
                 )
             },
             count = post.dislikes,
@@ -2832,7 +2890,8 @@ private fun EngagementRow(
                     Icon(
                         Icons.Default.Repeat, null,
                         tint = if (post.repostedByMe) KaspaTeal else colors.textSecondary,
-                        modifier = Modifier.size(18.dp),
+                        // arrow.2.squarepath runs wide; the Material arrows are narrower.
+                        modifier = Modifier.size(20.dp),
                     )
                 },
                 count = post.reposts,
@@ -2881,8 +2940,9 @@ private fun EngagementRow(
                 countdownKey = null,
                 deadline = null,
                 icon = {
+                    // iOS square.and.arrow.up: the box with an arrow out of its top.
                     Icon(
-                        Icons.Default.Share, null,
+                        Icons.Outlined.IosShare, null,
                         tint = colors.textSecondary,
                         modifier = Modifier.size(18.dp),
                     )
@@ -2935,7 +2995,8 @@ private fun EngagementRow(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(3.dp))
-                    Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                    // iOS: subheadline semibold.
+                    Text(stringResource(R.string.kaposts_tip_title), color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
                 }
                 tipCount(false)
             }
@@ -3050,6 +3111,8 @@ private fun EngagementAction(
     onCancel: (String) -> Unit,
     /** The count takes the icon's active colour (iOS tints the whole button). */
     countTint: Color? = null,
+    /** Space between the icon and its count: iOS's HStack spacing (4pt; the like button's 5pt). */
+    countGap: androidx.compose.ui.unit.Dp = 4.dp,
 ) {
     val colors = LocalAppColors.current
     Row(
@@ -3067,7 +3130,7 @@ private fun EngagementAction(
             icon()
         }
         if (count != null && count > 0) {
-            Spacer(modifier = Modifier.width(5.dp))
+            Spacer(modifier = Modifier.width(countGap))
             // Raw integers, as on iOS - no "1.2K".
             Text(
                 text = "$count",
@@ -7165,6 +7228,63 @@ private fun NewPostsPill(count: Int, onClick: () -> Unit) {
 }
 
 
+/**
+ * SF `square.and.pencil` - iOS's Drafts icon and its new-post button. Material has no outlined
+ * square-with-pencil (EditNote is lines, Edit a bare pencil), so this draws one that reads the
+ * same: a rounded square left open at its top-right corner, and an outlined pencil leaving it
+ * there. Stroked in black on a 24 x 24 grid so an Icon tints it like any other icon; its strokes
+ * match the outlined Material icons beside it in the row.
+ */
+private val SquareAndPencil: ImageVector by lazy { squareAndPencil(viewport = 24f) }
+
+/**
+ * The same glyph drawn larger in the same 24dp box: iOS's new-post button sets it at 22pt
+ * semibold, a size up from the icon row's 20pt, and IosGlassFab draws every icon at 24dp.
+ */
+private val SquareAndPencilLarge: ImageVector by lazy { squareAndPencil(viewport = 21f) }
+
+/** [viewport] below 24 zooms the glyph (and its strokes) in, keeping it centred. */
+private fun squareAndPencil(viewport: Float): ImageVector =
+    ImageVector.Builder("SquareAndPencil", 24.dp, 24.dp, viewport, viewport).apply {
+        val shift = (viewport - 24f) / 2f
+        addGroup(translationX = shift, translationY = shift)
+        // The square: from the top edge's open end round to the right edge's, counter-clockwise.
+        addPath(
+            androidx.compose.ui.graphics.vector.PathBuilder().apply {
+                moveTo(12f, 5f)
+                lineTo(6f, 5f)
+                arcTo(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = false, x1 = 3f, y1 = 8f)
+                lineTo(3f, 18f)
+                arcTo(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = false, x1 = 6f, y1 = 21f)
+                lineTo(16f, 21f)
+                arcTo(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = false, x1 = 19f, y1 = 18f)
+                lineTo(19f, 12f)
+            }.nodes,
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round,
+        )
+        // The pencil: point inside the square, body out past its open corner, a band near the end.
+        addPath(
+            androidx.compose.ui.graphics.vector.PathBuilder().apply {
+                moveTo(9.5f, 14.5f)
+                lineTo(10.28f, 11.6f)
+                lineTo(18.34f, 3.54f)
+                lineTo(20.46f, 5.66f)
+                lineTo(12.4f, 13.72f)
+                close()
+                moveTo(16.64f, 5.24f)
+                lineTo(18.76f, 7.36f)
+            }.nodes,
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 1.8f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round,
+        )
+        clearGroup()
+    }.build()
+
 /** One KaPosts destination in the header's icon row - see the row's own comment. */
 @Composable
 private fun KaPostsMenuIcon(
@@ -7176,7 +7296,9 @@ private fun KaPostsMenuIcon(
     badgeCount: Int = 0,
     onClick: () -> Unit,
 ) {
-    IconButton(onClick = onClick, modifier = Modifier.size(46.dp)) {
+    // iOS: a 20pt semibold symbol in a 42pt frame. A 24dp Material glyph is drawn ~20dp across
+    // (the grid keeps 2dp clear on each side), the same as the symbol measures on the iPhone.
+    IconButton(onClick = onClick, modifier = Modifier.size(42.dp)) {
         Box {
             Icon(
                 icon,
@@ -7186,7 +7308,7 @@ private fun KaPostsMenuIcon(
                     contentDescription
                 },
                 tint = LocalAppColors.current.textPrimary,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(24.dp),
             )
             // A count rather than a plain dot: in here you are one tap from the list, so how many
             // are waiting is worth knowing before you decide to look.
