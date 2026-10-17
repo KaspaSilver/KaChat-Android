@@ -7011,18 +7011,32 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (back != null) {
-                // iOS 26: the centred chevron in the label colour.
-                SheetBarIconButton(
-                    Icons.Filled.ArrowBackIosNew,
-                    stringResource(R.string.back),
-                    onClick = {
-                        haptic(com.kachat.app.util.IosHaptic.SELECTION)
-                        back()
-                    },
-                    tint = LocalAppColors.current.textPrimary,
-                )
+                // iOS KaPostsStatusChrome: the chevron is its own bar button (semibold, in the
+                // accent) grouped with the dot on ONE piece of glass - not the system back.
+                val dotColorHex by hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
+                ToolbarGlassGroup {
+                    ToolbarIconButton(
+                        Icons.Filled.ArrowBackIosNew,
+                        stringResource(R.string.back),
+                        onClick = {
+                            haptic(com.kachat.app.util.IosHaptic.SELECTION)
+                            back()
+                        },
+                        iconSize = 18.dp,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .clickable { ConnectionStatusOverlayState.open() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.size(12.dp).background(Color(dotColorHex), CircleShape))
+                    }
+                }
+            } else {
+                ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
             }
-            ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
         }
         BalanceTopBarLabel(modifier = Modifier.align(Alignment.Center))
     }
