@@ -1208,20 +1208,23 @@ private fun kaChatStatsFormatter(): java.text.DecimalFormat =
 /** "774,086"; from a million on, short: "1M", "1.01M", "2.5B" (rounded down, so it never shows
  *  a figure not yet reached; iOS b6f55a5, 1df1bcb `grouped`). */
 fun kaChatStatsGrouped(value: Long): String =
-    kaChatStatsCompact(value.toDouble()) ?: kaChatStatsFormatter().format(value)
+    kaChatStatsCompact(value) ?: kaChatStatsFormatter().format(value)
 
 /** Sompi as KAS with commas and at most two decimals: "21,035.5 KAS" (short from a million KAS
  *  on, like the counts; iOS b6f55a5, 1df1bcb `kas`). */
 fun kaChatStatsKas(sompi: Long): String {
     val value = java.math.BigDecimal.valueOf(sompi).movePointLeft(8)
-    val text = kaChatStatsCompact(value.toDouble()) ?: kaChatStatsFormatter().format(value)
+    val text = kaChatStatsCompact(sompi / 100_000_000) ?: kaChatStatsFormatter().format(value)
     return "$text ${KaspaUnit.symbol}"
 }
 
-/** Null below a million (iOS 1df1bcb `compact`). */
-private fun kaChatStatsCompact(value: Double): String? {
-    val (size, suffix) = listOf(1e12 to "T", 1e9 to "B", 1e6 to "M").firstOrNull { value >= it.first } ?: return null
-    val scaled = kotlin.math.floor(value / size * 100) / 100
+/** Null below a million (iOS 1df1bcb, 49b5e1c `compact`). Whole-number math: in floating point
+ *  1,150,000 / 1e6 * 100 is 114.999..., which rounded down read "1.14M". */
+private fun kaChatStatsCompact(value: Long): String? {
+    val (size, suffix) = listOf(1_000_000_000_000L to "T", 1_000_000_000L to "B", 1_000_000L to "M")
+        .firstOrNull { value >= it.first } ?: return null
+    val hundredths = value / (size / 100)
+    val scaled = java.math.BigDecimal.valueOf(hundredths).movePointLeft(2)
     return kaChatStatsFormatter().format(scaled) + suffix
 }
 
