@@ -169,4 +169,66 @@ class ChatRepositoryTest {
             ChatRepository.firstContactInboxTagFor(them.uppercase(), me, ChatRequestState(inboxTagged = setOf(them)), none) { true }
         )
     }
+
+    // MARK: payment direction (iOS fetchPaymentsFromKaspaAPI) - what a fresh import restores
+
+    private val payee = "kaspa:qqpayee0000000000000000000000000000000000000000000000000000"
+    private val payer = "kaspa:qqpayer0000000000000000000000000000000000000000000000000000"
+
+    @Test
+    fun `a payment we sent is outgoing to its destination, not to our change`() {
+        val direction = ChatRepository.classifyPaymentTx(
+            me,
+            inputs = listOf(me, me),
+            outputs = listOf(payee to 98_868_482L, me to 5_000_000_000L)
+        )
+        assertEquals(PaymentTxDirection.Outgoing(payee, 98_868_482L), direction)
+    }
+
+    @Test
+    fun `the smaller of two foreign outputs is the payment, the larger change`() {
+        val change = "kaspa:qqchange000000000000000000000000000000000000000000000000000"
+        val direction = ChatRepository.classifyPaymentTx(
+            me,
+            inputs = listOf(me),
+            outputs = listOf(change to 9_000_000_000L, payee to 100_000_000L)
+        )
+        assertEquals(PaymentTxDirection.Outgoing(payee, 100_000_000L), direction)
+    }
+
+    @Test
+    fun `a payment to us from someone else is incoming from the first foreign input`() {
+        val direction = ChatRepository.classifyPaymentTx(
+            me,
+            inputs = listOf(null, payer),
+            outputs = listOf(me to 100_000_000L, payer to 42L)
+        )
+        assertEquals(PaymentTxDirection.Incoming(payer, 100_000_000L), direction)
+    }
+
+    @Test
+    fun `any input of ours makes it ours to have sent, whatever its position or case`() {
+        val direction = ChatRepository.classifyPaymentTx(
+            me,
+            inputs = listOf(payer, me.uppercase()),
+            outputs = listOf(payee to 7L, me to 100L)
+        )
+        assertEquals(PaymentTxDirection.Outgoing(payee, 7L), direction)
+    }
+
+    @Test
+    fun `a move back to ourselves is no payment, and nothing resolved is retried`() {
+        assertEquals(
+            PaymentTxDirection.None,
+            ChatRepository.classifyPaymentTx(me, inputs = listOf(me), outputs = listOf(me to 100L))
+        )
+        assertEquals(
+            PaymentTxDirection.None,
+            ChatRepository.classifyPaymentTx(me, inputs = listOf(payer), outputs = listOf(payee to 100L))
+        )
+        assertEquals(
+            PaymentTxDirection.Unresolved,
+            ChatRepository.classifyPaymentTx(me, inputs = listOf(null, ""), outputs = listOf(me to 100L))
+        )
+    }
 }

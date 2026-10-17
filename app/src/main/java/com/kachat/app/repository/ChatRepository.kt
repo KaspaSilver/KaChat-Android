@@ -1175,22 +1175,21 @@ class ChatRepository @Inject constructor(
      * where the now-deleted local cache left off. Matches iOS's `wipeIncomingMessagesAndResync`.
      *
      * [contactIds] scopes it: null wipes every 1:1 conversation and resets every cursor
-     * (payment baseline, handshake block_time cursor, and every per-contact-per-alias message
-     * cursor — see [MessageSyncCursorEntity]); a list wipes only those conversations' received
-     * messages and resets only their per-contact cursors. The handshake cursor is wallet-global
-     * (no per-contact variant exists), so a scoped wipe rewinds it too — the re-scan is purely
-     * additive for unselected chats because their handshake rows still exist and every insert
-     * is txId-deduped. The payment baseline is left alone in scoped mode: it is a fixed
-     * first-run floor, not a moving cursor, so the selected chats' deleted payment bubbles
-     * re-fetch anyway, and rewinding it to 0 would dredge up pre-install payment history from
-     * strangers the user never selected.
+     * (the payment-history scan, handshake block_time cursor, and every per-contact-per-alias
+     * message cursor — see [MessageSyncCursorEntity]); a list wipes only those conversations'
+     * received messages and resets only their per-contact cursors. The handshake cursor is
+     * wallet-global (no per-contact variant exists), so a scoped wipe rewinds it too — the
+     * re-scan is purely additive for unselected chats because their handshake rows still exist
+     * and every insert is txId-deduped. The re-sync reads the whole payment history either way
+     * (iOS `wipeAndResyncIncomingMessages` phase 3, from the retention cutoff), which is just as
+     * additive for unselected chats.
      */
     suspend fun wipeIncomingMessages(address: String, contactIds: List<String>?) {
         ensureStillActive(address)
         if (contactIds == null) {
             database.messageDao().deleteReceivedForWallet(address)
             database.messageDao().deleteSyncCursorsForWallet(address)
-            settingsRepository.setPaymentSyncBaseline(address, 0L)
+            settingsRepository.setPaymentHistoryScanned(address, false)
         } else {
             if (contactIds.isEmpty()) return
             database.messageDao().deleteReceivedForContacts(address, contactIds)
@@ -1227,7 +1226,10 @@ class ChatRepository @Inject constructor(
             onChatProgress(done, total)
         }
         ensureStillActive(address)
-        networkService.kaspaRestApi.value?.let { syncPayments(address, it) }
+        // The whole payment history, back to the retention cutoff (iOS wipeAndResyncIncomingMessages
+        // phase 3, `fetchIncomingPayments(blockTime: historyStart)`): the wiped payment bubbles are
+        // incoming messages too.
+        networkService.kaspaRestApi.value?.let { syncPayments(address, it, fullHistory = true) }
 
         val messageCount = if (contactIds == null) {
             database.messageDao().countReceivedForWallet(address)
@@ -1255,7 +1257,7 @@ class ChatRepository @Inject constructor(
         // at the old cursor — ZERO historical handshakes came back and no contacts were
         // recreated ("the account doesn't sync anymore"). The live baseline resets too so the
         // re-import runs as a silent read backfill, not a notification storm.
-        settingsRepository.setPaymentSyncBaseline(address, 0L)
+        settingsRepository.setPaymentHistoryScanned(address, false)
         settingsRepository.setHandshakeSyncCursor(address, 0L)
         settingsRepository.setHandshakeOutSyncCursor(address, 0L)
         settingsRepository.clearLiveNotificationBaseline(address)
@@ -1369,7 +1371,12 @@ class ChatRepository @Inject constructor(
                 val caughtUp = syncPayments(
                     myAddress, it,
                     limit = if (fromPollLoop && catchUpSince == null) PAYMENT_POLL_LIMIT else 50,
-                    since = catchUpSince
+                    since = catchUpSince,
+                    // The one-time whole-history read ([syncPayments]) belongs to a full sync -
+                    // the post-import initial sync, launch, pull-to-refresh - never to the
+                    // fast poll tick, which would otherwise retry a failing 200-page read every
+                    // 20 seconds.
+                    allowHistoryScan = !fromPollLoop
                 )
                 lastPaymentPollAt = now
                 // caught up: a gap that opened during this fetch would have set an earlier one
@@ -2470,33 +2477,98 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Detects plain incoming KAS payments (no kchat:1: payload — those are handled by
-     * syncHandshakes/syncContextualMessages already) and creates a new conversation for
-     * the sender if we've never seen them before, matching the real reference apps'
-     * "Received X KAS" payment bubbles.
+     * The payment sync (iOS `fetchPaymentsFromKaspaAPI` + `processPayments`): reads the chatting
+     * address's transactions from the REST API's full-transactions endpoint and files every
+     * payment in a chat - one we SENT in a chat with its destination ("Sent X KAS"), one we
+     * RECEIVED in the payer's chat, or, from an address we have no contact for, in the self-chat
+     * with the payer noted ("Received X KAS\nFrom: <address>"). Messages and handshakes
+     * (kchat:1: payloads other than a payment) are the other syncs' job. See [processPayment].
      *
-     * Only payments received after the first time this ever ran for this address count —
-     * otherwise a fresh install would immediately dredge up years of old payment history
-     * as a wall of "new" chats. See AppSettingsRepository.paymentSyncBaseline.
+     * The first full sync of an address on this device ([allowHistoryScan], until
+     * [AppSettingsRepository.paymentHistoryScanned]) reads its WHOLE history, as iOS's first
+     * payment phase after an import does (`lastPollTime == 0`, so `fetchFullTransactionsPaginated`
+     * from block time 0, clamped to the message-retention cutoff): a fresh import gets back the
+     * same payment chats iOS shows. History older than this device's first sync lands read and
+     * silent ([isBackfill], iOS `walletImportBaselineMs`). [fullHistory] forces that read (the
+     * wipe-and-re-sync).
+     *
+     * Otherwise [since] (a payment catch-up, iOS 20155aa) pages further back - up to
+     * [PAYMENT_CATCH_UP_MAX_PAGES] pages - until the transactions are older than it, and without
+     * it one page of [limit] is read. Returns whether every page needed was fetched.
      */
-    /**
-     * [since] (a payment catch-up, iOS 20155aa): pages further back - up to
-     * [PAYMENT_CATCH_UP_MAX_PAGES] pages - until the transactions are older than it. Returns
-     * whether every page needed was fetched.
-     */
-    private suspend fun syncPayments(myAddress: String, restApi: KaspaRestApi, limit: Int = 50, since: Long? = null): Boolean {
-        val baseline = settingsRepository.paymentSyncBaseline(myAddress).first()
-        if (baseline == null) {
-            settingsRepository.setPaymentSyncBaseline(myAddress, System.currentTimeMillis())
-            return true
+    private suspend fun syncPayments(
+        myAddress: String,
+        restApi: KaspaRestApi,
+        limit: Int = 50,
+        since: Long? = null,
+        allowHistoryScan: Boolean = true,
+        fullHistory: Boolean = false,
+    ): Boolean {
+        val historyScan = fullHistory ||
+            (allowHistoryScan && !settingsRepository.paymentHistoryScanned(myAddress).first())
+        if (!historyScan) return syncPaymentPages(myAddress, restApi, limit, since, history = false)
+        // One whole-history read at a time: a second sync arriving meanwhile leaves it to the one
+        // already reading (txid dedupe would make the overlap harmless, but not free).
+        if (!paymentHistoryScanMutex.tryLock()) return false
+        return try {
+            val complete = syncPaymentPages(myAddress, restApi, PAYMENT_HISTORY_PAGE_SIZE, since = null, history = true)
+            // Only a read that got every page counts: a failed page leaves the flag unset, so the
+            // next full sync reads the history again rather than keeping a partial one for good.
+            if (complete) settingsRepository.setPaymentHistoryScanned(myAddress, true)
+            Log.i("ChatRepository", "Payment history read for …${myAddress.takeLast(8)}: complete=$complete")
+            complete
+        } finally {
+            paymentHistoryScanMutex.unlock()
         }
+    }
+
+    /** Held while [syncPayments] reads a whole payment history. */
+    private val paymentHistoryScanMutex = kotlinx.coroutines.sync.Mutex()
+
+    /** One full-transactions page. A [history] read retries the same page on iOS's growing pause
+     *  (`historyPageRetryDelaysSeconds`: api.kaspa.org is shared and rate-limits, and a single
+     *  429 must not end a 200-page read); a 4xx other than 429 is not asked again. */
+    private suspend fun fetchPaymentPage(
+        restApi: KaspaRestApi, myAddress: String, limit: Int, offset: Int, history: Boolean
+    ): List<TransactionResponse> {
+        val delays = if (history) PAYMENT_HISTORY_RETRY_DELAYS_MS else listOf(0L)
+        var last: Exception? = null
+        for (pause in delays) {
+            if (pause > 0) delay(pause)
+            try {
+                return restApi.getTransactions(myAddress, limit = limit, offset = offset)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                last = e
+                val code = (e as? retrofit2.HttpException)?.code()
+                if (code != null && code != 429 && code < 500) break
+            }
+        }
+        throw last ?: IllegalStateException("no attempt made")
+    }
+
+    private suspend fun syncPaymentPages(
+        myAddress: String,
+        restApi: KaspaRestApi,
+        limit: Int,
+        since: Long?,
+        history: Boolean,
+    ): Boolean {
+        // A history read stops at the message-retention cutoff (iOS applyMessageRetention(to: 0)):
+        // anything older would be pruned again right away.
+        val retentionCutoff = if (history) {
+            settingsRepository.backupRetention.first().cutoffMillis(System.currentTimeMillis())
+        } else null
 
         val transactions = mutableListOf<TransactionResponse>()
         var complete = true
         var page = 0
         while (true) {
             val batch = try {
-                restApi.getTransactions(myAddress, limit = limit, offset = page * limit)
+                fetchPaymentPage(restApi, myAddress, limit, page * limit, history)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 noteIndexerError()
                 Log.w("ChatRepository", "Failed to fetch transactions", e)
@@ -2506,7 +2578,16 @@ class ChatRepository @Inject constructor(
             }
             transactions += batch
             page++
-            if (since == null || batch.size < limit || page >= PAYMENT_CATCH_UP_MAX_PAGES) break
+            if (batch.size < limit) break
+            if (history) {
+                if (page >= PAYMENT_HISTORY_MAX_PAGES) break
+                if (retentionCutoff != null) {
+                    val oldest = batch.mapNotNull { it.blockTime }.filter { it > 0 }.minOrNull()
+                    if (oldest != null && oldest <= retentionCutoff) break
+                }
+                continue
+            }
+            if (since == null || page >= PAYMENT_CATCH_UP_MAX_PAGES) break
             val oldest = batch.mapNotNull { it.blockTime }.minOrNull() ?: break
             if (oldest < since) break
         }
@@ -2520,12 +2601,18 @@ class ChatRepository @Inject constructor(
 
         if (seenPaymentTxIds.size > 5_000) seenPaymentTxIds.clear()
         for (tx in transactions) {
+            // Stop if the user switched/imported a different wallet mid-read (iOS processPayments
+            // isActiveWallet): the rest belong to [myAddress], and the checks below read the
+            // ACTIVE wallet's own addresses and key.
+            if (!isActiveWalletAddress(myAddress)) return false
             try {
                 // Early id diff against what this process already handled — the endpoint has no
-                // cursor, so most of every page is transactions seen on the previous poll.
+                // cursor, so most of every page is transactions seen on the previous poll. Not
+                // for a history read: after a wipe, ids handled earlier this process are exactly
+                // the bubbles that must come back (the stored-txid check below still dedupes).
                 val seenKey = "$myAddress|${tx.transactionId}"
-                if (seenKey in seenPaymentTxIds) continue
-                if ((tx.blockTime ?: 0L) < baseline) {
+                if (!history && seenKey in seenPaymentTxIds) continue
+                if (retentionCutoff != null && (tx.blockTime ?: 0L) in 1 until retentionCutoff) {
                     seenPaymentTxIds.add(seenKey)
                     continue
                 }
@@ -2555,7 +2642,8 @@ class ChatRepository @Inject constructor(
     }
 
     /** Returns true when the outcome is FINAL (recorded, or permanently irrelevant) — false only
-     *  for the transient no-input-address-resolved gap, which the next poll must retry. */
+     *  for the transient no-input-address-resolved gap, which the next poll must retry.
+     *  Both directions, as iOS `processPayments`: a payment we sent goes to [processOutgoingPayment]. */
     private suspend fun processPayment(myAddress: String, tx: TransactionResponse): Boolean {
         val payloadBytes = tx.payload?.hexToBytes() ?: ByteArray(0)
         // A KaChat payment carries `kchat:1:pay:` with its memo encrypted to us (iOS always
@@ -2570,20 +2658,39 @@ class ChatRepository @Inject constructor(
         if (tx.outputs.any { isScriptAddress(it.scriptPublicKeyAddress) } ||
             tx.inputs.any { isScriptAddress(it.previousOutpointAddress) }) return true
 
-        // Checks every input for a resolved address, not just the first — the REST API's
-        // resolve_previous_outpoints=light can leave an individual input's address unresolved
-        // (e.g. transient lookup gap) even when a later input in the same tx resolved fine.
-        // Previously this bailed out entirely on inputs[0] being unresolved, silently dropping
-        // an otherwise-valid received payment with no message, no contact, and no notification.
-        val sender = tx.inputs.firstNotNullOfOrNull { it.previousOutpointAddress }
-        if (sender == null) {
-            Log.w("ChatRepository", "Dropping payment ${tx.transactionId}: no input address resolved")
-            return false // transient — the next poll retries this tx
+        // Which way the money went (iOS fetchPaymentsFromKaspaAPI's input/output analysis) - see
+        // [classifyPaymentTx]. Every input is checked for a resolved address, not just the first:
+        // the REST API's resolve_previous_outpoints=light can leave an individual input's address
+        // unresolved (e.g. transient lookup gap) even when a later input in the same tx resolved
+        // fine. Bailing out on inputs[0] being unresolved used to silently drop an otherwise-valid
+        // received payment with no message, no contact, and no notification.
+        val direction = classifyPaymentTx(
+            myAddress,
+            tx.inputs.map { it.previousOutpointAddress },
+            tx.outputs.map { it.scriptPublicKeyAddress to it.amount }
+        )
+        val sender: String
+        val receivedSompi: Long
+        when (direction) {
+            PaymentTxDirection.Unresolved -> {
+                Log.w("ChatRepository", "Dropping payment ${tx.transactionId}: no input address resolved")
+                return false // transient — the next poll retries this tx
+            }
+            PaymentTxDirection.None -> return true
+            // A payment we sent from the chatting address. It used to be skipped here as
+            // "already recorded locally at send time" - true only on the phone that sent it, so a
+            // fresh import never got back a chat it had paid into (iOS restores them).
+            is PaymentTxDirection.Outgoing ->
+                return processOutgoingPayment(myAddress, tx, direction.recipient, direction.amountSompi)
+            is PaymentTxDirection.Incoming -> {
+                sender = direction.sender
+                receivedSompi = direction.amountSompi
+            }
         }
-        if (sender == myAddress) return true // our own outgoing transaction — already recorded locally at send time
-
-        val receivedSompi = tx.outputs.filter { it.scriptPublicKeyAddress == myAddress }.sumOf { it.amount }
-        if (receivedSompi <= 0) return true
+        // Moving your own money between your own addresses is not a conversation (iOS
+        // processPayments). Checked before the contact lookup, as iOS does: an own address CAN
+        // also be a saved contact, and it is still not a conversation.
+        if (walletManager.isOwnSpendingAddress(sender)) return true
 
         // Same tombstone check as processHandshake/syncContextualMessages — an auto-detected
         // payment can just as easily resurrect a deleted contact as a message can. This one
@@ -2686,6 +2793,68 @@ class ChatRepository @Inject constructor(
         return true
     }
 
+    /**
+     * A payment the chatting address SENT, read back from its history (iOS `processPayments` with
+     * `isOutgoing: true`): filed as "Sent X KAS" in a chat with its destination - the chat is
+     * created when missing, since you chose that address (iOS `getOrCreateContact`; never a
+     * Message Request, a sent payment is in it). It is what brings back, after a fresh import, a
+     * chat you only ever paid into. The send path files the same row under the same txid when it
+     * happens on this phone ([com.kachat.app.viewmodels.ChatViewModel.sendPayment],
+     * [recordPlainSendFromChattingAddress]), so the stored-txid check makes this a no-op there;
+     * a send still in flight is merged by [finalizeProvisionalMessage].
+     *
+     * Never a chat with yourself: the chatting address, one of its spending addresses (iOS
+     * `allSpendingAddresses`), or another account saved on this phone (which [addContact]
+     * refuses as a contact anyway). A deleted chat stays deleted for anything sent before the
+     * deletion. Outgoing, so read, and never notified.
+     */
+    private suspend fun processOutgoingPayment(
+        myAddress: String,
+        tx: TransactionResponse,
+        recipient: String,
+        amountSompi: Long,
+    ): Boolean {
+        if (amountSompi <= 0 || !KaspaAddress.isValid(recipient)) return true
+        if (isOwnAccountAddress(recipient) || isOwnSpendingAddress(recipient)) return true
+        if (!com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(recipient)) return true
+        val blockTime = tx.blockTime ?: System.currentTimeMillis()
+        if (isTombstoned(database.contactDao().getDeletedContact(recipient, myAddress), tx.transactionId, blockTime)) return true
+        // A payment_notice's bubble is that notice's alone (IOS-083 run 11), whatever its direction.
+        if (noticeBubbleStore.isNoticeBubble(myAddress, tx.transactionId) &&
+            database.messageDao().exists(tx.transactionId, myAddress)
+        ) return true
+
+        if (database.contactDao().getContact(recipient, myAddress) == null) {
+            // Active: a chat you paid into, and from now on watched for their reply like any
+            // contact (iOS addMessageToConversation's `isPaymentWeSent` routing state).
+            database.contactDao().insert(
+                ContactEntity(id = recipient, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null)
+            )
+        }
+        val filed = insertMessageIfAbsent(
+            MessageEntity(
+                id = tx.transactionId,
+                contactId = recipient,
+                walletAddress = myAddress,
+                type = "pay",
+                direction = "sent",
+                // The send path's own wording, so its row and this one read the same.
+                plaintextBody = "Sent ${KaspaUnit.plain(amountSompi)} ${KaspaUnit.symbol}",
+                encryptedPayload = "",
+                amountSompi = amountSompi,
+                blockTimestamp = blockTime,
+                isRead = true,
+                deliveryStatus = "sent"
+            )
+        )
+        if (!filed) return true
+        Log.i("ChatRepository", "Restored sent payment ${tx.transactionId.take(12)} in its chat")
+        // A chat with no handshake gets its contact note, so the next import finds it again
+        // (iOS addMessageToConversation -> ensureContactStash for a sent message).
+        contactNotesLazy.get().onMessageDelivered(recipient)
+        return true
+    }
+
     companion object {
         /**
          * [firstContactInboxTag]'s decision. Every address check is case-insensitive, the
@@ -2708,6 +2877,61 @@ class ChatRepository @Inject constructor(
             if (hasReceivedFrom(key)) return null
             if (!inboxSupported()) return null
             return com.kachat.app.util.InboxTag.compute(address)
+        }
+
+        /**
+         * The payment sync's direction analysis (iOS `fetchPaymentsFromKaspaAPI`): [inputs] are the
+         * spent outpoints' addresses (null = not resolved), [outputs] each output's address and
+         * amount.
+         *  - Outgoing: one of the inputs is ours and something goes to another address. The
+         *    destination is the smallest output to an address that is neither ours nor the
+         *    first foreign input's (the larger one is usually change); a foreign input's own
+         *    output is the fallback.
+         *  - Incoming: none of the resolved inputs is ours and something comes to us; the payer is
+         *    the first foreign input.
+         *  - Unresolved: no input address resolved at all - the next poll retries.
+         * Addresses compare case-insensitively.
+         */
+        internal fun classifyPaymentTx(
+            myAddress: String,
+            inputs: List<String?>,
+            outputs: List<Pair<String?, Long>>,
+        ): PaymentTxDirection {
+            val resolved = inputs.mapNotNull { it?.trim()?.takeIf { a -> a.isNotEmpty() } }
+            if (resolved.isEmpty()) return PaymentTxDirection.Unresolved
+            val weAreSender = resolved.any { it.equals(myAddress, ignoreCase = true) }
+            val foreignSender = resolved.firstOrNull { !it.equals(myAddress, ignoreCase = true) }
+
+            var toUs = 0L
+            var toOthers = 0L
+            var recipient: String? = null
+            var recipientAmount = 0L
+            for ((rawAddress, amount) in outputs) {
+                val address = rawAddress?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+                if (address.equals(myAddress, ignoreCase = true)) {
+                    toUs += amount
+                    continue
+                }
+                toOthers += amount
+                if (foreignSender == null || !address.equals(foreignSender, ignoreCase = true)) {
+                    // the actual destination, not change back to a co-signing sender: prefer the
+                    // smaller amount (the larger is usually change)
+                    if (recipient == null || amount < recipientAmount) {
+                        recipient = address
+                        recipientAmount = amount
+                    }
+                } else if (recipient == null) {
+                    recipient = address
+                    recipientAmount = amount
+                }
+            }
+
+            if (weAreSender) {
+                if (toOthers <= 0 || recipient == null) return PaymentTxDirection.None
+                return PaymentTxDirection.Outgoing(recipient, recipientAmount)
+            }
+            if (toUs <= 0 || foreignSender == null) return PaymentTxDirection.None
+            return PaymentTxDirection.Incoming(foreignSender, toUs)
         }
 
         /** A pay-to-script-hash address (`kaspa:p...` / `kaspatest:p...`, version byte 0x08):
@@ -2829,6 +3053,12 @@ class ChatRepository @Inject constructor(
         private const val PAYMENT_POLL_LIMIT = 10
         /** How far back a payment catch-up pages at most (x 50 transactions) - iOS 20155aa. */
         private const val PAYMENT_CATCH_UP_MAX_PAGES = 4
+        /** A whole-history payment read ([syncPayments]): iOS fetchFullTransactionsPaginated's
+         *  page size and its 10,000-transaction cap. */
+        private const val PAYMENT_HISTORY_PAGE_SIZE = 50
+        private const val PAYMENT_HISTORY_MAX_PAGES = 10_000 / PAYMENT_HISTORY_PAGE_SIZE
+        /** Pauses before each try of one history page (iOS historyPageRetryDelaysSeconds). */
+        private val PAYMENT_HISTORY_RETRY_DELAYS_MS = listOf(0L, 600L, 2_000L, 5_000L)
 
         /** Poll-path contact-sweep shape — see [syncContextualMessages]. Matches iOS's
          *  startForegroundContactSweep (5s between sweeps, 100-120ms between contacts, cap 40). */
@@ -2880,4 +3110,14 @@ class ChatRepository @Inject constructor(
          *  be a live in-flight send whose finalize is about to run. */
         internal const val PROVISIONAL_REPAIR_MIN_AGE_MS = 2L * 60 * 1000
     }
+}
+
+/** Which way a transaction moved money for the payment sync - see [ChatRepository.classifyPaymentTx]. */
+internal sealed class PaymentTxDirection {
+    /** No input address resolved yet. */
+    object Unresolved : PaymentTxDirection()
+    /** Neither a payment we sent nor one we received (e.g. a move back to ourselves). */
+    object None : PaymentTxDirection()
+    data class Incoming(val sender: String, val amountSompi: Long) : PaymentTxDirection()
+    data class Outgoing(val recipient: String, val amountSompi: Long) : PaymentTxDirection()
 }

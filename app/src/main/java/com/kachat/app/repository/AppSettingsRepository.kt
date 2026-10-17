@@ -821,13 +821,21 @@ class AppSettingsRepository @Inject constructor(
     }
 
     /**
-     * The first moment payment-sync ever ran for this wallet address, so historical
-     * payments from before the user started using KaChat never turn into auto-created
-     * chats — only payments received after that moment do. Keyed per-address since a
-     * device can hold multiple saved accounts, each with its own real payment history.
+     * Whether the payment sync has read this wallet address's WHOLE transaction history once on
+     * this device (back to the message-retention cutoff), as iOS's first payment phase does after
+     * an import (`fetchNewMessages` with `lastPollTime == 0` -> `fetchFullTransactionsPaginated`
+     * from block time 0). Until it has, the next full sync pages through all of it, so a fresh
+     * import gets back its payment chats: payments it sent (a chat with each destination) and
+     * payments it received (the payer's chat, or the self-chat for a stranger). Set only once a
+     * scan fetched every page; cleared by a wipe so the re-sync reads it all again. Keyed
+     * per-address since a device can hold multiple saved accounts.
+     *
+     * This replaced `payment_sync_baseline_<address>`, a first-run floor below which every
+     * payment was dropped - a fresh import restored none of its payment history (iOS restores
+     * all of it). That key is no longer read.
      */
-    fun paymentSyncBaseline(address: String): Flow<Long?> = dataStore.data.map {
-        it[paymentSyncBaselineKey(address)]
+    fun paymentHistoryScanned(address: String): Flow<Boolean> = dataStore.data.map {
+        it[paymentHistoryScannedKey(address)] ?: false
     }
 
     /**
@@ -856,7 +864,7 @@ class AppSettingsRepository @Inject constructor(
      * How far into the `handshakes/by-receiver` stream this wallet has already synced — the
      * indexer's `block_time` cursor, so a sync only asks for what's genuinely new since last time
      * instead of re-fetching the same recent window every cycle. Keyed per-address like
-     * [paymentSyncBaseline]. Unlike contextual messages (per-contact-per-alias, so tracked in Room
+     * [paymentHistoryScanned]. Unlike contextual messages (per-contact-per-alias, so tracked in Room
      * — see [com.kachat.app.models.MessageSyncCursorEntity]), handshakes-by-receiver is a single
      * stream for the whole wallet, so a DataStore value is enough.
      */
@@ -867,7 +875,7 @@ class AppSettingsRepository @Inject constructor(
     /**
      * Per-account toggle for whether the "Setup Guide" re-entry points (the Profile screen's
      * "Welcome Guide" row and the "Edit KNS Profile" screen's "Setup Guide" section) are shown.
-     * Keyed per-address like [paymentSyncBaseline] so switching accounts on the same device
+     * Keyed per-address like [paymentHistoryScanned] so switching accounts on the same device
      * doesn't carry the choice over. Defaults to `true` (unset key) to match pre-existing
      * behavior for anyone who had these guides visible before this toggle existed.
      */
@@ -1118,7 +1126,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
     suspend fun setPendingKnsCommit(commit: PendingKnsCommit) = dataStore.edit { it[KEY_PENDING_KNS_COMMIT] = Gson().toJson(commit) }
     suspend fun clearPendingKnsCommit() = dataStore.edit { it.remove(KEY_PENDING_KNS_COMMIT) }
-    suspend fun setPaymentSyncBaseline(address: String, value: Long) = dataStore.edit { it[paymentSyncBaselineKey(address)] = value }
+    suspend fun setPaymentHistoryScanned(address: String, value: Boolean) = dataStore.edit { it[paymentHistoryScannedKey(address)] = value }
     suspend fun setHandshakeSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeSyncCursorKey(address)] = value }
 
     /** Cursor for the OUTGOING handshakes/by-sender restore pass — separate stream, separate cursor. */
@@ -1129,7 +1137,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setHandshakeOutSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeOutSyncCursorKey(address)] = value }
     suspend fun setShowSetupGuides(address: String, value: Boolean) = dataStore.edit { it[showSetupGuidesKey(address)] = value }
 
-    private fun paymentSyncBaselineKey(address: String) = longPreferencesKey("payment_sync_baseline_$address")
+    private fun paymentHistoryScannedKey(address: String) = booleanPreferencesKey("payment_history_scanned_$address")
     private fun liveNotificationBaselineKey(address: String) = longPreferencesKey("live_notification_baseline_$address")
     private fun handshakeSyncCursorKey(address: String) = longPreferencesKey("handshake_sync_cursor_$address")
     private fun handshakeOutSyncCursorKey(address: String) = longPreferencesKey("handshake_out_sync_cursor_$address")
