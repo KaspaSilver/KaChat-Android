@@ -19,14 +19,25 @@ import java.util.Locale
  * `is24Hour`.
  */
 object IosDateStyle {
-    /** `.medium` date, `.short` time (= `.abbreviated`/`.shortened`): "Sep 24, 2026, 9:27 AM"
+    /** `.medium` date, `.short` time (= `.abbreviated`/`.shortened`): "Sep 24, 2026 at 9:27 AM"
      *  in English (US), "24.09.2026, 09:27" in German - each in the hours [is24Hour] asks for. */
     fun mediumDateShortTime(ms: Long, is24Hour: Boolean, locale: Locale = Locale.getDefault()): String {
         val format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale)
         if (format !is SimpleDateFormat) return format.format(Date(ms))
-        val pattern = withHourCycle(format.toPattern(), is24Hour, locale)
+        val pattern = withHourCycle(atTime(format.toPattern(), locale), is24Hour, locale)
         return SimpleDateFormat(pattern, locale).format(Date(ms))
     }
+
+    /**
+     * Foundation joins a date and a time with CLDR's "at" form where the language has one -
+     * "Oct 17, 2026 at 1:20 AM" - where Android's formatter puts a comma. English is done here;
+     * other languages keep the comma form.
+     */
+    fun atTime(pattern: String, locale: Locale): String =
+        if (locale.language == "en") pattern.replaceFirst(Regex("""(y+), (?=[hHkK])"""), "$1 'at' ") else pattern
+
+    /** The joiner between a medium date and a time, as [atTime] chooses it. */
+    fun dateTimeJoiner(locale: Locale = Locale.getDefault()): String = if (locale.language == "en") " at " else ", "
 
     /** `.medium` date, no time (= `.abbreviated`/`.omitted`): "Sep 24, 2026". */
     fun mediumDate(ms: Long, locale: Locale = Locale.getDefault()): String =

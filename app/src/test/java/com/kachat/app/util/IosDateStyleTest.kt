@@ -54,7 +54,8 @@ class IosDateStyleTest {
 
     @Test
     fun `it is the platform's medium and short styles, not a fixed pattern`() {
-        for (locale in listOf(Locale.US, Locale.FRANCE, Locale.JAPAN, Locale("ru"), Locale("ar"))) {
+        // English is left out: it joins with "at", as Foundation does (below).
+        for (locale in listOf(Locale.FRANCE, Locale.JAPAN, Locale("ru"), Locale("ar"))) {
             val platform = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale) as SimpleDateFormat
             // On the locale's own clock, nothing is changed.
             val localeIs24 = platform.toPattern().contains('H')
@@ -63,6 +64,12 @@ class IosDateStyleTest {
                 IosDateStyle.mediumDateShortTime(moment, localeIs24, locale),
             )
         }
+    }
+
+    @Test
+    fun `English joins the date and time with at, as Foundation does`() {
+        assertEquals("Sep 24, 2026 at 2:27\u202FPM".replace("\u202F", " "), IosDateStyle.mediumDateShortTime(moment, is24Hour = false, locale = Locale.US).replace("\u202F", " "))
+        assertEquals("24 Sept 2026 at 14:27", IosDateStyle.mediumDateShortTime(moment, is24Hour = true, locale = Locale.UK))
     }
 
     @Test

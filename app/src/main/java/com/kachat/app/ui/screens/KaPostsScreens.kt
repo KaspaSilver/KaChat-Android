@@ -3016,7 +3016,7 @@ private fun EngagementRow(
 }
 
 /**
- * The full date and time a post was made, e.g. "24 Sept 2026, 09:27" - in the reader's own
+ * The full date and time a post was made, e.g. "Sep 24, 2026 at 9:27 AM" - in the reader's own
  * locale and 12/24-hour setting (iOS's fullTimestamp: medium date, short time).
  */
 private fun postTimestampLabel(timestampMs: Long): String {
@@ -3024,7 +3024,7 @@ private fun postTimestampLabel(timestampMs: Long): String {
     val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale)
     val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, locale)
     val moment = java.util.Date(timestampMs)
-    return "${date.format(moment)}, ${time.format(moment)}"
+    return date.format(moment) + com.kachat.app.util.IosDateStyle.dateTimeJoiner(locale) + time.format(moment)
 }
 
 @Composable
