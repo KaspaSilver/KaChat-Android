@@ -155,10 +155,11 @@ fun IosToolbarRow(
         layout(width, height) {
             lead.placeRelative(0, (height - lead.height) / 2)
             trail.placeRelative(width - trail.width, (height - trail.height) / 2)
-            // Centred when that leaves it clear of both sides by UIKit's margin; otherwise
+            // Centred when that leaves it clear of both sides (the iPhone centres the Address
+            // Book's balance 14 from its glass); otherwise
             // UIKit packs it right after the leading items rather than sliding it partway.
             val centred = (width - mid.width) / 2
-            val clear = 16.dp.roundToPx()
+            val clear = 14.dp.roundToPx()
             val fitsCentred = centred >= lead.width + clear && centred + mid.width <= width - trail.width - clear
             val x = if (fitsCentred) centred else lead.width + gap
             mid.placeRelative(x, (height - mid.height) / 2)

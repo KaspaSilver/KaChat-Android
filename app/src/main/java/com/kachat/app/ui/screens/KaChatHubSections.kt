@@ -379,25 +379,27 @@ internal fun HubSectionTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalAppColors.current
-    Row(
+    // The principal item placed as UIKit places it (see IosToolbarRow).
+    IosToolbarRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.background)
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (onBack != null && !LocalInHubSection.current) {
-                ToolbarGlassGroup {
-                    ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+        leading = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onBack != null && !LocalInHubSection.current) {
+                    // iOS 26: the chevron in the label colour on its glass.
+                    ToolbarGlassGroup {
+                        ToolbarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onBack, tint = colors.textPrimary, iconSize = 20.dp)
+                    }
                 }
+                ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
             }
-            ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
-        }
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) { principal() }
-        ToolbarGlassGroup(content = actions)
-    }
+        },
+        principal = principal,
+        trailing = { ToolbarGlassGroup(content = actions) },
+    )
 }
 
 /**
