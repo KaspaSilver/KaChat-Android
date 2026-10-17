@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1898,7 +1899,7 @@ fun MessageRequestsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.Inbox, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(40.dp))
+                Icon(Icons.Outlined.Inbox, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.message_requests_empty), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
             }
