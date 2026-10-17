@@ -1822,12 +1822,17 @@ private fun KaChatBotCard(
             }
         }
         if (unavailable == null) {
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = colors.textSecondary,
-                modifier = Modifier.size(18.dp),
-            )
+            // iOS's chevron.right at footnote semibold: a 7 x 11 glyph flush with the card's
+            // 16 padding. Material's arrow is 7/24 of its box, centred: 23 draws it that size,
+            // and the 7-wide slot keeps its blank sides from pushing it inwards.
+            Box(Modifier.size(width = 7.dp, height = 12.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.requiredSize(23.dp),
+                )
+            }
         }
     }
 }
