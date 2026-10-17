@@ -656,10 +656,19 @@ fun ChatThreadScreen(
             // avatar rides level with them. The bar's own title slot has a fixed height and
             // would clip an avatar this size, which is what it was doing before.
             val headerTapBand = remember { ChatHeaderTapBandState() }
+            // iOS: the messages scroll on up behind the bar - a fade, not an opaque band (as the
+            // public room's and the group's).
+            val headerBackground = LocalAppColors.current.background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(LocalAppColors.current.background)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            0f to headerBackground.copy(alpha = 0.95f),
+                            0.55f to headerBackground.copy(alpha = 0.7f),
+                            1f to Color.Transparent,
+                        )
+                    )
                     // Avatar and name open User Info - and so does the 24dp either side of them;
                     // the space further out jumps to the very first message (iOS 1d5a555). The
                     // back button, the connection dot and the card keep their own taps. No
@@ -1567,10 +1576,10 @@ fun ChatThreadScreen(
         // Drawn to the bottom of the screen, NOT padded by the composer: the messages run on
         // underneath it and the dock (iOS), and the list takes the composer's height (with the
         // dock's, see the bottomBar) as content padding, so the newest message rests just above it.
+        // From the top of the screen too: the messages run on up behind the header, the list
+        // taking its height as content padding.
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding())
+            modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
                 state = scrollState,
@@ -1579,7 +1588,7 @@ fun ChatThreadScreen(
                     .closesQuickReactionBar()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp + padding.calculateBottomPadding())
+                contentPadding = PaddingValues(top = 16.dp + padding.calculateTopPadding(), bottom = 16.dp + padding.calculateBottomPadding())
             ) {
                 if (messages.isEmpty()) {
                     item {
