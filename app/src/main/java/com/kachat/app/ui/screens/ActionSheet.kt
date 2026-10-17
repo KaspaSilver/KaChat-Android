@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -217,7 +218,10 @@ fun TileActionSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            // Resting on a height detent alone it floats, as iOS 26's does; one that can grow to
+            // full height stays on the bottom edge.
+            modifier = if (largeDetent) Modifier else Modifier.iosFloatingSheet(),
+            shape = if (largeDetent) com.kachat.app.ui.theme.IosSheetShape else IosFloatingSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
@@ -347,6 +351,18 @@ fun IosSheetDetents(height: Dp, largeDetent: Boolean, content: @Composable andro
 }
 
 /**
+ * iOS 26 floats a sheet that rests on a height detent (not `.large`): 8 in from the screen's
+ * sides and bottom with every corner rounded, its content still clear of the home indicator.
+ * Pass as the ModalBottomSheet's modifier, with [IosFloatingSheetShape] as its shape.
+ */
+fun Modifier.iosFloatingSheet(): Modifier = this
+    .padding(horizontal = 8.dp)
+    .offset(y = (-8).dp)
+
+/** The floating sheet's outline: iOS 26 rounds all four corners of a sheet that floats. */
+val IosFloatingSheetShape = RoundedCornerShape(36.dp)
+
+/**
  * iOS's sheet drag indicator (`.presentationDragIndicator(.visible)`): a 36 x 5 rounded bar 5
  * below the sheet's top edge, drawn over the content rather than above it, so a sheet's height
  * and its title's place match iOS's.
@@ -411,16 +427,20 @@ fun ActionSheetContainer(
     com.kachat.app.ui.theme.IosSheetColors(grouped = grouped) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            // A height-detent sheet on iOS 26, so it floats (see iosFloatingSheet).
+            modifier = Modifier.iosFloatingSheet(),
+            shape = IosFloatingSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = colors.background,
+            // iOS's grabber sits over the content, not in a band of its own above the title.
+            dragHandle = null,
         ) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
-            Column(Modifier.navigationBarsPadding()) {
+            Box(Modifier.navigationBarsPadding()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -429,39 +449,49 @@ fun ActionSheetContainer(
                         // below the fold.
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp)
-                        .padding(bottom = 32.dp),
+                        .padding(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        title,
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    if (!subtitle.isNullOrBlank()) {
+                    // iOS: the title in headline 20 below the sheet's top, 4 more under the
+                    // title block before the rows (16 with the stack's spacing).
+                    Column(
+                        modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         Text(
-                            subtitle,
-                            color = colors.textSecondary,
-                            fontSize = 12.sp,
+                            title,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
                             textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
                         )
-                    }
-                    if (!detail.isNullOrBlank()) {
-                        Text(
-                            detail,
-                            color = colors.textSecondary,
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        if (!subtitle.isNullOrBlank()) {
+                            Text(
+                                subtitle,
+                                color = colors.textSecondary,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (!detail.isNullOrBlank()) {
+                            Text(
+                                detail,
+                                color = colors.textSecondary,
+                                fontSize = 11.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                     content()
                 }
+                IosSheetGrabber(Modifier.align(Alignment.TopCenter))
             }
         }
     }
@@ -1115,7 +1145,9 @@ fun SentConfirmationSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            // iOS shows it on a height detent, so it floats.
+            modifier = Modifier.iosFloatingSheet(),
+            shape = IosFloatingSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDone,
