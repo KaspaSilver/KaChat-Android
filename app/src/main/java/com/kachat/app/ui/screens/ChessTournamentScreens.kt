@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Groups
@@ -94,6 +96,8 @@ import androidx.navigation.NavController
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.displayName
 import com.kachat.app.services.ChessTournamentService
+import com.kachat.app.ui.tabIconModifier
+import com.kachat.app.ui.tabIconPainter
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.ChessColor
@@ -1167,28 +1171,35 @@ fun ChessHomeScreen(navController: NavController, onBack: (() -> Unit)? = null) 
     fun open(mode: ChessLobbyMode) = navController.navigate("chess_mode/${mode.name}")
 
     Scaffold(
+        // iOS: Color(.systemGroupedBackground) behind it all.
         containerColor = colors.background,
-        topBar = { MainPageHeader(title = "Chess Online", onBack = onBack) },
+        topBar = { ChessHomeBar(onBack) },
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Spacer(Modifier.height(24.dp))
-            Icon(
-                androidx.compose.ui.res.painterResource(com.kachat.app.R.drawable.ic_kachat_logo),
-                contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp),
-            )
-            Spacer(Modifier.height(6.dp))
-            Text("Choose your game", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Five minutes a side. Every move is a Kaspa transaction, so every game is on chain for good.",
-                color = colors.textSecondary, fontSize = 14.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp),
-            )
-            Spacer(Modifier.height(20.dp))
+            // iOS: the rook and knight 64 tall, "Choose your game" in title2 bold and the
+            // subheadline note, 6 apart; 24 above, 8 below.
+            Column(
+                Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    com.kachat.app.ui.Screen.Chess.tabIconPainter(),
+                    contentDescription = null, tint = KaspaTeal,
+                    modifier = com.kachat.app.ui.Screen.Chess.tabIconModifier(64.dp),
+                )
+                Text("Choose your game", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp)
+                Text(
+                    "Five minutes a side. Every move is a Kaspa transaction, so every game is on chain for good.",
+                    color = colors.textSecondary, fontSize = 15.sp, lineHeight = 20.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                )
+            }
             if (mine != null) {
                 Row(
                     Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp))
@@ -1197,28 +1208,30 @@ fun ChessHomeScreen(navController: NavController, onBack: (() -> Unit)? = null) 
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        if (mine.status == ChessTournament.Status.OPEN) Icons.Default.HourglassEmpty else Icons.Default.PlayArrow,
-                        contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp),
-                    )
+                    // iOS: hourglass / play.fill in title3, in a 32-wide slot, 12 from the text.
+                    Box(Modifier.width(32.dp), contentAlignment = Alignment.Center) {
+                        Icon(
+                            if (mine.status == ChessTournament.Status.OPEN) Icons.Default.HourglassEmpty else Icons.Default.PlayArrow,
+                            contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp),
+                        )
+                    }
                     Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             if (mine.status == ChessTournament.Status.OPEN) "You're waiting in ${mine.name}" else "You're playing in ${mine.name}",
-                            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                            color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 20.sp,
                         )
-                        Text("Tap to go back to it", color = colors.textSecondary, fontSize = 12.sp)
+                        Text("Tap to go back to it", color = colors.textSecondary, fontSize = 12.sp, lineHeight = 16.sp)
                     }
+                    Spacer(Modifier.width(12.dp))
                     Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
                 }
-                Spacer(Modifier.height(16.dp))
             }
             ChessGameCard(
                 icon = Icons.Default.People,
                 title = "1v1",
                 detail = "Play the next person who joins, or a friend by code. One game, winner takes the leaderboard point.",
             ) { open(ChessLobbyMode.DUEL) }
-            Spacer(Modifier.height(16.dp))
             ChessGameCard(
                 icon = Icons.Default.EmojiEvents,
                 title = "Tournament",
@@ -1228,6 +1241,41 @@ fun ChessHomeScreen(navController: NavController, onBack: (() -> Unit)? = null) 
     }
 }
 
+/**
+ * Chess Online's bar. iOS gives this page an INLINE title whose place the balance takes (the
+ * principal item), so what shows is only the connection dot and the balance - no large
+ * "Chess Online" under the bar. MainPageHeader's bar row without its title.
+ */
+@Composable
+private fun ChessHomeBar(onBack: (() -> Unit)?) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.background)
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (onBack != null && !LocalInHubSection.current) {
+                ToolbarGlassGroup {
+                    ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+                }
+            }
+            ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
+        }
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            BalanceTopBarLabel()
+        }
+    }
+}
+
+/** iOS's gameCard: a 60 accent tile (radius 16) with the 28pt symbol in white, the title in
+ *  title3 bold over the subheadline detail, a subheadline chevron; padding 16, radius 20. */
 @Composable
 private fun ChessGameCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -1244,14 +1292,17 @@ private fun ChessGameCard(
         Box(
             Modifier.size(60.dp).clip(RoundedCornerShape(16.dp)).background(KaspaTeal),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp)) }
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(detail, color = colors.textSecondary, fontSize = 14.sp)
+        ) {
+            // A Material glyph is inset in its box; 38 draws it the size of a 28pt symbol.
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(38.dp))
         }
-        Spacer(Modifier.width(8.dp))
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 25.sp)
+            Text(detail, color = colors.textSecondary, fontSize = 15.sp, lineHeight = 20.sp)
+        }
+        Spacer(Modifier.width(16.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(24.dp))
     }
 }
 
