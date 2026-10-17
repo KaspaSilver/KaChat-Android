@@ -8,7 +8,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Switch
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import com.kachat.app.ui.theme.iosGlass
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.filled.AddComment
 import androidx.compose.material.icons.filled.Link
@@ -952,67 +960,52 @@ fun BroadcastChannelScreen(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
+            // iOS 26's room header (PublicChatChannelView): no bar of its own - Back and the
+            // connection dot each on a glass disc leading, the bell on glass trailing, and the
+            // room's "#" circle over a "#name >" capsule in the middle, all floating over the
+            // messages, which scroll on underneath and fade out under the status bar. The list
+            // takes this header's height as its top content padding, not as a clip.
             val headerTapBand = remember { ChatHeaderTapBandState() }
+            val headerBackground = LocalAppColors.current.background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to headerBackground.copy(alpha = 0.95f),
+                            0.55f to headerBackground.copy(alpha = 0.7f),
+                            1f to Color.Transparent,
+                        )
+                    )
                     // Icon and name open Room Info - and so does the 24dp either side of them;
                     // the space further out jumps to the very first message (iOS 1d5a555). The
-                    // back button, the connection dot and the name keep their own taps.
+                    // back button, the connection dot and the bell keep their own taps.
                     .chatHeaderTapBand(
                         headerTapBand,
                         onChip = { navController.navigate("broadcast_room_info/$channelName") },
                         onBand = { coroutineScope.launch { listState.scrollToItem(0) } },
                     )
             ) {
-            CenterAlignedTopAppBar(
-                title = {
-                    // The title itself is the way in to everything about the room - share,
-                    // hidden users, its indexer, what is in it. It used to be two unlabelled
-                    // toolbar glyphs with nowhere to put anything else.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .chatHeaderChip(headerTapBand)
-                            .clickable { navController.navigate("broadcast_room_info/$channelName") }
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    ) {
-                        Text("#$channelName", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Room info",
-                            tint = LocalAppColors.current.textSecondary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                },
-                navigationIcon = {
-                    // Left-side clickable connection dot (matches iOS's navigationBarLeading
-                    // ConnectionStatusIndicator - tapping it opens the connection status page),
-                    // same back-arrow + dot Row as the 1:1 chat thread header.
-                    // iOS 26: Back and the dot each on a 44pt glass disc.
-                    Row(
-                        modifier = Modifier.padding(start = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        SheetBarBackButton(onClick = onBack)
-                        ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
-                    }
-                },
-                actions = {
+                // The chat thread's bar (ChatNavBar), with the room's connection dot beside Back
+                // as iOS's navigationBarLeading ConnectionStatusIndicator puts it.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SheetBarBackButton(onClick = onBack)
+                    Spacer(Modifier.width(8.dp))
+                    ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
+                    Spacer(Modifier.weight(1f))
                     // A room you made yourself: what "public" does and does not mean here. Rooms
                     // the indexer tracks keep their history there, so they need no such warning
-                    // (iOS ac34790, 21c480d).
-                    // iOS 26 puts neighbouring trailing items on one piece of glass.
-                    Row(
-                        modifier = Modifier.padding(end = 12.dp).heightIn(min = 44.dp).barGlass(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    // (iOS ac34790, 21c480d). iOS 26 puts neighbouring trailing items on one
+                    // piece of glass, a lone bell on its own disc.
+                    ToolbarGlassGroup {
                         if (!isIndexedRoom) {
-                            ToolbarIconButton(Icons.Default.Info, "About this room", onClick = { showOwnRoomExplainer = true })
+                            ToolbarIconButton(Icons.Outlined.Info, "About this room", onClick = { showOwnRoomExplainer = true })
                         }
                         // This room's notifications, one tap away - the same switch the Public
                         // Chats list offers in its room menu (iOS eff5c09).
@@ -1022,90 +1015,96 @@ fun BroadcastChannelScreen(
                             onClick = { showNotifySheet = true },
                         )
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
+                }
+                // iOS PublicChatRoomTitleChip: the 1:1/group header chip measure for measure, the
+                // circle carrying the room glyph (accent at 20%, "number" 18 semibold) where they
+                // carry a photo. The title itself is the way in to everything about the room.
+                ChatHeaderChipLayout(
+                    name = "#$channelName",
+                    onClick = { navController.navigate("broadcast_room_info/$channelName") },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .chatHeaderChip(headerTapBand)
+                        .statusBarsPadding(),
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(LocalAppColors.current.background)
+                            .background(KaspaTeal.copy(alpha = 0.2f)),
+                    ) {
+                        Text("#", color = KaspaTeal, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         },
         bottomBar = {
-            // Composer dims and goes inert while the zero-balance funding gate is up — see
-            // Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
-            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().imePadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
+            // iOS: the compose bar floats over the list as a bottom safe-area inset - the
+            // messages run on underneath it - with the zero-balance card right above it (padded
+            // 16 either side, 4 below), never over the room. Only the composer under the card
+            // dims and goes inert (Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt).
+            val composerBackground = LocalAppColors.current.background
+            Column(
+                modifier = Modifier
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            1f to composerBackground.copy(alpha = 0.85f),
+                        )
+                    )
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(bottom = 2.dp)
+            ) {
+            if (fundingGate.active) {
+                ZeroBalanceFundingCard(
+                    walletAddress = fundingGate.chattingAddress,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+                )
+            }
+            // iOS composeBar: VStack(spacing: 8), padded 16 by 8.
+            Column(
+                modifier = Modifier
+                    .zeroBalanceComposerGate(fundingGate.active)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 if (sendState.status == BroadcastViewModel.SendBroadcastStatus.FAILED) {
                     Text(
                         sendState.message ?: "Failed to send",
                         color = LocalAppColors.current.danger,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     )
                 }
                 // Editing and replying are mutually exclusive - the banner says which one is in
-                // progress (iOS BroadcastChannelView).
+                // progress (iOS editBanner / replyBanner: caption lines on secondarySystemBackground
+                // in a 12-rounded box padded 12 by 8, inset a further 16 and 8 below the top).
                 editingMessage?.let { editing ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                            .background(LocalAppColors.current.surface, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Editing message", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                editsByTxId[editing.id]?.text
-                                    ?: com.kachat.app.util.MessageEdit.unwrappedText(editing.content),
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                broadcastViewModel.cancelEditing()
-                                broadcastViewModel.setMessageText("")
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Cancel editing", tint = LocalAppColors.current.textSecondary)
-                        }
-                    }
+                    RoomComposerBanner(
+                        icon = Icons.Default.Edit,
+                        title = "Editing message",
+                        preview = editsByTxId[editing.id]?.text
+                            ?: com.kachat.app.util.MessageEdit.unwrappedText(editing.content),
+                        cancelDescription = "Cancel editing",
+                        onCancel = {
+                            broadcastViewModel.cancelEditing()
+                            broadcastViewModel.setMessageText("")
+                        },
+                    )
                 }
                 if (editingMessage == null) replyingTo?.let { reply ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                            .background(LocalAppColors.current.surface, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Replying to ${addressDisplayName(reply.senderAddress, contactAliases[reply.senderAddress], senderKnsNames[reply.senderAddress])}",
-                                color = KaspaTeal,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                VoiceMessage.parseOrNull(reply.content)?.let { "🎤 Audio message" }
-                                    ?: MessageReply.parseOrNull(reply.content)?.text
-                                    ?: reply.content,
-                                color = LocalAppColors.current.textSecondary,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        IconButton(onClick = { broadcastViewModel.cancelReply() }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel_reply), tint = LocalAppColors.current.textSecondary)
-                        }
-                    }
+                    RoomComposerBanner(
+                        icon = Icons.AutoMirrored.Filled.Reply,
+                        title = "Replying to ${addressDisplayName(reply.senderAddress, contactAliases[reply.senderAddress], senderKnsNames[reply.senderAddress])}",
+                        preview = VoiceMessage.parseOrNull(reply.content)?.let { "🎤 Audio message" }
+                            ?: MessageReply.parseOrNull(reply.content)?.text
+                            ?: reply.content,
+                        cancelDescription = stringResource(R.string.cancel_reply),
+                        onCancel = { broadcastViewModel.cancelReply() },
+                    )
                 }
                 if (voiceRecordingState.status == BroadcastViewModel.VoiceRecordingStatus.RECORDING) {
                     if (showFeeEstimate && estimatedFee != null) {
@@ -1113,33 +1112,47 @@ fun BroadcastChannelScreen(
                             feeSompi = estimatedFee,
                             estimating = false,
                             onTap = { openFeeEditor(it) },
-                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
                         )
                     }
+                    // iOS recordingBar: trash, a small red mic and "Recording..." on the field's
+                    // glass, and the send glyph on its own 36 glass square, 12 apart.
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 40.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(horizontal = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        IconButton(onClick = { broadcastViewModel.cancelVoiceRecording() }) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = LocalAppColors.current.danger)
-                        }
-                        Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
-                        Text(
-                            text = "Recording... ${formatRecordingElapsed(voiceRecordingState.elapsedMs)}",
-                            color = LocalAppColors.current.textPrimary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { broadcastViewModel.stopAndSendVoiceRecording(channelName) },
-                            modifier = Modifier.size(40.dp).background(KaspaTeal, CircleShape)
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 38.dp)
+                                .iosGlass(cornerRadius = 20.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.send), tint = Color.Black, modifier = Modifier.size(20.dp))
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.cancel_recording),
+                                tint = LocalAppColors.current.danger,
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clickable { broadcastViewModel.cancelVoiceRecording() },
+                            )
+                            Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(14.dp))
+                            Text(
+                                text = "Recording... ${formatRecordingElapsed(voiceRecordingState.elapsedMs)}",
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 17.sp,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        RoomComposerSquareButton(
+                            contentDescription = stringResource(R.string.send),
+                            onClick = { broadcastViewModel.stopAndSendVoiceRecording(channelName) },
+                        ) {
+                            RoomSendGlyph(enabled = true)
                         }
                     }
                 } else {
@@ -1150,49 +1163,60 @@ fun BroadcastChannelScreen(
                             feeSompi = estimatedFee,
                             estimating = isEstimatingFee,
                             onTap = { openFeeEditor(it) },
-                            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
                         )
                     }
+                    // iOS: the field on glassBackground(cornerRadius: 20) - a capsule at one line -
+                    // and the mic or send on its own 36 x 36 glassBackground(cornerRadius: 12),
+                    // 12 apart.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // The one place the text itself is read while composing - see
                         // messageTextState.
                         ComposerTextScope {
-                        com.kachat.app.ui.theme.IosTextField(
-                            value = messageTextState.value,
-                            onValueChange = {
-                                // Someone's payment request pasted in opens Send Kaspa instead of
-                                // landing in the message (iOS c6851d6).
-                                if (!PaymentRequestPaste.interceptInsert(messageTextState.value, it)) {
-                                    broadcastViewModel.setMessageText(it, fromTyping = true)
-                                }
-                            },
-                            placeholder = { Text("Message #$channelName", color = LocalAppColors.current.textTertiary) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .onFocusChanged { composerFocused = it.isFocused },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = LocalAppColors.current.textPrimary,
-                                unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                focusedBorderColor = KaspaTeal,
-                                unfocusedBorderColor = LocalAppColors.current.textSecondary
-                            ),
-                            // Load-bearing, same value as the 1:1 composer. Without a cap this
-                            // field grows a line per line of text; the Scaffold measures its
-                            // bottom bar against the screen height, so past ~a screenful the
-                            // Column stopped growing and the newest lines - the ones with the
-                            // caret - overflowed past its bottom edge and under the keyboard.
-                            // Capped, the field scrolls internally and the caret stays put.
-                            maxLines = 4
-                        )
+                            val composerText = messageTextState.value
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = composerText,
+                                onValueChange = {
+                                    // Someone's payment request pasted in opens Send Kaspa instead of
+                                    // landing in the message (iOS c6851d6).
+                                    if (!PaymentRequestPaste.interceptInsert(messageTextState.value, it)) {
+                                        broadcastViewModel.setMessageText(it, fromTyping = true)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .chatComposerFieldModifier()
+                                    .onFocusChanged { composerFocused = it.isFocused },
+                                textStyle = chatComposerTextStyle(),
+                                cursorBrush = SolidColor(KaspaTeal),
+                                // Load-bearing, same value as the 1:1 composer. Without a cap this
+                                // field grows a line per line of text; the Scaffold measures its
+                                // bottom bar against the screen height, so past ~a screenful the
+                                // Column stopped growing and the newest lines - the ones with the
+                                // caret - overflowed past its bottom edge and under the keyboard.
+                                // Capped, the field scrolls internally and the caret stays put.
+                                maxLines = 4,
+                                decorationBox = { inner ->
+                                    RoomComposerFieldDecoration(
+                                        placeholder = "Message #$channelName",
+                                        showPlaceholder = composerText.isEmpty(),
+                                        innerTextField = inner,
+                                    )
+                                },
+                            )
                         }
                         val sending = sendState.status == BroadcastViewModel.SendBroadcastStatus.SENDING
                         if (messageTextIsEmpty) {
-                            IconButton(onClick = { startVoiceMessage() }) {
-                                Icon(Icons.Default.Mic, "Record voice message", tint = KaspaTeal)
+                            // iOS: mic.fill at title3 in the accent colour.
+                            RoomComposerSquareButton(
+                                contentDescription = "Record voice message",
+                                onClick = { startVoiceMessage() },
+                            ) {
+                                Icon(Icons.Default.Mic, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
                             }
                             if (showVoiceRouteSheet) {
                                 ComposerMediaRouteSheet(
@@ -1206,7 +1230,11 @@ fun BroadcastChannelScreen(
                                 )
                             }
                         } else {
-                            IconButton(
+                            // iOS: arrow.up.circle.fill at title3, the accent colour - secondary
+                            // while a send is in flight.
+                            RoomComposerSquareButton(
+                                contentDescription = "Send",
+                                enabled = !sending,
                                 onClick = {
                                     val messageText = messageTextState.value
                                     if (!sending && messageText.isNotBlank()) {
@@ -1221,17 +1249,19 @@ fun BroadcastChannelScreen(
                                         broadcastViewModel.setMessageText("")
                                     }
                                 },
-                                enabled = !sending
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (sending) LocalAppColors.current.textSecondary else KaspaTeal)
+                                RoomSendGlyph(enabled = !sending)
                             }
                         }
                     }
                 }
             }
+            }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Full height, NOT padded by the header and composer: the messages scroll on underneath
+        // both (iOS), and the list takes their heights as content padding instead.
+        Column(modifier = Modifier.fillMaxSize()) {
         // The in-room retention banner was removed to keep the chat clean; the retention note
         // now lives next to the "Popular" header on the broadcast list (matches iOS).
         Box(
@@ -1239,11 +1269,30 @@ fun BroadcastChannelScreen(
                 .fillMaxSize()
         ) {
         if (messages.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // iOS emptyState: the radio-waves glyph at 48 in secondary, "No messages yet" in
+            // headline and the invitation in subheadline secondary, 16 apart, centred.
+            Column(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            ) {
+                Icon(
+                    Icons.Default.Sensors,
+                    contentDescription = null,
+                    tint = LocalAppColors.current.textSecondary,
+                    modifier = Modifier.size(52.dp),
+                )
                 Text(
-                    "No messages yet. Be the first to post in #$channelName",
+                    "No messages yet",
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "Be the first to post in #$channelName.",
                     color = LocalAppColors.current.textSecondary,
-                    modifier = Modifier.padding(24.dp)
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
                 )
             }
         } else {
@@ -1280,46 +1329,55 @@ fun BroadcastChannelScreen(
                 state = listState,
                 modifier = Modifier.fillMaxSize().closesQuickReactionBar().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                // iOS: the LazyVStack padded 8 top and bottom, inside the header's and the
+                // compose bar's insets.
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + 8.dp,
+                )
             ) {
                 // At the top of the room, above the oldest message the window reaches, exactly
                 // where iOS puts it (02a4f58).
                 if (messageWindow.hasMore) {
                     item(key = "load_earlier") {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Surface(
-                                color = LocalAppColors.current.surface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.clickable { broadcastViewModel.loadEarlier(channelName) },
-                            ) {
-                                Text(
-                                    stringResource(R.string.load_earlier_messages),
-                                    color = KaspaTeal,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                )
-                            }
-                        }
+                        // iOS: a plain button - caption semibold in the accent colour, the full
+                        // width, 8 above and below.
+                        Text(
+                            stringResource(R.string.load_earlier_messages),
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                ) { broadcastViewModel.loadEarlier(channelName) }
+                                .padding(vertical = 8.dp),
+                        )
                     }
                 }
                 itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
                     val showDateDivider = index == 0 || !ChatTimeFormat.isSameDay(messages[index - 1].blockTimestamp, message.blockTimestamp)
                     if (showDateDivider) {
+                        // iOS dateDivider: caption2 semibold in secondary, padded 12 by 4 on
+                        // secondarySystemBackground in a 12-rounded box, 8 above and below.
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                            Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(12.dp)) {
-                                Text(
-                                    ChatTimeFormat.formatDateDivider(message.blockTimestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday)),
-                                    color = LocalAppColors.current.textSecondary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
-                            }
+                            Text(
+                                ChatTimeFormat.formatDateDivider(message.blockTimestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday)),
+                                color = LocalAppColors.current.textSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(roomSecondarySystemBackground())
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            )
                         }
+                        // The divider sits in the same list row as the message under it; iOS
+                        // spaces them 8 apart in its stack.
+                        Spacer(Modifier.height(8.dp))
                     }
                     // An edited message reads with its newest text; the stored row is untouched.
                     val editForRow = editsByTxId[message.id]
@@ -1409,6 +1467,9 @@ fun BroadcastChannelScreen(
                             .fillMaxWidth()
                             .background(highlightColor, RoundedCornerShape(12.dp))
                     ) {
+                        // iOS PublicChatMessageRow: HStack(alignment: .bottom, spacing: 8) - the 32
+                        // avatar on the sender's side, at least 40 left free on the other, and a
+                        // VStack spacing 3 of name, quote, bubble, extras and the time line.
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
@@ -1417,12 +1478,17 @@ fun BroadcastChannelScreen(
                         if (!isMine) {
                             avatar()
                             Spacer(Modifier.width(8.dp))
+                        } else {
+                            Spacer(Modifier.width(40.dp))
                         }
                         Column(
                             horizontalAlignment = if (isMine) Alignment.End else Alignment.Start,
-                            modifier = Modifier.onGloballyPositioned { coords ->
-                                menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                            }
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .onGloballyPositioned { coords ->
+                                    menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
+                                }
                         ) {
                             // The double-tap bar sits directly above the message, as iOS's does.
                             InlineQuickReactionBar(
@@ -1437,41 +1503,45 @@ fun BroadcastChannelScreen(
                                 onReply = { broadcastViewModel.startReplyTo(message) },
                                 emojis = quickReactionEmojis,
                             )
+                            // iOS: caption semibold in the accent colour, flush with the bubble's
+                            // edge - "You" over your own messages.
                             Text(
-                                addressDisplayName(message.senderAddress, contactAliases[message.senderAddress], senderKnsNames[message.senderAddress]),
+                                if (isMine) stringResource(R.string.reactions_you)
+                                else addressDisplayName(message.senderAddress, contactAliases[message.senderAddress], senderKnsNames[message.senderAddress]),
                                 color = KaspaTeal,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(
-                                    start = if (isMine) 0.dp else 14.dp,
-                                    end = if (isMine) 14.dp else 0.dp,
-                                    bottom = 2.dp
-                                )
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             if (replyContent != null) {
-                                Surface(
-                                    color = LocalAppColors.current.surfaceVariant,
-                                    shape = RoundedCornerShape(10.dp),
+                                // iOS replyQuoteView: caption2 semibold sender over a two-line
+                                // caption preview, 2 apart, padded 8 on tertiarySystemBackground in
+                                // a 10-rounded box at most 240 wide.
+                                Column(
+                                    horizontalAlignment = if (isMine) Alignment.End else Alignment.Start,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp),
                                     modifier = Modifier
-                                        .padding(bottom = 4.dp)
                                         .widthIn(max = 240.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(roomTertiarySystemBackground())
                                         .clickable { jumpToReply(replyContent.replyToId) }
+                                        .padding(8.dp)
                                 ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        Text(
-                                            addressDisplayName(replyContent.replyToSender, contactAliases[replyContent.replyToSender], senderKnsNames[replyContent.replyToSender]),
-                                            color = KaspaTeal,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            replyContent.replyToPreview,
-                                            color = LocalAppColors.current.textSecondary,
-                                            fontSize = 12.sp,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
+                                    Text(
+                                        addressDisplayName(replyContent.replyToSender, contactAliases[replyContent.replyToSender], senderKnsNames[replyContent.replyToSender]),
+                                        color = KaspaTeal,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        replyContent.replyToPreview,
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = if (isMine) TextAlign.End else TextAlign.Start,
+                                    )
                                 }
                             }
                             Box {
@@ -1490,21 +1560,20 @@ fun BroadcastChannelScreen(
                                     var showFullText by remember { mutableStateOf(false) }
                                     Column(
                                         modifier = Modifier
-                                            .background(
-                                                if (isMine) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
-                                                RoundedCornerShape(16.dp)
-                                            )
+                                            .widthIn(max = 280.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(roomBubbleColor(isMine))
                                             .combinedClickable(
                                                 onClick = { showFullText = true },
                                                 onLongClick = { showMenu = true },
                                                 onDoubleClick = { QuickReactionBarState.activeId = message.id }
                                             )
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                            .widthIn(max = 280.dp)
+                                            .padding(horizontal = 14.dp, vertical = 10.dp)
                                     ) {
                                         Text(
                                             displayContent.take(MESSAGE_TEXT_PREVIEW_LENGTH) + "…",
-                                            color = if (isMine) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary
+                                            color = if (isMine) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
+                                            fontSize = 17.sp,
                                         )
                                         Spacer(Modifier.height(4.dp))
                                         Text(
@@ -1594,19 +1663,20 @@ fun BroadcastChannelScreen(
                                             }
                                         }
                                     }
+                                    // iOS: body text padded 14 by 10 on secondarySystemBackground (the
+                                    // outgoing teal for your own) in a 16-rounded bubble, 280 at most.
                                     Column(
                                         modifier = Modifier
-                                            .background(
-                                                if (isMine) LocalAppColors.current.outgoingBubble else LocalAppColors.current.incomingBubble,
-                                                RoundedCornerShape(16.dp)
-                                            )
                                             .widthIn(max = 280.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(roomBubbleColor(isMine))
                                     ) {
                                         Text(
                                             annotatedBody,
                                             color = if (isMine) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
+                                            fontSize = 17.sp,
                                             modifier = Modifier
-                                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                                .padding(horizontal = 14.dp, vertical = 10.dp)
                                                 .pointerInput(annotatedBody) {
                                                     detectTapGestures(
                                                         onLongPress = { showMenu = true },
@@ -1767,28 +1837,32 @@ fun BroadcastChannelScreen(
                                             .offset(y = 10.dp)
                                     )
                                 }
+
+                                // iOS: a small "edited" chip on the bubble's top inner corner
+                                // (10pt secondary on a systemBackground capsule, 8 up), the mark
+                                // every platform shows on an edited message.
+                                if (editForRow != null) {
+                                    Text(
+                                        text = "edited",
+                                        color = LocalAppColors.current.textSecondary,
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        modifier = Modifier
+                                            .align(if (isMine) Alignment.TopStart else Alignment.TopEnd)
+                                            .offset(y = (-8).dp)
+                                            .clip(RoundedCornerShape(percent = 50))
+                                            .background(if (LocalAppColors.current.isDark) Color.Black else Color.White)
+                                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    )
+                                }
                             }
 
                             // The pill is offset ~10dp below the bubble Box and offset reserves no
                             // layout space, so reserve it here - otherwise the pill overlaps the
-                            // link preview card / next message below it.
+                            // link preview card / next message below it. iOS pads the bubble 16
+                            // below; the column's 3 spacing makes up the rest.
                             if (messageReactions.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(14.dp))
-                            }
-
-                            // "edited" under the bubble - the mark every platform shows on an
-                            // edited message.
-                            if (editForRow != null) {
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        text = "edited",
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontSize = 11.sp,
-                                        modifier = Modifier
-                                            .align(if (isMine) Alignment.CenterEnd else Alignment.CenterStart)
-                                            .padding(top = 2.dp)
-                                    )
-                                }
+                                Spacer(modifier = Modifier.height(13.dp))
                             }
 
                             // "Translating...", "Translated from Spanish - Show original", or why it
@@ -1824,7 +1898,6 @@ fun BroadcastChannelScreen(
                             MessageTimeLine(
                                 timestampMs = message.blockTimestamp,
                                 showsDay = true,
-                                modifier = Modifier.padding(top = 4.dp),
                             ) {
                                 if (isMine) {
                                     DeliveryStatusLabel(
@@ -1848,7 +1921,6 @@ fun BroadcastChannelScreen(
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier
                                         .align(if (isMine) Alignment.Start else Alignment.End)
-                                        .padding(top = 2.dp)
                                         .clickable { broadcastViewModel.retryReaction(failedReaction) }
                                 )
                             }
@@ -1856,6 +1928,8 @@ fun BroadcastChannelScreen(
                         if (isMine) {
                             Spacer(Modifier.width(8.dp))
                             avatar()
+                        } else {
+                            Spacer(Modifier.width(40.dp))
                         }
                         }
                     }
@@ -1864,35 +1938,27 @@ fun BroadcastChannelScreen(
         }
 
         if (showScrollToBottom && messages.isNotEmpty()) {
-            IconButton(
-                onClick = {
-                    coroutineScope.launch { listState.animateScrollToItem(messages.size - 1) }
-                },
+            val scrollToLatestLabel = stringResource(R.string.scroll_to_latest)
+            // iOS: a 36 disc of regularMaterial edged white at 18% with a soft shadow, holding
+            // chevron.down 14 semibold in the label colour - 12 in from the trailing edge and 12
+            // above the compose bar.
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-                    .size(44.dp)
-                    .background(LocalAppColors.current.surface, CircleShape)
+                    .padding(end = 12.dp, bottom = padding.calculateBottomPadding() + 12.dp)
+                    .size(36.dp)
+                    .iosGlass(cornerRadius = 18.dp)
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        coroutineScope.launch { listState.animateScrollToItem(messages.size - 1) }
+                    }
+                    .semantics { contentDescription = scrollToLatestLabel },
             ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(R.string.scroll_to_latest),
-                    tint = LocalAppColors.current.textPrimary
-                )
+                RoomChevronDown()
             }
         }
 
-        // Zero-balance funding gate card — same as the 1:1/group threads: composer dimmed
-        // below, the room stays readable and scrollable, gone the moment the chatting balance
-        // confirms as > 0.
-        if (fundingGate.active) {
-            ZeroBalanceFundingCard(
-                walletAddress = fundingGate.chattingAddress,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(24.dp)
-            )
-        }
         }
     }
 
@@ -1961,3 +2027,163 @@ fun BroadcastChannelScreen(
     }
 }
 
+
+// MARK: - Room screen pieces (iOS PublicChatChannelView)
+
+/** iOS secondarySystemBackground: the room's incoming bubbles, its day dividers and the
+ *  composer's reply/edit banners. */
+@Composable
+private fun roomSecondarySystemBackground(): Color =
+    if (LocalAppColors.current.isDark) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
+
+/** iOS tertiarySystemBackground: the reply quote above a room message. */
+@Composable
+private fun roomTertiarySystemBackground(): Color =
+    if (LocalAppColors.current.isDark) Color(0xFF2C2C2E) else Color.White
+
+/** A room bubble's fill: OutgoingBubble.color for your own, secondarySystemBackground for
+ *  everyone else's (the room's own colour, a shade darker than the 1:1 thread's). */
+@Composable
+private fun roomBubbleColor(isMine: Boolean): Color =
+    if (isMine) LocalAppColors.current.outgoingBubble else roomSecondarySystemBackground()
+
+/** iOS editBanner / replyBanner: a caption glyph in the accent colour, a caption semibold accent
+ *  title over a one-line caption preview in secondary, and xmark.circle.fill trailing - padded 12
+ *  by 8 on secondarySystemBackground in a 12-rounded box, inset 16 and 8 below the bar's top. */
+@Composable
+private fun RoomComposerBanner(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    preview: String,
+    cancelDescription: String,
+    onCancel: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(roomSecondarySystemBackground())
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                title,
+                color = KaspaTeal,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                preview,
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            Icons.Default.Cancel,
+            contentDescription = cancelDescription,
+            tint = colors.textSecondary,
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onCancel),
+        )
+    }
+}
+
+/** The inside of the room's text field: the 1:1 composer's ([ChatComposerFieldDecoration]) with
+ *  the room's own placeholder, "Message #name". */
+@Composable
+private fun RoomComposerFieldDecoration(
+    placeholder: String,
+    showPlaceholder: Boolean,
+    innerTextField: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (showPlaceholder) {
+            Text(
+                placeholder,
+                color = LocalAppColors.current.textTertiary,
+                style = chatComposerTextStyle(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        innerTextField()
+    }
+}
+
+/** The room composer's mic / send: a 36 x 36 glassBackground(cornerRadius: 12) beside the field. */
+@Composable
+private fun RoomComposerSquareButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(36.dp)
+            .iosGlass(cornerRadius = 12.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { this.contentDescription = contentDescription },
+    ) {
+        content()
+    }
+}
+
+/** SF Symbols' arrow.up.circle.fill at title3: an accent disc (secondary while a send is in
+ *  flight) with the arrow cut out of it in the glass behind. */
+@Composable
+private fun RoomSendGlyph(enabled: Boolean) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(22.dp)
+            .background(if (enabled) KaspaTeal else LocalAppColors.current.textSecondary, CircleShape),
+    ) {
+        Icon(
+            Icons.Default.ArrowUpward,
+            contentDescription = null,
+            tint = LocalAppColors.current.surface,
+            modifier = Modifier.size(15.dp),
+        )
+    }
+}
+
+/** SF Symbols' chevron.down at 14 semibold in the label colour, drawn as a thin open chevron -
+ *  the Material arrow carries padding iOS's glyph does not. */
+@Composable
+private fun RoomChevronDown() {
+    val color = LocalAppColors.current.textPrimary
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 14.dp, height = 8.dp)) {
+        val stroke = 2.dp.toPx()
+        val inset = stroke / 2f
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(inset, inset)
+            lineTo(size.width / 2f, size.height - inset)
+            lineTo(size.width - inset, inset)
+        }
+        drawPath(
+            path,
+            color = color,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = stroke,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round,
+            ),
+        )
+    }
+}
