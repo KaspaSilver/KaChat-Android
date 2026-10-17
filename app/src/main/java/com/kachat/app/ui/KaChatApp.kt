@@ -885,7 +885,8 @@ fun MainShell(
                         // eaten by it — its height isn't the same on every device, so a fixed
                         // dp value alone left the tab bar sitting under/behind it on some phones.
                         .navigationBarsPadding()
-                        .padding(bottom = 24.dp, start = 24.dp, end = 24.dp),
+                        // iOS 26's tab bar: 21pt in from each side (measured on the iPhone).
+                        .padding(bottom = 12.dp, start = 21.dp, end = 21.dp),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -950,13 +951,14 @@ fun MainShell(
                     key(dockArrangementKey) {
                     // Fixed at the bar's own height so the lens can stand proud of it without
                     // growing the dock or shifting it up the screen.
-                    BoxWithConstraints(Modifier.fillMaxWidth().height(80.dp)) {
+                    // iOS's bar is 60pt tall (measured on the iPhone 17).
+                    BoxWithConstraints(Modifier.fillMaxWidth().height(60.dp)) {
                     // The pill slides between tabs rather than appearing under the new one, the
                     // way iOS's glass tab bar moves: one piece of glass that travels.
-                    val dockItemWidth = (maxWidth - 16.dp) / localTabOrder.size.coerceAtLeast(1)
+                    val dockItemWidth = (maxWidth - 4.dp) / localTabOrder.size.coerceAtLeast(1)
                     val pillIndex = dockDragIndex ?: selectedDockIndex
                     val pillOffset by animateDpAsState(
-                        targetValue = 8.dp + dockItemWidth * pillIndex.coerceAtLeast(0),
+                        targetValue = 2.dp + dockItemWidth * pillIndex.coerceAtLeast(0),
                         // Under a finger it keeps up; left to itself it settles with a spring.
                         animationSpec = if (dockDragIndex != null) tween(90) else spring(dampingRatio = 0.75f, stiffness = 420f),
                         label = "dockPill",
@@ -966,36 +968,50 @@ fun MainShell(
                     // Row below, over the pill.
                     Box(
                         Modifier
-                            .height(80.dp)
+                            .height(60.dp)
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(40.dp))
+                            .clip(RoundedCornerShape(30.dp))
                             // The shape goes to hazeChild itself: it paints the blurred backdrop
                             // to the shape it is given, and its default is a rectangle - which is
                             // what put a square panel behind the rounded bar.
                             .hazeChild(
                                 state = dockHaze,
-                                shape = RoundedCornerShape(40.dp),
+                                shape = RoundedCornerShape(30.dp),
                                 style = HazeStyle(
-                                    tint = LocalAppColors.current.surface.copy(alpha = 0.62f),
+                                    // iOS's bar on black reads #191919 (the toolbar glass)
+                                    tint = com.kachat.app.ui.screens.toolbarGlassFill().copy(alpha = 0.92f),
                                     blurRadius = 24.dp,
                                 ),
                             )
-                            .border(1.dp, LocalAppColors.current.divider, RoundedCornerShape(40.dp)),
+                            .border(0.5.dp, com.kachat.app.ui.screens.toolbarGlassEdge(), RoundedCornerShape(30.dp)),
                     )
                     // Drawn between the bar and its icons: a brighter pane of the same glass.
                     // Also while a finger is sliding: on a screen that is not a dock tab nothing is
                     // lit, and the slide used to carry no lens at all - it looked like it had not
                     // registered, though releasing still went to the tab.
-                    if (selectedDockIndex >= 0 || dockDragIndex != null) {
-                        // A lens, not a tile: iOS's selection is a nearly clear bubble with a
-                        // bright rim. It sits FLUSH inside the bar - an oval within the bar's own
-                        // height, not a shape hanging off its edges. The interior barely tints;
-                        // what marks the tab is the rim and the teal icon inside it.
+                    if (dockDragIndex == null && selectedDockIndex >= 0) {
+                        // At rest iOS 26 marks the tab with a filled capsule - #3A3A3A on the
+                        // #191919 bar, 4pt inside its height (measured on the iPhone) - and no rim.
+                        val restShape = RoundedCornerShape(percent = 50)
+                        Box(
+                            Modifier
+                                .offset(x = pillOffset)
+                                .padding(vertical = 4.dp)
+                                .width(dockItemWidth)
+                                .height(52.dp)
+                                .clip(restShape)
+                                .background(
+                                    if (LocalAppColors.current.isDark) Color(0xFF3A3A3A)
+                                    else Color.Black.copy(alpha = 0.07f)
+                                ),
+                        )
+                    } else if (dockDragIndex != null) {
+                        // While a finger slides, the lens: a nearly clear bubble with a bright
+                        // rim that stands a little proud of the bar, as iOS's does.
                         val pillShape = RoundedCornerShape(percent = 50)
                         Box(
                             Modifier
-                                .offset(x = pillOffset - 3.dp)
-                                .padding(vertical = 6.dp)
+                                .offset(x = pillOffset - 3.dp, y = (-4).dp)
                                 .width(dockItemWidth + 6.dp)
                                 .height(68.dp)
                                 .clip(pillShape)
@@ -1025,7 +1041,7 @@ fun MainShell(
                     val dockDensity = LocalDensity.current
                     Row(
                         modifier = Modifier
-                            .height(80.dp)
+                            .height(60.dp)
                             .fillMaxWidth()
                             // Watched on the INITIAL pass, so a slide can take over from the
                             // items underneath. A press that never moves is left to their tap;
@@ -1038,7 +1054,7 @@ fun MainShell(
                             .systemGestureExclusion()
                             .pointerInput(localTabOrder, dockItemWidth) {
                                 val slotPx = with(dockDensity) { dockItemWidth.toPx() }
-                                val startPadPx = with(dockDensity) { 8.dp.toPx() }
+                                val startPadPx = with(dockDensity) { 2.dp.toPx() }
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                                     var sliding = false
@@ -1072,7 +1088,7 @@ fun MainShell(
                                     }
                                 }
                             }
-                            .padding(horizontal = 8.dp),
+                            .padding(horizontal = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
@@ -1097,9 +1113,9 @@ fun MainShell(
                                 val selected = localTabOrder.getOrNull(selectedDockIndex) == screen
                                 Box(
                                     modifier = Modifier
-                                        .height(64.dp)
+                                        .height(52.dp)
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(32.dp))
+                                        .clip(RoundedCornerShape(26.dp))
                                         .clickable {
                                             // Already there — let that screen know it was re-tapped (so it can
                                             // dismiss its own transient UI, e.g. a full-screen QR overlay) rather
@@ -1219,7 +1235,9 @@ fun MainShell(
                                             maxLines = 1,
                                             softWrap = false,
                                             overflow = TextOverflow.Ellipsis,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                            // iOS 26's tab labels are medium weight, selected or not -
+                                            // only the colour marks the selected tab.
+                                            fontWeight = FontWeight.Medium
                                         )
                                     }
                                 }

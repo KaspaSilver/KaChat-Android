@@ -3872,9 +3872,7 @@ fun ProfileScreen(
                                 notifCenterVm.store.reloadIfNeeded()
                                 showNotifCenter = true
                             },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(LocalAppColors.current.surface, CircleShape)
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box {
                                 Icon(
@@ -3882,7 +3880,7 @@ fun ProfileScreen(
                                     Icons.Outlined.Notifications,
                                     contentDescription = "Notifications",
                                     tint = KaspaTeal,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(22.dp),
                                 )
                                 if (notifUnread > 0) {
                                     // A plain red DOT (no count) - "there is something unread"
@@ -3908,7 +3906,7 @@ fun ProfileScreen(
                         stringResource(R.string.profile),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
+                        fontSize = LargeTitleSize,
                     )
                     // Beside the title: a kachat.app link to you (iOS 863b0e9). Pasted anywhere it
                     // previews with your KNS name and avatar; tapped with KaChat installed it opens a
@@ -9899,69 +9897,34 @@ fun TopStatusBar(
     // button so a page can decide what belongs there (Profile puts its notification bell here).
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
-    val statusColor = Color(dotColorHex)
-
+    // iOS's toolbar: the connection dot leading, the balance as the principal item centred in the
+    // space the leading and trailing items leave, and the trailing items (Select All, the
+    // page's own button, Select/Cancel) together on one piece of glass.
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp),
+        modifier = Modifier.fillMaxWidth().height(52.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        IconButton(
-            onClick = onStatusClick,
-            modifier = Modifier
-                .size(40.dp)
-                .background(LocalAppColors.current.surface, CircleShape)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .background(statusColor, CircleShape)
-            )
+        ConnectionDotButton(onClick = onStatusClick)
+
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            BalanceLabelRow(balance, copyOnTap = true)
         }
 
-        BalanceLabelRow(balance, copyOnTap = true)
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        ToolbarGlassGroup {
             if (isEditing && selectAllLabel != null) {
-                TextButton(onClick = onSelectAllClick) {
-                    Text(selectAllLabel, color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                ToolbarTextButton(selectAllLabel, onSelectAllClick)
+            }
+            if (!isEditing) {
+                if (showAddButton) {
+                    ToolbarIconButton(Icons.Default.PersonAddAlt1, stringResource(R.string.add_contact), onAddClick, iconSize = 20.dp)
+                } else if (trailingContent != null) {
+                    trailingContent()
                 }
-                Spacer(Modifier.width(4.dp))
             }
             if (showEditButton) {
                 // Text toggle instead of a pen icon, matching iOS's "Select"/"Cancel" toolbar
                 // button (ChatListView.swift) rather than a Material edit-pencil affordance.
-                TextButton(onClick = onEditClick) {
-                    Text(
-                        text = if (isEditing) "Cancel" else "Select",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-                if (!isEditing) Spacer(Modifier.width(8.dp))
-            }
-            if (!isEditing) {
-                if (showAddButton) {
-                    IconButton(
-                        onClick = onAddClick,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(LocalAppColors.current.surface, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PersonAddAlt1,
-                            contentDescription = stringResource(R.string.add_contact),
-                            tint = KaspaTeal,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                } else if (trailingContent != null) {
-                    trailingContent()
-                } else if (!showEditButton) {
-                    // Keeps the balance text centered between the two ends, same as when the button is shown.
-                    Spacer(modifier = Modifier.size(40.dp))
-                }
+                ToolbarTextButton(if (isEditing) "Cancel" else "Select", onEditClick)
             }
         }
     }

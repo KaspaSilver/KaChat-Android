@@ -23,6 +23,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.filled.MoveToInbox
@@ -331,13 +333,12 @@ fun ChatsScreen(
                         // times now there is no Public Chats page to carry it (iOS a062577).
                         trailingContent = if (!isSelectionMode) {
                             {
-                                IconButton(onClick = { showPublicChatsSettings = true }) {
-                                    Icon(
-                                        Icons.Default.Settings,
-                                        contentDescription = "Public Chats settings",
-                                        tint = LocalAppColors.current.textPrimary,
-                                    )
-                                }
+                                // iOS: an outlined "gearshape" in the accent colour, before Select.
+                                ToolbarIconButton(
+                                    Icons.Outlined.Settings,
+                                    "Public Chats settings",
+                                    { showPublicChatsSettings = true },
+                                )
                             }
                         } else null,
                         isEditing = isSelectionMode,
@@ -363,7 +364,7 @@ fun ChatsScreen(
                         stringResource(R.string.chats),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
+                        fontSize = LargeTitleSize,
                         modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
                     )
 
@@ -1500,18 +1501,19 @@ internal fun ConversationRow(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            // iOS ConversationRow: a 50pt avatar 12pt from the text, a list row's insets plus 4.
+            .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ContactAvatar(
             imageUrl = convo.contact.knsAvatarUrl,
             backupPhotoBase64 = convo.contact.backupPhotoBase64,
             fallbackText = convo.contact.avatarFallbackText,
-            size = 48.dp,
+            size = 50.dp,
             address = convo.contact.id
         )
 
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             // ContactsManager.displayName's order, as iOS 9ba6c8c: the name you gave the chat,
@@ -1522,9 +1524,10 @@ internal fun ConversationRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = contactLabel,
-                    style = MaterialTheme.typography.titleMedium,
+                    // iOS .headline: 17pt semibold
+                    fontSize = 17.sp,
                     color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -1542,7 +1545,20 @@ internal fun ConversationRow(
                         modifier = Modifier.size(14.dp)
                     )
                 }
+                Spacer(Modifier.weight(1f))
+                // When the last message came: the time today, "Yesterday", else the day (iOS
+                // formatDate - caption, secondary).
+                convo.lastMessage?.let { last ->
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = chatListDate(last.blockTimestamp),
+                        fontSize = 12.sp,
+                        color = LocalAppColors.current.textSecondary,
+                        maxLines = 1,
+                    )
+                }
             }
+            Spacer(Modifier.height(4.dp))
             // A reaction more recent than the last message gets shown instead - reactions never
             // become messages (they're applied as a corner pill), so without this the preview
             // would silently show a stale last message even when the truly most recent activity
@@ -1586,33 +1602,51 @@ internal fun ConversationRow(
                         convo.contact.conversationStatus == "pending" -> "🤝 ${preview ?: "Wants to connect"}"
                         else -> preview ?: "No messages yet"
                     },
-                    style = MaterialTheme.typography.bodyMedium,
+                    // iOS .subheadline: 15pt
+                    fontSize = 15.sp,
                     color = if (convo.contact.conversationStatus == "pending") KaspaTeal else LocalAppColors.current.textSecondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-            }
-        }
-
-        if (convo.unreadCount > 0) {
-            Spacer(Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
-                    .background(KaspaTeal, CircleShape)
-                    .padding(horizontal = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = convo.unreadCount.toString(),
-                    // See the group row's badge: white on teal in either theme, as on iOS.
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (convo.unreadCount > 0) {
+                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
+                    // iOS: caption2 bold white on the accent, 6 by 2 padding, a capsule.
+                    Box(
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 18.dp)
+                            .background(KaspaTeal, CircleShape)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = convo.unreadCount.toString(),
+                            // See the group row's badge: white on teal in either theme, as on iOS.
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+/** The chat list's date (iOS ConversationRow.formatDate): "h:mm a" today, "Yesterday", else
+ *  "MMM d". [timestampMs] is the message's time in milliseconds. */
+internal fun chatListDate(timestampMs: Long): String {
+    val now = java.util.Calendar.getInstance()
+    val then = java.util.Calendar.getInstance().apply { timeInMillis = timestampMs }
+    val sameDay = now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) &&
+        now.get(java.util.Calendar.DAY_OF_YEAR) == then.get(java.util.Calendar.DAY_OF_YEAR)
+    if (sameDay) return java.text.SimpleDateFormat("h:mm a", java.util.Locale.US).format(then.time)
+    val yesterday = (now.clone() as java.util.Calendar).apply { add(java.util.Calendar.DAY_OF_YEAR, -1) }
+    if (yesterday.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) &&
+        yesterday.get(java.util.Calendar.DAY_OF_YEAR) == then.get(java.util.Calendar.DAY_OF_YEAR)
+    ) return "Yesterday"
+    return java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault()).format(then.time)
 }
 
 /**
@@ -1765,12 +1799,18 @@ private fun AvatarImageChain(candidates: List<String>, fallbackText: String, fon
 private fun AvatarInitials(text: String, fontSize: TextUnit) {
     // 4.0 (matches iOS): no photo shows a person glyph, not initials - initials read like
     // random letters for KNS-less addresses and looked inconsistent next to real avatars.
-    Icon(
-        imageVector = Icons.Outlined.Person,
-        contentDescription = null,
-        tint = KaspaTeal,
-        modifier = Modifier.fillMaxSize(0.55f)
-    )
+    // iOS KNSAvatarView.fallbackAvatar: a filled person on the accent at 20%.
+    Box(
+        modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Person,
+            contentDescription = null,
+            tint = KaspaTeal,
+            modifier = Modifier.fillMaxSize(0.5f)
+        )
+    }
 }
 
 // MARK: - Message Requests (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401 / 74bd52c)

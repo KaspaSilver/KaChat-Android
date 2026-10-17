@@ -923,7 +923,7 @@ private fun KaPostsFeedScreen(
                 Text(
                     text = "KaPosts",
                     color = colors.textPrimary,
-                    fontSize = 26.sp,
+                    fontSize = LargeTitleSize,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 4.dp),
                 )
@@ -1679,14 +1679,16 @@ private fun SideMenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 internal fun ConnectionDotButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalAppColors.current
     val dotColorHex by hiltViewModel<com.kachat.app.viewmodels.ConnectionViewModel>().dotColorHex.collectAsState()
+    // iOS ConnectionStatusIndicator as a toolbar item: a 44pt glass disc, a 12pt status dot.
     Box(
         modifier = modifier
-            .size(32.dp)
-            .background(colors.surface, CircleShape)
+            .size(44.dp)
+            .toolbarGlass()
+            .clip(CircleShape)
             .clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Box(modifier = Modifier.size(10.dp).background(Color(dotColorHex), CircleShape))
+        Box(modifier = Modifier.size(12.dp).background(Color(dotColorHex), CircleShape))
     }
 }
 
