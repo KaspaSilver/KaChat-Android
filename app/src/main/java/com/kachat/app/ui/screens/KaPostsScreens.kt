@@ -687,9 +687,9 @@ private fun KaPostsFeedScreen(
     var followListKind by remember { mutableStateOf<Boolean?>(null) } // true = followers
     // The profile whose follow list is open: null = my own list, non-null = another user's.
     var followListPubkey by remember { mutableStateOf<String?>(null) }
-    // Tip sheet target: (poster address, display name, the post tipped). The post is null only
-    // for something that isn't on the network yet.
-    var tipTarget by remember { mutableStateOf<Triple<String, String, com.kachat.app.models.KaPostTip?>?>(null) }
+    // Tip sheet target: the poster, the post tipped (null only for something that isn't on the
+    // network yet) and, when an instant tip failed, why (iOS fae6686 `TipTarget.failure`).
+    var tipTarget by remember { mutableStateOf<KaPostTipTarget?>(null) }
     val defaultTipSompi by settingsViewModel.kaPostsDefaultTipSompi.collectAsState()
     /**
      * Tipping a poster. With a default amount set (KaPosts Settings) it goes out at once,
@@ -706,7 +706,7 @@ private fun KaPostsFeedScreen(
         val target = com.kachat.app.models.KaPostTip.of(post)
         val amount = defaultTipSompi
         if (amount == null || amount <= 0) {
-            tipTarget = Triple(address, name, target)
+            tipTarget = KaPostTipTarget(address, name, target)
         } else {
             chatViewModel.addContact(address, null)
             val kasText = kasAmountText(amount)
@@ -715,14 +715,15 @@ private fun KaPostsFeedScreen(
                     viewModel.countTip(target)
                     viewModel.showTipToast("Tipped $kasText ${KaspaUnit.symbol} to $name", txId.orEmpty())
                 } else {
-                    // iOS: "Tip didn't send: " and the reason, as UserFacingError words it.
-                    viewModel.showFeedError(
-                        tipFailedContext.getString(
+                    // The amount screen opens with the reason ("Tip didn't send: " and the
+                    // reason, as UserFacingError words it), so the tip can be sent by hand.
+                    tipTarget = KaPostTipTarget(
+                        address, name, target,
+                        failure = tipFailedContext.getString(
                             R.string.kaposts_tip_didnt_send,
                             com.kachat.app.util.UserFacingError.message(error, tipFailedContext.getString(R.string.something_went_wrong)),
-                        )
+                        ),
                     )
-                    tipTarget = Triple(address, name, target)
                 }
             }
         }
@@ -1569,15 +1570,17 @@ private fun KaPostsFeedScreen(
         )
     }
 
-    tipTarget?.let { (tipAddress, tipName, tipPost) ->
+    tipTarget?.let { target ->
         KaPostTipSheet(
-            address = tipAddress,
-            displayName = tipName,
-            tip = tipPost,
-            onTipped = { viewModel.countTip(tipPost) },
+            address = target.address,
+            displayName = target.name,
+            tip = target.tip,
+            initialError = target.failure,
+            onTipped = { viewModel.countTip(target.tip) },
             onDismiss = { tipTarget = null },
         )
     }
+    KaPostsActionErrorAlert(viewModel)
 
     if (showSearch) {
         KaPostsSearchOverlay(
@@ -4477,6 +4480,33 @@ fun KaPostThreadOverlay(
     }
 }
 
+/** Who the tip sheet is for: the poster, the post tipped and, when an instant tip failed, why. */
+private data class KaPostTipTarget(
+    val address: String,
+    val name: String,
+    val tip: com.kachat.app.models.KaPostTip?,
+    val failure: String? = null,
+)
+
+/** A delete or edit that failed after its countdown, as an alert (iOS fae6686 `actionError`), in
+ *  its own restart scope. */
+@Composable
+private fun KaPostsActionErrorAlert(viewModel: KaPostsViewModel) {
+    val actionError by viewModel.actionError.collectAsState()
+    val message = actionError ?: return
+    val colors = LocalAppColors.current
+    com.kachat.app.ui.theme.IosAlertDialog(
+        onDismissRequest = { viewModel.clearActionError() },
+        title = { Text("KaPosts", color = colors.textPrimary) },
+        text = { Text(message, color = colors.textSecondary) },
+        confirmButton = {
+            TextButton(onClick = { viewModel.clearActionError() }) {
+                Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
+            }
+        },
+    )
+}
+
 /** The undo/confirmation toast stack in its OWN restart scope (used by the main screen and the
  *  thread overlay): toast emissions recompose this layer only, never the screen or list behind. */
 @Composable
@@ -5716,6 +5746,8 @@ fun KaPostTipSheet(
     /** The post being tipped: then it is a tip that names the post, paid from the chatting
      *  address only - no From choice (iOS a6bd60a). */
     tip: com.kachat.app.models.KaPostTip? = null,
+    /** Why an instant tip just failed, if that is what opened this sheet (iOS fae6686). */
+    initialError: String? = null,
     /** Called once the tip has gone out: the post's count goes up at once (iOS 0f241ce). */
     onTipped: () -> Unit = {},
     chatViewModel: ChatViewModel = hiltViewModel(),
@@ -5726,7 +5758,7 @@ fun KaPostTipSheet(
     val amountText by chatViewModel.paymentAmount.collectAsState()
     var memo by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
-    var errorText by remember { mutableStateOf<String?>(null) }
+    var errorText by remember { mutableStateOf(initialError) }
     // Fee speed, a custom fee and coin control - the chat sheet's controls (SendFeeControls).
     var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
     var customExtraFeeSompi by remember { mutableStateOf<Long?>(null) }

@@ -401,6 +401,12 @@ class KaPostsViewModel @Inject constructor(
 
     private val _feedError = MutableStateFlow<String?>(null)
     val feedError: StateFlow<String?> = _feedError.asStateFlow()
+    /** A KaPosts action that failed after its countdown (delete, edit), shown as an alert (iOS
+     *  fae6686 `actionError`). These used to go into feedError, which shows only on an empty
+     *  feed, so they were silent. */
+    private val _actionError = MutableStateFlow<String?>(null)
+    val actionError: StateFlow<String?> = _actionError.asStateFlow()
+    fun clearActionError() { _actionError.value = null }
 
     // MARK: - Local stores (follow/mute/block survive relaunch; on-chain follow txs mirror them)
 
@@ -821,11 +827,6 @@ class KaPostsViewModel @Inject constructor(
 
     /** The same capsule the in-app actions use, for a tip that went out without a sheet. */
     fun showTipToast(message: String, txId: String) = showActionToast(message, txId)
-
-    /** Says what went wrong where the feed already says things, for a tip that did not send. */
-    fun showFeedError(message: String) {
-        _feedError.value = message
-    }
 
     private fun showActionToast(message: String, txId: String) {
         val toast = ActionToast(message = message, txId = txId)
@@ -1680,7 +1681,7 @@ class KaPostsViewModel @Inject constructor(
                         deliveryStatus = KaPostDraft.Delivery.SENT,
                     )
                 }
-                _feedError.value = "Couldn't save the edit: ${e.message}"
+                _actionError.value = "Couldn't save the edit: ${UserFacingError.message(e, "Something went wrong")}"
                 Log.w(TAG, "Edit submit failed", e)
             }
         }
@@ -1717,7 +1718,7 @@ class KaPostsViewModel @Inject constructor(
                 removePostEverywhere(post.id)
             } catch (e: Exception) {
                 mutateEverywhere(post.id) { it.copy(pendingDeletion = false) }
-                _feedError.value = "Couldn't delete the post: ${e.message}"
+                _actionError.value = "Couldn't delete the post: ${UserFacingError.message(e, "Something went wrong")}"
                 Log.w(TAG, "Delete submit failed", e)
             }
         }
