@@ -1976,6 +1976,20 @@ private val LocalPortfolioValuesHidden = compositionLocalOf { false }
 /** What the eye shows instead of a number. */
 private const val MASKED_AMOUNT = "••••••"
 
+/** iOS chartMoney: an amount in whatever the chart counts in, masked by the eye. */
+private fun chartMoneyText(
+    value: Double,
+    hidden: Boolean,
+    flipped: Boolean,
+    unitCode: String,
+    pair: com.kachat.app.services.ChartPair?,
+    currencyCode: String,
+): String = when {
+    hidden -> MASKED_AMOUNT
+    flipped -> formatChartAmount(value, unitCode, pair)
+    else -> formatFiatAmount(value, currencyCode)
+}
+
 /** Every amount on the Portfolio goes through here, so the eye masks all of them at once. */
 @Composable
 private fun money(value: Double, currencyCode: String): String =
@@ -1989,7 +2003,6 @@ private fun kas(value: Double, grouped: Boolean = false): String = when {
     else -> "${formatKasAmount(value)} ${KaspaUnit.symbol}"
 }
 
-@Composable
 /**
  * A price in whatever the chart is counting in. Bitcoin and the pairs are written out in full -
  * eight decimals at the least for bitcoin, more for a per-KAS figure, and enough significant
@@ -2384,10 +2397,13 @@ fun PortfolioValueChartScreen(
     val colors = LocalAppColors.current
 
     /** iOS chartMoney: an amount in whatever the chart counts in, masked by the eye. */
-    fun chartMoney(value: Double): String = when {
-        valuesHidden -> MASKED_AMOUNT
-        flipped -> formatChartAmount(value, shownUnit, chartPair)
-        else -> formatFiatAmount(value, currencyCode)
+    val moneyHidden = valuesHidden
+    val moneyPair = chartPair
+    val moneyCurrency = currencyCode
+    val moneyFlipped = flipped
+    val moneyUnit = shownUnit
+    val chartMoney: (Double) -> String = { value ->
+        chartMoneyText(value, moneyHidden, moneyFlipped, moneyUnit, moneyPair, moneyCurrency)
     }
 
     CompositionLocalProvider(LocalPortfolioValuesHidden provides valuesHidden) {
