@@ -1588,4 +1588,32 @@
     <string name="unlock_change_seed_phrase_lock">Unlock to change the seed phrase biometric lock</string>
     <string name="unlock_change_account_login_lock">Unlock to change the account login biometric lock</string>
     <string name="unlock_change_private_key_lock">Unlock to change the private key biometric lock</string>
+    <!-- Settings > Storage > Nextcloud, as iOS's NextcloudSettingsView (English only there too) -->
+    <string name="nc_server">Server</string>
+    <string name="nc_server_placeholder">cloud.example.com</string>
+    <string name="nc_username">Username</string>
+    <string name="nc_app_password">App password</string>
+    <string name="nc_use_https">Use https. Unencrypted connections are not supported.</string>
+    <string name="nc_app_password_footer">Create an app password in Nextcloud under Settings → Security → Devices &amp; sessions — don\'t use your account password. KaChat stores it in the device\'s encrypted storage.</string>
+    <string name="nc_connect">Connect</string>
+    <string name="nc_connected_account">Connected Account</string>
+    <string name="nc_start_folder">Start Folder</string>
+    <string name="nc_automatic_sync">Automatic Sync</string>
+    <string name="nc_auto_sync_one_service">Automatic sync works with one cloud service at a time.</string>
+    <string name="nc_last_synced">Last synced</string>
+    <string name="nc_backup_folder">Backup Folder</string>
+    <string name="nc_default_folder">%1$s (default)</string>
+    <string name="nc_back_up_now">Back Up Messages Now</string>
+    <string name="nc_restore_from_backup">Restore from Backup</string>
+    <string name="nc_last_backup">Last backup</string>
+    <string name="nc_no_backup_yet">No backup on this server yet.</string>
+    <string name="nc_backup_uploaded">Backup uploaded.</string>
+    <string name="nc_message_backup">Message Backup</string>
+    <string name="nc_message_backup_footer">Keeps your chat history in %1$s in the folder above (choosing All Files resets to the default %2$s folder). Automatic Sync keeps your devices in near-live sync: new messages upload moments after they arrive, and while the app is open it also watches the server and quietly pulls in what your other devices upload, fastest while you are in a chat. A wallet that connects to an existing backup restores it once automatically. Every upload merges with what is already on the server, so no device can erase another\'s history. Restoring merges the archive into this device\'s history.</string>
+    <string name="nc_disconnect">Disconnect</string>
+    <string name="nc_disconnect_footer">Disconnecting removes the stored app password from this device. Nothing changes on your Nextcloud server.</string>
+    <string name="nc_disconnect_title">Disconnect Nextcloud</string>
+    <string name="nc_disconnect_message">The app password is removed from this device\'s encrypted storage. You can reconnect any time.</string>
+    <string name="nc_restore_message">Messages from the server backup are merged into this device\'s chat history. Nothing is deleted.</string>
+    <string name="nc_restore">Restore</string>
 </resources>

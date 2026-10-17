@@ -94,6 +94,28 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.ChatViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import com.kachat.app.util.is24HourClock
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.text.DateFormat
 import java.util.Date
 
@@ -317,7 +339,7 @@ private fun NextcloudFileRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            val size = file.size?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
+            val size = file.size?.let { com.kachat.app.util.IosByteCount.format(context, it) }
             if (size != null) {
                 Text(size, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall)
             }
@@ -687,17 +709,22 @@ fun NextcloudPdfViewerDialog(
 }
 
 /**
- * The rows of the Settings > Storage > Nextcloud page ([NextcloudStorageScreen] supplies the
- * page chrome). Not connected: server/username/app-password form. Connected: account line,
- * start/backup folder rows, automatic-backup toggle, manual backup, last-backup line, restore
- * (with confirmation), disconnect. Mirrors iOS's NextcloudSettingsView, which its Storage page
- * pushes as its own screen in exactly the same way.
+ * The sections of the Settings > Storage > Nextcloud page ([NextcloudStorageScreen] supplies the
+ * Form page around them) - iOS's NextcloudSettingsView, section for section.
  *
- * Card title is left null because the page's app bar already says "Nextcloud".
+ * Not connected: "Server" (address, username and app password as plain rows in one card, the
+ * https warning between them, the app-password footer), an error section when connecting failed,
+ * and Connect in a section of its own.
+ *
+ * Connected: Connected Account (server, username); Start Folder with the + menu footer; Message
+ * Backup (Automatic Sync, the one-service note, Last synced, Backup Folder, Back Up Messages Now,
+ * Restore from Backup, the last backup, the outcome of a backup started here) with its footer;
+ * Disconnect, confirmed by an alert, with its footer.
  */
 @Composable
 fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     val context = LocalContext.current
+    val colors = LocalAppColors.current
     val service = chatViewModel.nextcloud
     val account by service.account.collectAsState()
     val autoBackupEnabled by service.autoBackupEnabled.collectAsState()
@@ -706,10 +733,15 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     val backupState by chatViewModel.nextcloudBackupState.collectAsState()
     val restorePhase by chatViewModel.restoreCoordinator.phase.collectAsState()
     val backupInfo by chatViewModel.nextcloudBackupInfo.collectAsState()
+    val is24Hour = is24HourClock()
 
     var showStartFolderPicker by remember { mutableStateOf(false) }
     var showBackupFolderPicker by remember { mutableStateOf(false) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
+    var showDisconnectConfirm by remember { mutableStateOf(false) }
+    // iOS keeps a backup's outcome ("Backup uploaded." / the error) in the view's own state, so it
+    // shows only for a backup started on this visit; the view model's state outlives the page.
+    var backupStartedHere by remember { mutableStateOf(false) }
 
     LaunchedEffect(account) {
         if (account != null) chatViewModel.refreshNextcloudBackupInfo()
@@ -717,184 +749,218 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
 
     // Testnet: Nextcloud is off until mainnet is back (iOS af8ec68).
     if (service.isOffForTestnet) {
-        SettingsSection(title = null) {
+        SettingsFormSection(title = null, footer = stringResource(R.string.nextcloud_off_on_testnet_footer)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Default.CloudOff, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(16.dp))
-                Text(stringResource(R.string.nextcloud_off_on_testnet), color = LocalAppColors.current.textPrimary, fontSize = androidx.compose.ui.unit.TextUnit(17f, androidx.compose.ui.unit.TextUnitType.Sp))
+                Text(stringResource(R.string.nextcloud_off_on_testnet), color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge)
             }
         }
-        SettingsFooter(stringResource(R.string.nextcloud_off_on_testnet_footer))
         return
     }
 
-    SettingsSection(title = null) {
-        val connected = account
-        if (connected == null) {
-            var server by remember { mutableStateOf("") }
-            var username by remember { mutableStateOf("") }
-            var appPassword by remember { mutableStateOf("") }
-            val connecting = connectState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+    val connected = account
+    if (connected == null) {
+        var server by remember { mutableStateOf("") }
+        var username by remember { mutableStateOf("") }
+        var appPassword by remember { mutableStateOf("") }
+        // iOS's errorMessage: the https refusal, or why the connection failed (only for an
+        // attempt made on this visit).
+        var httpRefused by remember { mutableStateOf(false) }
+        var attemptedHere by remember { mutableStateOf(false) }
+        val connecting = connectState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+        val canConnect = server.isNotBlank() && username.isNotBlank() && appPassword.isNotBlank() && !connecting
+        // Decision 3A: https only. Bare hostnames are fine (NextcloudService.normalizeServer
+        // defaults them to https, and refuses http:// as a backstop); an explicit http:// is
+        // flagged inline here and refused again by Connect.
+        val serverIsPlainHttp = server.trim().lowercase().startsWith("http://")
+        val useHttps = stringResource(R.string.nc_use_https)
+        val errorMessage = when {
+            httpRefused -> useHttps
+            attemptedHere && connectState.status == ChatViewModel.ChatHistoryOpStatus.FAILED ->
+                connectState.message ?: "Could not connect"
+            else -> null
+        }
 
-            Column(modifier = Modifier.padding(16.dp)) {
-                val fieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = LocalAppColors.current.textPrimary,
-                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                    focusedBorderColor = KaspaTeal,
-                    unfocusedBorderColor = LocalAppColors.current.textSecondary,
-                    focusedLabelColor = KaspaTeal,
-                    unfocusedLabelColor = LocalAppColors.current.textSecondary
-                )
-                // Explicit http:// is rejected up front (bare hostnames still default to https
-                // inside NextcloudService.normalizeServer, which also refuses http:// as a
-                // backstop) — an app password and full chat history travel over this connection.
-                val serverIsPlainHttp = server.trim().lowercase().startsWith("http://")
-                com.kachat.app.ui.theme.IosTextField(
-                    value = server,
-                    onValueChange = { server = it },
-                    label = { Text("Server (e.g. cloud.example.com)") },
-                    singleLine = true,
-                    isError = serverIsPlainHttp,
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (serverIsPlainHttp) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Use https. Unencrypted connections are not supported.",
-                        color = LocalAppColors.current.danger,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                com.kachat.app.ui.theme.IosTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Username") },
-                    singleLine = true,
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                // Same reveal-toggle field the Child Mode password flows use - app passwords are
-                // long random strings, so being able to see what was typed/pasted matters here.
-                RevealableSecureField(
-                    value = appPassword,
-                    onValueChange = { appPassword = it },
-                    label = "App password",
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { chatViewModel.connectNextcloud(server, username, appPassword) },
-                    enabled = !connecting && !serverIsPlainHttp && server.isNotBlank() && username.isNotBlank() && appPassword.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (connecting) {
-                        com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text("Connect", color = Color.Black, fontWeight = FontWeight.Bold)
+        NcFormSection(
+            title = stringResource(R.string.nc_server),
+            footers = listOf(stringResource(R.string.nc_app_password_footer)),
+        ) {
+            NcFormField(
+                value = server,
+                onValueChange = { server = it },
+                placeholder = stringResource(R.string.nc_server_placeholder),
+                keyboardType = KeyboardType.Uri,
+            )
+            if (serverIsPlainHttp) {
+                SettingsDivider()
+                NcCaptionRow(useHttps, colors.danger)
+            }
+            SettingsDivider()
+            NcFormField(
+                value = username,
+                onValueChange = { username = it },
+                placeholder = stringResource(R.string.nc_username),
+            )
+            SettingsDivider()
+            NcFormField(
+                value = appPassword,
+                onValueChange = { appPassword = it },
+                placeholder = stringResource(R.string.nc_app_password),
+                secure = true,
+            )
+        }
+
+        if (errorMessage != null) {
+            SettingsFormSection(title = null) {
+                NcCaptionRow(errorMessage, colors.danger)
+            }
+        }
+
+        SettingsFormSection(title = null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = canConnect) {
+                        if (server.trim().lowercase().startsWith("http://")) {
+                            httpRefused = true
+                        } else {
+                            httpRefused = false
+                            attemptedHere = true
+                            chatViewModel.connectNextcloud(server, username, appPassword)
+                        }
                     }
-                }
-                if (connectState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                    Spacer(Modifier.height(8.dp))
+                    .heightIn(min = 52.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (connecting) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp))
+                } else {
                     Text(
-                        connectState.message ?: "Could not connect",
-                        color = LocalAppColors.current.danger,
-                        style = MaterialTheme.typography.bodySmall
+                        stringResource(R.string.nc_connect),
+                        color = if (canConnect) KaspaTeal else ncTertiaryLabel(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
-            SettingsFooter("Connect your own Nextcloud server to send photos and videos as share links and back up chat history. Create an app password in Nextcloud under Settings > Security.")
-        } else {
-            SettingsInfoItem(label = "Connected", value = connected.displayName)
+        }
+    } else {
+        val backupInFlight = backupState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
+        val restoreInFlight = restorePhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
+        val host = connected.server.toHttpUrlOrNull()?.host ?: connected.server
+        val allFiles = stringResource(R.string.pnc_all_files)
+
+        SettingsFormSection(title = stringResource(R.string.nc_connected_account)) {
+            NcValueRow(stringResource(R.string.nc_server), host, truncation = NcTruncation.MIDDLE)
             SettingsDivider()
-            SettingsInfoItem(
-                label = "Start Folder",
-                value = connected.startFolder?.substringAfterLast('/') ?: "All Files",
+            NcValueRow(stringResource(R.string.nc_username), connected.username)
+        }
+
+        // The old "Send Media via Nextcloud" switch is gone: Camera, Photo and Voice Message in a
+        // chat's + menu ask on chain or via Nextcloud every time. What that choice means for
+        // privacy still belongs here (iOS 8b13460).
+        NcFormSection(
+            title = null,
+            footers = listOf(
+                stringResource(R.string.nextcloud_file_folder_footer),
+                stringResource(R.string.nextcloud_media_route_footer, NextcloudService.MEDIA_FOLDER_PATH),
+            ),
+        ) {
+            NcValueRow(
+                stringResource(R.string.nc_start_folder),
+                connected.startFolder ?: allFiles,
+                truncation = NcTruncation.HEAD,
                 onClick = { showStartFolderPicker = true }
             )
-            // The old "Send Media via Nextcloud" switch is gone: Camera, Photo and Voice Message in
-            // a chat's + menu ask on chain or via Nextcloud every time. What that choice means for
-            // privacy still belongs here (iOS 8b13460).
-            SettingsFooter(
-                stringResource(R.string.nextcloud_file_folder_footer) + "\n\n" +
-                    stringResource(R.string.nextcloud_media_route_footer, com.kachat.app.services.NextcloudService.MEDIA_FOLDER_PATH)
-            )
+        }
+
+        NcFormSection(
+            title = stringResource(R.string.nc_message_backup),
+            footers = listOf(
+                stringResource(R.string.nc_message_backup_footer, NextcloudService.BACKUP_FILE_NAME, NextcloudService.BACKUP_FOLDER_NAME),
+                stringResource(R.string.nextcloud_sync_address_book_portfolios),
+            ),
+        ) {
+            SettingsSwitchItem(stringResource(R.string.nc_automatic_sync), autoBackupEnabled) { enabled ->
+                chatViewModel.setNextcloudAutoSyncEnabled(enabled)
+            }
             SettingsDivider()
-            SettingsInfoItem(
-                label = "Backup Folder",
-                value = connected.backupFolder ?: "KaChat (default)",
+            NcCaptionRow(stringResource(R.string.nc_auto_sync_one_service), colors.textSecondary)
+            lastAutoSyncMs?.let { ms ->
+                SettingsDivider()
+                NcValueRow(
+                    stringResource(R.string.nc_last_synced),
+                    com.kachat.app.util.IosDateStyle.mediumDateShortTime(ms, is24Hour),
+                    caption = true
+                )
+            }
+            SettingsDivider()
+            NcValueRow(
+                stringResource(R.string.nc_backup_folder),
+                connected.backupFolder ?: stringResource(R.string.nc_default_folder, NextcloudService.BACKUP_FOLDER_NAME),
+                truncation = NcTruncation.HEAD,
                 onClick = { showBackupFolderPicker = true }
             )
             SettingsDivider()
-            SettingsSwitchItem("Automatic Sync", autoBackupEnabled) { enabled ->
-                chatViewModel.setNextcloudAutoSyncEnabled(enabled)
-            }
-            SettingsFooter(
-                (if (autoBackupEnabled) {
-                    val lastSyncedText = lastAutoSyncMs?.let {
-                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
-                    }
-                    "Messages sync to this server shortly after sending or receiving, merging with backups from your other devices. While KaChat is open, new messages from your other devices appear here automatically, fastest while you are in a chat. " +
-                        if (lastSyncedText != null) "Last synced: $lastSyncedText." else "Waiting for the first sync."
-                } else {
-                    "Turn on to keep this server's backup current automatically and to mirror new messages between your devices in near real time while the app is open."
-                }) + " Automatic sync works with one cloud service at a time." +
-                    // the Address Book and portfolios ride in the same file (iOS 11f1548)
-                    "\n\n" + stringResource(R.string.nextcloud_sync_address_book_portfolios)
-            )
-
-            val backupInFlight = backupState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-            val restoreInFlight = restorePhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
-
-            SettingsDivider()
-            SettingsActionItem(
-                label = if (backupInFlight) "Backing Up..." else "Back Up Messages Now",
-                icon = Icons.Default.CloudUpload,
-                color = if (backupInFlight) LocalAppColors.current.textSecondary else KaspaTeal
+            NcLabelButtonRow(
+                label = stringResource(R.string.nc_back_up_now),
+                icon = Icons.Outlined.UploadFile,
+                enabled = !backupInFlight && !restoreInFlight,
+                busy = backupInFlight,
             ) {
-                if (!backupInFlight) chatViewModel.nextcloudBackupNow()
+                backupStartedHere = true
+                chatViewModel.nextcloudBackupNow()
             }
-            val lastBackupText = backupInfo?.let { info ->
-                val date = info.modifiedMs?.let {
-                    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
-                }
-                val size = info.size?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
-                "Last backup: ${date ?: "unknown date"}${if (size != null) " · $size" else ""}"
-            }
-            SettingsFooter(
-                when {
-                    backupInFlight -> "Working..."
-                    backupState.status == ChatViewModel.ChatHistoryOpStatus.FAILED -> backupState.message ?: "Backup failed"
-                    lastBackupText != null -> lastBackupText
-                    else -> "No backup on this server yet."
-                }
-            )
-
-            SettingsDivider()
-            SettingsActionItem(
-                label = if (restoreInFlight) "Restoring..." else "Restore from Nextcloud",
-                icon = Icons.Default.CloudDownload,
-                color = if (restoreInFlight) LocalAppColors.current.textSecondary else KaspaTeal
+            SettingsDivider(inset = IosRowTextInset)
+            NcLabelButtonRow(
+                label = stringResource(R.string.nc_restore_from_backup),
+                icon = Icons.Outlined.FileDownload,
+                enabled = !backupInFlight && !restoreInFlight && backupInfo != null,
+                busy = restoreInFlight,
             ) {
-                // Progress and terminal states (success/failure) show in the blocking restore
-                // modal (ChatRestoreProgressOverlay), not as footer rows here.
-                if (!restoreInFlight) showRestoreConfirm = true
+                // Progress and the outcome show in the blocking restore modal
+                // (ChatRestoreProgressOverlay), not as rows here.
+                showRestoreConfirm = true
             }
+            val info = backupInfo
+            val modified = info?.modifiedMs
+            if (info != null && modified != null) {
+                SettingsDivider(inset = IosRowTextInset)
+                val size = info.size?.let { " · " + com.kachat.app.util.IosByteCount.format(context, it) } ?: ""
+                NcValueRow(
+                    stringResource(R.string.nc_last_backup),
+                    com.kachat.app.util.IosDateStyle.mediumDateShortTime(modified, is24Hour) + size,
+                    caption = true
+                )
+            } else if (info == null) {
+                SettingsDivider(inset = IosRowTextInset)
+                NcCaptionRow(stringResource(R.string.nc_no_backup_yet), colors.textSecondary)
+            }
+            if (backupStartedHere && backupState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
+                SettingsDivider()
+                NcCaptionRow(stringResource(R.string.nc_backup_uploaded), colors.success)
+            }
+            if (backupStartedHere && backupState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
+                SettingsDivider()
+                NcCaptionRow(backupState.message ?: "Backup failed", colors.danger)
+            }
+        }
 
-            SettingsDivider()
-            SettingsActionItem(
-                label = "Disconnect",
-                icon = Icons.Default.CloudOff,
-                color = LocalAppColors.current.danger
+        SettingsFormSection(title = null, footer = stringResource(R.string.nc_disconnect_footer)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDisconnectConfirm = true }
+                    .heightIn(min = 52.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                chatViewModel.disconnectNextcloud()
+                Text(stringResource(R.string.nc_disconnect), color = colors.danger, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
@@ -917,6 +983,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 // Selecting the root resets back to the default "KaChat" folder.
                 service.setBackupFolder(path)
                 showBackupFolderPicker = false
+                // The backup lives per folder - re-check what exists at the new destination.
                 chatViewModel.refreshNextcloudBackupInfo()
             }
         )
@@ -924,28 +991,273 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     if (showRestoreConfirm) {
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showRestoreConfirm = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Restore from Nextcloud?", color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    "This merges the backup on your Nextcloud server into this device's chat history. Nothing is deleted.",
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
+            containerColor = colors.surface,
+            title = { Text(stringResource(R.string.nc_restore_from_backup), color = colors.textPrimary) },
+            text = { Text(stringResource(R.string.nc_restore_message), color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     showRestoreConfirm = false
+                    backupStartedHere = false
+                    // Runs behind the blocking progress modal; the coordinator owns the work, so
+                    // leaving this page cannot interrupt the restore.
                     chatViewModel.restoreFromNextcloud()
                 }) {
-                    Text("Restore", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.nc_restore), color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRestoreConfirm = false }) {
-                    Text("Cancel", color = LocalAppColors.current.textSecondary)
+                    Text(stringResource(R.string.cancel), color = colors.textSecondary)
                 }
             }
         )
+    }
+    if (showDisconnectConfirm) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showDisconnectConfirm = false },
+            containerColor = colors.surface,
+            title = { Text(stringResource(R.string.nc_disconnect_title), color = colors.textPrimary) },
+            text = { Text(stringResource(R.string.nc_disconnect_message), color = colors.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDisconnectConfirm = false
+                    chatViewModel.disconnectNextcloud()
+                }) {
+                    Text(stringResource(R.string.nc_disconnect), color = colors.danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = colors.textSecondary)
+                }
+            }
+        )
+    }
+}
+
+/** iOS's tertiaryLabel, translucent as iOS draws it: a Form field's placeholder and a disabled
+ *  button's title. */
+@Composable
+private fun ncTertiaryLabel(): Color =
+    if (LocalAppColors.current.isDark) Color(0x4DEBEBF5) else Color(0x4D3C3C43)
+
+/**
+ * A Form section whose footer is several paragraphs, 6 apart (iOS's footer VStack(spacing: 6));
+ * with none it is [SettingsFormSection].
+ */
+@Composable
+private fun NcFormSection(
+    title: String?,
+    footers: List<String> = emptyList(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (footers.isEmpty()) {
+        SettingsFormSection(title = title, content = content)
+        return
+    }
+    Column(Modifier.fillMaxWidth()) {
+        SettingsSection(title = title, content = content)
+        SettingsFormFooter(footers.first())
+        footers.drop(1).forEach { paragraph ->
+            Text(
+                text = paragraph,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                color = LocalAppColors.current.textSecondary,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp)
+            )
+        }
+        Spacer(Modifier.height(IosFormFooterGap))
+    }
+}
+
+/**
+ * A plain Form text field (iOS's TextField / RevealableSecureField in a Form): no box of its own,
+ * the row is the field - 17pt text, the placeholder in tertiaryLabel, no capitalisation or
+ * autocorrection. [secure] hides the text behind the eye toggle.
+ */
+@Composable
+private fun NcFormField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    secure: Boolean = false,
+) {
+    val colors = LocalAppColors.current
+    var revealed by remember { mutableStateOf(false) }
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.textPrimary)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .padding(start = 16.dp, end = if (secure) 6.dp else 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f).padding(vertical = 14.dp),
+            singleLine = true,
+            textStyle = textStyle,
+            cursorBrush = SolidColor(KaspaTeal),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.None,
+                autoCorrect = false,
+                keyboardType = if (secure) KeyboardType.Password else keyboardType,
+            ),
+            visualTransformation = if (secure && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (value.isEmpty()) {
+                        Text(placeholder, style = textStyle, color = ncTertiaryLabel(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    innerTextField()
+                }
+            }
+        )
+        if (secure) {
+            IconButton(onClick = { revealed = !revealed }, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = if (revealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = stringResource(if (revealed) R.string.hide_password else R.string.show_password),
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+private enum class NcTruncation { NONE, MIDDLE, HEAD }
+
+/**
+ * A Form row with its title at the left and a value at the right (iOS's HStack { Text; Spacer;
+ * Text.foregroundColor(.secondary) }). [caption] writes the value in `.caption` (12pt);
+ * [truncation] keeps it on one line, giving way in the middle or at the start. With [onClick]
+ * the row is a button.
+ */
+@Composable
+private fun NcValueRow(
+    label: String,
+    value: String,
+    caption: Boolean = false,
+    truncation: NcTruncation = NcTruncation.NONE,
+    onClick: (() -> Unit)? = null,
+) {
+    val colors = LocalAppColors.current
+    val valueStyle = if (caption) {
+        MaterialTheme.typography.bodyLarge.copy(fontSize = 12.sp, lineHeight = 16.sp)
+    } else {
+        MaterialTheme.typography.bodyLarge
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = colors.textPrimary, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+        Spacer(Modifier.width(12.dp))
+        val valueModifier = Modifier.weight(1f)
+        when (truncation) {
+            NcTruncation.MIDDLE -> MiddleEllipsisText(
+                value,
+                modifier = valueModifier,
+                color = colors.textSecondary,
+                textAlign = TextAlign.End,
+                style = valueStyle,
+            )
+            NcTruncation.HEAD -> NcHeadEllipsisText(value, valueModifier, colors.textSecondary, valueStyle)
+            NcTruncation.NONE -> Text(value, modifier = valueModifier, color = colors.textSecondary, style = valueStyle, textAlign = TextAlign.End)
+        }
+    }
+}
+
+/** One line that gives way at its START when it does not fit - iOS's `.truncationMode(.head)`,
+ *  so a folder path keeps the folder's own name. */
+@Composable
+private fun NcHeadEllipsisText(text: String, modifier: Modifier, color: Color, style: TextStyle) {
+    val measurer = rememberTextMeasurer()
+    val merged = style.merge(TextStyle(color = color, textAlign = TextAlign.End))
+    BoxWithConstraints(modifier) {
+        val maxWidth = constraints.maxWidth
+        val bounded = constraints.hasBoundedWidth
+        val shown = remember(text, maxWidth, bounded, merged) {
+            val fits = { candidate: String ->
+                !measurer.measure(
+                    AnnotatedString(candidate),
+                    style = merged,
+                    overflow = TextOverflow.Clip,
+                    softWrap = false,
+                    maxLines = 1,
+                    constraints = Constraints(maxWidth = maxWidth),
+                ).hasVisualOverflow
+            }
+            if (!bounded || fits(text)) {
+                text
+            } else {
+                var low = 0
+                var high = text.length - 1
+                var best = "…"
+                while (low <= high) {
+                    val mid = (low + high) ushr 1
+                    val candidate = "…" + text.takeLast(mid)
+                    if (fits(candidate)) {
+                        best = candidate
+                        low = mid + 1
+                    } else {
+                        high = mid - 1
+                    }
+                }
+                best
+            }
+        }
+        Text(shown, style = merged, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** A row that is only a line of `.caption` text (12pt) in [color] - notes, errors, outcomes. */
+@Composable
+private fun NcCaptionRow(text: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Text(text, color = color, fontSize = 12.sp, lineHeight = 16.sp)
+    }
+}
+
+/**
+ * A Form button drawn as iOS's Label (symbol, then title) in the accent - tertiaryLabel when
+ * disabled - with a spinner at the trailing edge while [busy].
+ */
+@Composable
+private fun NcLabelButtonRow(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    busy: Boolean,
+    onClick: () -> Unit,
+) {
+    val tint = if (enabled) KaspaTeal else ncTertiaryLabel()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(16.dp))
+        Text(label, color = tint, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        if (busy) com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp))
     }
 }
 

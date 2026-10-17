@@ -20,9 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,12 +34,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -117,10 +113,10 @@ fun MessageRetentionSetting(chatViewModel: ChatViewModel) {
 }
 
 /**
- * Settings > Storage > Nextcloud — the self-hosted cloud backup. All of the
- * behaviour (connect form, start/backup folders, media-send toggle, automatic + manual backup,
- * restore, disconnect) lives in [NextcloudSettingsSection], unchanged; this screen only supplies
- * the sub-page chrome around it.
+ * Settings > Storage > Nextcloud — the self-hosted cloud backup, iOS's NextcloudSettingsView: an
+ * inset-grouped Form page ([SettingsFormPage]) whose sections (connect form, or the account,
+ * start/backup folders, automatic + manual backup, restore and disconnect) are
+ * [NextcloudSettingsSection]'s.
  */
 @Composable
 fun NextcloudStorageScreen(
@@ -128,7 +124,7 @@ fun NextcloudStorageScreen(
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        StoragePageScaffold(title = stringResource(R.string.nextcloud), onBack = onBack) {
+        SettingsFormPage(title = stringResource(R.string.nextcloud), onBack = onBack) {
             NextcloudSettingsSection(chatViewModel)
         }
         ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
@@ -295,36 +291,6 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                     }
                 }
             }
-        }
-    }
-}
-
-/** Shared chrome for the Storage sub-pages — the app's standard settings sub-screen look
- *  (centered bold title, teal back arrow, scrolling 16dp-padded column), matching
- *  AppSettingsScreen.kt's category pages. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StoragePageScaffold(
-    title: String,
-    onBack: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        // iOS's inline bar: the back chevron on a glass disc, 16 in, the title centred.
-        topBar = { SettingsSubpageBar(title = title, onBack = onBack) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-            content()
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
