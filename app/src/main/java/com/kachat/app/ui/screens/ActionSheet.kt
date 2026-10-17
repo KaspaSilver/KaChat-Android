@@ -1491,30 +1491,8 @@ fun UnderlineTabBar(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Equal widths, like iOS's bar; five tabs (Connection Settings) take a slightly smaller label.
-    val labelSize = if (titles.size > 4) 13.sp else 15.sp
-    androidx.compose.material3.TabRow(
-        selectedTabIndex = selectedIndex.coerceIn(0, (titles.size - 1).coerceAtLeast(0)),
-        containerColor = LocalAppColors.current.background,
-        contentColor = KaspaTeal,
-        modifier = modifier,
-    ) {
-        titles.forEachIndexed { index, title ->
-            androidx.compose.material3.Tab(
-                selected = index == selectedIndex,
-                onClick = { onSelect(index) },
-                text = {
-                    Text(
-                        title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = labelSize,
-                        color = if (index == selectedIndex) KaspaTeal else KaspaTeal.copy(alpha = 0.5f),
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                },
-            )
-        }
-    }
+    // iOS's UnderlineTabBar exactly: equal-width 15pt bold labels that shrink to fit (down to
+    // 75%) rather than being cut - "Translation" stays whole - and its underline and hairline.
+    HubUnderlineTabBar(titles = titles, selectedIndex = selectedIndex, onSelect = onSelect, modifier = modifier)
 }
 

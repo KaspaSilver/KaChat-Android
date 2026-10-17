@@ -411,7 +411,7 @@ internal fun HubSectionTopBar(
  * selected tab, and a hairline under the whole bar.
  */
 @Composable
-private fun HubUnderlineTabBar(
+internal fun HubUnderlineTabBar(
     titles: List<String>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,

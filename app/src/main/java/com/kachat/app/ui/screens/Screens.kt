@@ -69,6 +69,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Notifications
@@ -9148,7 +9149,7 @@ fun SettingsScreen(
                     Column {
                     SettingsNavigationItem(stringResource(R.string.customization), Icons.Outlined.Brush, onClick = { navController.navigate("settings_section/customization") })
                     SettingsDivider(inset = IosRowTextInset)
-                    SettingsNavigationItem(stringResource(R.string.security), Icons.Outlined.Shield, onClick = { navController.navigate("settings_section/security") })
+                    SettingsNavigationItem(stringResource(R.string.security), com.kachat.app.ui.theme.IosSymbols.LockShield, onClick = { navController.navigate("settings_section/security") })
                     SettingsDivider(inset = IosRowTextInset)
                     SettingsNavigationItem(stringResource(R.string.connection), Icons.Outlined.CellTower, onClick = { navController.navigate("settings_section/connection") })
                     SettingsDivider(inset = IosRowTextInset)
@@ -9235,6 +9236,7 @@ fun SettingsScreen(
                 // on iOS; the footer says what it does.
                 SettingsFormSection(
                     title = null,
+                    first = true,
                     footer = if (notificationsEnabled && notificationPermissionGranted) {
                         "Everything you have switched on below can reach you, even when the app is closed. Turning this off silences all of it."
                     } else if (!notificationPermissionGranted) {
@@ -9305,7 +9307,7 @@ fun SettingsScreen(
                     Text(
                         stringResource(
                             R.string.storage_local_used,
-                            localStorageSizeBytes?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
+                            localStorageSizeBytes?.let { com.kachat.app.util.IosByteCount.format(context, it) }
                                 ?: "Calculating..."
                         ),
                         color = LocalAppColors.current.textSecondary,
@@ -9343,7 +9345,7 @@ fun SettingsScreen(
                             val bytes = addressBookPhotoBytes
                             if (bytes != null) {
                                 Text(
-                                    android.text.format.Formatter.formatShortFileSize(context, bytes),
+                                    com.kachat.app.util.IosByteCount.format(context, bytes),
                                     color = LocalAppColors.current.textSecondary,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum")
                                 )
@@ -9371,7 +9373,7 @@ fun SettingsScreen(
                             confirmTitle = stringResource(R.string.remove),
                             confirmSubtitle = stringResource(
                                 R.string.ab_photos_frees,
-                                android.text.format.Formatter.formatShortFileSize(context, addressBookPhotoBytes ?: 0L)
+                                com.kachat.app.util.IosByteCount.format(context, addressBookPhotoBytes ?: 0L)
                             ),
                             confirmIcon = Icons.Default.Delete,
                             onConfirm = { addressBook?.removeAllPhotos() },
@@ -9454,7 +9456,8 @@ fun SettingsScreen(
                     SettingsDivider(inset = IosRowTextInset)
                     SettingsBusyActionItem(
                         label = stringResource(R.string.import_chat_history),
-                        icon = Icons.Default.FileDownload,
+                        // SF "square.and.arrow.down": a tray with an arrow into it.
+                        icon = Icons.Outlined.SaveAlt,
                         busy = importInFlight,
                         enabled = !exportInFlight && !importInFlight,
                     ) {
@@ -9758,9 +9761,16 @@ fun SettingsFormSection(
     footer: String? = null,
     /** A footer that reports an outcome (iOS colours an error red, a success green). */
     footerColor: Color = Color.Unspecified,
+    /** The page's first section: without a header, iOS still starts its card where a first
+     *  header's card would sit. */
+    first: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
+        // A section without a header keeps part of a header's room above its card on the
+        // iPhone: 32 from the footer above it, against 23 here (measured) - and the whole of it
+        // when it opens the page.
+        if (title == null) Spacer(Modifier.height(if (first) 24.dp else 9.dp))
         SettingsSection(title = title, content = content)
         if (footer != null) {
             SettingsFormFooter(footer, color = footerColor)
@@ -10399,7 +10409,7 @@ fun SecuritySettingsItems(
     // iOS: the lock.shield symbol, On / Off in caption.
     SettingsNavigationItem(
         stringResource(R.string.child_mode),
-        Icons.Outlined.Shield,
+        com.kachat.app.ui.theme.IosSymbols.LockShield,
         if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
         valueFontSize = 12.sp,
         onClick = onNavigateToChildMode
@@ -11385,44 +11395,43 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(Modifier.height(0.dp))
+            // Each section spaces itself, its footer under the card (SettingsFormSection).
+            Spacer(Modifier.height(16.dp))
             when (selectedConnectionTab) {
             0 -> {
-            SettingsSection(title = stringResource(R.string.message_indexer)) {
+            SettingsFormSection(title = stringResource(R.string.message_indexer), footer = stringResource(R.string.message_indexer_service_for_chat_functionality)) {
                 ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
-                SettingsFooter(stringResource(R.string.message_indexer_service_for_chat_functionality))
             }
 
-            SettingsSection(title = stringResource(R.string.kapost_indexer)) {
+            SettingsFormSection(title = stringResource(R.string.kapost_indexer), footer = stringResource(R.string.kapost_indexer_footer)) {
                 // Editable, as on iOS: someone running their own K indexer points the app at it.
                 ConnectionUrlField(
                     label = "KaPost Indexer URL",
                     value = kapostIndexerUrl,
                     onClick = { editingKapostIndexerUrl = true }
                 )
-                SettingsFooter(stringResource(R.string.kapost_indexer_footer))
             }
 
-            SettingsSection(title = stringResource(R.string.broadcast_indexer)) {
+            SettingsFormSection(title = stringResource(R.string.broadcast_indexer), footer = stringResource(R.string.broadcast_indexer_footer)) {
                 ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
-                SettingsFooter(stringResource(R.string.broadcast_indexer_footer))
             }
 
-            SettingsSection(title = "Push Registration") {
+            SettingsFormSection(title = "Push Registration", footer = "Used only for push registration and updates") {
                 ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
-                SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
             }
 
             // Verbose API Logging lives in Settings > Diagnostics, as on iOS.
             }
             1 -> {
             KaspaNodeQuickAccessSection(viewModel)
+            Spacer(Modifier.height(24.dp))
             AddressBookSection(viewModel)
             }
             2 -> {
-            SettingsSection(title = "Translation Service") {
+            SettingsFormSection(title = "Translation Service", footer = "Translates KaPosts written in another language. Runs on the KaPost indexer's " +
+                        "box by default; point this at your own if you host one (see " +
+                        "TRANSLATION_SERVICE.md). Tap to change.") {
                 // Editable, unlike the read-only fields around it: the point of this setting is
                 // that someone can run their own translator and point the app at it.
                 ConnectionUrlField(
@@ -11431,16 +11440,11 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     onClick = { editingTranslationUrl = true }
                 )
                 // Same words as iOS's footer; TRANSLATION_SERVICE.md lives in the iOS repo.
-                SettingsFooter(
-                    "Translates KaPosts written in another language. Runs on the KaPost indexer's " +
-                        "box by default; point this at your own if you host one (see " +
-                        "TRANSLATION_SERVICE.md). Tap to change."
-                )
             }
             }
             3 -> {
             // .kachat first: it is what every address field resolves before anything else (iOS 6ac48a7).
-            SettingsSection(title = stringResource(R.string.kn_kachat_names)) {
+            SettingsFormSection(title = stringResource(R.string.kn_kachat_names), footer = stringResource(R.string.kachat_names_resolved_first_footer)) {
                 val isMainnet = network.equals("mainnet", ignoreCase = true)
                 // Read through the chat indexer above when it serves this network's names, else
                 // straight from the chain (KachatNamesRegistry, iOS 5df42b4, ef6b21e).
@@ -11448,11 +11452,10 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                     label = "KaChat Names (.kachat)",
                     value = stringResource(if (isMainnet) R.string.kn_live_on_mainnet else R.string.kn_live_testnet_registry)
                 )
-                SettingsFooter(stringResource(R.string.kachat_names_resolved_first_footer))
             }
             // The other name services this app reads (see NameServicesClient). Shown, not
             // editable; the .kas URL follows the selected network.
-            SettingsSection(title = stringResource(R.string.other_domains_title)) {
+            SettingsFormSection(title = stringResource(R.string.other_domains_title), footer = stringResource(R.string.other_domains_settings_footer)) {
                 val isMainnet = network.equals("mainnet", ignoreCase = true)
                 ConnectionUrlField(label = ".kas", value = knsApiUrl)
                 listOf(com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA).forEach { tld ->
@@ -11461,13 +11464,11 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                         value = tld.apiBaseUrl(isMainnet) ?: stringResource(R.string.not_available_on_this_network),
                     )
                 }
-                SettingsFooter(stringResource(R.string.other_domains_settings_footer))
             }
             }
             else -> {
-            SettingsSection(title = stringResource(R.string.kaspa_explorer_api)) {
+            SettingsFormSection(title = stringResource(R.string.kaspa_explorer_api), footer = stringResource(R.string.rest_api_for_transaction_history_and)) {
                 ConnectionUrlField(label = "Kaspa REST API URL", value = kaspaRestApiUrl)
-                SettingsFooter(stringResource(R.string.rest_api_for_transaction_history_and))
             }
             }
             }
@@ -11563,10 +11564,12 @@ fun ConnectionUrlField(label: String, value: String, onClick: (() -> Unit)? = nu
     ) {
         Text(label, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(6.dp))
+        // iOS shows an address in the body font, monospaced.
         Text(
             text = value,
             color = LocalAppColors.current.textPrimary,
-            style = MaterialTheme.typography.bodyLarge
+            fontSize = 17.sp,
+            fontFamily = FontFamily.Monospace,
         )
     }
 }

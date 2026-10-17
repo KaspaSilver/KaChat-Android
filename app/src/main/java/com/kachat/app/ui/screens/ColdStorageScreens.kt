@@ -201,11 +201,7 @@ fun ColdStorageListScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // SF "lock.shield": a shield outline with a solid lock inside.
-                Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Shield, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(44.dp))
-                    Icon(Icons.Filled.Lock, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(17.dp).offset(y = (-1).dp))
-                }
+                Icon(com.kachat.app.ui.theme.IosSymbols.LockShield, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(44.dp))
                 Text(
                     stringResource(R.string.cold_storage_empty_title),
                     color = LocalAppColors.current.textPrimary,
