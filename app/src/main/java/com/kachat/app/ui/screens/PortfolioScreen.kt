@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,8 +52,11 @@ import androidx.compose.material.icons.filled.CurrencyBitcoin
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.material.icons.outlined.LocalGasStation
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -72,7 +76,8 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -139,6 +144,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -151,6 +157,7 @@ import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.repository.isPricePending
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
+import com.kachat.app.ui.theme.iosGlass
 import com.kachat.app.services.KaspaNetworkStatsService
 import com.kachat.app.services.formatHashrate
 import com.kachat.app.util.currencySymbolFor
@@ -264,70 +271,83 @@ fun PortfolioScreen(
     ) { padding ->
       CompositionLocalProvider(LocalPortfolioValuesHidden provides valuesHidden) {
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            PortfolioPickerHeader(
-                portfolios = portfolios,
-                activePortfolioId = activePortfolioId,
-                cardSummaries = cardSummaries,
-                currencyCode = currencyCode,
-                onSelect = { viewModel.setActivePortfolio(it) },
-                onAdd = { viewModel.addPortfolio(it) },
-                onRename = { id, name -> viewModel.renamePortfolio(id, name) },
-                onDelete = { viewModel.deletePortfolio(it) },
-                onReorder = { viewModel.reorderPortfolios(it) }
-            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     // PullToRefreshContainer translates itself fully above its own position when
                     // idle (verticalOffset 0) via a graphicsLayer translation rather than actually
                     // hiding - with no clip here, that translated-away circle draws outside this
-                    // Box's bounds and bleeds into the TabRow above it instead of disappearing.
+                    // Box's bounds and bleeds into the header above it instead of disappearing.
                     .clipToBounds()
                     .nestedScroll(pullRefreshState.nestedScrollConnection)
             ) {
                 // 4.0 (matches iOS): one continuous page - no Data/Transactions tabs, no
                 // horizontal paging. Cards first, then the transaction ledger (it keeps its
                 // own internal list, sized to roughly a screenful at the end of the scroll).
+                // iOS builds it as one inset-grouped List, so the picker cards scroll away
+                // with the rest and every card sits in a section of its own: 16 of section
+                // margin plus 12 of row inset from each screen edge (28), and between two cards
+                // the 5 + 5 row insets around iOS's ~36 of section spacing (46).
                 val portfolioScreenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Two tappable squares (KAS price | portfolio value) - each opens its own
-                    // full-screen chart destination. The inline summary/price/value cards were
-                    // replaced by these squares (matches iOS/desktop).
-                    PortfolioLauncherSquares(
-                        currentPriceUsd = currentPriceUsd,
-                        priceChange24h = priceChange24h,
-                        summary = summary,
-                        valueChange24hPercent = activePortfolioId
-                            ?.let { cardSummaries[it]?.todayChangePercent },
+                    PortfolioPickerHeader(
+                        portfolios = portfolios,
+                        activePortfolioId = activePortfolioId,
+                        cardSummaries = cardSummaries,
                         currencyCode = currencyCode,
-                        onOpenPrice = { navController.navigate("portfolio_price_chart") },
-                        onOpenValue = { navController.navigate("portfolio_value_chart") }
+                        onSelect = { viewModel.setActivePortfolio(it) },
+                        onAdd = { viewModel.addPortfolio(it) },
+                        onRename = { id, name -> viewModel.renamePortfolio(id, name) },
+                        onDelete = { viewModel.deletePortfolio(it) },
+                        onReorder = { viewModel.reorderPortfolios(it) }
                     )
-                    // Network hashrate, full width under the squares: it is one series with a
-                    // long history, so it reads far better wide than squeezed into a third square.
-                    NetworkHashrateCard(
-                        hashrate = currentHashrate,
-                        history = hashrateHistory,
-                        onOpen = { navController.navigate("portfolio_hashrate_chart") }
-                    )
-                    // Realized P&L for the year and the network fees paid (iOS 61eff0f).
-                    RealizedPLCard(
-                        pl = realizedPL,
-                        currencyCode = currencyCode
-                    )
-                    FeesSpentCard(
-                        fees = feeSummary,
-                        currencyCode = currencyCode
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // The picker's own 8 of bottom padding + 36 + 5 = 49 to the squares.
+                            .padding(start = 28.dp, end = 28.dp, top = 41.dp),
+                        verticalArrangement = Arrangement.spacedBy(46.dp)
+                    ) {
+                        // Two tappable squares (KAS price | portfolio value) - each opens its own
+                        // full-screen chart destination. The inline summary/price/value cards were
+                        // replaced by these squares (matches iOS/desktop).
+                        PortfolioLauncherSquares(
+                            currentPriceUsd = currentPriceUsd,
+                            priceChange24h = priceChange24h,
+                            summary = summary,
+                            valueChange24hPercent = activePortfolioId
+                                ?.let { cardSummaries[it]?.todayChangePercent },
+                            currencyCode = currencyCode,
+                            onOpenPrice = { navController.navigate("portfolio_price_chart") },
+                            onOpenValue = { navController.navigate("portfolio_value_chart") }
+                        )
+                        // Network hashrate, full width under the squares: it is one series with a
+                        // long history, so it reads far better wide than squeezed into a third square.
+                        NetworkHashrateCard(
+                            hashrate = currentHashrate,
+                            history = hashrateHistory,
+                            onOpen = { navController.navigate("portfolio_hashrate_chart") }
+                        )
+                        // Realized P&L for the year and the network fees paid (iOS 61eff0f).
+                        RealizedPLCard(
+                            pl = realizedPL,
+                            currencyCode = currencyCode
+                        )
+                        FeesSpentCard(
+                            fees = feeSummary,
+                            currencyCode = currencyCode
+                        )
+                    }
+                    // The Transactions section: its header 5 + 36 under the Fees card.
                     PortfolioTransactionsContent(
                         viewModel = viewModel,
-                        modifier = Modifier.height(portfolioScreenHeight * 0.8f)
+                        modifier = Modifier
+                            .padding(top = 41.dp)
+                            .height(portfolioScreenHeight * 0.8f)
                     )
                 }
 
@@ -432,79 +452,82 @@ private fun PortfolioTransactionsContent(
     Column(modifier = modifier.fillMaxSize()) {
         // iOS-style section header: "Transactions" title with the add and import/export menus
         // on the same row (replaces the old floating action buttons at the bottom).
+        // iOS: the inset-grouped section's header - HStack(spacing: 16) of "Transactions"
+        // (headline), then Select (subheadline semibold, accent), the 22pt plus.circle.fill and
+        // the 17pt semibold square.and.arrow.up.on.square; while selecting, Select All (a 22pt
+        // checkmark circle), the bin with the count, and Done. Lined up with the rows' text: 16
+        // of section margin plus 20 of row inset.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 36.dp)
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (showTitle) {
                 Text(
                     stringResource(R.string.transactions),
                     color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp
                 )
             }
             Spacer(Modifier.weight(1f))
             if (selecting) {
                 // Add and Import/Export step aside: while selecting, the only things worth doing to
                 // this list are picking rows, binning them, or leaving.
-                TextButton(
-                    onClick = {
-                        selectedIds = if (selectedIds.size == transactions.size) emptySet()
-                        else transactions.map { it.id }.toSet()
-                    },
-                    contentPadding = PaddingValues(horizontal = 8.dp)
+                val allPicked = selectedIds.size == transactions.size && transactions.isNotEmpty()
+                Icon(
+                    if (allPicked) Icons.Default.CheckCircle else Icons.Outlined.CheckCircle,
+                    contentDescription = if (allPicked) "Deselect all" else "Select all",
+                    tint = KaspaTeal,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            selectedIds = if (selectedIds.size == transactions.size) emptySet()
+                            else transactions.map { it.id }.toSet()
+                        }
+                )
+                val binTint = if (selectedIds.isEmpty()) LocalAppColors.current.textSecondary else LocalAppColors.current.danger
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    modifier = Modifier
+                        .clickable(enabled = selectedIds.isNotEmpty()) { showDeleteSelected = true }
+                        .semantics { contentDescription = "Delete selected" }
                 ) {
-                    Text(
-                        if (selectedIds.size == transactions.size && transactions.isNotEmpty()) "Deselect All" else "Select All",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    )
-                }
-                IconButton(
-                    onClick = { showDeleteSelected = true },
-                    enabled = selectedIds.isNotEmpty(),
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete selected",
-                        tint = if (selectedIds.isEmpty()) LocalAppColors.current.textSecondary else LocalAppColors.current.danger,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                TextButton(
-                    onClick = { selecting = false; selectedIds = emptySet() },
-                    contentPadding = PaddingValues(horizontal = 8.dp)
-                ) {
-                    Text("Done", color = KaspaTeal, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                }
-            } else {
-                TextButton(
-                    onClick = { selecting = true },
-                    enabled = transactions.isNotEmpty(),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
-                ) {
-                    Text(
-                        "Select",
-                        color = if (transactions.isEmpty()) LocalAppColors.current.textSecondary else KaspaTeal,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    )
-                }
-                Box {
-                    IconButton(onClick = { showAddMenu = true }, modifier = Modifier.size(36.dp)) {
-                        Icon(
-                            Icons.Default.AddCircle,
-                            contentDescription = stringResource(R.string.add_transaction),
-                            tint = KaspaTeal,
-                            modifier = Modifier.size(26.dp)
-                        )
+                    Icon(Icons.Outlined.Delete, contentDescription = null, tint = binTint, modifier = Modifier.size(22.dp))
+                    if (selectedIds.isNotEmpty()) {
+                        Text("${selectedIds.size}", color = binTint, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
+                }
+                Text(
+                    stringResource(R.string.done),
+                    color = KaspaTeal,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    modifier = Modifier.clickable { selecting = false; selectedIds = emptySet() }
+                )
+            } else {
+                Text(
+                    "Select",
+                    color = if (transactions.isEmpty()) LocalAppColors.current.textSecondary else KaspaTeal,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    modifier = Modifier.clickable(enabled = transactions.isNotEmpty()) { selecting = true }
+                )
+                Box {
+                    Icon(
+                        Icons.Default.AddCircle,
+                        contentDescription = stringResource(R.string.add_transaction),
+                        tint = KaspaTeal,
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .clickable { showAddMenu = true }
+                    )
                     if (showAddMenu) {
                         // A sheet, not a popup: each option gets a line saying what it does - "Add
                         // Kaspa Address" reads as a contact until you learn otherwise.
@@ -548,14 +571,15 @@ private fun PortfolioTransactionsContent(
                     }
                 }
                 Box {
-                    IconButton(onClick = { showCsvMenu = true }, modifier = Modifier.size(36.dp)) {
-                        Icon(
-                            Icons.Default.ImportExport,
-                            contentDescription = "Import or export CSV",
-                            tint = KaspaTeal,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    // square.and.arrow.up.on.square: the nearest Material glyph is the share box.
+                    Icon(
+                        Icons.Default.IosShare,
+                        contentDescription = "Import or export CSV",
+                        tint = KaspaTeal,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clickable { showCsvMenu = true }
+                    )
                     if (showCsvMenu) {
                         ActionSheetContainer(
                             title = "Import or Export",
@@ -645,36 +669,79 @@ private fun PortfolioTransactionsContent(
         LazyColumn(
             modifier = Modifier.weight(1f),
             // Horizontal inset is per-item below (not here).
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
         ) {
             if (transactions.isEmpty()) {
+                // iOS emptyState: no card - the 44pt chart glyph, "No Transactions Yet" (title3
+                // semibold) and the hint (subheadline, secondary), centred, 40 above and below.
                 item {
-                    Text(
-                        stringResource(R.string.no_transactions_yet_tap_to_add),
-                        color = LocalAppColors.current.textSecondary,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(vertical = 24.dp),
-                        textAlign = TextAlign.Center
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 36.dp)
+                            .padding(vertical = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        UptrendChartGlyph(size = 48.dp, color = LocalAppColors.current.textSecondary)
+                        Text(
+                            stringResource(R.string.portfolio_no_transactions_title),
+                            color = LocalAppColors.current.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 20.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            stringResource(R.string.portfolio_no_transactions_sub),
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             } else {
+                // iOS: one inset-grouped section - the rows share a card (16 in from each screen
+                // edge, 26pt corners at its top and bottom) with hairlines between them that
+                // start at the title, not one floating card per row.
                 // asReversed() is an O(1) view (no per-recomposition list copy like reversed()),
                 // and a stable key lets Compose reuse item state / animate list changes.
-                items(transactions.asReversed(), key = { it.id }) { tx ->
-                    TransactionRow(
-                        tx = tx,
-                        onClick = { editingTransaction = tx },
-                        // Hold to move it to another portfolio (iOS b438f2d).
-                        onLongClick = { movingTransaction = tx },
-                        onDelete = { viewModel.deleteTransaction(tx.id) },
-                        currencyCode = currencyCode,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        selecting = selecting,
-                        picked = tx.id in selectedIds,
-                        onToggle = {
-                            selectedIds = if (tx.id in selectedIds) selectedIds - tx.id else selectedIds + tx.id
-                        }
+                val rows = transactions.asReversed()
+                itemsIndexed(rows, key = { _, tx -> tx.id }) { index, tx ->
+                    val first = index == 0
+                    val last = index == rows.lastIndex
+                    val shape = RoundedCornerShape(
+                        topStart = if (first) 26.dp else 0.dp,
+                        topEnd = if (first) 26.dp else 0.dp,
+                        bottomStart = if (last) 26.dp else 0.dp,
+                        bottomEnd = if (last) 26.dp else 0.dp,
                     )
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .clip(shape)
+                            .background(LocalAppColors.current.surface)
+                    ) {
+                        TransactionRow(
+                            tx = tx,
+                            onClick = { editingTransaction = tx },
+                            // Hold to move it to another portfolio (iOS b438f2d).
+                            onLongClick = { movingTransaction = tx },
+                            onDelete = { viewModel.deleteTransaction(tx.id) },
+                            currencyCode = currencyCode,
+                            selecting = selecting,
+                            picked = tx.id in selectedIds,
+                            onToggle = {
+                                selectedIds = if (tx.id in selectedIds) selectedIds - tx.id else selectedIds + tx.id
+                            }
+                        )
+                        if (!last) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = if (selecting) 90.dp else 56.dp),
+                                color = LocalAppColors.current.divider,
+                                thickness = 0.5.dp
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -691,11 +758,14 @@ private fun PortfolioTransactionsContent(
             subtitle = null,
             onDismiss = { movingTransaction = null },
         ) {
+            // iOS: the row padded 14 on the frosted card (16pt corners, hairline, no shadow).
             TransactionRow(
                 tx = tx,
                 onClick = {},
                 onDelete = null,
                 currencyCode = currencyCode,
+                modifier = Modifier.iosGlass(16.dp, shadowAlpha = 0f),
+                contentPadding = PaddingValues(14.dp),
             )
             if (others.isEmpty()) {
                 Text(
@@ -1268,22 +1338,26 @@ private fun PortfolioLauncherSquares(
     onOpenPrice: () -> Unit,
     onOpenValue: () -> Unit
 ) {
+    // iOS launcherSquares: HStack(spacing: 10).
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         LauncherSquare(
-            modifier = Modifier.weight(1f).clickable { onOpenPrice() },
+            modifier = Modifier.weight(1f),
+            onClick = onOpenPrice,
             title = "Kaspa",
             value = currentPriceUsd?.let { formatUsdPrice(it, currencyCode) } ?: "—",
             changePercent = priceChange24h,
             headerIcon = {
+                // The KaspaLogo asset: the mark in its filled accent circle, 26pt.
                 Image(
                     painter = painterResource(R.drawable.ic_kaspa_logo),
                     contentDescription = null,
-                    modifier = Modifier.size(22.dp).clip(CircleShape)
+                    modifier = Modifier.size(26.dp).clip(CircleShape)
                 )
             }
         )
         LauncherSquare(
-            modifier = Modifier.weight(1f).clickable { onOpenValue() },
+            modifier = Modifier.weight(1f),
+            onClick = onOpenValue,
             title = "Value",
             value = money(summary.currentValue, currencyCode),
             // The last 24 hours, not all-time P&L. A number that only ever grows over the life of
@@ -1292,20 +1366,23 @@ private fun PortfolioLauncherSquares(
             changePercent = valueChange24hPercent,
             emptyChangeLabel = "24h change not available yet",
             headerIcon = {
-                Icon(
-                    Icons.Default.TrendingUp,
-                    contentDescription = null,
-                    tint = LocalAppColors.current.textSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
+                // chart.line.uptrend.xyaxis in subheadline, secondary.
+                UptrendChartGlyph(size = 19.dp, color = LocalAppColors.current.textSecondary)
             }
         )
     }
 }
 
+/**
+ * iOS priceSquare / valueSquare: VStack(alignment: .leading, spacing: 8) in a 128pt-tall frame,
+ * padded 14 (156 in all) on the 18pt glass card - the header row (HStack(spacing: 8): icon, the
+ * subheadline-semibold secondary title, a caption chevron), then the value at the bottom (22
+ * bold), then the 24h badge.
+ */
 @Composable
 private fun LauncherSquare(
     modifier: Modifier,
+    onClick: () -> Unit,
     title: String,
     value: String,
     changePercent: Double?,
@@ -1316,63 +1393,113 @@ private fun LauncherSquare(
 ) {
     Column(
         modifier = modifier
-            .height(122.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
-            .padding(14.dp)
+            .height(156.dp)
+            .iosGlass(18.dp)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             headerIcon()
-            Spacer(Modifier.width(6.dp))
             Text(
                 title,
                 color = LocalAppColors.current.textSecondary,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
+                fontSize = 15.sp,
+                maxLines = 1,
                 modifier = Modifier.weight(1f)
             )
-            Icon(
-                Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = LocalAppColors.current.textSecondary,
-                modifier = Modifier.size(18.dp)
-            )
+            PortfolioChevron()
         }
         Spacer(Modifier.weight(1f))
         Text(
             value,
             color = LocalAppColors.current.textPrimary,
             fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            maxLines = 1
+            fontSize = 22.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
-        if (changePercent == null && emptyChangeLabel != null) {
+        if (changePercent != null) {
+            PortfolioChangeBadge(changePercent)
+        } else if (emptyChangeLabel != null) {
             Text(
                 emptyChangeLabel,
                 color = LocalAppColors.current.textSecondary,
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 maxLines = 1
             )
         }
-        if (changePercent != null) {
-            val positive = changePercent >= 0
-            val color = if (positive) LocalAppColors.current.success else LocalAppColors.current.danger
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(3.dp))
-                Text(
-                    "${String.format(Locale.US, "%.2f", kotlin.math.abs(changePercent))}%",
-                    color = color,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp
-                )
-            }
+    }
+}
+
+/** iOS changeBadge: arrow.up / arrow.down (caption2) and the percentage (footnote semibold), 2
+ *  apart, green or red. */
+@Composable
+private fun PortfolioChangeBadge(percent: Double) {
+    val positive = percent >= 0
+    val color = if (positive) LocalAppColors.current.success else LocalAppColors.current.danger
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Icon(
+            if (positive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(15.dp)
+        )
+        Text(
+            "${String.format(Locale.US, "%.2f", kotlin.math.abs(percent))}%",
+            color = color,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp
+        )
+    }
+}
+
+/** SF Symbols' chevron.right at caption size (~11pt tall, thin), in secondary grey. */
+@Composable
+private fun PortfolioChevron() {
+    val color = LocalAppColors.current.textSecondary
+    Canvas(modifier = Modifier.size(width = 6.dp, height = 11.dp)) {
+        val inset = 1.6.dp.toPx() / 2f
+        val path = Path().apply {
+            moveTo(inset, inset)
+            lineTo(size.width - inset, size.height / 2f)
+            lineTo(inset, size.height - inset)
         }
+        drawPath(path, color = color, style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    }
+}
+
+/**
+ * SF Symbols' chart.line.uptrend.xyaxis, drawn: an L of axes with a line zig-zagging up to an
+ * arrowhead at the top right. Material has no glyph with both the axes and the rising line.
+ */
+@Composable
+private fun UptrendChartGlyph(size: Dp, color: Color) {
+    Canvas(modifier = Modifier.size(size)) {
+        val u = this.size.minDimension / 24f
+        val w = 1.7f * u
+        val style = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        val axes = Path().apply {
+            moveTo(2.5f * u, 3f * u)
+            lineTo(2.5f * u, 21.5f * u)
+            lineTo(22f * u, 21.5f * u)
+        }
+        drawPath(axes, color = color, style = style)
+        val line = Path().apply {
+            moveTo(6f * u, 16.5f * u)
+            lineTo(10.5f * u, 10.5f * u)
+            lineTo(14f * u, 14f * u)
+            lineTo(20.5f * u, 6f * u)
+        }
+        drawPath(line, color = color, style = style)
+        val head = Path().apply {
+            moveTo(16f * u, 6f * u)
+            lineTo(20.5f * u, 6f * u)
+            lineTo(20.5f * u, 10.5f * u)
+        }
+        drawPath(head, color = color, style = style)
     }
 }
 
@@ -2257,6 +2384,13 @@ private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: Str
     }
 }
 
+/**
+ * One ledger row as iOS's `transactionRow`: the type's filled circle symbol (title2, green buy /
+ * red sell / accent transfer), then "Buy"/"Sell"/"Transfer" (body medium, with the yellow
+ * warning while its price is pending), the date and time (caption) and the note (caption, one
+ * line); on the right the KAS amount (body medium) over its value (caption). The caller draws
+ * the card it sits on.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TransactionRow(
@@ -2266,33 +2400,36 @@ private fun TransactionRow(
     onDelete: (() -> Unit)?,
     currencyCode: String,
     modifier: Modifier = Modifier,
+    /** iOS's list row: 20 in from the card's sides, 4 + the row's own 8 above and below. */
+    contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
     selecting: Boolean = false,
     picked: Boolean = false,
     onToggle: () -> Unit = {},
     /** Long press - moving the row to another portfolio. Not attached in Select mode. */
     onLongClick: (() -> Unit)? = null,
 ) {
+    val colors = LocalAppColors.current
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val isBuy = tx.type == "buy"
     // A transfer is a record only - a two-way arrow in the accent colour (iOS 7423330).
     val isTransfer = tx.type == "transfer"
     val typeTint = when {
         isTransfer -> KaspaTeal
-        isBuy -> LocalAppColors.current.success
-        else -> LocalAppColors.current.danger
+        isBuy -> colors.success
+        else -> colors.danger
     }
     val amountKas = tx.amountSompi / 100_000_000.0
     // Either marker - a row synced from an iPhone carries iOS's (iOS PortfolioTransactionsView).
     val needsPrice = isPricePending(tx.notes)
+    // iOS `.formatted(date: .abbreviated, time: .shortened)`: "Oct 16, 2026 at 11:28 AM".
     val dateStr = remember(tx.timestampMillis) {
-        SimpleDateFormat("MMM d, yyyy", Locale.US).format(Date(tx.timestampMillis))
+        SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.US).format(Date(tx.timestampMillis))
     }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
             // A picked row is tinted rather than restyled, so the list stays the same list.
-            .background(if (picked) KaspaTeal.copy(alpha = 0.10f) else LocalAppColors.current.surface)
+            .background(if (picked) KaspaTeal.copy(alpha = 0.10f) else Color.Transparent)
             .combinedClickable(
                 onClick = if (selecting) onToggle else onClick,
                 onLongClick = if (!selecting && onLongClick != null) {
@@ -2302,71 +2439,77 @@ private fun TransactionRow(
                     }
                 } else null,
             )
-            .padding(16.dp),
+            .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selecting) {
-                Icon(
-                    if (picked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                    contentDescription = if (picked) "Selected" else "Not selected",
-                    tint = if (picked) KaspaTeal else LocalAppColors.current.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(Modifier.width(12.dp))
-            }
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(typeTint.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    when {
-                        isTransfer -> Icons.Default.SwapHoriz
-                        isBuy -> Icons.Default.TrendingUp
-                        else -> Icons.Default.TrendingDown
-                    },
-                    contentDescription = null,
-                    tint = typeTint,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+        if (selecting) {
+            Icon(
+                if (picked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = if (picked) "Selected" else "Not selected",
+                tint = if (picked) KaspaTeal else colors.textSecondary,
+                modifier = Modifier.size(22.dp)
+            )
             Spacer(Modifier.width(12.dp))
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        when {
-                            isTransfer -> stringResource(R.string.portfolio_type_transfer)
-                            isBuy -> "Buy"
-                            else -> "Sell"
-                        },
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold
+        }
+        // arrow.down.circle.fill / arrow.up.circle.fill / arrow.left.arrow.right.circle.fill:
+        // a solid circle in the type's colour with the arrow cut out of it.
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(typeTint),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                when {
+                    isTransfer -> Icons.Default.SwapHoriz
+                    isBuy -> Icons.Default.ArrowDownward
+                    else -> Icons.Default.ArrowUpward
+                },
+                contentDescription = null,
+                tint = colors.surface,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when {
+                        isTransfer -> stringResource(R.string.portfolio_type_transfer)
+                        isBuy -> "Buy"
+                        else -> "Sell"
+                    },
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 17.sp
+                )
+                if (needsPrice) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = stringResource(R.string.price_needed),
+                        // iOS systemYellow (dark).
+                        tint = Color(0xFFFFD60A),
+                        modifier = Modifier.size(14.dp)
                     )
-                    if (needsPrice) {
-                        Spacer(Modifier.width(6.dp))
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = stringResource(R.string.price_needed),
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
                 }
-                Text(dateStr, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+            }
+            Text(dateStr, color = colors.textSecondary, fontSize = 12.sp)
+            tx.notes?.takeIf { it.isNotEmpty() }?.let { notes ->
+                Text(notes, color = colors.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(kas(amountKas, grouped = true), color = LocalAppColors.current.textPrimary)
-            Text(money(tx.fiatValue, currencyCode), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+        Spacer(Modifier.width(8.dp))
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(kas(amountKas, grouped = true), color = colors.textPrimary, fontWeight = FontWeight.Medium, fontSize = 17.sp)
+            Text(money(tx.fiatValue, currencyCode), color = colors.textSecondary, fontSize = 12.sp)
         }
+        // iOS deletes with a swipe; there is no swipe here, so the bin stays on the row.
         if (!selecting && onDelete != null) {
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
-                Icon(Icons.Default.Delete, "Delete", tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Delete, "Delete", tint = colors.danger, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -2843,7 +2986,8 @@ private fun HashrateSparkline(points: List<Pair<Long, Double>>, modifier: Modifi
             val y = size.height * (1f - ((value - minV) / range).toFloat())
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
-        drawPath(path, color = KaspaTeal, style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        // iOS PortfolioSparkline: a 1.6pt accent line.
+        drawPath(path, color = KaspaTeal, style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
@@ -2918,10 +3062,10 @@ private fun RealizedPLCard(pl: com.kachat.app.models.RealizedPL, currencyCode: S
         pl.amount >= 0 -> colors.success
         else -> colors.danger
     }
-    PortfolioInfoCard(icon = Icons.Default.Verified) {
+    PortfolioInfoCard(icon = Icons.Outlined.Verified) {
         Text(
             stringResource(R.string.portfolio_realized_pl_year, pl.year.toString()),
-            color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp
+            color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp
         )
         Text(valueText, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
         Text(notes.joinToString(" "), color = colors.textSecondary, fontSize = 12.sp)
@@ -2936,8 +3080,8 @@ private fun RealizedPLCard(pl: com.kachat.app.models.RealizedPL, currencyCode: S
 private fun FeesSpentCard(fees: com.kachat.app.models.PortfolioFeeSummary, currencyCode: String) {
     val colors = LocalAppColors.current
     val hidden = LocalPortfolioValuesHidden.current
-    PortfolioInfoCard(icon = Icons.Default.LocalGasStation) {
-        Text(stringResource(R.string.portfolio_fees_spent), color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+    PortfolioInfoCard(icon = Icons.Outlined.LocalGasStation) {
+        Text(stringResource(R.string.portfolio_fees_spent), color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
         if (fees.count == 0) {
             Text("—", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             Text(stringResource(R.string.portfolio_fees_empty_hint), color = colors.textSecondary, fontSize = 12.sp)
@@ -2965,23 +3109,33 @@ private fun formatFeeKas(value: Double): String {
     return format.format(value) + " " + KaspaUnit.symbol
 }
 
-/** The Realized P&L / Fees Spent card shape: an accent glyph, then a column of lines. */
+/**
+ * The Realized P&L / Fees Spent card shape (iOS realizedPLCard / feesCard): HStack(alignment:
+ * .top, spacing: 12) of the accent outline glyph (20pt semibold, in a 30-wide column, 2 down)
+ * and a VStack(spacing: 3) of lines, padded 14 on the 18pt glass card.
+ */
 @Composable
 private fun PortfolioInfoCard(icon: androidx.compose.ui.graphics.vector.ImageVector, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
+            .iosGlass(18.dp)
             .padding(14.dp),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.width(30.dp).height(22.dp).padding(top = 2.dp))
-        Spacer(Modifier.width(12.dp))
+        Box(modifier = Modifier.width(30.dp).padding(top = 2.dp), contentAlignment = Alignment.TopCenter) {
+            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+        }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp), content = content)
     }
 }
 
+/**
+ * iOS hashrateCard: HStack(spacing: 12) of the 20pt pickaxe (30 wide), a VStack(spacing: 2) of
+ * "Network Hashrate" (subheadline semibold, secondary) over the figure (20 bold), a spacer of at
+ * least 8, the 96x34 sparkline and a caption chevron - padded 14 on the 18pt glass card.
+ */
 @Composable
 private fun NetworkHashrateCard(
     hashrate: Double?,
@@ -2992,16 +3146,26 @@ private fun NetworkHashrateCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.surface)
+            .iosGlass(18.dp)
             .clickable { onOpen() }
             .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        PickaxeIcon(iconSize = 24.dp)
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Network Hashrate", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Box(modifier = Modifier.width(30.dp), contentAlignment = Alignment.Center) {
+            PickaxeIcon(iconSize = 20.dp)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // On the iPhone the HStack leaves this column about 126pt, and SF's wider
+            // "Network Hashrate" breaks onto two lines there. Roboto is narrower and would
+            // fit on one, so the label gets the width at which it breaks the same way.
+            Text(
+                "Network Hashrate",
+                color = colors.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                modifier = Modifier.widthIn(max = 112.dp)
+            )
             Text(
                 text = hashrate?.let { formatHashrate(it) } ?: "—",
                 color = colors.textPrimary,
@@ -3010,6 +3174,7 @@ private fun NetworkHashrateCard(
                 maxLines = 1
             )
         }
+        Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
         // A sparkline of the recent window, so the card says which way it is going without the
         // user having to open it.
         if (history.size >= 2) {
@@ -3017,9 +3182,8 @@ private fun NetworkHashrateCard(
                 points = history.takeLast(90),
                 modifier = Modifier.width(96.dp).height(34.dp)
             )
-            Spacer(Modifier.width(8.dp))
         }
-        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = colors.textSecondary)
+        PortfolioChevron()
     }
 }
 

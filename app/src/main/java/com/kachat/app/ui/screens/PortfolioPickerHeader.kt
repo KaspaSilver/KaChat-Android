@@ -41,6 +41,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Settings
@@ -64,6 +65,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.offset
 import com.kachat.app.models.PortfolioEntity
 import com.kachat.app.services.PortfolioManager
 import com.kachat.app.ui.theme.KaspaTeal
@@ -100,12 +110,16 @@ fun PortfolioPickerHeader(
 
     val canAddMore = portfolios.size < PortfolioManager.MAX_PORTFOLIOS
 
+    // iOS: a horizontal ScrollView (HStack(spacing: 12), padded 16 x 8) in a row of the
+    // inset-grouped List, whose section margin keeps it - and clips it - 16 in from each edge.
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp)
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         portfolios.forEach { portfolio ->
             PortfolioCard(
@@ -170,96 +184,132 @@ private fun PortfolioCard(
         label = "portfolioCardScale"
     )
 
-    run {
-        Column(
+    // iOS PortfolioCardView: VStack(alignment: .leading, spacing: 6) padded 12 in a 140-wide
+    // card - the name (subheadline bold) with the caption gearshape.fill on the right in a 26pt
+    // target (pulled 6 right and 4 up so the name sits where it would without it), the value
+    // (title3 bold), and today's change (caption2 arrow, caption semibold) or a dash.
+    Column(
+        modifier = Modifier
+            .width(140.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.surface)
+            .border(
+                width = if (isSheetTarget) 2.dp else if (isActive) 1.5.dp else 0.8.dp,
+                color = if (isSheetTarget || isActive) KaspaTeal else Color.White.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // The gear shares the title row rather than floating over it, so a long portfolio
+        // name is truncated by the layout instead of running underneath the button.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier
-                .widthIn(min = 140.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
+                .fillMaxWidth()
+                .layout { measurable, constraints ->
+                    // iOS .padding(.trailing, -6).padding(.top, -4).
+                    val end = 6.dp.roundToPx()
+                    val top = 4.dp.roundToPx()
+                    val placeable = measurable.measure(constraints.offset(horizontal = end))
+                    layout((placeable.width - end).coerceAtLeast(0), (placeable.height - top).coerceAtLeast(0)) {
+                        placeable.place(0, -top)
+                    }
                 }
-                .clip(RoundedCornerShape(16.dp))
-                .background(LocalAppColors.current.surface)
-                .border(
-                    width = if (isSheetTarget) 2.dp else if (isActive) 1.5.dp else 0.8.dp,
-                    color = if (isSheetTarget || isActive) KaspaTeal else Color.White.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .clickable(onClick = onClick)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // The gear shares the title row rather than floating over it, so a long portfolio
-            // name is truncated by the layout instead of running underneath the button.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    portfolio.name,
-                    color = if (isActive) LocalAppColors.current.textPrimary else LocalAppColors.current.textSecondary,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                Spacer(Modifier.width(4.dp))
+            Text(
+                portfolio.name,
+                color = if (isActive) LocalAppColors.current.textPrimary else LocalAppColors.current.textSecondary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    // A deliberately generous target: the glyph alone is far below the
+                    // comfortable minimum on a card this size.
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .clickable { onEdit() }
+            ) {
                 Icon(
                     Icons.Default.Settings,
                     contentDescription = "Edit ${portfolio.name}",
                     tint = LocalAppColors.current.textSecondary,
-                    modifier = Modifier
-                        // A deliberately generous target: the glyph alone is far below the
-                        // comfortable minimum on a card this size.
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onEdit() }
-                        .padding(3.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
-            Text(
-                formatFiatAmount(cardData?.currentValue ?: 0.0, currencyCode),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (cardData?.todayChangePercent != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                        contentDescription = null,
-                        tint = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        "${String.format(Locale.US, "%.2f", kotlin.math.abs(cardData.todayChangePercent))}%",
-                        color = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger,
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            } else {
-                Text("—", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+            formatFiatAmount(cardData?.currentValue ?: 0.0, currencyCode),
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (cardData?.todayChangePercent != null) {
+            val changeColor = if (isPositive) LocalAppColors.current.success else LocalAppColors.current.danger
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                Icon(
+                    if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                    contentDescription = null,
+                    tint = changeColor,
+                    modifier = Modifier.size(15.dp)
+                )
+                Text(
+                    "${String.format(Locale.US, "%.2f", kotlin.math.abs(cardData.todayChangePercent))}%",
+                    color = changeColor,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                )
             }
+        } else {
+            Text("—", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
         }
     }
 }
 
+/**
+ * iOS addCard: an 80 x 84 tile outlined by a dashed 1pt line (dashes of 4, secondary at 40%,
+ * 16pt corners), holding the accent plus.circle.fill (title2) over "Add" (caption, secondary).
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AddPortfolioCard(onClick: () -> Unit) {
+    val dashColor = LocalAppColors.current.textSecondary.copy(alpha = 0.4f)
     Column(
         modifier = Modifier
             .width(80.dp)
             .height(84.dp)
+            .drawBehind {
+                // strokeBorder: the line drawn inside the tile's edge.
+                val stroke = 1.dp.toPx()
+                val dash = 4.dp.toPx()
+                drawRoundRect(
+                    color = dashColor,
+                    topLeft = Offset(stroke / 2f, stroke / 2f),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    cornerRadius = CornerRadius(16.dp.toPx() - stroke / 2f),
+                    style = Stroke(width = stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash, dash)))
+                )
+            }
             .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, LocalAppColors.current.textSecondary.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
             .combinedClickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
     ) {
-        Icon(Icons.Default.Add, contentDescription = "Add Portfolio", tint = KaspaTeal, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(4.dp))
-        Text("Add", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+        Icon(Icons.Default.AddCircle, contentDescription = "Add Portfolio", tint = KaspaTeal, modifier = Modifier.size(26.dp))
+        Text("Add", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
     }
 }
 
