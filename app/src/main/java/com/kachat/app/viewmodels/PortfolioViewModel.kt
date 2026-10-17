@@ -198,6 +198,12 @@ class PortfolioViewModel @Inject constructor(
         viewModelScope.launch { networkStats.refreshIfNeeded(force) }
     }
 
+    /** The hashrate screen's pull to refresh: returns once the fetch is done, so the indicator
+     *  stays up exactly as long as iOS's `.refreshable` does. */
+    suspend fun refreshHashrateNow() {
+        networkStats.refreshIfNeeded(true)
+    }
+
     /** What a typed name points to on every service, .kachat first - the primary answer and the
      *  "Other domains" (iOS 6ac48a7). */
     suspend fun resolveEverywhere(input: String): List<com.kachat.app.services.NameResolution> =
@@ -267,8 +273,9 @@ class PortfolioViewModel @Inject constructor(
 
     /** Backs the range switcher: 1D / 1W / 1M / 3M / YTD / 1Y / All. YTD is not a fixed number
      *  of days - it is computed when read, so it is right the moment midnight passes - and All is
-     *  [PortfolioRepository.ALL_TIME_DAYS], everything there is (iOS 20be932, 650b0f7). */
-    private val _priceRangeDays = MutableStateFlow(30)
+     *  [PortfolioRepository.ALL_TIME_DAYS], everything there is (iOS 20be932, 650b0f7). Opens on
+     *  1D every launch, as iOS's `priceRangeDays = 1` does - the choice is not kept. */
+    private val _priceRangeDays = MutableStateFlow(1)
     val priceRangeDays: StateFlow<Int> = _priceRangeDays.asStateFlow()
 
     val summary: StateFlow<PortfolioSummary> = combine(transactions, currentPriceUsd) { txs, price ->
@@ -571,8 +578,9 @@ class PortfolioViewModel @Inject constructor(
     private var lastSevenDayCurrency: String? = null
 
     /** Switches the price chart's window (1/7/30 days) and refetches history for it. */
-    /** Days since 1 January, at least one - the YTD button's range, computed at the moment it is
-     *  used rather than stored, so it is right after midnight (iOS 20be932). */
+    /** Days since 1 January, at least two (so a chart has a line to draw on New Year's Day, and
+     *  YTD never lands on 1D) - the YTD button's range, computed at the moment it is used rather
+     *  than stored, so it is right after midnight (iOS 20be932, `yearToDateDays`). */
     fun yearToDateDays(): Int {
         val now = java.util.Calendar.getInstance()
         val startOfYear = java.util.Calendar.getInstance().apply {
@@ -584,7 +592,7 @@ class PortfolioViewModel @Inject constructor(
             set(java.util.Calendar.MILLISECOND, 0)
         }
         val days = ((now.timeInMillis - startOfYear.timeInMillis) / 86_400_000L).toInt()
-        return days.coerceAtLeast(1)
+        return days.coerceAtLeast(2)
     }
 
     fun setPriceRangeDays(days: Int) {

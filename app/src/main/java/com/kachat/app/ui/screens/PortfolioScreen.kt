@@ -177,6 +177,17 @@ import java.util.Locale
 import java.util.TimeZone
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.SouthEast
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.foundation.text.BasicTextField
 
 /**
  * For a single coin's price rather than a fiat total — KAS trades under 1 unit of most tracked
@@ -1504,8 +1515,126 @@ private fun UptrendChartGlyph(size: Dp, color: Color) {
     }
 }
 
-// MARK: shared big chart (area fill + gridlines + x-axis labels + scrub) and range selector
+// MARK: shared big chart (iOS PortfolioAreaChart) and range selector
 
+/** One axis mark: where it sits (a time in millis, or a value) and what it reads. */
+private data class ChartAxisTick(val at: Double, val label: String)
+
+/**
+ * The value marks iOS's Swift Charts lays down for `.automatic(desiredCount: 4)` over the
+ * padded domain: multiples of a 1-2-5 step, written with as many decimals as the step needs
+ * ("0.036", "0.037", "0.038"). [precise] is iOS's `preciseAxis` - three significant digits,
+ * for bitcoin-scale numbers the step's decimals would round to one figure.
+ */
+private fun chartValueTicks(lower: Double, upper: Double, precise: Boolean): List<ChartAxisTick> {
+    val span = upper - lower
+    if (!span.isFinite() || span <= 0) return emptyList()
+    val raw = span / 4
+    val magnitude = Math.pow(10.0, kotlin.math.floor(kotlin.math.log10(raw)))
+    val step = listOf(1.0, 2.0, 5.0, 10.0).map { it * magnitude }.firstOrNull { it >= raw * 0.999999 } ?: (10 * magnitude)
+    val decimals = if (step >= 1) 0 else kotlin.math.ceil(-kotlin.math.log10(step) - 1e-9).toInt().coerceIn(0, 12)
+    val ticks = mutableListOf<ChartAxisTick>()
+    var index = kotlin.math.ceil(lower / step - 1e-9)
+    while (index * step <= upper + step * 1e-9 && ticks.size < 12) {
+        val value = (index * step).let { if (kotlin.math.abs(it) < step * 1e-6) 0.0 else it }
+        val label = if (precise) {
+            if (value == 0.0) "0"
+            else java.math.BigDecimal(value).round(java.math.MathContext(3)).stripTrailingZeros().toPlainString()
+        } else {
+            String.format(Locale.getDefault(), "%,.${decimals}f", value)
+        }
+        ticks += ChartAxisTick(value, label)
+        index += 1
+    }
+    return ticks
+}
+
+/**
+ * The time marks Swift Charts picks for `.automatic(desiredCount: 4)`: the shortest stride that
+ * gives five marks or fewer. A span of two days or less is marked in hours ("5 AM", counted
+ * from the epoch as Swift Charts counts them), anything longer at local midnights, week, month
+ * or year starts, labelled "Oct 7" - iOS's `.month(.abbreviated).day()`.
+ */
+private fun chartTimeTicks(start: Long, end: Long): List<ChartAxisTick> {
+    if (end <= start) return emptyList()
+    val locale = Locale.getDefault()
+    val intraday = end - start <= 2L * 86_400_000L
+    val format = SimpleDateFormat(
+        android.text.format.DateFormat.getBestDateTimePattern(locale, if (intraday) "j" else "MMMd"),
+        locale
+    )
+    fun ticks(times: List<Long>) = times.map { ChartAxisTick(it.toDouble(), format.format(Date(it))) }
+
+    if (intraday) {
+        val hour = 3_600_000L
+        for (hours in listOf(1, 2, 3, 6, 12)) {
+            val step = hours * hour
+            val first = ((start + step - 1) / step) * step
+            val times = generateSequence(first) { it + step }.takeWhile { it <= end }.toList()
+            if (times.size <= 5) return ticks(times)
+        }
+    }
+
+    val calendar = Calendar.getInstance()
+    fun startOfDay(millis: Long): Calendar = (calendar.clone() as Calendar).apply {
+        timeInMillis = millis
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    // Local midnights inside the span - at most a couple of thousand, for All.
+    val midnights = mutableListOf<Calendar>()
+    val day = startOfDay(start)
+    if (day.timeInMillis < start) day.add(Calendar.DAY_OF_MONTH, 1)
+    while (day.timeInMillis <= end && midnights.size < 20_000) {
+        midnights += day.clone() as Calendar
+        day.add(Calendar.DAY_OF_MONTH, 1)
+    }
+    fun dayNumber(c: Calendar): Long = (c.timeInMillis + c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET)) / 86_400_000L
+
+    for (days in listOf(1, 2)) {
+        val times = midnights.filter { dayNumber(it) % days == 0L }
+        if (times.size <= 5) return ticks(times.map { it.timeInMillis })
+    }
+    val weekStarts = midnights.filter { it.get(Calendar.DAY_OF_WEEK) == it.firstDayOfWeek }
+    if (weekStarts.size <= 5) return ticks(weekStarts.map { it.timeInMillis })
+    val fortnights = weekStarts.filter { (dayNumber(it) / 7) % 2 == 0L }
+    if (fortnights.size <= 5) return ticks(fortnights.map { it.timeInMillis })
+    val monthStarts = midnights.filter { it.get(Calendar.DAY_OF_MONTH) == 1 }
+    for (months in listOf(1, 2, 3, 6)) {
+        val times = monthStarts.filter { it.get(Calendar.MONTH) % months == 0 }
+        if (times.size <= 5) return ticks(times.map { it.timeInMillis })
+    }
+    val yearStarts = monthStarts.filter { it.get(Calendar.MONTH) == Calendar.JANUARY }
+    for (years in listOf(1, 2, 5, 10, 20, 50)) {
+        val times = yearStarts.filter { it.get(Calendar.YEAR) % years == 0 }
+        if (times.size <= 5) return ticks(times.map { it.timeInMillis })
+    }
+    return emptyList()
+}
+
+/** The point nearest [time] in a series sorted oldest first. */
+private fun nearestChartIndex(points: List<Pair<Long, Double>>, time: Long): Int {
+    var lo = 0
+    var hi = points.size - 1
+    while (lo < hi) {
+        val mid = (lo + hi) / 2
+        if (points[mid].first < time) lo = mid + 1 else hi = mid
+    }
+    if (lo > 0 && kotlin.math.abs(points[lo - 1].first - time) <= kotlin.math.abs(points[lo].first - time)) return lo - 1
+    return lo
+}
+
+/**
+ * iOS PortfolioAreaChart: the value marks down the leading edge (caption2, secondary) with a
+ * hairline across the plot at each, dashed hairlines up from each time mark with its label just
+ * right of it under the plot, a 2pt accent line through the points (Catmull-Rom, as Swift
+ * Charts' `.catmullRom`), and under it the accent from 28% at the top of the line to 3% at the
+ * bottom. The values are padded 10% above and below. [height] is the whole chart, labels
+ * included, as iOS's `.frame(height:)` is. [hideValues] is the eye button: the value labels go,
+ * the grid stays.
+ */
 @Composable
 private fun PortfolioBigChart(
     points: List<Pair<Long, Double>>,
@@ -1513,174 +1642,269 @@ private fun PortfolioBigChart(
     onScrub: (Pair<Long, Double>?) -> Unit,
     /** Two fingers on the chart: the span between them, oldest first, or null when they lift. */
     onRange: ((Pair<Pair<Long, Double>, Pair<Long, Double>>?) -> Unit)? = null,
+    height: Dp = 260.dp,
+    hideValues: Boolean = false,
+    preciseAxis: Boolean = false,
 ) {
-    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val colors = LocalAppColors.current
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var rangeIndices by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val upColor = colors.success
+    val downColor = colors.danger
+
     val minV = points.minOf { it.second }
     val maxV = points.maxOf { it.second }
-    val range = (maxV - minV).takeIf { it > 0 } ?: 1.0
-    val gridColor = LocalAppColors.current.divider
-    val cursorColor = LocalAppColors.current.textSecondary
-    val upColor = LocalAppColors.current.success
-    val downColor = LocalAppColors.current.danger
+    val valueSpan = if (maxV - minV > 0) maxV - minV else maxOf(kotlin.math.abs(maxV), 1.0)
+    val lower = minV - valueSpan * 0.10
+    val upper = maxV + valueSpan * 0.10
+    val startTime = points.first().first
+    val endTime = points.last().first
+    val timeSpan = (endTime - startTime).coerceAtLeast(1L)
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .onSizeChanged { canvasSize = it }
-                .pointerInput(points) {
-                    fun indexAt(x: Float): Int =
-                        ((x / canvasSize.width.coerceAtLeast(1)) * (points.size - 1)).roundToInt()
-                            .coerceIn(0, points.size - 1)
-                    fun scrubAt(x: Float) {
-                        if (canvasSize.width <= 0) return
-                        rangeIndices = null
-                        onRange?.invoke(null)
-                        val idx = indexAt(x)
-                        selectedIndex = idx
-                        onScrub(points[idx])
-                    }
-                    fun rangeAt(x1: Float, x2: Float) {
-                        if (canvasSize.width <= 0) return
-                        selectedIndex = null
-                        onScrub(null)
-                        val a = indexAt(minOf(x1, x2))
-                        val b = indexAt(maxOf(x1, x2))
-                        rangeIndices = a to b
-                        onRange?.invoke(points[a] to points[b])
-                    }
-                    fun clear() {
-                        selectedIndex = null
-                        rangeIndices = null
-                        onScrub(null)
-                        onRange?.invoke(null)
-                    }
-                    // Touches are tracked by hand rather than with a drag detector, for two
-                    // reasons: two fingers select the span between them, and a chart being read
-                    // has to hold the page still underneath it. A single finger moving mostly up
-                    // or down is left alone, so the page still scrolls past the chart.
-                    awaitEachGesture {
-                        val first = awaitFirstDown(requireUnconsumed = false)
-                        val start = first.position
-                        var owned = false
-                        var abandoned = false
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val pressed = event.changes.filter { it.pressed }
-                            if (pressed.isEmpty()) break
-                            if (pressed.size >= 2) {
-                                owned = true
-                                abandoned = false
-                                rangeAt(pressed[0].position.x, pressed[1].position.x)
-                                pressed.forEach { it.consume() }
-                                continue
-                            }
-                            if (abandoned) continue
-                            val change = pressed.first()
-                            if (!owned) {
-                                val dx = kotlin.math.abs(change.position.x - start.x)
-                                val dy = kotlin.math.abs(change.position.y - start.y)
-                                val slop = viewConfiguration.touchSlop
-                                if (dy > slop && dy > dx) { abandoned = true; continue }
-                                if (dx > slop) { owned = true; scrubAt(start.x) }
-                            }
-                            if (owned) {
-                                scrubAt(change.position.x)
-                                change.consume()
-                            }
+    val labelStyle = TextStyle(color = colors.textSecondary, fontSize = 11.sp)
+    val measurer = rememberTextMeasurer()
+    val yTicks = remember(lower, upper, preciseAxis) { chartValueTicks(lower, upper, preciseAxis) }
+    val xTicks = remember(startTime, endTime) { chartTimeTicks(startTime, endTime) }
+    val yLabels = remember(yTicks, hideValues, labelStyle) {
+        if (hideValues) emptyList() else yTicks.map { it to measurer.measure(it.label, labelStyle) }
+    }
+    val xLabels = remember(xTicks, labelStyle) { xTicks.map { it to measurer.measure(it.label, labelStyle) } }
+    val labelHeight = remember(labelStyle) { measurer.measure("0", labelStyle).size.height }
+    val density = LocalDensity.current
+    val labelGap = with(density) { 12.dp.toPx() }
+    val axisGap = with(density) { 5.dp.toPx() }
+    // The plot starts after the widest value label, as Swift Charts' leading axis does.
+    val plotLeft = (yLabels.maxOfOrNull { it.second.size.width } ?: 0).let { if (it > 0) it + labelGap else 0f }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height)
+            .pointerInput(points, plotLeft) {
+                fun indexAt(x: Float): Int {
+                    val plotWidth = (size.width - plotLeft).coerceAtLeast(1f)
+                    val fraction = ((x - plotLeft) / plotWidth).coerceIn(0f, 1f)
+                    return nearestChartIndex(points, startTime + (fraction * timeSpan).toLong())
+                }
+                fun scrubAt(x: Float) {
+                    if (size.width <= 0) return
+                    rangeIndices = null
+                    onRange?.invoke(null)
+                    val idx = indexAt(x)
+                    selectedIndex = idx
+                    onScrub(points[idx])
+                }
+                fun rangeAt(x1: Float, x2: Float) {
+                    if (size.width <= 0) return
+                    selectedIndex = null
+                    onScrub(null)
+                    val a = indexAt(minOf(x1, x2))
+                    val b = indexAt(maxOf(x1, x2))
+                    rangeIndices = a to b
+                    onRange?.invoke(points[a] to points[b])
+                }
+                fun clear() {
+                    selectedIndex = null
+                    rangeIndices = null
+                    onScrub(null)
+                    onRange?.invoke(null)
+                }
+                // Touches are tracked by hand rather than with a drag detector, for two
+                // reasons: two fingers select the span between them, and a chart being read
+                // has to hold the page still underneath it. A single finger moving mostly up
+                // or down is left alone, so the page still scrolls past the chart.
+                awaitEachGesture {
+                    val first = awaitFirstDown(requireUnconsumed = false)
+                    val start = first.position
+                    var owned = false
+                    var abandoned = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val pressed = event.changes.filter { it.pressed }
+                        if (pressed.isEmpty()) break
+                        if (pressed.size >= 2) {
+                            owned = true
+                            abandoned = false
+                            rangeAt(pressed[0].position.x, pressed[1].position.x)
+                            pressed.forEach { it.consume() }
+                            continue
                         }
-                        clear()
+                        if (abandoned) continue
+                        val change = pressed.first()
+                        if (!owned) {
+                            val dx = kotlin.math.abs(change.position.x - start.x)
+                            val dy = kotlin.math.abs(change.position.y - start.y)
+                            val slop = viewConfiguration.touchSlop
+                            if (dy > slop && dy > dx) { abandoned = true; continue }
+                            if (dx > slop) { owned = true; scrubAt(start.x) }
+                        }
+                        if (owned) {
+                            scrubAt(change.position.x)
+                            change.consume()
+                        }
                     }
+                    clear()
                 }
-        ) {
-            val padTop = 10f
-            val padBottom = 10f
-            val usableH = size.height - padTop - padBottom
-            val stepX = size.width / (points.size - 1).coerceAtLeast(1)
-            fun yFor(v: Double): Float = padTop + (1f - ((v - minV) / range).toFloat()) * usableH
+            }
+    ) {
+        val plotRight = size.width
+        val plotBottom = (size.height - labelHeight - axisGap).coerceAtLeast(1f)
+        val plotWidth = (plotRight - plotLeft).coerceAtLeast(1f)
+        fun xFor(time: Long): Float = plotLeft + ((time - startTime).toDouble() / timeSpan).toFloat() * plotWidth
+        fun yFor(value: Double): Float = ((upper - value) / (upper - lower)).toFloat() * plotBottom
+        val hairline = 0.5.dp.toPx().coerceAtLeast(1f)
+        val dash = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()))
 
-            val gridCount = 4
-            for (i in 0..gridCount) {
-                val y = padTop + usableH * i / gridCount
-                drawLine(color = gridColor, start = Offset(0f, y), end = Offset(size.width, y), strokeWidth = 1f, alpha = 0.5f)
-            }
-
-            val linePath = Path()
-            points.forEachIndexed { index, (_, v) ->
-                val x = index * stepX
-                val y = yFor(v)
-                if (index == 0) linePath.moveTo(x, y) else linePath.lineTo(x, y)
-            }
-            val areaPath = Path().apply {
-                addPath(linePath)
-                lineTo((points.size - 1) * stepX, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-            drawPath(
-                path = areaPath,
-                brush = Brush.verticalGradient(
-                    colors = listOf(lineColor.copy(alpha = 0.28f), lineColor.copy(alpha = 0.02f)),
-                    startY = 0f,
-                    endY = size.height
-                )
-            )
-            drawPath(path = linePath, color = lineColor, style = Stroke(width = 3f))
-
-            selectedIndex?.let { idx ->
-                val x = idx * stepX
-                val y = yFor(points[idx].second)
-                drawLine(color = cursorColor, start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 2f)
-                drawCircle(color = lineColor, radius = 6f, center = Offset(x, y))
-            }
-            // The span between two fingers: shaded across the chart, green when it ends higher
-            // than it started and red when it ends lower, with both ends marked.
-            rangeIndices?.let { (a, b) ->
-                val xa = a * stepX
-                val xb = b * stepX
-                val up = points[b].second >= points[a].second
-                val shade = if (up) upColor else downColor
-                drawRect(
-                    color = shade.copy(alpha = 0.16f),
-                    topLeft = Offset(minOf(xa, xb), 0f),
-                    size = androidx.compose.ui.geometry.Size(kotlin.math.abs(xb - xa), size.height),
-                )
-                for (idx in listOf(a, b)) {
-                    val ex = idx * stepX
-                    drawLine(color = shade, start = Offset(ex, 0f), end = Offset(ex, size.height), strokeWidth = 2f)
-                    drawCircle(color = shade, radius = 6f, center = Offset(ex, yFor(points[idx].second)))
-                }
+        // Grid: a solid hairline at each value mark, a dashed one up from each time mark.
+        for (tick in yTicks) {
+            val y = yFor(tick.at)
+            if (y < 0f || y > plotBottom) continue
+            drawLine(colors.textSecondary.copy(alpha = 0.22f), Offset(plotLeft, y), Offset(plotRight, y), strokeWidth = hairline)
+        }
+        for ((tick, layout) in xLabels) {
+            val x = xFor(tick.at.toLong())
+            if (x < plotLeft || x > plotRight) continue
+            drawLine(colors.textSecondary.copy(alpha = 0.3f), Offset(x, 0f), Offset(x, plotBottom), strokeWidth = hairline, pathEffect = dash)
+            // Leading-aligned at its mark; one with no room before the edge is left out.
+            val labelX = x + 4.dp.toPx()
+            if (labelX + layout.size.width <= size.width) {
+                drawText(layout, topLeft = Offset(labelX, plotBottom + axisGap))
             }
         }
-        Spacer(Modifier.height(6.dp))
-        // X-axis labels: hours for an intraday (<= ~2d) span, else month/day, so 1D doesn't crowd.
-        val intraday = (points.last().first - points.first().first) <= 2L * 24 * 60 * 60 * 1000
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            val labelCount = 4
-            for (i in 0 until labelCount) {
-                val idx = ((i.toFloat() / (labelCount - 1)) * (points.size - 1)).roundToInt().coerceIn(0, points.size - 1)
-                val ts = points[idx].first
-                Text(
-                    text = if (intraday) formatAxisHour(ts) else formatAxisDate(ts),
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 10.sp
+        for ((tick, layout) in yLabels) {
+            val y = yFor(tick.at)
+            if (y < 0f || y > plotBottom) continue
+            drawText(layout, topLeft = Offset(plotLeft - labelGap - layout.size.width, y - layout.size.height / 2f))
+        }
+
+        val xs = FloatArray(points.size) { xFor(points[it].first) }
+        val ys = FloatArray(points.size) { yFor(points[it].second) }
+        val last = points.size - 1
+        val linePath = Path().apply {
+            moveTo(xs[0], ys[0])
+            for (i in 0 until last) {
+                val before = (i - 1).coerceAtLeast(0)
+                val after = (i + 2).coerceAtMost(last)
+                cubicTo(
+                    xs[i] + (xs[i + 1] - xs[before]) / 6f, ys[i] + (ys[i + 1] - ys[before]) / 6f,
+                    xs[i + 1] - (xs[after] - xs[i]) / 6f, ys[i + 1] - (ys[after] - ys[i]) / 6f,
+                    xs[i + 1], ys[i + 1],
                 )
+            }
+        }
+        val areaPath = Path().apply {
+            addPath(linePath)
+            lineTo(xs[last], plotBottom)
+            lineTo(xs[0], plotBottom)
+            close()
+        }
+        drawPath(
+            path = areaPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(lineColor.copy(alpha = 0.28f), lineColor.copy(alpha = 0.03f)),
+                startY = yFor(maxV),
+                endY = plotBottom
+            )
+        )
+        drawPath(
+            path = linePath,
+            color = lineColor,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        val markRadius = 6.dp.toPx()
+        val ruleWidth = 1.dp.toPx()
+        selectedIndex?.takeIf { it <= last }?.let { idx ->
+            val x = xs[idx]
+            drawLine(colors.textSecondary.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, plotBottom), strokeWidth = ruleWidth)
+            drawCircle(color = lineColor, radius = markRadius, center = Offset(x, ys[idx]))
+        }
+        // The span between two fingers: shaded across the plot, green when it ends higher than
+        // it started and red when it ends lower, with both ends marked.
+        rangeIndices?.takeIf { it.first <= last && it.second <= last }?.let { (a, b) ->
+            val up = points[b].second >= points[a].second
+            val shade = if (up) upColor else downColor
+            drawRect(
+                color = shade.copy(alpha = 0.10f),
+                topLeft = Offset(minOf(xs[a], xs[b]), 0f),
+                size = androidx.compose.ui.geometry.Size(kotlin.math.abs(xs[b] - xs[a]), plotBottom),
+            )
+            for (idx in listOf(a, b)) {
+                drawLine(shade.copy(alpha = 0.6f), Offset(xs[idx], 0f), Offset(xs[idx], plotBottom), strokeWidth = ruleWidth)
+                drawCircle(color = shade, radius = markRadius, center = Offset(xs[idx], ys[idx]))
             }
         }
     }
 }
 
-/** How to name the selected range in a label beside the change figure. */
-private fun rangeLabelFor(days: Int): String = when (days) {
-    1 -> "24h"
-    7 -> "1W"
-    30 -> "1M"
-    90 -> "3M"
-    365 -> "1Y"
+/** How to name the selected range beside the change figure (iOS `priceRangeLabel`). */
+private fun rangeLabelFor(days: Int, ytdDays: Int): String = when {
+    days == ytdDays -> "YTD"
+    days == com.kachat.app.repository.PortfolioRepository.ALL_TIME_DAYS -> "All"
+    days == 1 -> "24h"
+    days == 7 -> "1W"
+    days == 30 -> "1M"
+    days == 90 -> "3M"
+    days == 365 -> "1Y"
     else -> "${days}d"
+}
+
+/** A chart header's date: iOS `.dateTime.month().day().year()`, with `.hour().minute()` for price. */
+private fun formatChartDate(millis: Long, withTime: Boolean): String {
+    val locale = Locale.getDefault()
+    val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, if (withTime) "MMMdyyyyjmm" else "MMMdyyyy")
+    return SimpleDateFormat(pattern, locale).format(Date(millis))
+}
+
+/**
+ * iOS ChartRangeSummary - "Mar 3 → Mar 9" over "↗ 12.34% (+$1.23)": the return across a
+ * two-finger range. Times instead of years when both ends are on one day. The screen says how a
+ * value is written, so the money charts mask when the eye is on.
+ */
+@Composable
+private fun ChartRangeSummary(
+    from: Pair<Long, Double>,
+    to: Pair<Long, Double>,
+    valueText: @Composable (Double) -> String,
+) {
+    val colors = LocalAppColors.current
+    val amount = to.second - from.second
+    val up = amount >= 0
+    val percent = if (from.second != 0.0) amount / kotlin.math.abs(from.second) * 100 else null
+    val sameDay = Calendar.getInstance().let { c ->
+        c.timeInMillis = from.first
+        val day = c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)
+        c.timeInMillis = to.first
+        day == c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)
+    }
+    val locale = Locale.getDefault()
+    val edgeFormat = SimpleDateFormat(
+        android.text.format.DateFormat.getBestDateTimePattern(locale, if (sameDay) "MMMdjmm" else "MMMdyyyy"),
+        locale
+    )
+    val tint = if (up) colors.success else colors.danger
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(edgeFormat.format(Date(from.first)), color = colors.textSecondary, fontSize = 15.sp)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(11.dp))
+            Text(edgeFormat.format(Date(to.first)), color = colors.textSecondary, fontSize = 15.sp)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(if (up) Icons.Default.NorthEast else Icons.Default.SouthEast, contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))
+            if (percent != null) {
+                Text("${String.format(Locale.US, "%.2f", kotlin.math.abs(percent))}%", color = tint, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            }
+            Text("(${if (up) "+" else "-"}${valueText(kotlin.math.abs(amount))})", color = tint, fontSize = 15.sp)
+        }
+    }
+}
+
+/** Where a chart's line goes while its series is still on the way: iOS's ProgressView. */
+@Composable
+private fun ChartLoading(height: Dp) {
+    Box(modifier = Modifier.fillMaxWidth().height(height), contentAlignment = Alignment.Center) {
+        com.kachat.app.ui.theme.IosActivityIndicator()
+    }
 }
 
 /**
@@ -1710,32 +1934,32 @@ private fun formatCompactFiat(value: Double, currencyCode: String): String {
 private fun MarketStatsCard(marketCap: Double?, rank: Int?, currencyCode: String) {
     if (marketCap == null && rank == null) return
     val colors = LocalAppColors.current
+    // iOS marketStatsCard: VStack(spacing: 10) of subheadline rows - the label secondary, the
+    // figure semibold - with a Divider between, padded 14 on the 18pt glass card.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.surface)
-            .padding(14.dp)
+            .iosGlass(18.dp)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (rank != null) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Rank", color = colors.textSecondary, fontSize = 13.sp)
-                Text("#$rank", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Rank", color = colors.textSecondary, fontSize = 15.sp)
+                Text("#$rank", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             }
         }
         if (rank != null && marketCap != null) {
-            Spacer(Modifier.height(10.dp))
             HorizontalDivider(color = colors.divider)
-            Spacer(Modifier.height(10.dp))
         }
         if (marketCap != null) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Market Cap", color = colors.textSecondary, fontSize = 13.sp)
+                Text("Market Cap", color = colors.textSecondary, fontSize = 15.sp)
                 Text(
                     formatCompactFiat(marketCap, currencyCode),
                     color = colors.textPrimary,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp
+                    fontSize = 15.sp
                 )
             }
         }
@@ -1793,11 +2017,11 @@ internal fun formatChartAmount(value: Double, unitCode: String, pair: com.kachat
  * Lit up while flipped to the pair; absent when no pair is picked (iOS ChartCurrencyChip).
  */
 @Composable
-internal fun ChartUnitChip(unitCode: String, flipped: Boolean) {
+internal fun ChartUnitChip(unitCode: String, flipped: Boolean, modifier: Modifier = Modifier) {
     val colors = LocalAppColors.current
     val tint = if (flipped) Color(0xFFFF9500) else colors.textSecondary
     Row(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(tint.copy(alpha = 0.14f))
             .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1913,20 +2137,24 @@ private fun PortfolioRangeSelector(selectedDays: Int, onSelect: (Int) -> Unit, y
         365 to "1Y",
         com.kachat.app.repository.PortfolioRepository.ALL_TIME_DAYS to "All",
     )
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    // iOS PortfolioRangePicker: HStack(spacing: 8) of subheadline-semibold labels, each filling
+    // its share, 8 above and below; the selected one in the accent on the accent at 20% in a
+    // 10pt rounded rectangle, the rest secondary on nothing.
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ranges.forEach { (days, label) ->
             val active = days == selectedDays
             Text(
                 text = label,
                 color = if (active) KaspaTeal else LocalAppColors.current.textSecondary,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
+                fontSize = 15.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
+                softWrap = false,
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(if (active) KaspaTeal.copy(alpha = 0.15f) else Color.Transparent)
+                    .background(if (active) KaspaTeal.copy(alpha = 0.2f) else Color.Transparent)
                     .clickable { onSelect(days) }
                     .padding(vertical = 8.dp)
             )
@@ -1960,23 +2188,26 @@ fun PortfolioPriceChartScreen(
     val shownHistory = if (flipped) alternateHistory else priceHistory
     val shownPrice = if (flipped) alternatePrice else currentPriceUsd
     val shownUnit = viewModel.chartUnitCode()
+    val ytdDays = viewModel.yearToDateDays()
+    val colors = LocalAppColors.current
 
     Scaffold(
-        containerColor = LocalAppColors.current.background,
+        containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("KAS Price", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                title = { Text("KAS Price", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = { SheetBarBackButton({ navController.popBackStack() }, Modifier.padding(start = 12.dp)) },
                 actions = {
+                    // iOS ChartPairSettingsButton: SF "gearshape" - the outlined gear - in the accent.
                     SheetBarIconButton(
-                        Icons.Default.Settings,
+                        Icons.Outlined.Settings,
                         "Compare against",
                         onClick = { showPairSheet = true },
                         modifier = Modifier.padding(end = 12.dp),
                         iconSize = 22.dp,
                     )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
     ) { padding ->
@@ -2001,37 +2232,32 @@ fun PortfolioPriceChartScreen(
                 // bringing into view has somewhere above the keyboard to land.
                 .imePadding()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Header: logo + name stay put while scrubbing; only the date + price change.
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            // iOS header: VStack(spacing: 6). The Kaspa logo + name stay put while scrubbing -
+            // only the date + scrubbed price change.
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Image(
                         painter = painterResource(R.drawable.ic_kaspa_logo),
                         contentDescription = null,
                         modifier = Modifier.size(30.dp).clip(CircleShape)
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Kaspa", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                    Text("Kaspa", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                 }
                 scrubbed?.let {
-                    Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                    Text(formatChartDate(it.first, withTime = true), color = colors.textSecondary, fontSize = 15.sp)
                 }
                 selectedSpan?.let { (from, to) ->
-                    Text(
-                        "${formatDateTime(from.first)} → ${formatDateTime(to.first)}",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp,
-                    )
+                    ChartRangeSummary(from, to) { formatChartAmount(it, shownUnit, chartPair) }
                 }
                 // The change sits UNDER the price rather than beside it. A long price and a
                 // long change figure on one line had no room left at larger text sizes or in a
                 // currency with a wordy symbol, and something had to shrink or clip. Stacked,
                 // neither constrains the other whatever they say.
-                // The number and, beside it, what it counts in - a tap of either flips the
-                // chart into the pair (iOS c42e9a3's chip + tap gesture).
+                // The number and, beside it on its baseline, what it counts in - a tap of either
+                // flips the chart into the pair (iOS c42e9a3's chip + tap gesture).
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -2039,28 +2265,18 @@ fun PortfolioPriceChartScreen(
                 ) {
                     Text(
                         text = when {
-                            selectedSpan != null -> formatChartAmount(selectedSpan!!.second.second, shownUnit, chartPair)
                             scrubbed != null -> formatChartAmount(scrubbed!!.second, shownUnit, chartPair)
                             shownPrice != null -> formatChartAmount(shownPrice!!, shownUnit, chartPair)
                             else -> "—"
                         },
-                        color = LocalAppColors.current.textPrimary,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
+                        fontSize = 38.sp,
                         maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.alignByBaseline(),
                     )
-                    if (chartPair != null) ChartUnitChip(unitCode = shownUnit, flipped = flipped)
-                }
-                // What the two fingers are actually asking: how the price moved between them.
-                selectedSpan?.let { (from, to) ->
-                    val pct = if (from.second != 0.0) (to.second - from.second) / from.second * 100 else 0.0
-                    val up = to.second >= from.second
-                    Text(
-                        "${if (up) "+" else "-"}${String.format(Locale.US, "%.2f", kotlin.math.abs(pct))}% over this span",
-                        color = if (up) LocalAppColors.current.success else LocalAppColors.current.danger,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                    )
+                    if (chartPair != null) ChartUnitChip(unitCode = shownUnit, flipped = flipped, modifier = Modifier.alignByBaseline())
                 }
                 // Read off the series the chart is drawing, so the number and the line can never
                 // disagree - and so it answers whichever range button is selected rather than
@@ -2068,27 +2284,27 @@ fun PortfolioPriceChartScreen(
                 // currency is the price above minus itself a moment ago, which the chart already
                 // draws, and a per-KAS amount at four decimal places says very little.
                 val rangeChange = PortfolioViewModel.computeRangeChange(shownHistory)
-                if (scrubbed == null && rangeChange != null) {
+                if (scrubbed == null && selectedSpan == null && rangeChange != null) {
                     val positive = rangeChange.first >= 0
-                    val color = if (positive) LocalAppColors.current.success else LocalAppColors.current.danger
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    val color = if (positive) colors.success else colors.danger
+                    // iOS: arrow.up / arrow.down (footnote), the percent (subheadline semibold)
+                    // and the range (caption semibold, secondary), 3 apart.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         Icon(
-                            if (positive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                            if (positive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
                             contentDescription = null,
                             tint = color,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(Modifier.width(2.dp))
                         Text(
                             "${String.format(Locale.US, "%.2f", kotlin.math.abs(rangeChange.second))}%",
                             color = color,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
+                            fontSize = 15.sp
                         )
-                        Spacer(Modifier.width(4.dp))
                         Text(
-                            rangeLabelFor(priceRangeDays),
-                            color = LocalAppColors.current.textSecondary,
+                            rangeLabelFor(priceRangeDays, ytdDays),
+                            color = colors.textSecondary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 12.sp
                         )
@@ -2102,17 +2318,17 @@ fun PortfolioPriceChartScreen(
                     lineColor = KaspaTeal,
                     onScrub = { scrubbed = it },
                     onRange = { selectedSpan = it },
+                    height = 260.dp,
+                    preciseAxis = flipped,
                 )
             } else {
-                Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
-                    Text("Loading…", color = LocalAppColors.current.textSecondary)
-                }
+                ChartLoading(260.dp)
             }
 
             PortfolioRangeSelector(
                 selectedDays = priceRangeDays,
-                onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) },
-                ytdDays = viewModel.yearToDateDays(),
+                onSelect = { scrubbed = null; selectedSpan = null; viewModel.setPriceRangeDays(it) },
+                ytdDays = ytdDays,
             )
             if (showPairSheet) {
                 ChartPairSheet(
@@ -2146,9 +2362,11 @@ fun PortfolioValueChartScreen(
     val chartFlipped by viewModel.chartFlipped.collectAsState()
     val alternateHistory by viewModel.alternatePriceHistory.collectAsState()
     val priceHistoryForValue by viewModel.priceHistory.collectAsState()
+    val alternatePrice by viewModel.alternatePrice.collectAsState()
     var showPairSheet by remember { mutableStateOf(false) }
     val flipped = chartFlipped && chartPair != null
     val shownUnit = viewModel.chartUnitCode()
+    val ytdDays = viewModel.yearToDateDays()
     // The holdings priced in the flipped unit: the same KAS, valued point by point against the
     // alternate series rather than the app currency's.
     val shownValueHistory = if (!flipped) valueHistory else {
@@ -2161,24 +2379,27 @@ fun PortfolioValueChartScreen(
     }
     var scrubbed by remember { mutableStateOf<Pair<Long, Double>?>(null) }
     var selectedSpan by remember { mutableStateOf<Pair<Pair<Long, Double>, Pair<Long, Double>>?>(null) }
-    // Today's change, not all-time P&L - the same figure the portfolio cards show, computed off
-    // the stable seven-day history rather than the visible range, so switching to 1Y does not
-    // change what "today" means.
-    val activePortfolioId by viewModel.activePortfolioId.collectAsState()
-    val cardSummaries by viewModel.cardSummaries.collectAsState()
-    val todayCard = activePortfolioId?.let { cardSummaries[it] }
     // This screen is all amounts, so the eye reaches it too.
     val valuesHidden by viewModel.valuesHidden.collectAsState()
+    val colors = LocalAppColors.current
+
+    /** iOS chartMoney: an amount in whatever the chart counts in, masked by the eye. */
+    fun chartMoney(value: Double): String = when {
+        valuesHidden -> MASKED_AMOUNT
+        flipped -> formatChartAmount(value, shownUnit, chartPair)
+        else -> formatFiatAmount(value, currencyCode)
+    }
 
     CompositionLocalProvider(LocalPortfolioValuesHidden provides valuesHidden) {
     Scaffold(
-        containerColor = LocalAppColors.current.background,
+        containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Value Over Time", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                title = { Text("Value Over Time", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 actions = {
+                    // iOS ChartPairSettingsButton: SF "gearshape" - the outlined gear - in the accent.
                     SheetBarIconButton(
-                        Icons.Default.Settings,
+                        Icons.Outlined.Settings,
                         "Compare against",
                         onClick = { showPairSheet = true },
                         modifier = Modifier.padding(end = 12.dp),
@@ -2186,7 +2407,7 @@ fun PortfolioValueChartScreen(
                     )
                 },
                 navigationIcon = { SheetBarBackButton({ navController.popBackStack() }, Modifier.padding(start = 12.dp)) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
     ) { padding ->
@@ -2206,56 +2427,40 @@ fun PortfolioValueChartScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column {
-                Text("Portfolio Value", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+            // iOS header: VStack(spacing: 4).
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Portfolio Value", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                 scrubbed?.let {
-                    Text(formatDateTime(it.first), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                    Text(formatChartDate(it.first, withTime = false), color = colors.textSecondary, fontSize = 15.sp)
                 }
                 selectedSpan?.let { (from, to) ->
-                    Text(
-                        "${formatDateTime(from.first)} → ${formatDateTime(to.first)}",
-                        color = LocalAppColors.current.textSecondary,
-                        fontSize = 13.sp,
-                    )
+                    ChartRangeSummary(from, to) { chartMoney(it) }
                 }
                 // The change sits UNDER the value rather than beside it - see the note on the
                 // price header. A six-figure portfolio and its change had nowhere to go on one
-                // line.
-                val shownValue = selectedSpan?.second?.second
-                    ?: scrubbed?.second
-                    ?: (if (flipped) shownValueHistory.lastOrNull()?.second else null)
-                    ?: summary.currentValue
+                // line. Tap the value: the same chart in the pair.
+                // iOS chartCurrentValue: flipped, the holdings at the pair's latest price - nil,
+                // a dash, while that price is still on its way.
+                val shownValue = scrubbed?.second
+                    ?: (if (flipped) alternatePrice?.let { summary.holdingsKas * it } else summary.currentValue)
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .clickable(enabled = chartPair != null) { scrubbed = null; selectedSpan = null; viewModel.flipChart() },
                 ) {
                     Text(
-                        if (flipped) formatChartAmount(shownValue, shownUnit, chartPair) else money(shownValue, currencyCode),
-                        color = LocalAppColors.current.textPrimary,
+                        shownValue?.let { chartMoney(it) } ?: "—",
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
+                        fontSize = 38.sp,
                         maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.alignByBaseline(),
                     )
-                    if (chartPair != null) ChartUnitChip(unitCode = shownUnit, flipped = flipped)
-                }
-                // The return across the span the two fingers mark: the percentage, and what it
-                // came to in money - masked with everything else when the eye is on.
-                selectedSpan?.let { (from, to) ->
-                    val delta = to.second - from.second
-                    val pct = if (from.second != 0.0) delta / from.second * 100 else 0.0
-                    val up = delta >= 0
-                    Text(
-                        "${if (up) "+" else "-"}${money(kotlin.math.abs(delta), currencyCode)} " +
-                            "(${String.format(Locale.US, "%.2f", kotlin.math.abs(pct))}%) over this span",
-                        color = if (up) LocalAppColors.current.success else LocalAppColors.current.danger,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                    )
+                    if (chartPair != null) ChartUnitChip(unitCode = shownUnit, flipped = flipped, modifier = Modifier.alignByBaseline())
                 }
                 // The move across the SELECTED range, so pressing 1W answers "how did this do
                 // this week" rather than repeating the 24h figure under every button. Hidden
@@ -2264,29 +2469,31 @@ fun PortfolioValueChartScreen(
                 val rangeChange = PortfolioViewModel.computeRangeChange(shownValueHistory)
                 val changeAmount = rangeChange?.first
                 val changePercent = rangeChange?.second
-                if (scrubbed == null && changeAmount != null && changePercent != null) {
+                if (scrubbed == null && selectedSpan == null && changeAmount != null && changePercent != null) {
                     val isUp = changeAmount >= 0
+                    val tint = if (isUp) colors.success else colors.danger
+                    val percentText = "${String.format(Locale.US, "%.2f", kotlin.math.abs(changePercent))}%"
+                    // iOS: arrow.up.right / arrow.down.right (caption bold), the move (subheadline
+                    // semibold) and the range (caption semibold, secondary), 4 apart.
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
-                            if (isUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                            if (isUp) Icons.Default.NorthEast else Icons.Default.SouthEast,
                             contentDescription = null,
-                            tint = if (isUp) LocalAppColors.current.success else LocalAppColors.current.danger,
-                            modifier = Modifier.size(14.dp),
+                            tint = tint,
+                            modifier = Modifier.size(13.dp),
                         )
                         Text(
-                            "${money(kotlin.math.abs(changeAmount), currencyCode)} (${"%.2f".format(java.util.Locale.US, kotlin.math.abs(changePercent))}%)",
-                            color = if (isUp) LocalAppColors.current.success else LocalAppColors.current.danger,
+                            if (valuesHidden) percentText else "${chartMoney(kotlin.math.abs(changeAmount))} ($percentText)",
+                            color = tint,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                         )
-                        // Which range that move covers - iOS shows it, and without it the figure
-                        // reads as a fixed 24h number under every button.
                         Text(
-                            rangeLabelFor(priceRangeDays),
-                            color = LocalAppColors.current.textSecondary,
+                            rangeLabelFor(priceRangeDays, ytdDays),
+                            color = colors.textSecondary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 12.sp,
                         )
@@ -2300,12 +2507,19 @@ fun PortfolioValueChartScreen(
                     lineColor = KaspaTeal,
                     onScrub = { scrubbed = it },
                     onRange = { selectedSpan = it },
+                    height = 240.dp,
+                    hideValues = valuesHidden,
+                    preciseAxis = flipped,
                 )
+            } else if (flipped && valueHistory.size >= 2) {
+                // The pair's series for this range is still on its way.
+                ChartLoading(240.dp)
             } else {
-                Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
                     Text(
                         "Not enough history yet - check back after a few days of activity.",
-                        color = LocalAppColors.current.textSecondary,
+                        color = colors.textSecondary,
+                        fontSize = 15.sp,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -2313,8 +2527,8 @@ fun PortfolioValueChartScreen(
 
             PortfolioRangeSelector(
                 selectedDays = priceRangeDays,
-                onSelect = { scrubbed = null; viewModel.setPriceRangeDays(it) },
-                ytdDays = viewModel.yearToDateDays(),
+                onSelect = { scrubbed = null; selectedSpan = null; viewModel.setPriceRangeDays(it) },
+                ytdDays = ytdDays,
             )
             if (showPairSheet) {
                 ChartPairSheet(
@@ -2334,55 +2548,62 @@ fun PortfolioValueChartScreen(
     }
 }
 
+/**
+ * iOS statsCard: a row per figure - the label (subheadline, secondary) on the left, the figure
+ * (body semibold) on the right - 14 in and 12 above and below, Dividers between, 4 more above
+ * and below the whole on the 18pt glass card. Holdings, Current Value, Total Invested, Total P&L
+ * (green or red), then Avg. Buy Price when there is one.
+ */
 @Composable
 private fun PortfolioValueStatsCard(summary: PortfolioSummary, currencyCode: String) {
-    val plColor = if (summary.totalPL >= 0) LocalAppColors.current.success else LocalAppColors.current.danger
+    val colors = LocalAppColors.current
+    val hidden = LocalPortfolioValuesHidden.current
+    val plColor = if (summary.totalPL >= 0) colors.success else colors.danger
+    val plPercent = "${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%"
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(LocalAppColors.current.surface)
-            .padding(14.dp)
+            .iosGlass(18.dp)
+            .padding(vertical = 4.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text(stringResource(R.string.holdings), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(kas(summary.holdingsKas, grouped = true), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(stringResource(R.string.current_value), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(money(summary.currentValue, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        HorizontalDivider(color = LocalAppColors.current.divider)
-        Spacer(Modifier.height(10.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text(stringResource(R.string.total_invested), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(money(summary.totalInvested, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(stringResource(R.string.total_p_l), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                Text(
-                    "${money(summary.totalPL, currencyCode)} (${String.format(Locale.US, "%.1f", summary.totalPLPercent)}%)",
-                    color = plColor,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+        PortfolioStatRow(
+            stringResource(R.string.holdings),
+            if (hidden) "$MASKED_AMOUNT ${KaspaUnit.symbol}" else formatPortfolioKas(summary.holdingsKas)
+        )
+        HorizontalDivider(color = colors.divider)
+        PortfolioStatRow(stringResource(R.string.current_value), money(summary.currentValue, currencyCode))
+        HorizontalDivider(color = colors.divider)
+        PortfolioStatRow(stringResource(R.string.total_invested), money(summary.totalInvested, currencyCode))
+        HorizontalDivider(color = colors.divider)
+        PortfolioStatRow(
+            stringResource(R.string.total_p_l),
+            if (hidden) plPercent else "${formatFiatAmount(summary.totalPL, currencyCode)} ($plPercent)",
+            valueColor = plColor
+        )
         summary.averageBuyPriceUsd?.let { avg ->
-            Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = LocalAppColors.current.divider)
-            Spacer(Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("Avg. Buy Price", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                    Text(formatUsdPrice(avg, currencyCode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                }
-            }
+            HorizontalDivider(color = colors.divider)
+            PortfolioStatRow("Avg. Buy Price", formatUsdPrice(avg, currencyCode))
         }
     }
+}
+
+/** One label / figure line of a stats card (iOS statRow, rewardRow). */
+@Composable
+private fun PortfolioStatRow(label: String, value: String, valueColor: Color = LocalAppColors.current.textPrimary) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = LocalAppColors.current.textSecondary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(value, color = valueColor, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, textAlign = TextAlign.End)
+    }
+}
+
+/** iOS PortfolioFormat.kas: grouped, up to four decimals, then the KAS symbol. */
+private fun formatPortfolioKas(value: Double): String {
+    val format = java.text.DecimalFormat("#,##0.####", java.text.DecimalFormatSymbols(Locale.US))
+    return format.format(value) + " " + KaspaUnit.symbol
 }
 
 /**
@@ -2862,42 +3083,37 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
     // Seeds the first value, and keeps the derived side honest when the price or currency moves.
     LaunchedEffect(price, currencyCode) { recompute(editing) }
 
+    // iOS KasConverterCard: "Converter" (headline), a row per side, then the rate (caption,
+    // secondary) - VStack(spacing: 12), padded 14 on the 18pt glass card.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.surface)
+            .iosGlass(18.dp)
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Converter", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text("Converter", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
 
-        com.kachat.app.ui.theme.IosTextField(
-            value = kasText,
+        ConverterRow(
+            title = "KAS",
+            text = kasText,
             // Grouped as you type - "1200000" is a number you have to count digits on.
-            onValueChange = {
+            onTextChange = {
                 kasText = com.kachat.app.util.DecimalInputFormat.grouped(it)
                 editing = "kas"
                 recompute("kas")
             },
-            label = { Text("KAS", color = colors.textSecondary) },
-            trailingIcon = { Text("KAS", color = colors.textSecondary, fontSize = 13.sp) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            trailing = "KAS",
         )
-        com.kachat.app.ui.theme.IosTextField(
-            value = fiatText,
-            onValueChange = {
+        ConverterRow(
+            title = currencyCode.uppercase(Locale.US),
+            text = fiatText,
+            onTextChange = {
                 fiatText = com.kachat.app.util.DecimalInputFormat.grouped(it)
                 editing = "fiat"
                 recompute("fiat")
             },
-            label = { Text(currencyCode.uppercase(Locale.US), color = colors.textSecondary) },
-            trailingIcon = { Text(currencySymbolFor(currencyCode), color = colors.textSecondary, fontSize = 13.sp) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            trailing = currencySymbolFor(currencyCode),
         )
 
         Text(
@@ -2912,6 +3128,82 @@ private fun KasConverterCard(price: Double?, currencyCode: String) {
             fontSize = 12.sp
         )
     }
+}
+
+/**
+ * One side of the converter, as iOS draws it: the currency (subheadline semibold, secondary, 44
+ * wide) on the left, the amount right-aligned in 20pt semibold, and the unit's symbol
+ * (subheadline, secondary, 44 wide, trailing) after it - 8 above and below and 12 in, on the
+ * label colour at 6% in a 12pt rounded rectangle. No outline, no floating label.
+ */
+@Composable
+private fun ConverterRow(title: String, text: String, onTextChange: (String) -> Unit, trailing: String) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.textPrimary.copy(alpha = 0.06f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            title,
+            color = colors.textSecondary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            maxLines = 1,
+            modifier = Modifier.width(44.dp),
+        )
+        IosNumberField(
+            value = text,
+            onValueChange = onTextChange,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            trailing,
+            color = colors.textSecondary,
+            fontSize = 15.sp,
+            maxLines = 1,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(44.dp),
+        )
+    }
+}
+
+/**
+ * A bare SwiftUI-style `TextField("0", ...)` with the decimal pad: 20pt semibold, the placeholder
+ * "0" in the faint label colour while it is empty, the accent caret. No box of its own - the
+ * caller draws the row it sits in.
+ */
+@Composable
+private fun IosNumberField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    textAlign: TextAlign,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    val style = TextStyle(color = colors.textPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = textAlign)
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = style,
+        cursorBrush = SolidColor(KaspaTeal),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = modifier,
+        decorationBox = { inner ->
+            Box(contentAlignment = if (textAlign == TextAlign.End) Alignment.CenterEnd else Alignment.CenterStart) {
+                if (value.isEmpty()) {
+                    Text("0", style = style.copy(color = colors.textTertiary), maxLines = 1)
+                }
+                inner()
+            }
+        },
+    )
 }
 
 /**
@@ -3234,33 +3526,52 @@ fun PortfolioHashrateChartScreen(
             )
         }
     ) { padding ->
-        Column(
+        // iOS: `.refreshable { await networkStats.refreshIfNeeded(force: true) }`.
+        val pullRefreshState = rememberPullToRefreshState()
+        LaunchedEffect(pullRefreshState.isRefreshing) {
+            if (pullRefreshState.isRefreshing) {
+                viewModel.refreshHashrateNow()
+                pullRefreshState.endRefresh()
+            }
+        }
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clipToBounds()
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
+        ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 // Same reason as the price screen: edge-to-edge means the window is not resized
                 // for the keyboard, so the mining estimate's field needs the inset reserved here
                 // to have anywhere above the keyboard to scroll into.
                 .imePadding()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PickaxeIcon(iconSize = 24.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Kaspa Network", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+            // iOS header: VStack(spacing: 6) - the 20pt pickaxe in the accent and "Kaspa
+            // Network" (title3 semibold) 8 apart, then the date, a range's summary and the figure.
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PickaxeIcon(iconSize = 20.dp)
+                    Text("Kaspa Network", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                 }
                 scrubbed?.let {
-                    Text(formatDateTime(it.first), color = colors.textSecondary, fontSize = 13.sp)
+                    Text(formatChartDate(it.first, withTime = false), color = colors.textSecondary, fontSize = 15.sp)
+                }
+                selectedSpan?.let { (from, to) ->
+                    ChartRangeSummary(from, to) { formatHashrate(it) }
                 }
                 Text(
                     text = (scrubbed?.second ?: current)?.let { formatHashrate(it) } ?: "—",
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp,
-                    maxLines = 1
+                    fontSize = 38.sp,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
 
@@ -3270,13 +3581,15 @@ fun PortfolioHashrateChartScreen(
                     lineColor = KaspaTeal,
                     onScrub = { scrubbed = it },
                     onRange = { selectedSpan = it },
+                    height = 260.dp,
                 )
             } else {
-                Box(modifier = Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
-                    Text("Loading…", color = colors.textSecondary)
-                }
+                ChartLoading(260.dp)
             }
 
+            // iOS rangePicker: capsules 8 apart, subheadline semibold, 7 above and below - the
+            // selected one in the accent on the accent at 18%, the rest secondary on the label
+            // colour at 6%.
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(30 to "1M", 90 to "3M", 365 to "1Y", 0 to "All").forEach { (days, label) ->
                     val active = days == rangeDays
@@ -3284,14 +3597,15 @@ fun PortfolioHashrateChartScreen(
                         text = label,
                         color = if (active) KaspaTeal else colors.textSecondary,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         textAlign = TextAlign.Center,
+                        maxLines = 1,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (active) KaspaTeal.copy(alpha = 0.15f) else Color.Transparent)
+                            .clip(CircleShape)
+                            .background(if (active) KaspaTeal.copy(alpha = 0.18f) else colors.textPrimary.copy(alpha = 0.06f))
                             .clickable { scrubbed = null; rangeDays = days }
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = 7.dp)
                     )
                 }
             }
@@ -3302,20 +3616,19 @@ fun PortfolioHashrateChartScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.surface)
+                    .iosGlass(18.dp)
                     .padding(vertical = 4.dp)
             ) {
-                BlockRewardRow("Block Reward", blockReward?.let { "${formatKasAmountGrouped(it)} ${KaspaUnit.symbol}" } ?: "-")
+                PortfolioStatRow("Block Reward", blockReward?.let { formatPortfolioKas(it) } ?: "—")
                 HorizontalDivider(color = colors.divider)
-                BlockRewardRow("Next Block Reward", nextBlockReward?.let { "${formatKasAmountGrouped(it)} ${KaspaUnit.symbol}" } ?: "-")
+                PortfolioStatRow("Next Block Reward", nextBlockReward?.let { formatPortfolioKas(it) } ?: "—")
                 HorizontalDivider(color = colors.divider)
-                BlockRewardRow(
+                PortfolioStatRow(
                     "Next Block Reward Reduction",
                     nextHalvingTimestamp?.let {
                         java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
                             .format(java.util.Date(it * 1000L))
-                    } ?: "-"
+                    } ?: "—"
                 )
             }
 
@@ -3326,25 +3639,28 @@ fun PortfolioHashrateChartScreen(
                 currencyCode = currencyCode,
             )
 
+            // iOS explanation: "About Hashrate" (headline) over the text (subheadline,
+            // secondary), 8 apart, padded 14 on the 18pt glass card.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.surface)
-                    .padding(14.dp)
+                    .iosGlass(18.dp)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("About Hashrate", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(Modifier.height(8.dp))
+                Text("About Hashrate", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 Text(
                     "Hashrate is how much computing power miners are pointing at Kaspa. A higher " +
                         "hashrate means more work securing the chain, and it moves with mining " +
                         "profitability rather than with the price directly. Figures come from the " +
                         "Kaspa REST API set in Connection Settings, at one sample per day.",
                     color = colors.textSecondary,
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     lineHeight = 20.sp
                 )
             }
+        }
+            PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
     }
 }
@@ -3388,53 +3704,50 @@ private fun MiningEstimateCard(
         null
     }
 
+    // iOS: "Mining Estimate" (headline), then the field and the unit's segmented picker side by
+    // side, then the payouts or the hint - VStack(spacing: 12), padded 14 on the 18pt glass card.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.surface)
+            .iosGlass(18.dp)
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Mining Estimate", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text("Mining Estimate", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
 
-        com.kachat.app.ui.theme.IosTextField(
-            value = amountText,
-            // Grouped as you type - "1200000" is a number you have to count digits on.
-            onValueChange = { amountText = com.kachat.app.util.DecimalInputFormat.grouped(it) },
-            label = { Text("Your hashrate", color = colors.textSecondary) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            units.forEachIndexed { index, (label, _) ->
-                val active = index == unitIndex
-                Text(
-                    text = label,
-                    color = if (active) KaspaTeal else colors.textSecondary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (active) KaspaTeal.copy(alpha = 0.15f) else Color.Transparent)
-                        .clickable { unitIndex = index }
-                        .padding(vertical = 8.dp)
-                )
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            IosNumberField(
+                value = amountText,
+                // Grouped as you type - "1200000" is a number you have to count digits on.
+                onValueChange = { amountText = com.kachat.app.util.DecimalInputFormat.grouped(it) },
+                textAlign = TextAlign.Start,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.textPrimary.copy(alpha = 0.06f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+            IosSegmentedPicker(
+                titles = units.map { it.first },
+                selected = unitIndex,
+                onSelect = { unitIndex = it },
+                modifier = Modifier.width(190.dp),
+            )
         }
 
         if (dailyKas != null) {
-            MiningPayoutRow("Per day", dailyKas, price, currencyCode)
-            HorizontalDivider(color = colors.divider)
-            MiningPayoutRow("Per week", dailyKas * 7, price, currencyCode)
-            HorizontalDivider(color = colors.divider)
-            // 30 days, not a calendar month: the reward steps down monthly anyway, so precision
-            // past "about a month" would be false.
-            MiningPayoutRow("Per month", dailyKas * 30, price, currencyCode)
+            Column(
+                modifier = Modifier.padding(top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MiningPayoutRow("Per day", dailyKas, price, currencyCode)
+                HorizontalDivider(color = colors.divider)
+                MiningPayoutRow("Per week", dailyKas * 7, price, currencyCode)
+                HorizontalDivider(color = colors.divider)
+                // 30 days, not a calendar month: the reward steps down monthly anyway, so
+                // precision past "about a month" would be false.
+                MiningPayoutRow("Per month", dailyKas * 30, price, currencyCode)
+            }
 
             Text(
                 text = "At ${formatHashrate(networkHashratePHs!!)} network hashrate and a " +
@@ -3442,50 +3755,78 @@ private fun MiningEstimateCard(
                     "Before pool fees, power and luck, and both figures move.",
                 color = colors.textSecondary,
                 fontSize = 12.sp,
-                lineHeight = 17.sp
+                lineHeight = 16.sp
             )
         } else {
             Text(
                 "Enter your hashrate to estimate earnings.",
                 color = colors.textSecondary,
-                fontSize = 13.sp
+                fontSize = 15.sp
             )
         }
     }
 }
 
+/**
+ * iOS's segmented Picker: the segments on a tinted track (systemFill-like grey), the chosen one
+ * on a raised thumb - white in light mode, systemGray3-dark in dark - in 13pt, semibold when
+ * chosen.
+ */
 @Composable
-private fun MiningPayoutRow(title: String, kas: Double, price: Double?, currencyCode: String) {
+private fun IosSegmentedPicker(titles: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalAppColors.current
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = colors.textSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                formatKasAmount(kas),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
-            )
-            if (price != null && price > 0) {
+    val track = Color(0xFF767680).copy(alpha = if (colors.isDark) 0.24f else 0.12f)
+    val thumb = if (colors.isDark) Color(0xFF636366) else Color.White
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(track)
+            .padding(2.dp)
+    ) {
+        titles.forEachIndexed { index, title ->
+            val active = index == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(if (active) thumb else Color.Transparent)
+                    .clickable { onSelect(index) }
+                    .padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    money(kas * price, currencyCode),
-                    color = colors.textSecondary,
-                    fontSize = 12.sp
+                    title,
+                    color = colors.textPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
                 )
             }
         }
     }
 }
 
-/** One label/value line in the hashrate screen's block-reward card. */
+/** iOS payoutRow: the period (subheadline, secondary), and on the right the KAS (subheadline
+ *  semibold) over what it is worth (caption, secondary), on the first baseline. */
 @Composable
-private fun BlockRewardRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
-        Text(value, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+private fun MiningPayoutRow(title: String, kas: Double, price: Double?, currencyCode: String) {
+    val colors = LocalAppColors.current
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(title, color = colors.textSecondary, fontSize = 15.sp, modifier = Modifier.weight(1f).alignByBaseline())
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.alignByBaseline()) {
+            Text(
+                formatPortfolioKas(kas),
+                color = colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            )
+            if (price != null && price > 0) {
+                Text(
+                    formatFiatAmount(kas * price, currencyCode),
+                    color = colors.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
     }
 }
