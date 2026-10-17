@@ -309,8 +309,11 @@ fun ChatsScreen(
         )
     }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // The list runs on under the dock (and the system bar under it); it pads its own end.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             Column(
                 modifier = Modifier
@@ -419,6 +422,8 @@ fun ChatsScreen(
             // One glass +, opening the New sheet (iOS 5da8ccf). Not while selecting.
             if (isSelectionMode) return@Scaffold
             com.kachat.app.ui.theme.IosGlassFab(
+                // Above the dock the list runs under.
+                modifier = Modifier.padding(bottom = dockInset),
                 onClick = {
                     haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
                     showNewSheet = true
@@ -491,7 +496,12 @@ fun ChatsScreen(
             var addressBookTarget by remember { mutableStateOf<com.kachat.app.models.ContactEntity?>(null) }
             val addressBookEntries = rememberAddressBookEntries()
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                // The last row scrolls clear of the dock it runs under (none while selecting:
+                // the selection bar replaces the dock and pads itself).
+                contentPadding = PaddingValues(bottom = if (isSelectionMode) 0.dp else dockInset),
+            ) {
                 // Group chats and public rooms, as circles under the search bar - swipe sideways
                 // for all of them. Tap opens, hold opens its half sheet, Select mode selects them
                 // too.

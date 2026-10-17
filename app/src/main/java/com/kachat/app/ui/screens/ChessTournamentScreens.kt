@@ -1173,10 +1173,12 @@ fun ChessHomeScreen(navController: NavController, onBack: (() -> Unit)? = null) 
     Scaffold(
         // iOS: Color(.systemGroupedBackground) behind it all.
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = { ChessHomeBar(onBack) },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

@@ -3851,8 +3851,11 @@ fun ProfileScreen(
         }
     }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // The page runs on under the dock; its scroll ends with room to clear it.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             Column(
                 modifier = Modifier
@@ -4376,7 +4379,8 @@ fun ProfileScreen(
             // Moved here from Settings > Actions - Profile is where the rest of the
             // account-level actions (address management, About) already live.
 
-            Spacer(modifier = Modifier.height(80.dp))
+            // Room for the last card to scroll clear of the dock it runs under.
+            Spacer(modifier = Modifier.height(dockInset + 16.dp))
         }
 
         PullToRefreshContainer(
@@ -12012,7 +12016,8 @@ fun PushedQrPage(visible: Boolean, white: Boolean, onBack: () -> Unit, content: 
                 drawRect(pageColor, size = androidx.compose.ui.geometry.Size(size.width, size.height + 200.dp.toPx()))
             }
         ) {
-            Box(Modifier.fillMaxSize().statusBarsPadding()) { content() }
+            // Laid out above the dock, as iOS's page is inside its safe area; the colour runs on under it.
+            Box(Modifier.fillMaxSize().statusBarsPadding().padding(bottom = LocalDockInset.current)) { content() }
         }
     }
 }

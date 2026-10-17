@@ -1349,7 +1349,8 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // Runs on under the dock, as iOS's list runs on under its tab bar (LocalDockInset).
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ChatsScreen(navController, walletViewModel, chatViewModel = chatViewModel)
                 }
             }
@@ -1360,7 +1361,7 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     KaPostsScreen(navController, walletViewModel = walletViewModel)
                 }
             }
@@ -1371,7 +1372,7 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     PortfolioScreen(navController = navController)
                 }
             }
@@ -1382,7 +1383,7 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ProfileScreen(
                         viewModel = walletViewModel,
                         navController = navController
@@ -1396,7 +1397,7 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     KaspaHubScreen(
                         navController = navController,
                         walletViewModel = walletViewModel,

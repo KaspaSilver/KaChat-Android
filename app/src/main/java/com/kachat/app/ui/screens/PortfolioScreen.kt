@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -261,8 +262,11 @@ fun PortfolioScreen(
 
     val valuesHidden by viewModel.valuesHidden.collectAsState()
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // The page runs on under the dock; its scroll ends with room to clear it.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             MainPageHeader(
                 title = stringResource(R.string.portfolio),
@@ -305,6 +309,8 @@ fun PortfolioScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
+                        // The last card scrolls clear of the dock it runs under.
+                        .padding(bottom = dockInset)
                 ) {
                     PortfolioPickerHeader(
                         portfolios = portfolios,

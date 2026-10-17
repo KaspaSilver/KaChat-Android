@@ -189,6 +189,8 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             // iOS's bar: the connection dot on glass leading, the address the marketplace buys
             // with and its balance as the principal item - tap to pick another (iOS eb9b027) - and
@@ -212,7 +214,7 @@ fun KachatMarketScreen(onBack: (() -> Unit)?, onOpenChat: (String) -> Unit = {})
     ) { padding ->
       Box(Modifier.fillMaxSize().padding(padding).then(if (isLive) Modifier.nestedScroll(pullState.nestedScrollConnection) else Modifier)) {
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // Hero: the logo and the testnet / setting-up status - no title or description, so
@@ -950,6 +952,8 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             // iOS's bar: the connection dot on glass, the balance centred (the "KaChat Stats" title
             // gives way to it) and "?" on a glass disc.
@@ -965,7 +969,7 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).nestedScroll(pullState.nestedScrollConnection)) {
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 24.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // Hero. The gaps are the iPhone's as drawn: the chart 35 below the bar's glass, the
@@ -1741,6 +1745,8 @@ fun KaChatBotsScreen(
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = { MainPageHeader(title = stringResource(R.string.bots_title), onBack = onBack) },
     ) { padding ->
         Column(
@@ -1749,7 +1755,7 @@ fun KaChatBotsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(top = 12.dp, bottom = 120.dp),
+                .padding(top = 12.dp, bottom = LocalDockInset.current + 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             com.kachat.app.models.KaChatBot.all.forEach { bot ->

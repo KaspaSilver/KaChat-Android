@@ -124,6 +124,14 @@ val LocalInHubSection = androidx.compose.runtime.compositionLocalOf { false }
 val LargeTitleSize = 34.sp
 
 /**
+ * How much of the screen's bottom the floating dock covers (the dock plus the system bar under
+ * it), for a tab screen that draws on underneath the dock the way iOS's content runs on under its
+ * tab bar: its scrolling list ends with this much padding so the last row can still scroll clear,
+ * and anything pinned to the bottom (a + button) sits this far up. 0 where no dock is shown.
+ */
+val LocalDockInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
+
+/**
  * A navigation bar's row laid out the way UIKit places a `.principal` toolbar item: [principal]
  * centred on the bar when it fits clear of the [leading] and [trailing] items, otherwise packed
  * 12 after the leading items (the Chats bar, whose wide gear-and-Select glass leaves no room to

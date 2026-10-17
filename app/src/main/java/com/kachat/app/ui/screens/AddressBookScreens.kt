@@ -154,6 +154,8 @@ fun AddressBookScreen(
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             // iOS's bar, with or without entries: the connection dot, the balance centred (the
             // inline "Address Book" title gives way to it, so there is no large title) and Import
@@ -181,7 +183,8 @@ fun AddressBookScreen(
         if (entries.isEmpty()) {
             AddressBookEmptyState(
                 body = stringResource(R.string.ab_empty_body),
-                modifier = Modifier.padding(padding),
+                // Centred in the space above the dock, as iOS's sits in its safe area.
+                modifier = Modifier.padding(padding).padding(bottom = LocalDockInset.current),
             ) {
                 AddressBookProminentButton(stringResource(R.string.ab_add_address), onClick = { showAdd = true })
             }
@@ -192,7 +195,7 @@ fun AddressBookScreen(
                 Spacer(Modifier.height(10.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 120.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalDockInset.current + 24.dp),
                 ) {
                     item {
                         Column(

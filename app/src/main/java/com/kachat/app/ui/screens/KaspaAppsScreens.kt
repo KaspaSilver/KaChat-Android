@@ -112,6 +112,8 @@ fun KaspaAppsScreen(onBack: () -> Unit, onOpen: (KaspaApp) -> Unit) {
     val colors = LocalAppColors.current
     androidx.compose.material3.Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             // iOS: `.navigationTitle(AppTab.apps.ecosystemTitle)`, a large title and nothing under it.
             MainPageHeader(title = com.kachat.app.ui.Screen.KaspaWebsites.hubTitle, onBack = onBack)
@@ -122,7 +124,8 @@ fun KaspaAppsScreen(onBack: () -> Unit, onOpen: (KaspaApp) -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(24.dp)
+                .padding(bottom = LocalDockInset.current),
         ) {
             KaspaAppsGrid(onOpen = onOpen)
         }

@@ -896,25 +896,27 @@ private fun KaPostsFeedScreen(
     // open the Repost/Quote sheet instead): that just flips the flag locally, as on iOS.
     val repostHandler: (KaPostDraft) -> Unit = { post -> viewModel.scheduleRepost(post) }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = colors.background,
+        // As its own tab the feed runs on under the dock (LocalDockInset) and pads its own end;
+        // inside the Hub the shell lays it out above the dock and the inset is 0. The status bar
+        // stays the Scaffold's to clear: the feed's header has no padding of its own for it.
+        contentWindowInsets = WindowInsets.statusBars,
         floatingActionButton = {
             // iOS createPostButton: a 56pt circle in the material fill with an outlined
             // square.and.pencil in accent (22pt semibold, so drawn a size up from the icon row's),
             // not a filled accent button - the chat list's create-chat button shape.
             //
-            // iOS sits it 16pt above the tab bar. The shell already lifts this screen clear of the
-            // dock (and the system bar under it), but the Scaffold adds the navigation-bar inset
-            // to its FAB again, which parked the button an extra bar-height up the feed. While the
-            // dock shows, that second inset is taken back off; with the dock hidden (a thread is
-            // open) the inset is the real one and stays.
+            // iOS sits it 16pt above the tab bar: lifted by the dock the feed runs under, or with
+            // the dock hidden (a thread is open) by the system bar alone.
             val dockHidden by walletViewModel.hideBottomBar.collectAsState()
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             com.kachat.app.ui.theme.IosGlassFab(
                 onClick = { if (fundingGate.active) showFundingGate = true else showComposer = true },
                 icon = SquareAndPencilLarge,
                 contentDescription = "New post",
-                modifier = Modifier.offset(y = if (dockHidden) 0.dp else navBarBottom),
+                modifier = Modifier.padding(bottom = if (dockHidden) navBarBottom else dockInset),
             )
         },
     ) { padding ->
@@ -1142,6 +1144,8 @@ private fun KaPostsFeedScreen(
                             // swipe away and back (the pager disposes off-screen pages).
                             state = feedListStates[page],
                             modifier = Modifier.fillMaxSize(),
+                            // The last post scrolls clear of the dock the feed runs under.
+                            contentPadding = PaddingValues(bottom = dockInset),
                         ) {
                             items(pageFeed, key = { it.id }) { post ->
                                 LaunchedEffect(post.posterAddress) {

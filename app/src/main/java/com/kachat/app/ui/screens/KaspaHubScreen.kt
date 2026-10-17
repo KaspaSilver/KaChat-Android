@@ -135,7 +135,22 @@ fun KaspaHubScreen(
     // does - never past it to the start destination. Registered before the section, so a
     // section's own BackHandler (an open sheet, a page inside it) still comes first.
     androidx.activity.compose.BackHandler(enabled = openSection != null) { openSectionRoute = null }
-    androidx.compose.runtime.CompositionLocalProvider(LocalInHubSection provides (openSection != null)) {
+    // The grid runs on under the dock (LocalDockInset), as iOS's content runs on under its tab
+    // bar; a section that does not pad for the dock yet is laid out above it instead.
+    val dockInset = LocalDockInset.current
+    // The sections that pad their own end for the dock run on under it too; the rest are laid
+    // out above it.
+    val runsUnderDock = openSection == null || openSection in setOf(
+        Screen.KaPosts, Screen.Chats, Screen.Portfolio, Screen.KachatStats, Screen.KachatBots,
+        Screen.KachatNames, Screen.AddressBook, Screen.KaspaWebsites, Screen.Chess,
+    )
+    androidx.compose.foundation.layout.Box(
+        androidx.compose.ui.Modifier.padding(bottom = if (runsUnderDock) 0.dp else dockInset)
+    ) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalInHubSection provides (openSection != null),
+        LocalDockInset provides if (runsUnderDock) dockInset else 0.dp,
+    ) {
     when {
         openSection == Screen.KaspaWebsites -> KaspaAppsScreen(
             onBack = { openSectionRoute = null },
@@ -185,6 +200,7 @@ fun KaspaHubScreen(
         )
     }
     }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -197,8 +213,11 @@ private fun HubGrid(
     /** Unseen items per destination - resolved by the caller, which owns the stores. */
     badgeCount: (Screen) -> Int = { 0 },
 ) {
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = colors.background,
+        // The grid runs on under the dock; it pads its own end.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             MainPageHeader(
                 title = Screen.KaspaHub.label,
@@ -221,7 +240,7 @@ private fun HubGrid(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             // iOS's 16 sides and 8 top as CONTENT padding, not a padding around the grid: the
             // grid clips at its own edge, and a right-column badge sits 6 past its tile.
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp + dockInset)
         ) {
             items(sections, key = { it.route }) { screen ->
                 val vector = hubTileIcon(screen)
