@@ -110,6 +110,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -5269,26 +5270,70 @@ fun ManageAddressesScreen(
                 .clipToBounds()
                 .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
+        // iOS `addressesTabContent`: a plain List on the screen's own background - the account
+        // summary edge to edge (20 in), the Notify switch as a plain row, then the chatting
+        // address and the spending addresses as glass cards 16 in, 6 above and below each.
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Total, then the actions button directly under it rather than a FAB floating over
+            // the list: the actions are about this account, so they belong with it, and the FAB
+            // covered the last address row on a short list. Same shape as Cold Storage. The total
+            // is everything this account holds: the chatting address and every spending address,
+            // hidden ones too - the same total as Profile's Manage Addresses card (iOS 245a5d2).
+            // No card: iOS `accountSummary` sits straight on the list.
+            if (onAddressPicked == null) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                            Text(
+                                "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (chattingBalanceSompi + addresses.sumOf { it.balanceSompi }) / 100_000_000.0),
+                                color = LocalAppColors.current.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp
+                            )
+                        }
+                        Button(
+                            onClick = { showActionsMenu = true },
+                            enabled = !isDiscoveringAddresses,
+                            // iOS's .plain button keeps its accent capsule while busy.
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = KaspaTeal,
+                                contentColor = Color.Black,
+                                disabledContainerColor = KaspaTeal,
+                                disabledContentColor = Color.Black,
+                            ),
+                            shape = CircleShape,
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            if (isDiscoveringAddresses) {
+                                com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
+                            } else {
+                                Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
             run {
                 // This account's own switch (a cold-storage account has one in its own menu):
                 // the spending addresses' receives, not every address the wallet watches
-                // (iOS ba352a2).
+                // (iOS ba352a2). A plain list row under the summary, no card.
                 item {
                     val spendingNotify by settingsViewModel.spendingReceiveNotifications.collectAsState()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(Modifier.weight(1f)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 "Notify on receive",
                                 color = LocalAppColors.current.textPrimary,
@@ -5301,48 +5346,11 @@ fun ManageAddressesScreen(
                                 fontSize = 12.sp,
                             )
                         }
+                        Spacer(Modifier.width(12.dp))
                         com.kachat.app.ui.theme.IosSwitch(
                             checked = spendingNotify,
                             onCheckedChange = { settingsViewModel.setSpendingReceiveNotifications(it) }
                         )
-                    }
-                }
-            }
-            // Total, then the actions button directly under it rather than a FAB floating over
-            // the list: the actions are about this account, so they belong with it, and the FAB
-            // covered the last address row on a short list. Same shape as Cold Storage. The total
-            // is everything this account holds: the chatting address and every spending address,
-            // hidden ones too - the same total as Profile's Manage Addresses card (iOS 245a5d2).
-            if (onAddressPicked == null) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(LocalAppColors.current.surface)
-                            .padding(20.dp)
-                    ) {
-                        Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
-                        Text(
-                            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (chattingBalanceSompi + addresses.sumOf { it.balanceSompi }) / 100_000_000.0),
-                            color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = { showActionsMenu = true },
-                            enabled = !isDiscoveringAddresses,
-                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
-                            shape = RoundedCornerShape(28.dp),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                        ) {
-                            if (isDiscoveringAddresses) {
-                                com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 2.dp, color = Color.Black, modifier = Modifier.size(18.dp))
-                            } else {
-                                Text(stringResource(R.string.address_actions), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
                 }
             }
@@ -5355,6 +5363,7 @@ fun ManageAddressesScreen(
                         address = chatting,
                         balanceSompi = chattingBalanceSompi,
                         onClick = onOpenChattingAddress,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                     )
                 }
             }
@@ -5365,7 +5374,7 @@ fun ManageAddressesScreen(
                         color = KaspaTeal,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -5377,7 +5386,7 @@ fun ManageAddressesScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(onClick = onNavigateToHidden)
-                            .padding(vertical = 8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.VisibilityOff, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
@@ -5396,8 +5405,26 @@ fun ManageAddressesScreen(
 
             if (loading && addresses.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center) {
                         com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+                    }
+                }
+            } else if (visibleAddresses.isEmpty()) {
+                // iOS `emptyState`.
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Icon(Icons.Default.CreditCard, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(40.dp))
+                        Text("No Spending Addresses", color = LocalAppColors.current.textPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Generate one below to start sending payments from a separate address than the one you chat from.",
+                            color = LocalAppColors.current.textSecondary,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             } else {
@@ -5419,13 +5446,14 @@ fun ManageAddressesScreen(
                                 if (ok) IosToasts.show("Address hidden. Re-enable it in Address Visibility.")
                                 else IosToasts.show("This address can't be hidden.")
                             }
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                     )
                 }
             }
 
             item {
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
 
@@ -6594,54 +6622,16 @@ fun SpendingAddressTxHistoryScreen(
             )
         },
         bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { showQr = true },
-                    enabled = address.isNotEmpty(),
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
-                ) {
-                    Icon(Icons.Default.QrCode, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.receive), fontWeight = FontWeight.SemiBold)
-                }
-                Button(
-                    onClick = { showWithdraw = true },
-                    enabled = (entry?.balanceSompi ?: 0L) > 0L,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.send), fontWeight = FontWeight.Bold)
-                }
-            }
+            AddressReceiveSendBar(
+                receiveEnabled = address.isNotEmpty(),
+                sendEnabled = (entry?.balanceSompi ?: 0L) > 0L,
+                onReceive = { showQr = true },
+                onSend = { showWithdraw = true },
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    stringResource(R.string.balance),
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Text(
-                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (entry?.balanceSompi ?: 0L) / 100_000_000.0),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
+            AddressPageBalanceHeader(entry?.balanceSompi ?: 0L)
             // The app's tab look (Chats / Group Chats / Public Chats), not a segmented control;
             // plain names - History, UTXOs, Domains (iOS b96d727/718b88c, fe52376).
             UnderlineTabBar(
@@ -6651,113 +6641,26 @@ fun SpendingAddressTxHistoryScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             when (selectedTab) {
-                0 -> when {
-                    isLoadingTxHistory && txHistory.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                    // A failed fetch is not an empty history. Saying "No transactions yet."
-                    // here was a confident answer about someone's money the app had not got.
-                    txHistory.isEmpty() && txHistoryFailed -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Text(
-                                "Could not load transactions.",
-                                color = LocalAppColors.current.textSecondary,
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            TextButton(onClick = { viewModel.loadSpendingAddressTxHistory(address) }) {
-                                Text("Try Again", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    txHistory.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.no_transactions_yet), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(txHistory, key = { it.txId }) { tx ->
-                                SpendingAddressTxHistoryRow(
-                                    tx = tx,
-                                    // Tapping a transaction asks what to do with it. It used to
-                                    // open the explorer outright, which left "Add to Portfolio"
-                                    // on a button most people never looked for.
-                                    onClick = { transactionActionTarget = tx }
-                                )
-                            }
-                        }
-                    }
-                }
+                0 -> AddressHistoryList(
+                    txHistory = txHistory,
+                    isLoading = isLoadingTxHistory,
+                    failed = txHistoryFailed,
+                    onRetry = { viewModel.loadSpendingAddressTxHistory(address) },
+                    onTransactionClick = { transactionActionTarget = it },
+                )
                 2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it })
-                else -> when {
-                    isLoadingUtxos && utxos.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                    utxos.isEmpty() -> UtxoListEmptyRow(
-                        loadError = utxosLoadError,
-                        retry = { utxoListAddress?.let { viewModel.loadSpendingAddressUtxos(it) } },
-                    )
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (utxos.size > 1) {
-                                item {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(LocalAppColors.current.surface)
-                                            .clickable { showCompoundFlow = true }
-                                            .padding(16.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.CallMerge, null, tint = KaspaTeal)
-                                            Spacer(Modifier.width(12.dp))
-                                            Text(
-                                                stringResource(R.string.compound_utxos),
-                                                color = LocalAppColors.current.textPrimary,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            stringResource(R.string.compound_utxos_description),
-                                            color = LocalAppColors.current.textSecondary,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
-                            }
-                            items(utxos, key = { "${it.transactionId}:${it.index}" }) { utxo ->
-                                val key = "${utxo.transactionId}:${utxo.index}"
-                                SpendingAddressUtxoRow(
-                                    utxo = utxo,
-                                    label = utxoLabels[key],
-                                    onRenameClick = {
-                                        labelingUtxoKey = key
-                                        labelInput = utxoLabels[key] ?: ""
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                else -> AddressUtxoList(
+                    utxos = utxos,
+                    isLoading = isLoadingUtxos,
+                    loadError = utxosLoadError,
+                    labels = utxoLabels,
+                    onRetry = { utxoListAddress?.let { viewModel.loadSpendingAddressUtxos(it) } },
+                    onCompound = { showCompoundFlow = true },
+                    onRename = { key ->
+                        labelingUtxoKey = key
+                        labelInput = utxoLabels[key] ?: ""
+                    },
+                )
             }
         }
     }
@@ -6993,59 +6896,21 @@ fun IdentityAddressDetailScreen(
             )
         },
         bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { showQr = true },
-                    enabled = !address.isNullOrEmpty(),
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
-                ) {
-                    Icon(Icons.Default.QrCode, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.receive), fontWeight = FontWeight.SemiBold)
-                }
-                Button(
-                    onClick = { showWithdraw = true },
-                    enabled = balanceSompi > 0L,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.send), fontWeight = FontWeight.Bold)
-                }
-            }
+            AddressReceiveSendBar(
+                receiveEnabled = !address.isNullOrEmpty(),
+                sendEnabled = balanceSompi > 0L,
+                onReceive = { showQr = true },
+                onSend = { showWithdraw = true },
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    stringResource(R.string.balance),
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Text(
-                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
+            AddressPageBalanceHeader(balanceSompi)
             Button(
                 onClick = { showAddressActions = true },
                 enabled = !address.isNullOrEmpty(),
                 colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
-                shape = RoundedCornerShape(28.dp),
+                shape = CircleShape,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
@@ -7061,113 +6926,26 @@ fun IdentityAddressDetailScreen(
                 onSelect = { selectedTab = it },
             )
             when (selectedTab) {
-                0 -> when {
-                    isLoadingTxHistory && txHistory.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                    // A failed fetch is not an empty history. Saying "No transactions yet."
-                    // here was a confident answer about someone's money the app had not got.
-                    txHistory.isEmpty() && txHistoryFailed -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Text(
-                                "Could not load transactions.",
-                                color = LocalAppColors.current.textSecondary,
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            TextButton(onClick = { address?.let { viewModel.loadSpendingAddressTxHistory(it) } }) {
-                                Text("Try Again", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    txHistory.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.no_transactions_yet), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(txHistory, key = { it.txId }) { tx ->
-                                SpendingAddressTxHistoryRow(
-                                    tx = tx,
-                                    // Tapping a transaction asks what to do with it. It used to
-                                    // open the explorer outright, which left "Add to Portfolio"
-                                    // on a button most people never looked for.
-                                    onClick = { transactionActionTarget = tx }
-                                )
-                            }
-                        }
-                    }
-                }
+                0 -> AddressHistoryList(
+                    txHistory = txHistory,
+                    isLoading = isLoadingTxHistory,
+                    failed = txHistoryFailed,
+                    onRetry = { address?.let { viewModel.loadSpendingAddressTxHistory(it) } },
+                    onTransactionClick = { transactionActionTarget = it },
+                )
                 2 -> AddressDomainsTab(address.orEmpty(), onOpenService = { openedDomainService = it })
-                else -> when {
-                    isLoadingUtxos && utxos.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
-                        }
-                    }
-                    utxos.isEmpty() -> UtxoListEmptyRow(
-                        loadError = utxosLoadError,
-                        retry = { utxoListAddress?.let { viewModel.loadSpendingAddressUtxos(it) } },
-                    )
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (utxos.size > 1) {
-                                item {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(LocalAppColors.current.surface)
-                                            .clickable { showCompoundFlow = true }
-                                            .padding(16.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.CallMerge, null, tint = KaspaTeal)
-                                            Spacer(Modifier.width(12.dp))
-                                            Text(
-                                                stringResource(R.string.compound_utxos),
-                                                color = LocalAppColors.current.textPrimary,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            stringResource(R.string.compound_utxos_description),
-                                            color = LocalAppColors.current.textSecondary,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
-                            }
-                            items(utxos, key = { "${it.transactionId}:${it.index}" }) { utxo ->
-                                val key = "${utxo.transactionId}:${utxo.index}"
-                                SpendingAddressUtxoRow(
-                                    utxo = utxo,
-                                    label = utxoLabels[key],
-                                    onRenameClick = {
-                                        labelingUtxoKey = key
-                                        labelInput = utxoLabels[key] ?: ""
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                else -> AddressUtxoList(
+                    utxos = utxos,
+                    isLoading = isLoadingUtxos,
+                    loadError = utxosLoadError,
+                    labels = utxoLabels,
+                    onRetry = { utxoListAddress?.let { viewModel.loadSpendingAddressUtxos(it) } },
+                    onCompound = { showCompoundFlow = true },
+                    onRename = { key ->
+                        labelingUtxoKey = key
+                        labelInput = utxoLabels[key] ?: ""
+                    },
+                )
             }
         }
     }
@@ -7582,106 +7360,419 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
 }
 
 @Composable
-private fun SpendingAddressTxHistoryRow(tx: ColdStorageAddressDiscovery.AddressTransaction, onClick: () -> Unit) {
-    val kas = tx.amountSompi / 100_000_000.0
+private fun SpendingAddressTxHistoryRow(
+    tx: ColdStorageAddressDiscovery.AddressTransaction,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    // iOS `direction(for:)` is nil - "Transaction", grey, no amount - when nothing left for
+    // someone else (sent) or arrived here (received): a self-send or consolidation.
+    val directionKnown = tx.amountSompi > 0
+    val directionColor = when {
+        !directionKnown -> colors.textSecondary
+        tx.sent -> colors.danger
+        else -> colors.success
+    }
+    // iOS `.formatted(date: .abbreviated, time: .shortened)`: "Sep 24, 2026 at 2:25 PM".
     val dateStr = tx.blockTimeMillis?.let {
-        java.text.SimpleDateFormat("MMM d, yyyy, h:mm a", java.util.Locale.US).format(java.util.Date(it))
-    } ?: "Pending"
-    val directionColor = if (tx.sent) LocalAppColors.current.danger else LocalAppColors.current.success
+        java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", java.util.Locale.US).format(java.util.Date(it))
+    }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surface)
+        modifier = modifier
             .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(directionColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {
+        // "arrow.up.circle.fill" / "arrow.down.circle.fill" at title2.
+        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
             Icon(
-                if (tx.sent) Icons.AutoMirrored.Filled.Send else Icons.AutoMirrored.Filled.CallReceived,
+                if (directionKnown && tx.sent) Icons.Default.ArrowCircleUp else Icons.Default.ArrowCircleDown,
                 null,
                 tint = directionColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.requiredSize(31.dp)
             )
         }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(if (tx.sent) "Sent" else "Received", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-            Text(dateStr, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                when {
+                    !directionKnown -> "Transaction"
+                    tx.sent -> "Sent"
+                    else -> "Received"
+                },
+                color = directionColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            MiddleEllipsisText(
+                tx.txId,
+                color = colors.textSecondary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+            )
+            dateStr?.let {
+                Text(it, color = colors.textSecondary, fontSize = 11.sp, maxLines = 1)
+            }
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (directionKnown) {
+                Text(
+                    "${if (tx.sent) "-" else "+"}%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, tx.amountSompi / 100_000_000.0),
+                    color = directionColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
             // What this transaction paid the network (iOS 9839906).
             transactionFeeText(tx.feeSompi)?.let {
-                Text(it, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                Text(it, color = colors.textSecondary, fontSize = 11.sp, maxLines = 1)
             }
-            Text(
-                tx.txId,
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            // iOS "arrow.up.right.square" at caption, accent.
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = KaspaTeal, modifier = Modifier.size(13.dp))
         }
-        Spacer(Modifier.width(8.dp))
-        Text(
-            "${if (tx.sent) "-" else "+"}%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
-            color = directionColor,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.bodySmall
-        )
     }
 }
 
 @Composable
-private fun SpendingAddressUtxoRow(utxo: ColdStorageAddressDiscovery.AddressUtxo, label: String? = null, onRenameClick: () -> Unit = {}) {
-    val kas = utxo.amountSompi / 100_000_000.0
+private fun SpendingAddressUtxoRow(
+    utxo: ColdStorageAddressDiscovery.AddressUtxo,
+    label: String? = null,
+    onRenameClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+    // iOS `utxoRow`: the coin glyph at title2, the label / amount / outpoint, Coinbase, the pencil.
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surface)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        if (utxo.isCoinbase) {
+            // "cube.fill"
+            Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.ViewInAr, null, tint = KaspaTeal, modifier = Modifier.requiredSize(28.dp))
+            }
+        } else {
+            // "circle.grid.2x2.fill": four dots in a square.
+            androidx.compose.foundation.Canvas(Modifier.size(26.dp)) {
+                val r = size.minDimension * 0.2f
+                for (cx in listOf(0.27f, 0.73f)) for (cy in listOf(0.27f, 0.73f)) {
+                    drawCircle(KaspaTeal, radius = r, center = Offset(size.width * cx, size.height * cy))
+                }
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             if (!label.isNullOrBlank()) {
                 Text(
                     label,
                     color = KaspaTeal,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             }
             Text(
-                "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold
+                "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, utxo.amountSompi / 100_000_000.0),
+                color = colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
             )
-            Text(
+            MiddleEllipsisText(
                 "${utxo.transactionId}:${utxo.index}",
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = colors.textSecondary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
             )
         }
         if (utxo.isCoinbase) {
             Text(
                 stringResource(R.string.coinbase),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold
+                color = colors.textSecondary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
-        IconButton(onClick = onRenameClick, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, stringResource(R.string.rename), tint = KaspaTeal, modifier = Modifier.size(18.dp))
+        Box(
+            modifier = Modifier.size(32.dp).clickable(onClick = onRenameClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Edit, stringResource(R.string.rename), tint = KaspaTeal, modifier = Modifier.size(21.dp))
         }
+    }
+}
+
+/** iOS 26 `.insetGrouped` corner radius and the gap above a list's first section. */
+private val InsetGroupedRadius = 26.dp
+private val InsetGroupedTopGap = 35.dp
+
+/**
+ * One row of an iOS 26 `.insetGrouped` section: the section is a single rounded card 16 in from
+ * each edge, so only the first row rounds its top corners and the last its bottom ones, and every
+ * row after the first draws the inset hairline separator above itself (from [separatorStart] to
+ * 16 short of the trailing edge).
+ */
+@Composable
+private fun Modifier.insetGroupedCell(index: Int, count: Int, separatorStart: Dp = 16.dp): Modifier {
+    val colors = LocalAppColors.current
+    val first = index == 0
+    val last = index == count - 1
+    val shape = RoundedCornerShape(
+        topStart = if (first) InsetGroupedRadius else 0.dp,
+        topEnd = if (first) InsetGroupedRadius else 0.dp,
+        bottomStart = if (last) InsetGroupedRadius else 0.dp,
+        bottomEnd = if (last) InsetGroupedRadius else 0.dp,
+    )
+    val divider = colors.divider
+    return this
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp)
+        .clip(shape)
+        .background(colors.surface)
+        .then(
+            if (first) Modifier
+            else Modifier.drawBehind {
+                val stroke = 0.5.dp.toPx().coerceAtLeast(1f)
+                drawLine(
+                    color = divider,
+                    start = Offset(separatorStart.toPx(), stroke / 2f),
+                    end = Offset(size.width - 16.dp.toPx(), stroke / 2f),
+                    strokeWidth = stroke,
+                )
+            }
+        )
+}
+
+/** A one-row `.insetGrouped` list - the loading, empty and failed states iOS puts in the list. */
+@Composable
+private fun InsetGroupedSingleRowList(content: @Composable () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp),
+    ) {
+        item {
+            Box(
+                modifier = Modifier
+                    .insetGroupedCell(0, 1)
+                    .padding(horizontal = 16.dp, vertical = 15.dp)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+/** "Balance" over the amount at the top of an address's page (iOS: caption, then title3 semibold). */
+@Composable
+private fun AddressPageBalanceHeader(balanceSompi: Long) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            stringResource(R.string.balance),
+            color = LocalAppColors.current.textSecondary,
+            fontSize = 12.sp
+        )
+        Text(
+            "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
+            color = LocalAppColors.current.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 20.sp
+        )
+    }
+}
+
+/**
+ * An address page's History tab - iOS `transactionsList`: one `.insetGrouped` card of
+ * transactions, or the spinner, "Could not load transactions." with Try Again, or "No
+ * transactions yet." as the list's only row.
+ */
+@Composable
+private fun AddressHistoryList(
+    txHistory: List<ColdStorageAddressDiscovery.AddressTransaction>,
+    isLoading: Boolean,
+    failed: Boolean,
+    onRetry: () -> Unit,
+    onTransactionClick: (ColdStorageAddressDiscovery.AddressTransaction) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    when {
+        isLoading && txHistory.isEmpty() -> InsetGroupedSingleRowList {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+            }
+        }
+        // A failed fetch is not an empty history. Saying "No transactions yet." here was a
+        // confident answer about someone's money the app had not got.
+        txHistory.isEmpty() && failed -> InsetGroupedSingleRowList {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Could not load transactions.", color = colors.textSecondary, fontSize = 17.sp)
+                Text(
+                    stringResource(R.string.try_again),
+                    color = KaspaTeal,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onRetry),
+                )
+            }
+        }
+        txHistory.isEmpty() -> InsetGroupedSingleRowList {
+            Text(stringResource(R.string.no_transactions_yet), color = colors.textSecondary, fontSize = 17.sp)
+        }
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp),
+        ) {
+            itemsIndexed(txHistory, key = { _, tx -> tx.txId }) { i, tx ->
+                SpendingAddressTxHistoryRow(
+                    tx = tx,
+                    // Tapping a transaction asks what to do with it. It used to open the
+                    // explorer outright, which left "Add to Portfolio" on a button most people
+                    // never looked for.
+                    onClick = { onTransactionClick(tx) },
+                    // The separator starts under the text, past the 26 icon and its 12 gap.
+                    modifier = Modifier.insetGroupedCell(i, txHistory.size, separatorStart = 54.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * An address page's UTXOs tab - iOS `utxosList`: Compound UTXOs as its own section with its
+ * footer when there is more than one coin, then one `.insetGrouped` card of coins, or the
+ * spinner, the load-failure row or "No UTXOs." as that section's only row.
+ */
+@Composable
+private fun AddressUtxoList(
+    utxos: List<ColdStorageAddressDiscovery.AddressUtxo>,
+    isLoading: Boolean,
+    loadError: String?,
+    labels: Map<String, String>,
+    onRetry: () -> Unit,
+    onCompound: () -> Unit,
+    onRename: (String) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp),
+    ) {
+        if (utxos.size > 1) {
+            item(key = "compound") {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .insetGroupedCell(0, 1)
+                            .clickable(onClick = onCompound)
+                            .padding(horizontal = 16.dp, vertical = 15.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(Icons.Default.CallMerge, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                        Text(
+                            stringResource(R.string.compound_utxos),
+                            color = KaspaTeal,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    // The section footer.
+                    Text(
+                        stringResource(R.string.compound_utxos_description),
+                        color = colors.textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 7.dp, bottom = 24.dp)
+                    )
+                }
+            }
+        }
+        when {
+            isLoading && utxos.isEmpty() -> item(key = "loading") {
+                Box(
+                    modifier = Modifier.insetGroupedCell(0, 1).padding(horizontal = 16.dp, vertical = 15.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
+                }
+            }
+            // The load-failure row when the node could not be asked, otherwise "No UTXOs.".
+            utxos.isEmpty() -> item(key = "empty") {
+                if (loadError != null) {
+                    UtxoLoadFailureRow(detail = loadError, retry = onRetry, modifier = Modifier.insetGroupedCell(0, 1))
+                } else {
+                    Text(
+                        stringResource(R.string.no_utxos),
+                        color = colors.textSecondary,
+                        fontSize = 17.sp,
+                        modifier = Modifier.insetGroupedCell(0, 1).padding(horizontal = 16.dp, vertical = 15.dp),
+                    )
+                }
+            }
+            else -> itemsIndexed(utxos, key = { _, u -> "${u.transactionId}:${u.index}" }) { i, utxo ->
+                val key = "${utxo.transactionId}:${utxo.index}"
+                SpendingAddressUtxoRow(
+                    utxo = utxo,
+                    label = labels[key],
+                    onRenameClick = { onRename(key) },
+                    modifier = Modifier.insetGroupedCell(i, utxos.size, separatorStart = 54.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Receive and Send at the foot of an address's page (iOS `safeAreaInset(edge: .bottom)`): two
+ * accent capsules 12 apart, 16 in and 16 off the bottom. Send is "arrow.up.circle.fill" and, with
+ * nothing to send, disabled at half opacity as iOS draws it.
+ */
+@Composable
+private fun AddressReceiveSendBar(
+    receiveEnabled: Boolean,
+    sendEnabled: Boolean,
+    onReceive: () -> Unit,
+    onSend: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AddressBarCapsule(Icons.Default.QrCode, stringResource(R.string.receive), FontWeight.SemiBold, receiveEnabled, onReceive, Modifier.weight(1f))
+        AddressBarCapsule(Icons.Default.ArrowCircleUp, stringResource(R.string.send), FontWeight.Bold, sendEnabled, onSend, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun AddressBarCapsule(
+    icon: ImageVector,
+    title: String,
+    weight: FontWeight,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(52.dp).alpha(if (enabled) 1f else 0.5f),
+        shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = KaspaTeal,
+            contentColor = Color.Black,
+            disabledContainerColor = KaspaTeal,
+            disabledContentColor = Color.Black,
+        )
+    ) {
+        Icon(icon, null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(title, fontSize = 15.sp, fontWeight = weight)
     }
 }
 
@@ -7726,73 +7817,76 @@ private fun ManageAddressRow(
     onHideClick: (() -> Unit)? = null,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
-    val kas = entry.balanceSompi / 100_000_000.0
     var showMenu by remember { mutableStateOf(false) }
     var menuAnchor by remember { mutableStateOf(Offset.Zero) }
 
     // Swipe-to-hide was retired in favor of the bulk Address Visibility checklist (iOS parity).
+    // iOS `addressRow`: a glass card (radius 18), padding 16, the text stacked 6 apart.
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surface)
+            .manageAddressGlass()
             .clickable(onClick = onClick)
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
                 color = LocalAppColors.current.textSecondary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
             )
-            Spacer(Modifier.height(4.dp))
             Text(
                 text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
                 color = LocalAppColors.current.textPrimary,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
+                fontFamily = FontFamily.Monospace,
                 maxLines = 1
             )
-            Spacer(Modifier.height(4.dp))
             Text(
-                text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, kas),
+                text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, entry.balanceSompi / 100_000_000.0),
                 color = LocalAppColors.current.textPrimary,
-                fontSize = 14.sp
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 // Three honest states, never a guess: "Used" is monotonic (persisted used-memory
-                // plus live probes, so a confirmed-used address can never flip back), "Unused"
-                // only when THIS load's live check actually confirmed it, and a neutral
-                // "Unverified" when the probe failed or the row was painted from the snapshot —
-                // a failed check must not masquerade as a fresh address.
+                // plus live probes, so a confirmed-used address can never flip back) and a
+                // balance counts as used, "Unused" only when THIS load's live check actually
+                // confirmed it, and a neutral "Checking" (iOS's word) when the probe failed or
+                // the row was painted from the snapshot - a failed check must not masquerade as
+                // a fresh address.
                 val (usedTagText, usedTagColor) = when {
-                    entry.everUsed -> "Used" to LocalAppColors.current.warning
+                    entry.everUsed || entry.balanceSompi > 0 -> "Used" to LocalAppColors.current.warning
                     entry.liveChecked -> "Unused" to LocalAppColors.current.success
-                    else -> "Unverified" to LocalAppColors.current.textSecondary
+                    else -> "Checking" to LocalAppColors.current.textSecondary
                 }
                 Text(
                     text = usedTagText,
                     color = usedTagColor,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
                 if (showsDomainTag) {
                     ContainsDomainTag()
                 }
             }
         }
-        IconButton(
-            onClick = { showMenu = true },
+        // iOS: a bold "ellipsis" turned upright, secondary, in a 24 frame.
+        Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(24.dp)
+                .clickable(onClick = { showMenu = true })
                 .onGloballyPositioned { coords ->
                     menuAnchor = coords.positionInWindow() + Offset(0f, coords.size.height.toFloat())
-                }
+                },
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(28.dp))
+            Icon(Icons.Default.MoreVert, "Address actions", tint = LocalAppColors.current.textSecondary, modifier = Modifier.requiredSize(28.dp))
         }
     }
 
@@ -7884,49 +7978,71 @@ private fun ManageAddressActionsSheet(
  * "Used", and a chevron - it opens the chatting address's own screen.
  */
 @Composable
-private fun ManageChattingAddressRow(address: String, balanceSompi: Long, onClick: () -> Unit) {
+private fun ManageChattingAddressRow(address: String, balanceSompi: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surface)
+            .manageAddressGlass()
             .clickable(onClick = onClick)
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = stringResource(R.string.chatting_address),
                     color = LocalAppColors.current.textSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
                 )
                 Icon(Icons.Default.Forum, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(14.dp))
             }
-            Spacer(Modifier.height(4.dp))
             Text(
                 text = "${address.take(14)}...${address.takeLast(6)}",
                 color = LocalAppColors.current.textPrimary,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
+                fontFamily = FontFamily.Monospace,
                 maxLines = 1
             )
-            Spacer(Modifier.height(4.dp))
             Text(
                 text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
                 color = LocalAppColors.current.textPrimary,
-                fontSize = 14.sp
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(Modifier.height(2.dp))
             Text(
                 text = "Used",
                 color = LocalAppColors.current.warning,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = LocalAppColors.current.textSecondary)
+        // iOS: "chevron.right" at caption size, secondary.
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = LocalAppColors.current.textSecondary,
+            modifier = Modifier.size(20.dp).offset(x = 6.dp)
+        )
     }
+}
+
+/**
+ * iOS ManageAddressesView `glassBackground(cornerRadius: 18)` behind the address cards:
+ * `.regularMaterial` (it reads #202020 on the black list), a 0.8 white hairline at 18% and a soft
+ * shadow (black 12%, radius 10, 5 down).
+ */
+@Composable
+private fun Modifier.manageAddressGlass(): Modifier {
+    val colors = LocalAppColors.current
+    val shape = RoundedCornerShape(18.dp)
+    val fill = if (colors.isDark) Color(0xFF202020) else colors.surface
+    return this
+        .iosShadow(18.dp, Color.Black.copy(alpha = 0.12f), 10.dp, 5.dp)
+        .clip(shape)
+        .background(fill)
+        .border(0.8.dp, Color.White.copy(alpha = 0.18f), shape)
 }
 
 /** Default tapback-style set, not a full emoji keyboard - user-customizable via Settings > Chats
