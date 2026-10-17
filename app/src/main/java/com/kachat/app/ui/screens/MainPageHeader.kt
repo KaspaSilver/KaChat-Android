@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -170,5 +173,187 @@ fun MainPageHeader(
             // measured on the iPhone: 24pt from the bar's glass to the title, 5 below it
             modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 5.dp),
         )
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// iOS 26 sheet bars.
+//
+// In every iOS 26 sheet (and on a pushed page) the bar's text buttons - Cancel, Done, Save, Clear
+// All, Close, Edit - sit on glass capsules 44 high, 16 in from the sheet's edges, the text 17pt
+// regular in the accent colour (secondary grey when disabled, the glass kept), with the title
+// centred in headline. Icon buttons (an "x", a back chevron) sit on a 44 glass disc.
+// ---------------------------------------------------------------------------------------------
+
+/** True while drawing with the raised sheet palette ([com.kachat.app.ui.theme.IosSheetColors]):
+ *  in dark mode that is the only palette whose background is not black. */
+@Composable
+fun isInIosSheetPalette(): Boolean {
+    val colors = LocalAppColors.current
+    return colors.isDark && colors.background != Color.Black
+}
+
+/** The glass behind a bar button. On a sheet (dark) iOS's glass reads #252527 edged #444449
+ *  (sampled on the iPhone); on a black page it is the toolbar's #191919 edged #2E2E2E; in light
+ *  mode white with a faint edge either way. */
+@Composable
+fun Modifier.barGlass(): Modifier {
+    val onSheet = isInIosSheetPalette()
+    val fill = if (onSheet) Color(0xFF252527) else toolbarGlassFill()
+    val edge = if (onSheet) Color(0xFF444449) else toolbarGlassEdge()
+    val stroke = if (onSheet) 0.8.dp else 0.5.dp
+    return this.drawBehind {
+        if (size.width <= 0f) return@drawBehind
+        val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2, size.height / 2)
+        drawRoundRect(fill, cornerRadius = r)
+        drawRoundRect(edge, cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke.toPx()))
+    }
+}
+
+/**
+ * A text button in a sheet's (or pushed page's) bar - "Cancel", "Done", "Save", "Clear All" - on
+ * its own glass capsule, 44 high: 17pt in the accent colour, [emphasized] semibold, secondary grey
+ * while disabled (the glass stays, as iOS keeps it under a disabled "Clear All"). The glass is the
+ * sheet's when drawn inside the sheet palette, else the toolbar's ([barGlass]).
+ */
+@Composable
+fun SheetBarButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    emphasized: Boolean = false,
+    color: Color = KaspaTeal,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .heightIn(min = 44.dp)
+            .barGlass()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 14.dp),
+    ) {
+        Text(
+            text,
+            color = if (enabled) color else LocalAppColors.current.textSecondary,
+            fontSize = 17.sp,
+            fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
+        )
+    }
+}
+
+/** An icon button in a sheet's (or pushed page's) bar - an "x", a back chevron - on a 44 glass
+ *  disc ([barGlass]), the icon in the accent colour (secondary grey while disabled). */
+@Composable
+fun SheetBarIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    tint: Color = KaspaTeal,
+    iconSize: androidx.compose.ui.unit.Dp = 20.dp,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(44.dp)
+            .barGlass()
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+    ) {
+        Icon(
+            icon,
+            contentDescription,
+            tint = if (enabled) tint else LocalAppColors.current.textSecondary,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+/** The back button of a pushed page or a sheet's second level: iOS 26's chevron on a glass disc. */
+@Composable
+fun SheetBarBackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick, modifier = modifier, iconSize = 20.dp)
+}
+
+/**
+ * A sheet's inline bar, built by hand (no Material top bar): [title] in headline centred, the
+ * [leading] and [trailing] items 16 in from the edges, the whole bar 76 high so the title sits
+ * where iOS puts it under a sheet's rounded top. Put [SheetBarButton]s / [SheetBarIconButton]s
+ * in the slots.
+ */
+@Composable
+fun SheetNavBar(
+    title: String,
+    modifier: Modifier = Modifier,
+    leading: @Composable RowScope.() -> Unit = {},
+    trailing: @Composable RowScope.() -> Unit = {},
+) {
+    Box(modifier.fillMaxWidth().height(76.dp).padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.align(Alignment.CenterStart),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = leading,
+        )
+        Text(
+            title,
+            color = LocalAppColors.current.textPrimary,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = 96.dp),
+        )
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = trailing,
+        )
+    }
+}
+
+/**
+ * A full-height iOS sheet: it starts 10 below the status bar with iOS's rounded top corners
+ * ([com.kachat.app.ui.theme.IosSheetShape]) and draws in the sheet palette ([grouped] for a List
+ * or Form: #1C1C1E behind #2C2C2E cards in dark), the screen behind dimmed.
+ *
+ * Inside a full-screen Dialog (an overlay) the real screen behind shows through the dialog's own
+ * dim, set to iOS's; as a navigation destination there is nothing behind to show, so the frame
+ * paints the page background dimmed instead.
+ */
+@Composable
+fun IosSheetPage(
+    grouped: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    val base = LocalAppColors.current
+    val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+    if (dialogWindow != null) {
+        androidx.compose.runtime.SideEffect { dialogWindow.setDimAmount(0.4f) }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (dialogWindow != null) Modifier
+                else Modifier.background(Color.Black.copy(alpha = 0.4f).compositeOver(base.background))
+            ),
+    ) {
+        com.kachat.app.ui.theme.IosSheetColors(grouped = grouped) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(top = 10.dp)
+                    .clip(com.kachat.app.ui.theme.IosSheetShape)
+                    .background(LocalAppColors.current.background),
+                content = content,
+            )
+        }
     }
 }
