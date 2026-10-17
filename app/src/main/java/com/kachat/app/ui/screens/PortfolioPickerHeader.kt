@@ -538,34 +538,16 @@ private fun SheetHeader(
     trailingEnabled: Boolean,
     onTrailing: () -> Unit
 ) {
-    val colors = LocalAppColors.current
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TextButton(onClick = onLeading) { Text(leadingLabel, color = KaspaTeal) }
-        Text(
-            title,
-            color = colors.textPrimary,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Center
-        )
-        if (trailingLabel != null) {
-            TextButton(onClick = onTrailing, enabled = trailingEnabled) {
-                Text(
-                    trailingLabel,
-                    color = if (trailingEnabled) KaspaTeal else colors.textSecondary,
-                    fontWeight = FontWeight.Bold
-                )
+    // iOS 26's sheet bar: the title in headline, both buttons on glass capsules 16 in.
+    SheetNavBar(
+        title = title,
+        leading = { SheetBarButton(leadingLabel, onClick = onLeading) },
+        trailing = {
+            if (trailingLabel != null) {
+                SheetBarButton(trailingLabel, onClick = onTrailing, enabled = trailingEnabled)
             }
-        } else {
-            // Keeps the title centred without a trailing action.
-            Spacer(Modifier.width(72.dp))
-        }
-    }
+        },
+    )
 }
 
 @Composable

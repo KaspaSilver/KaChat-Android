@@ -638,9 +638,9 @@ private fun SwapDetailSheet(
         var isRefreshingStatus by remember { mutableStateOf(false) }
         androidx.activity.compose.BackHandler(onBack = close)
         Column(Modifier.fillMaxSize()) {
-            IosSheetNavBar(
+            SheetNavBar(
                 title = stringResource(R.string.swap_details),
-                trailing = { IosBarTextButton(stringResource(R.string.done), onClick = close) },
+                trailing = { SheetBarButton(stringResource(R.string.done), onClick = close) },
             )
             Column(
                 modifier = Modifier
@@ -1106,9 +1106,9 @@ private fun SwapCoinPickerSheet(currentCoin: SwapCoin, onDismiss: () -> Unit, on
             containerColor = LocalAppColors.current.background,
             contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
             topBar = {
-                IosSheetNavBar(
+                SheetNavBar(
                     title = stringResource(R.string.choose_coin),
-                    leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
+                    leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
                 )
             }
         ) { padding ->

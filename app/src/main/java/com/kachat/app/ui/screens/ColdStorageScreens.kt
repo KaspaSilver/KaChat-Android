@@ -562,19 +562,20 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(account?.name ?: "Cold Storage", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                title = { Text(account?.name ?: "Cold Storage", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton({ navController.popBackStack() }, Modifier.padding(start = 12.dp)) },
                 actions = {
                     // Address Visibility used to be an unlabelled checklist glyph up here. It is
                     // one of this account's address actions, so it lives with the others in the
                     // Address Actions sheet, where it has room to say what it does.
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Default.Delete, "Remove account", tint = Color.Red)
-                    }
+                    SheetBarIconButton(
+                        Icons.Default.Delete,
+                        "Remove account",
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.padding(end = 12.dp),
+                        tint = Color.Red,
+                        iconSize = 22.dp,
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -898,16 +899,11 @@ fun ColdStorageAddressVisibilityScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                // iOS 26: only Done, semibold, on a glass capsule (iOS's confirmation action) -
+                // the back arrow beside it did the same thing.
                 actions = {
-                    TextButton(onClick = onBack) {
-                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton("Done", onClick = onBack, emphasized = true, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -1442,22 +1438,15 @@ private fun ColdSendFlow(
                     Text(
                         stringResource(if (isCompoundMode) R.string.compound_utxos else R.string.send_from_cold_storage),
                         color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
                     )
                 },
                 navigationIcon = {
                     if (presentedAsSheet) {
-                        TextButton(onClick = onDone) {
-                            Text(
-                                stringResource(R.string.cancel),
-                                color = KaspaTeal,
-                                fontSize = 17.sp,
-                            )
-                        }
+                        SheetBarButton(stringResource(R.string.cancel), onClick = onDone, modifier = Modifier.padding(start = 12.dp))
                     } else {
-                        IconButton(onClick = onDone) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
+                        SheetBarBackButton(onDone, Modifier.padding(start = 12.dp))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -1806,21 +1795,18 @@ fun CoinControlScreen(
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text(stringResource(R.string.coin_control), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    TextButton(onClick = onCancel) {
-                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                    }
+                    SheetBarButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
                     var showMenu by remember { mutableStateOf(false) }
-                    IconButton(onClick = { showMenu = true }) {
-                        // SF Symbols' ellipsis.circle: the three dots in a ring.
-                        Box(
-                            Modifier.size(22.dp).border(1.5.dp, KaspaTeal, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Default.MoreHoriz, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                        }
-                    }
+                    // iOS 26: the menu on a glass disc, 16 in from the edge.
+                    SheetBarIconButton(
+                        Icons.Default.MoreHoriz,
+                        "More",
+                        onClick = { showMenu = true },
+                        modifier = Modifier.padding(end = 12.dp),
+                        iconSize = 22.dp,
+                    )
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.select_all)) },
@@ -2102,22 +2088,25 @@ fun ColdStorageTxHistoryScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(displayName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(displayName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
                     // At the root of the "Received" History sheet: Done, as iOS's
                     // OwnAddressHistorySheet puts it (13046ad); a back arrow everywhere else.
+                    // iOS 26: either on glass.
                     if (closesWithDone) {
-                        TextButton(onClick = onBack) { Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp) }
+                        SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                     } else {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
+                        SheetBarBackButton(onBack, Modifier.padding(start = 12.dp))
                     }
                 },
                 actions = {
-                    IconButton(onClick = { uriHandler.openUri(kaspaExplorer.addressUrl(address)) }) {
-                        Icon(Icons.Default.Public, stringResource(R.string.view_in_explorer), tint = KaspaTeal)
-                    }
+                    SheetBarIconButton(
+                        Icons.Default.Public,
+                        stringResource(R.string.view_in_explorer),
+                        onClick = { uriHandler.openUri(kaspaExplorer.addressUrl(address)) },
+                        modifier = Modifier.padding(end = 12.dp),
+                        iconSize = 22.dp,
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )

@@ -257,14 +257,13 @@ fun PortfolioScreen(
                     // One tap turns every amount on this screen into dots - for reading the
                     // Portfolio somewhere with people around. The KAS price and the percentages
                     // stay: those say nothing about what is held.
-                    IconButton(onClick = { viewModel.toggleValuesHidden() }) {
-                        Icon(
-                            if (valuesHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (valuesHidden) "Show amounts" else "Hide amounts",
-                            tint = LocalAppColors.current.textPrimary,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
+                    // A 44 item on the header's glass disc (a Material IconButton is 48).
+                    ToolbarIconButton(
+                        if (valuesHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (valuesHidden) "Show amounts" else "Hide amounts",
+                        onClick = { viewModel.toggleValuesHidden() },
+                        tint = LocalAppColors.current.textPrimary,
+                    )
                 },
             )
         }
@@ -1964,16 +1963,16 @@ fun PortfolioPriceChartScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("KAS Price", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                title = { Text("KAS Price", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton({ navController.popBackStack() }, Modifier.padding(start = 12.dp)) },
                 actions = {
-                    IconButton(onClick = { showPairSheet = true }) {
-                        Icon(Icons.Default.Settings, "Compare against", tint = KaspaTeal)
-                    }
+                    SheetBarIconButton(
+                        Icons.Default.Settings,
+                        "Compare against",
+                        onClick = { showPairSheet = true },
+                        modifier = Modifier.padding(end = 12.dp),
+                        iconSize = 22.dp,
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -2174,17 +2173,17 @@ fun PortfolioValueChartScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Value Over Time", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Value Over Time", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 actions = {
-                    IconButton(onClick = { showPairSheet = true }) {
-                        Icon(Icons.Default.Settings, "Compare against", tint = KaspaTeal)
-                    }
+                    SheetBarIconButton(
+                        Icons.Default.Settings,
+                        "Compare against",
+                        onClick = { showPairSheet = true },
+                        modifier = Modifier.padding(end = 12.dp),
+                        iconSize = 22.dp,
+                    )
                 },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                navigationIcon = { SheetBarBackButton({ navController.popBackStack() }, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         }
@@ -3227,12 +3226,8 @@ fun PortfolioHashrateChartScreen(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Network Hashrate", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                title = { Text("Network Hashrate", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton({ navController.popBackStack() }, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }

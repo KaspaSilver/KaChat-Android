@@ -197,22 +197,24 @@ fun AddToPortfolioSheet(
                     } else {
                         // Back / title / Confirm on one row, the way iOS's navigation bar carries them -
                         // rather than a full-width button the form has to be scrolled past to reach.
+                        // iOS 26: Back and Confirm (semibold) on glass capsules, the title in headline.
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { selectedId = null }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                            }
+                            SheetBarButton(stringResource(com.kachat.app.R.string.back), onClick = { selectedId = null })
                             Text(
                                 selectedName,
                                 color = colors.textPrimary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                             )
-                            TextButton(
+                            SheetBarButton(
+                                "Confirm",
+                                emphasized = true,
                                 onClick = {
-                                    val finalAmount = amount ?: return@TextButton
+                                    val finalAmount = amount ?: return@SheetBarButton
                                     viewModel.addTransaction(
                                         type = type,
                                         amountKas = finalAmount,
@@ -227,13 +229,7 @@ fun AddToPortfolioSheet(
                                     onDismiss()
                                 },
                                 enabled = amount != null && amount > 0,
-                            ) {
-                                Text(
-                                    "Confirm",
-                                    color = if (amount != null && amount > 0) KaspaTeal else colors.textSecondary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            )
                         }
 
                         if (alreadyAdded) {

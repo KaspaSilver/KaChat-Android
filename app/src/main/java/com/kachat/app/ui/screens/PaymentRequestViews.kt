@@ -371,17 +371,10 @@ fun CreatePaymentRequestSheet(
             containerColor = colors.background,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                CenterAlignedTopAppBar(
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    title = {
-                        Text(stringResource(R.string.pr_request_payment), color = colors.textPrimary, fontWeight = FontWeight.Bold)
-                    },
-                    navigationIcon = {
-                        TextButton(onClick = close) {
-                            Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
+                // iOS 26's sheet bar: the title in headline, Cancel on a glass capsule.
+                SheetNavBar(
+                    title = stringResource(R.string.pr_request_payment),
+                    leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
                 )
             },
         ) { padding ->
@@ -651,17 +644,10 @@ private fun OwnPaymentRequestSheet(request: PaymentRequest, onDismissed: () -> U
             containerColor = colors.background,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                CenterAlignedTopAppBar(
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    title = {
-                        Text(stringResource(R.string.pr_your_payment_request), color = colors.textPrimary, fontWeight = FontWeight.Bold)
-                    },
-                    actions = {
-                        TextButton(onClick = close) {
-                            Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
+                // iOS 26's sheet bar: the title in headline, Done on a glass capsule.
+                SheetNavBar(
+                    title = stringResource(R.string.pr_your_payment_request),
+                    trailing = { SheetBarButton(stringResource(R.string.done), onClick = close) },
                 )
             },
         ) { padding ->

@@ -403,19 +403,12 @@ private fun CameraScannerSheet(
                     Text(stringResource(R.string.qr_requesting_camera_access), color = colors.textSecondary, fontSize = 17.sp)
                 }
             }
-            // iOS's inline navigation bar, drawn over the camera as its transparent bar is.
-            Box(Modifier.fillMaxWidth().height(44.dp)) {
-                TextButton(onClick = close, modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)) {
-                    Text(stringResource(R.string.cancel), color = KaspaTeal, fontSize = 17.sp)
-                }
-                Text(
-                    title,
-                    color = colors.textPrimary,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            }
+            // iOS 26's inline navigation bar, drawn over the camera as its transparent bar is:
+            // the title in headline, Cancel on a glass capsule 16 in.
+            SheetNavBar(
+                title = title,
+                leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
+            )
         }
     }
 }

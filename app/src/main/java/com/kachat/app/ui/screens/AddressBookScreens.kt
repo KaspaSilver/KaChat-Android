@@ -613,10 +613,8 @@ fun AddressBookEntryDetail(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(entry?.name.orEmpty(), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal) }
-                },
+                title = { Text(entry?.name.orEmpty(), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -884,13 +882,12 @@ fun AddressBookEntryEditor(
     IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true, grouped = true) { close ->
         BackHandler(onBack = close)
         Column(Modifier.fillMaxSize()) {
-            IosSheetNavBar(
+            SheetNavBar(
                 title = stringResource(if (existing == null) R.string.ab_add_to_address_book else R.string.ab_edit_address),
-                leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
+                leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
                 trailing = {
-                    IosBarTextButton(
+                    SheetBarButton(
                         stringResource(R.string.save),
-                        bold = true,
                         // an empty name saves too: the address goes by its .kachat name or itself
                         enabled = effectiveAddress.isNotEmpty(),
                         onClick = {
@@ -1103,14 +1100,13 @@ fun AddressBookPickerSheet(
     IosFullSheet(onDismissed = onDismiss, swipeToDismiss = false) { close ->
         BackHandler(onBack = close)
         Column(Modifier.fillMaxSize()) {
-            IosSheetNavBar(
+            SheetNavBar(
                 title = stringResource(R.string.ab_address_book),
-                leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = close) },
+                leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
                 trailing = {
                     if (isMultiple) {
-                        IosBarTextButton(
+                        SheetBarButton(
                             if (ticked.isEmpty()) stringResource(R.string.done) else stringResource(R.string.ab_add_count, ticked.size),
-                            bold = true,
                             onClick = {
                                 onDoneMultiple?.invoke(entries.filter {
                                     AddressBookManager.normalize(it.address) in ticked && KaspaAddress.isValidOnActiveNetwork(it.address)

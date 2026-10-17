@@ -1018,9 +1018,9 @@ fun OwnAddressPicker(
             Column(Modifier.navigationBarsPadding()) {
                 IosSheetDetents(height = halfScreen, largeDetent = true) {
                     Column(Modifier.fillMaxWidth().fillMaxHeight()) {
-                        IosSheetNavBar(
+                        SheetNavBar(
                             title = title,
-                            leading = { IosBarTextButton(stringResource(R.string.cancel), onClick = onDismiss) },
+                            leading = { SheetBarButton(stringResource(R.string.cancel), onClick = onDismiss) },
                         )
                         Column(
                             Modifier
