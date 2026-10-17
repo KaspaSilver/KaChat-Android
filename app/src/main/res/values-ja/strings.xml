@@ -1344,4 +1344,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">コールドストレージアカウントがありません</string>
     <string name="cold_storage_empty_body">残高を監視するには、KasSignerデバイスからエクスポートされたkpubをスキャンまたは貼り付けてください。</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">まだ取引がありません</string>
+    <string name="portfolio_no_transactions_sub">ポートフォリオの追跡を開始するには購入または売却を追加してください</string>
 </resources>

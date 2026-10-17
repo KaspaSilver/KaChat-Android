@@ -1545,4 +1545,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">No Cold Storage Accounts</string>
     <string name="cold_storage_empty_body">Scan or paste a kpub exported from your KasSigner device to watch its balance.</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">No Transactions Yet</string>
+    <string name="portfolio_no_transactions_sub">Add a buy or sell to start tracking your portfolio</string>
 </resources>

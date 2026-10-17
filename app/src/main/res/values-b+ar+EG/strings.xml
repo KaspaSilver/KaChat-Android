@@ -1344,4 +1344,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">لا توجد حسابات تخزين بارد</string>
     <string name="cold_storage_empty_body">امسح ضوئيًا أو الصق kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده.</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">لا توجد معاملات بعد</string>
+    <string name="portfolio_no_transactions_sub">أضف عملية شراء أو بيع لبدء تتبع محفظتك</string>
 </resources>

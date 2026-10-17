@@ -1344,4 +1344,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">אין חשבונות אחסון קר</string>
     <string name="cold_storage_empty_body">סרוק או הדבק kpub שיוצא מהמכשיר KasSigner שלך כדי לעקוב אחר היתרה שלו.</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">אין עדיין עסקאות</string>
+    <string name="portfolio_no_transactions_sub">הוסף קנייה או מכירה כדי להתחיל לעקוב אחר התיק שלך</string>
 </resources>

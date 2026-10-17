@@ -1375,4 +1375,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">هیچ حساب ذخیره سردی وجود ندارد</string>
     <string name="cold_storage_empty_body">یک kpub صادرشده از دستگاه KasSigner خود را اسکن یا بچسبانید تا موجودی آن را زیر نظر بگیرید.</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">هنوز هیچ تراکنشی وجود ندارد</string>
+    <string name="portfolio_no_transactions_sub">یک خرید یا فروش اضافه کنید تا ردیابی سبد دارایی خود را شروع کنید</string>
 </resources>

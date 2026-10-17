@@ -1344,4 +1344,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">Soguk Depolama Hesabi Yok</string>
     <string name="cold_storage_empty_body">Bakiyesini izlemek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin veya yapistirin.</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">Henuz Islem Yok</string>
+    <string name="portfolio_no_transactions_sub">Portfoyunuzu takip etmeye baslamak icin bir alim veya satim ekleyin</string>
 </resources>

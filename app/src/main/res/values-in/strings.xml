@@ -1216,4 +1216,7 @@
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">Tidak Ada Akun Penyimpanan Dingin</string>
     <string name="cold_storage_empty_body">Pindai atau tempel kpub yang diekspor dari perangkat KasSigner Anda untuk memantau saldonya.</string>
+    <!-- Portfolio: empty Transactions section (iOS emptyState) -->
+    <string name="portfolio_no_transactions_title">Belum Ada Transaksi</string>
+    <string name="portfolio_no_transactions_sub">Tambahkan pembelian atau penjualan untuk mulai memantau portofolio Anda</string>
 </resources>
