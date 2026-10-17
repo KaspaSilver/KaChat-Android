@@ -167,7 +167,10 @@ private fun KaspaAppBubble(app: KaspaApp, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
+        // The column's full width, so the name gets the whole grid column as on iOS (it was held
+        // to the 68 bubble and cut "Kaspa Explorer" short).
         modifier = Modifier
+            .fillMaxWidth()
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {

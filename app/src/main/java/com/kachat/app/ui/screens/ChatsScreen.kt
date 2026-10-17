@@ -1522,6 +1522,8 @@ internal fun ConversationRow(
             // .kachat reads are snapshot state, so the row redraws when either changes.
             val contactLabel = convo.contact.displayName
             Row(verticalAlignment = Alignment.CenterVertically) {
+              // The name (and the silenced mark) take every bit the date doesn't need.
+              Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = contactLabel,
                     // iOS .headline: 17pt semibold
@@ -1545,7 +1547,7 @@ internal fun ConversationRow(
                         modifier = Modifier.size(14.dp)
                     )
                 }
-                Spacer(Modifier.weight(1f))
+              }
                 // When the last message came: the time today, "Yesterday", else the day (iOS
                 // formatDate - caption, secondary).
                 convo.lastMessage?.let { last ->
