@@ -47,7 +47,15 @@ data class TransactionResponse(
     val inputs: List<TransactionInput>,
     val outputs: List<TransactionOutput>,
     @SerializedName("block_time") val blockTime: Long?,
-    val payload: String?  // hex-encoded — contains kchat:1:* (or legacy ciph_msg:1:*) for KaChat messages
+    val payload: String?,  // hex-encoded — contains kchat:1:* (or legacy ciph_msg:1:*) for KaChat messages
+    // The fields the sighash covers, for the payment sync's signature check (iOS
+    // KaspaFullTransactionResponse). Numbers arrive as JSON numbers or strings, so they are read
+    // as text and parsed where used (iOS FlexibleUInt64) - one odd value must not fail the page.
+    val version: String? = null,
+    @SerializedName("subnetwork_id") val subnetworkId: String? = null,
+    @SerializedName("lock_time") val lockTime: String? = null,
+    val gas: String? = null,
+    @SerializedName("accepting_block_time") val acceptingBlockTime: Long? = null,
 ) {
     /**
      * The fee this transaction paid: inputs minus outputs. Known only when the API resolved
@@ -76,7 +84,10 @@ data class TransactionInput(
     // Also only with resolve_previous_outpoints - the spent UTXO's amount, which is what makes
     // the fee knowable (inputs minus outputs). See TransactionResponse.feeSompi.
     @SerializedName("previous_outpoint_amount") val previousOutpointAmount: Long?,
-    @SerializedName("signature_script") val signatureScript: String
+    @SerializedName("signature_script") val signatureScript: String,
+    // As text, like [TransactionResponse.version] (iOS FlexibleUInt64 / FlexibleUInt8).
+    val sequence: String? = null,
+    @SerializedName("sig_op_count") val sigOpCount: String? = null,
 )
 
 data class TransactionOutput(
@@ -609,7 +620,10 @@ data class KnsProfileResponse(
 data class KnsProfileData(
     val assetId: String?,
     val name: String?,
-    val profile: KnsProfileFields?
+    val profile: KnsProfileFields?,
+    /** The name's top-level domain ("kas"): with [name], the full domain name (iOS
+     *  KNSDomainProfileData.fullName). */
+    val tld: String? = null,
 )
 
 data class KnsProfileFields(

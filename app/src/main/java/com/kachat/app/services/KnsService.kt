@@ -132,6 +132,42 @@ class KnsService @Inject constructor(
     }
 
     /**
+     * The domain name of KNS asset [assetId] from the domains already looked up (iOS
+     * `ChatService.cachedDomainNameForAssetId`): [ownerAddress]'s list only, or, when null, any
+     * cached list. Never asks the network.
+     */
+    fun cachedDomainNameForAssetId(assetId: String, ownerAddress: String?): String? {
+        val id = assetId.trim()
+        if (id.isEmpty()) return null
+        val lists = if (ownerAddress != null) {
+            listOfNotNull(ownedDomainsCache[ownerAddress.trim()]?.second)
+        } else ownedDomainsCache.values.map { it.second }
+        for (domains in lists) {
+            domains.firstOrNull { it.assetId == id }?.let { return normalizeDomainName(it.asset) }
+        }
+        return null
+    }
+
+    /**
+     * The domain name of KNS asset [assetId] (iOS `KNSService.resolveDomainName(assetId:)`): a
+     * cached list first, else the asset's profile, `name` + `tld` lowercased, normalized.
+     */
+    suspend fun resolveDomainName(assetId: String): String? {
+        val id = assetId.trim()
+        if (id.isEmpty()) return null
+        cachedDomainNameForAssetId(id, ownerAddress = null)?.let { return it }
+        val data = try {
+            val response = api().getDomainProfile(id)
+            if (response.success) response.data else null
+        } catch (e: Exception) {
+            null
+        } ?: return null
+        val name = data.name?.takeIf { it.isNotEmpty() } ?: return null
+        val tld = data.tld?.takeIf { it.isNotEmpty() }
+        return normalizeDomainName(if (tld == null) name else "$name.$tld".lowercase())
+    }
+
+    /**
      * Which of [addresses] own at least one verified KNS domain — batched cached lookups in
      * slices of 4 concurrent requests (mirrors iOS KNSService.refreshIfNeeded's concurrency
      * cap), powering the "Contains domain" tags on the spending/cold address lists.
@@ -346,6 +382,20 @@ class KnsService @Inject constructor(
             if (trimmed.startsWith("kaspa:") || trimmed.startsWith("kaspatest:")) return false
             if (trimmed.endsWith(".kas")) return true
             return trimmed.all { it.isLetterOrDigit() || it == '-' || it == '_' }
+        }
+
+        /** iOS `KNSService.normalizeDomainName`: trimmed and lowercased, any scheme, path, query or
+         *  fragment and trailing dots dropped, ".kas" appended when missing; null when empty. */
+        internal fun normalizeDomainName(raw: String?): String? {
+            var value = raw?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
+            value.indexOf("://").takeIf { it >= 0 }?.let { value = value.substring(it + 3) }
+            for (stop in listOf('/', '?', '#')) {
+                value.indexOf(stop).takeIf { it >= 0 }?.let { value = value.substring(0, it) }
+            }
+            value = value.trimEnd('.')
+            if (value.isEmpty()) return null
+            if (!value.endsWith(".kas")) value += ".kas"
+            return value
         }
 
         /** The real API expects the ".kas" suffix on every lookup — append it if the user typed a bare label. */

@@ -953,6 +953,15 @@ class WalletService @Inject constructor(
         }
         onStep(KnsInscribeStep.SUBMITTING_REVEAL)
         val revealTxId = knsInscriptionEngine.buildAndSubmitReveal(commit, sourceAddress, changeAddress, sourcePrivateKey, priorityFeeSompi)
+        // The chat with the recipient shows "Sent <domain> domain" as soon as the payment sync
+        // sees the reveal (iOS KNSService transfer -> registerKNSTransferChatHint).
+        chatRepository.registerKnsTransferHint(
+            txId = revealTxId,
+            domainName = fullDomain,
+            domainId = trimmedAssetId,
+            counterpartyAddress = toAddress,
+            isOutgoing = true,
+        )
 
         onStep(KnsInscribeStep.VERIFYING)
         val verified = verifyDomainOwnership(fullDomain, toAddress)

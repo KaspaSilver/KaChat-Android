@@ -89,6 +89,9 @@ class ChatRepository @Inject constructor(
     /** Txids of the payment bubbles received payment_notices filed - only the notice's own chain
      *  check may confirm, move or remove them (IOS-083 run 11, [fileNoticeBubble]). */
     private val noticeBubbleStore: com.kachat.app.services.NoticeBubbleStore,
+    /** Domain names for the KNS transfer messages the payment sync files ([ingestKnsTransferMessage]).
+     *  Lazy like the services above, so it never joins a construction cycle. */
+    private val knsServiceLazy: dagger.Lazy<com.kachat.app.services.KnsService>,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -2616,6 +2619,19 @@ class ChatRepository @Inject constructor(
                     seenPaymentTxIds.add(seenKey)
                     continue
                 }
+                // A KNS reveal (a domain inscription) is never a payment; a domain TRANSFER among
+                // them is a "Sent/Received <domain> domain" message in the chat with the other
+                // party (iOS fetchPaymentsFromKaspaAPI -> handleKNSOperationTransactionIfNeeded,
+                // before its payment loop). It does its own dedupe - a payment bubble an older
+                // build made from it is replaced - but a payment_notice's bubble is the notice's
+                // alone (IOS-083 run 11).
+                if (isKnsRevealTransaction(tx)) {
+                    if (!(noticeBubbleStore.isNoticeBubble(myAddress, tx.transactionId) &&
+                            database.messageDao().exists(tx.transactionId, myAddress))
+                    ) handleKnsRevealTransaction(myAddress, tx)
+                    seenPaymentTxIds.add(seenKey)
+                    continue
+                }
                 // A stored txid is never touched again - above all a payment_notice's bubble,
                 // which only that notice's own chain check may confirm or move (IOS-083 run 11).
                 if (database.messageDao().exists(tx.transactionId, myAddress)) {
@@ -2686,6 +2702,16 @@ class ChatRepository @Inject constructor(
                 sender = direction.sender
                 receivedSompi = direction.amountSompi
             }
+        }
+        // A received payment read from the REST API is filed only if its signatures verify (iOS
+        // fetchPaymentsFromKaspaAPI): the API is a third party, and a fabricated "payment" must
+        // not create or change a chat. Only a definitively invalid signature drops it - see
+        // [com.kachat.app.util.KaspaSignatureVerifier]. Final: the same transaction fails the
+        // same way on every read.
+        com.kachat.app.util.KaspaSignatureVerifier.invalidInputIndex(tx)?.let { badInput ->
+            Log.w("ChatRepository", "Schnorr signature INVALID for input $badInput of tx")
+            Log.w("ChatRepository", "WARNING: Skipping payment ${tx.transactionId.take(16)} - Schnorr signature verification FAILED")
+            return true
         }
         // Moving your own money between your own addresses is not a conversation (iOS
         // processPayments). Checked before the contact lookup, as iOS does: an own address CAN
@@ -2855,6 +2881,219 @@ class ChatRepository @Inject constructor(
         return true
     }
 
+    // MARK: KNS domain transfers (iOS ChatService+Fetching.swift, "KNS" section)
+
+    /** A domain transfer this phone just sent (iOS `KNSTransferChatHint`): files its message the
+     *  moment the payment sync sees the reveal, named as sent, before the KNS API knows it. In
+     *  memory, as on iOS - after a restart the reveal's own inputs decide. */
+    private data class KnsTransferHint(
+        val txId: String,
+        val domainName: String,
+        val domainId: String,
+        val counterpartyAddress: String,
+        val isOutgoing: Boolean,
+        val timestampMs: Long,
+    )
+
+    private val knsTransferHints = java.util.concurrent.ConcurrentHashMap<String, KnsTransferHint>()
+
+    /** iOS `registerKNSTransferChatHint`, called by [com.kachat.app.services.WalletService.transferDomain]
+     *  once the reveal is submitted. Ignored unless every field is there. */
+    fun registerKnsTransferHint(
+        txId: String,
+        domainName: String,
+        domainId: String,
+        counterpartyAddress: String,
+        isOutgoing: Boolean,
+        timestampMs: Long? = null,
+    ) {
+        val key = txId.trim().lowercase()
+        val domain = domainName.trim().lowercase()
+        val id = domainId.trim()
+        val counterparty = counterpartyAddress.trim()
+        if (key.isEmpty() || domain.isEmpty() || id.isEmpty() || counterparty.isEmpty()) return
+        knsTransferHints[key] = KnsTransferHint(
+            txId = txId, domainName = domain, domainId = id, counterpartyAddress = counterparty,
+            isOutgoing = isOutgoing, timestampMs = timestampMs ?: System.currentTimeMillis()
+        )
+    }
+
+    /** iOS `handleKNSOperationTransactionIfNeeded` for a reveal: only a domain transfer files a message. */
+    private suspend fun handleKnsRevealTransaction(myAddress: String, tx: TransactionResponse) {
+        val transfer = parseKnsTransferOperation(
+            (tx.inputs as List<com.kachat.app.services.TransactionInput>?).orEmpty().map { it.signatureScript as String? }
+        ) ?: return
+        ingestKnsTransferMessage(myAddress, tx, transfer.domainId, transfer.recipientAddress)
+    }
+
+    /** iOS `addKNSTransferMessageFromHintIfNeeded`: true when a hint decided this txid. */
+    private suspend fun addKnsTransferMessageFromHint(myAddress: String, txId: String, blockTimeMs: Long?): Boolean {
+        val key = txId.trim().lowercase()
+        val hint = knsTransferHints[key] ?: return false
+        database.messageDao().getById(txId, myAddress)?.let { existing ->
+            if (existing.type == MessageProtocol.TYPE_PAY) {
+                database.messageDao().deleteById(txId, myAddress)
+            } else {
+                knsTransferHints.remove(key)
+                return true
+            }
+        }
+        val blockTime = blockTimeMs?.takeIf { it > 0 } ?: hint.timestampMs
+        fileKnsTransferMessage(
+            myAddress = myAddress,
+            txId = txId,
+            contactAddress = hint.counterpartyAddress,
+            isOutgoing = hint.isOutgoing,
+            content = knsTransferMessageText(hint.domainName, hint.isOutgoing),
+            blockTime = blockTime,
+        )
+        knsTransferHints.remove(key)
+        Log.i("ChatRepository", "Added KNS transfer message from hint tx=${txId.take(12)} domain=${hint.domainName}")
+        return true
+    }
+
+    /**
+     * A domain transfer read from the payment history (iOS `ingestKNSTransferMessage`): a text
+     * message - "Sent <domain> domain" in the chat with the recipient, or "Received <domain>
+     * domain" in the chat with the sender - only when this wallet is a party to it: the
+     * recipient, or the signer of one of its inputs (its chatting or a spending address). A KNS
+     * transfer names its recipient in plaintext on chain, so being "not the recipient" alone
+     * would file every stranger's transfer as one we sent (the leak iOS fixed).
+     */
+    private suspend fun ingestKnsTransferMessage(
+        myAddress: String,
+        tx: TransactionResponse,
+        domainId: String,
+        recipientAddress: String?,
+    ) {
+        val txId = tx.transactionId.trim()
+        if (txId.isEmpty()) return
+        val blockTimeMs = tx.acceptingBlockTime ?: tx.blockTime ?: System.currentTimeMillis()
+        if (addKnsTransferMessageFromHint(myAddress, txId, blockTimeMs)) return
+
+        database.messageDao().getById(txId, myAddress)?.let { existing ->
+            if (existing.type == MessageProtocol.TYPE_PAY) database.messageDao().deleteById(txId, myAddress) else return
+        }
+
+        val me = myAddress.trim().lowercase()
+        val recipient = recipientAddress?.trim().orEmpty()
+        if (recipient.isEmpty()) {
+            Log.i("ChatRepository", "KNS transfer ${txId.take(12)} missing recipient in payload")
+            return
+        }
+        val myAddresses = HashSet<String>().apply {
+            add(me)
+            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
+                .map { it.trim().lowercase() }.filter { it.isNotEmpty() }.forEach { add(it) }
+        }
+        val inputAddresses = (tx.inputs as List<com.kachat.app.services.TransactionInput>?).orEmpty()
+            .mapNotNull { it.previousOutpointAddress }
+        val outputAddresses = (tx.outputs as List<com.kachat.app.services.TransactionOutput>?).orEmpty()
+            .mapNotNull { it.scriptPublicKeyAddress }
+        val party = knsTransferCounterparty(myAddress, recipient, myAddresses, inputAddresses, outputAddresses)
+        if (party == null) {
+            Log.i("ChatRepository", "KNS transfer ${txId.take(12)} is not ours (recipient=${recipient.takeLast(10)}) - ignoring")
+            knsTransferHints.remove(txId.lowercase())
+            return
+        }
+        val (isOutgoing, contactAddress) = party
+        if (contactAddress == null || contactAddress.isEmpty() || contactAddress.lowercase() == me ||
+            !KaspaAddress.isValid(contactAddress)
+        ) {
+            Log.i("ChatRepository", "KNS transfer ${txId.take(12)} has unresolved counterparty")
+            return
+        }
+
+        val domainName = resolveKnsTransferDomainName(domainId, myAddress, contactAddress)
+        fileKnsTransferMessage(
+            myAddress = myAddress,
+            txId = txId,
+            contactAddress = contactAddress,
+            isOutgoing = isOutgoing,
+            content = knsTransferMessageText(domainName?.takeIf { it.isNotEmpty() }, isOutgoing),
+            blockTime = blockTimeMs,
+        )
+        knsTransferHints.remove(txId.lowercase())
+        Log.i(
+            "ChatRepository",
+            "Added KNS transfer message tx=${txId.take(12)} direction=${if (isOutgoing) "outgoing" else "incoming"} domain=${domainName ?: domainId}"
+        )
+    }
+
+    /** iOS `resolveKNSTransferDomainName`: the cached domain lists of us, then the other party,
+     *  then anyone; else up to three asks of the KNS API, 1.2 s apart. */
+    private suspend fun resolveKnsTransferDomainName(domainId: String, myAddress: String, counterparty: String?): String? {
+        val id = domainId.trim()
+        if (id.isEmpty()) return null
+        val kns = knsServiceLazy.get()
+        kns.cachedDomainNameForAssetId(id, myAddress)?.let { return it }
+        if (counterparty != null) kns.cachedDomainNameForAssetId(id, counterparty)?.let { return it }
+        kns.cachedDomainNameForAssetId(id, ownerAddress = null)?.let { return it }
+        for (attempt in 1..3) {
+            kns.resolveDomainName(id)?.let { return it }
+            if (attempt < 3) delay(1_200)
+        }
+        return null
+    }
+
+    /**
+     * Files a KNS transfer message the way iOS `addMessageToConversation` files any message: not
+     * for a chat deleted after it, not from a sender rejected in Message Requests, the chat
+     * created when missing (a stranger who sent us a domain is a Message Request, as a chat
+     * payment from one is), read when it is ours or backfilled history, and a banner for a new
+     * one received live.
+     */
+    private suspend fun fileKnsTransferMessage(
+        myAddress: String,
+        txId: String,
+        contactAddress: String,
+        isOutgoing: Boolean,
+        content: String,
+        blockTime: Long,
+    ) {
+        if (!com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(contactAddress)) return
+        if (isOwnAccountAddress(contactAddress)) return
+        if (isTombstoned(database.contactDao().getDeletedContact(contactAddress, myAddress), txId, blockTime)) return
+        if (!isOutgoing && chatRequestStore.isBlocked(contactAddress)) return
+
+        val contact = database.contactDao().getContact(contactAddress, myAddress)
+            ?: ContactEntity(
+                id = contactAddress, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null,
+                conversationStatus = if (isOutgoing) "active" else "pending",
+            ).also { database.contactDao().insert(it) }
+
+        val backfill = isBackfill(blockTime)
+        val filed = insertMessageIfAbsent(
+            MessageEntity(
+                id = txId,
+                contactId = contactAddress,
+                walletAddress = myAddress,
+                type = MessageProtocol.TYPE_COMM,
+                direction = if (isOutgoing) "sent" else "received",
+                plaintextBody = content,
+                encryptedPayload = "",
+                amountSompi = null,
+                blockTimestamp = blockTime,
+                isRead = isOutgoing || backfill || notificationHelper.isViewingContact(contactAddress),
+                deliveryStatus = "sent",
+            )
+        )
+        if (!filed) return
+        if (isOutgoing) {
+            contactNotesLazy.get().onMessageDelivered(contactAddress)
+            return
+        }
+        if (!backfill && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, txId)) {
+            notificationHelper.show(
+                contactId = contact.id,
+                title = contact.displayName,
+                text = content,
+                notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride),
+                dedupeTxId = txId,
+            )
+        }
+    }
+
     companion object {
         /**
          * [firstContactInboxTag]'s decision. Every address check is case-insensitive, the
@@ -2932,6 +3171,115 @@ class ChatRepository @Inject constructor(
             }
             if (toUs <= 0 || foreignSender == null) return PaymentTxDirection.None
             return PaymentTxDirection.Incoming(foreignSender, toUs)
+        }
+
+        /** iOS `isKNSRevealSignatureScript`: the signature script of a KNS reveal input - it
+         *  pushes "kns" and carries a known operation ("addProfile", "create", "transfer") and a
+         *  KNS field ("p":"domain", "key": or "id":), all matched as hex. */
+        internal fun isKnsRevealSignatureScript(signatureScriptHex: String): Boolean {
+            val lowered = signatureScriptHex.lowercase()
+            if (!lowered.contains("036b6e73")) return false // push "kns"
+            val hasKnownOp = lowered.contains("226f70223a2261646450726f66696c6522") || // "op":"addProfile"
+                lowered.contains("226f70223a2263726561746522") || // "op":"create"
+                lowered.contains("226f70223a227472616e7366657222") // "op":"transfer"
+            if (!hasKnownOp) return false
+            return lowered.contains("2270223a22646f6d61696e22") || // "p":"domain"
+                lowered.contains("226b6579223a") || // "key":
+                lowered.contains("226964223a") // "id":
+        }
+
+        /** iOS `isKNSRevealTransaction`: any input's signature script is a KNS reveal's. */
+        internal fun isKnsRevealTransaction(tx: TransactionResponse): Boolean =
+            (tx.inputs as List<com.kachat.app.services.TransactionInput>?).orEmpty().any { input ->
+                val script = input.signatureScript as String?
+                !script.isNullOrEmpty() && isKnsRevealSignatureScript(script)
+            }
+
+        /** iOS `decodeKNSRevealOperationJSON`: the JSON object between the script's first `{"`
+         *  and its last `}`, or null. */
+        internal fun decodeKnsRevealOperationJson(signatureScriptHex: String): com.google.gson.JsonObject? {
+            val lowered = signatureScriptHex.lowercase()
+            val start = lowered.indexOf("7b22")
+            if (start < 0) return null
+            val end = lowered.lastIndexOf("7d")
+            if (end < start) return null
+            val jsonHex = lowered.substring(start, end + 2)
+            if (jsonHex.length % 2 != 0) return null
+            val bytes = try {
+                ByteArray(jsonHex.length / 2) { i ->
+                    val hi = Character.digit(jsonHex[2 * i], 16)
+                    val lo = Character.digit(jsonHex[2 * i + 1], 16)
+                    require(hi >= 0 && lo >= 0)
+                    ((hi shl 4) or lo).toByte()
+                }
+            } catch (e: Exception) {
+                return null
+            }
+            return try {
+                com.google.gson.JsonParser.parseString(String(bytes, Charsets.UTF_8))
+                    .takeIf { it.isJsonObject }?.asJsonObject
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        /** iOS `parseKNSTransferOperation`: the first KNS reveal input whose operation is a
+         *  domain transfer ("op":"transfer", "p" absent or "domain", a non-empty "id"). */
+        internal fun parseKnsTransferOperation(signatureScripts: List<String?>): KnsTransferOperation? {
+            fun stringField(obj: com.google.gson.JsonObject, key: String): String? {
+                val element = obj.get(key) ?: return null
+                return if (element.isJsonPrimitive && element.asJsonPrimitive.isString) element.asString else null
+            }
+            for (script in signatureScripts) {
+                if (script.isNullOrEmpty() || !isKnsRevealSignatureScript(script)) continue
+                val operation = decodeKnsRevealOperationJson(script) ?: continue
+                val op = stringField(operation, "op") ?: continue
+                if (op.trim().lowercase() != "transfer") continue
+                val proto = stringField(operation, "p")
+                if (proto != null && proto.trim().lowercase() != "domain") continue
+                val domainId = stringField(operation, "id")?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+                return KnsTransferOperation(domainId, stringField(operation, "to")?.trim())
+            }
+            return null
+        }
+
+        /**
+         * Whether a KNS transfer is this wallet's, and with whom (iOS `ingestKNSTransferMessage`):
+         * null when we are neither the recipient nor the signer of an input ([myAddresses]:
+         * the chatting address and its spending addresses, lowercased). Otherwise (isOutgoing,
+         * counterparty): sent - to the recipient; received - from the first input that is not
+         * [myAddress], else the first output that is neither us nor the recipient, else the
+         * first output that is not us (null when none).
+         */
+        internal fun knsTransferCounterparty(
+            myAddress: String,
+            recipient: String,
+            myAddresses: Set<String>,
+            inputAddresses: List<String>,
+            outputAddresses: List<String>,
+        ): Pair<Boolean, String?>? {
+            val me = myAddress.trim().lowercase()
+            val weAreRecipient = recipient.lowercase() in myAddresses
+            val weSigned = inputAddresses.any { address ->
+                val normalized = address.trim().lowercase()
+                normalized.isNotEmpty() && normalized in myAddresses
+            }
+            if (!weAreRecipient && !weSigned) return null
+            val isOutgoing = !weAreRecipient
+            if (isOutgoing) return true to recipient
+            inputAddresses.firstOrNull { it.isNotEmpty() && it != myAddress }?.takeIf { it.isNotBlank() }
+                ?.let { return false to it }
+            val outputs = outputAddresses.map { it.trim() }.filter { it.isNotEmpty() }
+            outputs.firstOrNull { it.lowercase() != me && it.lowercase() != recipient.lowercase() }
+                ?.let { return false to it }
+            return false to outputs.firstOrNull { it.lowercase() != me }
+        }
+
+        /** iOS `localizedKNSTransferMessage` (its English strings). */
+        internal fun knsTransferMessageText(domainName: String?, isOutgoing: Boolean): String {
+            val domain = domainName?.trim().orEmpty()
+            if (domain.isNotEmpty()) return if (isOutgoing) "Sent $domain domain" else "Received $domain domain"
+            return if (isOutgoing) "Sent domain transfer" else "Received domain transfer"
         }
 
         /** A pay-to-script-hash address (`kaspa:p...` / `kaspatest:p...`, version byte 0x08):
@@ -3121,3 +3469,6 @@ internal sealed class PaymentTxDirection {
     data class Incoming(val sender: String, val amountSompi: Long) : PaymentTxDirection()
     data class Outgoing(val recipient: String, val amountSompi: Long) : PaymentTxDirection()
 }
+
+/** A KNS domain transfer read from a reveal - see [ChatRepository.parseKnsTransferOperation]. */
+internal data class KnsTransferOperation(val domainId: String, val recipientAddress: String?)
