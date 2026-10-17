@@ -905,12 +905,8 @@ private fun SeedPhraseExplainerPage(onBack: () -> Unit) {
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.what_is_a_seed_phrase), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), tint = KaspaTeal)
-                    }
-                },
+                title = { Text(stringResource(R.string.what_is_a_seed_phrase), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -962,19 +958,8 @@ private fun CreateAccountStepScaffold(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(colors.surface, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                    contentDescription = stringResource(R.string.back),
-                    tint = KaspaTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // iOS 26: the back chevron on a glass disc.
+            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack)
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = title,
@@ -1102,12 +1087,8 @@ fun ImportWalletScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.import_account), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), tint = KaspaTeal)
-                    }
-                },
+                title = { Text(stringResource(R.string.import_account), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         }
@@ -1522,7 +1503,7 @@ fun PassphraseSetupScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { localError = null; onDismissError() },
             containerColor = colors.surface,
-            title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
             text = { Text(shownError, color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = { localError = null; onDismissError() }) {
@@ -1551,11 +1532,9 @@ private fun PassphraseQuestionStep(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isBusy) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1670,11 +1649,9 @@ private fun PassphraseEntryStep(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isBusy) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1787,12 +1764,8 @@ private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("What is a passphrase?", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                title = { Text("What is a passphrase?", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -1912,19 +1885,8 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
                 .fillMaxSize()
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(LocalAppColors.current.surface, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                    contentDescription = stringResource(R.string.back),
-                    tint = com.kachat.app.ui.theme.KaspaTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // iOS 26: the back chevron on a glass disc.
+            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack)
 
             Spacer(Modifier.height(16.dp))
             Icon(

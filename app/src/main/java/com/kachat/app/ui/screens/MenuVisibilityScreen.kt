@@ -210,15 +210,15 @@ fun MenuVisibilityScreen(
                     Text(
                         stringResource(R.string.menu),
                         color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
                     )
                 },
                 // iOS's sheet: no back, Done as its confirmation action, top right. Nothing is
                 // left to apply by then.
+                // iOS 26: on a glass capsule, 16 in.
                 actions = {
-                    TextButton(onClick = onDone) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.done), onClick = onDone, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )

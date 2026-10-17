@@ -125,19 +125,8 @@ fun ChattingAddressPickerScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(LocalAppColors.current.surface, CircleShape)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBackIos,
-                    contentDescription = stringResource(R.string.back),
-                    tint = com.kachat.app.ui.theme.KaspaTeal,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            // iOS 26: the back chevron on a glass disc.
+            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack)
 
             Spacer(Modifier.height(16.dp))
             Icon(
@@ -361,20 +350,8 @@ private fun ChattingAddressDetailScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
-                IconButton(
-                    onClick = onBack,
-                    enabled = !isSwitching,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(LocalAppColors.current.surface, CircleShape)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBackIos,
-                        contentDescription = stringResource(R.string.back),
-                        tint = com.kachat.app.ui.theme.KaspaTeal,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                // iOS 26: the back chevron on a glass disc.
+                SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack, enabled = !isSwitching)
 
                 Spacer(Modifier.height(16.dp))
                 Text(

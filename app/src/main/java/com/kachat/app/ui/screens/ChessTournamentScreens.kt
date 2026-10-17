@@ -1993,7 +1993,8 @@ private fun ChessGameResultScreen(
             containerColor = colors.background,
             topBar = {
                 MainPageHeader(title = if (isDuel) "1v1" else "Tournament") {
-                    TextButton(onClick = onDone) { Text("Done", color = KaspaTeal, fontWeight = FontWeight.SemiBold) }
+                    // On the header's glass capsule: a 17pt toolbar item, not a Material TextButton.
+                    ToolbarTextButton("Done", onClick = onDone)
                 }
             },
         ) { padding ->
@@ -2217,9 +2218,9 @@ fun ChessTournamentGameScreen(tournamentId: String, gameId: String, navControlle
                 onBack = { if (lockedIn) showLeaveWarning = true else navController.popBackStack() },
             ) {
                 if (lockedIn) {
-                    TextButton(onClick = { showResignConfirm = true }) {
-                        Text("Resign", color = colors.danger, fontWeight = FontWeight.SemiBold)
-                    }
+                    // The header's actions already sit on one piece of glass; this capsule is the
+                    // same 44 shape drawn over it, there for its red text.
+                    SheetBarButton("Resign", onClick = { showResignConfirm = true }, color = colors.danger)
                 }
             }
         },

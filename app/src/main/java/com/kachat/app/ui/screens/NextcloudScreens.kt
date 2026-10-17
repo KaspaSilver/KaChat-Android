@@ -83,6 +83,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.SubcomposeAsyncImage
@@ -173,30 +174,30 @@ fun NextcloudPickerDialog(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
+            // iOS 26's bar: the back chevron on a glass disc and the action on a glass capsule,
+            // 16 in from the edges.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                IconButton(onClick = {
+                SheetBarBackButton({
                     if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
-                }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal)
-                }
+                })
                 Text(
                     text = currentPath.substringAfterLast('/').ifEmpty { "Nextcloud" },
                     color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f)
                 )
                 if (startFolder.isNotEmpty() && pathStack.first().isNotEmpty()) {
-                    TextButton(onClick = { pathStack = listOf("") }) {
-                        Text("All Files", color = KaspaTeal)
-                    }
+                    SheetBarButton("All Files", onClick = { pathStack = listOf("") })
                 }
             }
 
@@ -431,33 +432,33 @@ fun NextcloudFolderSelectDialog(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
+            // iOS 26's bar: the back chevron on a glass disc and the action on a glass capsule,
+            // 16 in from the edges.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                IconButton(onClick = {
+                SheetBarBackButton({
                     if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
-                }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal)
-                }
+                })
                 Text(
                     text = currentPath.substringAfterLast('/').ifEmpty { "All Files" },
                     color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f)
                 )
-                TextButton(onClick = { onSelect(currentPath.takeIf { it.isNotEmpty() }) }) {
-                    Text(
-                        if (currentPath.isEmpty()) "Use All Files" else "Use This Folder",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                SheetBarButton(
+                    if (currentPath.isEmpty()) "Use All Files" else "Use This Folder",
+                    onClick = { onSelect(currentPath.takeIf { it.isNotEmpty() }) },
+                    emphasized = true,
+                )
             }
 
             if (errorMessage != null) {
@@ -990,20 +991,27 @@ fun NextcloudFileSelectDialog(
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Column(Modifier.fillMaxSize().background(colors.background).statusBarsPadding().navigationBarsPadding()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = {
-                    if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
-                }) { Text(stringResource(if (pathStack.size > 1) R.string.back else R.string.cancel), color = KaspaTeal) }
+            // iOS 26's bar: both buttons on glass capsules 16 in, the title in headline.
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                SheetBarButton(
+                    stringResource(if (pathStack.size > 1) R.string.back else R.string.cancel),
+                    onClick = { if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss() },
+                )
                 Text(
                     currentPath.substringAfterLast('/').ifEmpty { stringResource(R.string.pnc_all_files) },
                     color = colors.textPrimary,
                     fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                 )
-                TextButton(onClick = { if (currentPath.isNotEmpty()) pathStack = pathStack + "" }, enabled = currentPath.isNotEmpty()) {
-                    Text(stringResource(R.string.pnc_all_files), color = if (currentPath.isNotEmpty()) KaspaTeal else colors.textTertiary)
-                }
+                SheetBarButton(
+                    stringResource(R.string.pnc_all_files),
+                    onClick = { if (currentPath.isNotEmpty()) pathStack = pathStack + "" },
+                    enabled = currentPath.isNotEmpty(),
+                )
             }
             HorizontalDivider(color = colors.divider, thickness = 0.5.dp)
             when {

@@ -361,7 +361,8 @@ fun ChessGameScreen(
                         Text(
                             conversation?.contact?.alias?.takeIf { it.isNotBlank() } ?: contactId.takeLast(8),
                             color = LocalAppColors.current.textPrimary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
                         )
                         if (summary != null) {
                             Text(
@@ -378,25 +379,28 @@ fun ChessGameScreen(
                         }
                     }
                 },
+                // iOS 26 (ChessGameView): Close leading and Resign trailing, each on a glass
+                // capsule 16 in from the edge.
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(
-                            R.string.back), tint = LocalAppColors.current.textPrimary)
-                    }
+                    SheetBarButton(stringResource(R.string.close), onClick = { navController.popBackStack() }, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
-                    Column(horizontalAlignment = Alignment.End) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(end = 12.dp),
+                    ) {
+                        // Plain text beside the glass, not on it (iOS keeps the counter off
+                        // Resign's capsule); a 44 capsule leaves no room for it underneath.
+                        WinLossCounter(wins = chessRecord.first, losses = chessRecord.second)
                         // Available whenever the game isn't over - including a still-pending
                         // invite, which the sender must be able to close (a resign on a pending
                         // game is already how starting a new game retires the previous one).
                         if (summary != null && !summary.status.isGameOver) {
                             val resignLabel = if (summary.status.kind == ChessGameStatusKind.PENDING_RESPONSE)
                                 stringResource(R.string.chess_cancel_game) else stringResource(R.string.resign)
-                            TextButton(onClick = { showResignConfirm = true }) {
-                                Text(resignLabel, color = LocalAppColors.current.danger)
-                            }
+                            SheetBarButton(resignLabel, onClick = { showResignConfirm = true }, color = LocalAppColors.current.danger)
                         }
-                        WinLossCounter(wins = chessRecord.first, losses = chessRecord.second)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = LocalAppColors.current.background)

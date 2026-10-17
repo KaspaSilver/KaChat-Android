@@ -1911,11 +1911,11 @@ fun GroupChatInfoScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.group_info), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
-                    }
+                title = { Text(stringResource(R.string.group_info), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                // iOS 26 (GroupChatDetailView's sheet): Done trailing on a glass capsule, no back
+                // button - Android's system Back still closes it.
+                actions = {
+                    SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() }, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )

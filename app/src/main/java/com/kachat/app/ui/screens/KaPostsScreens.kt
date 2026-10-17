@@ -7004,11 +7004,12 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
     // precedence over the navigation title, so iOS draws no "Post" / "Profile" title there.
     val back = LocalKaPostsBack.current
     val haptic = com.kachat.app.util.rememberHaptics()
+    // iOS 26: the chevron on a 44 glass disc 16 in, as MainPageHeader's (52 tall, 4 above/below).
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
-            .padding(horizontal = 12.dp),
+            .height(52.dp)
+            .padding(horizontal = 16.dp),
     ) {
         Row(
             modifier = Modifier.align(Alignment.CenterStart),
@@ -7016,18 +7017,13 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (back != null) {
-                Icon(
+                SheetBarIconButton(
                     Icons.AutoMirrored.Filled.ArrowBackIos,
-                    contentDescription = stringResource(R.string.back),
-                    tint = KaspaTeal,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable {
-                            haptic(com.kachat.app.util.IosHaptic.SELECTION)
-                            back()
-                        }
-                        .padding(start = 8.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+                    stringResource(R.string.back),
+                    onClick = {
+                        haptic(com.kachat.app.util.IosHaptic.SELECTION)
+                        back()
+                    },
                 )
             }
             ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })

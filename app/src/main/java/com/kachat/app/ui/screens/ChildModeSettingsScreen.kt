@@ -113,12 +113,9 @@ fun ChildModeSettingsScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.child_mode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
+                title = { Text(stringResource(R.string.child_mode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                // iOS 26: the back chevron on a glass disc, 16 in.
+                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
         }
