@@ -14,15 +14,20 @@ object ChatTimeFormat {
             cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 
-    /** "Today" / "Yesterday" / "July 6, 2026" — shown as a divider between days' worth of messages.
-     *  Callers pass the localized "Today"/"Yesterday" (iOS fc6aec6). */
+    /** The divider between days' worth of messages (iOS MessageDaySeparatorFormatter): "Today",
+     *  "Yesterday", then "Thursday, Sep 24" this year and "Sep 24, 2025" before it, in the
+     *  device's language (iOS formats from the templates "EEEE, MMM d" / "MMM d, y"). Callers pass
+     *  the localized "Today"/"Yesterday" (iOS fc6aec6). */
     fun formatDateDivider(timestamp: Long, today: String = "Today", yesterday: String = "Yesterday"): String {
         val now = System.currentTimeMillis()
-        return when {
-            isSameDay(timestamp, now) -> today
-            isSameDay(timestamp, now - 24L * 60 * 60 * 1000) -> yesterday
-            else -> SimpleDateFormat("MMMM d, yyyy", Locale.US).format(Date(timestamp))
-        }
+        if (isSameDay(timestamp, now)) return today
+        if (isSameDay(timestamp, now - 24L * 60 * 60 * 1000)) return yesterday
+        val locale = Locale.getDefault()
+        val sameYear = Calendar.getInstance().apply { timeInMillis = timestamp }.get(Calendar.YEAR) ==
+            Calendar.getInstance().get(Calendar.YEAR)
+        val skeleton = if (sameYear) "EEEEMMMd" else "MMMdy"
+        val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton)
+        return SimpleDateFormat(pattern, locale).format(Date(timestamp))
     }
 
     /** "10:57 AM" — iOS SharedFormatting.chatTime ("h:mm a", en_US_POSIX). */

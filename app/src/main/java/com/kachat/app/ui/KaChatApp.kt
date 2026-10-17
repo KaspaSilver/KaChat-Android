@@ -149,6 +149,7 @@ private fun dockOwnerRoute(route: String?): String? = when (route) {
     null -> null
     "chess_mode/{mode}", "chess_tournament/{tournamentId}" -> Screen.Chess.route
     "broadcast_channel/{channelName}" -> Screen.Broadcasts.route
+    "chat/{contactId}?paymentMode={paymentMode}", "group_chat/{groupId}" -> Screen.Chats.route
     "cold_storage_detail/{accountId}", "cold_storage_tx_history/{address}" -> Screen.ColdStorage.route
     "help" -> Screen.Profile.route
     Screen.Chess.route, Screen.Broadcasts.route, Screen.KaPosts.route, Screen.Portfolio.route,
@@ -474,6 +475,10 @@ fun MainShell(
         bottomNavItems.any { it.route == dest.route } ||
             dest.route == Screen.KaPosts.route ||
             dest.route == "broadcasts" || dest.route == "broadcast_channel/{channelName}" ||
+            // A chat keeps the tab bar too: iOS's ChatDetailView / GroupChatDetailView sit inside
+            // the Chats tab with its bar showing, the composer above it.
+            dest.route == "chat/{contactId}?paymentMode={paymentMode}" ||
+            dest.route == "group_chat/{groupId}" ||
             // Cold Storage keeps its dock the whole way down, the way iOS's tab bar does: an
             // account and one of its addresses are still browsing your own holdings, not a
             // "pushed" screen you want the full height for.
@@ -1936,7 +1941,11 @@ fun MainShell(
 
             composable("group_chat/{groupId}") { backStackEntry ->
                 val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-                GroupChatThreadScreen(navController = navController, groupId = groupId, chatViewModel = chatViewModel, walletViewModel = walletViewModel)
+                // The composer sits above the tab bar, as the public room's does (see there).
+                val imeVisible = WindowInsets.isImeVisible
+                Box(modifier = Modifier.padding(bottom = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding())) {
+                    GroupChatThreadScreen(navController = navController, groupId = groupId, chatViewModel = chatViewModel, walletViewModel = walletViewModel)
+                }
             }
 
             composable("group_chat_info/{groupId}") { backStackEntry ->
@@ -1958,13 +1967,17 @@ fun MainShell(
             ) { backStackEntry ->
                 val contactId = backStackEntry.arguments?.getString("contactId") ?: return@composable
                 val startInPaymentMode = backStackEntry.arguments?.getBoolean("paymentMode") ?: false
-                ChatThreadScreen(
-                    navController = navController,
-                    contactId = contactId,
-                    chatViewModel = chatViewModel,
-                    walletViewModel = walletViewModel,
-                    startInPaymentMode = startInPaymentMode
-                )
+                // The composer sits above the tab bar, as the public room's does (see there).
+                val imeVisible = WindowInsets.isImeVisible
+                Box(modifier = Modifier.padding(bottom = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding())) {
+                    ChatThreadScreen(
+                        navController = navController,
+                        contactId = contactId,
+                        chatViewModel = chatViewModel,
+                        walletViewModel = walletViewModel,
+                        startInPaymentMode = startInPaymentMode
+                    )
+                }
             }
 
             composable("chess_game/{contactId}/{gameId}") { backStackEntry ->

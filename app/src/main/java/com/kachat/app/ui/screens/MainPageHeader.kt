@@ -167,7 +167,8 @@ fun MainPageHeader(
             fontSize = LargeTitleSize,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
-            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 8.dp),
+            // measured on the iPhone: 24pt from the bar's glass to the title, 5 below it
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 5.dp),
         )
     }
 }
