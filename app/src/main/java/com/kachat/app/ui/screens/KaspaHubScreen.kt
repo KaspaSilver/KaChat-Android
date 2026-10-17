@@ -1,6 +1,7 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,15 +10,27 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Sensors
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -190,9 +204,9 @@ private fun HubGrid(
                 title = Screen.KaspaHub.label,
                 actions = {
                     // Straight to Customize Dock - the one screen that decides what is in here.
-                    IconButton(onClick = onCustomize) {
-                        Icon(Icons.Default.Tune, contentDescription = "Customize Dock", tint = KaspaTeal)
-                    }
+                    // iOS's slider.horizontal.3 on a glass disc (the header's actions slot is the
+                    // glass), in the accent colour.
+                    ToolbarIconButton(Icons.Outlined.Tune, "Customize Dock", onCustomize)
                 },
             )
         }
@@ -202,17 +216,27 @@ private fun HubGrid(
         // Dock like the rest.
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(padding),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+            // iOS's 16 sides and 8 top as CONTENT padding, not a padding around the grid: the
+            // grid clips at its own edge, and a right-column badge sits 6 past its tile.
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
         ) {
             items(sections, key = { it.route }) { screen ->
+                val vector = hubTileIcon(screen)
                 HubTile(
                     label = screen.hubTitle,
-                    painter = screen.tabIconPainter(),
-                    // iOS: the .kachat wordmark 30pt tall beside 26pt icons (EcosystemView).
-                    iconModifier = screen.tabIconModifier(if (screen == com.kachat.app.ui.Screen.KachatNames) 32.dp else 28.dp),
+                    painter = if (vector != null) rememberVectorPainter(vector) else screen.tabIconPainter(),
+                    // iOS EcosystemView: the Kaspa mark and the chess pieces 26 tall, the .kachat
+                    // wordmark 30 (32 here, where the stand-in face runs narrower), and a 26pt
+                    // SF Symbol - which a Material icon matches at 32, its glyph being inset
+                    // in its box.
+                    iconModifier = when {
+                        screen == Screen.KachatNames -> screen.tabIconModifier(32.dp)
+                        vector != null -> Modifier.size(32.dp)
+                        else -> screen.tabIconModifier(26.dp)
+                    },
                     colors = colors,
                     badgeCount = badgeCount(screen),
                     onClick = { onOpenSection(screen) }
@@ -223,11 +247,32 @@ private fun HubGrid(
 }
 
 /**
+ * The tile's glyph, as iOS draws it: `AppTab.icon`'s SF Symbol, which in the grid is the OUTLINED
+ * symbol (only the dock fills them). The dock keeps its own filled icons ([Screen.icon]); null
+ * for the sections drawn with a mark of their own (the Kaspa logo, the chess pieces, the .kachat
+ * wordmark - see tabIconPainter).
+ */
+private fun hubTileIcon(screen: Screen): androidx.compose.ui.graphics.vector.ImageVector? = when (screen) {
+    Screen.Chats -> Icons.Outlined.Forum                 // bubble.left.and.bubble.right
+    Screen.Portfolio -> Icons.Outlined.PieChart          // chart.pie
+    Screen.ColdStorage -> Icons.Outlined.Shield          // lock.shield
+    Screen.Swap -> Icons.Outlined.SwapHoriz              // arrow.left.arrow.right
+    Screen.KaPosts -> Icons.Outlined.EditNote            // square.and.pencil
+    Screen.Broadcasts -> Icons.Outlined.Sensors          // dot.radiowaves.left.and.right
+    Screen.KaspaWebsites -> Icons.Outlined.Language      // globe
+    Screen.KachatStats -> Icons.Outlined.BarChart        // chart.bar.xaxis
+    Screen.AddressBook -> Icons.Outlined.Book            // book.closed
+    Screen.KachatBots -> Icons.Outlined.Memory           // cpu
+    else -> null
+}
+
+/**
  * One tile: a square whose size comes from the grid column, with the label laid OVER it.
  *
  * The overlay is the point - a longer name is a taller label, and letting the content size the
  * tile would make one square bigger than its neighbours. This way every tile is identical whatever
- * it is called. Matches iOS.
+ * it is called. Matches iOS: `.regularMaterial` in an 18pt rounded square with a 0.8 white hairline
+ * at 15%, the icon in a 30pt-tall slot, 10 above a caption-semibold label.
  */
 @Composable
 private fun HubTile(
@@ -235,56 +280,63 @@ private fun HubTile(
     /** The section's icon - the Kaspa mark, the chess pieces, or its vector (see tabIconPainter). */
     painter: androidx.compose.ui.graphics.painter.Painter,
     /** The icon's box - wide for the chess pieces and the .kachat wordmark (tabIconModifier). */
-    iconModifier: Modifier = Modifier.size(28.dp),
+    iconModifier: Modifier = Modifier.size(32.dp),
     colors: com.kachat.app.ui.theme.AppColors,
     onClick: () -> Unit,
     /** Unseen items this destination is holding. Zero draws nothing. */
     badgeCount: Int = 0,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(colors.surface)
-            .clickable { onClick() }
-            .padding(8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    val shape = RoundedCornerShape(18.dp)
+    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .background(colors.surface)
+                .border(0.8.dp, Color.White.copy(alpha = 0.15f), shape)
+                .clickable { onClick() }
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                painter = painter,
-                contentDescription = null,
-                tint = KaspaTeal,
-                modifier = iconModifier
-            )
-            androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
-            Text(
-                label,
-                color = colors.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // A fixed 30-tall slot (iOS `.frame(height: 30)`), so every label starts at the same
+                // height whichever icon sits above it; a taller icon overflows it evenly.
+                Box(Modifier.height(30.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painter,
+                        contentDescription = null,
+                        tint = KaspaTeal,
+                        modifier = Modifier.wrapContentSize(unbounded = true).then(iconModifier)
+                    )
+                }
+                androidx.compose.foundation.layout.Spacer(Modifier.size(10.dp))
+                Text(
+                    label,
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
         if (badgeCount > 0) {
-            // A Box with a minimum SQUARE size, not a padded Text: padding alone makes a
-            // one-digit badge wider than it is tall, which reads as an oval. defaultMinSize
-            // floors both to 20dp, so one digit is a circle and only a longer label stretches
-            // it into a pill.
+            // iOS anchors it on the tile's top-right corner and pushes it 6 out each way, so a
+            // two- or three-character badge grows outward instead of over the icon. A Box with
+            // a minimum SQUARE size, not a padded Text: padding alone makes a one-digit badge
+            // wider than it is tall, which reads as an oval.
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(6.dp)
+                    .offset(x = 6.dp, y = (-6).dp)
                     .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFE0245E))
+                    .background(colors.danger)
                     .padding(horizontal = 5.dp),
                 contentAlignment = Alignment.Center,
             ) {
