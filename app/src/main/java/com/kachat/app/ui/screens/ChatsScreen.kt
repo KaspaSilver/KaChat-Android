@@ -1991,8 +1991,12 @@ private fun ChatsNewSheet(
 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
+        // On the menu and Join Room the sheet rests on iOS's 498 detent, where iOS 26 floats it;
+        // New Chat / New Group switch to .large, which runs edge to edge.
+        val floating = page == ChatsNewPage.MENU || page == ChatsNewPage.JOIN_ROOM
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            modifier = if (floating) Modifier.iosFloatingSheet() else Modifier,
+            shape = if (floating) IosFloatingSheetShape else com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,

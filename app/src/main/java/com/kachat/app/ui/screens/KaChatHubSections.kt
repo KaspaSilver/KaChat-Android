@@ -1970,8 +1970,11 @@ private fun KachatMarketSourceSheet(
 
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
+        // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
+        var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            modifier = Modifier.iosFloatingSheet(sheetFloat),
+            shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
@@ -1980,7 +1983,7 @@ private fun KachatMarketSourceSheet(
             dragHandle = null,
         ) {
             Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                IosSheetDetents(height = halfScreen, largeDetent = true, onFloat = { sheetFloat = it }) {
                     Column(Modifier.fillMaxWidth().fillMaxHeight()) {
                         SheetNavBar(
                             title = stringResource(R.string.kn_buy_from),

@@ -217,11 +217,11 @@ fun TileActionSheet(
     val colors = LocalAppColors.current
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
+        // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
+        var float by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
-            // Resting on a height detent alone it floats, as iOS 26's does; one that can grow to
-            // full height stays on the bottom edge.
-            modifier = if (largeDetent) Modifier else Modifier.iosFloatingSheet(),
-            shape = if (largeDetent) com.kachat.app.ui.theme.IosSheetShape else IosFloatingSheetShape,
+            modifier = Modifier.iosFloatingSheet(float),
+            shape = iosFloatingSheetShape(float),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
@@ -232,7 +232,7 @@ fun TileActionSheet(
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = height, largeDetent = largeDetent) {
+                IosSheetDetents(height = height, largeDetent = largeDetent, onFloat = { float = it }) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -288,8 +288,16 @@ fun TileActionSheet(
  * drag-to-dismiss and its scroll-aware settling keep working underneath.
  */
 @Composable
-fun IosSheetDetents(height: Dp, largeDetent: Boolean, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
+fun IosSheetDetents(
+    height: Dp,
+    largeDetent: Boolean,
+    /** How floating the sheet should be drawn: 1 on the height detent, 0 at full height (see
+     *  [iosFloatingSheet]). Called as the sheet grows and shrinks. */
+    onFloat: ((Float) -> Unit)? = null,
+    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+) {
     if (!largeDetent) {
+        androidx.compose.runtime.SideEffect { onFloat?.invoke(1f) }
         Box(Modifier.fillMaxWidth().height(height)) { content() }
         return
     }
@@ -302,6 +310,7 @@ fun IosSheetDetents(height: Dp, largeDetent: Boolean, content: @Composable andro
         // How far above the fixed detent the sheet is drawn: 0 at [height], rangePx at full.
         var extraPx by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
         val extra = extraPx.coerceIn(0f, rangePx)
+        androidx.compose.runtime.SideEffect { onFloat?.invoke(if (rangePx > 0f) 1f - extra / rangePx else 1f) }
         val latestRange by rememberUpdatedState(rangePx)
         val flickPx = with(density) { 125.dp.toPx() }
         val scrollState = androidx.compose.foundation.gestures.rememberScrollableState { delta ->
@@ -355,12 +364,24 @@ fun IosSheetDetents(height: Dp, largeDetent: Boolean, content: @Composable andro
  * sides and bottom with every corner rounded, its content still clear of the home indicator.
  * Pass as the ModalBottomSheet's modifier, with [IosFloatingSheetShape] as its shape.
  */
-fun Modifier.iosFloatingSheet(): Modifier = this
-    .padding(horizontal = 8.dp)
-    .offset(y = (-8).dp)
+fun Modifier.iosFloatingSheet(): Modifier = iosFloatingSheet(1f)
+
+/**
+ * The same, [float] of the way: 1 floating, 0 on the screen's edges. A sheet that can also grow
+ * to `.large` floats on its height detent and settles onto the edges as it grows, as iOS 26's
+ * does - pair with [iosFloatingSheetShape] and [IosSheetDetents]'s `onFloat`.
+ */
+fun Modifier.iosFloatingSheet(float: Float): Modifier = this
+    .padding(horizontal = (8 * float).dp)
+    .offset(y = (-8 * float).dp)
 
 /** The floating sheet's outline: iOS 26 rounds all four corners of a sheet that floats. */
 val IosFloatingSheetShape = RoundedCornerShape(36.dp)
+
+/** The outline [float] of the way to floating: the bottom corners round as the sheet lifts. */
+fun iosFloatingSheetShape(float: Float): RoundedCornerShape =
+    if (float >= 1f) IosFloatingSheetShape
+    else RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp, bottomStart = (36 * float).dp, bottomEnd = (36 * float).dp)
 
 /**
  * iOS's sheet drag indicator (`.presentationDragIndicator(.visible)`): a 36 x 5 rounded bar 5
@@ -884,8 +905,11 @@ fun ChatReactionsSheet(
     val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
+        // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
+        var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            modifier = Modifier.iosFloatingSheet(sheetFloat),
+            shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
@@ -894,7 +918,7 @@ fun ChatReactionsSheet(
             dragHandle = null,
         ) {
             Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                IosSheetDetents(height = halfScreen, largeDetent = true, onFloat = { sheetFloat = it }) {
                     Column(Modifier.fillMaxSize()) {
                         IosSheetNavBar(
                             title = if (reactions.size == 1) stringResource(R.string.reactions_one)
@@ -1247,8 +1271,11 @@ fun IosInlineListSheet(
     val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
+        // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
+        var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            modifier = Modifier.iosFloatingSheet(sheetFloat),
+            shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
@@ -1257,7 +1284,7 @@ fun IosInlineListSheet(
             dragHandle = null,
         ) {
             Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = halfScreen, largeDetent = true) {
+                IosSheetDetents(height = halfScreen, largeDetent = true, onFloat = { sheetFloat = it }) {
                     Column(Modifier.fillMaxSize()) {
                         IosSheetNavBar(title = title)
                         Column(

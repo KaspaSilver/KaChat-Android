@@ -1250,8 +1250,11 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
+        // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
+        var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
-            shape = com.kachat.app.ui.theme.IosSheetShape,
+            modifier = Modifier.iosFloatingSheet(sheetFloat),
+            shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
             onDismissRequest = onDismiss,
@@ -1264,7 +1267,7 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
             // `.presentationDragIndicator(.visible)` - 520 high, pulled up to full height, the
             // grabber drawn over the content.
             Column(Modifier.navigationBarsPadding()) {
-                IosSheetDetents(height = 520.dp, largeDetent = true) {
+                IosSheetDetents(height = 520.dp, largeDetent = true, onFloat = { sheetFloat = it }) {
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,

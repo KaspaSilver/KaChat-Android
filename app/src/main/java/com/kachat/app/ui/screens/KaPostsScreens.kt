@@ -5257,19 +5257,12 @@ fun KaPostsSearchOverlay(
     // The one KaPosts screen that says Done rather than Back (iOS).
     KaPostsOverlayScaffold(title = "Search", onClose = onClose) {
         Column(Modifier.fillMaxSize()) {
-            com.kachat.app.ui.theme.IosTextField(
+            // iOS: .searchable in the navigation bar's drawer, always shown.
+            IosSearchField(
                 value = query,
                 onValueChange = { query = it },
-                singleLine = true,
-                placeholder = { Text("Posts and people", color = colors.textSecondary) },
-                leadingIcon = { Icon(Icons.Default.Search, null, tint = colors.textSecondary) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary,
-                    focusedBorderColor = KaspaTeal,
-                    unfocusedBorderColor = colors.textSecondary,
-                ),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = "Posts and people",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             TabRow(
                 selectedTabIndex = if (showPeople) 1 else 0,
