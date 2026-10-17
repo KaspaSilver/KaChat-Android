@@ -220,6 +220,7 @@ fun TileActionSheet(
         // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
         var float by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = Modifier.iosFloatingSheet(float),
             shape = iosFloatingSheetShape(float),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
@@ -448,6 +449,7 @@ fun ActionSheetContainer(
     com.kachat.app.ui.theme.IosSheetColors(grouped = grouped) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             // A height-detent sheet on iOS 26, so it floats (see iosFloatingSheet).
             modifier = Modifier.iosFloatingSheet(),
             shape = IosFloatingSheetShape,
@@ -591,8 +593,9 @@ private fun ActionSheetRowFrame(
             verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // iOS's 24pt semibold symbol fills its size; a Material glyph fills about 20 of 24.
             Box(modifier = Modifier.height(30.dp), contentAlignment = Alignment.Center) {
-                icon(24.dp)
+                icon(28.dp)
             }
             Text(
                 title,
@@ -908,6 +911,7 @@ fun ChatReactionsSheet(
         // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
         var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = Modifier.iosFloatingSheet(sheetFloat),
             shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
@@ -1169,6 +1173,7 @@ fun SentConfirmationSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             // iOS shows it on a height detent, so it floats.
             modifier = Modifier.iosFloatingSheet(),
             shape = IosFloatingSheetShape,
@@ -1274,6 +1279,7 @@ fun IosInlineListSheet(
         // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
         var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = Modifier.iosFloatingSheet(sheetFloat),
             shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,

@@ -174,6 +174,10 @@ val IosSheetShape = androidx.compose.foundation.shape.RoundedCornerShape(topStar
 val IosSheetTonalElevation: androidx.compose.ui.unit.Dp
     @Composable get() = 0.dp
 
+/** The dim behind an iOS sheet: white text behind it reads 133 on the iPhone (measured) - black
+ *  at 48% - where Material's default scrim (32%) left it at 173. */
+val IosSheetScrim = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.48f)
+
 /**
  * iOS's `.regularMaterial` as it reads on a white sheet in light mode: a faint neutral grey. iOS
  * blurs whatever lies beneath the card; older Android cannot blur the content under a view, so

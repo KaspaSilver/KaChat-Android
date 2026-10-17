@@ -1982,6 +1982,7 @@ private fun KachatMarketSourceSheet(
         // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
         var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = Modifier.iosFloatingSheet(sheetFloat),
             shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,

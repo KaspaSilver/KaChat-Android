@@ -398,14 +398,14 @@ fun IosSheetPage(
     val base = LocalAppColors.current
     val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
     if (dialogWindow != null) {
-        androidx.compose.runtime.SideEffect { dialogWindow.setDimAmount(0.4f) }
+        androidx.compose.runtime.SideEffect { dialogWindow.setDimAmount(0.48f) }
     }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .then(
                 if (dialogWindow != null) Modifier
-                else Modifier.background(Color.Black.copy(alpha = 0.4f).compositeOver(base.background))
+                else Modifier.background(Color.Black.copy(alpha = 0.48f).compositeOver(base.background))
             ),
     ) {
         com.kachat.app.ui.theme.IosSheetColors(grouped = grouped) {

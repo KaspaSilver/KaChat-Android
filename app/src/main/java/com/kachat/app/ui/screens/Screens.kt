@@ -7163,6 +7163,7 @@ private fun IdentityAddressActionsSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -8037,6 +8038,7 @@ private fun ManageAddressActionsSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -12037,6 +12039,7 @@ fun ReceiveKaspaQrPage(
 fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -> Unit) {
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -14660,6 +14663,7 @@ private fun ManageAddressesActionsSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -14775,6 +14779,7 @@ private fun DomainTransferProgressSheet(
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,

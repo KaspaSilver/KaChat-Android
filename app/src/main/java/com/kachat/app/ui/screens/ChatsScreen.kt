@@ -19,6 +19,11 @@ import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.MarkEmailRead
+import androidx.compose.material.icons.outlined.MarkEmailUnread
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -626,7 +631,7 @@ fun ChatsScreen(
                                 ) {
                                         if (convo.unreadCount > 0) {
                                             ActionSheetRow(
-                                                icon = Icons.Default.MarkEmailRead,
+                                                icon = Icons.Outlined.MarkEmailRead,
                                                 title = stringResource(R.string.mark_as_read),
                                                 subtitle = "Clears the unread badge on this chat.",
                                             ) {
@@ -635,7 +640,7 @@ fun ChatsScreen(
                                             }
                                         } else {
                                             ActionSheetRow(
-                                                icon = Icons.Default.MarkEmailUnread,
+                                                icon = Icons.Outlined.MarkEmailUnread,
                                                 title = stringResource(R.string.mark_as_unread),
                                                 subtitle = "Puts the unread badge back so you come across it again.",
                                             ) {
@@ -644,7 +649,7 @@ fun ChatsScreen(
                                             }
                                         }
                                         ActionSheetRow(
-                                            icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                                            icon = if (isSilent) Icons.Outlined.Notifications else Icons.Outlined.NotificationsOff,
                                             title = if (isSilent) "Unsilence" else "Silence",
                                             subtitle = if (isSilent) {
                                                 "Notifications from this chat resume."
@@ -675,7 +680,7 @@ fun ChatsScreen(
                                         // Your chat with yourself cannot be deleted - it is always
                                         // there, first in the list (iOS ef4f183).
                                         if (!convo.contact.id.equals(myAddress, ignoreCase = true)) ActionSheetRow(
-                                            icon = Icons.Default.Delete,
+                                            icon = Icons.Outlined.Delete,
                                             title = stringResource(R.string.delete),
                                             subtitle = "Removes this chat and its messages from this device.",
                                             tint = LocalAppColors.current.danger,
@@ -1255,7 +1260,7 @@ private fun ChatCircleActionSheet(
         TileActionSheet(title = convo.group.name, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
                 if (convo.unreadCount > 0) {
                     ActionSheetRow(
-                        icon = Icons.Default.MarkEmailRead,
+                        icon = Icons.Outlined.MarkEmailRead,
                         title = stringResource(R.string.mark_as_read),
                         subtitle = "Clears the unread badge on this group.",
                     ) {
@@ -1264,7 +1269,7 @@ private fun ChatCircleActionSheet(
                     }
                 } else {
                     ActionSheetRow(
-                        icon = Icons.Default.MarkEmailUnread,
+                        icon = Icons.Outlined.MarkEmailUnread,
                         title = stringResource(R.string.mark_as_unread),
                         subtitle = "Puts the unread badge back so you come across it again.",
                     ) {
@@ -1274,7 +1279,7 @@ private fun ChatCircleActionSheet(
                 }
                 PinRow()
                 ActionSheetRow(
-                    icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                    icon = if (isSilent) Icons.Outlined.Notifications else Icons.Outlined.NotificationsOff,
                     title = if (isSilent) "Unsilence" else "Silence",
                     subtitle = if (isSilent) {
                         "Notifications from this group resume, including mentions."
@@ -1286,7 +1291,7 @@ private fun ChatCircleActionSheet(
                     chatViewModel.setGroupSilent(groupId, !isSilent)
                 }
                 ActionSheetRow(
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     title = stringResource(R.string.delete),
                     subtitle = "Removes this group and its messages from this device.",
                     tint = LocalAppColors.current.danger,
@@ -1307,7 +1312,7 @@ private fun ChatCircleActionSheet(
         TileActionSheet(title = title, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
                 if (convo.unreadCount > 0) {
                     ActionSheetRow(
-                        icon = Icons.Default.MarkEmailRead,
+                        icon = Icons.Outlined.MarkEmailRead,
                         title = stringResource(R.string.mark_as_read),
                         subtitle = stringResource(R.string.bot_sheet_clears_unread),
                     ) {
@@ -1316,7 +1321,7 @@ private fun ChatCircleActionSheet(
                     }
                 } else {
                     ActionSheetRow(
-                        icon = Icons.Default.MarkEmailUnread,
+                        icon = Icons.Outlined.MarkEmailUnread,
                         title = stringResource(R.string.mark_as_unread),
                         subtitle = "Puts the unread badge back so you come across it again.",
                     ) {
@@ -1326,7 +1331,7 @@ private fun ChatCircleActionSheet(
                 }
                 PinRow()
                 ActionSheetRow(
-                    icon = if (isSilent) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                    icon = if (isSilent) Icons.Outlined.Notifications else Icons.Outlined.NotificationsOff,
                     title = if (isSilent) "Unsilence" else "Silence",
                     subtitle = stringResource(if (isSilent) R.string.bot_sheet_notifications_resume else R.string.bot_sheet_no_notification),
                 ) {
@@ -1337,7 +1342,7 @@ private fun ChatCircleActionSheet(
                     )
                 }
                 ActionSheetRow(
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     title = stringResource(R.string.delete),
                     subtitle = stringResource(R.string.bot_sheet_delete_subtitle),
                     tint = LocalAppColors.current.danger,
@@ -1357,7 +1362,7 @@ private fun ChatCircleActionSheet(
         TileActionSheet(title = "#$name", onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
                 if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
                     ActionSheetRow(
-                        icon = Icons.Default.MarkEmailRead,
+                        icon = Icons.Outlined.MarkEmailRead,
                         title = stringResource(R.string.mark_as_read),
                         subtitle = "Clears the unread badge on this room.",
                     ) {
@@ -1366,7 +1371,7 @@ private fun ChatCircleActionSheet(
                     }
                 } else {
                     ActionSheetRow(
-                        icon = Icons.Default.MarkEmailUnread,
+                        icon = Icons.Outlined.MarkEmailUnread,
                         title = stringResource(R.string.mark_as_unread),
                         subtitle = "Puts the unread badge back so you come across it again.",
                     ) {
@@ -1376,7 +1381,7 @@ private fun ChatCircleActionSheet(
                 }
                 PinRow()
                 ActionSheetRow(
-                    icon = if (notifyOn) Icons.Default.NotificationsOff else Icons.Default.Notifications,
+                    icon = if (notifyOn) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
                     title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
                     subtitle = when {
                         notifyOn -> "No notification for new messages in this room."
@@ -1405,7 +1410,7 @@ private fun ChatCircleActionSheet(
                 }
                 if (isCurated) {
                     ActionSheetRow(
-                        icon = Icons.Default.Delete,
+                        icon = Icons.Outlined.Delete,
                         title = stringResource(R.string.delete),
                         subtitle = stringResource(R.string.default_room_delete_subtitle),
                         tint = LocalAppColors.current.danger,
@@ -1415,7 +1420,7 @@ private fun ChatCircleActionSheet(
                     }
                 } else if (channel != null) {
                     ActionSheetRow(
-                        icon = Icons.Default.Delete,
+                        icon = Icons.Outlined.Delete,
                         title = stringResource(R.string.delete),
                         subtitle = "Removes this room and its messages from this device.",
                         tint = LocalAppColors.current.danger,
@@ -2006,6 +2011,7 @@ private fun ChatsNewSheet(
         // New Chat / New Group switch to .large, which runs edge to edge.
         val floating = page == ChatsNewPage.MENU || page == ChatsNewPage.JOIN_ROOM
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = if (floating) Modifier.iosFloatingSheet() else Modifier,
             shape = if (floating) IosFloatingSheetShape else com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,

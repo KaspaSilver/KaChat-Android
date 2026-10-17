@@ -1253,6 +1253,7 @@ fun KachatTxDoneSheet(done: KachatTxDone, onDismiss: () -> Unit, vm: KachatLiveV
         // Floats on its height detent, as iOS 26's does, settling onto the edges as it grows.
         var sheetFloat by remember { androidx.compose.runtime.mutableFloatStateOf(1f) }
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = Modifier.iosFloatingSheet(sheetFloat),
             shape = iosFloatingSheetShape(sheetFloat),
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
@@ -1463,6 +1464,7 @@ fun KachatRegistrationPresenter() {
         }
         com.kachat.app.ui.theme.IosSheetColors {
             ModalBottomSheet(
+                scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
                 shape = com.kachat.app.ui.theme.IosSheetShape,
                 tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -1551,6 +1553,7 @@ private fun KachatClaimsListSheet(vm: KachatLiveViewModel, onDismiss: () -> Unit
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -2074,6 +2077,7 @@ fun KachatOfferDetailSheet(state: KachatOfferState, onClose: () -> Unit, vm: Kac
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -2754,6 +2758,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
@@ -3648,6 +3653,7 @@ fun KachatRenewSheet(info: NameInfo, onClose: () -> Unit, vm: KachatLiveViewMode
     com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
         val colors = LocalAppColors.current
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             shape = com.kachat.app.ui.theme.IosSheetShape,
             tonalElevation = com.kachat.app.ui.theme.IosSheetTonalElevation,
             windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,

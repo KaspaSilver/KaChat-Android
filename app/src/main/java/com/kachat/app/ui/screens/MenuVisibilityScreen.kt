@@ -119,6 +119,7 @@ fun CustomizeDockSheet(walletViewModel: WalletViewModel, onDismiss: () -> Unit) 
     // A List in a sheet on iOS: the grouped sheet palette.
     IosSheetColors(grouped = true) {
         ModalBottomSheet(
+            scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             // iOS's .large sheet tops out 10 below the status bar.
             modifier = Modifier.padding(top = 10.dp),
             shape = IosSheetShape,
