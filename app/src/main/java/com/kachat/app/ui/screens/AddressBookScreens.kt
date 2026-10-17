@@ -38,12 +38,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cancel
@@ -57,10 +55,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -155,18 +153,26 @@ fun AddressBookScreen(
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            MainPageHeader(title = stringResource(R.string.ab_address_book), onBack = onBack) {
-                // Import or Export (iOS 87b2a0b), beside +.
-                IconButton(onClick = { showImportExport = true }) {
-                    Icon(
-                        Icons.Default.ImportExport,
-                        contentDescription = stringResource(R.string.ab_import_export_a11y),
-                        tint = KaspaTeal,
-                    )
-                }
-                IconButton(onClick = { showAdd = true }) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.ab_add_address), tint = KaspaTeal)
-                }
+            // iOS's bar, with or without entries: the connection dot, the balance centred (the
+            // inline "Address Book" title gives way to it, so there is no large title) and Import
+            // or Export (iOS 87b2a0b) beside + on one piece of glass, at the iPhone's glyph sizes
+            // (square.and.arrow.up.on.square 24 x 28, plus 18) and spacing.
+            HubSectionTopBar(onBack = onBack) {
+                Spacer(Modifier.width(2.dp))
+                ToolbarIconButton(
+                    Icons.Outlined.IosShare,
+                    stringResource(R.string.ab_import_export_a11y),
+                    onClick = { showImportExport = true },
+                    iconSize = 31.dp,
+                )
+                Spacer(Modifier.width(13.dp))
+                ToolbarIconButton(
+                    Icons.Outlined.Add,
+                    stringResource(R.string.ab_add_address),
+                    onClick = { showAdd = true },
+                    iconSize = 30.dp,
+                )
+                Spacer(Modifier.width(2.dp))
             }
         }
     ) { padding ->
@@ -175,14 +181,7 @@ fun AddressBookScreen(
                 body = stringResource(R.string.ab_empty_body),
                 modifier = Modifier.padding(padding),
             ) {
-                Button(
-                    onClick = { showAdd = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.ab_add_address), fontWeight = FontWeight.SemiBold)
-                }
+                AddressBookProminentButton(stringResource(R.string.ab_add_address), onClick = { showAdd = true })
             }
         } else {
             Column(Modifier.fillMaxSize().padding(padding)) {
@@ -459,7 +458,32 @@ private fun AddressBookSearchField(value: String, onValueChange: (String) -> Uni
     )
 }
 
-/** "No saved addresses", what the book is for, and [action]. */
+/**
+ * iOS's `Label("Add Address", systemImage: "plus")` as a `.borderedProminent` button: 17pt
+ * regular white on the accent, a thin plus 11 before the text, in a 34-high capsule padded 14
+ * before the plus and 12 after the text.
+ */
+@Composable
+private fun AddressBookProminentButton(title: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .heightIn(min = 34.dp)
+            .clip(RoundedCornerShape(50))
+            .background(KaspaTeal)
+            .clickable(onClick = onClick)
+            .padding(start = 9.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Material's plus is 14/24 of its box: 23 draws iOS's 13.5pt glyph.
+        Icon(Icons.Outlined.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(23.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(title, color = Color.White, fontSize = 17.sp, lineHeight = 20.sp, fontWeight = FontWeight.Normal, maxLines = 1)
+    }
+}
+
+/** "No saved addresses", what the book is for, and [action]. [iconSize] is the iOS symbol's font
+ *  size: "book.closed" at 44 is drawn 46 tall, which Material's Book (20/24 of its box) reaches
+ *  at 1.25 times that. */
 @Composable
 private fun AddressBookEmptyState(
     body: String,
@@ -474,7 +498,7 @@ private fun AddressBookEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
     ) {
-        Icon(Icons.Outlined.Book, contentDescription = null, tint = iconTint, modifier = Modifier.size(iconSize))
+        Icon(Icons.Outlined.Book, contentDescription = null, tint = iconTint, modifier = Modifier.size(iconSize * 1.25f))
         Text(stringResource(R.string.no_saved_addresses), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
         Text(body, color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
         action?.invoke()
