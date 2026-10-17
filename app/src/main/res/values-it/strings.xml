@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">Aggiungi un acquisto o una vendita per iniziare a monitorare il tuo portafoglio</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Altre opzioni</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">Conservazione dei messaggi</string>
+    <string name="retention_keep_forever">Conserva per sempre</string>
+    <string name="retention_30_days">30 giorni</string>
+    <string name="retention_90_days">90 giorni</string>
+    <string name="retention_1_year">1 anno</string>
+    <string name="export_chat_history">Esporta cronologia chat</string>
+    <string name="import_chat_history">Importa cronologia chat</string>
+    <string name="export_diagnostics_archive">Esporta archivio diagnostica</string>
+    <string name="wipe_resync_incoming">Cancella e ri-sincronizza messaggi in arrivo</string>
+    <string name="notification_sound_footer">Usato quando un contatto non ha una modalita di notifica personalizzata impostata.</string>
+    <string name="per_contact">Per contatto</string>
+    <string name="per_contact_notification_hint">Imposta la modalita di notifica per contatto nella schermata info di ogni chat: Disattivato, Nessun suono o Suono.</string>
 </resources>

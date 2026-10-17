@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">अपने पोर्टफोलियो को ट्रैक करना शुरू करने के लिए एक खरीद या बिक्री जोड़ें</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">अधिक विकल्प</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">संदेश प्रतिधारण</string>
+    <string name="retention_keep_forever">सदैव रखें</string>
+    <string name="retention_30_days">30 दिन</string>
+    <string name="retention_90_days">90 दिन</string>
+    <string name="retention_1_year">1 वर्ष</string>
+    <string name="export_chat_history">चैट इतिहास निर्यात करें</string>
+    <string name="import_chat_history">चैट इतिहास आयात करें</string>
+    <string name="export_diagnostics_archive">डायग्नोस्टिक्स आर्काइव निर्यात करें</string>
+    <string name="wipe_resync_incoming">आने वाले संदेश मिटाएं और पुनः सिंक करें</string>
+    <string name="notification_sound_footer">जब किसी संपर्क के लिए कोई कस्टम सूचना मोड सेट नहीं होता तब उपयोग होता है।</string>
+    <string name="per_contact">प्रति संपर्क</string>
+    <string name="per_contact_notification_hint">प्रत्येक चैट की जानकारी स्क्रीन में प्रति-संपर्क सूचना मोड सेट करें: Off, No Sound, या Sound।</string>
 </resources>

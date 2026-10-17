@@ -45,6 +45,9 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val showFeeEstimate = settings.showFeeEstimate
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    /** Settings > Chats > Require approval for photos from new contacts (iOS, on by default). */
+    val requirePhotoApprovalForNewContacts = settings.requirePhotoApprovalForNewContacts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val quickReactionEmojis = settings.quickReactionEmojis
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
 
@@ -54,6 +57,7 @@ class SettingsViewModel @Inject constructor(
     fun setNotificationSoundEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationSoundEnabled(value) }
     fun setNotificationVibrationEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationVibrationEnabled(value) }
     fun setShowFeeEstimate(value: Boolean) = viewModelScope.launch { settings.setShowFeeEstimate(value) }
+    fun setRequirePhotoApprovalForNewContacts(value: Boolean) = viewModelScope.launch { settings.setRequirePhotoApprovalForNewContacts(value) }
     fun setQuickReactionEmojis(value: List<String>) = viewModelScope.launch { settings.setQuickReactionEmojis(value) }
 
     // ------------------------------------------------------------------

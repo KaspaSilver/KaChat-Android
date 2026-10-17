@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">ポートフォリオの追跡を開始するには購入または売却を追加してください</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">その他のオプション</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">メッセージの保存</string>
+    <string name="retention_keep_forever">永久保存</string>
+    <string name="retention_30_days">30日</string>
+    <string name="retention_90_days">90日</string>
+    <string name="retention_1_year">1年</string>
+    <string name="export_chat_history">チャット履歴をエクスポート</string>
+    <string name="import_chat_history">チャット履歴をインポート</string>
+    <string name="export_diagnostics_archive">診断アーカイブをエクスポート</string>
+    <string name="wipe_resync_incoming">受信メッセージを消去して再同期</string>
+    <string name="notification_sound_footer">連絡先にカスタム通知モードが設定されていない場合に使用されます。</string>
+    <string name="per_contact">連絡先ごと</string>
+    <string name="per_contact_notification_hint">各チャットの情報画面で連絡先ごとの通知モードを設定: オフ、サウンドなし、またはサウンド。</string>
 </resources>

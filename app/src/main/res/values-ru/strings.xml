@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">Добавьте покупку или продажу, чтобы начать отслеживать портфель</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Больше опций</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">Хранение сообщений</string>
+    <string name="retention_keep_forever">Хранить навсегда</string>
+    <string name="retention_30_days">30 дней</string>
+    <string name="retention_90_days">90 дней</string>
+    <string name="retention_1_year">1 год</string>
+    <string name="export_chat_history">Экспорт истории чатов</string>
+    <string name="import_chat_history">Импорт истории чатов</string>
+    <string name="export_diagnostics_archive">Экспорт архива диагностики</string>
+    <string name="wipe_resync_incoming">Очистить и повторно синхронизировать входящие сообщения</string>
+    <string name="notification_sound_footer">Используется, когда у контакта не установлен свой режим уведомлений.</string>
+    <string name="per_contact">По контактам</string>
+    <string name="per_contact_notification_hint">Установите режим уведомлений для каждого контакта в информации о чате: Выкл, Без звука или Звук.</string>
 </resources>

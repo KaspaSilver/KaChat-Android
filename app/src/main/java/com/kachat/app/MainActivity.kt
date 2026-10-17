@@ -196,9 +196,10 @@ class MainActivity : AppCompatActivity() {
         guarded("call window") { observeCallForLockScreen() }
         setContent {
             val walletViewModel: WalletViewModel = hiltViewModel()
-            val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
+            // Settings > Customization > Appearance: System follows the device, as on iOS.
+            val appearance by walletViewModel.appearance.collectAsState()
             val isLoggedIn by walletViewModel.isLoggedIn.collectAsState()
-            KaChatTheme(darkTheme = darkModeEnabled) {
+            KaChatTheme(darkTheme = appearance.isDark(androidx.compose.foundation.isSystemInDarkTheme())) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

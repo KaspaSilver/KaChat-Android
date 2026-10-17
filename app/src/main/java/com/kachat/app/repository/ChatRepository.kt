@@ -2757,12 +2757,15 @@ class ChatRepository @Inject constructor(
          * `ChatViewModel.addContact`, which defaults manually-added contacts to "active". Since a
          * contact can't send a photo message at all without a completed handshake, this reuses
          * that field instead of duplicating it.
+         *
+         * [requireApproval] is Settings > Chats > "Require approval for photos from new contacts"
+         * (on by default); off, Automatic shows every contact's photos, as on iOS.
          */
-        fun shouldAutoDisplayPhotos(contact: ContactEntity?): Boolean {
+        fun shouldAutoDisplayPhotos(contact: ContactEntity?, requireApproval: Boolean = true): Boolean {
             return when (PhotoAutoDisplayMode.fromName(contact?.photoAutoDisplayOverride)) {
                 PhotoAutoDisplayMode.ALWAYS_SHOW -> true
                 PhotoAutoDisplayMode.ALWAYS_HIDE -> false
-                PhotoAutoDisplayMode.AUTOMATIC -> contact?.conversationStatus == "active"
+                PhotoAutoDisplayMode.AUTOMATIC -> !requireApproval || contact?.conversationStatus == "active"
             }
         }
 

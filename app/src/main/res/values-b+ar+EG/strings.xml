@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">أضف عملية شراء أو بيع لبدء تتبع محفظتك</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">مزيد من الخيارات</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">الاحتفاظ بالرسالة</string>
+    <string name="retention_keep_forever">إبقاء إلى الأبد</string>
+    <string name="retention_30_days">30 يوما</string>
+    <string name="retention_90_days">90 يوما</string>
+    <string name="retention_1_year">1 سنة</string>
+    <string name="export_chat_history">تصدير سجل المحادثات</string>
+    <string name="import_chat_history">استيراد سجل المحادثات</string>
+    <string name="export_diagnostics_archive">تصدير أرشيف التشخيصات</string>
+    <string name="wipe_resync_incoming">مسح وإعادة مزامنة الرسائل الواردة</string>
+    <string name="notification_sound_footer">يُستخدم عندما لا يكون لجهة الاتصال وضع إشعارات مخصص.</string>
+    <string name="per_contact">لكل جهة اتصال</string>
+    <string name="per_contact_notification_hint">عيّن وضع الإشعارات لكل جهة اتصال في شاشة معلومات المحادثة: إيقاف، بدون صوت، أو صوت.</string>
 </resources>

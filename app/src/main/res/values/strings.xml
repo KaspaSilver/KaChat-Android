@@ -1550,4 +1550,42 @@
     <string name="portfolio_no_transactions_sub">Add a buy or sell to start tracking your portfolio</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">More options</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">Message retention</string>
+    <string name="retention_keep_forever">Keep forever</string>
+    <string name="retention_30_days">30 days</string>
+    <string name="retention_90_days">90 days</string>
+    <string name="retention_1_year">1 year</string>
+    <string name="export_chat_history">Export Chat History</string>
+    <string name="import_chat_history">Import Chat History</string>
+    <string name="export_diagnostics_archive">Export Diagnostics Archive</string>
+    <string name="wipe_resync_incoming">Wipe and re-sync incoming messages</string>
+    <string name="notification_sound_footer">Used when a contact has no custom notification mode set.</string>
+    <string name="per_contact">Per Contact</string>
+    <string name="per_contact_notification_hint">Set per-contact notification mode in each chat\'s info screen: Off, No Sound, or Sound.</string>
+    <!-- Settings subpages (iOS wording, English only on iOS too) -->
+    <string name="appearance">Appearance</string>
+    <string name="appearance_system">System</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="storage_local_used">Local storage used: %1$s</string>
+    <string name="storage_on_device_footer">How long messages are kept on this device, and how much space they use. Applies before any cloud storage.</string>
+    <string name="require_photo_approval_new_contacts">Require approval for photos from new contacts</string>
+    <string name="quick_reactions">Quick Reactions</string>
+    <string name="quick_reactions_footer">Tap an emoji to replace it with a different one.</string>
+    <string name="reset_to_default">Reset to Default</string>
+    <string name="notifications_wallet">Wallet</string>
+    <string name="address_activity">Address Activity</string>
+    <string name="address_activity_footer">Notify when any of your spending or cold storage addresses receives Kaspa from an external source. Transfers between your own addresses are ignored.</string>
+    <string name="explorer_footer">Used to build \"view transaction\" links throughout the app.</string>
+    <string name="verbose_api_logging">Verbose API Logging</string>
+    <string name="verbose_api_logging_footer">Logs every indexer request with full connection and timing detail. Leave off for normal use: failed and slow requests are always logged, and heavy logging can cause Android to drop the app\'s log messages.</string>
+    <string name="resync_all_chats">All Chats</string>
+    <string name="resync_all_chats_subtitle">Removes every incoming message locally, then re-syncs them from the blockchain. Sent messages and account info are kept.</string>
+    <string name="resync_select_chats">Select Chats...</string>
+    <string name="resync_select_chats_subtitle">Pick which chats to wipe and re-sync. Everything else is left alone.</string>
+    <string name="resync_cancel_subtitle">Leave your messages as they are.</string>
+    <string name="unlock_change_seed_phrase_lock">Unlock to change the seed phrase biometric lock</string>
+    <string name="unlock_change_account_login_lock">Unlock to change the account login biometric lock</string>
+    <string name="unlock_change_private_key_lock">Unlock to change the private key biometric lock</string>
 </resources>

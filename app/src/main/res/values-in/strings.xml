@@ -1221,4 +1221,17 @@
     <string name="portfolio_no_transactions_sub">Tambahkan pembelian atau penjualan untuk mulai memantau portofolio Anda</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Opsi lainnya</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">Retensi pesan</string>
+    <string name="retention_keep_forever">Simpan selamanya</string>
+    <string name="retention_30_days">30 hari</string>
+    <string name="retention_90_days">90 hari</string>
+    <string name="retention_1_year">1 tahun</string>
+    <string name="export_chat_history">Ekspor Riwayat Obrolan</string>
+    <string name="import_chat_history">Impor Riwayat Obrolan</string>
+    <string name="export_diagnostics_archive">Ekspor Arsip Diagnostik</string>
+    <string name="wipe_resync_incoming">Hapus bersih dan sinkronkan ulang pesan masuk</string>
+    <string name="notification_sound_footer">Digunakan saat kontak tidak memiliki mode pemberitahuan khusus.</string>
+    <string name="per_contact">Per Kontak</string>
+    <string name="per_contact_notification_hint">Atur mode pemberitahuan per kontak di layar info obrolan: Mati, Tanpa Suara, atau Bersuara.</string>
 </resources>

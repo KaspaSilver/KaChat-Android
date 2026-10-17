@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">Thêm một giao dịch mua hoặc bán để bắt đầu theo dõi danh mục đầu tư của bạn</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Thêm tùy chọn</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">Lưu giữ tin nhắn</string>
+    <string name="retention_keep_forever">Giữ mãi mãi</string>
+    <string name="retention_30_days">30 ngày</string>
+    <string name="retention_90_days">90 ngày</string>
+    <string name="retention_1_year">1 năm</string>
+    <string name="export_chat_history">Xuất lịch sử trò chuyện</string>
+    <string name="import_chat_history">Nhập lịch sử trò chuyện</string>
+    <string name="export_diagnostics_archive">Xuất kho lưu trữ chẩn đoán</string>
+    <string name="wipe_resync_incoming">Xóa và đồng bộ lại tin nhắn đến</string>
+    <string name="notification_sound_footer">Được sử dụng khi liên hệ chưa đặt chế độ thông báo tùy chỉnh.</string>
+    <string name="per_contact">Theo liên hệ</string>
+    <string name="per_contact_notification_hint">Đặt chế độ thông báo cho từng liên hệ trong màn hình thông tin trò chuyện: Tắt, Không âm thanh, hoặc Âm thanh.</string>
 </resources>

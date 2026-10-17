@@ -88,51 +88,32 @@ import com.kachat.app.viewmodels.ChatViewModel
  */
 
 /**
- * Device-level message retention (Forever / 30 / 90 days), shown on the Storage hub before any
- * cloud provider is chosen. This governs how long messages live on THIS device — older messages
- * are permanently deleted regardless of whether any backup is connected — so it is intentionally
- * separate from (and not gated by) Nextcloud.
+ * Device-level message retention, iOS's "Message retention" menu Picker on the Storage hub
+ * (Keep forever / 30 days / 90 days / 1 year). This governs how long messages live on THIS device
+ * — older messages are permanently deleted regardless of whether any backup is connected — so it
+ * is intentionally separate from (and not gated by) Nextcloud.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessageRetentionSetting(chatViewModel: ChatViewModel) {
     val backupRetention by chatViewModel.backupRetention.collectAsState()
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(stringResource(R.string.retention), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(8.dp))
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            val options = listOf(
-                Triple("Forever", BackupRetention.FOREVER, 0),
-                Triple("30 Days", BackupRetention.DAYS_30, 1),
-                Triple("90 Days", BackupRetention.DAYS_90, 2)
-            )
-            options.forEach { (label, value, index) ->
-                SegmentedButton(
-                    selected = backupRetention == value,
-                    onClick = { chatViewModel.setBackupRetention(value) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = LocalAppColors.current.surfaceVariant,
-                        activeContentColor = LocalAppColors.current.textPrimary,
-                        inactiveContainerColor = LocalAppColors.current.surface,
-                        inactiveContentColor = LocalAppColors.current.textSecondary
-                    )
-                ) {
-                    Text(label, fontSize = 12.sp)
-                }
+    SettingsPickerItem(
+        label = stringResource(R.string.message_retention),
+        options = BackupRetention.entries,
+        selected = backupRetention,
+        optionLabel = {
+            when (it) {
+                BackupRetention.FOREVER -> stringResource(R.string.retention_keep_forever)
+                BackupRetention.DAYS_30 -> stringResource(R.string.retention_30_days)
+                BackupRetention.DAYS_90 -> stringResource(R.string.retention_90_days)
+                BackupRetention.YEAR_1 -> stringResource(R.string.retention_1_year)
             }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = if (backupRetention == BackupRetention.FOREVER) {
-                "Chat history is kept forever on this device."
-            } else {
-                "Messages older than ${backupRetention.days} days are permanently deleted from this device. This cannot be undone."
-            },
-            color = if (backupRetention == BackupRetention.FOREVER) LocalAppColors.current.textSecondary else LocalAppColors.current.danger,
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
+        },
+        onSelect = {
+            chatViewModel.setBackupRetention(it)
+            // iOS re-measures the store when the choice changes.
+            chatViewModel.refreshLocalStorageSize()
+        },
+    )
 }
 
 /**
@@ -330,14 +311,8 @@ private fun StoragePageScaffold(
 ) {
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(title, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
-                // iOS 26: the back chevron on a glass disc, 16 in.
-                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
+        // iOS's inline bar: the back chevron on a glass disc, 16 in, the title centred.
+        topBar = { SettingsSubpageBar(title = title, onBack = onBack) }
     ) { padding ->
         Column(
             modifier = Modifier

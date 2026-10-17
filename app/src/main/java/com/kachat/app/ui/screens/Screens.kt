@@ -80,6 +80,10 @@ import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.compositeOver
@@ -221,6 +225,8 @@ fun ChatThreadScreen(
     startInPaymentMode: Boolean = false
 ) {
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
+    // Settings > Chats > Require approval for photos from new contacts (iOS).
+    val requirePhotoApproval by settingsViewModel.requirePhotoApprovalForNewContacts.collectAsState()
     val conversations by chatViewModel.conversations.collectAsState()
     val conversation = conversations.find { it.contact.id == contactId }
     // Message Requests (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401): someone else started this chat
@@ -1675,7 +1681,8 @@ fun ChatThreadScreen(
                                 },
                                 onSavePhoto = savePhotoIfPermitted,
                                 photosBlocked = !com.kachat.app.repository.ChatRepository.shouldAutoDisplayPhotos(
-                                    conversation?.contact
+                                    conversation?.contact,
+                                    requireApproval = requirePhotoApproval,
                                 ),
                                 isPhotoRevealed = msg.id in revealedPhotoTxIds,
                                 onRevealPhoto = { chatViewModel.revealPhoto(msg.id) },
@@ -8959,9 +8966,6 @@ fun SettingsScreen(
 ) {
     val balance by walletViewModel.fullBalance.collectAsState()
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
-    val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
-    val showSetupGuides by walletViewModel.showSetupGuides.collectAsState()
-    val currencyCode by walletViewModel.currency.collectAsState()
     val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
     val notificationsEnabled by settingsViewModel.notificationsEnabled.collectAsState()
     // The switch is only true when Android agrees: a stored "on" with the OS permission revoked
@@ -9021,6 +9025,15 @@ fun SettingsScreen(
         containerColor = LocalAppColors.current.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            if (sectionKey != null) {
+                // A category page is pushed inside the sheet's navigation stack: iOS's inline bar
+                // with the back chevron on the left and the page's title in the middle - no
+                // connection dot, no balance.
+                SettingsSubpageBar(
+                    title = settingsSectionTitle(sectionKey),
+                    onBack = { navController.popBackStack() },
+                )
+            } else {
             // iOS's Settings sheet toolbar: the connection dot and Done in glass, the balance
             // between them - no title.
             Row(
@@ -9043,11 +9056,8 @@ fun SettingsScreen(
                     Box(Modifier.size(12.dp).background(Color(dotColorHex), CircleShape))
                 }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BalanceLabelRow(balance, copyOnTap = true) }
-                if (sectionKey == null) {
-                    SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() })
-                } else {
-                    SheetBarBackButton(onClick = { navController.popBackStack() })
-                }
+                SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() })
+            }
             }
         }
     ) { padding ->
@@ -9057,8 +9067,12 @@ fun SettingsScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            // The hub keeps its own measured spacing; a category page is an iOS Form, its
+            // sections spaced by SettingsFormSection.
+            verticalArrangement = if (sectionKey == null) Arrangement.spacedBy(24.dp) else Arrangement.Top
         ) {
+            // A Form's first header sits 4 under the inline bar.
+            if (sectionKey != null) Spacer(Modifier.height(4.dp))
             if (sectionKey == null) {
                 // Flat hub list (matches iOS): no section titles - just the categories, the
                 // seed-phrase action, and Danger Zone in one card - its top 122 below the
@@ -9107,42 +9121,41 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "customization") {
-            SettingsSection(title = stringResource(R.string.customization)) {
-                SettingsSwitchItem(stringResource(R.string.dark_mode), darkModeEnabled) { enabled ->
-                    walletViewModel.setDarkModeEnabled(enabled)
+                // iOS customizationPage: one section - the three pickers, Customize Dock, Show Fee
+                // Estimate.
+                SettingsFormSection(title = stringResource(R.string.customization)) {
+                    // Appearance / Language / Currency are shared with the accounts screen's App
+                    // Settings (iOS AppWideCustomizationPickers); the dock and the fee estimate
+                    // belong to this account's Settings only.
+                    AppWideCustomizationPickers(walletViewModel)
+                    SettingsDivider()
+                    // The sheet above the dock (MainShell), never a page in here: the dock updates
+                    // live as it is arranged (iOS 476ea20). iOS draws this Label in the primary
+                    // colour, its symbol included.
+                    SettingsNavigationItem(
+                        stringResource(R.string.menu),
+                        Icons.AutoMirrored.Filled.FormatListBulleted,
+                        iconTint = LocalAppColors.current.textPrimary,
+                        onClick = { CustomizeDock.open() },
+                    )
+                    SettingsDivider(inset = IosRowTextInset)
+                    // Moved here from Chats: it decides whether a number is drawn on the composer,
+                    // which is a display preference, not a chat behaviour.
+                    SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
+                        settingsViewModel.setShowFeeEstimate(enabled)
+                    }
                 }
-                SettingsDivider()
-                // The sheet above the dock (MainShell), never a page in here: the dock updates live
-                // as it is arranged (iOS 476ea20).
-                SettingsNavigationItem(stringResource(R.string.menu), Icons.Default.Apps, onClick = {
-                    CustomizeDock.open()
-                })
-                SettingsDivider()
-                SettingsNavigationItem(stringResource(R.string.language), Icons.Default.Translate, onClick = {
-                    navController.navigate("language_settings")
-                })
-                SettingsDivider()
-                SettingsNavigationItem(stringResource(R.string.currency), Icons.Default.AttachMoney, currencyCode.uppercase(), onClick = {
-                    navController.navigate("currency_settings")
-                })
-                SettingsDivider()
-                // Moved here from Chats: it decides whether a number is drawn on the composer,
-                // which is a display preference, not a chat behaviour.
-                SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
-                    settingsViewModel.setShowFeeEstimate(enabled)
-                }
-            }
             }
 
             if (sectionKey == "security") {
-            SettingsSection(title = stringResource(R.string.security)) {
-                // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt) -
-                // every row is app-wide, so both entry points render the exact same items.
-                SecuritySettingsItems(
-                    walletViewModel = walletViewModel,
-                    onNavigateToChildMode = { navController.navigate("child_mode_settings") }
-                )
-            }
+                SettingsFormSection(title = stringResource(R.string.security)) {
+                    // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt) -
+                    // every row is app-wide, so both entry points render the exact same items.
+                    SecuritySettingsItems(
+                        walletViewModel = walletViewModel,
+                        onNavigateToChildMode = { navController.navigate("child_mode_settings") }
+                    )
+                }
             }
 
             if (sectionKey == "connection") {
@@ -9154,164 +9167,219 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "notifications") {
-            // The master switch, at the top of the section it governs. It used to live inside
-            // Chats, which read as a chats-only setting - it is not: push carries wallet
-            // activity, group mentions, broadcasts and KaPosts too, so it belongs above the
-            // per-feature pages rather than inside one of them.
-            SettingsSection(title = stringResource(R.string.push_notifications)) {
-                SettingsSwitchItem(
-                    stringResource(R.string.push_notifications),
-                    notificationsEnabled && notificationPermissionGranted,
-                ) { enabled ->
-                    if (enabled && !notificationPermissionGranted) {
-                        requestNotificationPermission()
-                    } else {
-                        settingsViewModel.setNotificationsEnabled(enabled)
-                    }
-                }
-                SettingsFooter(
-                    if (notificationsEnabled && notificationPermissionGranted) {
+                // The master switch, at the top of the page it governs (iOS NotificationsHubPage):
+                // push carries wallet activity, group mentions, broadcasts and KaPosts too, so it
+                // sits above the per-feature pages rather than inside one of them. No header, as
+                // on iOS; the footer says what it does.
+                SettingsFormSection(
+                    title = null,
+                    footer = if (notificationsEnabled && notificationPermissionGranted) {
                         "Everything you have switched on below can reach you, even when the app is closed. Turning this off silences all of it."
                     } else if (!notificationPermissionGranted) {
+                        // Android only: the OS permission is a separate switch here.
                         "Android has notifications switched off for KaChat. Turning this on will ask for permission."
                     } else {
                         "Turn this on to receive anything you have switched on below, even when the app is closed."
+                    },
+                ) {
+                    SettingsSwitchItem(
+                        stringResource(R.string.push_notifications),
+                        notificationsEnabled && notificationPermissionGranted,
+                    ) { enabled ->
+                        if (enabled && !notificationPermissionGranted) {
+                            requestNotificationPermission()
+                        } else {
+                            settingsViewModel.setNotificationsEnabled(enabled)
+                        }
                     }
-                )
-            }
+                }
 
-            // Notifications hub (matches iOS's NotificationsHubPage): three subpages.
-            SettingsSection(title = stringResource(R.string.notifications)) {
-                SettingsNavigationItem(stringResource(R.string.chats), Icons.Default.Forum, onClick = {
-                    navController.navigate("notification_settings")
-                })
-                SettingsDivider()
-                SettingsNavigationItem("Wallet", Icons.Default.AccountBalanceWallet, onClick = {
-                    navController.navigate("wallet_notification_settings")
-                })
-            }
+                // One page per feature, in iOS's order and symbols (bubbles, banknote).
+                SettingsFormSection(title = stringResource(R.string.notifications)) {
+                    SettingsNavigationItem(stringResource(R.string.chats), Icons.Outlined.Forum, onClick = {
+                        navController.navigate("notification_settings")
+                    })
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsNavigationItem(stringResource(R.string.notifications_wallet), Icons.Outlined.Payments, onClick = {
+                        navController.navigate("wallet_notification_settings")
+                    })
+                }
             }
 
             if (sectionKey == "chats") {
-            SettingsSection(title = stringResource(R.string.chats)) {
-                val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
-                SettingsNavigationItem(
-                    "Quick Reactions",
-                    Icons.Default.EmojiEmotions,
-                    quickReactionEmojis.joinToString(""),
-                    onClick = { navController.navigate("quick_reaction_settings") }
-                )
-            }
-            }
-
-            if (sectionKey == "storage") {
-            // Storage hub (matches iOS's Settings > Storage): the Nextcloud row pushes its own
-            // page (see StorageScreens.kt). On-device usage has no settings of its own, so it
-            // stays inline here as a readout rather than a row leading to a page with a single
-            // read-only line. Cross-platform sync is Nextcloud only.
-            // On-device settings first (message retention + local usage), matching iOS's Storage
-            // screen, before the cloud-provider rows below.
-            SettingsSection(title = stringResource(R.string.on_this_device)) {
-                val localStorageSizeBytes by chatViewModel.localStorageSizeBytes.collectAsState()
-                LaunchedEffect(Unit) { chatViewModel.refreshLocalStorageSize() }
-                MessageRetentionSetting(chatViewModel)
-                SettingsDivider()
-                SettingsInfoItem(
-                    label = stringResource(R.string.local_storage_used),
-                    value = localStorageSizeBytes?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
-                        ?: "Calculating..."
-                )
-            }
-
-            // Your own data, not cache: photos you assigned in the Address Book (iOS cda0d99). Kept
-            // apart from Cache, whose "clear" must never delete anything you'd miss.
-            run {
-                val addressBook = com.kachat.app.services.AddressBookManager.shared
-                var addressBookPhotoBytes by remember { mutableStateOf<Long?>(null) }
-                var confirmRemoveAddressBookPhotos by remember { mutableStateOf(false) }
-                val photoVersion = addressBook?.photoVersion ?: 0
-                LaunchedEffect(photoVersion) {
-                    addressBookPhotoBytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        addressBook?.photosBytesOnDevice() ?: 0L
+                SettingsFormSection(title = stringResource(R.string.chats)) {
+                    val requirePhotoApproval by settingsViewModel.requirePhotoApprovalForNewContacts.collectAsState()
+                    val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
+                    // iOS: photos from someone you never added or wrote to stay behind "Show Photo"
+                    // until you choose otherwise in their Chat Info. Off shows every photo.
+                    SettingsSwitchItem(stringResource(R.string.require_photo_approval_new_contacts), requirePhotoApproval) { enabled ->
+                        settingsViewModel.setRequirePhotoApprovalForNewContacts(enabled)
                     }
-                }
-                SettingsSection(title = null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 52.dp)
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Outlined.Book, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(stringResource(R.string.ab_photos_title), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                        val bytes = addressBookPhotoBytes
-                        if (bytes != null) {
-                            Text(android.text.format.Formatter.formatShortFileSize(context, bytes), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyLarge)
-                        } else {
-                            com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(16.dp), color = LocalAppColors.current.textSecondary, strokeWidth = 2.dp)
-                        }
-                    }
-                    if ((addressBookPhotoBytes ?: 0L) > 0L) {
-                        SettingsDivider()
-                        Text(
-                            stringResource(R.string.ab_photos_remove),
-                            color = LocalAppColors.current.danger,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { confirmRemoveAddressBookPhotos = true }
-                                .heightIn(min = 52.dp)
-                                .padding(horizontal = 16.dp, vertical = 14.dp)
-                        )
-                    }
-                }
-                SettingsFooter(stringResource(R.string.ab_photos_footer))
-                if (confirmRemoveAddressBookPhotos) {
-                    ConfirmActionSheet(
-                        title = stringResource(R.string.ab_photos_remove_question),
-                        confirmTitle = stringResource(R.string.remove),
-                        confirmSubtitle = stringResource(
-                            R.string.ab_photos_frees,
-                            android.text.format.Formatter.formatShortFileSize(context, addressBookPhotoBytes ?: 0L)
-                        ),
-                        confirmIcon = Icons.Default.Delete,
-                        onConfirm = { addressBook?.removeAllPhotos() },
-                        onDismiss = { confirmRemoveAddressBookPhotos = false },
+                    SettingsDivider()
+                    // The emojis in iOS's caption, in the label colour.
+                    SettingsNavigationItem(
+                        stringResource(R.string.quick_reactions),
+                        Icons.Outlined.EmojiEmotions,
+                        quickReactionEmojis.joinToString(""),
+                        valueFontSize = 12.sp,
+                        valueColor = LocalAppColors.current.textPrimary,
+                        onClick = { navController.navigate("quick_reaction_settings") }
                     )
                 }
             }
 
-            // Kept apart from the rest of Storage on purpose: message retention and cloud sync
-            // decide what happens to things you would miss, and this decides what happens to
-            // things you would not.
-            SettingsSection(title = null) {
-                SettingsNavigationItem("Cache", Icons.Default.DeleteSweep, onClick = {
-                    navController.navigate("cache_settings")
-                })
-            }
-            SettingsFooter("Images and files the app can always download again. Clearing them frees space and loses nothing.")
+            if (sectionKey == "storage") {
+                // Storage hub (iOS storagePage): on-device settings first, then Address Book
+                // Photos, Cache and the one cloud provider - each section with iOS's footer.
+                val localStorageSizeBytes by chatViewModel.localStorageSizeBytes.collectAsState()
+                LaunchedEffect(Unit) { chatViewModel.refreshLocalStorageSize() }
+                SettingsFormSection(
+                    title = stringResource(R.string.on_this_device),
+                    footer = stringResource(R.string.storage_on_device_footer),
+                ) {
+                    MessageRetentionSetting(chatViewModel)
+                    SettingsDivider()
+                    // iOS: a footnote line in the card, not a label/value row.
+                    Text(
+                        stringResource(
+                            R.string.storage_local_used,
+                            localStorageSizeBytes?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
+                                ?: "Calculating..."
+                        ),
+                        color = LocalAppColors.current.textSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 44.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
 
-            SettingsSection(title = stringResource(R.string.cloud_storage)) {
-                SettingsNavigationItem(stringResource(R.string.nextcloud), Icons.Default.Cloud, onClick = {
-                    navController.navigate("storage_nextcloud")
-                })
-            }
-            SettingsFooter("Your own Nextcloud server is the only place messages sync to. Nothing is stored with Google or Apple.")
+                // Your own data, not cache: photos you assigned in the Address Book (iOS cda0d99).
+                // Kept apart from Cache, whose "clear" must never delete anything you'd miss.
+                run {
+                    val addressBook = com.kachat.app.services.AddressBookManager.shared
+                    var addressBookPhotoBytes by remember { mutableStateOf<Long?>(null) }
+                    var confirmRemoveAddressBookPhotos by remember { mutableStateOf(false) }
+                    val photoVersion = addressBook?.photoVersion ?: 0
+                    LaunchedEffect(photoVersion) {
+                        addressBookPhotoBytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            addressBook?.photosBytesOnDevice() ?: 0L
+                        }
+                    }
+                    SettingsFormSection(title = null, footer = stringResource(R.string.ab_photos_footer)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 52.dp)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.Book, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(stringResource(R.string.ab_photos_title), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            val bytes = addressBookPhotoBytes
+                            if (bytes != null) {
+                                Text(
+                                    android.text.format.Formatter.formatShortFileSize(context, bytes),
+                                    color = LocalAppColors.current.textSecondary,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum")
+                                )
+                            } else {
+                                com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(16.dp), color = LocalAppColors.current.textSecondary, strokeWidth = 2.dp)
+                            }
+                        }
+                        if ((addressBookPhotoBytes ?: 0L) > 0L) {
+                            SettingsDivider(inset = IosRowTextInset)
+                            Text(
+                                stringResource(R.string.ab_photos_remove),
+                                color = LocalAppColors.current.danger,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { confirmRemoveAddressBookPhotos = true }
+                                    .heightIn(min = 52.dp)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                            )
+                        }
+                    }
+                    if (confirmRemoveAddressBookPhotos) {
+                        ConfirmActionSheet(
+                            title = stringResource(R.string.ab_photos_remove_question),
+                            confirmTitle = stringResource(R.string.remove),
+                            confirmSubtitle = stringResource(
+                                R.string.ab_photos_frees,
+                                android.text.format.Formatter.formatShortFileSize(context, addressBookPhotoBytes ?: 0L)
+                            ),
+                            confirmIcon = Icons.Default.Delete,
+                            onConfirm = { addressBook?.removeAllPhotos() },
+                            onDismiss = { confirmRemoveAddressBookPhotos = false },
+                        )
+                    }
+                }
+
+                // Kept apart from the rest of Storage on purpose: message retention and cloud sync
+                // decide what happens to things you would miss, and this decides what happens to
+                // things you would not.
+                SettingsFormSection(
+                    title = null,
+                    footer = "Images and files the app can always download again. Clearing them frees space and loses nothing.",
+                ) {
+                    SettingsNavigationItem("Cache", Icons.Outlined.Delete, onClick = {
+                        navController.navigate("cache_settings")
+                    })
+                }
+
+                SettingsFormSection(
+                    title = stringResource(R.string.cloud_storage),
+                    footer = "Your own Nextcloud server is the only place messages sync to. Nothing is stored with Google or Apple.",
+                ) {
+                    SettingsNavigationItem(stringResource(R.string.nextcloud), Icons.Default.Cloud, onClick = {
+                        navController.navigate("storage_nextcloud")
+                    })
+                }
             }
 
             if (sectionKey == "chat_history") {
-            SettingsSection(title = stringResource(R.string.chat_history)) {
                 val exportInFlight = exportChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
                 val importInFlight = importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-
-                SettingsActionItem(
-                    label = if (exportInFlight) "Exporting..." else "Export Chat History",
-                    icon = Icons.Default.FileUpload,
-                    color = if (exportInFlight) LocalAppColors.current.textSecondary else KaspaTeal
-                ) {
-                    if (!exportInFlight) {
+                // iOS reports these as toasts (the import's result in its modal), not as lines
+                // under the rows. Only results of a run started on this page are reported.
+                var exportArmed by remember { mutableStateOf(false) }
+                var importArmed by remember { mutableStateOf(false) }
+                LaunchedEffect(exportChatHistoryState.status) {
+                    when (exportChatHistoryState.status) {
+                        ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS -> exportArmed = true
+                        ChatViewModel.ChatHistoryOpStatus.FAILED -> if (exportArmed) {
+                            exportArmed = false
+                            IosToasts.error(exportChatHistoryState.message ?: "Export failed")
+                        }
+                        else -> exportArmed = false
+                    }
+                }
+                LaunchedEffect(importChatHistoryState.status) {
+                    when (importChatHistoryState.status) {
+                        ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS -> importArmed = true
+                        ChatViewModel.ChatHistoryOpStatus.SUCCESS -> if (importArmed) {
+                            importArmed = false
+                            IosToasts.show(importChatHistoryState.message ?: "Import complete")
+                        }
+                        ChatViewModel.ChatHistoryOpStatus.FAILED -> if (importArmed) {
+                            importArmed = false
+                            IosToasts.error(importChatHistoryState.message ?: "Import failed")
+                        }
+                        else -> importArmed = false
+                    }
+                }
+                // iOS chatHistoryPage: two buttons, a spinner at the end of the one running, both
+                // disabled while either runs. No footer.
+                SettingsFormSection(title = stringResource(R.string.chat_history)) {
+                    SettingsBusyActionItem(
+                        label = stringResource(R.string.export_chat_history),
+                        icon = Icons.Default.IosShare,
+                        busy = exportInFlight,
+                        enabled = !exportInFlight && !importInFlight,
+                    ) {
                         chatViewModel.exportChatHistory { uri ->
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "application/json"
@@ -9321,56 +9389,24 @@ fun SettingsScreen(
                             context.startActivity(Intent.createChooser(intent, "Export Chat History"))
                         }
                     }
-                }
-                if (exportChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                    Text(
-                        exportChatHistoryState.message ?: "Export failed",
-                        color = LocalAppColors.current.danger,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-
-                SettingsDivider()
-
-                SettingsActionItem(
-                    label = if (importInFlight) "Importing..." else "Import Chat History",
-                    icon = Icons.Default.FileDownload,
-                    color = if (importInFlight) LocalAppColors.current.textSecondary else KaspaTeal
-                ) {
-                    if (!importInFlight) {
+                    SettingsDivider(inset = IosRowTextInset)
+                    SettingsBusyActionItem(
+                        label = stringResource(R.string.import_chat_history),
+                        icon = Icons.Default.FileDownload,
+                        busy = importInFlight,
+                        enabled = !exportInFlight && !importInFlight,
+                    ) {
                         importChatHistoryLauncher.launch(arrayOf("application/json"))
                     }
                 }
-                if (importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.SUCCESS) {
-                    Text(
-                        importChatHistoryState.message ?: "Import complete",
-                        color = LocalAppColors.current.success,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-                if (importChatHistoryState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-                    Text(
-                        importChatHistoryState.message ?: "Import failed",
-                        color = LocalAppColors.current.danger,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                }
-                SettingsFooter(stringResource(R.string.exports_a_plaintext_json_file_of))
-            }
             }
 
             if (sectionKey == "diagnostics") {
-            SettingsSection(title = stringResource(R.string.diagnostics)) {
                 // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt).
-                DiagnosticsSettingsItems(chatViewModel = chatViewModel)
-            }
+                DiagnosticsSettingsSections(chatViewModel = chatViewModel)
             }
 
             if (sectionKey == "danger_zone") {
-            SettingsSection(title = stringResource(R.string.danger_zone)) {
                 val resyncPhase by chatViewModel.restoreCoordinator.phase.collectAsState()
                 var showResyncScopeDialog by remember { mutableStateOf(false) }
 
@@ -9379,12 +9415,15 @@ fun SettingsScreen(
                 // Runs through the BackupRestoreCoordinator: scope chooser first (All Chats or a
                 // multi-select of conversations), then the same un-leavable progress modal as a
                 // backup restore. See the overlays after this Scaffold.
-                SettingsActionItem(
-                    label = "Wipe and Re-sync Incoming Messages",
-                    icon = Icons.Default.Cached,
-                    color = if (resyncInFlight) LocalAppColors.current.textSecondary else Color.Red
-                ) {
-                    if (!resyncInFlight) showResyncScopeDialog = true
+                SettingsFormSection(title = stringResource(R.string.danger_zone)) {
+                    SettingsActionItem(
+                        label = stringResource(R.string.wipe_resync_incoming),
+                        icon = Icons.Default.Sync,
+                        // iOS's disabled button: still red, dimmed.
+                        color = if (resyncInFlight) LocalAppColors.current.danger.copy(alpha = 0.4f) else LocalAppColors.current.danger
+                    ) {
+                        if (!resyncInFlight) showResyncScopeDialog = true
+                    }
                 }
 
                 // Half sheets, like every other chooser in the app - and a destructive action is
@@ -9394,14 +9433,14 @@ fun SettingsScreen(
                     // Three outcomes rather than a yes/no, so this builds its own rows instead of
                     // reusing ConfirmActionSheet.
                     ActionSheetContainer(
-                        title = "Wipe and Re-sync Incoming Messages",
+                        title = stringResource(R.string.wipe_resync_incoming),
                         subtitle = null,
                         onDismiss = { showResyncScopeDialog = false },
                     ) {
                         ActionSheetRow(
-                            icon = Icons.Default.Cached,
-                            title = "All Chats",
-                            subtitle = "Removes every incoming message from this device, then re-syncs them from the blockchain. Sent messages and account info are kept.",
+                            icon = Icons.Default.Sync,
+                            title = stringResource(R.string.resync_all_chats),
+                            subtitle = stringResource(R.string.resync_all_chats_subtitle),
                             tint = LocalAppColors.current.danger,
                         ) {
                             showResyncScopeDialog = false
@@ -9409,8 +9448,8 @@ fun SettingsScreen(
                         }
                         ActionSheetRow(
                             icon = Icons.Default.Checklist,
-                            title = "Select Chats",
-                            subtitle = "Pick which chats to wipe and re-sync. Everything else is left alone.",
+                            title = stringResource(R.string.resync_select_chats),
+                            subtitle = stringResource(R.string.resync_select_chats_subtitle),
                         ) {
                             showResyncScopeDialog = false
                             showResyncChatPicker = true
@@ -9418,11 +9457,10 @@ fun SettingsScreen(
                         ActionSheetRow(
                             icon = Icons.Default.Close,
                             title = stringResource(R.string.cancel),
-                            subtitle = "Leave your messages as they are.",
+                            subtitle = stringResource(R.string.resync_cancel_subtitle),
                         ) { showResyncScopeDialog = false }
                     }
                 }
-            }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -9445,6 +9483,50 @@ fun SettingsScreen(
         }
         ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
     }
+    }
+}
+
+/** A Settings category page's inline title - iOS's `.navigationTitle` of each page. */
+@Composable
+private fun settingsSectionTitle(sectionKey: String): String = when (sectionKey) {
+    "customization" -> stringResource(R.string.customization)
+    "security" -> stringResource(R.string.security)
+    "connection" -> stringResource(R.string.connection)
+    "notifications" -> stringResource(R.string.notifications)
+    "chats" -> stringResource(R.string.chats)
+    "storage" -> stringResource(R.string.storage)
+    "chat_history" -> stringResource(R.string.chat_history)
+    "diagnostics" -> stringResource(R.string.diagnostics)
+    "danger_zone" -> stringResource(R.string.danger_zone)
+    else -> ""
+}
+
+/**
+ * A Form button row with a leading symbol, both in [color] (iOS tints a Button's Label), and while
+ * [busy] the activity indicator at the trailing edge. Disabled, it greys out as iOS's does.
+ */
+@Composable
+private fun SettingsBusyActionItem(
+    label: String,
+    icon: ImageVector,
+    busy: Boolean,
+    enabled: Boolean,
+    color: Color = KaspaTeal,
+    onClick: () -> Unit,
+) {
+    val tint = if (enabled) color else LocalAppColors.current.textSecondary.copy(alpha = 0.6f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(text = label, color = tint, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        if (busy) com.kachat.app.ui.theme.IosActivityIndicator(Modifier.size(20.dp))
     }
 }
 
@@ -9596,6 +9678,206 @@ fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = nu
             content()
         }
     }
+}
+
+/** iOS Form spacing, measured on the iPhone: 28 from a card to the next section's header, 15
+ *  from a footer to it. */
+val IosFormSectionGap = 28.dp
+val IosFormFooterGap = 15.dp
+
+/**
+ * One section of an iOS Form page: [SettingsSection] (header, card), the [footer] under the card
+ * rather than in it, and the gap to the next section ([IosFormSectionGap], or [IosFormFooterGap]
+ * after a footer). Lay these out in a plain Column (no spacedBy) - see [SettingsFormPage].
+ */
+@Composable
+fun SettingsFormSection(
+    title: String?,
+    footer: String? = null,
+    /** A footer that reports an outcome (iOS colours an error red, a success green). */
+    footerColor: Color = Color.Unspecified,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        SettingsSection(title = title, content = content)
+        if (footer != null) {
+            SettingsFormFooter(footer, color = footerColor)
+            Spacer(Modifier.height(IosFormFooterGap))
+        } else {
+            Spacer(Modifier.height(IosFormSectionGap))
+        }
+    }
+}
+
+/** An iOS section footer under its card: 13pt secondary, 16 in, 7 below the card. */
+@Composable
+fun SettingsFormFooter(text: String, color: Color = Color.Unspecified) {
+    Text(
+        text = text,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        color = if (color != Color.Unspecified) color else LocalAppColors.current.textSecondary,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 7.dp)
+    )
+}
+
+/**
+ * A pushed settings page's bar, iOS's inline navigation bar: the back chevron on a glass disc at
+ * the left, [title] centred in headline (17 semibold), and the page's own [trailing] items.
+ * No connection dot and no balance - those are the Settings hub's alone.
+ */
+@Composable
+fun SettingsSubpageBar(
+    title: String,
+    onBack: () -> Unit,
+    trailing: @Composable RowScope.() -> Unit = {},
+) {
+    SheetNavBar(
+        title = title,
+        // Inside the Settings sheet the status bar is already consumed; on a full-screen page
+        // (the accounts screen's App Settings) this keeps the bar below it.
+        modifier = Modifier.background(LocalAppColors.current.background).statusBarsPadding(),
+        leading = { SheetBarBackButton(onClick = onBack) },
+        trailing = trailing,
+    )
+}
+
+/**
+ * A pushed settings page laid out as iOS's inset-grouped Form: [SettingsSubpageBar], then a
+ * scrolling column of [SettingsFormSection]s 16 in from the edges, the first header 4 under the bar.
+ */
+@Composable
+fun SettingsFormPage(
+    title: String,
+    onBack: () -> Unit,
+    trailing: @Composable RowScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = { SettingsSubpageBar(title = title, onBack = onBack, trailing = trailing) }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(Modifier.height(4.dp))
+            content()
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * iOS's inline Picker row (`.pickerStyle(.menu)` in a Form): [label] at the left, the selected
+ * option in the accent colour with the menu's up/down chevrons at the right. A tap opens a small
+ * menu of [options], a checkmark on the selected one.
+ */
+@Composable
+fun <T> SettingsPickerItem(
+    label: String,
+    options: List<T>,
+    selected: T,
+    optionLabel: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true }
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            color = LocalAppColors.current.textPrimary,
+            fontSize = 17.sp,
+            maxLines = 1,
+        )
+        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.weight(1f))
+        Box {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    optionLabel(selected),
+                    color = KaspaTeal,
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.UnfoldMore, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(optionLabel(option)) },
+                        leadingIcon = {
+                            if (option == selected) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
+                            } else {
+                                Spacer(Modifier.size(20.dp))
+                            }
+                        },
+                        onClick = {
+                            expanded = false
+                            if (option != selected) onSelect(option)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * iOS's `AppWideCustomizationPickers`: Appearance, Language and Currency as menu Pickers, shared by
+ * Settings > Customization and the accounts screen's App Settings (one source of truth).
+ */
+@Composable
+fun AppWideCustomizationPickers(walletViewModel: WalletViewModel) {
+    val appearance by walletViewModel.appearance.collectAsState()
+    val currencyCode by walletViewModel.currency.collectAsState()
+    var language by remember { mutableStateOf(currentAppLanguage()) }
+
+    SettingsPickerItem(
+        label = stringResource(R.string.appearance),
+        options = com.kachat.app.models.AppAppearance.entries,
+        selected = appearance,
+        optionLabel = {
+            when (it) {
+                com.kachat.app.models.AppAppearance.SYSTEM -> stringResource(R.string.appearance_system)
+                com.kachat.app.models.AppAppearance.LIGHT -> stringResource(R.string.appearance_light)
+                com.kachat.app.models.AppAppearance.DARK -> stringResource(R.string.appearance_dark)
+            }
+        },
+        onSelect = { walletViewModel.setAppearance(it) },
+    )
+    SettingsDivider()
+    SettingsPickerItem(
+        label = stringResource(R.string.language),
+        options = AppLanguage.entries,
+        selected = language,
+        optionLabel = { if (it == AppLanguage.SYSTEM) stringResource(R.string.appearance_system) else it.displayName },
+        onSelect = {
+            language = it
+            applyAppLanguage(it)
+        },
+    )
+    SettingsDivider()
+    SettingsPickerItem(
+        label = stringResource(R.string.currency),
+        options = AppCurrency.entries,
+        selected = AppCurrency.fromCode(currencyCode),
+        optionLabel = { it.displayName },
+        onSelect = { walletViewModel.setCurrency(it.code) },
+    )
 }
 
 /**
@@ -9813,7 +10095,18 @@ fun SettingsSwitchItem(label: String, checked: Boolean, onCheckedChange: (Boolea
 }
 
 @Composable
-fun SettingsNavigationItem(label: String, icon: ImageVector?, value: String = "", showIcon: Boolean = true, onClick: () -> Unit = {}) {
+fun SettingsNavigationItem(
+    label: String,
+    icon: ImageVector?,
+    value: String = "",
+    showIcon: Boolean = true,
+    /** iOS tints a row's symbol with the accent; a Label given `.primary` draws it white. */
+    iconTint: Color = KaspaTeal,
+    /** iOS writes a link row's trailing value in `.caption` (12): pass 12.sp for that. */
+    valueFontSize: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
+    valueColor: Color = LocalAppColors.current.textSecondary,
+    onClick: () -> Unit = {},
+) {
     // iOS 26 list row: 52pt tall, a 24pt symbol in its own column, the label lined up with the
     // separator that starts under it (see SettingsDivider(inset)).
     Row(
@@ -9825,12 +10118,12 @@ fun SettingsNavigationItem(label: String, icon: ImageVector?, value: String = ""
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (showIcon && icon != null) {
-            Icon(imageVector = icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
         }
         Text(text = label, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         if (value.isNotEmpty()) {
-            Text(text = value, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 8.dp))
+            Text(text = value, color = valueColor, style = MaterialTheme.typography.bodyMedium, fontSize = valueFontSize, modifier = Modifier.padding(horizontal = 8.dp))
         }
         IosDisclosureChevron()
     }
@@ -9915,7 +10208,7 @@ fun ConnectionHubSections(
     val isTestnet = selected == com.kachat.app.util.KaspaNetwork.Type.TESTNET
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val colors = LocalAppColors.current
-    SettingsSection(title = stringResource(R.string.connection)) {
+    SettingsFormSection(title = stringResource(R.string.connection)) {
         // Mainnet <-> testnet, first in the section (no footer). The choice applies at the next
         // launch, all at once (iOS e6f664f): until then the running app stays on its network.
         // Each network keeps its own connection settings, so Connection Settings below shows
@@ -9962,9 +10255,15 @@ fun ConnectionHubSections(
         SettingsDivider(inset = IosRowTextInset)
         SettingsNavigationItem(stringResource(R.string.connection_settings), Icons.Default.Language, onClick = onOpenConnectionSettings)
     }
-    Spacer(Modifier.height(8.dp))
-    SettingsSection(title = null) {
-        SettingsNavigationItem(stringResource(R.string.kaspa_explorer), Icons.Default.Explore, explorerName, onClick = onOpenExplorer)
+    // Its own section, no header; the explorer's name in iOS's caption.
+    SettingsFormSection(title = null) {
+        SettingsNavigationItem(
+            stringResource(R.string.kaspa_explorer),
+            Icons.Default.Explore,
+            explorerName,
+            valueFontSize = 12.sp,
+            onClick = onOpenExplorer,
+        )
     }
 }
 
@@ -10009,7 +10308,7 @@ fun SecuritySettingsItems(
     SettingsSwitchItem(
         stringResource(R.string.biometrics_for_seed_phrase),
         biometricSeedPhraseEnabled,
-        onCheckedChange = gated("Unlock to change the seed phrase lock") {
+        onCheckedChange = gated(stringResource(R.string.unlock_change_seed_phrase_lock)) {
             walletViewModel.setBiometricSeedPhraseEnabled(it)
         },
     )
@@ -10017,7 +10316,7 @@ fun SecuritySettingsItems(
     SettingsSwitchItem(
         stringResource(R.string.biometrics_for_account_login),
         biometricAccountLoginEnabled,
-        onCheckedChange = gated("Unlock to change the account login lock") {
+        onCheckedChange = gated(stringResource(R.string.unlock_change_account_login_lock)) {
             walletViewModel.setBiometricAccountLoginEnabled(it)
         },
     )
@@ -10025,7 +10324,7 @@ fun SecuritySettingsItems(
     SettingsSwitchItem(
         stringResource(R.string.biometrics_for_address_private_keys),
         biometricSpendingKeyEnabled,
-        onCheckedChange = gated("Unlock to change the private key lock") {
+        onCheckedChange = gated(stringResource(R.string.unlock_change_private_key_lock)) {
             walletViewModel.setBiometricSpendingKeyEnabled(it)
         },
     )
@@ -10035,51 +10334,91 @@ fun SecuritySettingsItems(
     // must not know the parent's password. Fully functional with no account active: the
     // password record and enabled flag are device-global (ChildModeService/DataStore).
     val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
+    // iOS: the lock.shield symbol, On / Off in caption.
     SettingsNavigationItem(
         stringResource(R.string.child_mode),
-        Icons.Default.FamilyRestroom,
+        Icons.Outlined.Shield,
         if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+        valueFontSize = 12.sp,
         onClick = onNavigateToChildMode
     )
 }
 
 /**
- * The Diagnostics section's rows — the export gathers app/device/settings/node-pool info and is
+ * Settings > Diagnostics as iOS's DiagnosticsSettingsPage: the export button (its explanation in
+ * the row, under the title) in a "Diagnostics" section, then Verbose API Logging in a section of
+ * its own with its footer. The export gathers app/device/settings/node-pool info and is
  * account-tolerant (see DiagnosticsExportService's no-active-account fallbacks), so the same
- * items render both in the in-account Settings > Diagnostics page and in the accounts screen's
- * App Settings sheet. Caller supplies the enclosing [SettingsSection].
+ * sections render in the in-account Settings and in the accounts screen's App Settings.
  */
 @Composable
-fun DiagnosticsSettingsItems(chatViewModel: ChatViewModel = hiltViewModel()) {
+fun DiagnosticsSettingsSections(
+    chatViewModel: ChatViewModel = hiltViewModel(),
+    connectionViewModel: ConnectionViewModel = hiltViewModel(),
+) {
     val diagnosticsExportState by chatViewModel.diagnosticsExportState.collectAsState()
+    val verboseApiLogging by connectionViewModel.verboseApiLogging.collectAsState()
     val context = LocalContext.current
     val diagnosticsExportInFlight = diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-
-    SettingsActionItem(
-        label = if (diagnosticsExportInFlight) "Exporting..." else "Export Diagnostics Archive",
-        icon = Icons.Default.BugReport,
-        color = if (diagnosticsExportInFlight) LocalAppColors.current.textSecondary else KaspaTeal
-    ) {
-        if (!diagnosticsExportInFlight) {
-            chatViewModel.exportDiagnostics { uri ->
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/zip"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(intent, "Export Diagnostics Archive"))
+    // iOS reports a failed export as a toast; only a run started here is reported.
+    var exportArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(diagnosticsExportState.status) {
+        when (diagnosticsExportState.status) {
+            ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS -> exportArmed = true
+            ChatViewModel.ChatHistoryOpStatus.FAILED -> if (exportArmed) {
+                exportArmed = false
+                IosToasts.error(diagnosticsExportState.message ?: "Failed to export diagnostics.")
             }
+            else -> exportArmed = false
         }
     }
-    if (diagnosticsExportState.status == ChatViewModel.ChatHistoryOpStatus.FAILED) {
-        Text(
-            diagnosticsExportState.message ?: "Export failed",
-            color = LocalAppColors.current.danger,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+
+    SettingsFormSection(title = stringResource(R.string.diagnostics)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !diagnosticsExportInFlight) {
+                    chatViewModel.exportDiagnostics { uri ->
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/zip"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Export Diagnostics Archive"))
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // iOS: ladybug.fill in title3 and the title in body medium, both accent, 10 apart,
+            // the spinner at the end while it runs; then the explanation in footnote.
+            val tint = if (diagnosticsExportInFlight) KaspaTeal.copy(alpha = 0.5f) else KaspaTeal
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.BugReport, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.export_diagnostics_archive),
+                    color = tint,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+                if (diagnosticsExportInFlight) com.kachat.app.ui.theme.IosActivityIndicator(Modifier.size(20.dp))
+            }
+            Text(
+                stringResource(R.string.exports_app_device_info_connection_settings),
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+            )
+        }
     }
-    SettingsFooter(stringResource(R.string.exports_app_device_info_connection_settings))
+    // Moved here from Connection Settings, as on iOS: it is a troubleshooting switch.
+    SettingsFormSection(title = null, footer = stringResource(R.string.verbose_api_logging_footer)) {
+        SettingsSwitchItem(stringResource(R.string.verbose_api_logging), verboseApiLogging) {
+            connectionViewModel.setVerboseApiLogging(it)
+        }
+    }
 }
 
 /**
@@ -10539,152 +10878,42 @@ private fun ConnectionActionRow(label: String, color: Color, busy: Boolean, enab
     }
 }
 
-/** Read-only label/value row for the push-diagnostics section of [NotificationSettingsScreen]. */
-@Composable
-private fun PushDiagnosticRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            color = LocalAppColors.current.textPrimary,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f).padding(end = 12.dp)
-        )
-        Text(
-            text = value,
-            color = LocalAppColors.current.textSecondary,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Settings > Notifications > Chats, iOS's NotificationsSettingsView: Sound & Vibration with its
+ * footer, then the Per Contact note. The master switch (and the permission it needs) is on the
+ * Notifications page above this one; the push diagnostics are in the diagnostics export.
+ */
 @Composable
 fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
-    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val soundEnabled by viewModel.notificationSoundEnabled.collectAsState()
     val vibrationEnabled by viewModel.notificationVibrationEnabled.collectAsState()
-    val pushActive by viewModel.pushActive.collectAsState()
-    val pushDiag by viewModel.pushDiagnostics.collectAsState()
 
-    val context = LocalContext.current
-    var permissionGranted by remember {
-        mutableStateOf(
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        permissionGranted = granted
-    }
-
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                // "Chats" since 4.0: this page is the Chats subpage of the top-level
-                // Notifications hub (Settings > Notifications > Chats), matching iOS.
-                title = { Text(stringResource(R.string.chats), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+    // "Chats" since 4.0: this page is the Chats subpage of the top-level Notifications hub
+    // (Settings > Notifications > Chats), matching iOS.
+    SettingsFormPage(title = stringResource(R.string.chats), onBack = onBack) {
+        SettingsFormSection(
+            title = stringResource(R.string.sound_vibration),
+            footer = stringResource(R.string.notification_sound_footer),
         ) {
-            Spacer(Modifier.height(8.dp))
-
-            if (!permissionGranted) {
-                Surface(
-                    color = Color(0xFF2C1C1C),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(stringResource(R.string.notifications_are_off_in_system_settings), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.kachat_can_t_show_notifications_until),
-                            color = LocalAppColors.current.textSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        TextButton(onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                )
-                            }
-                        }) {
-                            Text(stringResource(R.string.open_settings), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+            SettingsSwitchItem(stringResource(R.string.play_sound), soundEnabled) {
+                viewModel.setNotificationSoundEnabled(it)
             }
-
-            // The master switch moved UP to Settings > Notifications, above the per-feature
-            // pages: push carries wallet activity, group mentions, broadcasts and KaPosts too,
-            // so a copy of it sitting inside Chats read as a chats-only setting and gave the
-            // same switch two homes.
-            if (notificationsEnabled && permissionGranted) {
-                SettingsSection(title = stringResource(R.string.sound_vibration)) {
-                    SettingsSwitchItem(stringResource(R.string.play_sound), soundEnabled) {
-                        viewModel.setNotificationSoundEnabled(it)
-                    }
-                    SettingsDivider()
-                    SettingsSwitchItem(stringResource(R.string.vibration), vibrationEnabled) {
-                        viewModel.setNotificationVibrationEnabled(it)
-                    }
-                }
+            SettingsDivider()
+            SettingsSwitchItem(stringResource(R.string.vibration), vibrationEnabled) {
+                viewModel.setNotificationVibrationEnabled(it)
             }
-
-            // Read-only push diagnostics — background delivery for DMs/broadcasts/KaPosts has no
-            // polling fallback, so when pushes don't arrive this is the first place to look
-            // (paired with `adb logcat -s KaChatPush` for the full story).
-            SettingsSection(title = "Push diagnostics") {
-                PushDiagnosticRow("Remote push active", if (pushActive) "Yes" else "No")
-                SettingsDivider()
-                PushDiagnosticRow(
-                    "FCM token",
-                    when {
-                        pushDiag.fcmTokenPresent -> "Present"
-                        pushDiag.lastAttemptAtMs == null -> "—"
-                        else -> "Missing"
-                    }
-                )
-                SettingsDivider()
-                PushDiagnosticRow(
-                    "Last registration",
-                    pushDiag.lastAttemptAtMs?.let { ts ->
-                        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
-                            .format(java.util.Date(ts))
-                        val outcome = if (pushDiag.lastAttemptSucceeded == true) "OK" else "failed"
-                        "${pushDiag.lastAction ?: "attempt"} $outcome · $time"
-                    } ?: "None yet"
-                )
-                SettingsFooter(
-                    pushDiag.lastError?.let { "Last error: $it" }
-                        ?: "Delivery problems? Capture logs with: adb logcat -s KaChatPush"
-                )
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
+        }
+        SettingsFormSection(title = stringResource(R.string.per_contact)) {
+            Text(
+                stringResource(R.string.per_contact_notification_hint),
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 44.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            )
         }
     }
 }
@@ -10694,105 +10923,62 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
  * [com.kachat.app.services.AddressActivityNotifier]'s local notifications for external receipts
  * on any spending or cold storage address. Mirrors iOS's WalletNotificationSettingsView.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WalletNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val addressActivityEnabled by viewModel.addressActivityNotificationsEnabled.collectAsState()
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Wallet", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-            SettingsSection(title = null) {
-                SettingsSwitchItem("Address Activity", addressActivityEnabled) {
-                    viewModel.setAddressActivityNotificationsEnabled(it)
-                }
-                SettingsFooter("Notify when any of your spending or cold storage addresses receives Kaspa from an external source. Transfers between your own addresses are ignored.")
+    SettingsFormPage(title = stringResource(R.string.notifications_wallet), onBack = onBack) {
+        SettingsFormSection(title = null, footer = stringResource(R.string.address_activity_footer)) {
+            SettingsSwitchItem(stringResource(R.string.address_activity), addressActivityEnabled) {
+                viewModel.setAddressActivityNotificationsEnabled(it)
             }
         }
     }
 }
 
-/** Settings > Chats > Quick Reactions - lets the user replace any of the 6 emojis shown in the
- *  double-tap [QuickReactionBar]. Each slot is a single-emoji text field, pre-selected on focus
- *  so tapping the system keyboard's emoji key naturally replaces it rather than appending -
- *  matches iOS's `QuickReactionEmojisSettingsView` (a grid picker there, since iOS's system
- *  emoji keyboard isn't as immediately reachable as Android's dedicated emoji key). */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Settings > Chats > Quick Reactions - replace any of the 6 emojis shown in the double-tap
+ *  [QuickReactionBar]. iOS's QuickReactionEmojisSettingsView: the six as 44 tiles in one card
+ *  with the footer under it, then Reset to Default as a red button in its own card. A tap opens
+ *  the emoji picker for that slot. */
 @Composable
 fun QuickReactionSettingsScreen(onBack: () -> Unit, settingsViewModel: SettingsViewModel = hiltViewModel()) {
     val emojis by settingsViewModel.quickReactionEmojis.collectAsState()
     var editingSlotIndex by remember { mutableStateOf<Int?>(null) }
 
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Quick Reactions", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                "Tap a slot to replace it with a different emoji.",
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    SettingsFormPage(title = stringResource(R.string.quick_reactions), onBack = onBack) {
+        SettingsFormSection(title = null, footer = stringResource(R.string.quick_reactions_footer)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)
+            ) {
                 emojis.forEachIndexed { index, emoji ->
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LocalAppColors.current.surface)
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(LocalAppColors.current.surfaceVariant)
                             .clickable { editingSlotIndex = index },
                         contentAlignment = Alignment.Center
                     ) {
-                        // A plain Text sized to fill the box (rather than an OutlinedTextField,
-                        // which was clipping the emoji glyph - its decoration box's own internal
-                        // padding/min-line-height left too little room at 26sp) renders the full
-                        // glyph cleanly and doubles as this slot's tap target.
-                        Text(emoji, fontSize = 28.sp)
+                        Text(emoji, fontSize = 26.sp)
                     }
                 }
             }
-
-            TextButton(onClick = {
-                settingsViewModel.setQuickReactionEmojis(com.kachat.app.repository.AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
-            }) {
-                Text("Reset to Default", color = LocalAppColors.current.danger)
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
+        }
+        SettingsFormSection(title = null) {
+            Text(
+                stringResource(R.string.reset_to_default),
+                color = LocalAppColors.current.danger,
+                fontSize = 17.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        settingsViewModel.setQuickReactionEmojis(com.kachat.app.repository.AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
+                    }
+                    .heightIn(min = 52.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            )
         }
     }
 
@@ -10809,56 +10995,33 @@ fun QuickReactionSettingsScreen(onBack: () -> Unit, settingsViewModel: SettingsV
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Settings > Connection > Kaspa Explorer, iOS's KaspaExplorerSettingsView: the explorers under an
+ *  "Explorer" header, a checkmark on the chosen one, and iOS's footer under the card. */
 @Composable
 fun KaspaExplorerSettingsScreen(onBack: () -> Unit, chatViewModel: ChatViewModel = hiltViewModel()) {
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
 
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.kaspa_explorer), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+    SettingsFormPage(title = stringResource(R.string.kaspa_explorer), onBack = onBack) {
+        SettingsFormSection(
+            title = stringResource(R.string.explorer),
+            footer = stringResource(R.string.explorer_footer),
         ) {
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                stringResource(R.string.transaction_links_in_message_menus_and),
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            SettingsSection(title = stringResource(R.string.explorer)) {
-                com.kachat.app.models.KaspaExplorer.entries.forEachIndexed { index, explorer ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { chatViewModel.updateKaspaExplorer(explorer) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(explorer.displayName, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                        if (kaspaExplorer == explorer) {
-                            Icon(Icons.Default.Check, null, tint = KaspaTeal)
-                        }
+            com.kachat.app.models.KaspaExplorer.entries.forEachIndexed { index, explorer ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { chatViewModel.updateKaspaExplorer(explorer) }
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(explorer.displayName, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    if (kaspaExplorer == explorer) {
+                        Icon(Icons.Default.Check, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
                     }
-                    if (index < com.kachat.app.models.KaspaExplorer.entries.lastIndex) {
-                        SettingsDivider()
-                    }
+                }
+                if (index < com.kachat.app.models.KaspaExplorer.entries.lastIndex) {
+                    SettingsDivider()
                 }
             }
         }
@@ -11125,22 +11288,16 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     var editingKapostIndexerUrl by remember { mutableStateOf(false) }
     val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
-    val verboseApiLogging by viewModel.verboseApiLogging.collectAsState()
     val scrollState = rememberScrollState()
     val onMainnetSettings = network.equals("mainnet", ignoreCase = true)
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.connection_settings), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
-                },
-                actions = {
-                    SheetBarButton(stringResource(R.string.save), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            SettingsSubpageBar(
+                title = stringResource(R.string.connection_settings),
+                onBack = onBack,
+                trailing = { SheetBarButton(stringResource(R.string.save), onClick = onBack) },
             )
         }
     ) { padding ->
@@ -11196,14 +11353,7 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 SettingsFooter("Host this device registers with for native push notifications (FCM). Defaults to the KaChat indexer.")
             }
 
-            SettingsSection(title = "Diagnostics") {
-                SettingsSwitchItem(
-                    label = "Verbose API Logging",
-                    checked = verboseApiLogging,
-                    onCheckedChange = { viewModel.setVerboseApiLogging(it) }
-                )
-                SettingsFooter("Logs every API request and response to the system log. Failures and slow requests are always logged. Leave off for normal use.")
-            }
+            // Verbose API Logging lives in Settings > Diagnostics, as on iOS.
             }
             1 -> {
             KaspaNodeQuickAccessSection(viewModel)

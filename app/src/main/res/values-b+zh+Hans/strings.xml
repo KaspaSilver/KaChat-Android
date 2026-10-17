@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">添加一笔买入或卖出以开始跟踪您的投资组合</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">更多选项</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">消息保留</string>
+    <string name="retention_keep_forever">永远保留</string>
+    <string name="retention_30_days">30天</string>
+    <string name="retention_90_days">90天</string>
+    <string name="retention_1_year">1年</string>
+    <string name="export_chat_history">导出聊天记录</string>
+    <string name="import_chat_history">导入聊天记录</string>
+    <string name="export_diagnostics_archive">导出诊断档案</string>
+    <string name="wipe_resync_incoming">清除并重新同步接收消息</string>
+    <string name="notification_sound_footer">当联系人未设置自定义通知模式时使用。</string>
+    <string name="per_contact">按联系人</string>
+    <string name="per_contact_notification_hint">在每个聊天的信息页面设置联系人通知模式：关闭、静音或声音。</string>
 </resources>

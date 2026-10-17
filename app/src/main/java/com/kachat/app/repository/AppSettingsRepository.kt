@@ -182,6 +182,11 @@ class AppSettingsRepository @Inject constructor(
         // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
 
         val KEY_SHOW_FEE_ESTIMATE = booleanPreferencesKey("show_fee_estimate")
+        // Settings > Chats > Require approval for photos from new contacts (iOS
+        // AppSettings.requirePhotoApprovalForNewContacts). On by default: photos from a contact
+        // you never added or wrote to stay behind "Show Photo" unless their Chat Info says
+        // otherwise. Off shows every contact's photos unless that contact is set to Always Hide.
+        val KEY_REQUIRE_PHOTO_APPROVAL = booleanPreferencesKey("require_photo_approval_for_new_contacts")
 
         // Customizable double-tap quick-reaction set - see QUICK_REACTION_EMOJIS's default and
         // QuickReactionBar (Screens.kt) / QuickReactionBarView (iOS) for where this is read.
@@ -190,7 +195,7 @@ class AppSettingsRepository @Inject constructor(
         // A single in-flight KNS commit awaiting its reveal — see PendingKnsCommit.
         val KEY_PENDING_KNS_COMMIT = stringPreferencesKey("pending_kns_commit")
 
-        // Device-level message retention (Forever / 30 / 90 days) - see BackupRetention.
+        // Device-level message retention (Forever / 30 / 90 days / 1 year) - see BackupRetention.
         val KEY_BACKUP_RETENTION = stringPreferencesKey("backup_retention")
 
         // Broadcasts — whether the "Popular" tab (curated rooms, see FeaturedBroadcastChannels)
@@ -241,6 +246,10 @@ class AppSettingsRepository @Inject constructor(
         // Settings > Customization > Dark Mode. True (dark) is the default so existing installs'
         // appearance is unchanged — every screen was designed dark-only until this toggle existed.
         val KEY_DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
+        // Settings > Customization > Appearance (iOS AppAppearance): System / Light / Dark, stored
+        // as the enum's name. Replaces the Dark Mode switch above: until this is first written, a
+        // switch someone set still decides (on = Dark, off = Light); with neither, System.
+        val KEY_APPEARANCE = stringPreferencesKey("appearance")
         // Settings > Security. Both on by default — the seed phrase and account login were gated
         // behind device authentication unconditionally before these toggles existed.
         val KEY_BIOMETRIC_SEED_PHRASE_ENABLED = booleanPreferencesKey("biometric_seed_phrase_enabled")
@@ -597,7 +606,15 @@ class AppSettingsRepository @Inject constructor(
         (address?.let { prefs[hiddenTabsKeyFor(it)] }) ?: prefs[KEY_HIDDEN_TABS] ?: emptySet()
     }
 
-    val darkModeEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_DARK_MODE_ENABLED] ?: true }
+    /** See KEY_APPEARANCE: the stored choice, else the old Dark Mode switch's, else System. */
+    val appearance: Flow<com.kachat.app.models.AppAppearance> = dataStore.data.map { prefs ->
+        com.kachat.app.models.AppAppearance.fromName(prefs[KEY_APPEARANCE])
+            ?: when (prefs[KEY_DARK_MODE_ENABLED]) {
+                true -> com.kachat.app.models.AppAppearance.DARK
+                false -> com.kachat.app.models.AppAppearance.LIGHT
+                null -> com.kachat.app.models.AppAppearance.SYSTEM
+            }
+    }
 
     /** Lowercase ISO 4217 code (e.g. "usd", "eur") - see KEY_CURRENCY. */
     val currency: Flow<String> = dataStore.data.map { it[KEY_CURRENCY] ?: "usd" }
@@ -725,6 +742,10 @@ class AppSettingsRepository @Inject constructor(
 
     val showFeeEstimate: Flow<Boolean> = dataStore.data.map {
         it[KEY_SHOW_FEE_ESTIMATE] ?: true
+    }
+
+    val requirePhotoApprovalForNewContacts: Flow<Boolean> = dataStore.data.map {
+        it[KEY_REQUIRE_PHOTO_APPROVAL] ?: true
     }
 
     /** Falls back to [DEFAULT_QUICK_REACTION_EMOJIS] (matches the default in `Screens.kt`'s
@@ -1052,7 +1073,7 @@ class AppSettingsRepository @Inject constructor(
         prefs[KEY_TAB_DEFAULTS_40_V3_APPLIED] = true
         prefs[KEY_TAB_DEFAULTS_40_APPLIED] = true
     }
-    suspend fun setDarkModeEnabled(value: Boolean) = dataStore.edit { it[KEY_DARK_MODE_ENABLED] = value }
+    suspend fun setAppearance(value: com.kachat.app.models.AppAppearance) = dataStore.edit { it[KEY_APPEARANCE] = value.name }
     suspend fun setCurrency(value: String) = dataStore.edit { it[KEY_CURRENCY] = value }
     suspend fun setBiometricSeedPhraseEnabled(value: Boolean) = dataStore.edit { it[KEY_BIOMETRIC_SEED_PHRASE_ENABLED] = value }
     suspend fun setBiometricAccountLoginEnabled(value: Boolean) = dataStore.edit { it[KEY_BIOMETRIC_ACCOUNT_LOGIN_ENABLED] = value }
@@ -1072,6 +1093,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setSwapDisclaimerAgreed(value: Boolean) = dataStore.edit { it[KEY_SWAP_DISCLAIMER_AGREED] = value }
     suspend fun setNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = value }
     suspend fun setShowFeeEstimate(value: Boolean) = dataStore.edit { it[KEY_SHOW_FEE_ESTIMATE] = value }
+    suspend fun setRequirePhotoApprovalForNewContacts(value: Boolean) = dataStore.edit { it[KEY_REQUIRE_PHOTO_APPROVAL] = value }
     suspend fun setQuickReactionEmojis(value: List<String>) = dataStore.edit { it[KEY_QUICK_REACTION_EMOJIS] = Gson().toJson(value) }
     suspend fun setNotificationSoundEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_SOUND] = value }
     suspend fun setNotificationVibrationEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_VIBRATION] = value }

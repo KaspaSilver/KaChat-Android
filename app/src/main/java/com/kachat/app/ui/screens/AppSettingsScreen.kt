@@ -1,6 +1,8 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,7 +51,7 @@ import com.kachat.app.viewmodels.WalletViewModel
  * Every leaf page is the SAME composable the in-account Settings navigates to
  * ([LanguageSettingsScreen], [CurrencySettingsScreen], [ConnectionSettingsScreen],
  * [ChildModeSettingsScreen]) or a shared item-row composable extracted from the in-account
- * screen ([SecuritySettingsItems], [DiagnosticsSettingsItems]) — one source of truth. The
+ * screen ([SecuritySettingsItems], [DiagnosticsSettingsSections]) — one source of truth. The
  * category pages here only add the hub chrome around them.
  */
 @Composable
@@ -76,34 +78,26 @@ fun AppSettingsHubScreen(
                 SettingsNavigationItem(stringResource(R.string.diagnostics), Icons.Default.MonitorHeart, onClick = onOpenDiagnostics)
             }
         }
+        Spacer(Modifier.height(IosFormSectionGap))
     }
 }
 
 /**
- * App-wide Customization page: Dark Mode + Language + Currency (all global settings) — the
- * app-wide subset of the in-account Customization section, minus the account-tier rows
- * (Customize Dock, Show Setup Guides). The Language/Currency rows push the exact screens the
- * in-account settings use.
+ * App-wide Customization page (iOS AppSettingsView's appCustomizationPage): the Appearance /
+ * Language / Currency pickers alone - the in-account page's account-tier rows (Customize Dock,
+ * Show Fee Estimate) are not here. Language and Currency are menus in the row now, as on iOS, so
+ * the two navigation callbacks are no longer used; they stay for the callers' sake.
  */
 @Composable
 fun AppCustomizationScreen(
     onBack: () -> Unit,
-    onNavigateToLanguage: () -> Unit,
-    onNavigateToCurrency: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onNavigateToLanguage: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onNavigateToCurrency: () -> Unit,
     walletViewModel: WalletViewModel = hiltViewModel(),
 ) {
-    val darkModeEnabled by walletViewModel.darkModeEnabled.collectAsState()
-    val currencyCode by walletViewModel.currency.collectAsState()
-
     AppSettingsPageScaffold(title = stringResource(R.string.customization), onBack = onBack) {
-        SettingsSection(title = stringResource(R.string.customization)) {
-            SettingsSwitchItem(stringResource(R.string.dark_mode), darkModeEnabled) { enabled ->
-                walletViewModel.setDarkModeEnabled(enabled)
-            }
-            SettingsDivider()
-            SettingsNavigationItem(stringResource(R.string.language), Icons.Default.Translate, onClick = onNavigateToLanguage)
-            SettingsDivider()
-            SettingsNavigationItem(stringResource(R.string.currency), Icons.Default.AttachMoney, currencyCode.uppercase(), onClick = onNavigateToCurrency)
+        SettingsFormSection(title = stringResource(R.string.customization)) {
+            AppWideCustomizationPickers(walletViewModel)
         }
     }
 }
@@ -116,7 +110,7 @@ fun AppSecurityScreen(
     walletViewModel: WalletViewModel = hiltViewModel(),
 ) {
     AppSettingsPageScaffold(title = stringResource(R.string.security), onBack = onBack) {
-        SettingsSection(title = stringResource(R.string.security)) {
+        SettingsFormSection(title = stringResource(R.string.security)) {
             SecuritySettingsItems(
                 walletViewModel = walletViewModel,
                 onNavigateToChildMode = onNavigateToChildMode
@@ -143,47 +137,24 @@ fun AppConnectionScreen(
     }
 }
 
-/** App-wide Diagnostics page — same rows as in-account Settings > Diagnostics via [DiagnosticsSettingsItems]. */
+/** App-wide Diagnostics page — the same sections as in-account Settings > Diagnostics via [DiagnosticsSettingsSections]. */
 @Composable
 fun AppDiagnosticsScreen(onBack: () -> Unit) {
     AppSettingsPageScaffold(title = stringResource(R.string.diagnostics), onBack = onBack) {
-        SettingsSection(title = stringResource(R.string.diagnostics)) {
-            DiagnosticsSettingsItems()
-        }
+        DiagnosticsSettingsSections()
     }
 }
 
-/** Shared chrome for the App Settings hub and its category pages — the app's standard settings
- *  sub-screen look (centered bold title, teal back arrow, scrolling 16dp-padded column). */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Shared chrome for the App Settings hub and its category pages — the same iOS Form page the
+ *  in-account Settings pages use ([SettingsFormPage]: inline bar with the back chevron on the
+ *  left, the title centred, sections spaced as iOS spaces them). */
 @Composable
 private fun AppSettingsPageScaffold(
     title: String,
     onBack: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(title, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            content()
-        }
+    SettingsFormPage(title = title, onBack = onBack) {
+        content()
     }
 }

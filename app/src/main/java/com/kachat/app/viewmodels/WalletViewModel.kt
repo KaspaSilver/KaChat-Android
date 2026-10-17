@@ -2049,11 +2049,12 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch { settings.setTabHidden(route, hidden) }
     }
 
-    val darkModeEnabled: StateFlow<Boolean> = settings.darkModeEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), true)
+    /** Settings > Customization > Appearance (iOS AppAppearance) - System by default. */
+    val appearance: StateFlow<com.kachat.app.models.AppAppearance> = settings.appearance
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kachat.app.models.AppAppearance.SYSTEM)
 
-    fun setDarkModeEnabled(enabled: Boolean) {
-        viewModelScope.launch { settings.setDarkModeEnabled(enabled) }
+    fun setAppearance(appearance: com.kachat.app.models.AppAppearance) {
+        viewModelScope.launch { settings.setAppearance(appearance) }
     }
 
     /** Settings > Customization > Currency — lowercase ISO 4217 code (e.g. "usd", "eur"). Global,

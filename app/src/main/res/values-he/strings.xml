@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">הוסף קנייה או מכירה כדי להתחיל לעקוב אחר התיק שלך</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">אפשרויות נוספות</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">שמירת הודעות</string>
+    <string name="retention_keep_forever">לשמור לנצח</string>
+    <string name="retention_30_days">30 ימים</string>
+    <string name="retention_90_days">90 ימים</string>
+    <string name="retention_1_year">שנה אחת</string>
+    <string name="export_chat_history">ייצוא היסטוריית צ\'אט</string>
+    <string name="import_chat_history">ייבוא היסטוריית צ\'אט</string>
+    <string name="export_diagnostics_archive">ייצוא ארכיון אבחון</string>
+    <string name="wipe_resync_incoming">מחק וסנכרן מחדש הודעות נכנסות</string>
+    <string name="notification_sound_footer">משמש כשלאיש קשר לא הוגדר מצב התראות מותאם.</string>
+    <string name="per_contact">לכל איש קשר</string>
+    <string name="per_contact_notification_hint">הגדר מצב התראות לכל איש קשר במסך פרטי הצ\'אט: כבוי, ללא צליל, או צליל.</string>
 </resources>

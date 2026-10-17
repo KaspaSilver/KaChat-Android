@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">Portfoyunuzu takip etmeye baslamak icin bir alim veya satim ekleyin</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Daha Fazla Secenek</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">Mesaj saklama</string>
+    <string name="retention_keep_forever">Sonsuza kadar sakla</string>
+    <string name="retention_30_days">30 gün</string>
+    <string name="retention_90_days">90 gün</string>
+    <string name="retention_1_year">1 yıl</string>
+    <string name="export_chat_history">Sohbet Geçmişini Dışa Aktar</string>
+    <string name="import_chat_history">Sohbet Geçmişini İçe Aktar</string>
+    <string name="export_diagnostics_archive">Tanılama Arşivini Dışa Aktar</string>
+    <string name="wipe_resync_incoming">Gelen mesajları sil ve yeniden senkronize et</string>
+    <string name="notification_sound_footer">Bir kişinin özel bildirim modu ayarlanmadığında kullanılır.</string>
+    <string name="per_contact">Kişi Başına</string>
+    <string name="per_contact_notification_hint">Her sohbetin bilgi ekranında kişi başına bildirim modunu ayarlayın: Kapalı, Ses Yok veya Ses.</string>
 </resources>

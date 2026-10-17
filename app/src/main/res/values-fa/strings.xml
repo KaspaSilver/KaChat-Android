@@ -1380,4 +1380,17 @@
     <string name="portfolio_no_transactions_sub">یک خرید یا فروش اضافه کنید تا ردیابی سبد دارایی خود را شروع کنید</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">گزینه‌های بیشتر</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">حفظ پیام</string>
+    <string name="retention_keep_forever">برای همیشه نگه دارید</string>
+    <string name="retention_30_days">30 روز</string>
+    <string name="retention_90_days">90 روز</string>
+    <string name="retention_1_year">1 سال</string>
+    <string name="export_chat_history">خروجی تاریخچه گفتگو</string>
+    <string name="import_chat_history">وارد کردن تاریخچه گفتگو</string>
+    <string name="export_diagnostics_archive">خروجی بایگانی تشخیص‌ها</string>
+    <string name="wipe_resync_incoming">پاک کردن و همگام‌سازی مجدد پیام‌های ورودی</string>
+    <string name="notification_sound_footer">زمانی استفاده می‌شود که مخاطب حالت اعلان سفارشی تنظیم نکرده باشد.</string>
+    <string name="per_contact">به ازای هر مخاطب</string>
+    <string name="per_contact_notification_hint">حالت اعلان هر مخاطب را در صفحه اطلاعات گفتگو تنظیم کنید: خاموش، بدون صدا، یا صدا.</string>
 </resources>

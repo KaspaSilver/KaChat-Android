@@ -1349,4 +1349,17 @@
     <string name="portfolio_no_transactions_sub">আপনার পোর্টফোলিও ট্র্যাক করা শুরু করতে একটি ক্রয় বা বিক্রয় যোগ করুন</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">আরও বিকল্প</string>
+    <!-- Settings subpages (from iOS) -->
+    <string name="message_retention">বার্তা ধারণ</string>
+    <string name="retention_keep_forever">চিরকাল রাখুন</string>
+    <string name="retention_30_days">30 দিন</string>
+    <string name="retention_90_days">90 দিন</string>
+    <string name="retention_1_year">1 বছর</string>
+    <string name="export_chat_history">চ্যাট ইতিহাস রপ্তানি করুন</string>
+    <string name="import_chat_history">চ্যাট ইতিহাস ইমপোর্ট করুন</string>
+    <string name="export_diagnostics_archive">ডায়াগনস্টিকস আর্কাইভ রপ্তানি করুন</string>
+    <string name="wipe_resync_incoming">আগত বার্তা মুছুন এবং পুনরায় সিংক করুন</string>
+    <string name="notification_sound_footer">যখন কোনো কন্টাক্টের কাস্টম নোটিফিকেশন মোড সেট করা নেই তখন ব্যবহৃত।</string>
+    <string name="per_contact">প্রতি কন্টাক্ট</string>
+    <string name="per_contact_notification_hint">প্রতিটি চ্যাটের তথ্য স্ক্রিনে প্রতি-কন্টাক্ট নোটিফিকেশন মোড সেট করুন: Off, No Sound, বা Sound।</string>
 </resources>

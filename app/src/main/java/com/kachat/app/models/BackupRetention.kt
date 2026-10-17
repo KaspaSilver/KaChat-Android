@@ -8,7 +8,9 @@ package com.kachat.app.models
 enum class BackupRetention(val days: Int?) {
     FOREVER(null),
     DAYS_30(30),
-    DAYS_90(90);
+    DAYS_90(90),
+    // iOS MessageRetention.year1.
+    YEAR_1(365);
 
     /** The oldest timestamp (epoch millis) still allowed to survive pruning, or null for FOREVER (never prune). Messages strictly older than this get deleted. */
     fun cutoffMillis(nowMillis: Long): Long? {
