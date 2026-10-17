@@ -949,20 +949,16 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.ks_title), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    if (onBack != null) IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showInfo = true }) {
-                        Icon(Icons.Outlined.HelpOutline, contentDescription = stringResource(R.string.ks_what_counts), tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
-            )
+            // iOS's bar: the connection dot on glass, the balance centred (the "KaChat Stats" title
+            // gives way to it) and "?" on a glass disc.
+            HubSectionTopBar(onBack = onBack) {
+                ToolbarIconButton(
+                    Icons.Outlined.HelpOutline,
+                    stringResource(R.string.ks_what_counts),
+                    onClick = { showInfo = true },
+                    iconSize = HubHelpIconSize,
+                )
+            }
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).nestedScroll(pullState.nestedScrollConnection)) {
@@ -970,13 +966,14 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                // Hero
+                // Hero. The gaps are the iPhone's as drawn: the chart 35 below the bar's glass, the
+                // count's digits 24 under it and the caption 20 under them.
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(Icons.Default.BarChart, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(34.dp))
+                    StatsChartGlyph(Modifier.padding(top = 11.dp))
+                    Spacer(Modifier.height(12.dp))
                     when {
                         allTimeTotal != null -> KachatFitText(
                             kaChatStatsGrouped(allTimeTotal.coerceAtLeast(0L)),
@@ -988,9 +985,10 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                         snapshot != null || failure != null -> Text("—", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp)
                         else -> Box(Modifier.padding(vertical = 8.dp)) { Redacted(180, 40) }
                     }
+                    Spacer(Modifier.height(2.dp))
                     Text(stringResource(R.string.ks_caption_all), color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
                 }
-                UnderlineTabBar(
+                HubUnderlineTabBar(
                     titles = listOf(stringResource(R.string.transactions), stringResource(R.string.kn_fees)),
                     selectedIndex = page.ordinal,
                     onSelect = { page = KaChatStatsPage.entries[it] },
@@ -1103,6 +1101,35 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
+    }
+}
+
+/**
+ * The stats hero's chart: iOS's "chart.bar.xaxis" at 34pt semibold as the iPhone draws it - four
+ * rounded 7pt bars (the second the tallest) standing over a rounded x-axis, 38 x 31 in all.
+ * Material's BarChart has three thin bars and no axis, and came out at about half the size.
+ */
+@Composable
+private fun StatsChartGlyph(modifier: Modifier = Modifier, color: Color = KaspaTeal) {
+    androidx.compose.foundation.Canvas(modifier.size(width = 38.dp, height = 31.3.dp)) {
+        val u = 1.dp.toPx()
+        val bar = androidx.compose.ui.geometry.CornerRadius(1.6f * u, 1.6f * u)
+        val barsBottom = 25.3f * u
+        // left edge and top of each bar, in points from the glyph's top left
+        listOf(2.0f to 7.7f, 11.0f to 0f, 20.3f to 4.3f, 29.3f to 11.7f).forEach { (x, top) ->
+            drawRoundRect(
+                color,
+                topLeft = androidx.compose.ui.geometry.Offset(x * u, top * u),
+                size = androidx.compose.ui.geometry.Size(7f * u, barsBottom - top * u),
+                cornerRadius = bar,
+            )
+        }
+        drawRoundRect(
+            color,
+            topLeft = androidx.compose.ui.geometry.Offset(0f, 28f * u),
+            size = androidx.compose.ui.geometry.Size(size.width, 3.3f * u),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.65f * u, 1.65f * u),
+        )
     }
 }
 
