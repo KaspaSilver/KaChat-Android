@@ -564,9 +564,16 @@ fun ChatsScreen(
                 // (NO_HANDSHAKE_MESSAGING.md, iOS f7ca401 / 74bd52c).
                 if (searchQuery.isBlank() && !isSelectionMode) {
                     item(key = "message_requests_row") {
-                        MessageRequestsRow(count = messageRequests.size) {
-                            haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
-                            navController.navigate("message_requests")
+                        Column {
+                            MessageRequestsRow(count = messageRequests.size) {
+                                haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                                navController.navigate("message_requests")
+                            }
+                            // iOS's List draws its separator under this row too.
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 78.dp, end = 16.dp),
+                                color = LocalAppColors.current.textTertiary.copy(alpha = 0.5f)
+                            )
                         }
                     }
                 }
@@ -609,8 +616,9 @@ fun ChatsScreen(
                                             navController.navigate("chat/${convo.contact.id}")
                                         }
                                     }
+                                    // iOS 26: from the text's start (16 + 50 + 12) to 16 short of the edge.
                                     HorizontalDivider(
-                                        modifier = Modifier.padding(start = 72.dp),
+                                        modifier = Modifier.padding(start = 78.dp, end = 16.dp),
                                         color = LocalAppColors.current.textTertiary.copy(alpha = 0.5f)
                                     )
                                 }
@@ -1502,7 +1510,8 @@ internal fun ConversationRow(
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             // iOS ConversationRow: a 50pt avatar 12pt from the text, a list row's insets plus 4.
-            .padding(horizontal = 16.dp, vertical = 15.dp),
+            // iOS: the row's own 4 plus the List's row insets around the 50 avatar - about 89 a row.
+            .padding(horizontal = 16.dp, vertical = 19.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ContactAvatar(
@@ -1826,27 +1835,28 @@ private fun MessageRequestsRow(count: Int, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            // iOS: 6 of its own plus the List's row insets - a little taller than a chat row.
+            .padding(horizontal = 16.dp, vertical = 21.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(48.dp).clip(CircleShape).background(KaspaTeal),
+            modifier = Modifier.size(50.dp).clip(CircleShape).background(KaspaTeal),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.MoveToInbox, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+            Icon(Icons.Default.MoveToInbox, contentDescription = null, tint = Color.Black, modifier = Modifier.size(22.dp))
         }
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 stringResource(R.string.message_requests),
-                style = MaterialTheme.typography.titleMedium,
                 color = colors.textPrimary,
-                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
             Text(
                 stringResource(if (count > 0) R.string.message_requests_row_sub else R.string.message_requests_none_new),
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
                 color = colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

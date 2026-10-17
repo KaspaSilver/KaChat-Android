@@ -10150,19 +10150,29 @@ fun TopStatusBar(
     // button so a page can decide what belongs there (Profile puts its notification bell here).
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
-    // iOS's toolbar: the connection dot leading, the balance as the principal item centred in the
-    // space the leading and trailing items leave, and the trailing items (Select All, the
-    // page's own button, Select/Cancel) together on one piece of glass.
-    Row(
+    // iOS's toolbar: the connection dot leading, the balance as the principal item (placed as
+    // UIKit places one - see IosToolbarRow), and the trailing items (Select All, the page's own
+    // button, Select/Cancel) together on one piece of glass.
+    IosToolbarRow(
         modifier = Modifier.fillMaxWidth().height(52.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ConnectionDotButton(onClick = onStatusClick)
+        leading = { ConnectionDotButton(onClick = onStatusClick) },
+        principal = { BalanceLabelRow(balance, copyOnTap = true) },
+        trailing = { TopStatusBarTrailing(showAddButton, showEditButton, isEditing, onEditClick, selectAllLabel, onSelectAllClick, onAddClick, trailingContent) },
+    )
+}
 
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            BalanceLabelRow(balance, copyOnTap = true)
-        }
-
+@Composable
+private fun TopStatusBarTrailing(
+    showAddButton: Boolean,
+    showEditButton: Boolean,
+    isEditing: Boolean,
+    onEditClick: () -> Unit,
+    selectAllLabel: String?,
+    onSelectAllClick: () -> Unit,
+    onAddClick: () -> Unit,
+    trailingContent: (@Composable () -> Unit)?,
+) {
+    run {
         ToolbarGlassGroup {
             if (isEditing && selectAllLabel != null) {
                 ToolbarTextButton(selectAllLabel, onSelectAllClick)

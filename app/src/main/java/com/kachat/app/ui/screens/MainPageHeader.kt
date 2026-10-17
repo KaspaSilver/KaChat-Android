@@ -122,6 +122,46 @@ val LocalInHubSection = androidx.compose.runtime.compositionLocalOf { false }
 /** iOS's large navigation title: 34pt bold. */
 val LargeTitleSize = 34.sp
 
+/**
+ * A navigation bar's row laid out the way UIKit places a `.principal` toolbar item: [principal]
+ * centred on the bar when it fits between the [leading] and [trailing] items, otherwise slid
+ * over just enough to clear them (packed after the leading items when the trailing ones are
+ * wide - the Chats bar, whose gear-and-Select glass pushes the balance left).
+ */
+@Composable
+fun IosToolbarRow(
+    modifier: Modifier = Modifier,
+    leading: @Composable () -> Unit,
+    principal: @Composable () -> Unit,
+    trailing: @Composable () -> Unit,
+) {
+    androidx.compose.ui.layout.Layout(
+        contents = listOf(
+            { Box(contentAlignment = Alignment.Center) { leading() } },
+            { Box(contentAlignment = Alignment.Center) { principal() } },
+            { Box(contentAlignment = Alignment.Center) { trailing() } },
+        ),
+        modifier = modifier,
+    ) { (l, p, t), constraints ->
+        val gap = 12.dp.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val lead = l.first().measure(loose)
+        val trail = t.first().measure(loose)
+        val width = constraints.maxWidth
+        val room = (width - lead.width - trail.width - 2 * gap).coerceAtLeast(0)
+        val mid = p.first().measure(loose.copy(maxWidth = room))
+        val height = maxOf(lead.height, mid.height, trail.height).coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(width, height) {
+            lead.placeRelative(0, (height - lead.height) / 2)
+            trail.placeRelative(width - trail.width, (height - trail.height) / 2)
+            val minX = lead.width + gap
+            val maxX = width - trail.width - gap - mid.width
+            val x = ((width - mid.width) / 2).coerceAtMost(maxX).coerceAtLeast(minX)
+            mid.placeRelative(x, (height - mid.height) / 2)
+        }
+    }
+}
+
 @Composable
 fun MainPageHeader(
     title: String,
@@ -140,30 +180,28 @@ fun MainPageHeader(
             .background(colors.background)
             .statusBarsPadding(),
     ) {
-        // iOS's bar: leading items, the balance as the principal item centred in the space the
-        // leading and trailing items leave, trailing items on one piece of glass.
-        Row(
+        // iOS's bar: leading items, the balance as the principal item (see IosToolbarRow),
+        // trailing items on one piece of glass.
+        IosToolbarRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (onBack != null && !LocalInHubSection.current) {
-                    ToolbarGlassGroup {
-                        ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+            leading = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (onBack != null && !LocalInHubSection.current) {
+                        ToolbarGlassGroup {
+                            ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+                        }
                     }
+                    if (showStatus) ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
                 }
-                if (showStatus) ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
-            }
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                if (showStatus) BalanceTopBarLabel()
-            }
-            ToolbarGlassGroup(content = actions)
-        }
+            },
+            principal = { if (showStatus) BalanceTopBarLabel() },
+            trailing = { ToolbarGlassGroup(content = actions) },
+        )
         Text(
             text = title,
             color = colors.textPrimary,
