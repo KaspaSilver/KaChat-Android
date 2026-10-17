@@ -72,6 +72,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.FileDownload
@@ -258,11 +260,11 @@ fun PortfolioScreen(
                     // Portfolio somewhere with people around. The KAS price and the percentages
                     // stay: those say nothing about what is held.
                     // A 44 item on the header's glass disc (a Material IconButton is 48).
+                    // iOS: "eye" / "eye.slash" (outlined) in the accent, as a bar button is tinted.
                     ToolbarIconButton(
-                        if (valuesHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        if (valuesHidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         contentDescription = if (valuesHidden) "Show amounts" else "Hide amounts",
                         onClick = { viewModel.toggleValuesHidden() },
-                        tint = LocalAppColors.current.textPrimary,
                     )
                 },
             )

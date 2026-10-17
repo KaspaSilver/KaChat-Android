@@ -213,7 +213,7 @@ fun MainPageHeader(
             fontSize = LargeTitleSize,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
-            // measured on the iPhone: 24pt from the bar's glass to the title, 5 below it
+            // measured on the iPhone: the title's cap 43 below the bar's centre, 5 below it
             modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 5.dp),
         )
     }

@@ -365,8 +365,8 @@ fun ChatsScreen(
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = LargeTitleSize,
-                        // measured on the iPhone: 56 from the bar's centre to the title's, 30 on to the field
-                        modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+                        // measured on the iPhone: the title's cap 44 below the bar's centre
+                        modifier = Modifier.padding(top = 9.dp, bottom = 8.dp)
                     )
 
                     // Search Bar (iOS's .searchable field, 44 high)
