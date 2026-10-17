@@ -9503,16 +9503,17 @@ private fun ResyncChatPickerOverlay(
 
 @Composable
 fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
-    // iOS's inset-grouped Form section (iOS 26): a small uppercase secondary-label header over a
-    // card with 26pt corners.
+    // iOS 26's inset-grouped Form section: the header in title case, 17pt semibold in the
+    // secondary label colour (no longer iOS's old small uppercase), over a card with 26pt corners.
     Column {
         if (title != null) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = title.uppercase(),
-                    fontSize = 13.sp,
+                    text = title,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = LocalAppColors.current.textSecondary,
-                    modifier = Modifier.weight(1f).padding(start = 16.dp, bottom = 6.dp)
+                    modifier = Modifier.weight(1f).padding(start = 16.dp, bottom = 8.dp)
                 )
                 headerAction?.invoke()
             }
