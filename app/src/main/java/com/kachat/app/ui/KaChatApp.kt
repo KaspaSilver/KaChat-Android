@@ -467,6 +467,8 @@ fun MainShell(
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    // The whole stack, for the dock to light the tab a pushed screen sits in.
+    val dockBackStack by navController.currentBackStack.collectAsState()
     val currentDestination = navBackStackEntry?.destination
     // The broadcasts list isn't one of the four real tabs, but it's still a top-level browsing
     // screen (like Chats) rather than a "pushed" detail screen — the bottom nav should stay put
@@ -963,6 +965,13 @@ fun MainShell(
                                 currentDestination?.hierarchy?.any { it.route == screen.route } == true
                             }
                             if (direct >= 0) return@run direct
+                            // The tab whose stack the screen was pushed onto: the nearest dock tab
+                            // under it. iOS keeps that tab lit - a room opened from Chats lights
+                            // Chats, not Public Chats or the Hub.
+                            val underneath = dockBackStack.asReversed().drop(1).firstNotNullOfOrNull { entry ->
+                                localTabOrder.indexOfFirst { it.route == entry.destination.route }.takeIf { it >= 0 }
+                            }
+                            if (underneath != null) return@run underneath
                             val owner = dockOwnerRoute(currentTopRoute) ?: return@run -1
                             localTabOrder.indexOfFirst { it.route == owner }.takeIf { it >= 0 }
                                 ?: localTabOrder.indexOfFirst { it.route == Screen.KaspaHub.route }

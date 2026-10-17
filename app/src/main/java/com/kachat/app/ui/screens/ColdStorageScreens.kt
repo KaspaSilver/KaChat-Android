@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.CallReceived
@@ -195,7 +197,11 @@ fun ColdStorageListScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.Outlined.Security, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(44.dp))
+                // SF "lock.shield": a shield outline with a solid lock inside.
+                Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Shield, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(44.dp))
+                    Icon(Icons.Filled.Lock, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(17.dp).offset(y = (-1).dp))
+                }
                 Text(
                     stringResource(R.string.cold_storage_empty_title),
                     color = LocalAppColors.current.textPrimary,
