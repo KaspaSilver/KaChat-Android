@@ -103,6 +103,9 @@ data class KaPostDraft(
         val text: String,
         val posterAddress: String,
         val timestamp: Long?,
+        /** The quoted author's K pubkey, when known (our own quotes): a retry of a failed quote
+         *  needs it to post the quote again (iOS f28f1dc). */
+        val posterPubkey: String? = null,
     )
 
     companion object {

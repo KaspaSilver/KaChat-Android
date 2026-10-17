@@ -2185,7 +2185,8 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
-    /** Re-submits a failed post or reply (replies resolve their parent for the payload). */
+    /** Re-submits a failed post or reply (replies resolve their parent for the payload); a quote
+     *  goes again as the quote, a poll as the poll (iOS f28f1dc). */
     fun retryPost(post: KaPostDraft) {
         // A failed THREAD resumes its remaining chain instead of re-posting just the root.
         if (threadRemainders.containsKey(post.id)) {
@@ -2195,8 +2196,18 @@ class KaPostsViewModel @Inject constructor(
         mutateEverywhere(post.id) { it.copy(deliveryStatus = KaPostDraft.Delivery.PENDING) }
         viewModelScope.launch {
             try {
+                val quoted = post.quoted
+                val poll = post.poll
                 val parent = findParent(post.id)
-                val txId = if (parent != null) {
+                val txId = if (quoted != null) {
+                    // a failed quote is retried as the quote it was, never as plain text
+                    val contentId = quoted.remoteId ?: error("Quoted post is not on-chain yet")
+                    val author = quoted.posterPubkey ?: error("Quoted post has no author key")
+                    kaPostsService.submitQuote(post.text, contentId, author)
+                } else if (poll != null) {
+                    // and a failed poll as the poll
+                    kaPostsService.submitPoll(post.text, poll.options, poll.closesAtMs, mentionedPubkeys(post.text))
+                } else if (parent != null) {
                     val parentRemoteId = parent.remoteId ?: error("Parent post is not on-chain yet")
                     kaPostsService.submitReply(post.text, parentRemoteId, parent.posterPubkey, mentionedPubkeys(post.text))
                 } else {
@@ -2532,6 +2543,7 @@ class KaPostsViewModel @Inject constructor(
                 text = target.text,
                 posterAddress = target.posterAddress,
                 timestamp = target.timestamp,
+                posterPubkey = target.posterPubkey,
             ),
         )
         _localPosts.value = listOf(quotePost) + _localPosts.value
