@@ -780,6 +780,9 @@ class KaPostsViewModel @Inject constructor(
         val draftSegments: List<String>? = null,
         /** The post an undone comment answered, so Undo reopens the reply composer on it. */
         val commentParentId: String? = null,
+        /** An undone new poll's options, so its composer reopens as the poll it was (iOS
+         *  2c9e1ec). */
+        val pollOptions: List<String>? = null,
     )
 
     /** A draft handed back by Undo, for whichever composer is about to reopen. */
@@ -791,6 +794,8 @@ class KaPostsViewModel @Inject constructor(
         val threadSegments: List<String> = emptyList(),
         /** For a comment: the LOCAL id of the post it was answering. */
         val commentParentId: String? = null,
+        /** An undone poll's options: the composer reopens with Poll on and these filled in. */
+        val pollOptions: List<String> = emptyList(),
     )
 
     private val _restoredDraft = MutableStateFlow<RestoredDraft?>(null)
@@ -1645,6 +1650,8 @@ class KaPostsViewModel @Inject constructor(
                 isComment = toast.key.startsWith("comment:"),
                 threadSegments = if (segments.size > 1) segments.dropLast(1) else emptyList(),
                 commentParentId = toast.commentParentId,
+                // an undone poll reopens the composer as the poll: question and options
+                pollOptions = toast.pollOptions.orEmpty(),
             )
         }
     }
@@ -1773,7 +1780,7 @@ class KaPostsViewModel @Inject constructor(
         )
         _localPosts.value = listOf(newPost) + _localPosts.value
         val key = "post:${newPost.id}"
-        _undoToast.value = UndoToast(key, newPost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting poll", draftText = question)
+        _undoToast.value = UndoToast(key, newPost.id, System.currentTimeMillis() + UNDO_DELAY_MS, "Posting poll", draftText = question, pollOptions = clean)
         scheduleUndoable(key) {
             clearUndoToast(key)
             try {

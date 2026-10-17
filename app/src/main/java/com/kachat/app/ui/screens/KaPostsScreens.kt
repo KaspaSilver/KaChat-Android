@@ -612,6 +612,8 @@ private fun KaPostsFeedScreen(
     var restoredComposerText by remember { mutableStateOf("") }
     /// Thread segments handed back by Undo, stacked above the restored text.
     var restoredComposerSegments by remember { mutableStateOf(emptyList<String>()) }
+    /// An undone poll's options, handed to the reopened composer.
+    var restoredPollOptions by remember { mutableStateOf(emptyList<String>()) }
     // Zero-balance funding gate — tapping "New post" while the chatting balance is a confirmed
     // 0 KAS opens the shared funding card as a dialog instead of the post composer (replies get
     // the same treatment inside KaPostThreadOverlay). See ZeroBalanceFundingUi.kt.
@@ -658,6 +660,7 @@ private fun KaPostsFeedScreen(
         } else {
             restoredComposerText = draft.text
             restoredComposerSegments = draft.threadSegments
+            restoredPollOptions = draft.pollOptions
             val target = draft.quoteTargetId?.let { viewModel.findPost(it) }
             if (target != null) quoteTarget = target else showComposer = true
         }
@@ -1249,15 +1252,18 @@ private fun KaPostsFeedScreen(
             quoted = null,
             initialText = restoredComposerText,
             initialThreadSegments = restoredComposerSegments,
+            initialPollOptions = restoredPollOptions,
             onDismiss = {
                 showComposer = false
                 restoredComposerText = ""
                 restoredComposerSegments = emptyList()
+                restoredPollOptions = emptyList()
             },
             onSubmit = { text ->
                 showComposer = false
                 restoredComposerText = ""
                 restoredComposerSegments = emptyList()
+                restoredPollOptions = emptyList()
                 viewModel.schedulePost(text)
             },
             viewModel = viewModel,
@@ -1265,18 +1271,21 @@ private fun KaPostsFeedScreen(
                 showComposer = false
                 restoredComposerText = ""
                 restoredComposerSegments = emptyList()
+                restoredPollOptions = emptyList()
                 viewModel.scheduleThread(segments)
             },
             onSubmitPoll = { question, options, closesAtMs ->
                 showComposer = false
                 restoredComposerText = ""
                 restoredComposerSegments = emptyList()
+                restoredPollOptions = emptyList()
                 viewModel.createPoll(question, options, closesAtMs)
             },
             onSchedulePost = { text, notBeforeMs ->
                 showComposer = false
                 restoredComposerText = ""
                 restoredComposerSegments = emptyList()
+                restoredPollOptions = emptyList()
                 val whenText = formatScheduledTime(notBeforeMs, is24Hour)
                 viewModel.schedulePostForLater(
                     text,
@@ -3265,6 +3274,9 @@ fun KaPostComposerDialog(
     editingDraftId: String? = null,
     initialText: String = "",
     initialThreadSegments: List<String> = emptyList(),
+    /** An undone poll's options: the composer reopens with Poll on and these filled in (iOS
+     *  2c9e1ec). */
+    initialPollOptions: List<String> = emptyList(),
     /** Called with the composer's contents when the user chooses Save Draft on close. */
     onSaveDraft: ((String, List<String>) -> Unit)? = null,
     /** Posts a poll instead of a plain post: the question, its options, and when voting closes
@@ -3281,8 +3293,16 @@ fun KaPostComposerDialog(
     var text by remember { mutableStateOf(TextFieldValue(initialText)) }
     var threadSegments by remember { mutableStateOf(initialThreadSegments) }
     // Poll: two to four options and how long voting stays open (iOS's composer state).
-    var pollEnabled by remember { mutableStateOf(false) }
-    var pollOptions by remember { mutableStateOf(listOf("", "")) }
+    var pollEnabled by remember { mutableStateOf(initialPollOptions.isNotEmpty()) }
+    var pollOptions by remember {
+        mutableStateOf(
+            when {
+                initialPollOptions.isEmpty() -> listOf("", "")
+                initialPollOptions.size >= 2 -> initialPollOptions.take(4)
+                else -> initialPollOptions + List(2 - initialPollOptions.size) { "" }
+            }
+        )
+    }
     var pollDurationHours by remember { mutableIntStateOf(24) }
     // Scheduling: when this post goes out instead of now, and the picker that sets it.
     var scheduledAtMs by remember { mutableStateOf<Long?>(null) }
