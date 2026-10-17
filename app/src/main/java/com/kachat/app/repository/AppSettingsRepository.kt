@@ -1127,6 +1127,26 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setPendingKnsCommit(commit: PendingKnsCommit) = dataStore.edit { it[KEY_PENDING_KNS_COMMIT] = Gson().toJson(commit) }
     suspend fun clearPendingKnsCommit() = dataStore.edit { it.remove(KEY_PENDING_KNS_COMMIT) }
     suspend fun setPaymentHistoryScanned(address: String, value: Boolean) = dataStore.edit { it[paymentHistoryScannedKey(address)] = value }
+
+    /**
+     * Received payments whose signatures couldn't be checked yet, for [wallet] (iOS 5806362
+     * `kachat_held_payments_<wallet>`): txid (lowercased) -> when it was first held (epoch ms).
+     * The payment sync re-reads and checks them on every sync for up to 7 days
+     * ([com.kachat.app.repository.ChatRepository.heldPaymentsDue]); never shown unverified.
+     */
+    suspend fun heldPayments(wallet: String): Map<String, Long> {
+        val raw = dataStore.data.first()[heldPaymentsKey(wallet)] ?: return emptyMap()
+        return runCatching {
+            @Suppress("UNCHECKED_CAST")
+            (Gson().fromJson(raw, Map::class.java) as Map<String, Any?>)
+                .mapNotNull { (txId, at) -> (at as? Number)?.toLong()?.let { txId to it } }
+                .toMap()
+        }.getOrDefault(emptyMap())
+    }
+
+    suspend fun setHeldPayments(wallet: String, held: Map<String, Long>) = dataStore.edit {
+        if (held.isEmpty()) it.remove(heldPaymentsKey(wallet)) else it[heldPaymentsKey(wallet)] = Gson().toJson(held)
+    }
     suspend fun setHandshakeSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeSyncCursorKey(address)] = value }
 
     /** Cursor for the OUTGOING handshakes/by-sender restore pass — separate stream, separate cursor. */
@@ -1138,6 +1158,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setShowSetupGuides(address: String, value: Boolean) = dataStore.edit { it[showSetupGuidesKey(address)] = value }
 
     private fun paymentHistoryScannedKey(address: String) = booleanPreferencesKey("payment_history_scanned_$address")
+    private fun heldPaymentsKey(wallet: String) = stringPreferencesKey("kachat_held_payments_${wallet.lowercase()}")
     private fun liveNotificationBaselineKey(address: String) = longPreferencesKey("live_notification_baseline_$address")
     private fun handshakeSyncCursorKey(address: String) = longPreferencesKey("handshake_sync_cursor_$address")
     private fun handshakeOutSyncCursorKey(address: String) = longPreferencesKey("handshake_out_sync_cursor_$address")

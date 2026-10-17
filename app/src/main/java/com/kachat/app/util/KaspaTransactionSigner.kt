@@ -79,12 +79,28 @@ object KaspaTransactionSigner {
         return out
     }
 
+    /** An output's covenant binding (transaction version 1, iOS `OutputCovenant`): which input
+     *  authorizes it (u16) and the covenant it continues (32 bytes). Part of the v1 sighash; the
+     *  app's own payments carry none. */
+    class OutputCovenant(val authorizingInput: Int, val covenantId: ByteArray)
+
+    /**
+     * Versions 0 and 1 (rusty-kaspa consensus/core/src/hashing/sighash.rs,
+     * `calc_schnorr_signature_hash`; iOS `computeSighash`, 5806362): from version 1 the sig-op
+     * counts are left out (both the hash of all of them and the input's own byte), and each
+     * output adds whether it carries a covenant, then its authorizing input (u16 LE) and
+     * covenant id (32 bytes) when it does. [covenants] is per output (missing entries = none);
+     * only the verification of received v1 transactions passes it. Every transaction the app
+     * builds is version 0, so signing takes the version-0 branch, unchanged.
+     */
     internal fun calculateSighash(
         tx: RawTransaction,
         inputIndex: Int,
         amount: Long,
-        scriptPublicKey: String
+        scriptPublicKey: String,
+        covenants: List<OutputCovenant?> = emptyList(),
     ): ByteArray {
+        val isV1 = tx.version >= 1
         val buffer = ByteBuffer.allocate(4096).order(ByteOrder.LITTLE_ENDIAN)
 
         // version (u16 LE)
@@ -103,10 +119,12 @@ object KaspaTransactionSigner {
         tx.inputs.forEach { input -> sequencesData.write(longToLeBytes(input.sequence)) }
         buffer.put(keyedBlake2b(sequencesData.toByteArray()))
 
-        // sigOpCountsHash
-        val sigOpCountsData = ByteArrayOutputStream()
-        tx.inputs.forEach { input -> sigOpCountsData.write(byteArrayOf(input.sigOpCount.toByte())) }
-        buffer.put(keyedBlake2b(sigOpCountsData.toByteArray()))
+        // sigOpCountsHash (version 0 only)
+        if (!isV1) {
+            val sigOpCountsData = ByteArrayOutputStream()
+            tx.inputs.forEach { input -> sigOpCountsData.write(byteArrayOf(input.sigOpCount.toByte())) }
+            buffer.put(keyedBlake2b(sigOpCountsData.toByteArray()))
+        }
 
         // This input's outpoint
         val currentInput = tx.inputs[inputIndex]
@@ -122,16 +140,26 @@ object KaspaTransactionSigner {
         // UTXO amount, this input's sequence, this input's sigOpCount
         buffer.putLong(amount)
         buffer.putLong(currentInput.sequence)
-        buffer.put(currentInput.sigOpCount.toByte())
+        if (!isV1) buffer.put(currentInput.sigOpCount.toByte()) // version 0 only
 
         // outputsHash: keyedBlake2b(value(u64 LE) + scriptVersion(u16 LE) + scriptLen(u64 LE) + scriptBytes, per output)
         val outputsData = ByteArrayOutputStream()
-        tx.outputs.forEach { output ->
+        tx.outputs.forEachIndexed { outputIndex, output ->
             outputsData.write(longToLeBytes(output.amount))
             outputsData.write(shortToLeBytes(output.scriptPublicKey.version.toShort()))
             val outScriptBytes = output.scriptPublicKey.scriptPublicKey.hexToBytes()
             outputsData.write(longToLeBytes(outScriptBytes.size.toLong()))
             outputsData.write(outScriptBytes)
+            if (isV1) {
+                val covenant = covenants.getOrNull(outputIndex)
+                if (covenant != null) {
+                    outputsData.write(1)
+                    outputsData.write(shortToLeBytes(covenant.authorizingInput.toShort()))
+                    outputsData.write(covenant.covenantId)
+                } else {
+                    outputsData.write(0)
+                }
+            }
         }
         buffer.put(keyedBlake2b(outputsData.toByteArray()))
 

@@ -1,184 +1,181 @@
 package com.kachat.app.util
 
-import com.kachat.app.services.TransactionInput
+import com.google.gson.Gson
 import com.kachat.app.services.TransactionOutput
 import com.kachat.app.services.TransactionResponse
+import com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * [KaspaSignatureVerifier] against real mainnet transactions, as api.kaspa.org's
- * `/transactions/{id}?resolve_previous_outpoints=light` served them (Oct 2026). Each one was also
- * checked with an independent reimplementation of iOS's `verifyTransactionSignatures`.
+ * `/transactions/{id}?inputs=true&outputs=true&resolve_previous_outpoints=light` served them
+ * (Oct 2026; test/resources/kaspa-transactions), parsed with Gson like the app parses them.
+ * Every one was also checked with an independent script following rusty-kaspa's
+ * `calc_schnorr_signature_hash` (iOS 5806362's vectors plus our own).
  */
 class KaspaSignatureVerifierTest {
 
-    private val zeroSubnet = "0000000000000000000000000000000000000000"
+    private fun load(txId: String): TransactionResponse {
+        val stream = javaClass.classLoader!!.getResourceAsStream("kaspa-transactions/$txId.json")
+            ?: error("missing fixture $txId")
+        return stream.reader().use { Gson().fromJson(it, TransactionResponse::class.java) }
+    }
 
-    /** e3faaa00…: one input, one output, no payload. */
-    private fun oneInOneOut() = TransactionResponse(
-        transactionId = "e3faaa000b3a9717247c72a61925bcf87307c63daba216d3e2491c83b5d2df60",
-        inputs = listOf(
-            TransactionInput(
-                previousOutpointHash = "9816e49fae9a1ad37d76cc47cfe03816c93fab725d7689ad57306d06e6cb3aa2",
-                previousOutpointIndex = 0,
-                previousOutpointAddress = "kaspa:qqtk9u6alm8vz7tp5a425x9cacad7nezhpwmvz890yndpt9f07e0udw59l300",
-                previousOutpointAmount = 39_051_523L,
-                signatureScript = "411aeaddaf3fb694cdbc89e64473989ead6e91b5d4fb164cc91f962fd8c0da3db6c254205fdd3b0951f17bb6798500dabf192cb99ed2a69883346413d6e76b3f1201",
-                sigOpCount = "1",
-            )
-        ),
-        outputs = listOf(
-            TransactionOutput(
-                amount = 38_847_923L,
-                scriptPublicKey = "20d85bd60b671b2ebbf9e19a741a7ed6a43f9400c8f2b146b092f5040bb869ceabac",
-                scriptPublicKeyAddress = "kaspa:qrv9h4stvudjawleuxd8gxn766jrl9qqeretz34sjt6sgzacd882km8ngephg",
-            )
-        ),
-        blockTime = 1792275794946L,
-        payload = null,
-        version = "0",
-        subnetworkId = zeroSubnet,
-    )
+    private fun check(tx: TransactionResponse, spent: Map<String, TransactionOutput> = emptyMap()): SignatureCheck =
+        runBlocking { KaspaSignatureVerifier.checkReceivedTransaction(tx) { hash, index -> spent["$hash:$index"] } }
 
-    /** 1feb8b58…: one input, a payment plus change. */
-    private fun paymentWithChange() = TransactionResponse(
-        transactionId = "1feb8b58162de1cac138a2061ce43c11f4d63d7b4195d4362016f3025d13e410",
-        inputs = listOf(
-            TransactionInput(
-                previousOutpointHash = "88856e1cd602d7ce261655efbf82e6148764308ef1f37e786e8eea7d006121a7",
-                previousOutpointIndex = 1,
-                previousOutpointAddress = "kaspa:qzfmpw57trldaadplnufgrwnuzgeqmphcjtaue8rvj0f4c83yhc66mmq7369h",
-                previousOutpointAmount = 136_743_575_690_636L,
-                signatureScript = "411f0c39df7145a0dc1c05542b57e4c9c2aacf1242ed017be2fc4f0edc5107bd5b4179e94e1c40e8ab4c07a342647a73c9cd752128e8673ed0042e769c5d6a8e9c01",
-                sigOpCount = "1",
-            )
-        ),
-        outputs = listOf(
-            TransactionOutput(
-                amount = 1_567_961_000_000L,
-                scriptPublicKey = "204d5b27bd8d48cb67715b3cb3abfa79a46f31dacb9837d061701b97af4b71153bac",
-                scriptPublicKeyAddress = "kaspa:qpx4kfaa34yvkem3tv7t82l60xjx7vw6ewvr05rpwqde0t6twy2nk3lyljet6",
-            ),
-            TransactionOutput(
-                amount = 135_175_614_484_836L,
-                scriptPublicKey = "2093b0ba9e58fedef5a1fcf8940dd3e091906c37c497de64e3649e9ae0f125f1adac",
-                scriptPublicKeyAddress = "kaspa:qzfmpw57trldaadplnufgrwnuzgeqmphcjtaue8rvj0f4c83yhc66mmq7369h",
-            ),
-        ),
-        blockTime = null,
-        payload = null,
-        version = "0",
-        subnetworkId = zeroSubnet,
-    )
-
-    /** 36671491…: a transaction carrying a payload (hashed into the sighash). */
-    private fun withPayload() = TransactionResponse(
-        transactionId = "366714913c41f726b12b980a7f22b63e9c4cebfc90aefecda443d75f0710652e",
-        inputs = listOf(
-            TransactionInput(
-                previousOutpointHash = "3e7d46f370bfa419f2807656ceb9fb0a0975dd286d465cd5ed55c04d6ede9506",
-                previousOutpointIndex = 0,
-                previousOutpointAddress = "kaspa:qq8903f00vwqtaujqkfdpph36q0vpdq7qpa4ga2yhfv0e8exu59fk7s7a7g4q",
-                previousOutpointAmount = 42_946_200_690L,
-                signatureScript = "419aaca19581a9251cd2517d9bbacf4a202e74535c57422beec8f146af11ceadcaf7541dbbad07f1cac56f104bf44b8199da004aa97d7d3826d714d744f39834ed01",
-                sigOpCount = "1",
-            )
-        ),
-        outputs = listOf(
-            TransactionOutput(
-                amount = 42_946_009_410L,
-                scriptPublicKey = "200e57c52f7b1c05f7920592d086f1d01ec0b41e007b547544ba58fc9f26e50a9bac",
-                scriptPublicKeyAddress = "kaspa:qq8903f00vwqtaujqkfdpph36q0vpdq7qpa4ga2yhfv0e8exu59fk7s7a7g4q",
-            )
-        ),
-        blockTime = null,
-        payload = "6b6173706c61793a76313a7479636f6f6e2d666565643a626c61636b6f75743a6f6d656963683a6f6d6569636827735f6d696e655f6861645f615f706f7765725f626c61636b6f7574213a313739323237353837333a3064626539383862",
-        version = "0",
-        subnetworkId = zeroSubnet,
+    // version 0
+    private val v0Change = "5edbcad29c52e5670a5989f32dd749d8f1d6b5fbd74bce30c8af4ca58e1c24c0"
+    private val v0OneOut = "e3faaa000b3a9717247c72a61925bcf87307c63daba216d3e2491c83b5d2df60"
+    private val v0Payment = "1feb8b58162de1cac138a2061ce43c11f4d63d7b4195d4362016f3025d13e410"
+    private val v0Payload = "366714913c41f726b12b980a7f22b63e9c4cebfc90aefecda443d75f0710652e"
+    // version 1: no covenant outputs; on a non-native subnetwork with a payload; covenant outputs
+    private val v1Plain = "3ac700b8ee7c941bb6cc2fb8562e0f7087a0fbbd851a0eca897f0e5af0e7e737"
+    private val v1Subnetwork = "97b1b6a45da35592dda9b32afd2e6f548cca854e19472aa819e4823266eeff18"
+    private val v1Covenants = listOf(
+        "cd2f93b3d9f6692b6dda6de8fa2f54a46052c2d6480c5536bea178494902566d",
+        "82453d2419bb80efebb16ca3bf1ac0efece375835ccd392c7eb63b4bc3eba640",
+        "400589f6ca2247430d907511101c628bad7f5a1411ba3b1703efeb460c92fba5",
     )
 
     @Test
-    fun `real mainnet signatures verify`() {
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(oneInOneOut()))
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(paymentWithChange()))
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(withPayload()))
+    fun `real version 0 signatures verify`() {
+        for (id in listOf(v0Change, v0OneOut, v0Payment, v0Payload)) {
+            assertEquals(id, SignatureCheck.Valid, check(load(id)))
+        }
+    }
+
+    @Test
+    fun `real version 1 signatures verify, covenant outputs and other subnetworks included`() {
+        for (id in listOf(v1Plain, v1Subnetwork) + v1Covenants) {
+            assertEquals(id, SignatureCheck.Valid, check(load(id)))
+        }
+    }
+
+    @Test
+    fun `the fixtures are what they claim to be`() {
+        assertEquals("0", load(v0Change).version)
+        assertEquals("1", load(v1Plain).version)
+        for (id in v1Covenants) {
+            val tx = load(id)
+            assertTrue(id, tx.outputs.any { it.covenantAuthorizingInput != null && it.covenantId?.length == 64 })
+        }
     }
 
     @Test
     fun `a tampered signature fails`() {
-        val tx = oneInOneOut()
-        val sig = tx.inputs[0].signatureScript
-        // flip one nibble inside the 64-byte signature
-        val flipped = sig.substring(0, 10) + (if (sig[10] == '0') '1' else '0') + sig.substring(11)
-        val tampered = tx.copy(inputs = listOf(tx.inputs[0].copy(signatureScript = flipped)))
-        assertEquals(0, KaspaSignatureVerifier.invalidInputIndex(tampered))
+        for (id in listOf(v0OneOut, v1Plain)) {
+            val tx = load(id)
+            val sig = tx.inputs[0].signatureScript
+            val flipped = sig.substring(0, 10) + (if (sig[10] == '0') '1' else '0') + sig.substring(11)
+            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(inputs = listOf(tx.inputs[0].copy(signatureScript = flipped)))))
+        }
     }
 
     @Test
-    fun `a tampered output amount fails`() {
-        val tx = paymentWithChange()
-        val outputs = tx.outputs.toMutableList()
-        outputs[0] = outputs[0].copy(amount = outputs[0].amount + 1)
-        assertEquals(0, KaspaSignatureVerifier.invalidInputIndex(tx.copy(outputs = outputs)))
+    fun `a tampered or redirected output fails`() {
+        for (id in listOf(v0Payment, v1Plain)) {
+            val tx = load(id)
+            val more = tx.outputs.toMutableList().also { it[0] = it[0].copy(amount = it[0].amount + 1) }
+            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(outputs = more)))
+            val redirected = tx.outputs.toMutableList().also { it[0] = it[0].copy(scriptPublicKey = tx.outputs[1].scriptPublicKey) }
+            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(outputs = redirected)))
+        }
     }
 
     @Test
-    fun `a redirected output fails`() {
-        val tx = paymentWithChange()
-        val outputs = tx.outputs.toMutableList()
-        outputs[0] = outputs[0].copy(scriptPublicKey = tx.outputs[1].scriptPublicKey)
-        assertEquals(0, KaspaSignatureVerifier.invalidInputIndex(tx.copy(outputs = outputs)))
+    fun `a tampered covenant binding fails the version 1 hash`() {
+        val tx = load(v1Covenants[0])
+        val bound = tx.outputs.indexOfFirst { it.covenantId != null }
+        val signed = tx.inputs.indexOfFirst { it.signatureScript.length == 132 }
+        val otherId = tx.outputs.toMutableList().also {
+            it[bound] = it[bound].copy(covenantId = "00".repeat(32))
+        }
+        assertEquals(SignatureCheck.Invalid(signed), check(tx.copy(outputs = otherId)))
+        val unbound = tx.outputs.toMutableList().also {
+            it[bound] = it[bound].copy(covenantAuthorizingInput = null, covenantId = null)
+        }
+        assertEquals(SignatureCheck.Invalid(signed), check(tx.copy(outputs = unbound)))
     }
 
     @Test
     fun `a tampered spent amount or payload fails`() {
-        val tx = withPayload()
-        val input = tx.inputs[0]
-        assertEquals(0, KaspaSignatureVerifier.invalidInputIndex(
-            tx.copy(inputs = listOf(input.copy(previousOutpointAmount = input.previousOutpointAmount!! - 1)))
-        ))
-        assertEquals(0, KaspaSignatureVerifier.invalidInputIndex(tx.copy(payload = tx.payload!!.dropLast(2) + "00")))
+        for (id in listOf(v0Payload, v1Subnetwork)) {
+            val tx = load(id)
+            val input = tx.inputs[0]
+            assertEquals(id, SignatureCheck.Invalid(0), check(
+                tx.copy(inputs = listOf(input.copy(previousOutpointAmount = input.previousOutpointAmount!! - 1)))
+            ))
+            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(payload = tx.payload!!.dropLast(2) + "00")))
+        }
     }
 
     @Test
-    fun `what cannot be checked passes, as on iOS`() {
-        val tx = oneInOneOut()
+    fun `an unresolved input is looked up through its previous transaction`() {
+        val tx = load(v1Plain)
         val input = tx.inputs[0]
-        // a non-standard signature script is not checked
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(tx.copy(inputs = listOf(input.copy(signatureScript = "00")))))
-        // an input without its resolved address is left out; with none left there is nothing to check
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(tx.copy(inputs = listOf(input.copy(previousOutpointAddress = null)))))
-        // an output without script data: the transaction cannot be rebuilt
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(tx.copy(outputs = listOf(tx.outputs[0].copy(scriptPublicKey = "")))))
-        // an address that does not decode: the spent script cannot be rebuilt
-        assertNull(KaspaSignatureVerifier.invalidInputIndex(tx.copy(inputs = listOf(input.copy(previousOutpointAddress = "kaspa:nope")))))
+        val unresolved = tx.copy(inputs = listOf(input.copy(previousOutpointAddress = null, previousOutpointAmount = null)))
+        // not readable yet: held, never dropped
+        assertEquals(SignatureCheck.Unknown, check(unresolved))
+        // the previous transaction's output at that index fills it in
+        val spent = TransactionOutput(
+            amount = input.previousOutpointAmount!!,
+            scriptPublicKey = KaspaAddress.getScriptPublicKey(input.previousOutpointAddress!!),
+            scriptPublicKeyAddress = input.previousOutpointAddress,
+            index = input.previousOutpointIndex,
+        )
+        assertEquals(SignatureCheck.Valid, check(unresolved, mapOf("${input.previousOutpointHash}:${input.previousOutpointIndex}" to spent)))
+        // and a wrong one is caught
+        val wrong = spent.copy(amount = spent.amount + 1)
+        assertEquals(SignatureCheck.Invalid(0), check(unresolved, mapOf("${input.previousOutpointHash}:${input.previousOutpointIndex}" to wrong)))
     }
 
     @Test
-    fun `a signature valid for another transaction does not verify here`() {
-        val a = oneInOneOut()
-        val b = withPayload()
-        val swapped = a.copy(inputs = listOf(a.inputs[0].copy(signatureScript = b.inputs[0].signatureScript)))
-        assertFalse(KaspaSignatureVerifier.verifyTransactionSignatures(
-            inputs = listOf(KaspaSignatureVerifier.VerificationInput(
-                previousOutpointHash = swapped.inputs[0].previousOutpointHash,
-                previousOutpointIndex = 0,
-                signatureScript = swapped.inputs[0].signatureScript,
-                previousOutpointAddress = swapped.inputs[0].previousOutpointAddress!!,
-                previousOutpointAmount = swapped.inputs[0].previousOutpointAmount!!,
-                sequence = 0,
-                sigOpCount = 1,
-            )),
-            outputs = swapped.outputs.map { KaspaSignatureVerifier.VerificationOutput(it.amount, it.scriptPublicKey) },
-            version = 0, lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
-        ))
-        assertTrue(KaspaSignatureVerifier.verifyTransactionSignatures(
-            inputs = emptyList(), outputs = emptyList(),
-            version = 0, lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
-        ))
+    fun `the spent output is found by its index, else by position`() {
+        val outputs = listOf(
+            TransactionOutput(amount = 1, scriptPublicKey = "aa", scriptPublicKeyAddress = "a", index = 1),
+            TransactionOutput(amount = 2, scriptPublicKey = "bb", scriptPublicKeyAddress = "b", index = 0),
+        )
+        val previous = load(v0OneOut).copy(outputs = outputs)
+        assertEquals(2L, KaspaSignatureVerifier.outputAt(previous, 0)?.amount)
+        val unindexed = previous.copy(outputs = outputs.map { it.copy(index = null) })
+        assertEquals(1L, KaspaSignatureVerifier.outputAt(unindexed, 0)?.amount)
+        assertEquals(null, KaspaSignatureVerifier.outputAt(unindexed, 5))
+    }
+
+    @Test
+    fun `what cannot be checked is unknown, a coinbase and non-standard inputs pass`() {
+        val tx = load(v0OneOut)
+        val input = tx.inputs[0]
+        // a coinbase has no signatures
+        assertEquals(SignatureCheck.Valid, check(tx.copy(inputs = emptyList())))
+        // a non-standard signature script (a covenant spend, another sighash type) is not checked
+        assertEquals(SignatureCheck.Valid, check(tx.copy(inputs = listOf(input.copy(signatureScript = "00")))))
+        // an output without script data, a malformed covenant id, an address that doesn't decode
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(scriptPublicKey = "")))))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(covenantAuthorizingInput = "0", covenantId = "abcd")))))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputs = listOf(input.copy(previousOutpointAddress = "kaspa:nope")))))
+    }
+
+    @Test
+    fun `the wallet's own version 0 signing hash is unchanged by covenant data`() {
+        // A version-0 transaction ignores covenants entirely (rusty-kaspa: v1 only).
+        val tx = com.kachat.app.services.RawTransaction(
+            version = 0,
+            inputs = listOf(com.kachat.app.services.RawInput(com.kachat.app.services.Outpoint("11".repeat(32), 0), "", 0, 1)),
+            outputs = listOf(com.kachat.app.services.RawOutputWithVersion(5, com.kachat.app.services.ScriptPublicKeyWithVersion("20" + "22".repeat(32) + "ac"))),
+        )
+        val plain = KaspaTransactionSigner.calculateSighash(tx, 0, 10, "20" + "33".repeat(32) + "ac")
+        val withCovenant = KaspaTransactionSigner.calculateSighash(
+            tx, 0, 10, "20" + "33".repeat(32) + "ac",
+            listOf(KaspaTransactionSigner.OutputCovenant(0, ByteArray(32) { 9 }))
+        )
+        org.junit.Assert.assertArrayEquals(plain, withCovenant)
+        // ...while version 1 hashes it differently
+        val v1 = KaspaTransactionSigner.calculateSighash(tx.copy(version = 1), 0, 10, "20" + "33".repeat(32) + "ac")
+        org.junit.Assert.assertFalse(plain.contentEquals(v1))
     }
 }

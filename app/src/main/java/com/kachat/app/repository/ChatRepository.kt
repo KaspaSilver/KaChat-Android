@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -2595,6 +2596,28 @@ class ChatRepository @Inject constructor(
             if (oldest < since) break
         }
 
+        // Payments held because their signatures couldn't be checked yet are read again by id -
+        // the pages above may already be past them - and checked again below, past the time
+        // filter (iOS 5806362 fetchPaymentsFromKaspaAPI). A read that fails just leaves the
+        // payment held; it never makes this sync incomplete.
+        val heldTxIds = HashSet<String>()
+        val present = transactions.mapTo(HashSet()) { it.transactionId.lowercase() }
+        for (txId in heldPaymentTxIds(myAddress)) {
+            if (txId in present) {
+                heldTxIds += txId
+                continue
+            }
+            val held = try {
+                restApi.getTransactionWithInputAddresses(txId)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            } ?: continue
+            transactions += held
+            heldTxIds += txId
+        }
+
         // Once per process per wallet: drop the payment bubbles older builds made from .kachat
         // contract transactions (iOS 32fdaa4). processPayment no longer files them.
         if (contractPaymentsPurged.add(myAddress.lowercase())) {
@@ -2614,8 +2637,10 @@ class ChatRepository @Inject constructor(
                 // for a history read: after a wipe, ids handled earlier this process are exactly
                 // the bubbles that must come back (the stored-txid check below still dedupes).
                 val seenKey = "$myAddress|${tx.transactionId}"
-                if (!history && seenKey in seenPaymentTxIds) continue
-                if (retentionCutoff != null && (tx.blockTime ?: 0L) in 1 until retentionCutoff) {
+                // a held payment is due whatever this process has seen and however old it is
+                val isHeld = tx.transactionId.lowercase() in heldTxIds
+                if (!history && !isHeld && seenKey in seenPaymentTxIds) continue
+                if (!isHeld && retentionCutoff != null && (tx.blockTime ?: 0L) in 1 until retentionCutoff) {
                     seenPaymentTxIds.add(seenKey)
                     continue
                 }
@@ -2635,13 +2660,14 @@ class ChatRepository @Inject constructor(
                 // A stored txid is never touched again - above all a payment_notice's bubble,
                 // which only that notice's own chain check may confirm or move (IOS-083 run 11).
                 if (database.messageDao().exists(tx.transactionId, myAddress)) {
+                    if (isHeld) releaseHeldPayment(myAddress, tx.transactionId)
                     seenPaymentTxIds.add(seenKey)
                     continue
                 }
                 // Only a FINAL outcome marks the id seen — a transient input-resolution gap
                 // (processPayment returns false) must stay retryable on the next poll, exactly
                 // as it was before the seen-set existed.
-                if (processPayment(myAddress, tx)) {
+                if (processPayment(myAddress, tx, restApi)) {
                     seenPaymentTxIds.add(seenKey)
                 } else if (unresolvedPaymentCatchUps.add(seenKey)) {
                     // Sender not resolved yet: the next sync fetches payments from a little
@@ -2660,7 +2686,7 @@ class ChatRepository @Inject constructor(
     /** Returns true when the outcome is FINAL (recorded, or permanently irrelevant) — false only
      *  for the transient no-input-address-resolved gap, which the next poll must retry.
      *  Both directions, as iOS `processPayments`: a payment we sent goes to [processOutgoingPayment]. */
-    private suspend fun processPayment(myAddress: String, tx: TransactionResponse): Boolean {
+    private suspend fun processPayment(myAddress: String, tx: TransactionResponse, restApi: KaspaRestApi): Boolean {
         val payloadBytes = tx.payload?.hexToBytes() ?: ByteArray(0)
         // A KaChat payment carries `kchat:1:pay:` with its memo encrypted to us (iOS always
         // writes one; Android writes one when there is a memo, iOS 8d208b2). It is still a
@@ -2704,14 +2730,36 @@ class ChatRepository @Inject constructor(
             }
         }
         // A received payment read from the REST API is filed only if its signatures verify (iOS
-        // fetchPaymentsFromKaspaAPI): the API is a third party, and a fabricated "payment" must
-        // not create or change a chat. Only a definitively invalid signature drops it - see
-        // [com.kachat.app.util.KaspaSignatureVerifier]. Final: the same transaction fails the
-        // same way on every read.
-        com.kachat.app.util.KaspaSignatureVerifier.invalidInputIndex(tx)?.let { badInput ->
-            Log.w("ChatRepository", "Schnorr signature INVALID for input $badInput of tx")
-            Log.w("ChatRepository", "WARNING: Skipping payment ${tx.transactionId.take(16)} - Schnorr signature verification FAILED")
-            return true
+        // fetchPaymentsFromKaspaAPI, 5806362): the API is a third party, and a fabricated
+        // "payment" must not create or change a chat. Versions 0 and 1; an input the API didn't
+        // resolve is looked up through its previous transaction. Invalid drops it; a payment that
+        // still can't be checked is held and checked again on later syncs - never dropped on the
+        // first miss, never shown unverified. See [com.kachat.app.util.KaspaSignatureVerifier].
+        val check = com.kachat.app.util.KaspaSignatureVerifier.checkReceivedTransaction(tx) { previousTxId, index ->
+            val previous = try {
+                restApi.getTransaction(previousTxId)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            previous?.let { com.kachat.app.util.KaspaSignatureVerifier.outputAt(it, index) }
+        }
+        when (check) {
+            com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid ->
+                releaseHeldPayment(myAddress, tx.transactionId)
+            is com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Invalid -> {
+                releaseHeldPayment(myAddress, tx.transactionId)
+                Log.w("ChatRepository", "Schnorr signature INVALID for input ${check.inputIndex} of a v${tx.version?.trim()?.toIntOrNull() ?: 0} tx")
+                Log.w("ChatRepository", "WARNING: Skipping payment ${tx.transactionId.take(16)} - Schnorr signature verification FAILED")
+                return true
+            }
+            com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Unknown -> {
+                holdPayment(myAddress, tx.transactionId)
+                Log.i("ChatRepository", "Payment ${tx.transactionId.take(16)} held - its signatures can't be checked yet")
+                // Final for this read: the held list brings it back on every sync.
+                return true
+            }
         }
         // Moving your own money between your own addresses is not a conversation (iOS
         // processPayments). Checked before the contact lookup, as iOS does: an own address CAN
@@ -2879,6 +2927,40 @@ class ChatRepository @Inject constructor(
         // (iOS addMessageToConversation -> ensureContactStash for a sent message).
         contactNotesLazy.get().onMessageDelivered(recipient)
         return true
+    }
+
+    // MARK: Received payments held for their signature check (iOS 5806362)
+
+    /** Serializes the read-modify-write of the held list (two syncs can run at once). */
+    private val heldPaymentsMutex = kotlinx.coroutines.sync.Mutex()
+
+    /** The held txids due this sync - at most [HELD_PAYMENTS_PER_SYNC], expired ones dropped
+     *  with a log line (iOS `heldPaymentTxIds`). */
+    private suspend fun heldPaymentTxIds(wallet: String): List<String> = heldPaymentsMutex.withLock {
+        val held = settingsRepository.heldPayments(wallet)
+        if (held.isEmpty()) return@withLock emptyList()
+        val (due, expired) = heldPaymentsDue(held, System.currentTimeMillis())
+        if (expired.isNotEmpty()) {
+            expired.forEach {
+                Log.i("ChatRepository", "Gave up on held payment ${it.take(16)} - signatures still uncheckable after 7 days")
+            }
+            settingsRepository.setHeldPayments(wallet, held - expired.toSet())
+        }
+        due
+    }
+
+    /** iOS `holdPayment`: the first hold's time is kept. */
+    private suspend fun holdPayment(wallet: String, txId: String) = heldPaymentsMutex.withLock {
+        val key = txId.lowercase()
+        val held = settingsRepository.heldPayments(wallet)
+        if (key !in held) settingsRepository.setHeldPayments(wallet, held + (key to System.currentTimeMillis()))
+    }
+
+    /** iOS `releaseHeldPayment`. */
+    private suspend fun releaseHeldPayment(wallet: String, txId: String) = heldPaymentsMutex.withLock {
+        val key = txId.lowercase()
+        val held = settingsRepository.heldPayments(wallet)
+        if (key in held) settingsRepository.setHeldPayments(wallet, held - key)
     }
 
     // MARK: KNS domain transfers (iOS ChatService+Fetching.swift, "KNS" section)
@@ -3171,6 +3253,18 @@ class ChatRepository @Inject constructor(
             }
             if (toUs <= 0 || foreignSender == null) return PaymentTxDirection.None
             return PaymentTxDirection.Incoming(foreignSender, toUs)
+        }
+
+        /** How many held payments one sync re-reads at most, and how long one is kept (iOS 5806362). */
+        internal const val HELD_PAYMENTS_PER_SYNC = 25
+        internal const val HELD_PAYMENT_MAX_AGE_MS = 7L * 86_400_000
+
+        /** iOS `heldPaymentTxIds`: (due, expired) of [held] (txid -> first held ms) at [now] - an
+         *  entry is given up once more than 7 days old; the rest are due, sorted, at most 25. */
+        internal fun heldPaymentsDue(held: Map<String, Long>, now: Long): Pair<List<String>, List<String>> {
+            val expired = held.filter { (_, at) -> now > at + HELD_PAYMENT_MAX_AGE_MS }.keys.toList()
+            val due = (held.keys - expired.toSet()).sorted().take(HELD_PAYMENTS_PER_SYNC)
+            return due to expired
         }
 
         /** iOS `isKNSRevealSignatureScript`: the signature script of a KNS reveal input - it

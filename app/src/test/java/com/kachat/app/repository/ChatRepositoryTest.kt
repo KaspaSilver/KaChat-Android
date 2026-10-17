@@ -290,4 +290,21 @@ class ChatRepositoryTest {
         assertEquals("Sent domain transfer", ChatRepository.knsTransferMessageText(null, isOutgoing = true))
         assertEquals("Received domain transfer", ChatRepository.knsTransferMessageText(" ", isOutgoing = false))
     }
+
+    // MARK: payments held for their signature check (iOS 5806362 heldPaymentTxIds)
+
+    @Test
+    fun `held payments are due for 7 days, at most 25 a sync, then given up`() {
+        val now = 10_000_000_000L
+        val day = 86_400_000L
+        val held = mapOf("bb" to now - day, "aa" to now - 7 * day, "cc" to now - 7 * day - 1)
+        val (due, expired) = ChatRepository.heldPaymentsDue(held, now)
+        assertEquals(listOf("aa", "bb"), due)
+        assertEquals(listOf("cc"), expired)
+
+        val many = (0 until 40).associate { "%02d".format(it) to now }
+        val (first, none) = ChatRepository.heldPaymentsDue(many, now)
+        assertEquals((0 until 25).map { "%02d".format(it) }, first)
+        assertEquals(emptyList<String>(), none)
+    }
 }

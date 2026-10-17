@@ -93,7 +93,13 @@ data class TransactionInput(
 data class TransactionOutput(
     val amount: Long,
     @SerializedName("script_public_key") val scriptPublicKey: String,
-    @SerializedName("script_public_key_address") val scriptPublicKeyAddress: String?
+    @SerializedName("script_public_key_address") val scriptPublicKeyAddress: String?,
+    /** The output's index in its transaction (an unresolved input's spent output is looked up by it). */
+    val index: Int? = null,
+    /** Version 1 transactions: the output's covenant binding (both null without one) - part of
+     *  the v1 signature hash (iOS 5806362). As text, parsed where used. */
+    @SerializedName("covenant_authorizing_input") val covenantAuthorizingInput: String? = null,
+    @SerializedName("covenant_id") val covenantId: String? = null,
 )
 
 /** One row of `/info/hashrate/history`. Only the two fields the chart needs are declared. */

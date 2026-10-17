@@ -5,45 +5,56 @@ import com.kachat.app.services.RawInput
 import com.kachat.app.services.RawOutputWithVersion
 import com.kachat.app.services.RawTransaction
 import com.kachat.app.services.ScriptPublicKeyWithVersion
+import com.kachat.app.services.TransactionInput
+import com.kachat.app.services.TransactionOutput
 import com.kachat.app.services.TransactionResponse
 
 /**
  * Schnorr signature check of a transaction read from the REST API - the payment sync's guard on
  * incoming payments, a port of iOS `KasiaTransactionBuilder.verifyTransactionSignatures`
- * (KaChatTransactionBuilder.swift, "Schnorr Signature Verification (REST API path)") and of the
- * caller's input mapping in `fetchPaymentsFromKaspaAPI`.
+ * (KaChatTransactionBuilder.swift, "Schnorr Signature Verification (REST API path)") and of
+ * `ChatService.verifyIncomingPaymentSignatures` (ChatService+Fetching.swift), as of iOS 5806362.
  *
- * Like iOS it answers "definitively invalid" only: a transaction it cannot check (a field
- * missing, a script it cannot rebuild) passes, an input whose signature script or spent script
- * is not the standard Schnorr P2PK form is skipped, and only a signature that does not verify
- * against the rebuilt sighash fails the transaction. The sighash is the signer's own
- * ([KaspaTransactionSigner.calculateSighash]), the curve maths [Schnorr.verify].
+ * Versions 0 and 1. The answer is [SignatureCheck.Valid] (every standard P2PK signature checks
+ * out), [SignatureCheck.Invalid] (one is definitively wrong) or [SignatureCheck.Unknown] (it
+ * can't be checked yet - a spent output not resolved, data missing): ask again later. Inputs that
+ * are not the standard Schnorr P2PK form (P2SH covenant spends and the like) are not
+ * signature-checked. The sighash is the signer's own ([KaspaTransactionSigner.calculateSighash]),
+ * the curve maths [Schnorr.verify].
  */
 object KaspaSignatureVerifier {
 
-    /** One input as the REST API resolves it (iOS `VerificationInput`). */
+    sealed class SignatureCheck {
+        object Valid : SignatureCheck()
+        /** The signature of input [inputIndex] is wrong. */
+        data class Invalid(val inputIndex: Int) : SignatureCheck()
+        object Unknown : SignatureCheck()
+    }
+
+    /** One input as the REST API resolves it (iOS `VerificationInput`). The spent output's
+     *  address and amount are null when neither the API nor the previous transaction gave them:
+     *  only this input's own signature needs them, every other input contributes just its
+     *  outpoint and sequence. */
     data class VerificationInput(
         val previousOutpointHash: String,
         val previousOutpointIndex: Int,
         val signatureScript: String,
-        val previousOutpointAddress: String,
-        val previousOutpointAmount: Long,
+        val previousOutpointAddress: String?,
+        val previousOutpointAmount: Long?,
         val sequence: Long,
         val sigOpCount: Int,
     )
 
-    /** One output (iOS `VerificationOutput`). */
+    /** One output (iOS `VerificationOutput`), with its version-1 covenant binding if any. */
     data class VerificationOutput(
         val amount: Long,
         val scriptPublicKey: String,
+        val covenantAuthorizingInput: Int? = null,
+        val covenantId: String? = null,
     )
 
-    /**
-     * The index of the first input whose signature is definitively invalid, or null when every
-     * checkable signature verifies or the transaction cannot be checked at all (iOS
-     * `verifyTransactionSignatures` returning true).
-     */
-    fun invalidInputIndex(
+    /** iOS `verifyTransactionSignatures`. */
+    fun verifyTransactionSignatures(
         inputs: List<VerificationInput>,
         outputs: List<VerificationOutput>,
         version: Int,
@@ -51,10 +62,12 @@ object KaspaSignatureVerifier {
         subnetworkId: ByteArray,
         gas: Long,
         payload: ByteArray,
-    ): Int? {
-        if (inputs.isEmpty()) return null
+    ): SignatureCheck {
+        // no inputs (a coinbase): no signatures to check
+        if (inputs.isEmpty()) return SignatureCheck.Valid
 
-        // The transaction as signed: empty signature scripts (the sighash never covers them).
+        // The transaction as signed: EVERY input (the sighash commits to all outpoints and
+        // sequences), with an empty signature script.
         val rawInputs = inputs.map { input ->
             RawInput(
                 previousOutpoint = Outpoint(input.previousOutpointHash, input.previousOutpointIndex),
@@ -64,13 +77,23 @@ object KaspaSignatureVerifier {
             )
         }
         val rawOutputs = ArrayList<RawOutputWithVersion>(outputs.size)
+        val covenants = ArrayList<KaspaTransactionSigner.OutputCovenant?>(outputs.size)
         for (output in outputs) {
             val script = hexToBytes(output.scriptPublicKey)
-            if (script == null || script.isEmpty()) return null // cannot verify without script data
+            if (script == null || script.isEmpty()) return SignatureCheck.Unknown // no script data
             rawOutputs += RawOutputWithVersion(
                 amount = output.amount,
                 scriptPublicKey = ScriptPublicKeyWithVersion(scriptPublicKey = toHex(script), version = 0),
             )
+            val authorizing = output.covenantAuthorizingInput
+            val idHex = output.covenantId
+            if (authorizing != null && idHex != null) {
+                val id = hexToBytes(idHex)
+                if (id == null || id.size != 32) return SignatureCheck.Unknown
+                covenants += KaspaTransactionSigner.OutputCovenant(authorizing, id)
+            } else {
+                covenants += null
+            }
         }
         val rawTx = RawTransaction(
             version = version,
@@ -87,15 +110,17 @@ object KaspaSignatureVerifier {
             val sigScript = hexToBytes(input.signatureScript)
             if (sigScript == null || sigScript.size != 66 ||
                 sigScript[0] != 0x41.toByte() || sigScript[65] != 0x01.toByte()
-            ) continue // non-standard signature script; this input is not checked
+            ) continue // non-standard (a covenant spend, another sighash type): not checked here
             val signature = sigScript.copyOfRange(1, 65)
 
-            // 2. The spent output's script, rebuilt from its resolved address.
+            // 2. The spent output's script and amount: without them this input can't be checked yet.
+            val address = input.previousOutpointAddress ?: return SignatureCheck.Unknown
+            val amount = input.previousOutpointAmount ?: return SignatureCheck.Unknown
             val utxoScript = try {
-                hexToBytes(KaspaAddress.getScriptPublicKey(input.previousOutpointAddress))
+                hexToBytes(KaspaAddress.getScriptPublicKey(address))
             } catch (e: Exception) {
                 null
-            } ?: return null // cannot derive the script: skip the whole check
+            } ?: return SignatureCheck.Unknown
 
             // 3. P2PK: <push-32> <32-byte x-only key> OP_CHECKSIG
             if (utxoScript.size < 34 || utxoScript[0] != 32.toByte() ||
@@ -103,63 +128,71 @@ object KaspaSignatureVerifier {
             ) continue
             val xOnlyPubKey = utxoScript.copyOfRange(1, 33)
 
-            // 4. The sighash this input signed.
+            // 4. The sighash this input signed (v0 or v1).
             val sighash = try {
-                KaspaTransactionSigner.calculateSighash(rawTx, index, input.previousOutpointAmount, toHex(utxoScript))
+                KaspaTransactionSigner.calculateSighash(rawTx, index, amount, toHex(utxoScript), covenants)
             } catch (e: Exception) {
-                return null
+                return SignatureCheck.Unknown
             }
 
             // 5. Verify.
             val valid = Schnorr.verify(sighash, signature, xOnlyPubKey)
             sighash.fill(0)
-            if (!valid) return index
+            if (!valid) return SignatureCheck.Invalid(index)
         }
-        return null
+        return SignatureCheck.Valid
     }
 
-    /** iOS `verifyTransactionSignatures`: false only for a definitively invalid signature. */
-    fun verifyTransactionSignatures(
-        inputs: List<VerificationInput>,
-        outputs: List<VerificationOutput>,
-        version: Int,
-        lockTime: Long,
-        subnetworkId: ByteArray,
-        gas: Long,
-        payload: ByteArray,
-    ): Boolean = invalidInputIndex(inputs, outputs, version, lockTime, subnetworkId, gas, payload) == null
-
     /**
-     * The check iOS `fetchPaymentsFromKaspaAPI` runs on a REST transaction: an input lacking any
-     * of its outpoint hash, signature script, resolved address or amount is left out of the
-     * rebuilt transaction (iOS compactMap); a missing sequence reads 0 and sig-op count 1, the
-     * version, lock time and gas 0 (iOS `?? 0`, FlexibleUInt64 0 for a value that does not
-     * parse); the subnetwork id is the transaction's (20 zero bytes when it is not hex); the
-     * payload its bytes. Null when nothing fails, else the failing input's index.
+     * The check iOS `verifyIncomingPaymentSignatures` runs on a received REST transaction: every
+     * input goes in; one the API left without its spent output's address or amount gets them from
+     * the previous transaction ([spentOutput] - `GET /transactions/<outpoint txid>`, its output
+     * at that index); an input without its outpoint is [SignatureCheck.Unknown] (the outpoint is
+     * part of every input's sighash). A missing sequence reads 0 and sig-op count 1, the version,
+     * lock time and gas 0 (iOS FlexibleUInt64: a value that doesn't parse reads 0); the
+     * subnetwork id is the transaction's (20 zero bytes when it isn't hex), the payload its bytes.
+     * No inputs (a coinbase) is [SignatureCheck.Valid].
      */
-    fun invalidInputIndex(tx: TransactionResponse): Int? {
+    suspend fun checkReceivedTransaction(
+        tx: TransactionResponse,
+        spentOutput: suspend (previousTxId: String, index: Int) -> TransactionOutput?,
+    ): SignatureCheck {
         // Gson leaves a field the JSON lacks null whatever its Kotlin type, hence the nullable reads.
-        val inputs = (tx.inputs as List<com.kachat.app.services.TransactionInput>?).orEmpty().mapNotNull { input ->
-            val hash = (input.previousOutpointHash as String?) ?: return@mapNotNull null
-            val sigScript = (input.signatureScript as String?) ?: return@mapNotNull null
-            val address = input.previousOutpointAddress ?: return@mapNotNull null
-            val amount = input.previousOutpointAmount ?: return@mapNotNull null
-            VerificationInput(
+        val inputs = (tx.inputs as List<TransactionInput>?).orEmpty()
+        if (inputs.isEmpty()) return SignatureCheck.Valid
+        val verificationInputs = ArrayList<VerificationInput>(inputs.size)
+        for (input in inputs) {
+            val hash = (input.previousOutpointHash as String?) ?: return SignatureCheck.Unknown
+            val index = input.previousOutpointIndex
+            if (index < 0) return SignatureCheck.Unknown
+            var address = input.previousOutpointAddress
+            var amount = input.previousOutpointAmount
+            if (address == null || amount == null) {
+                spentOutput(hash, index)?.let { spent ->
+                    address = address ?: spent.scriptPublicKeyAddress
+                    amount = amount ?: spent.amount
+                }
+            }
+            verificationInputs += VerificationInput(
                 previousOutpointHash = hash,
-                previousOutpointIndex = input.previousOutpointIndex,
-                signatureScript = sigScript,
+                previousOutpointIndex = index,
+                signatureScript = (input.signatureScript as String?) ?: "",
                 previousOutpointAddress = address,
                 previousOutpointAmount = amount,
                 sequence = flexibleLong(input.sequence) ?: 0L,
                 sigOpCount = input.sigOpCount?.let { flexibleLong(it)?.toInt() ?: 0 } ?: 1,
             )
         }
-        if (inputs.isEmpty()) return null
-        val outputs = (tx.outputs as List<com.kachat.app.services.TransactionOutput>?).orEmpty().map { output ->
-            VerificationOutput(amount = output.amount, scriptPublicKey = (output.scriptPublicKey as String?) ?: "")
+        val outputs = (tx.outputs as List<TransactionOutput>?).orEmpty().map { output ->
+            VerificationOutput(
+                amount = output.amount,
+                scriptPublicKey = (output.scriptPublicKey as String?) ?: "",
+                covenantAuthorizingInput = output.covenantAuthorizingInput?.trim()?.toIntOrNull(),
+                covenantId = output.covenantId,
+            )
         }
-        return invalidInputIndex(
-            inputs = inputs,
+        return verifyTransactionSignatures(
+            inputs = verificationInputs,
             outputs = outputs,
             version = tx.version?.trim()?.toIntOrNull() ?: 0,
             lockTime = tx.lockTime?.let { flexibleLong(it) ?: 0L } ?: 0L,
@@ -169,8 +202,15 @@ object KaspaSignatureVerifier {
         )
     }
 
-    /** iOS FlexibleUInt64: a number, or a string holding one; null when absent. A present value
-     *  that does not parse reads as null here and the caller picks iOS's fallback. */
+    /** The spent output [index] of a previous transaction (iOS: the output whose `index` is it,
+     *  else the one at that position). */
+    fun outputAt(previous: TransactionResponse, index: Int): TransactionOutput? {
+        val outputs = (previous.outputs as List<TransactionOutput>?).orEmpty()
+        return outputs.firstOrNull { it.index == index } ?: outputs.getOrNull(index)
+    }
+
+    /** iOS FlexibleUInt64: a number, or a string holding one; null when absent or unparsable
+     *  (the caller picks iOS's fallback). */
     private fun flexibleLong(raw: String?): Long? = raw?.trim()?.toLongOrNull()
 
     /** iOS CryptoUtils.hexToData: lowercased, spaces dropped, pairs of hex digits; null on a bad
