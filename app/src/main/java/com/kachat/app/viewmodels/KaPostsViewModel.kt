@@ -1077,6 +1077,11 @@ class KaPostsViewModel @Inject constructor(
     /** One person in the People results, with how many of their scanned posts matched. */
     data class SearchPerson(val address: String, val postCount: Int)
 
+    /** An author's K pubkey, from any of their scanned posts (iOS 2da301f): the profile needs it
+     *  to load their posts, replies and follower counts, and to follow on chain. */
+    fun searchAuthorPubkey(address: String): String? =
+        _searchScanned.value.firstOrNull { it.posterAddress == address && !it.posterPubkey.isNullOrEmpty() }?.posterPubkey
+
     private val _searchScanned = MutableStateFlow<List<KaPostDraft>>(emptyList())
     /** How many posts the search has read so far - shown so "nothing found" is honest. */
     val searchScannedCount: StateFlow<Int> =
@@ -2840,11 +2845,14 @@ class KaPostsViewModel @Inject constructor(
     ) { lists -> lists.toList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun openPosterProfile(address: String, pubkey: String?) {
+    fun openPosterProfile(address: String, handedPubkey: String?) {
         // The two poster lists are shared by every profile that opens in them, so retire the
         // outgoing profile's paging surfaces: an in-flight load-more for the previous account
         // must not append its rows into the account now on screen.
         retirePosterProfileSurfaces()
+        // No pubkey handed over: the one the address derives (as @mentions do), so the profile
+        // still loads its posts and counts (iOS 2da301f).
+        val pubkey = handedPubkey ?: KaPostsService.kapostPubkeyFromAddress(address)
         _posterProfile.value = PosterProfile(address = address, pubkey = pubkey)
         _posterProfilePosts.value = emptyList()
         _posterProfileReplies.value = emptyList()

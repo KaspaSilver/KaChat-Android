@@ -1592,9 +1592,11 @@ private fun KaPostsFeedScreen(
                 // loaded feed, and openShared is what knows how to go and find one.
                 openShared(txId)
             },
-            onOpenProfile = { address ->
+            onOpenProfile = { address, pubkey ->
                 showSearch = false
-                viewModel.openPosterProfile(address, null)
+                // the pubkey from the author's posts: without it the profile can't load their
+                // posts, replies or counts, nor follow on chain
+                viewModel.openPosterProfile(address, pubkey)
             },
         )
     }
@@ -5274,7 +5276,8 @@ fun KaPostsSearchOverlay(
     viewModel: KaPostsViewModel,
     onClose: () -> Unit,
     onOpenPost: (String) -> Unit,
-    onOpenProfile: (String) -> Unit,
+    /** The author's address and K pubkey (from the posts scanned). */
+    onOpenProfile: (String, String?) -> Unit,
 ) {
     val colors = LocalAppColors.current
     var query by remember { mutableStateOf("") }
@@ -5370,7 +5373,7 @@ fun KaPostsSearchOverlay(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onOpenProfile(person.address); onClose() }
+                                .clickable { onOpenProfile(person.address, viewModel.searchAuthorPubkey(person.address)); onClose() }
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
