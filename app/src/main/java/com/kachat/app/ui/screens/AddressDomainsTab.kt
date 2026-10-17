@@ -144,6 +144,8 @@ class AddressDomainsViewModel @Inject constructor(
 fun AddressDomainsTab(
     address: String,
     onOpenService: (NameServiceTLD) -> Unit,
+    /** Extra room at the scroll's end for what floats over the page's foot (its bar, the dock). */
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     vm: AddressDomainsViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -158,7 +160,7 @@ fun AddressDomainsTab(
     val current = state.takeIf { it.address == address.trim().lowercase() } ?: AddressDomainsViewModel.State()
     Box(Modifier.fillMaxSize().nestedScroll(pullState.nestedScrollConnection)) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AddressDomainsViewModel.order.forEach { tld ->

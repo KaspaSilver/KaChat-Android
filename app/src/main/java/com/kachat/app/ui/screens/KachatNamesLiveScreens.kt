@@ -4084,10 +4084,15 @@ fun KachatLiveDomainsTab(
             pullState.endRefresh()
         }
     }
+    // Your Domains runs on under the dock: the Inscribe button is pinned above it, and without
+    // the button the list clears it itself.
+    val dockInset = LocalDockInset.current
+    val showsInscribe = loaded && !upgrading
     Column(Modifier.fillMaxSize()) {
     Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(pullState.nestedScrollConnection)) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
+                .padding(bottom = if (showsInscribe) 0.dp else dockInset),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when {
@@ -4139,11 +4144,12 @@ fun KachatLiveDomainsTab(
     }
     // Pinned under the list like the other name services' "Get a domain" button - the same
     // outlined capsule - whenever the registry is live (iOS e4da63d).
-    if (loaded && !upgrading) {
+    if (showsInscribe) {
         val hint = stringResource(R.string.kn_opens_marketplace)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(bottom = dockInset)
                 .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(colors.surface)

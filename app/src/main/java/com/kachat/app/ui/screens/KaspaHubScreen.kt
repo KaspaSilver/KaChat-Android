@@ -143,6 +143,7 @@ fun KaspaHubScreen(
     val runsUnderDock = openSection == null || openSection in setOf(
         Screen.KaPosts, Screen.Chats, Screen.Portfolio, Screen.KachatStats, Screen.KachatBots,
         Screen.KachatNames, Screen.AddressBook, Screen.KaspaWebsites, Screen.Chess,
+        Screen.ColdStorage, Screen.Swap,
     )
     androidx.compose.foundation.layout.Box(
         androidx.compose.ui.Modifier.padding(bottom = if (runsUnderDock) 0.dp else dockInset)

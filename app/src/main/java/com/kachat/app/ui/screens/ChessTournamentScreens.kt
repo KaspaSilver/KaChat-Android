@@ -305,6 +305,8 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             MainPageHeader(title = mode.label, onBack = onBack)
         },
@@ -339,7 +341,7 @@ fun ChessTournamentsScreen(mode: ChessLobbyMode, navController: NavController, o
                 2 -> { ChessFinishedGames(mode, navController); return@HorizontalPager }
                 3 -> { ChessLeaderboardRows(mode, navController); return@HorizontalPager }
             }
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 32.dp)) {
                 val duel = mode == ChessLobbyMode.DUEL
                 val publicId = if (duel) service.currentDuelRoomId(all) else service.currentPublicRoomId(all)
                 val number = (if (duel) ChessTournamentCodec.duelNumber(publicId) else ChessTournamentCodec.publicNumber(publicId)) ?: 1
@@ -560,7 +562,7 @@ private fun ChessActiveGames(mode: ChessLobbyMode, navController: NavController)
         }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 32.dp)) {
         if (live.isEmpty()) {
             ChessSectionHeader("Live now")
             ChessCard {
@@ -643,7 +645,7 @@ private fun ChessFinishedGames(mode: ChessLobbyMode, navController: NavControlle
         }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 32.dp)) {
         if (done.isEmpty()) {
             ChessSectionHeader(if (duel) "Finished 1v1 games" else "Finished tournaments")
             ChessCard {
@@ -1094,7 +1096,7 @@ private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavControl
     } else {
         com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(board)
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp + LocalDockInset.current)) {
         item {
             // What this board counts, in its own words (iOS 1d32335).
             Text(
@@ -1638,10 +1640,13 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = { MainPageHeader(title = tournament?.name ?: "Tournament", onBack = { navController.popBackStack() }) },
     ) { padding ->
         if (tournament == null) {
-            Column(Modifier.fillMaxSize().padding(padding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            // Centred in the space above the dock.
+            Column(Modifier.fillMaxSize().padding(padding).padding(bottom = LocalDockInset.current), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                 Spacer(Modifier.height(12.dp))
                 Text("Loading the tournament from the arena…", color = colors.textSecondary, fontSize = 14.sp)
@@ -1649,7 +1654,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
             return@Scaffold
         }
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(bottom = LocalDockInset.current + 24.dp),
         ) {
             Spacer(Modifier.height(8.dp))
             ChessCard {

@@ -841,7 +841,16 @@ fun ChatThreadScreen(
             // iOS: the zero-balance card sits in the bottom inset right above the composer
             // (padded 16 either side, 4 below) - never over the thread - and stays usable while
             // only the composer under it dims. The composer is padded 16 by 8, 2 more below.
-            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding()) {
+            // With the dock showing it rests just above the dock (LocalDockInset, which already
+            // holds the system bar under the dock) and the messages run on under the dock; with
+            // the keyboard up the dock is behind it, the inset is 0 and nothing changes here.
+            val dockInset = LocalDockInset.current
+            Column(
+                modifier = Modifier
+                    .padding(bottom = dockInset)
+                    .background(LocalAppColors.current.background)
+                    .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
+            ) {
             if (fundingGate.active) {
                 ZeroBalanceFundingCard(
                     walletAddress = fundingGate.chattingAddress,
@@ -1547,10 +1556,13 @@ fun ChatThreadScreen(
             }
         }
 
+        // Drawn to the bottom of the screen, NOT padded by the composer: the messages run on
+        // underneath it and the dock (iOS), and the list takes the composer's height (with the
+        // dock's, see the bottomBar) as content padding, so the newest message rests just above it.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
         ) {
             LazyColumn(
                 state = scrollState,
@@ -1559,7 +1571,7 @@ fun ChatThreadScreen(
                     .closesQuickReactionBar()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp + padding.calculateBottomPadding())
             ) {
                 if (messages.isEmpty()) {
                     item {
@@ -1732,6 +1744,8 @@ fun ChatThreadScreen(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        // Above the composer the list runs under.
+                        .padding(bottom = padding.calculateBottomPadding())
                         .padding(16.dp)
                         .size(44.dp)
                         .background(LocalAppColors.current.surface, CircleShape)
@@ -2086,11 +2100,14 @@ private fun UnnotifiedMessageBanner(
 @Composable
 private fun MessageRequestBar(displayName: String, onAccept: () -> Unit, onReject: () -> Unit) {
     val colors = LocalAppColors.current
+    // Just above the dock while it shows (the thread runs on under it), else above the system bar.
+    val dockInset = LocalDockInset.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(bottom = dockInset)
             .background(colors.background)
-            .navigationBarsPadding()
+            .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
             .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -4465,14 +4482,14 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
     }
 
     selectedKachat?.let { info ->
-        KachatLiveNameDetailScreen(info, onBack = { selectedKachat = null }, onOpenChat = onOpenChat)
+        AboveDock { KachatLiveNameDetailScreen(info, onBack = { selectedKachat = null }, onOpenChat = onOpenChat) }
         return
     }
 
     // A .kas domain's own profile, edited on its own (iOS 09e0403): .kas profiles are no longer
     // shown in the app, but a domain's profile is still its owner's to change.
     editingDomain?.let { domain ->
-        KnsDomainProfileEditorScreen(domain = domain, viewModel = viewModel, onBack = { editingDomain = null })
+        AboveDock { KnsDomainProfileEditorScreen(domain = domain, viewModel = viewModel, onBack = { editingDomain = null }) }
         return
     }
 
@@ -4484,29 +4501,33 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
         if (!showSendScreen) {
             val isPrimary = domain.asset != null && domain.asset == primaryDomainName
             val settingThisOne = setPrimaryState.inFlight && setPrimaryState.assetId == domain.assetId
-            KnsDomainDetailScreen(
-                domain = domain,
-                isPrimary = isPrimary,
-                settingInFlight = settingThisOne,
-                onSetPrimary = { domain.assetId?.let { viewModel.setPrimaryDomain(it) } },
-                onSend = {
-                    viewModel.resetTransferDomainState()
-                    showSendScreen = true
-                },
-                onCustomizeProfile = { editingDomain = domain },
-                onBack = { selectedDomain = null }
-            )
+            AboveDock {
+                KnsDomainDetailScreen(
+                    domain = domain,
+                    isPrimary = isPrimary,
+                    settingInFlight = settingThisOne,
+                    onSetPrimary = { domain.assetId?.let { viewModel.setPrimaryDomain(it) } },
+                    onSend = {
+                        viewModel.resetTransferDomainState()
+                        showSendScreen = true
+                    },
+                    onCustomizeProfile = { editingDomain = domain },
+                    onBack = { selectedDomain = null }
+                )
+            }
             return
         } else {
-            KnsDomainSendScreen(
-                domain = domain,
-                viewModel = viewModel,
-                onDone = {
-                    showSendScreen = false
-                    selectedDomain = null
-                },
-                onBack = { showSendScreen = false }
-            )
+            AboveDock {
+                KnsDomainSendScreen(
+                    domain = domain,
+                    viewModel = viewModel,
+                    onDone = {
+                        showSendScreen = false
+                        selectedDomain = null
+                    },
+                    onBack = { showSendScreen = false }
+                )
+            }
             return
         }
     }
@@ -4523,6 +4544,9 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar; each tab clears it
+        // (its pinned button above the dock, or its scroll's end).
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
@@ -4588,6 +4612,9 @@ private fun DomainTabList(
             pullRefreshState.endRefresh()
         }
     }
+    // With no "Get a domain" button pinned under it, the list itself clears the dock.
+    val hasGetButton = tld.websiteUrl != null && tld.websiteName != null
+    val dockInset = LocalDockInset.current
     Column(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -4601,7 +4628,7 @@ private fun DomainTabList(
             ) {
                 item { Spacer(Modifier.height(16.dp)) }
                 content()
-                item { Spacer(Modifier.height(16.dp)) }
+                item { Spacer(Modifier.height(if (hasGetButton) 16.dp else 16.dp + dockInset)) }
             }
             PullToRefreshContainer(state = pullRefreshState, modifier = Modifier.align(Alignment.TopCenter))
         }
@@ -4623,6 +4650,8 @@ private fun GetDomainButton(tld: com.kachat.app.services.NameServiceTLD) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            // Above the dock the page runs under.
+            .padding(bottom = LocalDockInset.current)
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(LocalAppColors.current.surface)
@@ -4705,7 +4734,8 @@ private fun KachatNamesComingSoon() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 40.dp),
+            .padding(horizontal = 24.dp, vertical = 40.dp)
+            .padding(bottom = LocalDockInset.current),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -5221,8 +5251,11 @@ fun ManageAddressesScreen(
         }
     }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's list runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.manage_addresses), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -5464,7 +5497,8 @@ fun ManageAddressesScreen(
             }
 
             item {
-                Spacer(Modifier.height(16.dp))
+                // The last address scrolls clear of the dock the list runs under.
+                Spacer(Modifier.height(16.dp + dockInset))
             }
         }
 
@@ -6528,17 +6562,19 @@ fun SpendingAddressTxHistoryScreen(
     // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
     // your addresses holds it (iOS 881ada6).
     openedKachat?.let { info ->
-        KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        AboveDock { KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat) }
         return
     }
     // A name service opened from this address's Domains tab: its names (iOS fe52376).
     openedDomainService?.let { tld ->
-        AddressDomainServiceScreen(
-            address = address,
-            tld = tld,
-            onBack = { openedDomainService = null },
-            onOpenKachat = { openedKachat = it },
-        )
+        AboveDock {
+            AddressDomainServiceScreen(
+                address = address,
+                tld = tld,
+                onBack = { openedDomainService = null },
+                onOpenKachat = { openedKachat = it },
+            )
+        }
         return
     }
 
@@ -6598,6 +6634,9 @@ fun SpendingAddressTxHistoryScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under Receive / Send and the dock, as iOS's list runs on under its
+        // safeAreaInset bar and tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(displayName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -6641,7 +6680,9 @@ fun SpendingAddressTxHistoryScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // What Receive / Send and the dock cover: the lists scroll clear of it.
+        val barInset = padding.calculateBottomPadding()
+        Column(modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             AddressPageBalanceHeader(entry?.balanceSompi ?: 0L)
             // The app's tab look (Chats / Group Chats / Public Chats), not a segmented control;
             // plain names - History, UTXOs, Domains (iOS b96d727/718b88c, fe52376).
@@ -6658,8 +6699,9 @@ fun SpendingAddressTxHistoryScreen(
                     failed = txHistoryFailed,
                     onRetry = { viewModel.loadSpendingAddressTxHistory(address) },
                     onTransactionClick = { transactionActionTarget = it },
+                    bottomPadding = barInset,
                 )
-                2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it })
+                2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it }, bottomPadding = barInset)
                 else -> AddressUtxoList(
                     utxos = utxos,
                     isLoading = isLoadingUtxos,
@@ -6671,6 +6713,7 @@ fun SpendingAddressTxHistoryScreen(
                         labelingUtxoKey = key
                         labelInput = utxoLabels[key] ?: ""
                     },
+                    bottomPadding = barInset,
                 )
             }
         }
@@ -6825,17 +6868,19 @@ fun IdentityAddressDetailScreen(
     // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
     // your addresses holds it (iOS 881ada6).
     openedKachat?.let { info ->
-        KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        AboveDock { KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat) }
         return
     }
     // A name service opened from this address's Domains tab: its names (iOS fe52376).
     openedDomainService?.let { tld ->
-        AddressDomainServiceScreen(
-            address = address.orEmpty(),
-            tld = tld,
-            onBack = { openedDomainService = null },
-            onOpenKachat = { openedKachat = it },
-        )
+        AboveDock {
+            AddressDomainServiceScreen(
+                address = address.orEmpty(),
+                tld = tld,
+                onBack = { openedDomainService = null },
+                onOpenKachat = { openedKachat = it },
+            )
+        }
         return
     }
 
@@ -6888,6 +6933,9 @@ fun IdentityAddressDetailScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under Receive / Send and the dock, as iOS's list runs on under its
+        // safeAreaInset bar and tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Chatting Address", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
@@ -6915,7 +6963,9 @@ fun IdentityAddressDetailScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // What Receive / Send and the dock cover: the lists scroll clear of it.
+        val barInset = padding.calculateBottomPadding()
+        Column(modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             AddressPageBalanceHeader(balanceSompi)
             Button(
                 onClick = { showAddressActions = true },
@@ -6943,8 +6993,9 @@ fun IdentityAddressDetailScreen(
                     failed = txHistoryFailed,
                     onRetry = { address?.let { viewModel.loadSpendingAddressTxHistory(it) } },
                     onTransactionClick = { transactionActionTarget = it },
+                    bottomPadding = barInset,
                 )
-                2 -> AddressDomainsTab(address.orEmpty(), onOpenService = { openedDomainService = it })
+                2 -> AddressDomainsTab(address.orEmpty(), onOpenService = { openedDomainService = it }, bottomPadding = barInset)
                 else -> AddressUtxoList(
                     utxos = utxos,
                     isLoading = isLoadingUtxos,
@@ -6956,6 +7007,7 @@ fun IdentityAddressDetailScreen(
                         labelingUtxoKey = key
                         labelInput = utxoLabels[key] ?: ""
                     },
+                    bottomPadding = barInset,
                 )
             }
         }
@@ -7603,6 +7655,8 @@ private fun AddressHistoryList(
     failed: Boolean,
     onRetry: () -> Unit,
     onTransactionClick: (ColdStorageAddressDiscovery.AddressTransaction) -> Unit,
+    /** Extra room at the list's end for what floats over the page's foot (Receive / Send, the dock). */
+    bottomPadding: Dp = 0.dp,
 ) {
     val colors = LocalAppColors.current
     when {
@@ -7630,7 +7684,7 @@ private fun AddressHistoryList(
         }
         else -> LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp),
+            contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp + bottomPadding),
         ) {
             itemsIndexed(txHistory, key = { _, tx -> tx.txId }) { i, tx ->
                 SpendingAddressTxHistoryRow(
@@ -7661,11 +7715,13 @@ private fun AddressUtxoList(
     onRetry: () -> Unit,
     onCompound: () -> Unit,
     onRename: (String) -> Unit,
+    /** Extra room at the list's end for what floats over the page's foot (Receive / Send, the dock). */
+    bottomPadding: Dp = 0.dp,
 ) {
     val colors = LocalAppColors.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp),
+        contentPadding = PaddingValues(top = InsetGroupedTopGap, bottom = 16.dp + bottomPadding),
     ) {
         if (utxos.size > 1) {
             item(key = "compound") {
@@ -7746,7 +7802,9 @@ private fun AddressReceiveSendBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            // Above the dock the page runs under (0 where there is none).
+            .padding(bottom = LocalDockInset.current),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         AddressBarCapsule(Icons.Default.QrCode, stringResource(R.string.receive), FontWeight.SemiBold, receiveEnabled, onReceive, Modifier.weight(1f))

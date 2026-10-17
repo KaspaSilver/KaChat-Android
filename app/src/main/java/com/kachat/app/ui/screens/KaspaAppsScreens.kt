@@ -292,13 +292,15 @@ fun HelpScreen(
         // A large title, pushed inside the Profile tab (iOS ProfileHelpView,
         // `.navigationBarTitleDisplayMode(.large)`): the dock stays, like KaChat Bots.
         topBar = { MainPageHeader(title = androidx.compose.ui.res.stringResource(com.kachat.app.R.string.help), onBack = onBack, showStatus = false) },
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
-                .padding(top = 12.dp),
+                .padding(top = 12.dp, bottom = LocalDockInset.current),
         ) {
             androidx.compose.material3.Surface(
                 color = colors.surface,

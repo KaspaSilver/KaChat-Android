@@ -143,16 +143,20 @@ fun ColdStorageListScreen(
         )
     }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = { MainPageHeader(title = stringResource(R.string.cold_storage)) },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             // Matches iOS's ColdStorageListView: "Paste kpub" (outlined, secondary) and "Scan"
             // (filled, primary) side by side at the bottom, instead of a single centered FAB.
+            // Above the dock the list runs under.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = dockInset)
             ) {
                 Button(
                     onClick = {
@@ -219,7 +223,8 @@ fun ColdStorageListScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
+                // The last account scrolls clear of the dock it runs under.
+                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + dockInset),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(accounts) { account ->
@@ -564,8 +569,11 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
         }
     }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(account?.name ?: "Cold Storage", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
@@ -593,7 +601,8 @@ fun ColdStorageDetailScreen(accountId: String, navController: NavController, vie
         Box(modifier = Modifier.fillMaxSize().padding(padding).nestedScroll(pullRefreshState.nestedScrollConnection)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            // The last address scrolls clear of the dock it runs under.
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + dockInset),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -2035,17 +2044,19 @@ fun ColdStorageTxHistoryScreen(
     // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
     // your addresses holds it (iOS 881ada6).
     openedKachat?.let { info ->
-        KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat)
+        AboveDock { KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat) }
         return
     }
     // A name service opened from this address's Domains tab: its names (iOS fe52376).
     openedDomainService?.let { tld ->
-        AddressDomainServiceScreen(
-            address = address,
-            tld = tld,
-            onBack = { openedDomainService = null },
-            onOpenKachat = { openedKachat = it },
-        )
+        AboveDock {
+            AddressDomainServiceScreen(
+                address = address,
+                tld = tld,
+                onBack = { openedDomainService = null },
+                onOpenKachat = { openedKachat = it },
+            )
+        }
         return
     }
 
@@ -2090,8 +2101,12 @@ fun ColdStorageTxHistoryScreen(
         }
     }
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under Receive / Send and the dock, as iOS's list runs on under its
+        // safeAreaInset bar and tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(displayName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
@@ -2121,7 +2136,9 @@ fun ColdStorageTxHistoryScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    // Above the dock the page runs under.
+                    .padding(bottom = dockInset),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
@@ -2152,7 +2169,9 @@ fun ColdStorageTxHistoryScreen(
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // What Receive / Send and the dock cover: the lists scroll clear of it.
+        val barInset = padding.calculateBottomPadding()
+        Column(modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -2182,22 +2201,22 @@ fun ColdStorageTxHistoryScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
             when (selectedTab) {
-                2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it })
+                2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it }, bottomPadding = barInset)
                 0 -> when {
                     isLoading && txHistory.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxSize().padding(bottom = barInset), contentAlignment = Alignment.Center) {
                             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
                     txHistory.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxSize().padding(bottom = barInset).padding(32.dp), contentAlignment = Alignment.Center) {
                             Text(stringResource(R.string.no_transactions_yet), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
                         }
                     }
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + barInset),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(txHistory, key = { it.txId }) { tx ->
@@ -2214,7 +2233,7 @@ fun ColdStorageTxHistoryScreen(
                 }
                 else -> when {
                     isLoadingUtxos && utxos.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxSize().padding(bottom = barInset), contentAlignment = Alignment.Center) {
                             com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal)
                         }
                     }
@@ -2225,7 +2244,7 @@ fun ColdStorageTxHistoryScreen(
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + barInset),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             if (utxos.size > 1) {

@@ -216,14 +216,19 @@ fun BroadcastListScreen(
 
     // Don't leave the user stuck on a tab that just got hidden.
 
+    val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's list runs on under its tab bar; it pads its own end.
+        contentWindowInsets = WindowInsets(0),
         // Its own floating button for joining or creating a room (iOS 6639a0b) - only standalone
         // (Kaspa Hub). Inside Chats, the Chats screen's + covers it ("New Public Chat", in its New
         // sheet - iOS 5da8ccf / be0857a). Not while selecting.
         floatingActionButton = {
             if (embeddedInChats || isSelectionMode) return@Scaffold
             com.kachat.app.ui.theme.IosGlassFab(
+                // Above the dock the list runs under.
+                modifier = Modifier.padding(bottom = dockInset),
                 onClick = {
                     channelInput = ""
                     broadcastViewModel.resetJoinChannelState()
@@ -270,8 +275,9 @@ fun BroadcastListScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                // Room at the bottom so the last row never sits under the floating button.
-                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+                // Room at the bottom so the last row never sits under the floating button, nor
+                // the dock the list runs under.
+                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp + dockInset),
             ) {
                 items(listed, key = { "room:${it.channelName}" }) { channel ->
                     val summary = summaries[channel.channelName]
@@ -1045,7 +1051,13 @@ fun BroadcastChannelScreen(
             // messages run on underneath it - with the zero-balance card right above it (padded
             // 16 either side, 4 below), never over the room. Only the composer under the card
             // dims and goes inert (Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt).
+            //
+            // With the dock showing, the messages run on under it too and the composer rests just
+            // above it (LocalDockInset, which already holds the system bar under the dock); with
+            // the keyboard up the dock is behind it, the inset is 0 and the composer sits on the
+            // keyboard as before.
             val composerBackground = LocalAppColors.current.background
+            val dockInset = LocalDockInset.current
             Column(
                 modifier = Modifier
                     .background(
@@ -1054,7 +1066,7 @@ fun BroadcastChannelScreen(
                             1f to composerBackground.copy(alpha = 0.85f),
                         )
                     )
-                    .navigationBarsPadding()
+                    .then(if (dockInset > 0.dp) Modifier.padding(bottom = dockInset) else Modifier.navigationBarsPadding())
                     .imePadding()
                     .padding(bottom = 2.dp)
             ) {

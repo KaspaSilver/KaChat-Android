@@ -598,7 +598,17 @@ fun GroupChatThreadScreen(
             // Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
             // iOS: the zero-balance card sits right above the composer (padded 16 either side,
             // 4 below) - never over the thread - and stays usable while the composer dims.
-            Column(modifier = Modifier.background(LocalAppColors.current.background).imePadding().navigationBarsPadding()) {
+            // With the dock showing it rests just above the dock (LocalDockInset, which already
+            // holds the system bar under the dock) and the messages run on under the dock; with
+            // the keyboard up the dock is behind it, the inset is 0 and nothing changes here.
+            val dockInset = LocalDockInset.current
+            Column(
+                modifier = Modifier
+                    .padding(bottom = dockInset)
+                    .background(LocalAppColors.current.background)
+                    .imePadding()
+                    .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
+            ) {
             if (fundingGate.active) {
                 ZeroBalanceFundingCard(
                     walletAddress = fundingGate.chattingAddress,
@@ -933,10 +943,13 @@ fun GroupChatThreadScreen(
             }
         }
     ) { padding ->
+        // Drawn to the bottom of the screen, NOT padded by the composer: the messages run on
+        // underneath it and the dock (iOS), and the list takes the composer's height (with the
+        // dock's, see the bottomBar) as content padding, so the newest message rests just above it.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
         ) {
             senderSheetTarget?.let { target ->
                 val address = target.address
@@ -972,7 +985,8 @@ fun GroupChatThreadScreen(
                     .fillMaxSize()
                     .closesQuickReactionBar()
                     .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = padding.calculateBottomPadding()),
             ) {
                 itemsIndexed(messages, key = { _, msg -> msg.txId }) { index, message ->
                     // An edited message reads with its newest text; the stored row is untouched.
@@ -1087,6 +1101,8 @@ fun GroupChatThreadScreen(
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        // Above the composer the list runs under.
+                        .padding(bottom = padding.calculateBottomPadding())
                         .padding(16.dp)
                         .size(44.dp)
                         .background(LocalAppColors.current.surface, CircleShape)

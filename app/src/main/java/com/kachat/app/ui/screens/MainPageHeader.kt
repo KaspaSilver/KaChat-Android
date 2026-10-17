@@ -132,6 +132,17 @@ val LargeTitleSize = 34.sp
 val LocalDockInset = androidx.compose.runtime.compositionLocalOf { 0.dp }
 
 /**
+ * Lays [content] out above the dock, for a page shown in place of a screen that runs on under it
+ * but that does not pad its own end for the dock (LocalDockInset is 0 inside).
+ */
+@Composable
+fun AboveDock(content: @Composable () -> Unit) {
+    Box(Modifier.padding(bottom = LocalDockInset.current)) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalDockInset provides 0.dp) { content() }
+    }
+}
+
+/**
  * A navigation bar's row laid out the way UIKit places a `.principal` toolbar item: [principal]
  * centred on the bar when it fits clear of the [leading] and [trailing] items, otherwise packed
  * 12 after the leading items (the Chats bar, whose wide gear-and-Select glass leaves no room to

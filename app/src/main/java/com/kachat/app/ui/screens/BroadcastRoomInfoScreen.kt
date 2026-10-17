@@ -113,6 +113,8 @@ fun BroadcastRoomInfoScreen(
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Room Info", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
@@ -247,7 +249,8 @@ fun BroadcastRoomInfoScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            // Room for the last card to scroll clear of the dock it runs under.
+            Spacer(Modifier.height(24.dp + LocalDockInset.current))
         }
     }
 }

@@ -2212,6 +2212,8 @@ fun PortfolioPriceChartScreen(
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("KAS Price", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
@@ -2250,7 +2252,9 @@ fun PortfolioPriceChartScreen(
                 // nothing to scroll into. With the inset reserved here, the field Compose is
                 // bringing into view has somewhere above the keyboard to land.
                 .imePadding()
-                .padding(16.dp),
+                .padding(16.dp)
+                // The last card scrolls clear of the dock it runs under.
+                .padding(bottom = LocalDockInset.current),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // iOS header: VStack(spacing: 6). The Kaspa logo + name stay put while scrubbing -
@@ -2415,6 +2419,8 @@ fun PortfolioValueChartScreen(
     CompositionLocalProvider(LocalPortfolioValuesHidden provides valuesHidden) {
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Value Over Time", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
@@ -2448,7 +2454,9 @@ fun PortfolioValueChartScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(16.dp)
+                // The last card scrolls clear of the dock it runs under.
+                .padding(bottom = LocalDockInset.current),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // iOS header: VStack(spacing: 4).
@@ -3540,6 +3548,8 @@ fun PortfolioHashrateChartScreen(
 
     Scaffold(
         containerColor = colors.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Network Hashrate", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
@@ -3571,7 +3581,9 @@ fun PortfolioHashrateChartScreen(
                 // for the keyboard, so the mining estimate's field needs the inset reserved here
                 // to have anywhere above the keyboard to scroll into.
                 .imePadding()
-                .padding(16.dp),
+                .padding(16.dp)
+                // The last card scrolls clear of the dock it runs under.
+                .padding(bottom = LocalDockInset.current),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // iOS header: VStack(spacing: 6) - the 20pt pickaxe in the accent and "Kaspa

@@ -152,6 +152,8 @@ fun SwapScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's content runs on under its tab bar.
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             Column {
                 MainPageHeader(title = stringResource(R.string.swap))
@@ -183,7 +185,9 @@ fun SwapScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(16.dp)
+                // The last card scrolls clear of the dock it runs under.
+                .padding(bottom = LocalDockInset.current),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Both cards take input. Type under "You Send" and "You Get" is quoted; type under
@@ -869,14 +873,15 @@ private fun CoinIcon(coin: SwapCoin, size: Dp = 28.dp) {
 @Composable
 private fun SwapHistoryPage(swapHistory: List<SwapTransactionEntity>, onSwapClick: (String) -> Unit, onSwapDelete: (String) -> Unit) {
     if (swapHistory.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        // Centred in the space above the dock.
+        Box(modifier = Modifier.fillMaxSize().padding(bottom = LocalDockInset.current).padding(32.dp), contentAlignment = Alignment.Center) {
             Text(stringResource(R.string.no_swaps_yet), color = LocalAppColors.current.textSecondary, textAlign = TextAlign.Center)
         }
         return
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 6.dp, bottom = 6.dp + LocalDockInset.current),
     ) {
         items(swapHistory, key = { it.id }) { swap ->
             SwapHistoryRow(swap, onClick = { onSwapClick(swap.id) }, onDelete = { onSwapDelete(swap.id) })

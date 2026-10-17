@@ -1412,7 +1412,7 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     SwapScreen(navController = navController)
                 }
             }
@@ -1424,7 +1424,7 @@ fun MainShell(
                 val parentEntry = remember(backStackEntry) {
                     try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
                 }
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     PortfolioPriceChartScreen(
                         navController = navController,
                         viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
@@ -1435,7 +1435,7 @@ fun MainShell(
                 val parentEntry = remember(backStackEntry) {
                     try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
                 }
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     PortfolioValueChartScreen(
                         navController = navController,
                         viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
@@ -1447,7 +1447,7 @@ fun MainShell(
                 val parentEntry = remember(backStackEntry) {
                     try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
                 }
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     PortfolioHashrateChartScreen(
                         navController = navController,
                         viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
@@ -1472,10 +1472,9 @@ fun MainShell(
                 popEnterTransition = { EnterTransition.None },
                 popExitTransition = { ExitTransition.None }
             ) {
-                // Reserve room beneath the screen's own FAB the same way every other tab screen
-                // does, or the "Scan" button sits underneath/behind the floating nav bar instead
-                // of above it.
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // Runs on under the dock like the other tab screens; its Paste kpub / Scan
+                // buttons are lifted above it (LocalDockInset).
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ColdStorageListScreen(
                         navController = navController,
                         viewModel = sharedColdStorageViewModel(navController)
@@ -1491,9 +1490,9 @@ fun MainShell(
                 // fresh instance per destination meant deleteAccount() updated its own _accounts
                 // flow only, leaving the list stale until something else recomposed it.
                 val sharedViewModel = sharedColdStorageViewModel(navController)
-                // The floating dock stays visible here (see onTabRoute), so reserve room for it
-                // the same way the tab screens do rather than letting it sit over the content.
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // The floating dock stays visible here (see onTabRoute): the page runs on under
+                // it the way the tab screens do (LocalDockInset).
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ColdStorageDetailScreen(
                         accountId = backStackEntry.arguments?.getString("accountId") ?: "",
                         navController = navController,
@@ -1515,9 +1514,9 @@ fun MainShell(
                 // button unconditionally opened Cold Storage's external-QR-signer flow, which
                 // can't work for a spending address whose private key already lives in this wallet.)
                 val sharedViewModel = sharedColdStorageViewModel(navController)
-                // Dock visible here too, and this screen has its own bottom bar (the pager), so
-                // the padding is what keeps the two from stacking on top of each other.
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // Dock visible here too: the page runs on under it, and its own Receive / Send
+                // bar is lifted above it (LocalDockInset).
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ColdStorageTxHistoryScreen(
                         address = backStackEntry.arguments?.getString("address") ?: "",
                         onBack = { navController.popBackStack() },
@@ -1555,7 +1554,7 @@ fun MainShell(
                 // private key already lives in this wallet, so it needs direct signing via
                 // WalletViewModel.withdrawFromSpendingAddress instead. Index (not address) is the
                 // route arg since that's what withdrawFromSpendingAddress signs by.
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     SpendingAddressTxHistoryScreen(
                         index = backStackEntry.arguments?.getInt("index") ?: 0,
                         onBack = { navController.popBackStack() },
@@ -1572,7 +1571,7 @@ fun MainShell(
             // exact same watch-only-signer mismatch spending addresses had before getting their
             // own route above.
             composable("identity_address_detail") {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     IdentityAddressDetailScreen(
                         onBack = { navController.popBackStack() },
                         viewModel = walletViewModel,
@@ -1582,7 +1581,7 @@ fun MainShell(
             }
 
             composable("manage_addresses") {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ManageAddressesScreen(
                         viewModel = walletViewModel,
                         onBack = { navController.popBackStack() },
@@ -1719,7 +1718,7 @@ fun MainShell(
             }
 
             composable("kns_domains") {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     KnsDomainsScreen(
                         viewModel = walletViewModel,
                         onBack = { navController.popBackStack() },
@@ -1743,7 +1742,7 @@ fun MainShell(
             }
 
             composable("help") {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
                     HelpScreen(
                         onBack = { navController.popBackStack() },
@@ -1841,7 +1840,7 @@ fun MainShell(
 
             // Chess tournaments (5.1): the lobby as a dock tab, and the screens it opens.
             composable(Screen.KachatNames.route) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.KachatMarketScreen(
                         onBack = null,
                         onOpenChat = { address -> navController.navigate("chat/$address") }
@@ -1849,12 +1848,12 @@ fun MainShell(
                 }
             }
             composable(Screen.KachatStats.route) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.KaChatStatsScreen(onBack = null)
                 }
             }
             composable(Screen.AddressBook.route) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.AddressBookScreen(
                         onBack = null,
                         onOpenChat = { address -> navController.navigate("chat/$address") },
@@ -1863,7 +1862,7 @@ fun MainShell(
                 }
             }
             composable(Screen.KachatBots.route) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.KaChatBotsScreen(
                         onBack = null,
                         onOpenChat = { address -> navController.navigate("chat/$address") },
@@ -1872,7 +1871,7 @@ fun MainShell(
                 }
             }
             composable(Screen.Chess.route) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.ChessHomeScreen(navController)
                 }
             }
@@ -1881,13 +1880,13 @@ fun MainShell(
                 val mode = runCatching {
                     com.kachat.app.ui.screens.ChessLobbyMode.valueOf(entry.arguments?.getString("mode").orEmpty())
                 }.getOrDefault(com.kachat.app.ui.screens.ChessLobbyMode.DUEL)
-                // The floating dock stays on this screen, so leave room for it.
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // The floating dock stays on this screen: it runs on under it (LocalDockInset).
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.ChessTournamentsScreen(mode, navController, onBack = { navController.popBackStack() })
                 }
             }
             composable("chess_tournament/{tournamentId}") { entry ->
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     com.kachat.app.ui.screens.ChessTournamentScreen(entry.arguments?.getString("tournamentId").orEmpty(), navController)
                 }
             }
@@ -1902,7 +1901,7 @@ fun MainShell(
             // Reachable as a dock tab now, not only as a Hub section.
             @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
             composable("kaspa_websites") {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     KaspaAppsScreen(
                         onBack = { navController.popBackStack() },
                         onOpen = { app ->
@@ -1923,8 +1922,8 @@ fun MainShell(
                 popExitTransition = { ExitTransition.None }
             ) {
                 // A dock/cycle page since 4.0 (see the Chats-slot cycle) with the floating
-                // bottom nav visible over it, same bottom-padding treatment as Chats/Profile.
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // bottom nav visible over it: runs on under it, as Chats/Profile do.
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     BroadcastListScreen(
                         navController = navController,
                         onBack = { navController.popBackStack() }
@@ -1937,7 +1936,7 @@ fun MainShell(
                 arguments = listOf(navArgument("channelName") { type = NavType.StringType })
             ) { backStackEntry ->
                 val room = backStackEntry.arguments?.getString("channelName") ?: ""
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     BroadcastRoomInfoScreen(
                         channelName = room,
                         onBack = { navController.popBackStack() },
@@ -1958,14 +1957,14 @@ fun MainShell(
 
             composable("broadcast_channel/{channelName}") { backStackEntry ->
                 val channelName = backStackEntry.arguments?.getString("channelName") ?: return@composable
-                // Same bottom-padding treatment as "broadcasts" — the floating tab bar sits below
-                // this screen's own message-compose bar rather than overlapping it. But only while
-                // the tab bar is actually visible: once the keyboard opens, the tab bar goes behind
-                // it anyway, and this screen's own bottomBar already applies imePadding() to clear
+                // The messages run on under the compose bar and the dock, as iOS's do under its
+                // tab bar; the compose bar floats just above the dock (LocalDockInset). Only while
+                // the dock is actually visible: once the keyboard opens, the dock goes behind it
+                // anyway, and this screen's own bottomBar already applies imePadding() to clear
                 // the keyboard itself — reserving both at once left a dead black gap between the
                 // message input and the keyboard.
                 val imeVisible = WindowInsets.isImeVisible
-                Box(modifier = Modifier.padding(bottom = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides if (imeVisible) 0.dp else innerPadding.calculateBottomPadding()) {
                     BroadcastChannelScreen(
                         channelName = channelName,
                         onBack = { navController.popBackStack() },
@@ -2000,9 +1999,10 @@ fun MainShell(
 
             composable("group_chat/{groupId}") { backStackEntry ->
                 val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-                // The composer sits above the tab bar, as the public room's does (see there).
+                // The messages run on under the dock and the composer sits just above it, as the
+                // public room's does (see there).
                 val imeVisible = WindowInsets.isImeVisible
-                Box(modifier = Modifier.padding(bottom = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides if (imeVisible) 0.dp else innerPadding.calculateBottomPadding()) {
                     GroupChatThreadScreen(navController = navController, groupId = groupId, chatViewModel = chatViewModel, walletViewModel = walletViewModel)
                 }
             }
@@ -2026,9 +2026,10 @@ fun MainShell(
             ) { backStackEntry ->
                 val contactId = backStackEntry.arguments?.getString("contactId") ?: return@composable
                 val startInPaymentMode = backStackEntry.arguments?.getBoolean("paymentMode") ?: false
-                // The composer sits above the tab bar, as the public room's does (see there).
+                // The messages run on under the dock and the composer sits just above it, as the
+                // public room's does (see there).
                 val imeVisible = WindowInsets.isImeVisible
-                Box(modifier = Modifier.padding(bottom = if (imeVisible) 0.dp else innerPadding.calculateBottomPadding())) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides if (imeVisible) 0.dp else innerPadding.calculateBottomPadding()) {
                     ChatThreadScreen(
                         navController = navController,
                         contactId = contactId,
