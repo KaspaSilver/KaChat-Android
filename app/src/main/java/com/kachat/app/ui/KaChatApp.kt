@@ -873,401 +873,407 @@ fun MainShell(
     Scaffold(
         containerColor = LocalAppColors.current.background,
         bottomBar = {
-            // Only show the floating tab bar on the top-level tab destinations —
-            // "pushed" detail screens (chat thread, settings sub-screens, etc.) fill
-            // the whole screen with their own Scaffold and must not have this
-            // overlaid on top of them (it was blocking the chat input entirely).
-            if (onTabRoute && !hideBottomBar) {
-                // Red dot on the Profile tab while the notification bell (which lives on the
-                // Profile screen) holds unread entries.
-                val dockNotifVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
-                // The store is a singleton keyed per wallet internally; reload whenever the
-                // active account changes so a switch never leaves the previous account's unread
-                // dot (and entries) showing until something else happens to poke it.
-                val dockNotifAddress by walletViewModel.address.collectAsState()
-                LaunchedEffect(dockNotifAddress) {
-                    dockNotifVm.store.reloadIfNeeded()
-                    dockNotifVm.kaPostsUnseen.reloadIfNeeded()
-                }
-                val dockNotifEntries by dockNotifVm.store.entries.collectAsState()
-                val dockNotifLastSeen by dockNotifVm.store.lastSeenAt.collectAsState()
-                val dockNotifUnread = dockNotifEntries.count { it.timestampMs > dockNotifLastSeen }
-                // KaPosts owns its own count, so its dock tab carries its own dot. Whether
-                // KaPosts is in the dock at all is the user's arrangement; when it is not, the
-                // count still waits on its bell inside KaPosts.
-                val dockKaPostsUnseen by dockNotifVm.kaPostsUnseen.unseenCount.collectAsState()
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // navigationBarsPadding() first so the 24dp visual margin sits above
-                        // the system nav bar (gesture pill or 3-button bar) rather than being
-                        // eaten by it — its height isn't the same on every device, so a fixed
-                        // dp value alone left the tab bar sitting under/behind it on some phones.
-                        .navigationBarsPadding()
-                        // iOS 26's tab bar: 21pt in from each side (measured on the iPhone).
-                        .padding(bottom = 12.dp, start = 21.dp, end = 21.dp),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Sliding a finger along the bar carries the lens; releasing lands on the
-                    // tab under it, the way the glass follows a finger on iOS. Null while nobody
-                    // is dragging, so the lens follows the selection instead.
-                    var dockDragIndex by remember { mutableStateOf<Int?>(null) }
+            // Over a white page (Profile's QR pages) iOS's tab bar glass turns light, in dark mode
+            // too: the glass takes on what is behind it.
+            CompositionLocalProvider(
+                LocalAppColors provides if (com.kachat.app.ui.screens.DockOverLightPage.active) com.kachat.app.ui.theme.LightAppColors else LocalAppColors.current
+            ) {
+                // Only show the floating tab bar on the top-level tab destinations —
+                // "pushed" detail screens (chat thread, settings sub-screens, etc.) fill
+                // the whole screen with their own Scaffold and must not have this
+                // overlaid on top of them (it was blocking the chat input entirely).
+                if (onTabRoute && !hideBottomBar) {
+                    // Red dot on the Profile tab while the notification bell (which lives on the
+                    // Profile screen) holds unread entries.
+                    val dockNotifVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
+                    // The store is a singleton keyed per wallet internally; reload whenever the
+                    // active account changes so a switch never leaves the previous account's unread
+                    // dot (and entries) showing until something else happens to poke it.
+                    val dockNotifAddress by walletViewModel.address.collectAsState()
+                    LaunchedEffect(dockNotifAddress) {
+                        dockNotifVm.store.reloadIfNeeded()
+                        dockNotifVm.kaPostsUnseen.reloadIfNeeded()
+                    }
+                    val dockNotifEntries by dockNotifVm.store.entries.collectAsState()
+                    val dockNotifLastSeen by dockNotifVm.store.lastSeenAt.collectAsState()
+                    val dockNotifUnread = dockNotifEntries.count { it.timestampMs > dockNotifLastSeen }
+                    // KaPosts owns its own count, so its dock tab carries its own dot. Whether
+                    // KaPosts is in the dock at all is the user's arrangement; when it is not, the
+                    // count still waits on its bell inside KaPosts.
+                    val dockKaPostsUnseen by dockNotifVm.kaPostsUnseen.unseenCount.collectAsState()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // navigationBarsPadding() first so the 24dp visual margin sits above
+                            // the system nav bar (gesture pill or 3-button bar) rather than being
+                            // eaten by it — its height isn't the same on every device, so a fixed
+                            // dp value alone left the tab bar sitting under/behind it on some phones.
+                            .navigationBarsPadding()
+                            // iOS 26's tab bar: 21pt in from each side (measured on the iPhone).
+                            .padding(bottom = 12.dp, start = 21.dp, end = 21.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Sliding a finger along the bar carries the lens; releasing lands on the
+                        // tab under it, the way the glass follows a finger on iOS. Null while nobody
+                        // is dragging, so the lens follows the selection instead.
+                        var dockDragIndex by remember { mutableStateOf<Int?>(null) }
 
-                    /** What a tap on a dock tab does - shared so a drag lands in the same place. */
-                    fun goToDockTab(screen: Screen) {
-                        val onOwnRoute = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                        if (onOwnRoute) {
-                            walletViewModel.notifyTabReselected(screen.route)
-                            return
-                        }
-                        val poppedToExisting = navController.popBackStack(
-                            route = screen.route,
-                            inclusive = false,
-                            saveState = true,
-                        )
-                        if (!poppedToExisting) {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                        /** What a tap on a dock tab does - shared so a drag lands in the same place. */
+                        fun goToDockTab(screen: Screen) {
+                            val onOwnRoute = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                            if (onOwnRoute) {
+                                walletViewModel.notifyTabReselected(screen.route)
+                                return
+                            }
+                            val poppedToExisting = navController.popBackStack(
+                                route = screen.route,
+                                inclusive = false,
+                                saveState = true,
+                            )
+                            if (!poppedToExisting) {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
-                    }
 
-                    // The slide handler below is keyed only on the tab order and the slot width,
-                    // so it is created once and outlives every navigation. Calling goToDockTab
-                    // from it directly used the closure from THAT first composition, whose
-                    // currentDestination was the tab you started on: sliding back onto that tab
-                    // later read as "already here" and did nothing. This always holds the current one.
-                    val latestGoToDockTab by androidx.compose.runtime.rememberUpdatedState<(Screen) -> Unit> {
-                        goToDockTab(it)
-                    }
-
-                    // Which tab the glass pill sits under - the same test each item makes for
-                    // itself below, so the pill and the lit icon can never disagree.
-                    // The tab you are IN, the way iOS's tab bar keeps the tab that pushed a screen
-                    // lit. A dock tab's own route lights itself. A screen that is not a dock tab
-                    // lights the tab it belongs to (chess lobbies and tournaments belong to Chess,
-                    // a public chat room to Public Chats, an account to Cold Storage) - and when
-                    // that tab is not in the dock it lives in the Kaspa Hub, which is always there,
-                    // so the Hub stays lit. It used to light nothing on any of those screens, so the
-                    // glass pill vanished the moment you opened 1v1 or Tournaments from the Hub.
-                    val selectedDockIndex = run {
-                        val direct = localTabOrder.indexOfFirst { screen ->
-                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        // The slide handler below is keyed only on the tab order and the slot width,
+                        // so it is created once and outlives every navigation. Calling goToDockTab
+                        // from it directly used the closure from THAT first composition, whose
+                        // currentDestination was the tab you started on: sliding back onto that tab
+                        // later read as "already here" and did nothing. This always holds the current one.
+                        val latestGoToDockTab by androidx.compose.runtime.rememberUpdatedState<(Screen) -> Unit> {
+                            goToDockTab(it)
                         }
-                        if (direct >= 0) return@run direct
-                        val owner = dockOwnerRoute(currentTopRoute) ?: return@run -1
-                        localTabOrder.indexOfFirst { it.route == owner }.takeIf { it >= 0 }
-                            ?: localTabOrder.indexOfFirst { it.route == Screen.KaspaHub.route }
-                    }
-                    // A new dock arrangement builds a fresh bar (iOS d7c3fcf keys its TabView the
-                    // same way), so every icon, label and the glass lens start from the tabs the
-                    // bar now holds rather than from whichever tab held that slot before. The key
-                    // changes only when the arrangement does.
-                    val dockArrangementKey = localTabOrder.joinToString(",") { it.route }
-                    key(dockArrangementKey) {
-                    // Fixed at the bar's own height so the lens can stand proud of it without
-                    // growing the dock or shifting it up the screen.
-                    // iOS's bar is 60pt tall (measured on the iPhone 17).
-                    BoxWithConstraints(Modifier.fillMaxWidth().height(60.dp)) {
-                    // The pill slides between tabs rather than appearing under the new one, the
-                    // way iOS's glass tab bar moves: one piece of glass that travels.
-                    val dockItemWidth = (maxWidth - 4.dp) / localTabOrder.size.coerceAtLeast(1)
-                    val pillIndex = dockDragIndex ?: selectedDockIndex
-                    val pillOffset by animateDpAsState(
-                        targetValue = 2.dp + dockItemWidth * pillIndex.coerceAtLeast(0),
-                        // Under a finger it keeps up; left to itself it settles with a spring.
-                        animationSpec = if (dockDragIndex != null) tween(90) else spring(dampingRatio = 0.75f, stiffness = 420f),
-                        label = "dockPill",
-                    )
-                    // The bar itself: the backdrop blurred, tinted with the surface colour so it
-                    // still reads as a bar in either theme. It holds no items - they are in the
-                    // Row below, over the pill.
-                    Box(
-                        Modifier
-                            .height(60.dp)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(30.dp))
-                            // The shape goes to hazeChild itself: it paints the blurred backdrop
-                            // to the shape it is given, and its default is a rectangle - which is
-                            // what put a square panel behind the rounded bar.
-                            .hazeChild(
-                                state = dockHaze,
-                                shape = RoundedCornerShape(30.dp),
-                                style = HazeStyle(
-                                    // iOS's bar on black reads #191919 (the toolbar glass)
-                                    tint = com.kachat.app.ui.screens.toolbarGlassFill().copy(alpha = 0.92f),
-                                    blurRadius = 24.dp,
-                                ),
-                            )
-                            .border(0.5.dp, com.kachat.app.ui.screens.toolbarGlassEdge(), RoundedCornerShape(30.dp)),
-                    )
-                    // Drawn between the bar and its icons: a brighter pane of the same glass.
-                    // Also while a finger is sliding: on a screen that is not a dock tab nothing is
-                    // lit, and the slide used to carry no lens at all - it looked like it had not
-                    // registered, though releasing still went to the tab.
-                    if (dockDragIndex == null && selectedDockIndex >= 0) {
-                        // At rest iOS 26 marks the tab with a filled capsule - #3A3A3A on the
-                        // #191919 bar, 4pt inside its height (measured on the iPhone) - and no rim.
-                        val restShape = RoundedCornerShape(percent = 50)
-                        Box(
-                            Modifier
-                                .offset(x = pillOffset)
-                                .padding(vertical = 4.dp)
-                                .width(dockItemWidth)
-                                .height(52.dp)
-                                .clip(restShape)
-                                .background(
-                                    if (LocalAppColors.current.isDark) Color(0xFF3A3A3A)
-                                    else Color.Black.copy(alpha = 0.07f)
-                                ),
+
+                        // Which tab the glass pill sits under - the same test each item makes for
+                        // itself below, so the pill and the lit icon can never disagree.
+                        // The tab you are IN, the way iOS's tab bar keeps the tab that pushed a screen
+                        // lit. A dock tab's own route lights itself. A screen that is not a dock tab
+                        // lights the tab it belongs to (chess lobbies and tournaments belong to Chess,
+                        // a public chat room to Public Chats, an account to Cold Storage) - and when
+                        // that tab is not in the dock it lives in the Kaspa Hub, which is always there,
+                        // so the Hub stays lit. It used to light nothing on any of those screens, so the
+                        // glass pill vanished the moment you opened 1v1 or Tournaments from the Hub.
+                        val selectedDockIndex = run {
+                            val direct = localTabOrder.indexOfFirst { screen ->
+                                currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                            }
+                            if (direct >= 0) return@run direct
+                            val owner = dockOwnerRoute(currentTopRoute) ?: return@run -1
+                            localTabOrder.indexOfFirst { it.route == owner }.takeIf { it >= 0 }
+                                ?: localTabOrder.indexOfFirst { it.route == Screen.KaspaHub.route }
+                        }
+                        // A new dock arrangement builds a fresh bar (iOS d7c3fcf keys its TabView the
+                        // same way), so every icon, label and the glass lens start from the tabs the
+                        // bar now holds rather than from whichever tab held that slot before. The key
+                        // changes only when the arrangement does.
+                        val dockArrangementKey = localTabOrder.joinToString(",") { it.route }
+                        key(dockArrangementKey) {
+                        // Fixed at the bar's own height so the lens can stand proud of it without
+                        // growing the dock or shifting it up the screen.
+                        // iOS's bar is 60pt tall (measured on the iPhone 17).
+                        BoxWithConstraints(Modifier.fillMaxWidth().height(60.dp)) {
+                        // The pill slides between tabs rather than appearing under the new one, the
+                        // way iOS's glass tab bar moves: one piece of glass that travels.
+                        val dockItemWidth = (maxWidth - 4.dp) / localTabOrder.size.coerceAtLeast(1)
+                        val pillIndex = dockDragIndex ?: selectedDockIndex
+                        val pillOffset by animateDpAsState(
+                            targetValue = 2.dp + dockItemWidth * pillIndex.coerceAtLeast(0),
+                            // Under a finger it keeps up; left to itself it settles with a spring.
+                            animationSpec = if (dockDragIndex != null) tween(90) else spring(dampingRatio = 0.75f, stiffness = 420f),
+                            label = "dockPill",
                         )
-                    } else if (dockDragIndex != null) {
-                        // While a finger slides, the lens: a nearly clear bubble with a bright
-                        // rim that stands a little proud of the bar, as iOS's does.
-                        val pillShape = RoundedCornerShape(percent = 50)
+                        // The bar itself: the backdrop blurred, tinted with the surface colour so it
+                        // still reads as a bar in either theme. It holds no items - they are in the
+                        // Row below, over the pill.
                         Box(
                             Modifier
-                                .offset(x = pillOffset - 3.dp, y = (-4).dp)
-                                .width(dockItemWidth + 6.dp)
-                                .height(68.dp)
-                                .clip(pillShape)
+                                .height(60.dp)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(30.dp))
+                                // The shape goes to hazeChild itself: it paints the blurred backdrop
+                                // to the shape it is given, and its default is a rectangle - which is
+                                // what put a square panel behind the rounded bar.
                                 .hazeChild(
                                     state = dockHaze,
-                                    shape = pillShape,
+                                    shape = RoundedCornerShape(30.dp),
                                     style = HazeStyle(
-                                        tint = Color.White.copy(alpha = 0.06f),
-                                        blurRadius = 30.dp,
+                                        // iOS's bar on black reads #191919 (the toolbar glass)
+                                        tint = com.kachat.app.ui.screens.toolbarGlassFill().copy(alpha = 0.92f),
+                                        blurRadius = 24.dp,
                                     ),
                                 )
-                                // The rim catches the light round its edge rather than being one
-                                // flat stroke - iOS's is iridescent.
-                                .border(
-                                    width = 1.5.dp,
-                                    brush = Brush.linearGradient(
-                                        listOf(
-                                            Color.White.copy(alpha = 0.55f),
-                                            KaspaTeal.copy(alpha = 0.55f),
-                                            Color.White.copy(alpha = 0.30f),
-                                        ),
-                                    ),
-                                    shape = pillShape,
-                                ),
+                                .border(0.5.dp, com.kachat.app.ui.screens.toolbarGlassEdge(), RoundedCornerShape(30.dp)),
                         )
-                    }
-                    val dockDensity = LocalDensity.current
-                    Row(
-                        modifier = Modifier
-                            .height(60.dp)
-                            .fillMaxWidth()
-                            // Watched on the INITIAL pass, so a slide can take over from the
-                            // items underneath. A press that never moves is left to their tap;
-                            // anything that travels carries the lens, whether it slides straight
-                            // away or is held first, as on the iPhone. Nothing else on the bar
-                            // wants this finger - tabs are arranged in Settings, not by dragging.
-                            // Gesture navigation reserves a strip at each screen edge for Back,
-                            // wider than the dock's side margin at higher Back sensitivity. A slide
-                            // starting on the outermost tab began inside it, and Android took it.
-                            .systemGestureExclusion()
-                            .pointerInput(localTabOrder, dockItemWidth) {
-                                val slotPx = with(dockDensity) { dockItemWidth.toPx() }
-                                val startPadPx = with(dockDensity) { 2.dp.toPx() }
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                    var sliding = false
-                                    try {
-                                    while (true) {
-                                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                        if (!change.pressed) {
-                                            if (sliding) {
-                                                dockDragIndex?.let { index ->
-                                                    localTabOrder.getOrNull(index)?.let { latestGoToDockTab(it) }
+                        // Drawn between the bar and its icons: a brighter pane of the same glass.
+                        // Also while a finger is sliding: on a screen that is not a dock tab nothing is
+                        // lit, and the slide used to carry no lens at all - it looked like it had not
+                        // registered, though releasing still went to the tab.
+                        if (dockDragIndex == null && selectedDockIndex >= 0) {
+                            // At rest iOS 26 marks the tab with a filled capsule - #3A3A3A on the
+                            // #191919 bar, 4pt inside its height (measured on the iPhone) - and no rim.
+                            val restShape = RoundedCornerShape(percent = 50)
+                            Box(
+                                Modifier
+                                    .offset(x = pillOffset)
+                                    .padding(vertical = 4.dp)
+                                    .width(dockItemWidth)
+                                    .height(52.dp)
+                                    .clip(restShape)
+                                    .background(
+                                        if (LocalAppColors.current.isDark) Color(0xFF3A3A3A)
+                                        else Color.Black.copy(alpha = 0.07f)
+                                    ),
+                            )
+                        } else if (dockDragIndex != null) {
+                            // While a finger slides, the lens: a nearly clear bubble with a bright
+                            // rim that stands a little proud of the bar, as iOS's does.
+                            val pillShape = RoundedCornerShape(percent = 50)
+                            Box(
+                                Modifier
+                                    .offset(x = pillOffset - 3.dp, y = (-4).dp)
+                                    .width(dockItemWidth + 6.dp)
+                                    .height(68.dp)
+                                    .clip(pillShape)
+                                    .hazeChild(
+                                        state = dockHaze,
+                                        shape = pillShape,
+                                        style = HazeStyle(
+                                            tint = Color.White.copy(alpha = 0.06f),
+                                            blurRadius = 30.dp,
+                                        ),
+                                    )
+                                    // The rim catches the light round its edge rather than being one
+                                    // flat stroke - iOS's is iridescent.
+                                    .border(
+                                        width = 1.5.dp,
+                                        brush = Brush.linearGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.55f),
+                                                KaspaTeal.copy(alpha = 0.55f),
+                                                Color.White.copy(alpha = 0.30f),
+                                            ),
+                                        ),
+                                        shape = pillShape,
+                                    ),
+                            )
+                        }
+                        val dockDensity = LocalDensity.current
+                        Row(
+                            modifier = Modifier
+                                .height(60.dp)
+                                .fillMaxWidth()
+                                // Watched on the INITIAL pass, so a slide can take over from the
+                                // items underneath. A press that never moves is left to their tap;
+                                // anything that travels carries the lens, whether it slides straight
+                                // away or is held first, as on the iPhone. Nothing else on the bar
+                                // wants this finger - tabs are arranged in Settings, not by dragging.
+                                // Gesture navigation reserves a strip at each screen edge for Back,
+                                // wider than the dock's side margin at higher Back sensitivity. A slide
+                                // starting on the outermost tab began inside it, and Android took it.
+                                .systemGestureExclusion()
+                                .pointerInput(localTabOrder, dockItemWidth) {
+                                    val slotPx = with(dockDensity) { dockItemWidth.toPx() }
+                                    val startPadPx = with(dockDensity) { 2.dp.toPx() }
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                        var sliding = false
+                                        try {
+                                        while (true) {
+                                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                            if (!change.pressed) {
+                                                if (sliding) {
+                                                    dockDragIndex?.let { index ->
+                                                        localTabOrder.getOrNull(index)?.let { latestGoToDockTab(it) }
+                                                    }
                                                 }
+                                                dockDragIndex = null
+                                                break
                                             }
+                                            val movedX = kotlin.math.abs(change.position.x - down.position.x)
+                                            if (!sliding && movedX > viewConfiguration.touchSlop) sliding = true
+                                            if (sliding) {
+                                                change.consume()
+                                                dockDragIndex = (((change.position.x - startPadPx) / slotPx).toInt())
+                                                    .coerceIn(0, localTabOrder.lastIndex.coerceAtLeast(0))
+                                            }
+                                        }
+                                        } finally {
+                                            // A slide the system takes away - the back gesture, an
+                                            // incoming call - cancels this rather than delivering a
+                                            // release, and the lens used to stay stranded wherever the
+                                            // finger was until the next touch.
                                             dockDragIndex = null
-                                            break
                                         }
-                                        val movedX = kotlin.math.abs(change.position.x - down.position.x)
-                                        if (!sliding && movedX > viewConfiguration.touchSlop) sliding = true
-                                        if (sliding) {
-                                            change.consume()
-                                            dockDragIndex = (((change.position.x - startPadPx) / slotPx).toInt())
-                                                .coerceIn(0, localTabOrder.lastIndex.coerceAtLeast(0))
-                                        }
-                                    }
-                                    } finally {
-                                        // A slide the system takes away - the back gesture, an
-                                        // incoming call - cancels this rather than delivering a
-                                        // release, and the lens used to stay stranded wherever the
-                                        // finger was until the next touch.
-                                        dockDragIndex = null
                                     }
                                 }
-                            }
-                            .padding(horizontal = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        localTabOrder.forEach { screen ->
-                            // Keyed by route (not position), so a tab's own state stays with that
-                            // tab when the arrangement changes in Settings rather than with
-                            // whichever slot happens to render it.
-                            key(screen.route) {
-                                // Standing ON this tab's own route, which is what the reselect
-                                // gesture below keys off.
-                                val onOwnRoute =
-                                    currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                                // Cold Storage's account and address-history screens keep the
-                                // dock, so the Storage tab stays lit while you are down there
-                                // rather than the bar going blank - iOS's tab bar does. Lit only:
-                                // a tap from down there still has to pop back up to the list, so
-                                // this must not feed the reselect check.
-                                // Lit by the same answer the glass pill sits under - see
-                                // selectedDockIndex - so the two can never disagree. Lit only: a
-                                // tap from a screen below the tab still has to pop back up to it,
-                                // so this must not feed the reselect check (onOwnRoute does).
-                                val selected = localTabOrder.getOrNull(selectedDockIndex) == screen
-                                Box(
-                                    modifier = Modifier
-                                        .height(52.dp)
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(26.dp))
-                                        .clickable {
-                                            // Already there — let that screen know it was re-tapped (so it can
-                                            // dismiss its own transient UI, e.g. a full-screen QR overlay) rather
-                                            // than running the popBackStack/navigate logic below, which for a tab
-                                            // with nothing "pushed" above it falls through to navigate() and
-                                            // lands back on the graph's start destination (Chats) instead of
-                                            // staying put.
-                                            if (onOwnRoute) {
-                                                walletViewModel.notifyTabReselected(screen.route)
-                                                return@clickable
-                                            }
+                                .padding(horizontal = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            localTabOrder.forEach { screen ->
+                                // Keyed by route (not position), so a tab's own state stays with that
+                                // tab when the arrangement changes in Settings rather than with
+                                // whichever slot happens to render it.
+                                key(screen.route) {
+                                    // Standing ON this tab's own route, which is what the reselect
+                                    // gesture below keys off.
+                                    val onOwnRoute =
+                                        currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                                    // Cold Storage's account and address-history screens keep the
+                                    // dock, so the Storage tab stays lit while you are down there
+                                    // rather than the bar going blank - iOS's tab bar does. Lit only:
+                                    // a tap from down there still has to pop back up to the list, so
+                                    // this must not feed the reselect check.
+                                    // Lit by the same answer the glass pill sits under - see
+                                    // selectedDockIndex - so the two can never disagree. Lit only: a
+                                    // tap from a screen below the tab still has to pop back up to it,
+                                    // so this must not feed the reselect check (onOwnRoute does).
+                                    val selected = localTabOrder.getOrNull(selectedDockIndex) == screen
+                                    Box(
+                                        modifier = Modifier
+                                            .height(52.dp)
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(26.dp))
+                                            .clickable {
+                                                // Already there — let that screen know it was re-tapped (so it can
+                                                // dismiss its own transient UI, e.g. a full-screen QR overlay) rather
+                                                // than running the popBackStack/navigate logic below, which for a tab
+                                                // with nothing "pushed" above it falls through to navigate() and
+                                                // lands back on the graph's start destination (Chats) instead of
+                                                // staying put.
+                                                if (onOwnRoute) {
+                                                    walletViewModel.notifyTabReselected(screen.route)
+                                                    return@clickable
+                                                }
 
-                                            // Tapping back to the graph's start destination (Chats) from a
-                                            // "pushed" screen like Broadcasts via navigate()+popUpTo alone is
-                                            // silently a no-op in Navigation Compose — popBackStack to the
-                                            // route directly first (it's already on the back stack) actually
-                                            // pops it. Only fall back to navigate() when the tab isn't already
-                                            // present on the stack (first visit to a peer tab).
-                                            val poppedToExisting = navController.popBackStack(
-                                                route = screen.route,
-                                                inclusive = false,
-                                                saveState = true
-                                            )
-                                            if (!poppedToExisting) {
-                                                navController.navigate(screen.route) {
-                                                    popUpTo(navController.graph.findStartDestination().id) {
-                                                        saveState = true
-                                                    }
-                                                    launchSingleTop = true
-                                                    restoreState = true
-                                                }
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Box {
-                                            Icon(
-                                                painter = screen.tabIconPainter(),
-                                                contentDescription = screen.label,
-                                                tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
-                                                modifier = screen.tabIconModifier(24.dp)
-                                            )
-                                            // How many are waiting, not just that some are. A
-                                            // bare dot said "something happened"; the number is
-                                            // the difference between deciding to look now and
-                                            // deciding to look later, and the dock is where that
-                                            // decision gets made.
-                                            val badgeCount = when (screen) {
-                                                Screen.Profile -> dockNotifUnread
-                                                Screen.KaPosts -> dockKaPostsUnseen
-                                                else -> 0
-                                            }
-                                            if (badgeCount > 0 && screen == Screen.Profile) {
-                                                // Profile: a red DOT while the bell holds anything
-                                                // unread - the bell itself is a dot, so the dock
-                                                // says the same thing. KaPosts keeps its count.
-                                                // The entries/lastSeen flows above recompose this
-                                                // from any tab, on tab switches and at launch.
-                                                Box(
-                                                    modifier = Modifier
-                                                        .align(Alignment.TopEnd)
-                                                        .offset(x = 4.dp, y = (-2).dp)
-                                                        .size(10.dp)
-                                                        .clip(RoundedCornerShape(50))
-                                                        .background(Color(0xFFE0245E)),
+                                                // Tapping back to the graph's start destination (Chats) from a
+                                                // "pushed" screen like Broadcasts via navigate()+popUpTo alone is
+                                                // silently a no-op in Navigation Compose — popBackStack to the
+                                                // route directly first (it's already on the back stack) actually
+                                                // pops it. Only fall back to navigate() when the tab isn't already
+                                                // present on the stack (first visit to a peer tab).
+                                                val poppedToExisting = navController.popBackStack(
+                                                    route = screen.route,
+                                                    inclusive = false,
+                                                    saveState = true
                                                 )
-                                            } else if (badgeCount > 0) {
-                                                // A BOX with a minimum square size, not a Text
-                                                // with padding. Padding alone gave a one-digit
-                                                // badge its text's width plus 8dp against its
-                                                // height plus 2dp - wider than it was tall, which
-                                                // is the oval. defaultMinSize floors both to the
-                                                // same 16dp, so one digit is a circle and only a
-                                                // longer label stretches it into a pill.
-                                                Box(
-                                                    modifier = Modifier
-                                                        .align(Alignment.TopEnd)
-                                                        // Offset out over the icon's corner so a
-                                                        // two- or three-character badge grows
-                                                        // outward instead of shoving the icon.
-                                                        .offset(x = 8.dp, y = (-6).dp)
-                                                        .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
-                                                        .clip(RoundedCornerShape(50))
-                                                        .background(Color(0xFFE0245E))
-                                                        .padding(horizontal = 4.dp),
-                                                    contentAlignment = Alignment.Center,
-                                                ) {
-                                                    Text(
-                                                        // Capped in the LABEL, not in the stored
-                                                        // count: the real number survives a long
-                                                        // absence and only its rendering shortens.
-                                                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                                                        color = Color.White,
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        maxLines = 1,
+                                                if (!poppedToExisting) {
+                                                    navController.navigate(screen.route) {
+                                                        popUpTo(navController.graph.findStartDestination().id) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box {
+                                                Icon(
+                                                    painter = screen.tabIconPainter(),
+                                                    contentDescription = screen.label,
+                                                    tint = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
+                                                    modifier = screen.tabIconModifier(24.dp)
+                                                )
+                                                // How many are waiting, not just that some are. A
+                                                // bare dot said "something happened"; the number is
+                                                // the difference between deciding to look now and
+                                                // deciding to look later, and the dock is where that
+                                                // decision gets made.
+                                                val badgeCount = when (screen) {
+                                                    Screen.Profile -> dockNotifUnread
+                                                    Screen.KaPosts -> dockKaPostsUnseen
+                                                    else -> 0
+                                                }
+                                                if (badgeCount > 0 && screen == Screen.Profile) {
+                                                    // Profile: a red DOT while the bell holds anything
+                                                    // unread - the bell itself is a dot, so the dock
+                                                    // says the same thing. KaPosts keeps its count.
+                                                    // The entries/lastSeen flows above recompose this
+                                                    // from any tab, on tab switches and at launch.
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .align(Alignment.TopEnd)
+                                                            .offset(x = 4.dp, y = (-2).dp)
+                                                            .size(10.dp)
+                                                            .clip(RoundedCornerShape(50))
+                                                            .background(Color(0xFFE0245E)),
                                                     )
+                                                } else if (badgeCount > 0) {
+                                                    // A BOX with a minimum square size, not a Text
+                                                    // with padding. Padding alone gave a one-digit
+                                                    // badge its text's width plus 8dp against its
+                                                    // height plus 2dp - wider than it was tall, which
+                                                    // is the oval. defaultMinSize floors both to the
+                                                    // same 16dp, so one digit is a circle and only a
+                                                    // longer label stretches it into a pill.
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .align(Alignment.TopEnd)
+                                                            // Offset out over the icon's corner so a
+                                                            // two- or three-character badge grows
+                                                            // outward instead of shoving the icon.
+                                                            .offset(x = 8.dp, y = (-6).dp)
+                                                            .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
+                                                            .clip(RoundedCornerShape(50))
+                                                            .background(Color(0xFFE0245E))
+                                                            .padding(horizontal = 4.dp),
+                                                        contentAlignment = Alignment.Center,
+                                                    ) {
+                                                        Text(
+                                                            // Capped in the LABEL, not in the stored
+                                                            // count: the real number survives a long
+                                                            // absence and only its rendering shortens.
+                                                            text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                                                            color = Color.White,
+                                                            fontSize = 9.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            maxLines = 1,
+                                                        )
+                                                    }
                                                 }
                                             }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = screen.label,
+                                                color = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
+                                                // Longer labels ("Public Chats") don't fit at 10sp once there are
+                                                // enough tabs that each weight(1f) slot narrows below their natural
+                                                // width — shrink just those instead of letting them clip/wrap and
+                                                // get cut off by the fixed-height Box. Twelve characters need a third
+                                                // step: at six tabs on a 320dp screen a slot is ~53dp, which 8sp
+                                                // would run past, and softWrap = false clips rather than wraps.
+                                                fontSize = when {
+                                                    screen.label.length > 11 -> 7.sp
+                                                    screen.label.length > 9 -> 8.sp
+                                                    else -> 10.sp
+                                                },
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis,
+                                                // iOS 26's tab labels are medium weight, selected or not -
+                                                // only the colour marks the selected tab.
+                                                fontWeight = FontWeight.Medium
+                                            )
                                         }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = screen.label,
-                                            color = if (selected) KaspaTeal else LocalAppColors.current.textPrimary,
-                                            // Longer labels ("Public Chats") don't fit at 10sp once there are
-                                            // enough tabs that each weight(1f) slot narrows below their natural
-                                            // width — shrink just those instead of letting them clip/wrap and
-                                            // get cut off by the fixed-height Box. Twelve characters need a third
-                                            // step: at six tabs on a 320dp screen a slot is ~53dp, which 8sp
-                                            // would run past, and softWrap = false clips rather than wraps.
-                                            fontSize = when {
-                                                screen.label.length > 11 -> 7.sp
-                                                screen.label.length > 9 -> 8.sp
-                                                else -> 10.sp
-                                            },
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis,
-                                            // iOS 26's tab labels are medium weight, selected or not -
-                                            // only the colour marks the selected tab.
-                                            fontWeight = FontWeight.Medium
-                                        )
                                     }
                                 }
                             }
                         }
-                    }
-                    }
-                    } // key(dockArrangementKey)
+                        }
+                        } // key(dockArrangementKey)
+                        }
                     }
                 }
-            }
+        }
         }
     ) { innerPadding ->
         // The green dot's half sheet, hosted once for the whole app rather than by each of the
@@ -1292,8 +1298,19 @@ fun MainShell(
         NavHost(
             navController = navController,
             startDestination = Screen.Chats.route,
+            // In the Settings stack the whole host draws as iOS's sheet: its rounded top 10 below
+            // the status bar, black above it. The status-bar padding is consumed here, so the
+            // settings screens' own statusBarsPadding adds nothing inside the sheet.
             // What the dock's glass samples.
-            modifier = Modifier.haze(state = dockHaze),
+            modifier = Modifier
+                .then(
+                    if (inSettingsSheet) Modifier
+                        .statusBarsPadding()
+                        .padding(top = 10.dp)
+                        .clip(com.kachat.app.ui.theme.IosSheetShape)
+                    else Modifier
+                )
+                .haze(state = dockHaze),
             // NavHost's own default is a 700ms crossfade — noticeably sluggish for something
             // that happens on every single tab switch/screen push. A short, snappy fade reads
             // as instant without the jarring hard-cut of no animation at all.
@@ -1306,7 +1323,9 @@ fun MainShell(
             // Profile's gear icon), so it gets the normal NavHost-level fade like any other
             // pushed detail screen, not the instant tab-swap treatment below.
             composable(Screen.Settings.route) {
-                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                // The sheet runs on under the system bar in its own colour, as iOS's does under the
+                // home indicator; only its content stops above it.
+                Box(modifier = Modifier.background(LocalAppColors.current.background).padding(bottom = innerPadding.calculateBottomPadding())) {
                     SettingsScreen(navController, walletViewModel = walletViewModel)
                 }
             }

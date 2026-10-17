@@ -9028,7 +9028,8 @@ fun SettingsScreen(
                     .background(LocalAppColors.current.background)
                     .statusBarsPadding()
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    // measured on the iPhone: the bar's centre 37 below the sheet's top
+                    .padding(horizontal = 16.dp, vertical = 15.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -9060,8 +9061,9 @@ fun SettingsScreen(
         ) {
             if (sectionKey == null) {
                 // Flat hub list (matches iOS): no section titles - just the categories, the
-                // seed-phrase action, and Danger Zone in one card.
-                Spacer(Modifier.height(16.dp))
+                // seed-phrase action, and Danger Zone in one card - its top 122 below the
+                // sheet's, as on the iPhone.
+                Spacer(Modifier.height(24.dp))
                 Surface(
                     color = LocalAppColors.current.surface,
                     shape = RoundedCornerShape(26.dp),
@@ -11704,10 +11706,14 @@ private fun AddressQrPageBar(dismiss: QrPageDismiss, onDismiss: () -> Unit, cent
     // A sheet's bar is 56 tall on iOS, a pushed page's 44.
     // iOS 26: each control on its own glass, 16 in from the edge.
     Box(Modifier.fillMaxWidth().height(if (dismiss == QrPageDismiss.BACK) 52.dp else 60.dp).padding(horizontal = 16.dp)) {
-        when (dismiss) {
-            QrPageDismiss.BACK -> SheetBarBackButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart))
-            QrPageDismiss.CLOSE -> SheetBarButton(stringResource(R.string.close), onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart))
-            QrPageDismiss.DONE -> SheetBarButton(stringResource(R.string.done), onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
+        // iOS's glass takes on what is under it: over the white page the control is light glass
+        // with a black chevron, in dark mode too. (The balance keeps the theme's colour, below.)
+        CompositionLocalProvider(LocalAppColors provides com.kachat.app.ui.theme.LightAppColors) {
+            when (dismiss) {
+                QrPageDismiss.BACK -> SheetBarBackButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart))
+                QrPageDismiss.CLOSE -> SheetBarButton(stringResource(R.string.close), onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart))
+                QrPageDismiss.DONE -> SheetBarButton(stringResource(R.string.done), onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
+            }
         }
         Box(Modifier.align(Alignment.Center)) { center() }
     }
@@ -11820,6 +11826,11 @@ fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -
     }
 }
 
+/** True while a white page shows over a tab - the dock draws its glass light then. */
+object DockOverLightPage {
+    var active by mutableStateOf(false)
+}
+
 /**
  * A QR page pushed onto a screen (Profile's two): it covers that screen's content in place and
  * slides in from the right, the way iOS pushes it - the dock stays where it is, as iOS's tab bar
@@ -11827,6 +11838,13 @@ fun QrPageSheet(onDismiss: () -> Unit, white: Boolean, content: @Composable () -
  */
 @Composable
 fun PushedQrPage(visible: Boolean, white: Boolean, onBack: () -> Unit, content: @Composable () -> Unit) {
+    // The dock's glass goes light over the white page, as iOS's tab bar does.
+    if (visible && white) {
+        DisposableEffect(Unit) {
+            DockOverLightPage.active = true
+            onDispose { DockOverLightPage.active = false }
+        }
+    }
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
         enter = androidx.compose.animation.slideInHorizontally { it },
