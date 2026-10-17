@@ -78,6 +78,11 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.layout
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.PhoneEnabled
 import androidx.compose.material3.SwitchDefaults
@@ -3969,8 +3974,13 @@ fun ProfileScreen(
                 // Still scrollable as a safety net (smaller phones, larger system font scale),
                 // but every element below is sized to comfortably fit a typical phone screen
                 // without needing it.
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .verticalScroll(scrollState)
+                // iOS: the pinned title's 8pt bottom padding, then the list's 16pt top padding
+                // pulled back 8 by the account row - 16 from the title row in all, of which the
+                // title row here already carries 14.
+                .padding(top = 2.dp),
+            // iOS's VStack(spacing: 16).
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // one of your .kachat names expired and is in grace: renew it in time (iOS 6ac48a7)
             KachatExpiredNamesBanner(walletAddress = address)
@@ -3980,48 +3990,77 @@ fun ProfileScreen(
             run {
                 var isEditingName by remember { mutableStateOf(false) }
                 var editedName by remember { mutableStateOf("") }
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // iOS accountNameRow: title3 semibold (20) and, 8 to its right, a title3
+                // pencil.circle.fill (a filled secondary-grey circle with the pencil cut out) - or,
+                // while editing, the field and an accent checkmark.circle.fill.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     if (isEditingName) {
                         com.kachat.app.ui.theme.IosTextField(
                             value = editedName,
                             onValueChange = { editedName = it },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
-                            textStyle = MaterialTheme.typography.titleMedium.copy(color = LocalAppColors.current.textPrimary)
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                color = LocalAppColors.current.textPrimary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         )
-                        IconButton(onClick = {
-                            val trimmed = editedName.trim()
-                            isEditingName = false
-                            if (trimmed.isNotEmpty() && trimmed != accountName) {
-                                address?.let { viewModel.renameAccount(it, trimmed) }
-                            }
-                        }) {
-                            Icon(Icons.Default.CheckCircle, null, tint = KaspaTeal)
-                        }
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = stringResource(R.string.done),
+                            tint = KaspaTeal,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    val trimmed = editedName.trim()
+                                    isEditingName = false
+                                    if (trimmed.isNotEmpty() && trimmed != accountName) {
+                                        address?.let { viewModel.renameAccount(it, trimmed) }
+                                    }
+                                }
+                        )
                     } else {
                         Text(
                             accountName ?: stringResource(R.string.account_name),
                             color = LocalAppColors.current.textPrimary,
                             fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1
+                            fontSize = 20.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
-                        IconButton(onClick = {
-                            editedName = accountName ?: ""
-                            isEditingName = true
-                        }) {
-                            Icon(Icons.Default.Edit, null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(21.dp)
+                                .clip(CircleShape)
+                                .background(LocalAppColors.current.textSecondary)
+                                .clickable {
+                                    editedName = accountName ?: ""
+                                    isEditingName = true
+                                }
+                                .semantics { contentDescription = "Rename account" },
+                        ) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = LocalAppColors.current.background,
+                                modifier = Modifier.size(13.dp)
+                            )
                         }
                     }
                 }
             }
 
-            Surface(
-                color = LocalAppColors.current.surface,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
+            // iOS glassBackground(cornerRadius: 18): the material, a 0.8 white hairline at 18%
+            // and the soft shadow.
+            Column(modifier = Modifier.fillMaxWidth().iosGlass(18.dp)) {
+                run {
                     // On testnet the .kachat profile (avatar, banner and bio looked up from its
                     // social link) comes first; the KNS one otherwise (iOS ad32798 / 1322216).
                     // On testnet identity is .kachat only: no KNS fallback there (iOS e52357d).
@@ -4056,13 +4095,24 @@ fun ProfileScreen(
                     // yet means "Create KNS Profile", and it flips to "Edit KNS Profile" the
                     // moment activeProfileDomainName lands - no app restart needed.
                     val hasKnsProfile = !activeProfileDomainName.isNullOrBlank()
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Box(modifier = Modifier.padding(start = 16.dp).offset(y = (-38).dp)) {
+                    // iOS: the avatar row is pulled 38 up into the banner (.padding(.top, -38)),
+                    // taking its layout space with it - so the name sits 8 under the avatar's
+                    // row and the card ends 14 under the text, not 38 lower.
+                    Column(modifier = Modifier.fillMaxWidth().profilePulledUp(38.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            // 76 across, ringed by a 3pt stroke of the screen background centred
+                            // on its edge (iOS .overlay(Circle().stroke(systemBackground, 3))).
+                            val ringColor = LocalAppColors.current.background
                             Box(
-                                modifier = Modifier.size(82.dp).clip(CircleShape).background(LocalAppColors.current.background),
+                                modifier = Modifier
+                                    .size(76.dp)
+                                    .drawWithContent {
+                                        drawContent()
+                                        drawCircle(ringColor, radius = size.minDimension / 2f, style = Stroke(width = 3.dp.toPx()))
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 ContactAvatar(
@@ -4071,45 +4121,48 @@ fun ProfileScreen(
                                     size = 76.dp
                                 )
                             }
+                            Spacer(Modifier.weight(1f))
+                            // KaChat's own profile (iOS 09e0403). .kas profiles are customized per
+                            // domain in Your Domains instead; the app no longer shows them.
+                            // subheadline semibold, bottom-aligned with the avatar, 4 up.
+                            Text(
+                                stringResource(R.string.edit_kachat_profile),
+                                color = KaspaTeal,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                modifier = Modifier
+                                    .padding(bottom = 4.dp)
+                                    .clickable { navController.navigate("edit_kachat_profile") }
+                            )
                         }
-                        Spacer(Modifier.weight(1f))
-                        // KaChat's own profile (iOS 09e0403). .kas profiles are customized per
-                        // domain in Your Domains instead; the app no longer shows them.
-                        Text(
-                            stringResource(R.string.edit_kachat_profile),
-                            color = KaspaTeal,
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.bodyMedium,
+                        // VStack(spacing: 6): title3 bold name, subheadline bio, the link.
+                        Column(
                             modifier = Modifier
-                                .padding(top = 8.dp, end = 8.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { navController.navigate("edit_kachat_profile") }
-                                .padding(horizontal = 8.dp, vertical = 6.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-26).dp)) {
-                        Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-                        (kachatBio ?: knsProfile?.bio?.takeIf { it.isNotBlank() && !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled })?.let { bio ->
-                            Spacer(Modifier.height(4.dp))
-                            Text(bio, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        // The Linktree link: the one way a .kachat profile links anything else.
-                        kachatLinktree?.let { linktree ->
-                            val linktreeUriHandler = LocalUriHandler.current
-                            Spacer(Modifier.height(4.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable { runCatching { linktreeUriHandler.openUri(linktree) } }
-                            ) {
-                                Icon(Icons.Default.Link, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    linktree.replace("https://", ""),
-                                    color = KaspaTeal,
-                                    fontWeight = FontWeight.SemiBold,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    maxLines = 1
-                                )
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 8.dp, bottom = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(heroName, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp, maxLines = 1)
+                            (kachatBio ?: knsProfile?.bio?.takeIf { it.isNotBlank() && !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled })?.let { bio ->
+                                Text(bio, color = LocalAppColors.current.textSecondary, fontSize = 15.sp)
+                            }
+                            // The Linktree link: the one way a .kachat profile links anything else.
+                            kachatLinktree?.let { linktree ->
+                                val linktreeUriHandler = LocalUriHandler.current
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { runCatching { linktreeUriHandler.openUri(linktree) } }
+                                ) {
+                                    Icon(Icons.Default.Link, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        linktree.replace("https://", ""),
+                                        color = KaspaTeal,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
@@ -4117,44 +4170,50 @@ fun ProfileScreen(
             }
 
             run {
+                // iOS HStack(spacing: 24) { Spacer; Receive; Spacer; Chatting; Spacer }: the two
+                // buttons at their own width, the room left over shared by three equal spacers.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
+                    Spacer(Modifier.weight(1f))
                     ProfileCircleAction(
                         icon = Icons.Default.QrCode,
                         label = stringResource(R.string.receive_kaspa),
-                        modifier = Modifier.weight(1f)
                     ) {
                         showAcceptPaymentQr = true
                     }
+                    Spacer(Modifier.weight(1f))
                     ProfileCircleAction(
                         icon = Icons.Default.QrCode,
-                        label = "Chatting Address",
-                        modifier = Modifier.weight(1f)
+                        label = stringResource(R.string.chatting_address),
                     ) {
                         showFundIdentityQr = true
                     }
+                    Spacer(Modifier.weight(1f))
                 }
             }
 
-            // Testnet only: free TN10 coins for the chatting address, from the official faucet
-            // (iOS 182ae68).
-            if (com.kachat.app.util.KaspaNetwork.isTestnet && address != null) {
-                TestnetFaucetClaimButton(
-                    address = address!!,
-                    balanceSompi = { viewModel.balanceSompi.value },
-                    refreshBalance = { viewModel.refreshBalanceAndAwait() },
+            // iOS addressDropdownsSection: VStack(spacing: 20) { faucet (testnet); card }.
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                // Testnet only: free TN10 coins for the chatting address, from the official faucet
+                // (iOS 182ae68).
+                if (com.kachat.app.util.KaspaNetwork.isTestnet && address != null) {
+                    TestnetFaucetClaimButton(
+                        address = address!!,
+                        balanceSompi = { viewModel.balanceSompi.value },
+                        refreshBalance = { viewModel.refreshBalanceAndAwait() },
+                    )
+                }
+                // One card for every address of this account (iOS 6333dd3 ContactsView
+                // addressDropdownsSection): it opens Manage Addresses, which lists them all, the
+                // chatting address first. Which address a send comes from is picked on the send
+                // screen (From), so Profile no longer splits Chatting from Spending.
+                ProfileManageAddressesCard(
+                    totalSompi = accountTotalSompi,
+                    onClick = { navController.navigate("manage_addresses") },
                 )
             }
-            // One card for every address of this account (iOS 6333dd3 ContactsView
-            // addressDropdownsSection): it opens Manage Addresses, which lists them all, the
-            // chatting address first. Which address a send comes from is picked on the send
-            // screen (From), so Profile no longer splits Chatting from Spending.
-            ProfileManageAddressesCard(
-                totalSompi = accountTotalSompi,
-                onClick = { navController.navigate("manage_addresses") },
-            )
 
             if (pendingKnsCommit != null) {
                 SettingsSection(title = null) {
@@ -4194,90 +4253,120 @@ fun ProfileScreen(
                 viewModel.watchKachatOwnedCount(owner) { kachatOwnedCount = it }
             }
             val domainsCount = kachatOwnedCount + ownedKnsDomains.size + ownedServiceNames.values.sumOf { it.size }
-            SettingsSection(title = null) {
-                SettingsNavigationItem("Your Domains", Icons.Default.AlternateEmail, value = "$domainsCount", onClick = {
-                    navController.navigate("kns_domains")
-                })
-            }
+            // iOS: each a card of its own (glassBackground 18) - a Label (white outline symbol,
+            // body text), the count for Your Domains, and a caption chevron, padded 16.
+            ProfileLinkRow(
+                label = stringResource(R.string.kns_domains),
+                icon = Icons.Default.AlternateEmail,
+                value = "$domainsCount",
+                onClick = { navController.navigate("kns_domains") },
+            )
 
             // Settings as a card in the list rather than a glyph in the chrome - it belongs with
             // the other destinations you tap into from here, and it is the entry point to
             // everything the app can be configured to do.
-            SettingsSection(title = null) {
-                SettingsNavigationItem(stringResource(R.string.settings), Icons.Default.Settings, onClick = {
-                    navController.navigate("settings")
-                })
-            }
+            ProfileLinkRow(
+                label = stringResource(R.string.settings),
+                icon = Icons.Outlined.Settings,
+                onClick = { navController.navigate("settings") },
+            )
 
-            SettingsSection(title = null) {
-                SettingsNavigationItem(stringResource(R.string.help), Icons.AutoMirrored.Filled.HelpOutline, onClick = {
-                    navController.navigate("help")
-                })
+            ProfileLinkRow(
+                label = stringResource(R.string.help),
+                icon = Icons.AutoMirrored.Filled.HelpOutline,
+                onClick = { navController.navigate("help") },
+            )
+
+            // iOS logOutSection: red "Log Out" on the left, the red
+            // rectangle.portrait.and.arrow.right on the right, no chevron.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .iosGlass(18.dp)
+                    .clickable { showLogoutConfirmation = true }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.log_out),
+                    color = LocalAppColors.current.danger,
+                    fontSize = 17.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    tint = LocalAppColors.current.danger,
+                    modifier = Modifier.size(22.dp),
+                )
             }
 
             // Bottom-most section on Profile - merges what used to be a separate "Info" section
             // (just "Created") with Settings' old "About" section (Version/Website/Support
             // Email/Donate), now reached without needing to open Settings at all.
-            SettingsSection(title = null) {
-                SettingsActionItem(stringResource(R.string.log_out), Icons.AutoMirrored.Filled.Logout, Color.Red) {
-                    showLogoutConfirmation = true
+            // iOS aboutSection: a footnote "About" over one card, rows in iOS's order with
+            // Open Source Licenses last.
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.about),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                Column(modifier = Modifier.fillMaxWidth().iosGlass(18.dp)) {
+                    // Was a hardcoded literal. This is when the account was actually created or
+                    // imported on this device (see WalletManager.accountAddedAt); an account that
+                    // predates the stamp shows nothing rather than a made-up date.
+                    val addedAtMillis = remember(address) { address?.let { viewModel.accountAddedAt(it) } }
+                    ProfileAboutRow(
+                        stringResource(R.string.created),
+                        addedAtMillis?.let {
+                            java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", java.util.Locale.getDefault())
+                                .format(java.util.Date(it))
+                        } ?: "--"
+                    )
+                    ProfileAboutDivider()
+                    // "5.0 (1)" through the betas, "5.0" at release - so anyone can say which build
+                    // they are on. Same shape as iOS's About row.
+                    ProfileAboutRow(stringResource(R.string.version), com.kachat.app.util.AppVersion.display)
+                    ProfileAboutDivider()
+                    ProfileAboutRow(
+                        stringResource(R.string.website),
+                        "home.kachat.app",
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://home.kachat.app")))
+                            } catch (e: Exception) { /* no browser available */ }
+                        }
+                    )
+                    ProfileAboutDivider()
+                    // The one accent value: iOS shows the address as a mail link.
+                    ProfileAboutRow(
+                        stringResource(R.string.support_email),
+                        "kaspasilver@gmail.com",
+                        valueColor = KaspaTeal,
+                        onClick = {
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:kaspasilver@gmail.com")))
+                            } catch (e: Exception) { /* no email app available */ }
+                        }
+                    )
+                    ProfileAboutDivider()
+                    ProfileAboutRow(
+                        stringResource(R.string.donate),
+                        DONATE_NAME,
+                        onClick = { showDonateSheet = true }
+                    )
+                    ProfileAboutDivider()
+                    // The notices WebRTC, Opus and Protocol Buffers require to ship with the binary,
+                    // and the attribution the Apache/MIT libraries ask for. Same row as iOS's About.
+                    ProfileAboutRow(
+                        stringResource(R.string.open_source_licenses),
+                        null,
+                        onClick = { navController.navigate("open_source_licenses") }
+                    )
                 }
-            }
-
-            SettingsSection(title = stringResource(R.string.about)) {
-                // Was a hardcoded literal. This is when the account was actually created or
-                // imported on this device (see WalletManager.accountAddedAt); an account that
-                // predates the stamp shows nothing rather than a made-up date.
-                val addedAtMillis = remember(address) { address?.let { viewModel.accountAddedAt(it) } }
-                SettingsInfoItem(
-                    stringResource(R.string.created),
-                    addedAtMillis?.let {
-                        java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", java.util.Locale.getDefault())
-                            .format(java.util.Date(it))
-                    } ?: "--"
-                )
-                SettingsDivider()
-                // "5.0 (1)" through the betas, "5.0" at release - so anyone can say which build
-                // they are on. Same shape as iOS's About row.
-                SettingsInfoItem(stringResource(R.string.version), com.kachat.app.util.AppVersion.display)
-                SettingsDivider()
-                SettingsInfoItem(
-                    stringResource(R.string.website),
-                    "home.kachat.app",
-                    KaspaTeal,
-                    onClick = {
-                        try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://home.kachat.app")))
-                        } catch (e: Exception) { /* no browser available */ }
-                    }
-                )
-                SettingsDivider()
-                // The notices WebRTC, Opus and Protocol Buffers require to ship with the binary,
-                // and the attribution the Apache/MIT libraries ask for. Same row as iOS's About.
-                SettingsInfoItem(
-                    stringResource(R.string.open_source_licenses),
-                    "",
-                    KaspaTeal,
-                    onClick = { navController.navigate("open_source_licenses") }
-                )
-                SettingsDivider()
-                SettingsInfoItem(
-                    stringResource(R.string.support_email),
-                    "kaspasilver@gmail.com",
-                    KaspaTeal,
-                    onClick = {
-                        try {
-                            context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:kaspasilver@gmail.com")))
-                        } catch (e: Exception) { /* no email app available */ }
-                    }
-                )
-                SettingsDivider()
-                SettingsInfoItem(
-                    stringResource(R.string.donate),
-                    DONATE_NAME,
-                    KaspaTeal,
-                    onClick = { showDonateSheet = true }
-                )
             }
 
             // Moved here from Settings > Actions - Profile is where the rest of the
@@ -9439,7 +9528,11 @@ fun SettingsSection(title: String?, headerAction: (@Composable () -> Unit)? = nu
     }
 }
 
-/** A circular icon button with its label centered underneath — used in pairs on [ProfileScreen] (Accept Kaspa As Payment / Fund Chatting Address). */
+/**
+ * A circular icon button with its label centered underneath — used in pairs on [ProfileScreen]
+ * (Receive Kaspa / Chatting Address). iOS qrCircleIcon: an 80pt accent circle with a black 26pt
+ * medium qrcode, then the label in subheadline, 8 below.
+ */
 @Composable
 private fun ProfileCircleAction(
     icon: ImageVector,
@@ -9453,29 +9546,131 @@ private fun ProfileCircleAction(
     ) {
         Box(
             modifier = Modifier
-                .size(76.dp)
+                .size(80.dp)
                 .clip(CircleShape)
                 .background(KaspaTeal)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = Color.Black, modifier = Modifier.size(36.dp))
+            Icon(icon, null, tint = Color.Black, modifier = Modifier.size(34.dp))
         }
         Spacer(Modifier.height(8.dp))
         Text(
             label,
             color = LocalAppColors.current.textPrimary,
-            fontSize = 12.sp,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 1,
         )
     }
 }
 
 /**
- * Profile's Manage Addresses card (iOS 6333dd3): the list icon in a circle, "Manage Addresses"
- * with the account total under it (a spinner until it is known), and a chevron - the whole card
+ * Lays [this] out [amount] higher than where it would sit and gives that height back, the way
+ * SwiftUI's negative top padding does: what follows moves up with it.
+ */
+private fun Modifier.profilePulledUp(amount: Dp): Modifier = layout { measurable, constraints ->
+    val pull = amount.roundToPx()
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, (placeable.height - pull).coerceAtLeast(0)) {
+        placeable.place(0, -pull)
+    }
+}
+
+/**
+ * SF Symbols' chevron.right as iOS draws it at a small text size: a thin open chevron of the
+ * given glyph [height] (caption ~11, footnote ~12), in secondary grey.
+ */
+@Composable
+private fun ProfileChevron(height: Dp, stroke: Dp) {
+    val color = LocalAppColors.current.textSecondary
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = height * 0.55f, height = height)) {
+        val inset = stroke.toPx() / 2f
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(inset, inset)
+            lineTo(size.width - inset, size.height / 2f)
+            lineTo(inset, size.height - inset)
+        }
+        drawPath(
+            path,
+            color = color,
+            style = Stroke(width = stroke.toPx(), cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+        )
+    }
+}
+
+/**
+ * Profile's Your Domains / Settings / Help cards (iOS yourDomainsSection, settingsSection,
+ * helpSection): a card of its own each (glassBackground 18), padded 16, holding a Label - the
+ * primary-coloured outline symbol, the body title 28 in from the symbol's edge - then, for Your
+ * Domains, the count in secondary, and the caption chevron.
+ */
+@Composable
+private fun ProfileLinkRow(label: String, icon: ImageVector, value: String? = null, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .iosGlass(18.dp)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = colors.textPrimary, fontSize = 17.sp, maxLines = 1, modifier = Modifier.weight(1f))
+        if (value != null) {
+            Text(value, color = colors.textSecondary, fontSize = 17.sp, maxLines = 1)
+            Spacer(Modifier.width(8.dp))
+        }
+        ProfileChevron(height = 11.dp, stroke = 1.6.dp)
+    }
+}
+
+/**
+ * One row of Profile's About card (iOS aboutSection): the body label, then the value in secondary
+ * grey (Support Email in the accent, as iOS draws a mail link) or, for a row with no value, the
+ * caption-semibold chevron. Padded 16 all round.
+ */
+@Composable
+private fun ProfileAboutRow(
+    label: String,
+    value: String?,
+    valueColor: Color = LocalAppColors.current.textSecondary,
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = LocalAppColors.current.textPrimary, fontSize = 17.sp, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
+        if (value != null) {
+            Text(value, color = valueColor, fontSize = 17.sp, maxLines = 1)
+        } else {
+            ProfileChevron(height = 11.dp, stroke = 2.dp)
+        }
+    }
+}
+
+/** iOS `Divider().padding(.leading, 16)`: a hairline from the row text to the card's right edge. */
+@Composable
+private fun ProfileAboutDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 16.dp),
+        color = LocalAppColors.current.divider,
+        thickness = 0.5.dp,
+    )
+}
+
+/**
+ * Profile's Manage Addresses card (iOS 6333dd3 addressDropdownsSection): the accent
+ * list.bullet.rectangle in a 48pt material circle, "Manage Addresses" (subheadline semibold) with
+ * the account total under it (caption semibold, accent; a spinner until it is known), and a
+ * footnote-semibold chevron - padded 16 x 14 on a glass card with 18pt corners. The whole card
  * opens Manage Addresses.
  */
 @Composable
@@ -9484,8 +9679,7 @@ private fun ProfileManageAddressesCard(totalSompi: Long?, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(colors.surface)
+            .iosGlass(18.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -9495,10 +9689,11 @@ private fun ProfileManageAddressesCard(totalSompi: Long?, onClick: () -> Unit) {
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(colors.background),
+                // The material circle drawn on the material card: one step lighter than it.
+                .background(colors.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
@@ -9520,7 +9715,7 @@ private fun ProfileManageAddressesCard(totalSompi: Long?, onClick: () -> Unit) {
                 com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(14.dp), color = colors.textSecondary, strokeWidth = 2.dp)
             }
         }
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary)
+        ProfileChevron(height = 12.dp, stroke = 2.dp)
     }
 }
 
