@@ -365,39 +365,15 @@ fun ChatsScreen(
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = LargeTitleSize,
-                        modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
+                        // measured on the iPhone: 56 from the bar's centre to the title's, 30 on to the field
+                        modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
                     )
 
-                    // Search Bar
-                    TextField(
+                    // Search Bar (iOS's .searchable field, 44 high)
+                    IosSearchField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(22.dp)),
-                        placeholder = { Text(stringResource(R.string.search_chats), color = LocalAppColors.current.textSecondary) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium,
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(20.dp))
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search), tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(18.dp))
-                                }
-                            }
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = LocalAppColors.current.surface,
-                            unfocusedContainerColor = LocalAppColors.current.surface,
-                            focusedTextColor = LocalAppColors.current.textPrimary,
-                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                            cursorColor = KaspaTeal,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        )
+                        placeholder = stringResource(R.string.search_chats),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 

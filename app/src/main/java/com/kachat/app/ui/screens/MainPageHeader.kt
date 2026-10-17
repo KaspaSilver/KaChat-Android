@@ -124,9 +124,9 @@ val LargeTitleSize = 34.sp
 
 /**
  * A navigation bar's row laid out the way UIKit places a `.principal` toolbar item: [principal]
- * centred on the bar when it fits between the [leading] and [trailing] items, otherwise slid
- * over just enough to clear them (packed after the leading items when the trailing ones are
- * wide - the Chats bar, whose gear-and-Select glass pushes the balance left).
+ * centred on the bar when it fits clear of the [leading] and [trailing] items, otherwise packed
+ * 12 after the leading items (the Chats bar, whose wide gear-and-Select glass leaves no room to
+ * centre the balance - measured on the iPhone).
  */
 @Composable
 fun IosToolbarRow(
@@ -154,9 +154,12 @@ fun IosToolbarRow(
         layout(width, height) {
             lead.placeRelative(0, (height - lead.height) / 2)
             trail.placeRelative(width - trail.width, (height - trail.height) / 2)
-            val minX = lead.width + gap
-            val maxX = width - trail.width - gap - mid.width
-            val x = ((width - mid.width) / 2).coerceAtMost(maxX).coerceAtLeast(minX)
+            // Centred when that leaves it clear of both sides by UIKit's margin; otherwise
+            // UIKit packs it right after the leading items rather than sliding it partway.
+            val centred = (width - mid.width) / 2
+            val clear = 16.dp.roundToPx()
+            val fitsCentred = centred >= lead.width + clear && centred + mid.width <= width - trail.width - clear
+            val x = if (fitsCentred) centred else lead.width + gap
             mid.placeRelative(x, (height - mid.height) / 2)
         }
     }

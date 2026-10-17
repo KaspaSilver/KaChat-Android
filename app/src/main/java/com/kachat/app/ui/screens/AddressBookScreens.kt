@@ -424,38 +424,7 @@ private fun AddressBookImportExport(show: Boolean, onDismiss: () -> Unit) {
 /** The search field the Address Book and its picker keep at the top, always visible. */
 @Composable
 private fun AddressBookSearchField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    val colors = LocalAppColors.current
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(22.dp)),
-        placeholder = { Text(stringResource(R.string.ab_search_prompt), color = colors.textSecondary) },
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyMedium,
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
-        },
-        trailingIcon = {
-            if (value.isNotEmpty()) {
-                IconButton(onClick = { onValueChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search), tint = colors.textSecondary, modifier = Modifier.size(18.dp))
-                }
-            }
-        },
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = colors.surface,
-            unfocusedContainerColor = colors.surface,
-            focusedTextColor = colors.textPrimary,
-            unfocusedTextColor = colors.textPrimary,
-            cursorColor = KaspaTeal,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
-        )
-    )
+    IosSearchField(value, onValueChange, stringResource(R.string.ab_search_prompt), modifier)
 }
 
 /**
