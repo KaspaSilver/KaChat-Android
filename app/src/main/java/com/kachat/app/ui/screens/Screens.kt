@@ -7386,15 +7386,9 @@ private fun SpendingAddressTxHistoryRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // "arrow.up.circle.fill" / "arrow.down.circle.fill" at title2.
-        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                if (directionKnown && tx.sent) Icons.Default.ArrowCircleUp else Icons.Default.ArrowCircleDown,
-                null,
-                tint = directionColor,
-                modifier = Modifier.requiredSize(31.dp)
-            )
-        }
+        // "arrow.up.circle.fill" / "arrow.down.circle.fill" at title2: a 22 disc, the arrow cut
+        // out of it in the card's colour.
+        FilledCircleArrow(up = directionKnown && tx.sent, color = directionColor, cutout = Color(0xFF1C1C1E), size = 22.dp)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 when {
@@ -7745,13 +7739,14 @@ private fun AddressReceiveSendBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         AddressBarCapsule(Icons.Default.QrCode, stringResource(R.string.receive), FontWeight.SemiBold, receiveEnabled, onReceive, Modifier.weight(1f))
-        AddressBarCapsule(Icons.Default.ArrowCircleUp, stringResource(R.string.send), FontWeight.Bold, sendEnabled, onSend, Modifier.weight(1f))
+        AddressBarCapsule(null, stringResource(R.string.send), FontWeight.Bold, sendEnabled, onSend, Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun AddressBarCapsule(
-    icon: ImageVector,
+    /** Null: iOS's "arrow.up.circle.fill" - a black disc with the arrow cut out in the accent. */
+    icon: ImageVector?,
     title: String,
     weight: FontWeight,
     enabled: Boolean,
@@ -7770,9 +7765,24 @@ private fun AddressBarCapsule(
             disabledContentColor = Color.Black,
         )
     ) {
-        Icon(icon, null, modifier = Modifier.size(18.dp))
+        if (icon != null) Icon(icon, null, modifier = Modifier.size(18.dp))
+        else FilledCircleArrow(up = true, color = Color.Black, cutout = KaspaTeal, size = 17.dp)
         Spacer(Modifier.width(8.dp))
         Text(title, fontSize = 15.sp, fontWeight = weight)
+    }
+}
+
+/** SF Symbols' "arrow.up.circle.fill" / "arrow.down.circle.fill": a [color] disc with the arrow
+ *  cut out of it, drawn in [cutout] (what is behind the symbol). */
+@Composable
+private fun FilledCircleArrow(up: Boolean, color: Color, cutout: Color, size: Dp) {
+    Box(Modifier.size(size).background(color, CircleShape), contentAlignment = Alignment.Center) {
+        Icon(
+            if (up) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+            null,
+            tint = cutout,
+            modifier = Modifier.size(size * 0.68f),
+        )
     }
 }
 

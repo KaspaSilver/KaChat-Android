@@ -69,11 +69,12 @@ fun IosSwitch(
         if (checked) onColor ?: LocalAppColors.current.accent else if (dark) Color(0xFF39393D) else Color(0xFFE9E9EA),
         label = "iosSwitchTrack",
     )
-    val knobOffset by animateDpAsState(if (checked) 22.dp else 2.dp, spring(dampingRatio = 0.75f, stiffness = 600f), label = "iosSwitchKnob")
+    // iOS 26: a 63 x 28 track and a 37 x 24 pill knob, 2 in (measured on the iPhone).
+    val knobOffset by animateDpAsState(if (checked) 24.dp else 2.dp, spring(dampingRatio = 0.75f, stiffness = 600f), label = "iosSwitchKnob")
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
-            .size(width = 51.dp, height = 31.dp)
+            .size(width = 63.dp, height = 28.dp)
             .alpha(if (enabled) 1f else 0.5f)
             .clip(CircleShape)
             .background(track)
@@ -92,7 +93,7 @@ fun IosSwitch(
         Box(
             Modifier
                 .offset(x = knobOffset)
-                .size(27.dp)
+                .size(width = 37.dp, height = 24.dp)
                 .shadow(2.dp, CircleShape)
                 .background(Color.White, CircleShape)
         )

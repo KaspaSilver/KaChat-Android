@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -196,7 +197,8 @@ fun MainPageHeader(
                 ) {
                     if (onBack != null && !LocalInHubSection.current) {
                         ToolbarGlassGroup {
-                            ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+                            // iOS 26: the chevron in the label colour, centred on its glass.
+                            ToolbarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onBack, tint = LocalAppColors.current.textPrimary, iconSize = 20.dp)
                         }
                     }
                     if (showStatus) ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
@@ -317,7 +319,8 @@ fun SheetBarIconButton(
 /** The back button of a pushed page or a sheet's second level: iOS 26's chevron on a glass disc. */
 @Composable
 fun SheetBarBackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick, modifier = modifier, iconSize = 20.dp)
+    // iOS 26 draws the back chevron in the label colour (white in dark mode), not the accent.
+    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick, modifier = modifier, tint = LocalAppColors.current.textPrimary, iconSize = 20.dp)
 }
 
 /**
