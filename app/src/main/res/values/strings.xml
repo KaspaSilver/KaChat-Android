@@ -1616,4 +1616,11 @@
     <string name="nc_disconnect_message">The app password is removed from this device\'s encrypted storage. You can reconnect any time.</string>
     <string name="nc_restore_message">Messages from the server backup are merged into this device\'s chat history. Nothing is deleted.</string>
     <string name="nc_restore">Restore</string>
+    <!-- Group Info (iOS GroupChatInfoView; these iOS strings have no translations) -->
+    <string name="group_info_member_count">%1$d members</string>
+    <string name="group_info_members_count">Members (%1$d)</string>
+    <string name="group_info_refresh_messages">Refresh Messages</string>
+    <string name="group_info_silent_group_chat">Silent Group Chat</string>
+    <string name="group_info_resend_invites_to_all">Resend invites to all</string>
+    <string name="group_info_remove_photo">Remove photo</string>
 </resources>

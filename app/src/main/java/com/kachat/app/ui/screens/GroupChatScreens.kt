@@ -132,6 +132,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.VisibilityOff
 
 // Shared, reused across every parseGroupMembers call. Allocating a fresh Gson + TypeToken per call
 // (the old behaviour) was measurable: parseGroupMembers runs inside chat-list item builders and per
@@ -154,9 +158,11 @@ fun decodeGroupPhotoHex(photoHex: String?): android.graphics.Bitmap? {
 }
 
 /** Group avatar: the admin-set photo when present, else the generic Groups glyph. Used in the
- *  group list, the thread header, and Group Info so a group looks the same everywhere. */
+ *  group list, the thread header, and Group Info so a group looks the same everywhere.
+ *  [initialOf] (Group Info's header) draws iOS's fallback there instead: the name's initial in
+ *  the accent on a 20% accent disc. */
 @Composable
-fun GroupAvatar(photoHex: String?, size: Dp, modifier: Modifier = Modifier) {
+fun GroupAvatar(photoHex: String?, size: Dp, modifier: Modifier = Modifier, initialOf: String? = null) {
     // Off the main thread and kept app-wide, like contact backup photos (see ContactAvatar).
     val decoded by produceState(initialValue = photoHex?.let { groupPhotoCache.get(it) }, photoHex) {
         val hex = photoHex
@@ -167,7 +173,10 @@ fun GroupAvatar(photoHex: String?, size: Dp, modifier: Modifier = Modifier) {
     }
     val bitmap = decoded
     Box(
-        modifier = modifier.size(size).clip(CircleShape).background(LocalAppColors.current.surface),
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(if (initialOf != null && bitmap == null) KaspaTeal.copy(alpha = 0.2f) else LocalAppColors.current.surface),
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {
@@ -176,6 +185,14 @@ fun GroupAvatar(photoHex: String?, size: Dp, modifier: Modifier = Modifier) {
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
+            )
+        } else if (initialOf != null) {
+            // iOS: String(group.name.prefix(1)).uppercased() at 32 semibold for the 76 header.
+            Text(
+                text = initialOf.take(1).uppercase(),
+                color = KaspaTeal,
+                fontSize = (size.value * 32f / 76f).sp,
+                fontWeight = FontWeight.SemiBold,
             )
         } else {
             Icon(Icons.Default.Groups, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(size * 0.5f))
@@ -1939,223 +1956,223 @@ fun GroupChatInfoScreen(
         "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(totalSompi)} ${KaspaUnit.symbol} across $n transaction${if (n == 1) "" else "s"}."
     }
 
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.group_info), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
-                // iOS 26 (GroupChatDetailView's sheet): Done trailing on a glass capsule, no back
-                // button - Android's system Back still closes it.
-                actions = {
-                    SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() }, modifier = Modifier.padding(end = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
+    // iOS presents Group Info as a sheet holding a Form (GroupChatDetailView's `.sheet`): the
+    // grouped sheet palette (#1C1C1E behind #2C2C2E cards in dark), its rounded top 10 below the
+    // status bar, "Group Info" inline with Done on glass - the same frame User Info uses (see
+    // ChatInfoScreen / IosSheetPage). Android's system Back still closes it.
+    IosSheetPage(grouped = true) {
+        SheetNavBar(
+            title = stringResource(R.string.group_info),
+            trailing = { SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() }) },
+        )
+        // iOS Form, measured on the iPhone: the first section 29 under the bar, 35 between
+        // sections, cards 16 in from each side.
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
+                .navigationBarsPadding()
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            // Group header: avatar + name at the very top, showing what the group currently is.
+            Spacer(modifier = Modifier.height(29.dp))
+            // Header section (a Form row on a clear background): the avatar - a PhotosPicker for
+            // admins, with the pencil badge - the name in title3, the count in caption, then
+            // "Remove photo" for an admin when there is a photo. 8 apart, as iOS's VStack.
+            val isGroupAdmin = group?.isAdmin == true
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                val isGroupAdmin = group?.isAdmin == true
                 Box(
-                    modifier = Modifier
-                        .then(if (isGroupAdmin) Modifier.clickable { groupPhotoPicker.launch("image/*") } else Modifier)
+                    modifier = if (isGroupAdmin) Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { groupPhotoPicker.launch("image/*") } else Modifier
                 ) {
-                    GroupAvatar(photoHex = group?.photoHex, size = 88.dp)
+                    // The photo when set, else the name's initial on the accent at 20% (iOS).
+                    GroupAvatar(photoHex = group?.photoHex, size = 76.dp, initialOf = group?.name ?: "")
                     if (isGroupAdmin) {
-                        // Edit badge over the bottom-right of the avatar.
+                        // SF pencil.circle.fill at 22 in the accent, over a disc of the page colour.
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(30.dp)
+                                .size(22.dp)
                                 .clip(CircleShape)
-                                .background(KaspaTeal),
+                                .background(LocalAppColors.current.background),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Change group photo", tint = Color.Black, modifier = Modifier.size(16.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(KaspaTeal),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Change group photo",
+                                    tint = LocalAppColors.current.background,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                            }
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
                 Text(
                     text = group?.name ?: "Group",
                     color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
                 )
                 Text(
-                    text = "${members.size} members",
+                    text = stringResource(R.string.group_info_member_count, members.size),
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 12.sp
                 )
-                if (isGroupAdmin && group?.photoHex != null) {
-                    TextButton(onClick = { showRemovePhotoConfirm = true }) {
-                        Text("Remove photo", color = LocalAppColors.current.danger)
-                    }
+                if (isGroupAdmin && !group?.photoHex.isNullOrEmpty()) {
+                    // iOS: Button("Remove photo", role: .destructive) in caption.
+                    Text(
+                        text = stringResource(R.string.group_info_remove_photo),
+                        color = LocalAppColors.current.danger,
+                        fontSize = 12.sp,
+                        modifier = Modifier.clickable { showRemovePhotoConfirm = true }
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
-            // Members dropdown header — collapsed by default; tap to expand the list.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { membersExpanded = !membersExpanded }
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Members (${members.size})",
-                    color = LocalAppColors.current.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
+
+            // Members: iOS's DisclosureGroup - one row with a chevron that turns down to open
+            // the roster in the same card, collapsed by default.
+            Spacer(modifier = Modifier.height(35.dp))
+            GroupInfoSection {
+                GroupInfoDisclosureRow(
+                    label = stringResource(R.string.group_info_members_count, members.size),
+                    expanded = membersExpanded,
+                    onClick = { membersExpanded = !membersExpanded },
                 )
-                Icon(
-                    imageVector = if (membersExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (membersExpanded) "Collapse members" else "Expand members",
-                    tint = LocalAppColors.current.textSecondary
-                )
-            }
-            if (membersExpanded) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(LocalAppColors.current.surface)
-                ) {
+                if (membersExpanded) {
                     members.forEachIndexed { index, member ->
+                        // The separator above a row starts under the text of the row above it.
+                        GroupInfoDivider(start = if (index == 0) 16.dp else 60.dp)
                         val memberLabel = contactAliasesByAddress.liveNameFor(member.address)
                             ?: member.displayName?.takeIf { it.isNotBlank() }
                             ?: KaspaAddress.shortDisplay(member.address)
+                        // iOS memberRow: 32 avatar, the name, "Admin" in caption, and for an admin
+                        // the resend / remove buttons (each confirmed first), 12 apart.
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { navController.navigate("chat_info/${member.address}") }
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .heightIn(min = 52.dp)
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                ContactAvatar(
-                                    imageUrl = contactAvatarsByAddress[member.address],
-                                    fallbackText = memberLabel,
-                                    size = 32.dp,
-                                    address = member.address
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(text = memberLabel, color = LocalAppColors.current.textPrimary, maxLines = 1)
+                            ContactAvatar(
+                                imageUrl = contactAvatarsByAddress[member.address],
+                                fallbackText = memberLabel,
+                                size = 32.dp,
+                                address = member.address
+                            )
+                            Text(
+                                text = memberLabel,
+                                color = LocalAppColors.current.textPrimary,
+                                fontSize = 17.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (member.isAdmin) {
+                                Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (member.isAdmin) {
-                                    Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                            if (group?.isAdmin == true && !member.isAdmin) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .clickable { memberToResend = member },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Resend invite", tint = KaspaTeal, modifier = Modifier.size(20.dp))
                                 }
-                                // Admins can re-send one member's invite (targeted retry) — confirmed first.
-                                if (group?.isAdmin == true && !member.isAdmin) {
-                                    Spacer(Modifier.width(4.dp))
-                                    IconButton(
-                                        onClick = { memberToResend = member },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Refresh,
-                                            contentDescription = "Resend invite",
-                                            tint = KaspaTeal,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    // Remove this member from the group — confirmed first.
-                                    IconButton(
-                                        onClick = { memberToRemove = member },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Remove from group",
-                                            tint = LocalAppColors.current.danger,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .clickable { memberToRemove = member },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Outlined.Delete, contentDescription = "Remove from group", tint = LocalAppColors.current.danger, modifier = Modifier.size(20.dp))
                                 }
                             }
-                        }
-                        if (index < members.size - 1) {
-                            HorizontalDivider(color = LocalAppColors.current.textTertiary.copy(alpha = 0.3f))
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-            // Grouped like iOS's Form sections: related rows share one rounded container with
-            // dividers, instead of every row being its own floating card. Labels only - the rows
-            // say what they do.
+            // Hidden Users, a card of its own.
+            Spacer(modifier = Modifier.height(35.dp))
             GroupInfoSection {
-                GroupInfoRow(Icons.Default.VisibilityOff, stringResource(R.string.hidden_users)) { showHiddenUsers = true }
-                GroupInfoDivider()
+                GroupInfoRow(Icons.Outlined.VisibilityOff, stringResource(R.string.hidden_users)) { showHiddenUsers = true }
+            }
+
+            // Refresh Messages and the notification switches share one card.
+            Spacer(modifier = Modifier.height(35.dp))
+            GroupInfoSection {
                 GroupInfoRow(
                     icon = Icons.Default.Refresh,
-                    label = "Refresh Messages",
+                    label = stringResource(R.string.group_info_refresh_messages),
                     enabled = groupId !in refreshingGroupIds,
                     onClick = { chatViewModel.refreshGroup(groupId) },
-                    trailing = {
-                        if (groupId in refreshingGroupIds) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(strokeWidth = 2.dp, color = KaspaTeal, modifier = Modifier.size(18.dp))
-                        }
-                    },
                 )
-                GroupInfoDivider()
+                GroupInfoDivider(start = 54.dp)
                 GroupInfoSwitchRow(
-                    label = "Silent Group Chat",
+                    label = stringResource(R.string.group_info_silent_group_chat),
                     checked = groupId in groupSilent,
                     onCheckedChange = { chatViewModel.setGroupSilent(groupId, it) },
                 )
-                if (com.kachat.app.util.MentionsFeature.ENABLED) GroupInfoDivider()
-                if (com.kachat.app.util.MentionsFeature.ENABLED) GroupInfoSwitchRow(
-                    label = stringResource(R.string.only_notify_if_i_m_mentioned),
-                    checked = groupId in groupMentionsOnly,
-                    // Silent already means "never", so the finer rule underneath it is moot.
-                    enabled = groupId !in groupSilent,
-                    onCheckedChange = { chatViewModel.setGroupMentionsOnly(groupId, it) },
-                )
+                if (com.kachat.app.util.MentionsFeature.ENABLED) {
+                    GroupInfoDivider(start = 16.dp)
+                    GroupInfoSwitchRow(
+                        label = stringResource(R.string.only_notify_if_i_m_mentioned),
+                        checked = groupId in groupMentionsOnly,
+                        // Silent already means "never", so the finer rule underneath it is moot.
+                        enabled = groupId !in groupSilent,
+                        onCheckedChange = { chatViewModel.setGroupMentionsOnly(groupId, it) },
+                    )
+                }
             }
 
             if (group?.isAdmin == true) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(35.dp))
                 GroupInfoSection {
-                    GroupInfoRow(Icons.Default.Edit, stringResource(R.string.rename_group)) {
+                    GroupInfoRow(Icons.Outlined.Edit, stringResource(R.string.rename_group)) {
                         renameText = group.name
                         renameError = null
                         showRename = true
                     }
-                    GroupInfoDivider()
-                    GroupInfoRow(Icons.Default.Refresh, "Resend invites to all") { showResendAllConfirm = true }
-                    GroupInfoDivider()
-                    GroupInfoRow(Icons.Default.PersonAdd, "Add members") { showAddMembers = true }
+                    GroupInfoDivider(start = 54.dp)
+                    GroupInfoRow(Icons.Default.Refresh, stringResource(R.string.group_info_resend_invites_to_all)) { showResendAllConfirm = true }
+                    GroupInfoDivider(start = 54.dp)
+                    GroupInfoRow(Icons.Outlined.PersonAdd, stringResource(R.string.ab_add_members)) { showAddMembers = true }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // Delete Group: iOS's destructive Label - the title red in the regular weight, the
+            // trash in the accent like every other row's symbol.
+            Spacer(modifier = Modifier.height(35.dp))
             GroupInfoSection {
                 GroupInfoRow(
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Outlined.Delete,
                     label = stringResource(R.string.delete_group),
-                    tint = LocalAppColors.current.danger,
-                    bold = true,
+                    textColor = LocalAppColors.current.danger,
                 ) { showDeleteConfirmation = true }
             }
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(35.dp))
         }
     }
 
@@ -2226,7 +2243,7 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { resendMessage = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Resend invites", color = LocalAppColors.current.textPrimary) },
+            title = { Text("Resend Invites", color = LocalAppColors.current.textPrimary) },
             text = { Text(resendMessage ?: "", color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = { resendMessage = null }) {
@@ -2461,7 +2478,7 @@ fun GroupChatInfoScreen(
             containerColor = LocalAppColors.current.surface,
             title = {
                 Column {
-                    Text("Add members", color = LocalAppColors.current.textPrimary)
+                    Text(stringResource(R.string.ab_add_members), color = LocalAppColors.current.textPrimary)
                     if (addBusy) {
                         Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2667,45 +2684,89 @@ fun GroupChatInfoScreen(
         }
     }
 
+    // iOS: a sheet of its own (HiddenGroupMembersView in a NavigationStack) - "Hidden Users"
+    // inline with Done, a Form listing each hidden member with Unhide, or a single grey line when
+    // there are none.
     if (showHiddenUsers) {
         val hiddenMembers by chatViewModel.groupHiddenMembers.collectAsState()
         val hiddenAddresses = hiddenMembers.mapNotNull { entry ->
             val parts = entry.split("|", limit = 2)
             if (parts.size == 2 && parts[0] == groupId) parts[1] else null
         }
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { showHiddenUsers = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.hidden_users), color = LocalAppColors.current.textPrimary) },
-            text = {
-                if (hiddenAddresses.isEmpty()) {
-                    Text(stringResource(R.string.no_hidden_users_in_this_group), color = LocalAppColors.current.textSecondary)
-                } else {
-                    Column {
-                        hiddenAddresses.forEach { address ->
-                            val label = contactAliasesByAddress.liveNameFor(address)
-                                ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
-                                ?: KaspaAddress.shortDisplay(address)
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+        IosFullSheet(
+            onDismissed = { showHiddenUsers = false },
+            swipeToDismiss = true,
+            grouped = true,
+        ) { close ->
+            Column(modifier = Modifier.fillMaxSize()) {
+                SheetNavBar(
+                    title = stringResource(R.string.hidden_users),
+                    trailing = { SheetBarButton(stringResource(R.string.done), onClick = close) },
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (hiddenAddresses.isEmpty()) {
+                        Spacer(modifier = Modifier.height(29.dp))
+                        GroupInfoSection {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 52.dp)
+                                    .padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Text(label, color = LocalAppColors.current.textPrimary)
-                                TextButton(onClick = { chatViewModel.unhideGroupMember(groupId, address) }) {
-                                    Text(stringResource(R.string.unhide), color = KaspaTeal)
+                                Text(stringResource(R.string.no_hidden_users_in_this_group), color = LocalAppColors.current.textSecondary, fontSize = 17.sp)
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        SettingsSection(title = stringResource(R.string.hidden_users)) {
+                            hiddenAddresses.forEachIndexed { index, address ->
+                                if (index > 0) GroupInfoDivider(start = 60.dp)
+                                val label = contactAliasesByAddress.liveNameFor(address)
+                                    ?: members.firstOrNull { it.address == address }?.displayName?.takeIf { it.isNotBlank() }
+                                    ?: KaspaAddress.shortDisplay(address)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 52.dp)
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    ContactAvatar(
+                                        imageUrl = contactAvatarsByAddress[address],
+                                        fallbackText = label,
+                                        size = 32.dp,
+                                        address = address
+                                    )
+                                    Text(
+                                        text = label,
+                                        color = LocalAppColors.current.textPrimary,
+                                        fontSize = 17.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.unhide),
+                                        color = KaspaTeal,
+                                        fontSize = 17.sp,
+                                        modifier = Modifier.clickable { chatViewModel.unhideGroupMember(groupId, address) }
+                                    )
                                 }
                             }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showHiddenUsers = false }) {
-                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(35.dp))
                 }
             }
-        )
+        }
     }
 
     if (showDeleteConfirmation) {
@@ -2757,60 +2818,120 @@ private fun GroupChatHeaderCard(
 // MARK: - Group Info rows
 
 /**
- * One rounded container holding related rows, divided rather than spaced - the shape iOS's Form
- * sections give Group Info. Replaces the old stack of individually-floating cards.
+ * One iOS Form section: a 26pt-cornered card in the sheet's card colour holding related rows,
+ * divided rather than spaced.
  */
 @Composable
 private fun GroupInfoSection(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(26.dp))
             .background(LocalAppColors.current.surface),
         content = content,
     )
 }
 
+/** iOS's inset separator: from under the row's text ([start]) to 16 short of the card's edge. */
 @Composable
-private fun GroupInfoDivider() {
+private fun GroupInfoDivider(start: Dp) {
     HorizontalDivider(
-        color = LocalAppColors.current.background,
-        thickness = 1.dp,
-        modifier = Modifier.padding(start = 48.dp),
+        color = LocalAppColors.current.divider,
+        modifier = Modifier.padding(start = start, end = 16.dp),
     )
 }
 
-/** A tappable Group Info row: icon, label, optional trailing content. Label only - no subtitle. */
+/**
+ * A tappable Group Info row - iOS's `Button { } label: { Label(title, systemImage:) }` in a Form:
+ * 52 tall, the symbol in the accent centred in a 26 frame 16 in, the 17pt title 12 after it in
+ * [textColor] (the accent; red for Delete Group). Disabled, both go grey as iOS's do.
+ */
 @Composable
 private fun GroupInfoRow(
     icon: ImageVector,
     label: String,
-    tint: Color = KaspaTeal,
-    bold: Boolean = false,
+    textColor: Color = KaspaTeal,
     enabled: Boolean = true,
-    trailing: @Composable (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
+    val disabledColor = LocalAppColors.current.textSecondary
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(16.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = tint)
+        Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = if (enabled) KaspaTeal else disabledColor, modifier = Modifier.size(22.dp))
+        }
         Spacer(Modifier.width(12.dp))
         Text(
             label,
-            color = tint,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            color = if (enabled) textColor else disabledColor,
+            fontSize = 17.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        trailing?.invoke()
     }
 }
 
-/** A Group Info toggle row. Label only - no subtitle. */
+/** iOS's DisclosureGroup row in a Form: the 17pt label, and a chevron that turns from right to
+ *  down as the group opens. */
+@Composable
+private fun GroupInfoDisclosureRow(label: String, expanded: Boolean, onClick: () -> Unit) {
+    val rotation by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (expanded) 90f else 0f,
+        label = "disclosureChevron",
+    )
+    val chevronColor = LocalAppColors.current.textPrimary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            color = LocalAppColors.current.textPrimary,
+            fontSize = 17.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(8.dp))
+        // SF chevron.right, semibold, in the label colour.
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .size(14.dp)
+                .graphicsLayer { rotationZ = rotation }
+        ) {
+            val stroke = 2.2.dp.toPx()
+            val w = size.height * 0.55f
+            val left = (size.width - w) / 2f
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(left + stroke / 2f, stroke / 2f)
+                lineTo(left + w - stroke / 2f, size.height / 2f)
+                lineTo(left + stroke / 2f, size.height - stroke / 2f)
+            }
+            drawPath(
+                path,
+                color = chevronColor,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = stroke,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                ),
+            )
+        }
+    }
+}
+
+/** A Group Info toggle row - iOS's Toggle in a Form: the 17pt label, the switch trailing, 52 tall. */
 @Composable
 private fun GroupInfoSwitchRow(
     label: String,
@@ -2821,10 +2942,16 @@ private fun GroupInfoSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
+        Text(
+            label,
+            color = if (enabled) LocalAppColors.current.textPrimary else LocalAppColors.current.textSecondary,
+            fontSize = 17.sp,
+            modifier = Modifier.weight(1f),
+        )
         com.kachat.app.ui.theme.IosSwitch(
             checked = checked,
             enabled = enabled,
