@@ -81,6 +81,8 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.layout
@@ -12957,57 +12959,67 @@ fun ChatInfoScreen(
             }
         }
     }
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                // One screen for anyone's profile - a chat header, a group roster row, a public
-                // chat sender, a chess player or a profile link all open it, with the same title
-                // and the same rows (iOS 95c3760, 49cb2b6).
-                title = { Text(stringResource(R.string.user_info), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    if (!isSelf) {
-                        TextButton(onClick = onBack) {
-                            Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                },
-                actions = {
-                    if (isSelf) {
-                        TextButton(onClick = onBack) {
-                            Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        TextButton(onClick = {
-                            chatViewModel.updateContactName(contactId, contactName)
-                            // One name per person: the Address Book entry, if there is one, takes
-                            // the same name - so clearing it here really clears it, and they go by
-                            // their .kachat name or their address (iOS 2831fab).
-                            val book = com.kachat.app.services.AddressBookManager.shared
-                            val entry = book?.entry(contactId)
-                            val trimmedName = contactName.trim()
-                            if (book != null && entry != null && entry.customName != trimmedName.ifEmpty { null }) {
-                                runCatching { book.save(entry.address, trimmedName, entry.note) }
-                            }
-                            onBack()
-                        }) {
-                            Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+    // iOS presents User Info as a sheet holding a Form: the grouped sheet palette (#1C1C1E behind
+    // #2C2C2E cards in dark), rounded top corners 10 below the status bar, the screen behind it
+    // dimmed - see ChatInfoSheetFrame.
+    ChatInfoSheetFrame {
+        // The sheet's inline bar: the title in headline, centred 38 below the sheet's top, its
+        // buttons on 44pt glass capsules 16 in from each side. One screen for anyone's profile -
+        // a chat header, a group roster row, a public chat sender, a chess player or a profile
+        // link all open it, with the same title and the same rows (iOS 95c3760, 49cb2b6).
+        Box(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 16.dp)) {
+            if (!isSelf) {
+                ChatInfoSheetBarButton(
+                    text = stringResource(R.string.cancel),
+                    onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
+            }
+            Text(
+                stringResource(R.string.user_info),
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.Center).padding(horizontal = 96.dp),
             )
+            if (isSelf) {
+                ChatInfoSheetBarButton(
+                    text = stringResource(R.string.done),
+                    onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                )
+            } else {
+                ChatInfoSheetBarButton(
+                    text = stringResource(R.string.save),
+                    onClick = {
+                        chatViewModel.updateContactName(contactId, contactName)
+                        // One name per person: the Address Book entry, if there is one, takes
+                        // the same name - so clearing it here really clears it, and they go by
+                        // their .kachat name or their address (iOS 2831fab).
+                        val book = com.kachat.app.services.AddressBookManager.shared
+                        val entry = book?.entry(contactId)
+                        val trimmedName = contactName.trim()
+                        if (book != null && entry != null && entry.customName != trimmedName.ifEmpty { null }) {
+                            runCatching { book.save(entry.address, trimmedName, entry.note) }
+                        }
+                        onBack()
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                )
+            }
         }
-    ) { padding ->
+        // iOS Form, measured on the iPhone: the first card 29 under the bar, 35 between
+        // sections, 16 in from each side.
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .fillMaxWidth()
+                .weight(1f)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(29.dp))
 
             // ONE profile card, always - matching iOS. It used to be two mutually exclusive
             // shapes: a plain avatar+name card when the contact owned no KNS domain, and this
@@ -13030,14 +13042,17 @@ fun ChatInfoScreen(
                                 Box(Modifier.fillMaxSize().background(LocalAppColors.current.surfaceVariant))
                             }
                         }
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // iOS: a 60pt avatar (the photo, or a filled person on the accent at
+                        // 20%), then 16 in the name in headline over the address caption, 4
+                        // apart - 16 in from the card's edge, 23 above and below.
+                        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 23.dp), verticalAlignment = Alignment.CenterVertically) {
                             ContactAvatar(
                                 imageUrl = if (usesKnsProfile) knsFields?.avatarUrl else kachatAvatar,
                                 fallbackText = knsProfile?.selectedDomain ?: contactId.takeLast(8),
-                                size = 48.dp
+                                size = 60.dp
                             )
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 // A borderless field styled like a heading reads as a label, not
                                 // something you can change - the pencil is what says otherwise.
                                 // It focuses the field too, so it works as the affordance it
@@ -13047,38 +13062,49 @@ fun ChatInfoScreen(
                                     text = kachatLabel?.let { "$it.kachat" }
                                         ?: contactName.ifBlank { knsProfile?.selectedDomain ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId) },
                                     color = LocalAppColors.current.textPrimary,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                ) else Row(verticalAlignment = Alignment.CenterVertically) {
-                                    TextField(
+                                ) else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    // iOS TextField("Name") in headline: no box, no inner padding.
+                                    val nameStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = LocalAppColors.current.textPrimary,
+                                    )
+                                    androidx.compose.foundation.text.BasicTextField(
                                         value = contactName,
                                         onValueChange = { contactName = it },
-                                        placeholder = { Text(knsProfile?.selectedDomain ?: "Contact Name", color = LocalAppColors.current.textSecondary) },
-                                        colors = TextFieldDefaults.colors(
-                                            focusedContainerColor = Color.Transparent,
-                                            unfocusedContainerColor = Color.Transparent,
-                                            focusedTextColor = LocalAppColors.current.textPrimary,
-                                            unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                            cursorColor = KaspaTeal,
-                                            focusedIndicatorColor = Color.Transparent,
-                                            unfocusedIndicatorColor = Color.Transparent
-                                        ),
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                        singleLine = true,
+                                        textStyle = nameStyle,
+                                        cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
                                         modifier = Modifier
                                             .weight(1f)
-                                            .offset(x = (-16).dp)
-                                            .focusRequester(nameFocus)
+                                            .focusRequester(nameFocus),
+                                        decorationBox = { inner ->
+                                            Box(contentAlignment = Alignment.CenterStart) {
+                                                if (contactName.isEmpty()) {
+                                                    Text(stringResource(R.string.name), style = nameStyle, color = LocalAppColors.current.textTertiary, maxLines = 1)
+                                                }
+                                                inner()
+                                            }
+                                        },
                                     )
-                                    IconButton(
-                                        onClick = { runCatching { nameFocus.requestFocus() } },
-                                        modifier = Modifier.size(28.dp),
+                                    // iOS: a 13pt semibold pencil in the accent colour, 26 x 26.
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                            ) { runCatching { nameFocus.requestFocus() } },
                                     ) {
                                         Icon(
                                             Icons.Default.Edit,
                                             contentDescription = "Edit name",
                                             tint = KaspaTeal,
-                                            modifier = Modifier.size(16.dp),
+                                            modifier = Modifier.size(15.dp),
                                         )
                                     }
                                 }
@@ -13134,7 +13160,7 @@ fun ChatInfoScreen(
                                         // iOS ChatInfoView.formatAddress: the first 12 and last 8.
                                         text = if (contactId.length > 20) "${contactId.take(12)}...${contactId.takeLast(8)}" else contactId,
                                         color = LocalAppColors.current.textSecondary,
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                         maxLines = 1,
                                     )
                                     else -> Text(
@@ -13226,11 +13252,12 @@ fun ChatInfoScreen(
             // One grouped list, the way Settings lists things - seven separately-floating cards
             // spaced the screen out far enough to need scrolling for a list this short. Each row
             // opens a half sheet; none of them navigates away.
+            Spacer(Modifier.height(35.dp))
+            // A Form section like the card above: full width inside the 16 margins, 26pt corners.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(26.dp))
                     .background(LocalAppColors.current.surface)
             ) {
                 // Straight into the 1:1 thread. This screen is reached as "User Info" from a
@@ -13968,33 +13995,83 @@ private fun InfoSectionCard(
     onClick: () -> Unit,
 ) {
     val colors = LocalAppColors.current
+    // iOS infoCard in a Form: 52 tall, 16 in from each edge; the 16pt semibold symbol in the
+    // accent colour centred in a 26 frame, the body title 12 after it, the caption chevron
+    // trailing. The separator starts under the title (16 + 26 + 12).
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(enabled = enabled) { onClick() }
                 .alpha(if (enabled) 1f else 0.4f)
-                .padding(horizontal = 16.dp, vertical = 13.dp),
+                .heightIn(min = 52.dp)
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(14.dp))
-            Text(title, color = colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(21.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(title, color = colors.textPrimary, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
             if (trailing != null) {
                 trailing()
             } else {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
+                ChatChevronGlyph(height = 11.dp, stroke = 1.6.dp)
             }
         }
         if (showDivider) {
             HorizontalDivider(
-                modifier = Modifier.padding(start = 50.dp),
-                color = colors.textPrimary.copy(alpha = 0.06f),
+                modifier = Modifier.padding(start = 54.dp),
+                color = colors.divider,
+            )
+        }
+    }
+}
+
+/** A button in User Info's sheet bar (iOS 26): 17pt accent text on a 44-high glass capsule, the
+ *  glass as it reads on a sheet (sampled on the iPhone: #252527 edged #444449 in dark). */
+@Composable
+private fun ChatInfoSheetBarButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val dark = LocalAppColors.current.isDark
+    val fill = if (dark) Color(0xFF252527) else Color.White
+    val edge = if (dark) Color(0xFF444449) else Color.Black.copy(alpha = 0.08f)
+    Box(
+        modifier = modifier
+            .heightIn(min = 44.dp)
+            .drawBehind {
+                val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2, size.height / 2)
+                drawRoundRect(fill, cornerRadius = r)
+                drawRoundRect(edge, cornerRadius = r, style = Stroke(width = 0.8.dp.toPx()))
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        ToolbarTextButton(text, onClick = onClick)
+    }
+}
+
+/**
+ * User Info as iOS presents it: a sheet, not a page. The screen behind is dimmed; the sheet
+ * starts 10 below the status bar with iOS's rounded top corners and draws in the grouped sheet
+ * palette ([com.kachat.app.ui.theme.IosSheetColors] - a Form, so the grouped one).
+ */
+@Composable
+private fun ChatInfoSheetFrame(content: @Composable ColumnScope.() -> Unit) {
+    val base = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f).compositeOver(base.background)),
+    ) {
+        com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(top = 10.dp)
+                    .clip(com.kachat.app.ui.theme.IosSheetShape)
+                    .background(LocalAppColors.current.background),
+                content = content,
             )
         }
     }
