@@ -66,7 +66,9 @@ fun IosSwitch(
 ) {
     val dark = LocalAppColors.current.isDark
     val track by animateColorAsState(
-        if (checked) onColor ?: LocalAppColors.current.accent else if (dark) Color(0xFF39393D) else Color(0xFFE9E9EA),
+        // Off, iOS 26's track is a translucent grey over whatever is behind it: #656569 on a
+        // #2C2C2E card (sampled on the iPhone) is (120, 120, 128) at 75%.
+        if (checked) onColor ?: LocalAppColors.current.accent else if (dark) Color(120, 120, 128).copy(alpha = 0.75f) else Color(0xFFE9E9EA),
         label = "iosSwitchTrack",
     )
     // iOS 26: a 63 x 28 track and a 37 x 24 pill knob, 2 in (measured on the iPhone).

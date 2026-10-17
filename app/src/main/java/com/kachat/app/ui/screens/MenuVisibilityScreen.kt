@@ -119,6 +119,8 @@ fun CustomizeDockSheet(walletViewModel: WalletViewModel, onDismiss: () -> Unit) 
     // A List in a sheet on iOS: the grouped sheet palette.
     IosSheetColors(grouped = true) {
         ModalBottomSheet(
+            // iOS's .large sheet tops out 10 below the status bar.
+            modifier = Modifier.padding(top = 10.dp),
             shape = IosSheetShape,
             tonalElevation = IosSheetTonalElevation,
             windowInsets = WindowInsets.statusBars,
@@ -205,22 +207,15 @@ fun MenuVisibilityScreen(
     Scaffold(
         containerColor = colors.background,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        stringResource(R.string.menu),
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                    )
+            // iOS's sheet: no back, Done as its confirmation action, top right. Nothing is left
+            // to apply by then. Its Done is drawn in the label colour, not the accent: the sheet
+            // is presented above the tab view, outside the app's tint.
+            SheetNavBar(
+                title = stringResource(R.string.menu),
+                modifier = Modifier.background(colors.background),
+                trailing = {
+                    SheetBarButton(stringResource(R.string.done), onClick = onDone, color = colors.textPrimary)
                 },
-                // iOS's sheet: no back, Done as its confirmation action, top right. Nothing is
-                // left to apply by then.
-                // iOS 26: on a glass capsule, 16 in.
-                actions = {
-                    SheetBarButton(stringResource(R.string.done), onClick = onDone, modifier = Modifier.padding(end = 12.dp))
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
     ) { padding ->
@@ -325,7 +320,8 @@ fun MenuVisibilityScreen(
 }
 
 /** A row's height, shared by the layout and by the drag's slot arithmetic. */
-private val ROW_HEIGHT = 52.dp
+// A List row with a 22pt control is 56 tall on the iPhone (measured).
+private val ROW_HEIGHT = 56.dp
 
 /** Where a row's label starts - its separator is inset to it, as an iOS List row's is. */
 private val LABEL_START = 16.dp + 28.dp + 14.dp
@@ -337,13 +333,14 @@ private fun SectionHeader(title: String, detail: String?, colors: AppColors) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title.uppercase(), fontSize = 13.sp, color = colors.textSecondary)
+        // iOS 26's inset-grouped headers: title case, 17pt semibold, secondary.
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
         Spacer(Modifier.weight(1f))
         if (detail != null) {
-            Text(detail, fontSize = 13.sp, color = colors.textSecondary)
+            Text(detail, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = colors.textSecondary)
         }
     }
 }
@@ -556,7 +553,8 @@ private fun ReorderableCard(
                             thickness = 0.5.dp,
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(start = separatorStart)
+                                // iOS 26: from the label to 16 short of the card's edge.
+                                .padding(start = separatorStart, end = 16.dp)
                         )
                     }
                 }

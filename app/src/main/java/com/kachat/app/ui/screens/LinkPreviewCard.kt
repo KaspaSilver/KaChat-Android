@@ -582,7 +582,7 @@ private fun NextcloudAttachmentCard(data: LinkPreviewData, url: String, txId: St
         "pdf" -> "PDF"
         else -> data.title?.substringAfterLast('.', "")?.takeIf { it.isNotEmpty() }?.uppercase() ?: "FILE"
     }
-    val sizeText = data.mediaByteSize?.let { android.text.format.Formatter.formatShortFileSize(context, it) }
+    val sizeText = data.mediaByteSize?.let { com.kachat.app.util.IosByteCount.format(context, it) }
     val caption = listOfNotNull(kindLabel, sizeText).joinToString(" · ")
 
     Row(
