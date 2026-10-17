@@ -56,6 +56,8 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Circle
@@ -421,6 +423,20 @@ private fun AddressBookImportExport(show: Boolean, onDismiss: () -> Unit) {
     }
 }
 
+/** iOS's `Label(title, systemImage:)` as a borderless button in a Form: the icon and 17pt
+ *  regular text in the accent, the icon at body size. */
+@Composable
+private fun AddressBookLabelButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, color = KaspaTeal, fontSize = 17.sp)
+    }
+}
+
 /** The search field the Address Book and its picker keep at the top, always visible. */
 @Composable
 private fun AddressBookSearchField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -731,7 +747,7 @@ private fun AddressBookFormField(
     TextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = colors.textTertiary, fontFamily = if (monospace) FontFamily.Monospace else null) },
+        placeholder = { Text(placeholder, color = colors.textTertiary, fontFamily = if (monospace) FontFamily.Monospace else null, fontSize = if (monospace) 13.sp else androidx.compose.ui.unit.TextUnit.Unspecified) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = singleLine,
         minLines = minLines,
@@ -904,8 +920,8 @@ fun AddressBookEntryEditor(
                         ) {
                             AddressBookAvatar(effectiveAddress, size = 84.dp, pendingBitmap = pendingBitmap, pendingRemoved = pendingRemoved)
                             Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                                CreateChatActionItem(
-                                    Icons.Default.Photo,
+                                AddressBookLabelButton(
+                                    Icons.Outlined.Image,
                                     stringResource(if (showsAssignedPhoto) R.string.ab_change_photo else R.string.choose_photo),
                                 ) {
                                     photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -983,11 +999,11 @@ fun AddressBookEntryEditor(
                             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            CreateChatActionItem(Icons.Default.ContentPaste, stringResource(R.string.paste)) {
+                            AddressBookLabelButton(Icons.Outlined.ContentPaste, stringResource(R.string.paste)) {
                                 clipboard.getText()?.text?.let { addressInput = it.trim() }
                             }
                             Spacer(Modifier.weight(1f))
-                            CreateChatActionItem(Icons.Default.QrCodeScanner, stringResource(R.string.scan_qr)) { showScanner = true }
+                            AddressBookLabelButton(Icons.Default.QrCodeScanner, stringResource(R.string.scan_qr)) { showScanner = true }
                         }
                     }
                 }
