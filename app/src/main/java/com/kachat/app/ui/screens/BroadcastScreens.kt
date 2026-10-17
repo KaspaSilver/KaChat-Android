@@ -499,23 +499,35 @@ fun PublicChatsSettingsSheet(
     broadcastViewModel: BroadcastViewModel = hiltViewModel(),
 ) {
     val hidden by broadcastViewModel.hiddenCuratedRooms.collectAsState()
-    val colors = LocalAppColors.current
-    ActionSheetContainer(title = "Public Chats", subtitle = null, onDismiss = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 520.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
+    // iOS presents it as a full-height sheet holding a Form (PublicChatsSettingsView): an inline
+    // bar with the title and Done on glass, each section's rooms on an inset-grouped card with
+    // inset separators, the headers in the iOS 26 Form style and the footer under its card.
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        IosSheetPage(grouped = true) {
+            val colors = LocalAppColors.current
+            SheetNavBar(
+                title = stringResource(R.string.broadcasts),
+                trailing = { SheetBarButton(stringResource(R.string.done), onClick = onDismiss) },
+            )
+
             @Composable
-            fun roomSwitch(name: String) {
+            fun roomSwitch(name: String, showDivider: Boolean) {
                 val language = com.kachat.app.models.FeaturedBroadcastChannels.languageDisplayName(name)
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("#$name", color = colors.textPrimary, fontSize = 16.sp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("#$name", color = colors.textPrimary, fontSize = 17.sp)
                         if (language != null) Text(language, color = colors.textSecondary, fontSize = 12.sp)
                     }
                     com.kachat.app.ui.theme.IosSwitch(
@@ -523,17 +535,36 @@ fun PublicChatsSettingsSheet(
                         onCheckedChange = { shown -> broadcastViewModel.setCuratedRoomShown(name, shown) }
                     )
                 }
+                if (showDivider) SettingsDivider()
             }
-            Text("Popular", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
-            com.kachat.app.models.FeaturedBroadcastChannels.NAMES.forEach { roomSwitch(it) }
-            Text(
-                "A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time.",
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
-            Text("Other Languages", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 2.dp))
-            com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES.forEach { roomSwitch(it) }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
+            ) {
+                Column {
+                    SettingsSection(title = "Popular") {
+                        val names = com.kachat.app.models.FeaturedBroadcastChannels.NAMES
+                        names.forEachIndexed { i, name -> roomSwitch(name, showDivider = i < names.size - 1) }
+                    }
+                    Text(
+                        "A room that is switched off no longer appears in Public Chats and never sends a notification. Switch it back on at any time.",
+                        color = colors.textSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp),
+                    )
+                }
+                SettingsSection(title = "Other Languages") {
+                    val names = com.kachat.app.models.FeaturedBroadcastChannels.LANGUAGE_NAMES
+                    names.forEachIndexed { i, name -> roomSwitch(name, showDivider = i < names.size - 1) }
+                }
+                Spacer(Modifier.navigationBarsPadding().height(24.dp))
+            }
         }
     }
 }
