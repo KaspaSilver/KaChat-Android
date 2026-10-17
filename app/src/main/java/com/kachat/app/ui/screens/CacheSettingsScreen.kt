@@ -94,17 +94,7 @@ fun CacheSettingsScreen(
 
     Scaffold(
         containerColor = colors.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Cache", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
-            )
-        }
+        topBar = { SettingsSubpageBar(title = "Cache", onBack = onBack) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -112,35 +102,36 @@ fun CacheSettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // An iOS Form: the first header 4 under the bar, sections spaced by
+            // SettingsFormSection.
             Spacer(Modifier.height(4.dp))
 
             // Total, on one row, with the footer under its section (iOS CacheSettingsPage).
-            Column {
-                SettingsSection(title = null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(stringResource(R.string.total), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f))
-                        if (measuring && total == 0L) {
-                            com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                        } else {
-                            Text(
-                                CacheManager.formatted(total),
-                                color = colors.textPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp,
-                                style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
-                            )
-                        }
+            SettingsFormSection(
+                title = null,
+                footer = "Everything here is downloaded or generated again when it is needed, so clearing it costs a little data and nothing else.",
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.total), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                    if (measuring && total == 0L) {
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    } else {
+                        Text(
+                            CacheManager.formatted(total),
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
+                        )
                     }
                 }
-                SettingsFooter("Everything here is downloaded or generated again when it is needed, so clearing it costs a little data and nothing else.")
             }
 
-            SettingsSection(title = "What's Cached") {
+            SettingsFormSection(title = "What's Cached") {
                 CacheManager.Category.entries.forEachIndexed { index, category ->
                     if (index > 0) SettingsDivider(54.dp)
                     val bytes = sizes[category] ?: 0L
@@ -172,7 +163,7 @@ fun CacheSettingsScreen(
             }
 
             // Clear All Cache: red text, no icon; dimmed while there is nothing to clear (iOS).
-            SettingsSection(title = null) {
+            SettingsFormSection(title = null) {
                 Text(
                     "Clear All Cache",
                     color = colors.danger,

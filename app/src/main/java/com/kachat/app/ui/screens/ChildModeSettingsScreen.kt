@@ -1,6 +1,8 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -111,14 +113,8 @@ fun ChildModeSettingsScreen(
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.child_mode), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
-                // iOS 26: the back chevron on a glass disc, 16 in.
-                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
+        // iOS's inline bar: the back chevron on a glass disc, 16 in, the title centred.
+        topBar = { SettingsSubpageBar(title = stringResource(R.string.child_mode), onBack = onBack) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -127,9 +123,18 @@ fun ChildModeSettingsScreen(
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // An iOS Form: the first header 4 under the bar, each section's footer under its
+            // card, sections spaced by SettingsFormSection.
+            Spacer(Modifier.height(4.dp))
             if (hasPassword) {
                 // ---- Toggle (password already set) ----
-                SettingsSection(title = null) {
+                SettingsFormSection(
+                    title = null,
+                    footer = stringResource(
+                        if (isEnabled) R.string.child_mode_is_on_footer
+                        else R.string.child_mode_password_set_footer
+                    ),
+                ) {
                     SettingsSwitchItem(stringResource(R.string.child_mode), isEnabled) { newValue ->
                         if (newValue) {
                             // Turning ON with a password already set needs no password.
@@ -141,17 +146,15 @@ fun ChildModeSettingsScreen(
                             showTurnOffPrompt = true
                         }
                     }
-                    SettingsFooter(
-                        stringResource(
-                            if (isEnabled) R.string.child_mode_is_on_footer
-                            else R.string.child_mode_password_set_footer
-                        )
-                    )
                 }
-                Spacer(Modifier.height(24.dp))
 
                 // ---- Change password (traditional current -> new -> confirm) ----
-                SettingsSection(title = stringResource(R.string.change_password)) {
+                // iOS: the outcome is the footer - an error in red, "Password changed." in green.
+                SettingsFormSection(
+                    title = stringResource(R.string.change_password),
+                    footer = changeError ?: if (changeSucceeded) stringResource(R.string.password_changed) else null,
+                    footerColor = if (changeError != null) LocalAppColors.current.danger else LocalAppColors.current.success,
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         RevealableSecureField(
                             value = currentPassword,
@@ -170,55 +173,55 @@ fun ChildModeSettingsScreen(
                             onValueChange = { newPasswordConfirm = it; changeError = null; changeSucceeded = false },
                             label = stringResource(R.string.confirm_new_password)
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                // Each branch that checks the password suspends: PBKDF2 at 120,000
-                                // rounds is slow on purpose, and on a phone that is long enough to
-                                // freeze the field mid-tap if it ran here.
-                                scope.launch {
-                                val waiting = settingsViewModel.childModeLockoutSeconds()
-                                when {
-                                    newPassword != newPasswordConfirm -> changeError = newPasswordsDontMatch
-                                    waiting != null -> changeError = lockoutText(waiting)
-                                    !settingsViewModel.changeChildModePassword(currentPassword, newPassword) -> {
-                                        changeError = wrongCurrentPassword
-                                        currentPassword = ""
-                                    }
-                                    else -> {
-                                        currentPassword = ""
-                                        newPassword = ""
-                                        newPasswordConfirm = ""
-                                        changeError = null
-                                        changeSucceeded = true
-                                    }
+                    }
+                    SettingsDivider()
+                    ChildModeFormButton(
+                        label = stringResource(R.string.change_password),
+                        enabled = currentPassword.isNotEmpty() && newPassword.isNotEmpty() && newPasswordConfirm.isNotEmpty(),
+                    ) {
+                        // Each branch that checks the password suspends: PBKDF2 at 120,000
+                        // rounds is slow on purpose, and on a phone that is long enough to
+                        // freeze the field mid-tap if it ran here.
+                        scope.launch {
+                            val waiting = settingsViewModel.childModeLockoutSeconds()
+                            when {
+                                newPassword != newPasswordConfirm -> changeError = newPasswordsDontMatch
+                                waiting != null -> changeError = lockoutText(waiting)
+                                !settingsViewModel.changeChildModePassword(currentPassword, newPassword) -> {
+                                    changeError = wrongCurrentPassword
+                                    currentPassword = ""
                                 }
+                                else -> {
+                                    currentPassword = ""
+                                    newPassword = ""
+                                    newPasswordConfirm = ""
+                                    changeError = null
+                                    changeSucceeded = true
                                 }
-                            },
-                            enabled = currentPassword.isNotEmpty() && newPassword.isNotEmpty() && newPasswordConfirm.isNotEmpty(),
-                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.change_password), color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
-                    changeError?.let { SettingsFooter(it) }
-                    if (changeSucceeded) SettingsFooter(stringResource(R.string.password_changed))
                 }
-                Spacer(Modifier.height(24.dp))
 
                 // ---- Clear password (full reset to never-configured) ----
-                SettingsSection(title = null) {
-                    SettingsActionItem(stringResource(R.string.clear_password), Icons.Default.Lock, Color.Red) {
+                SettingsFormSection(title = null, footer = stringResource(R.string.clear_password_footer)) {
+                    ChildModeFormButton(
+                        label = stringResource(R.string.clear_password),
+                        enabled = true,
+                        color = LocalAppColors.current.danger,
+                    ) {
                         clearPassword = ""
                         clearError = null
                         showClearPrompt = true
                     }
-                    SettingsFooter(stringResource(R.string.clear_password_footer))
                 }
             } else {
                 // ---- First-time setup (no password yet) ----
-                SettingsSection(title = stringResource(R.string.set_a_password)) {
+                SettingsFormSection(
+                    title = stringResource(R.string.set_a_password),
+                    footer = setupError ?: stringResource(R.string.child_mode_password_helper),
+                    footerColor = if (setupError != null) LocalAppColors.current.danger else Color.Unspecified,
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         RevealableSecureField(
                             value = setupPassword,
@@ -231,45 +234,40 @@ fun ChildModeSettingsScreen(
                             onValueChange = { setupConfirm = it; setupError = null },
                             label = stringResource(R.string.confirm_password)
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    when {
-                                        setupPassword.isEmpty() -> setupError = enterPasswordFirst
-                                        setupPassword != setupConfirm -> setupError = passwordsDontMatch
-                                        !settingsViewModel.setChildModePassword(setupPassword) -> setupError = couldntSavePassword
-                                        else -> {
-                                            settingsViewModel.enableChildMode()
-                                            setupPassword = ""
-                                            setupConfirm = ""
-                                            setupError = null
-                                            hasPassword = true
-                                        }
-                                    }
+                    }
+                    SettingsDivider()
+                    ChildModeFormButton(
+                        label = stringResource(R.string.set_password_and_turn_on),
+                        enabled = setupPassword.isNotEmpty() && setupConfirm.isNotEmpty(),
+                    ) {
+                        scope.launch {
+                            when {
+                                setupPassword.isEmpty() -> setupError = enterPasswordFirst
+                                setupPassword != setupConfirm -> setupError = passwordsDontMatch
+                                !settingsViewModel.setChildModePassword(setupPassword) -> setupError = couldntSavePassword
+                                else -> {
+                                    settingsViewModel.enableChildMode()
+                                    setupPassword = ""
+                                    setupConfirm = ""
+                                    setupError = null
+                                    hasPassword = true
                                 }
-                            },
-                            enabled = setupPassword.isNotEmpty() && setupConfirm.isNotEmpty(),
-                            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.set_password_and_turn_on), color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
-                    SettingsFooter(setupError ?: stringResource(R.string.child_mode_password_helper))
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-
             // ---- What stays available ----
-            SettingsSection(title = stringResource(R.string.what_stays_available)) {
+            SettingsFormSection(
+                title = stringResource(R.string.what_stays_available),
+                footer = stringResource(R.string.child_mode_about_footer),
+            ) {
                 ChildModeFeatureRow(Icons.AutoMirrored.Filled.Chat, stringResource(R.string.chats_and_group_chats))
-                SettingsDivider()
+                SettingsDivider(inset = IosRowTextInset)
                 ChildModeFeatureRow(Icons.Default.PieChart, stringResource(R.string.portfolio))
-                SettingsDivider()
+                SettingsDivider(inset = IosRowTextInset)
                 ChildModeFeatureRow(Icons.Default.Security, stringResource(R.string.cold_storage))
-                SettingsFooter(stringResource(R.string.child_mode_about_footer))
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -347,16 +345,41 @@ fun ChildModeSettingsScreen(
 
 @Composable
 private fun ChildModeFeatureRow(icon: ImageVector, label: String) {
+    // iOS: a plain Label row - the symbol in the accent, the text in body.
     androidx.compose.foundation.layout.Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(16.dp))
-        Text(label, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+        Text(label, color = LocalAppColors.current.textPrimary, fontSize = 17.sp)
     }
+}
+
+/** iOS's Form button with a centred semibold label (`.frame(maxWidth: .infinity)`); greyed out
+ *  while disabled. */
+@Composable
+private fun ChildModeFormButton(
+    label: String,
+    enabled: Boolean,
+    color: Color = KaspaTeal,
+    onClick: () -> Unit,
+) {
+    Text(
+        label,
+        color = if (enabled) color else LocalAppColors.current.textSecondary.copy(alpha = 0.6f),
+        fontSize = 17.sp,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    )
 }
 
 /** One password field + confirm/cancel — shared by the turn-off and clear prompts. */
