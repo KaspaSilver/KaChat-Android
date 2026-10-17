@@ -992,37 +992,34 @@ fun BroadcastChannelScreen(
                     // Left-side clickable connection dot (matches iOS's navigationBarLeading
                     // ConnectionStatusIndicator - tapping it opens the connection status page),
                     // same back-arrow + dot Row as the 1:1 chat thread header.
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(LocalAppColors.current.surface, CircleShape)
-                                .clickable { ConnectionStatusOverlayState.open() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(modifier = Modifier.size(10.dp).background(Color(roomDotColorHex), CircleShape))
-                        }
+                    // iOS 26: Back and the dot each on a 44pt glass disc.
+                    Row(
+                        modifier = Modifier.padding(start = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SheetBarBackButton(onClick = onBack)
+                        ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
                     }
                 },
                 actions = {
                     // A room you made yourself: what "public" does and does not mean here. Rooms
                     // the indexer tracks keep their history there, so they need no such warning
                     // (iOS ac34790, 21c480d).
-                    if (!isIndexedRoom) {
-                        IconButton(onClick = { showOwnRoomExplainer = true }) {
-                            Icon(Icons.Default.Info, contentDescription = "About this room", tint = KaspaTeal)
+                    // iOS 26 puts neighbouring trailing items on one piece of glass.
+                    Row(
+                        modifier = Modifier.padding(end = 12.dp).heightIn(min = 44.dp).barGlass(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (!isIndexedRoom) {
+                            ToolbarIconButton(Icons.Default.Info, "About this room", onClick = { showOwnRoomExplainer = true })
                         }
-                    }
-                    // This room's notifications, one tap away - the same switch the Public Chats
-                    // list offers in its room menu (iOS eff5c09).
-                    IconButton(onClick = { showNotifySheet = true }) {
-                        Icon(
+                        // This room's notifications, one tap away - the same switch the Public
+                        // Chats list offers in its room menu (iOS eff5c09).
+                        ToolbarIconButton(
                             if (roomNotifyEnabled) Icons.Default.Notifications else Icons.Default.NotificationsOff,
-                            contentDescription = if (roomNotifyEnabled) "Notifications on" else "Notifications off",
-                            tint = KaspaTeal,
+                            if (roomNotifyEnabled) "Notifications on" else "Notifications off",
+                            onClick = { showNotifySheet = true },
                         )
                     }
                 },

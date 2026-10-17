@@ -1890,9 +1890,7 @@ fun MessageRequestsScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.message_requests), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
                 actions = {
-                    TextButton(onClick = { navController.popBackStack() }) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() }, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -2226,9 +2224,7 @@ private fun ChatsNewJoinRoom(
     ) {
         // The pushed page's bar: back to the menu, and its title.
         Box(Modifier.fillMaxWidth().height(44.dp)) {
-            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
-            }
+            SheetBarBackButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp))
             Text(
                 stringResource(R.string.chats_new_public_chat),
                 color = colors.textPrimary,

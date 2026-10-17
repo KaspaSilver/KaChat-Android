@@ -2956,13 +2956,9 @@ fun FullMessageTextDialog(text: String, onDismiss: () -> Unit, onCopy: () -> Uni
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-                Text(stringResource(R.string.message), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
-                IconButton(onClick = onCopy) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy), tint = KaspaTeal)
-                }
+                SheetBarButton(stringResource(R.string.done), onClick = onDismiss)
+                Text(stringResource(R.string.message), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                SheetBarIconButton(Icons.Default.ContentCopy, stringResource(R.string.copy), onClick = onCopy)
             }
             HorizontalDivider(color = LocalAppColors.current.textTertiary.copy(alpha = 0.5f))
             Column(
@@ -4520,9 +4516,7 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
                 CenterAlignedTopAppBar(
                     title = { Text("Your Domains", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
+                        SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
                 )
@@ -4801,9 +4795,7 @@ fun KnsDomainDetailScreen(
             CenterAlignedTopAppBar(
                 title = { Text(domain.asset ?: "", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -4945,9 +4937,7 @@ fun KnsDomainSendScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.send_domain), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !inFlight) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick = onBack, enabled = !inFlight, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -5225,9 +5215,7 @@ fun ManageAddressesScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.manage_addresses), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 // Address Visibility used to be an unlabelled checklist glyph here. It is one
                 // of this account's address actions, so it lives with the others in the Address
@@ -5552,9 +5540,7 @@ fun ManageAddressesHiddenScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.hidden_addresses), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -5709,14 +5695,10 @@ fun AddressVisibilityScreen(
                 title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     // Hide All leads the bar, Done trails it (iOS 245a5d2).
-                    TextButton(onClick = { showHideAllConfirm = true }) {
-                        Text(stringResource(R.string.hide_all), color = KaspaTeal)
-                    }
+                    SheetBarButton(stringResource(R.string.hide_all), onClick = { showHideAllConfirm = true }, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
-                    TextButton(onClick = onBack) {
-                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -6306,17 +6288,9 @@ fun SpendingAddressSendFlow(
                 },
                 navigationIcon = {
                     if (presentedAsSheet) {
-                        TextButton(onClick = onDone) {
-                            Text(
-                                stringResource(R.string.cancel),
-                                color = KaspaTeal,
-                                fontSize = 17.sp,
-                            )
-                        }
+                        SheetBarButton(stringResource(R.string.cancel), onClick = onDone, modifier = Modifier.padding(start = 12.dp))
                     } else {
-                        IconButton(onClick = onDone) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
+                        SheetBarBackButton(onClick = onDone, modifier = Modifier.padding(start = 12.dp))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -6592,28 +6566,28 @@ fun SpendingAddressTxHistoryScreen(
                     // At the root of the "Received" History sheet: Done, as iOS's
                     // OwnAddressHistorySheet puts it (13046ad); a back arrow everywhere else.
                     if (closesWithDone) {
-                        TextButton(onClick = onBack) { Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp) }
+                        SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                     } else {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
+                        SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        if (biometricSpendingKeyEnabled) {
-                            context.authenticateWithDeviceCredential(
-                                title = "Unlock to View Private Key",
-                                onSuccess = { showPrivateKey = true }
-                            )
-                        } else {
-                            showPrivateKey = true
-                        }
-                    }) {
-                        Icon(Icons.Default.IosShare, stringResource(R.string.export), tint = KaspaTeal)
-                    }
-                    IconButton(onClick = { uriHandler.openUri(kaspaExplorer.addressUrl(address)) }) {
-                        Icon(Icons.Default.Public, stringResource(R.string.view_in_explorer), tint = KaspaTeal)
+                    // iOS 26 puts neighbouring trailing items on one piece of glass.
+                    Row(
+                        modifier = Modifier.padding(end = 12.dp).heightIn(min = 44.dp).barGlass(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ToolbarIconButton(Icons.Default.IosShare, stringResource(R.string.export), onClick = {
+                            if (biometricSpendingKeyEnabled) {
+                                context.authenticateWithDeviceCredential(
+                                    title = "Unlock to View Private Key",
+                                    onSuccess = { showPrivateKey = true }
+                                )
+                            } else {
+                                showPrivateKey = true
+                            }
+                        })
+                        ToolbarIconButton(Icons.Default.Public, stringResource(R.string.view_in_explorer), onClick = { uriHandler.openUri(kaspaExplorer.addressUrl(address)) })
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -7007,11 +6981,9 @@ fun IdentityAddressDetailScreen(
                     // At the root of the "Received" History sheet: Done, as iOS's
                     // OwnAddressHistorySheet puts it (13046ad); a back arrow everywhere else.
                     if (closesWithDone) {
-                        TextButton(onClick = onBack) { Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp) }
+                        SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                     } else {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                        }
+                        SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                     }
                 },
                 // Export and Explorer used to be two unlabelled glyphs here. A pair of icons has
@@ -7412,9 +7384,8 @@ private fun IdentityAddressPublicKeyOverlay(address: String, onDismiss: () -> Un
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                }
+                SheetBarBackButton(onClick = onDismiss)
+                Spacer(Modifier.width(12.dp))
                 Text(
                     "Public Key",
                     color = colors.textPrimary,
@@ -7524,10 +7495,8 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                SheetBarButton(stringResource(R.string.done), onClick = onDismiss)
             }
 
             Row(
@@ -8194,9 +8163,7 @@ fun KachatProfileEditorScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.edit_kachat_profile), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
                 actions = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -8380,17 +8347,15 @@ fun EditKnsProfileScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.edit_kns_profile), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    TextButton(onClick = onBack, enabled = !inFlight) {
-                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.cancel), onClick = onBack, enabled = !inFlight, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
-                    TextButton(
+                    SheetBarButton(
+                        stringResource(R.string.save),
                         onClick = { if (pendingChanges.isNotEmpty()) showSaveDialog = true },
-                        enabled = !inFlight && pendingChanges.isNotEmpty()
-                    ) {
-                        Text(stringResource(R.string.save), color = if (!inFlight && pendingChanges.isNotEmpty()) KaspaTeal else LocalAppColors.current.textSecondary, fontWeight = FontWeight.Bold)
-                    }
+                        enabled = !inFlight && pendingChanges.isNotEmpty(),
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -8673,9 +8638,7 @@ fun SeedPhraseScreen(viewModel: WalletViewModel, onBack: () -> Unit) {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.seed_phrase), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 actions = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -8945,9 +8908,8 @@ fun SettingsScreen(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
+                        .barGlass()
                         .clip(CircleShape)
-                        .background(LocalAppColors.current.surface)
-                        .border(0.5.dp, Color.White.copy(alpha = 0.10f), CircleShape)
                         .clickable { ConnectionStatusOverlayState.open() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -8955,29 +8917,9 @@ fun SettingsScreen(
                 }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BalanceLabelRow(balance, copyOnTap = true) }
                 if (sectionKey == null) {
-                    Text(
-                        stringResource(R.string.done),
-                        color = KaspaTeal,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(LocalAppColors.current.surface)
-                            .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50))
-                            .clickable { navController.popBackStack() }
-                            .padding(horizontal = 18.dp, vertical = 11.dp)
-                    )
+                    SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() })
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(LocalAppColors.current.surface)
-                            .clickable { navController.popBackStack() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Back", tint = KaspaTeal, modifier = Modifier.size(20.dp).offset(x = 3.dp))
-                    }
+                    SheetBarBackButton(onClick = { navController.popBackStack() })
                 }
             }
         }
@@ -9410,9 +9352,8 @@ private fun ResyncChatPickerOverlay(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.cancel), tint = colors.textPrimary)
-            }
+            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.cancel), onClick = onDismiss, modifier = Modifier.padding(start = 8.dp))
+            Spacer(Modifier.width(12.dp))
             Text(
                 "Select Chats to Re-sync",
                 color = colors.textPrimary,
@@ -10512,9 +10453,7 @@ fun NotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel 
                 // Notifications hub (Settings > Notifications > Chats), matching iOS.
                 title = { Text(stringResource(R.string.chats), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -10627,9 +10566,7 @@ fun WalletNotificationSettingsScreen(onBack: () -> Unit, viewModel: SettingsView
             CenterAlignedTopAppBar(
                 title = { Text("Wallet", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -10671,9 +10608,7 @@ fun QuickReactionSettingsScreen(onBack: () -> Unit, settingsViewModel: SettingsV
             CenterAlignedTopAppBar(
                 title = { Text("Quick Reactions", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -10747,9 +10682,7 @@ fun KaspaExplorerSettingsScreen(onBack: () -> Unit, chatViewModel: ChatViewModel
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.kaspa_explorer), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -11064,20 +10997,10 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.connection_settings), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
-                    Button(
-                        onClick = onBack,
-                        colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surfaceVariant),
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                        modifier = Modifier.height(36.dp).padding(end = 8.dp)
-                    ) {
-                        Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.save), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -11643,18 +11566,12 @@ fun AddressQrPage(
 @Composable
 private fun AddressQrPageBar(dismiss: QrPageDismiss, onDismiss: () -> Unit, center: @Composable () -> Unit) {
     // A sheet's bar is 56 tall on iOS, a pushed page's 44.
-    Box(Modifier.fillMaxWidth().height(if (dismiss == QrPageDismiss.BACK) 44.dp else 56.dp).padding(horizontal = 8.dp)) {
+    // iOS 26: each control on its own glass, 16 in from the edge.
+    Box(Modifier.fillMaxWidth().height(if (dismiss == QrPageDismiss.BACK) 52.dp else 60.dp).padding(horizontal = 16.dp)) {
         when (dismiss) {
-            QrPageDismiss.BACK -> IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = stringResource(R.string.back), tint = KaspaTeal)
-            }
-            QrPageDismiss.CLOSE -> TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
-                Text(stringResource(R.string.close), color = KaspaTeal, fontSize = 17.sp)
-            }
-            // iOS's confirmation action: bold.
-            QrPageDismiss.DONE -> TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
-                Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            }
+            QrPageDismiss.BACK -> SheetBarBackButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart))
+            QrPageDismiss.CLOSE -> SheetBarButton(stringResource(R.string.close), onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart))
+            QrPageDismiss.DONE -> SheetBarButton(stringResource(R.string.done), onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd))
         }
         Box(Modifier.align(Alignment.Center)) { center() }
     }
@@ -11846,20 +11763,14 @@ fun QrCodeOverlay(
     ) {
         // "Close", not a back arrow: this is a modal you dismiss, not somewhere you navigated
         // to. Same word, same corner as iOS's toolbar button on every one of these.
-        TextButton(
+        SheetBarButton(
+            stringResource(if (dismissAsDone) R.string.done else R.string.close),
             onClick = onDismiss,
             modifier = Modifier
                 .align(if (dismissAsDone) Alignment.TopEnd else Alignment.TopStart)
                 .statusBarsPadding()
-                .padding(4.dp)
-        ) {
-            Text(
-                stringResource(if (dismissAsDone) R.string.done else R.string.close),
-                color = KaspaTeal,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             val qrPainter = rememberQrBitmapPainter(value)
             Box(
@@ -12132,27 +12043,27 @@ fun CreateChatScreen(
                     )
                 },
                 navigationIcon = {
-                    TextButton(onClick = onCancel ?: onBack) {
-                        Text(stringResource(R.string.cancel), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                    }
+                    SheetBarButton(stringResource(R.string.cancel), onClick = onCancel ?: onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 actions = {
                     if (isGroupMode) {
                         if (isCreatingGroup) {
                             com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(20.dp), color = KaspaTeal, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(16.dp))
+                            Spacer(Modifier.width(28.dp))
                         } else {
-                            TextButton(
+                            SheetBarButton(
+                                stringResource(R.string.create),
                                 onClick = { showCreateGroupConfirm = true },
-                                enabled = canCreateGroup
-                            ) {
-                                Text(stringResource(R.string.create), color = if (canCreateGroup) KaspaTeal else LocalAppColors.current.textTertiary, fontWeight = FontWeight.Bold)
-                            }
+                                enabled = canCreateGroup,
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
                         }
                     } else {
-                        TextButton(
+                        SheetBarButton(
+                            stringResource(R.string.add),
+                            modifier = Modifier.padding(end = 12.dp),
                             onClick = {
-                                val resolvedAddress = effectiveAddress ?: return@TextButton
+                                val resolvedAddress = effectiveAddress ?: return@SheetBarButton
                                 // No name is captured: `ContactEntity.displayName` shows their
                                 // KNS domain (then the short address) until the user renames
                                 // them in Chat Info.
@@ -12176,10 +12087,8 @@ fun CreateChatScreen(
                                     }
                                 }
                             },
-                            enabled = isValidAddress
-                        ) {
-                            Text(stringResource(R.string.add), color = if (isValidAddress) KaspaTeal else LocalAppColors.current.textTertiary, fontWeight = FontWeight.Bold)
-                        }
+                            enabled = isValidAddress,
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
@@ -13038,15 +12947,15 @@ fun ChatInfoScreen(
     }
     // iOS presents User Info as a sheet holding a Form: the grouped sheet palette (#1C1C1E behind
     // #2C2C2E cards in dark), rounded top corners 10 below the status bar, the screen behind it
-    // dimmed - see ChatInfoSheetFrame.
-    ChatInfoSheetFrame {
+    // dimmed - see IosSheetPage.
+    IosSheetPage(grouped = true) {
         // The sheet's inline bar: the title in headline, centred 38 below the sheet's top, its
         // buttons on 44pt glass capsules 16 in from each side. One screen for anyone's profile -
         // a chat header, a group roster row, a public chat sender, a chess player or a profile
         // link all open it, with the same title and the same rows (iOS 95c3760, 49cb2b6).
         Box(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 16.dp)) {
             if (!isSelf) {
-                ChatInfoSheetBarButton(
+                SheetBarButton(
                     text = stringResource(R.string.cancel),
                     onClick = onBack,
                     modifier = Modifier.align(Alignment.CenterStart),
@@ -13062,13 +12971,13 @@ fun ChatInfoScreen(
                 modifier = Modifier.align(Alignment.Center).padding(horizontal = 96.dp),
             )
             if (isSelf) {
-                ChatInfoSheetBarButton(
+                SheetBarButton(
                     text = stringResource(R.string.done),
                     onClick = onBack,
                     modifier = Modifier.align(Alignment.CenterEnd),
                 )
             } else {
-                ChatInfoSheetBarButton(
+                SheetBarButton(
                     text = stringResource(R.string.save),
                     onClick = {
                         chatViewModel.updateContactName(contactId, contactName)
@@ -13785,9 +13694,7 @@ fun ContactPhotoSettingsScreen(contactId: String, onBack: () -> Unit, chatViewMo
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.photos), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -13851,9 +13758,7 @@ fun ContactNotificationSettingsScreen(contactId: String, onBack: () -> Unit, cha
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.incoming_notifications), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -13962,14 +13867,7 @@ fun ContactDomainsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBackIos,
-                            null,
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
             )
@@ -14101,54 +13999,6 @@ private fun InfoSectionCard(
             HorizontalDivider(
                 modifier = Modifier.padding(start = 54.dp),
                 color = colors.divider,
-            )
-        }
-    }
-}
-
-/** A button in User Info's sheet bar (iOS 26): 17pt accent text on a 44-high glass capsule, the
- *  glass as it reads on a sheet (sampled on the iPhone: #252527 edged #444449 in dark). */
-@Composable
-private fun ChatInfoSheetBarButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val dark = LocalAppColors.current.isDark
-    val fill = if (dark) Color(0xFF252527) else Color.White
-    val edge = if (dark) Color(0xFF444449) else Color.Black.copy(alpha = 0.08f)
-    Box(
-        modifier = modifier
-            .heightIn(min = 44.dp)
-            .drawBehind {
-                val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2, size.height / 2)
-                drawRoundRect(fill, cornerRadius = r)
-                drawRoundRect(edge, cornerRadius = r, style = Stroke(width = 0.8.dp.toPx()))
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        ToolbarTextButton(text, onClick = onClick)
-    }
-}
-
-/**
- * User Info as iOS presents it: a sheet, not a page. The screen behind is dimmed; the sheet
- * starts 10 below the status bar with iOS's rounded top corners and draws in the grouped sheet
- * palette ([com.kachat.app.ui.theme.IosSheetColors] - a Form, so the grouped one).
- */
-@Composable
-private fun ChatInfoSheetFrame(content: @Composable ColumnScope.() -> Unit) {
-    val base = LocalAppColors.current
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f).compositeOver(base.background)),
-    ) {
-        com.kachat.app.ui.theme.IosSheetColors(grouped = true) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .padding(top = 10.dp)
-                    .clip(com.kachat.app.ui.theme.IosSheetShape)
-                    .background(LocalAppColors.current.background),
-                content = content,
             )
         }
     }

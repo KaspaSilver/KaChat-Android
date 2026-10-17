@@ -117,12 +117,13 @@ fun BroadcastRoomInfoScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Room Info", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        saveIndexer(broadcastViewModel, normalized, indexerText, storedOverride)
-                        onBack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarBackButton(
+                        onClick = {
+                            saveIndexer(broadcastViewModel, normalized, indexerText, storedOverride)
+                            onBack()
+                        },
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
             )
@@ -337,9 +338,7 @@ fun BroadcastHiddenUsersScreen(
                     Text("Hidden in #$normalized", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background),
             )
