@@ -159,10 +159,10 @@ val DarkSheetAppColors = DarkAppColors.copy(
 )
 
 /**
- * The top corners of every sheet: iOS's sheets round theirs at about 10pt, where Material's
- * default is 28dp.
+ * The top corners of every sheet. iOS 26 rounds a sheet's corners to match the screen's own
+ * (about 36pt on the iPhone 17, measured), where earlier iOS used 10pt and Material 28dp.
  */
-val IosSheetShape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp)
+val IosSheetShape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)
 
 /**
  * The tonal elevation every sheet passes to ModalBottomSheet. Material tints a sheet whose colour

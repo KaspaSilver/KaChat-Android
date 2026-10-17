@@ -942,7 +942,8 @@ private fun KaPostsFeedScreen(
                     color = colors.textPrimary,
                     fontSize = LargeTitleSize,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 4.dp),
+                    // as MainPageHeader's title: 24 below the bar's glass, the icon row close under
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 0.dp),
                 )
                 // Profile / Notifications / Bookmarks / Muted / Blocked, as the icons themselves
                 // rather than behind a hamburger. Their own row above the feed tabs, left-aligned
