@@ -1159,7 +1159,8 @@ private fun KaChatStatCard(
                 Text(detail, color = colors.textSecondary, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
-        HorizontalDivider(Modifier.padding(start = 60.dp), color = colors.background)
+        // As the iPhone draws it: from the text's start to 16 short of the card's edge.
+        HorizontalDivider(Modifier.padding(start = 60.dp, end = 16.dp), color = colors.background)
         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             KaChatStatRange.entries.forEachIndexed { index, range ->
                 if (index > 0) VerticalDivider(Modifier.height(34.dp), color = colors.background)
