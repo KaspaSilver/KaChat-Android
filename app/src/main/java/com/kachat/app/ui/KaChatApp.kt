@@ -151,7 +151,10 @@ private fun dockOwnerRoute(route: String?): String? = when (route) {
     "broadcast_channel/{channelName}" -> Screen.Broadcasts.route
     "chat/{contactId}?paymentMode={paymentMode}", "group_chat/{groupId}" -> Screen.Chats.route
     "cold_storage_detail/{accountId}", "cold_storage_tx_history/{address}" -> Screen.ColdStorage.route
-    "help" -> Screen.Profile.route
+    "help", "manage_addresses", "identity_address_detail", "spending_address_detail/{index}",
+    "kns_domains" -> Screen.Profile.route
+    "portfolio_price_chart", "portfolio_value_chart", "portfolio_hashrate_chart" -> Screen.Portfolio.route
+    "broadcast_room_info/{channelName}" -> Screen.Broadcasts.route
     Screen.Chess.route, Screen.Broadcasts.route, Screen.KaPosts.route, Screen.Portfolio.route,
     Screen.Swap.route, Screen.ColdStorage.route, Screen.KaspaWebsites.route,
     Screen.KachatNames.route, Screen.KachatStats.route, Screen.AddressBook.route,
@@ -490,7 +493,18 @@ fun MainShell(
             dest.route == "chess_mode/{mode}" ||
             dest.route == "chess_tournament/{tournamentId}" ||
             // Help is pushed inside the Profile tab on iOS (ProfileHelpView): its tab bar stays.
-            dest.route == "help"
+            dest.route == "help" ||
+            // So are Manage Addresses, its address pages and Your Domains (NavigationLinks in
+            // ContactsView / ManageAddressesView), the Portfolio charts (navigationDestination)
+            // and a public room's info page - all keep iOS's tab bar.
+            dest.route == "manage_addresses" ||
+            dest.route == "identity_address_detail" ||
+            dest.route == "spending_address_detail/{index}" ||
+            dest.route == "kns_domains" ||
+            dest.route == "portfolio_price_chart" ||
+            dest.route == "portfolio_value_chart" ||
+            dest.route == "portfolio_hashrate_chart" ||
+            dest.route == "broadcast_room_info/{channelName}"
     } == true
 
     // The dock renders straight from the persisted arrangement (WalletViewModel.tabOrder, via
@@ -1381,29 +1395,35 @@ fun MainShell(
                 val parentEntry = remember(backStackEntry) {
                     try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
                 }
-                PortfolioPriceChartScreen(
-                    navController = navController,
-                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    PortfolioPriceChartScreen(
+                        navController = navController,
+                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                    )
+                }
             }
             composable("portfolio_value_chart") { backStackEntry ->
                 val parentEntry = remember(backStackEntry) {
                     try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
                 }
-                PortfolioValueChartScreen(
-                    navController = navController,
-                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    PortfolioValueChartScreen(
+                        navController = navController,
+                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                    )
+                }
             }
 
             composable("portfolio_hashrate_chart") { backStackEntry ->
                 val parentEntry = remember(backStackEntry) {
                     try { navController.getBackStackEntry(Screen.Portfolio.route) } catch (e: IllegalArgumentException) { null }
                 }
-                PortfolioHashrateChartScreen(
-                    navController = navController,
-                    viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    PortfolioHashrateChartScreen(
+                        navController = navController,
+                        viewModel = if (parentEntry != null) hiltViewModel(parentEntry) else hiltViewModel()
+                    )
+                }
             }
 
             composable("seed_phrase") {
@@ -1506,12 +1526,14 @@ fun MainShell(
                 // private key already lives in this wallet, so it needs direct signing via
                 // WalletViewModel.withdrawFromSpendingAddress instead. Index (not address) is the
                 // route arg since that's what withdrawFromSpendingAddress signs by.
-                SpendingAddressTxHistoryScreen(
-                    index = backStackEntry.arguments?.getInt("index") ?: 0,
-                    onBack = { navController.popBackStack() },
-                    viewModel = walletViewModel,
-                    onOpenChat = { address -> navController.navigate("chat/$address") },
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    SpendingAddressTxHistoryScreen(
+                        index = backStackEntry.arguments?.getInt("index") ?: 0,
+                        onBack = { navController.popBackStack() },
+                        viewModel = walletViewModel,
+                        onOpenChat = { address -> navController.navigate("chat/$address") },
+                    )
+                }
             }
 
             // The chatting/identity address's "Manage Address" row (Profile > Chatting Address) -
@@ -1521,22 +1543,26 @@ fun MainShell(
             // exact same watch-only-signer mismatch spending addresses had before getting their
             // own route above.
             composable("identity_address_detail") {
-                IdentityAddressDetailScreen(
-                    onBack = { navController.popBackStack() },
-                    viewModel = walletViewModel,
-                    onOpenChat = { address -> navController.navigate("chat/$address") },
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    IdentityAddressDetailScreen(
+                        onBack = { navController.popBackStack() },
+                        viewModel = walletViewModel,
+                        onOpenChat = { address -> navController.navigate("chat/$address") },
+                    )
+                }
             }
 
             composable("manage_addresses") {
-                ManageAddressesScreen(
-                    viewModel = walletViewModel,
-                    onBack = { navController.popBackStack() },
-                    onNavigateToTxHistory = { index -> navController.navigate("spending_address_detail/$index") },
-                    onOpenChattingAddress = { navController.navigate("identity_address_detail") },
-                    onNavigateToHidden = { navController.navigate("manage_addresses_hidden") },
-                    onNavigateToVisibility = { navController.navigate("manage_addresses_visibility") }
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    ManageAddressesScreen(
+                        viewModel = walletViewModel,
+                        onBack = { navController.popBackStack() },
+                        onNavigateToTxHistory = { index -> navController.navigate("spending_address_detail/$index") },
+                        onOpenChattingAddress = { navController.navigate("identity_address_detail") },
+                        onNavigateToHidden = { navController.navigate("manage_addresses_hidden") },
+                        onNavigateToVisibility = { navController.navigate("manage_addresses_visibility") }
+                    )
+                }
             }
 
             composable("manage_addresses_visibility") {
@@ -1664,12 +1690,14 @@ fun MainShell(
             }
 
             composable("kns_domains") {
-                KnsDomainsScreen(
-                    viewModel = walletViewModel,
-                    onBack = { navController.popBackStack() },
-                    // Message on a .kachat name's owner (testnet).
-                    onOpenChat = { address -> navController.navigate("chat/$address") }
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    KnsDomainsScreen(
+                        viewModel = walletViewModel,
+                        onBack = { navController.popBackStack() },
+                        // Message on a .kachat name's owner (testnet).
+                        onOpenChat = { address -> navController.navigate("chat/$address") }
+                    )
+                }
             }
 
             composable("settings_section/{sectionKey}") { backStackEntry ->
@@ -1880,11 +1908,13 @@ fun MainShell(
                 arguments = listOf(navArgument("channelName") { type = NavType.StringType })
             ) { backStackEntry ->
                 val room = backStackEntry.arguments?.getString("channelName") ?: ""
-                BroadcastRoomInfoScreen(
-                    channelName = room,
-                    onBack = { navController.popBackStack() },
-                    onOpenHiddenUsers = { navController.navigate("broadcast_hidden_users/$room") }
-                )
+                Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                    BroadcastRoomInfoScreen(
+                        channelName = room,
+                        onBack = { navController.popBackStack() },
+                        onOpenHiddenUsers = { navController.navigate("broadcast_hidden_users/$room") }
+                    )
+                }
             }
 
             composable(
