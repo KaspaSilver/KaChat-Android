@@ -5259,7 +5259,7 @@ fun KaPostsSearchOverlay(
     LaunchedEffect(Unit) { if (scannedCount == 0) viewModel.searchLoadMore() }
 
     // The one KaPosts screen that says Done rather than Back (iOS).
-    KaPostsOverlayScaffold(title = "Search", onClose = onClose) {
+    KaPostsOverlayScaffold(title = "Search", onClose = onClose, doneBar = true) {
         Column(Modifier.fillMaxSize()) {
             // iOS: .searchable in the navigation bar's drawer, always shown.
             IosSearchField(
@@ -5268,18 +5268,13 @@ fun KaPostsSearchOverlay(
                 placeholder = "Posts and people",
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            TabRow(
-                selectedTabIndex = if (showPeople) 1 else 0,
-                containerColor = colors.background,
-                contentColor = KaspaTeal,
-            ) {
-                Tab(selected = !showPeople, onClick = { showPeople = false }) {
-                    Text("Posts", color = if (!showPeople) KaspaTeal else colors.textSecondary, modifier = Modifier.padding(12.dp))
-                }
-                Tab(selected = showPeople, onClick = { showPeople = true }) {
-                    Text("People", color = if (showPeople) KaspaTeal else colors.textSecondary, modifier = Modifier.padding(12.dp))
-                }
-            }
+            // iOS: Picker(.segmented), 16 in, 8 above the results.
+            KaPostsSegmentedPicker(
+                titles = listOf("Posts", "People"),
+                selected = if (showPeople) 1 else 0,
+                onSelect = { showPeople = it == 1 },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
+            )
 
             if (query.isBlank()) {
                 Column(
@@ -5287,14 +5282,15 @@ fun KaPostsSearchOverlay(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Icon(Icons.Default.Search, null, tint = colors.textSecondary, modifier = Modifier.size(44.dp))
+                    // iOS promptState: magnifyingglass at 40, headline, subheadline, 10 apart.
+                    Icon(Icons.Default.Search, null, tint = colors.textSecondary, modifier = Modifier.size(52.dp))
                     Spacer(Modifier.height(10.dp))
-                    Text("Search KaPosts", color = colors.textPrimary, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(6.dp))
+                    Text("Search KaPosts", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                    Spacer(Modifier.height(10.dp))
                     Text(
                         "Find posts by what they say, and people by their name or domain. Only people who have posted appear.",
                         color = colors.textSecondary,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         textAlign = TextAlign.Center,
                     )
                 }
@@ -7029,10 +7025,52 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * iOS 26's segmented Picker: a 32-high capsule track (systemFill grey) with the chosen segment on
+ * a raised capsule thumb, the labels 14pt - measured on the iPhone's KaPosts Search.
+ */
+@Composable
+private fun KaPostsSegmentedPicker(titles: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    val track = Color(0xFF767680).copy(alpha = if (colors.isDark) 0.24f else 0.12f)
+    val thumb = if (colors.isDark) Color(0xFF5A5A5E) else Color.White
+    Row(
+        modifier = modifier
+            .height(32.dp)
+            .clip(RoundedCornerShape(50))
+            .background(track)
+            .padding(2.dp),
+    ) {
+        titles.forEachIndexed { index, title ->
+            val active = index == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(if (active) thumb else Color.Transparent)
+                    .clickable { onSelect(index) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    title,
+                    color = colors.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun KaPostsOverlayScaffold(
     title: String,
     onClose: () -> Unit,
+    /** iOS presents it as a sheet: [title] inline with Done top right, rather than the pushed
+     *  page's back, dot and balance (Search). */
+    doneBar: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -7052,7 +7090,14 @@ private fun KaPostsOverlayScaffold(
                 .semantics { paneTitle = title },
         ) {
             CompositionLocalProvider(LocalKaPostsBack provides slide.back) {
-                KaPostsOverlayStatusBar()
+                if (doneBar) {
+                    SheetNavBar(
+                        title = title,
+                        trailing = { SheetBarButton(stringResource(R.string.done), onClick = slide.back) },
+                    )
+                } else {
+                    KaPostsOverlayStatusBar()
+                }
                 Box(modifier = Modifier.weight(1f)) { content() }
             }
         }

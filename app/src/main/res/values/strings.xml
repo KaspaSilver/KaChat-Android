@@ -409,7 +409,7 @@
     <string name="explorer">Explorer</string>
     <string name="export_csv">Export CSV</string>
     <string name="exports_a_plaintext_json_file_of">Exports a plaintext JSON file of your decrypted chat history for this account. It is not encrypted, so only share it somewhere you trust. Importing merges into your existing history without overwriting anything.</string>
-    <string name="exports_app_device_info_connection_settings">Exports app/device info, connection settings, local message counts, and recent app logs as a zip for troubleshooting with support. No private keys, seed phrases, or decrypted message content are included.</string>
+    <string name="exports_app_device_info_connection_settings">Exports app/device info, connection settings, local message counts, and recent app logs as a zip — for troubleshooting with support. No private keys, seed phrases, or decrypted message content are included.</string>
     <string name="generate_more_addresses">Generate More Addresses</string>
     <string name="generate_new_spending_address">Generate New Spending Address</string>
     <string name="github">GitHub</string>
