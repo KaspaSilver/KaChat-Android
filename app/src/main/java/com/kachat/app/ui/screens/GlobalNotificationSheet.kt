@@ -30,7 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -165,32 +164,20 @@ fun GlobalNotificationSheet(
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {
                 Column(Modifier.fillMaxSize()) {
-                    // The inline navigation bar: Done (cancellation, left), the title, Clear All (right).
-                    Box(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp)) {
-                        TextButton(onClick = { dismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                            Text(stringResource(R.string.done), color = KaspaTeal, fontSize = 17.sp)
-                        }
-                        Text(
-                            stringResource(R.string.notifications),
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 17.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.align(Alignment.Center),
-                        )
-                        TextButton(
-                            onClick = { store.clearAll() },
-                            enabled = entries.isNotEmpty(),
-                            modifier = Modifier.align(Alignment.CenterEnd),
-                        ) {
-                            Text(
+                    // The inline navigation bar: Done (cancellation, left), the title, Clear All
+                    // (right) - both on iOS 26's glass capsules; Clear All greys out with nothing
+                    // to clear but keeps its glass.
+                    SheetNavBar(
+                        title = stringResource(R.string.notifications),
+                        leading = { SheetBarButton(stringResource(R.string.done), onClick = { dismiss() }) },
+                        trailing = {
+                            SheetBarButton(
                                 stringResource(R.string.notification_center_clear_all),
-                                color = if (entries.isNotEmpty()) KaspaTeal else colors.textTertiary,
-                                fontSize = 17.sp,
+                                onClick = { store.clearAll() },
+                                enabled = entries.isNotEmpty(),
                             )
-                        }
-                    }
+                        },
+                    )
                     if (entries.isEmpty()) {
                         Column(
                             Modifier.fillMaxSize(),
@@ -201,7 +188,9 @@ fun GlobalNotificationSheet(
                                 Icons.Outlined.Notifications,
                                 contentDescription = null,
                                 tint = colors.textSecondary,
-                                modifier = Modifier.size(44.dp),
+                                // iOS's "bell" at 40pt draws about 36 wide and 38 tall; Material's
+                                // outlined bell fills 20/24 of its box, so 46.
+                                modifier = Modifier.size(46.dp),
                             )
                             Text(
                                 stringResource(R.string.notification_center_empty_title),
