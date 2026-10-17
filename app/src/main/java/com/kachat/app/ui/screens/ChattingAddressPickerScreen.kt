@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -126,7 +127,7 @@ fun ChattingAddressPickerScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // iOS 26: the back chevron on a glass disc.
-            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack)
+            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, tint = LocalAppColors.current.textPrimary)
 
             Spacer(Modifier.height(16.dp))
             Icon(
@@ -351,7 +352,7 @@ private fun ChattingAddressDetailScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 // iOS 26: the back chevron on a glass disc.
-                SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack, enabled = !isSwitching)
+                SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, enabled = !isSwitching, tint = LocalAppColors.current.textPrimary)
 
                 Spacer(Modifier.height(16.dp))
                 Text(

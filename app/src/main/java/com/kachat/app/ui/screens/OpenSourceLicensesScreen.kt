@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -171,9 +172,9 @@ fun OpenSourceLicensesScreen(onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBackIos,
+                            Icons.Filled.ArrowBackIosNew,
                             contentDescription = "Back",
-                            tint = com.kachat.app.ui.theme.KaspaTeal,
+                            tint = LocalAppColors.current.textPrimary,
                         )
                     }
                 },

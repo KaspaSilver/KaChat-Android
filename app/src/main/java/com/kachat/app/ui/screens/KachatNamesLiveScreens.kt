@@ -997,7 +997,7 @@ private fun KachatSheetStep(
         SheetNavBar(
             title = title,
             leading = {
-                if (!finished) SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, backTitle, onClick = onBack)
+                if (!finished) SheetBarIconButton(Icons.Filled.ArrowBackIosNew, backTitle, onClick = onBack, tint = LocalAppColors.current.textPrimary)
             },
             trailing = {
                 if (finished) SheetBarButton(stringResource(R.string.done), onClick = onDone)

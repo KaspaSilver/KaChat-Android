@@ -4979,7 +4979,7 @@ fun KnsDomainSendScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.send_domain), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick = onBack, enabled = !inFlight, modifier = Modifier.padding(start = 12.dp))
+                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick = onBack, enabled = !inFlight, modifier = Modifier.padding(start = 12.dp), tint = LocalAppColors.current.textPrimary)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -9624,7 +9624,7 @@ private fun ResyncChatPickerOverlay(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.cancel), onClick = onDismiss, modifier = Modifier.padding(start = 8.dp))
+            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.cancel), onClick = onDismiss, modifier = Modifier.padding(start = 8.dp), tint = LocalAppColors.current.textPrimary)
             Spacer(Modifier.width(12.dp))
             Text(
                 "Select Chats to Re-sync",
@@ -14505,7 +14505,7 @@ internal fun ChatNavBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ToolbarGlassGroup {
-            ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onBack, iconSize = 20.dp)
+            ToolbarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onBack, iconSize = 20.dp, tint = LocalAppColors.current.textPrimary)
         }
         Spacer(Modifier.weight(1f))
         Row(

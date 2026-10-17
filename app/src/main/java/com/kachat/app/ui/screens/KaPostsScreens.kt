@@ -75,6 +75,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -7010,13 +7011,15 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (back != null) {
+                // iOS 26: the centred chevron in the label colour.
                 SheetBarIconButton(
-                    Icons.AutoMirrored.Filled.ArrowBackIos,
+                    Icons.Filled.ArrowBackIosNew,
                     stringResource(R.string.back),
                     onClick = {
                         haptic(com.kachat.app.util.IosHaptic.SELECTION)
                         back()
                     },
+                    tint = LocalAppColors.current.textPrimary,
                 )
             }
             ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })

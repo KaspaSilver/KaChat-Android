@@ -959,7 +959,7 @@ private fun CreateAccountStepScaffold(
                 .verticalScroll(rememberScrollState())
         ) {
             // iOS 26: the back chevron on a glass disc.
-            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack)
+            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, tint = LocalAppColors.current.textPrimary)
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = title,
@@ -1534,7 +1534,7 @@ private fun PassphraseQuestionStep(
             CenterAlignedTopAppBar(
                 title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy)
+                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy, tint = LocalAppColors.current.textPrimary)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1651,7 +1651,7 @@ private fun PassphraseEntryStep(
             CenterAlignedTopAppBar(
                 title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy)
+                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy, tint = LocalAppColors.current.textPrimary)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1886,7 +1886,7 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             // iOS 26: the back chevron on a glass disc.
-            SheetBarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onClick = onBack)
+            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, tint = LocalAppColors.current.textPrimary)
 
             Spacer(Modifier.height(16.dp))
             Icon(

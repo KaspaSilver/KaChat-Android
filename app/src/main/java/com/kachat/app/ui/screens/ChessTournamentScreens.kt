@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -1267,7 +1268,7 @@ private fun ChessHomeBar(onBack: (() -> Unit)?) {
         ) {
             if (onBack != null && !LocalInHubSection.current) {
                 ToolbarGlassGroup {
-                    ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", onBack, iconSize = 20.dp)
+                    ToolbarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onBack, iconSize = 20.dp, tint = LocalAppColors.current.textPrimary)
                 }
             }
             ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })

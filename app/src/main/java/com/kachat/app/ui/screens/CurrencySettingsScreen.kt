@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -86,7 +87,7 @@ fun CurrencySettingsScreen(onBack: () -> Unit, walletViewModel: WalletViewModel 
                 title = { Text(stringResource(R.string.currency), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.ArrowBackIosNew, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
