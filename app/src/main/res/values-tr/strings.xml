@@ -1347,4 +1347,6 @@
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
     <string name="portfolio_no_transactions_title">Henuz Islem Yok</string>
     <string name="portfolio_no_transactions_sub">Portfoyunuzu takip etmeye baslamak icin bir alim veya satim ekleyin</string>
+    <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
+    <string name="composer_more_options">Daha Fazla Secenek</string>
 </resources>

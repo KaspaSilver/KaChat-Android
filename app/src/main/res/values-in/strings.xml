@@ -1219,4 +1219,6 @@
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
     <string name="portfolio_no_transactions_title">Belum Ada Transaksi</string>
     <string name="portfolio_no_transactions_sub">Tambahkan pembelian atau penjualan untuk mulai memantau portofolio Anda</string>
+    <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
+    <string name="composer_more_options">Opsi lainnya</string>
 </resources>

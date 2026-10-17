@@ -1347,4 +1347,6 @@
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
     <string name="portfolio_no_transactions_title">Aucune transaction pour l\'instant</string>
     <string name="portfolio_no_transactions_sub">Ajoutez un achat ou une vente pour commencer a suivre votre portefeuille</string>
+    <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
+    <string name="composer_more_options">Plus d\'options</string>
 </resources>

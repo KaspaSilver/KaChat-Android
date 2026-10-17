@@ -1,6 +1,12 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.Image
+import com.kachat.app.ui.theme.iosGlass
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -80,14 +86,30 @@ fun rememberZeroBalanceFundingGate(): ZeroBalanceFundingGate {
     return ZeroBalanceFundingGate(active, address)
 }
 
-/** Dims a composer to 35% and makes it inert while [active] — consuming every pointer event in
- *  the Initial pass keeps all descendants (including a TextField's own focus/keyboard handling)
- *  from ever seeing the touch, without restructuring the composer variants underneath. Chain it
- *  after background() so only the controls dim, not the bar's background strip. */
+/** Dims a composer the way iOS does - `.grayscale(1)` then `.opacity(0.45)` - and makes it inert
+ *  while [active]. Consuming every pointer event in the Initial pass keeps all descendants
+ *  (including a text field's own focus/keyboard handling) from ever seeing the touch, without
+ *  restructuring the composer variants underneath. The grey is drawn through one offscreen layer
+ *  with a zero-saturation colour filter, which every Android version can draw. Chain it after
+ *  background() so only the controls dim, not the bar's background strip. */
 fun Modifier.zeroBalanceComposerGate(active: Boolean): Modifier =
     if (active) {
         this
-            .alpha(0.35f)
+            .drawWithCache {
+                val paint = androidx.compose.ui.graphics.Paint().apply {
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(
+                        androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }
+                    )
+                    alpha = 0.45f
+                }
+                onDrawWithContent {
+                    drawIntoCanvas { canvas ->
+                        canvas.saveLayer(androidx.compose.ui.geometry.Rect(androidx.compose.ui.geometry.Offset.Zero, size), paint)
+                        drawContent()
+                        canvas.restore()
+                    }
+                }
+            }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -99,65 +121,73 @@ fun Modifier.zeroBalanceComposerGate(active: Boolean): Modifier =
         this
     }
 
-/** The funding-gate card itself: title, a QR of the chatting address on a
- *  white plate (contrast + quiet zone is what makes it scannable regardless of theme — same
- *  reasoning as QrCodeOverlay), the address in monospace, and a copy button. [title] is the
+/** The funding-gate card itself (iOS ZeroBalanceFundingCardView): the headline in subheadline
+ *  semibold, a 140 QR of the chatting address on a white plate (padded 8, corners 12 - the white
+ *  is what keeps it scannable in dark mode), then the address in caption2 monospaced beside a
+ *  copy button, 14 between each, padded 16 on glassBackground(cornerRadius: 20). [title] is the
  *  headline; null = "Fund your chatting address to start chatting" (iOS 2b45d6e). */
 @Composable
 fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier, title: String? = null) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
-    Surface(
-        color = LocalAppColors.current.surface,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = 8.dp,
+    val colors = LocalAppColors.current
+    Column(
         modifier = modifier
+            .fillMaxWidth()
+            .iosGlass(cornerRadius = 20.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                title ?: "Fund your chatting address to start chatting",
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center
-            )
-            walletAddress?.let { gateAddress ->
-                Spacer(Modifier.height(16.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White)
-                        .border(2.dp, KaspaTeal, RoundedCornerShape(16.dp))
-                        .padding(12.dp)
-                ) {
-                    Image(
-                        painter = rememberQrBitmapPainter(gateAddress),
-                        contentDescription = stringResource(R.string.qr_code),
-                        modifier = Modifier.size(150.dp)
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
+        Text(
+            title ?: "Fund your chatting address to start chatting",
+            color = colors.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center
+        )
+        walletAddress?.let { gateAddress ->
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White)
+                    .padding(8.dp)
+            ) {
+                Image(
+                    painter = rememberQrBitmapPainter(gateAddress),
+                    contentDescription = stringResource(R.string.qr_code),
+                    modifier = Modifier.size(140.dp)
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(
                     text = gateAddress,
-                    color = LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.widthIn(max = 260.dp)
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
-                Spacer(Modifier.height(4.dp))
-                TextButton(onClick = {
-                    clipboard.setText(AnnotatedString(gateAddress))
-                    showAddressCopiedToast(context, gateAddress)
-                }) {
-                    Icon(Icons.Default.ContentCopy, null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.copy_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                // doc.on.doc at 14 semibold in the accent colour, padded 6 on a 10-corner glass.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .iosGlass(cornerRadius = 10.dp)
+                        .clickable {
+                            clipboard.setText(AnnotatedString(gateAddress))
+                            showAddressCopiedToast(context, gateAddress)
+                        }
+                        .padding(6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = stringResource(R.string.copy_address),
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

@@ -1347,4 +1347,6 @@
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
     <string name="portfolio_no_transactions_title">아직 거래 없음</string>
     <string name="portfolio_no_transactions_sub">포트폴리오 추적을 시작하려면 매수 또는 매도를 추가하세요</string>
+    <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
+    <string name="composer_more_options">더 많은 옵션</string>
 </resources>

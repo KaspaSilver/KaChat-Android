@@ -1347,4 +1347,6 @@
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
     <string name="portfolio_no_transactions_title">अभी तक कोई लेन-देन नहीं</string>
     <string name="portfolio_no_transactions_sub">अपने पोर्टफोलियो को ट्रैक करना शुरू करने के लिए एक खरीद या बिक्री जोड़ें</string>
+    <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
+    <string name="composer_more_options">अधिक विकल्प</string>
 </resources>

@@ -45,6 +45,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import com.kachat.app.ui.theme.iosGlass
+import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -648,6 +649,7 @@ fun ChatThreadScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(LocalAppColors.current.background)
                     // Avatar and name open User Info - and so does the 24dp either side of them;
                     // the space further out jumps to the very first message (iOS 1d5a555). The
                     // back button, the connection dot and the card keep their own taps. No
@@ -669,73 +671,72 @@ fun ChatThreadScreen(
                         },
                     )
             ) {
-            CenterAlignedTopAppBar(
-                // Empty: the header rides in the SAME row (see the Box above), so the bar itself
-                // only carries the back button, the connection dot and the trailing actions.
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Back", tint = KaspaTeal)
-                    }
-                },
-                actions = {
-                    if (isSelectingMessages) {
-                        TextButton(onClick = {
+            // iOS 26's bar: Back on a 44pt glass disc leading, the trailing items on one piece of
+            // glass - the call button, then the chess shortcut, or Cancel/Delete while selecting.
+            ChatNavBar(onBack = { navController.popBackStack() }) {
+                if (isSelectingMessages) {
+                    ToolbarGlassGroup {
+                        ToolbarTextButton(stringResource(R.string.cancel), onClick = {
                             isSelectingMessages = false
                             selectedMessageIds = emptySet()
-                        }) {
-                            Text("Cancel", color = KaspaTeal)
+                        })
+                        Box(Modifier.alpha(if (selectedMessageIds.isNotEmpty()) 1f else 0.4f)) {
+                            ToolbarIconButton(
+                                Icons.Default.Delete,
+                                stringResource(R.string.delete),
+                                onClick = { if (selectedMessageIds.isNotEmpty()) showDeleteMessagesConfirmation = true },
+                                tint = LocalAppColors.current.danger,
+                            )
                         }
-                        IconButton(
-                            onClick = { showDeleteMessagesConfirmation = true },
-                            enabled = selectedMessageIds.isNotEmpty()
-                        ) {
-                            Icon(Icons.Default.Delete, stringResource(R.string.delete), tint = LocalAppColors.current.danger)
-                        }
-                    } else {
-                        // Entry point into select mode is a message's long-press "Select" menu
-                        // item, not a toolbar button - this carries the chess shortcut and the
-                        // connection dot. The dot sits trailing rather than beside Back: the left
-                        // of the bar belongs to navigation, and the dot is status.
-                        if (activeChessGame != null) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(LocalAppColors.current.surface, CircleShape)
-                                    .clickable { navController.navigate("chess_game/$contactId/${activeChessGame.gameId}") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Apps, stringResource(R.string.play_chess), tint = KaspaTeal, modifier = Modifier.size(18.dp))
-                            }
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        // The connection dot is gone from inside a 1:1 chat (the chat list and
-                        // group chats still have it) - the one thing in the trailing slot is the
-                        // call button, always there (hidden only while a call is already up).
-                        // Calls are off per contact by default, so the first tap asks "Enable
-                        // calls with this person?"; once enabled it asks voice or video. A phone
-                        // with no Nextcloud of its own asks the contact to host the call, so
-                        // either side can start one as long as one of them has Talk.
-                        val showCallButton = callSession == null && contactId != myAddress
-                        if (showCallButton) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(LocalAppColors.current.surface, CircleShape)
-                                    .clickable {
+                    }
+                } else {
+                    // Entry point into select mode is a message's long-press "Select" menu
+                    // item, not a toolbar button.
+                    // The connection dot is gone from inside a 1:1 chat (the chat list and
+                    // group chats still have it) - the call button is always there, a chat
+                    // with yourself included, as on iOS (hidden only while a call is already
+                    // up). Calls are off per contact by default, so the first tap asks "Enable
+                    // calls with this person?"; once enabled it asks voice or video. A phone
+                    // with no Nextcloud of its own asks the contact to host the call, so
+                    // either side can start one as long as one of them has Talk.
+                    val showCallButton = callSession == null
+                    if (showCallButton || activeChessGame != null) {
+                        ToolbarGlassGroup {
+                            if (showCallButton) {
+                                ToolbarIconButton(
+                                    Icons.Default.Phone,
+                                    "Call",
+                                    onClick = {
                                         if (conversation?.contact?.callsEnabled == true) showCallOptions = true
                                         else showEnableCalls = true
                                     },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Phone, "Call", tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                                    iconSize = 24.dp,
+                                )
                             }
-                            Spacer(Modifier.width(4.dp))
+                            if (activeChessGame != null) {
+                                // iOS: a 22pt circle of secondary at 15% holding the caption
+                                // checkerboard glyph.
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .clickable { navController.navigate("chess_game/$contactId/${activeChessGame.gameId}") },
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .background(LocalAppColors.current.textSecondary.copy(alpha = 0.15f), CircleShape),
+                                    ) {
+                                        Icon(Icons.Default.Apps, stringResource(R.string.play_chess), tint = KaspaTeal, modifier = Modifier.size(13.dp))
+                                    }
+                                }
+                            }
                         }
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
+                }
+            }
             if (showEnableCalls) {
                 // The first tap on the call button for a contact: calls are off by default, and
                 // enabling them is a decision about this person (they can ring you from then on,
@@ -828,7 +829,17 @@ fun ChatThreadScreen(
             // Zero-balance funding gate: the whole composer (text field, camera, "+" menu, send,
             // mic, payment entry) dims and stops responding until the chatting address is funded
             // — see Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
-            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding().padding(8.dp).zeroBalanceComposerGate(fundingGate.active)) {
+            // iOS: the zero-balance card sits in the bottom inset right above the composer
+            // (padded 16 either side, 4 below) - never over the thread - and stays usable while
+            // only the composer under it dims. The composer is padded 16 by 8, 2 more below.
+            Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding()) {
+            if (fundingGate.active) {
+                ZeroBalanceFundingCard(
+                    walletAddress = fundingGate.chattingAddress,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+                )
+            }
+            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 10.dp).zeroBalanceComposerGate(fundingGate.active)) {
                 // Above everything else in the composer stack (including payment mode's fee /
                 // available pills) so it never collides with them, and visible the instant the
                 // chat opens rather than only once the user starts typing.
@@ -877,8 +888,8 @@ fun ChatThreadScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 40.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(LocalAppColors.current.surface)
+                                // iOS pendingPhotoRow / the audio row: glassBackground(cornerRadius: 20)
+                                .iosGlass(cornerRadius = 20.dp)
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -945,8 +956,8 @@ fun ChatThreadScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 40.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(LocalAppColors.current.surface)
+                                // iOS pendingPhotoRow / the audio row: glassBackground(cornerRadius: 20)
+                                .iosGlass(cornerRadius = 20.dp)
                                 .padding(horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1076,16 +1087,19 @@ fun ChatThreadScreen(
                             )
                         }
 
+                        // iOS inputBar: the field and the 44pt "+" / send side by side,
+                        // 12 apart.
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // The one place the text itself is read while composing - see
                             // messageTextState.
                             ComposerTextScope {
-                            TextField(
-                                value = messageTextState.value,
+                            val composerText = messageTextState.value
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = composerText,
                                 onValueChange = {
                                     // Someone's payment request pasted in opens Send Kaspa instead
                                     // of landing in the message (iOS c6851d6).
@@ -1093,23 +1107,17 @@ fun ChatThreadScreen(
                                         chatViewModel.setMessageText(it, fromTyping = true)
                                     }
                                 },
-                                placeholder = { Text(stringResource(R.string.message), color = LocalAppColors.current.textSecondary) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .heightIn(min = 40.dp)
-                                    .clip(RoundedCornerShape(20.dp)),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = LocalAppColors.current.surface,
-                                    unfocusedContainerColor = LocalAppColors.current.surface,
-                                    focusedTextColor = LocalAppColors.current.textPrimary,
-                                    unfocusedTextColor = LocalAppColors.current.textPrimary,
-                                    cursorColor = KaspaTeal,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
+                                    .chatComposerFieldModifier(),
+                                textStyle = chatComposerTextStyle(),
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
                                 // The input bubble is the text field only: the camera, mic and
                                 // Kaspa logo moved into the "+" sheet (iOS 8b13460).
-                                maxLines = 4
+                                maxLines = 4,
+                                decorationBox = { inner ->
+                                    ChatComposerFieldDecoration(showPlaceholder = composerText.isEmpty(), innerTextField = inner)
+                                },
                             )
                             }
 
@@ -1125,7 +1133,7 @@ fun ChatThreadScreen(
                                     // The same size as the group chat's + (iOS 2332d30) - the input
                                     // bubble no longer carries the camera, mic and Kaspa logo, so it
                                     // has the width to spare.
-                                    ChatActionButton(Icons.Default.Add, onClick = { showComposerMenu = true })
+                                    ChatComposerPlusButton(onClick = { showComposerMenu = true })
                                 }
                                 // Not while the chess or media step is up: they are steps of
                                 // ONE sheet, and rendering both would stack two sheets on screen.
@@ -1318,21 +1326,24 @@ fun ChatThreadScreen(
                                         }
                                         chatViewModel.setMessageText("")
                                     },
+                                    // iOS sendButton: arrow.up.circle.fill at title size in the
+                                    // accent colour, on a 44 x 44 glassBackground(cornerRadius: 14).
                                     modifier = Modifier
-                                        .size(40.dp)
-                                        .background(KaspaTeal, CircleShape)
+                                        .size(44.dp)
+                                        .iosGlass(cornerRadius = 14.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        imageVector = Icons.Default.ArrowCircleUp,
                                         contentDescription = stringResource(R.string.send),
-                                        tint = Color.Black,
-                                        modifier = Modifier.size(20.dp)
+                                        tint = KaspaTeal,
+                                        modifier = Modifier.size(32.dp)
                                     )
                                 }
                             }
                         }
                     }
                 }
+            }
             }
             }
         }
@@ -1568,17 +1579,14 @@ fun ChatThreadScreen(
                     }
                     itemsIndexed(messages, key = { _, msg -> msg.id }) { index, msg ->
                         if (index == 0 || !ChatTimeFormat.isSameDay(messages[index - 1].blockTimestamp, msg.blockTimestamp)) {
-                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                                Surface(color = LocalAppColors.current.surface, shape = RoundedCornerShape(12.dp)) {
-                                    Text(
-                                        ChatTimeFormat.formatDateDivider(msg.blockTimestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday)),
-                                        color = LocalAppColors.current.textSecondary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
+                            // iOS: the separator is a row of its own in a list spaced 8, padded
+                            // 10 above and 2 below, under a 1pt top anchor. Here it shares the
+                            // message's row in a list spaced 16, so it takes 2 above (8 + 10 =
+                            // 16 + 2) and 10 below (2 + 8); the first one 19 above (1 + 8 + 10).
+                            ChatDaySeparator(
+                                msg.blockTimestamp,
+                                modifier = Modifier.padding(top = if (index == 0) 19.dp else 2.dp, bottom = 10.dp),
+                            )
                         }
                         // An edited message reads with its newest text; the row itself is untouched.
                         val editForRow = editsByTxId[msg.id]
@@ -1726,18 +1734,8 @@ fun ChatThreadScreen(
                 }
             }
 
-            // Zero-balance funding gate card — floats over the (usually still empty) thread
-            // while the composer below sits dimmed and inert. Deliberately not full-screen:
-            // received messages stay readable and scrollable around it, only sending is gated.
-            // Gone reactively the moment the chatting balance confirms as > 0.
-            if (fundingGate.active) {
-                ZeroBalanceFundingCard(
-                    walletAddress = fundingGate.chattingAddress,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(24.dp)
-                )
-            }
+            // The zero-balance funding card is in the bottom bar, right above the dimmed
+            // composer, as on iOS - received messages stay readable and scrollable above it.
         }
     }
 
@@ -14019,10 +14017,35 @@ private fun ChatHeaderCard(
     /** The contact's address: on testnet the avatar is its .kachat one ([ContactAvatar]). */
     address: String? = null,
 ) {
+    ChatHeaderChipLayout(name = name, onClick = onClick, modifier = modifier) {
+        ContactAvatar(
+            imageUrl = imageUrl,
+            fallbackText = fallbackText,
+            size = 46.dp,
+            address = address,
+        )
+    }
+}
+
+/**
+ * iOS `chatTitleChip` (1:1) and `groupTitleChip`: a 46pt avatar drawn over the top of a capsule
+ * holding the name (subheadline bold) and a caption2 bold chevron - VStack(spacing: -12), the
+ * capsule padded 12 either side, 15 above and 5 below, on an ultra-thin material with a 0.5
+ * hairline of primary at 12% and a soft shadow. The avatar's top sits level with the bar's back
+ * disc, 2 lower ([ChatNavBar] puts that disc 4 below the status bar).
+ */
+@Composable
+internal fun ChatHeaderChipLayout(
+    name: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    avatar: @Composable () -> Unit,
+) {
     val colors = LocalAppColors.current
+    val pillShape = RoundedCornerShape(percent = 50)
     // Wraps its content - NOT fillMaxWidth. Filling the width put a full-width tap target over
-    // the whole bar row, so the back button and the connection dot sat underneath it and tapping
-    // either one opened Chat Info instead.
+    // the whole bar row, so the back button and the trailing buttons sat underneath it and
+    // tapping either one opened Chat Info instead.
     Column(
         modifier = modifier
             .clickable(
@@ -14030,20 +14053,24 @@ private fun ChatHeaderCard(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(top = 2.dp, bottom = 2.dp),
+            .padding(top = 6.dp, bottom = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(contentAlignment = Alignment.TopCenter) {
-            // The capsule tucks under the avatar - offset by the overlap, then padded back out
-            // at the top so the name still clears it. Reads as one piece rather than a stack.
+            // The capsule tucks 12 under the avatar - offset by the avatar less that overlap,
+            // then padded back out at the top so the name still clears it.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
                     .padding(top = 34.dp)
-                    .clip(CircleShape)
-                    .background(colors.surface)
-                    .padding(start = 12.dp, end = 10.dp, top = 15.dp, bottom = 5.dp),
+                    .iosShadow(100.dp, Color.Black.copy(alpha = 0.10f), 6.dp, 2.dp)
+                    .clip(pillShape)
+                    // .ultraThinMaterial as it reads over the thread (sampled on the iPhone:
+                    // #202020 on black); a solid stand-in, as Android cannot blur what lies under.
+                    .background(if (colors.isDark) Color(0xFF202020) else com.kachat.app.ui.theme.IosRegularMaterialLight)
+                    .border(0.5.dp, colors.textPrimary.copy(alpha = 0.12f), pillShape)
+                    .padding(start = 12.dp, end = 12.dp, top = 15.dp, bottom = 5.dp),
             ) {
                 Text(
                     name,
@@ -14053,20 +14080,144 @@ private fun ChatHeaderCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(14.dp),
-                )
+                // SF chevron.right at caption2 bold: about 6 x 10.
+                ChatChevronGlyph(height = 10.dp, stroke = 1.8.dp)
             }
-            ContactAvatar(
-                imageUrl = imageUrl,
-                fallbackText = fallbackText,
-                size = 46.dp,
-                address = address,
+            avatar()
+        }
+    }
+}
+
+/** SF Symbols' chevron.right drawn as a thin open chevron of the given glyph [height], in
+ *  secondary grey - the Material arrow carries padding iOS's glyph does not. */
+@Composable
+internal fun ChatChevronGlyph(height: Dp, stroke: Dp) {
+    val color = LocalAppColors.current.textSecondary
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = height * 0.58f, height = height)) {
+        val inset = stroke.toPx() / 2f
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(inset, inset)
+            lineTo(size.width - inset, size.height / 2f)
+            lineTo(inset, size.height - inset)
+        }
+        drawPath(
+            path,
+            color = color,
+            style = Stroke(width = stroke.toPx(), cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round),
+        )
+    }
+}
+
+/**
+ * A chat thread's navigation bar (iOS ChatDetailView / GroupChatDetailView on iOS 26): Back on a
+ * 44pt glass disc 16 in from the leading edge, the [trailing] glass 16 in from the other, just
+ * below the status bar. The header chip rides over the middle of the same row.
+ */
+@Composable
+internal fun ChatNavBar(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailing: @Composable RowScope.() -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ToolbarGlassGroup {
+            ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBackIos, stringResource(R.string.back), onBack, iconSize = 20.dp)
+        }
+        Spacer(Modifier.weight(1f))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = trailing,
+        )
+    }
+}
+
+/**
+ * The pill between days' worth of messages (iOS `daySeparator`): caption2 semibold, padded 10
+ * by 5, in a capsule of systemGray6 - or, for Today, the accent at 12% with accent text - edged
+ * by a 0.5 hairline of primary at 6%. iOS gives it 10 above and 2 below inside a list spaced 8;
+ * the caller passes the padding that lands it there in its own list.
+ */
+@Composable
+internal fun ChatDaySeparator(timestamp: Long, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    val isToday = ChatTimeFormat.isSameDay(timestamp, System.currentTimeMillis())
+    val label = ChatTimeFormat.formatDateDivider(timestamp, stringResource(R.string.chat_day_today), stringResource(R.string.chat_day_yesterday))
+    val shape = RoundedCornerShape(percent = 50)
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Text(
+            label,
+            color = if (isToday) KaspaTeal else colors.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .clip(shape)
+                .background(
+                    when {
+                        isToday -> KaspaTeal.copy(alpha = 0.12f)
+                        // systemGray6
+                        colors.isDark -> Color(0xFF1C1C1E)
+                        else -> Color(0xFFF2F2F7)
+                    }
+                )
+                .border(0.5.dp, colors.textPrimary.copy(alpha = 0.06f), shape)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+        )
+    }
+}
+
+/**
+ * The inside of the composer's text bubble (iOS `inputField`): the ComposerTextView's body text
+ * padded 12 by 8 - one line makes the bubble 38 tall - with the "Message" placeholder in
+ * placeholderText. The bubble itself is the field's modifier: [chatComposerFieldModifier].
+ */
+@Composable
+internal fun ChatComposerFieldDecoration(showPlaceholder: Boolean, innerTextField: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (showPlaceholder) {
+            Text(
+                stringResource(R.string.message),
+                color = LocalAppColors.current.textTertiary,
+                style = chatComposerTextStyle(),
+                maxLines = 1,
             )
         }
+        innerTextField()
+    }
+}
+
+/** The composer's text: body, 17 on a 22 line. */
+@Composable
+internal fun chatComposerTextStyle(): androidx.compose.ui.text.TextStyle =
+    MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, color = LocalAppColors.current.textPrimary)
+
+/** The composer's text bubble: iOS glassBackground(cornerRadius: 20). */
+@Composable
+internal fun Modifier.chatComposerFieldModifier(): Modifier = this.iosGlass(cornerRadius = 20.dp)
+
+/** The composer's "+" (iOS composerPlusMenu / plusMenu): a title3 plus in the accent colour on
+ *  a 44 x 44 glassBackground(cornerRadius: 14). */
+@Composable
+internal fun ChatComposerPlusButton(onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(44.dp)
+            .iosGlass(cornerRadius = 14.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.composer_more_options), tint = KaspaTeal, modifier = Modifier.size(26.dp))
     }
 }
 

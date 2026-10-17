@@ -1347,4 +1347,6 @@
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
     <string name="portfolio_no_transactions_title">Chưa có giao dịch nào</string>
     <string name="portfolio_no_transactions_sub">Thêm một giao dịch mua hoặc bán để bắt đầu theo dõi danh mục đầu tư của bạn</string>
+    <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
+    <string name="composer_more_options">Thêm tùy chọn</string>
 </resources>
