@@ -11815,8 +11815,15 @@ fun PushedQrPage(visible: Boolean, white: Boolean, onBack: () -> Unit, content: 
         BackHandler(onBack = onBack)
         // The status bar keeps the theme's icons over the white page: iOS's status bar follows
         // the colour scheme (light in dark mode), not what is drawn under it.
-        // The page's colour runs up under the status bar, as iOS's white page does.
-        Box(Modifier.fillMaxSize().background(if (white) Color.White else LocalAppColors.current.background)) {
+        // The page's colour runs up under the status bar, as iOS's white page does - and down
+        // under the dock: the tab's content stops above the dock, but iOS's page runs on behind
+        // its tab bar, so paint past the bottom edge rather than leave a black band there.
+        val pageColor = if (white) Color.White else LocalAppColors.current.background
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                drawRect(pageColor, size = androidx.compose.ui.geometry.Size(size.width, size.height + 200.dp.toPx()))
+            }
+        ) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) { content() }
         }
     }
