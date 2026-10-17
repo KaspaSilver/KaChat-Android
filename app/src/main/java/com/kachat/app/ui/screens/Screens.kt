@@ -849,7 +849,14 @@ fun ChatThreadScreen(
             Column(
                 modifier = Modifier
                     .padding(bottom = dockInset)
-                    .background(LocalAppColors.current.background)
+                    // iOS's composer floats over the thread: the messages show through, fading
+                    // under it, as on the public room (not an opaque band).
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            1f to LocalAppColors.current.background.copy(alpha = 0.85f),
+                        )
+                    )
                     .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
             ) {
             if (fundingGate.active) {
