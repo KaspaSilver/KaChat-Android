@@ -429,7 +429,12 @@ class BroadcastViewModel @Inject constructor(
         if (channelName !in FeaturedBroadcastChannels.CURATED_NAMES) return
         readState.setCuratedShown(channelName, shown)
         val joined = joinedChannels.value.any { it.channelName == channelName }
-        if (!joined) return
+        if (!joined) {
+            // A switch that is on means the room is in the Chats circles: switching on a room not
+            // joined yet joins it (a local subscription - nothing on chain), so it appears at once.
+            if (shown) viewModelScope.launch { broadcastRepository.joinChannel(channelName) }
+            return
+        }
         if (!shown) setNotifyEnabled(channelName, false)
         else if (channelName in FeaturedBroadcastChannels.NAMES) setNotifyEnabled(channelName, true)
     }

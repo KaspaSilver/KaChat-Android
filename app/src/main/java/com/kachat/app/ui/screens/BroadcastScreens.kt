@@ -513,6 +513,8 @@ fun PublicChatsSettingsSheet(
     broadcastViewModel: BroadcastViewModel = hiltViewModel(),
 ) {
     val hidden by broadcastViewModel.hiddenCuratedRooms.collectAsState()
+    val joinedChannels by broadcastViewModel.joinedChannels.collectAsState()
+    val joinedNames = remember(joinedChannels) { joinedChannels.map { it.channelName }.toSet() }
     // iOS presents it as a full-height sheet holding a Form (PublicChatsSettingsView): an inline
     // bar with the title and Done on glass, each section's rooms on an inset-grouped card with
     // inset separators, the headers in the iOS 26 Form style and the footer under its card.
@@ -545,7 +547,9 @@ fun PublicChatsSettingsSheet(
                         if (language != null) Text(language, color = colors.textSecondary, fontSize = 12.sp)
                     }
                     com.kachat.app.ui.theme.IosSwitch(
-                        checked = name !in hidden,
+                        // On only when the room really is in the Chats circles: joined and not
+                        // switched off. A language room never opened reads off until switched on.
+                        checked = name !in hidden && name in joinedNames,
                         onCheckedChange = { shown -> broadcastViewModel.setCuratedRoomShown(name, shown) }
                     )
                 }
