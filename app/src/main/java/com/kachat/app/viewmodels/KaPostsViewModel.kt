@@ -2861,18 +2861,23 @@ class KaPostsViewModel @Inject constructor(
         // outgoing profile's paging surfaces: an in-flight load-more for the previous account
         // must not append its rows into the account now on screen.
         retirePosterProfileSurfaces()
-        // No pubkey handed over: the one the address derives (as @mentions do), so the profile
-        // still loads its posts and counts (iOS 2da301f).
-        val pubkey = handedPubkey ?: KaPostsService.kapostPubkeyFromAddress(address)
-        _posterProfile.value = PosterProfile(address = address, pubkey = pubkey)
+        _posterProfile.value = PosterProfile(address = address, pubkey = handedPubkey)
         _posterProfilePosts.value = emptyList()
         _posterProfileReplies.value = emptyList()
         ensureSenderProfileFetched(address)
-        if (pubkey == null) {
-            _posterProfile.value = _posterProfile.value?.copy(isLoading = false)
-            return
-        }
         viewModelScope.launch {
+            // No pubkey handed over: the address gives the x-only key, but a K key starts with 02
+            // or 03 (about half of all users post with 03) - try both and keep the one the
+            // indexer has posts or followers for (iOS 9fe4dd3, XP-034). The profile's pubkey is
+            // what Follow uses, so it is a handed or resolved one, never a guess.
+            val pubkey = handedPubkey ?: resolveKaPostsPubkey(address)
+            // another profile opened meanwhile: this one is no longer on screen
+            if (_posterProfile.value?.address != address) return@launch
+            if (pubkey == null) {
+                _posterProfile.value = _posterProfile.value?.copy(isLoading = false)
+                return@launch
+            }
+            if (handedPubkey == null) _posterProfile.value = _posterProfile.value?.copy(pubkey = pubkey)
             try {
                 val details = try { kaPostsService.fetchUserDetails(pubkey) } catch (_: Exception) { null }
                 // Replies come from get-replies?user= - the indexer's get-posts never returns them.
@@ -2890,6 +2895,34 @@ class KaPostsViewModel @Inject constructor(
                 _posterProfile.value = _posterProfile.value?.copy(isLoading = false)
             }
         }
+    }
+
+    /** The K pubkey behind an address: "02" or "03" + its x-only key, whichever the indexer has
+     *  posts (or followers) for; null when neither has any (iOS `resolveKaPostsPubkey`). */
+    private suspend fun resolveKaPostsPubkey(address: String): String? {
+        val even = KaPostsService.kapostPubkeyFromAddress(address) ?: return null
+        val candidates = listOf(even, "03" + even.drop(2))
+        for (candidate in candidates) {
+            val posts = try {
+                kaPostsService.fetchUserPostsPage(candidate, limit = 1, includeReplies = true).items
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (!posts.isNullOrEmpty()) return candidate
+        }
+        for (candidate in candidates) {
+            val details = try {
+                kaPostsService.fetchUserDetails(candidate)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (details != null && ((details.followersCount ?: 0) > 0 || (details.followingCount ?: 0) > 0)) return candidate
+        }
+        return null
     }
 
     fun closePosterProfile() {
