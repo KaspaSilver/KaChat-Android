@@ -4375,7 +4375,8 @@ data class KachatSourceInput(val platform: SocialSource.Platform = SocialSource.
  * It can't restart itself (iOS 0f44a07): the lookup runs in one LaunchedEffect at the top of this
  * composable, keyed only by the link and the Retry count - never by [lookup] or the result - so
  * swapping the spinner for the result doesn't cancel and relaunch it. Leaving the composition or a
- * new key cancels the old lookup, so only the latest one ever writes its state.
+ * new key cancels the old lookup, so only the latest one ever writes its state. Coming back into the
+ * composition, it shows the resolver's stored answer at once and re-checks quietly (iOS d17d208).
  */
 @Composable
 private fun KachatSocialPreview(
@@ -4401,6 +4402,23 @@ private fun KachatSocialPreview(
     // cancelled, restarted, failed - the state always lands somewhere final.
     LaunchedEffect(source?.link, attempt) {
         if (source == null) { resolved = null; setLookup(KachatSocialLookup.NONE); return@LaunchedEffect }
+        // The preview came back into the composition (the Save / Clear review left the form and
+        // closed again): the answer this screen already got shows at once - no debounce, no
+        // "Looking up" flash, no refetch (iOS d17d208). Retry (attempt > 0) still runs the full
+        // lookup.
+        val cached = if (attempt == 0) resolver.cachedProfile(source) else null
+        if (cached != null) {
+            resolved = cached
+            setLookup(if (piece(cached) == null) KachatSocialLookup.EMPTY else KachatSocialLookup.FOUND)
+            // Still re-checked quietly (the resolver's own 5-minute freshness): a profile changed
+            // on the platform lands here without the flash.
+            val result = resolver.resolve(source)
+            ensureActive()
+            if (result !is KachatSocialImageResolver.Lookup.Answered || result.profile == cached) return@LaunchedEffect
+            resolved = result.profile
+            setLookup(if (piece(result.profile) == null) KachatSocialLookup.EMPTY else KachatSocialLookup.FOUND)
+            return@LaunchedEffect
+        }
         setLookup(KachatSocialLookup.LOOKING)
         delay(500)
         val result = resolver.resolve(source)

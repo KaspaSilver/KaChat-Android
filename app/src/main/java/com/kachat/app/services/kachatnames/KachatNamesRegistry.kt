@@ -1542,6 +1542,11 @@ class KachatSocialImageResolver @Inject constructor(
     fun cached(link: String?, entries: Map<String, Entry> = _entries.value): SocialProfile? =
         key(link)?.let { entries[it]?.profile }
 
+    /** The stored answer for [source], however old - read only, no lookup started (iOS d17d208
+     *  `cachedProfile`). The profile editor's preview uses it: one that comes back into the
+     *  composition shows its answer again at once instead of debouncing and looking it up afresh. */
+    fun cachedProfile(source: SocialSource): SocialProfile? = _entries.value[source.link]?.profile
+
     /** Starts a lookup for [link] when there is no answer or it is stale (iOS `profile(for:)`'s
      *  side; screens call it when the link appears and read [cached]). */
     fun refreshIfStale(link: String?) {
