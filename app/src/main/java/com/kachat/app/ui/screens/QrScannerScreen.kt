@@ -178,31 +178,54 @@ private fun extractRawBytes(result: Result): ByteArray? {
 
 // Restricting to QR (this app never scans anything else) both speeds up MultiFormatReader's
 // attempt per frame and avoids it occasionally matching a stray non-QR pattern in the frame.
-private val qrOnlyHints = mapOf(DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE))
+// TRY_HARDER searches the frame more thoroughly (a small or angled code), and ALSO_INVERTED also
+// reads a light-on-dark code, as iOS's scanner does.
+private val qrOnlyHints = mapOf(
+    DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+    DecodeHintType.TRY_HARDER to true,
+    DecodeHintType.ALSO_INVERTED to true,
+)
 
 private fun decodeQrCode(imageProxy: ImageProxy, onResult: (Result) -> Unit) {
     try {
-        val buffer = imageProxy.planes[0].buffer
+        val plane = imageProxy.planes[0]
+        val buffer = plane.buffer
+        buffer.rewind()
         val data = ByteArray(buffer.remaining())
         buffer.get(data)
-        val source = PlanarYUVLuminanceSource(
-            data, imageProxy.width, imageProxy.height, 0, 0, imageProxy.width, imageProxy.height, false
-        )
-        val result = try {
-            MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(source)), qrOnlyHints)
-        } catch (e: NotFoundException) {
-            // HybridBinarizer's local-contrast threshold can miss a code under uneven lighting
-            // (e.g. reading a phone/device screen's own backlight glare) that a simpler global
-            // threshold catches — worth one more attempt on the same frame before giving up on it.
-            MultiFormatReader().decode(BinaryBitmap(GlobalHistogramBinarizer(source)), qrOnlyHints)
-        }
-        onResult(result)
-    } catch (e: NotFoundException) {
-        // No QR code in this frame — expected for most frames, just wait for the next one.
+        decodeQrLuminance(data, imageProxy.width, imageProxy.height, plane.rowStride)?.let(onResult)
     } catch (e: Exception) {
-        // Decode failure for this frame — ignore and try the next one.
+        // Decode failure for this frame - ignore and try the next one.
     } finally {
         imageProxy.close()
+    }
+}
+
+/**
+ * Decodes a QR code from a camera frame's luminance (Y) plane, or null when the frame holds none.
+ *
+ * [rowStride] is how many bytes each row of [data] takes, which on many phones is MORE than
+ * [width] (rows are padded for alignment). Reading the plane as if rows were [width] long skews
+ * every row after the first, and nothing in the frame ever decodes - the camera shows, the code
+ * is never read.
+ */
+internal fun decodeQrLuminance(data: ByteArray, width: Int, height: Int, rowStride: Int): Result? {
+    val stride = rowStride.coerceAtLeast(width)
+    // The last row may stop at [width] rather than run the full stride.
+    val rows = minOf(height, (data.size - width) / stride + 1)
+    if (width <= 0 || rows <= 0) return null
+    val source = PlanarYUVLuminanceSource(data, stride, rows, 0, 0, width, rows, false)
+    return try {
+        MultiFormatReader().decode(BinaryBitmap(HybridBinarizer(source)), qrOnlyHints)
+    } catch (e: NotFoundException) {
+        // HybridBinarizer's local-contrast threshold can miss a code under uneven lighting
+        // (e.g. reading a phone/device screen's own backlight glare) that a simpler global
+        // threshold catches - worth one more attempt on the same frame before giving up on it.
+        try {
+            MultiFormatReader().decode(BinaryBitmap(GlobalHistogramBinarizer(source)), qrOnlyHints)
+        } catch (e: NotFoundException) {
+            null
+        }
     }
 }
 
