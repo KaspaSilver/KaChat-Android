@@ -1522,11 +1522,14 @@ internal fun ConversationRow(
             // contact is the live database row (a rename shows at once), and the Address Book and
             // .kachat reads are snapshot state, so the row redraws when either changes.
             val contactLabel = convo.contact.displayName
+            // The chat with yourself is named for what it is; who you are on chain is the chat
+            // HEADER's job (the .kachat domain, else the address - addressDisplayName; iOS 7d11735).
+            val rowTitle = if (convo.contact.id.equals(myAddress, ignoreCase = true)) stringResource(R.string.your_address) else contactLabel
             Row(verticalAlignment = Alignment.CenterVertically) {
               // The name (and the silenced mark) take every bit the date doesn't need.
               Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = contactLabel,
+                    text = rowTitle,
                     // iOS .headline: 17pt semibold
                     fontSize = 17.sp,
                     color = LocalAppColors.current.textPrimary,

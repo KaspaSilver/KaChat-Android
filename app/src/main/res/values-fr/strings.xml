@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">Utilisé lorsqu\'un contact n\'a pas de mode de notification personnalisé défini.</string>
     <string name="per_contact">Par contact</string>
     <string name="per_contact_notification_hint">Définissez le mode de notification par contact dans l\'écran d\'info de chaque discussion : Désactivées, Mode Silence ou Sonore.</string>
-    <string name="your_address_suffix">(Votre adresse)</string>
+    <string name="your_address">Votre adresse</string>
 </resources>

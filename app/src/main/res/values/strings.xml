@@ -1623,6 +1623,6 @@
     <string name="group_info_silent_group_chat">Silent Group Chat</string>
     <string name="group_info_resend_invites_to_all">Resend invites to all</string>
     <string name="group_info_remove_photo">Remove photo</string>
-    <!-- Self-chat title suffix: shown after your own name/address on the chat with yourself (iOS 2ccf3e1) -->
-    <string name="your_address_suffix">(Your address)</string>
+    <!-- The chat list's name for the chat with yourself (iOS 7d11735) -->
+    <string name="your_address">Your Address</string>
 </resources>

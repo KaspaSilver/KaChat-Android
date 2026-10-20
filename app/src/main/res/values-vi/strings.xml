@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">Được sử dụng khi liên hệ chưa đặt chế độ thông báo tùy chỉnh.</string>
     <string name="per_contact">Theo liên hệ</string>
     <string name="per_contact_notification_hint">Đặt chế độ thông báo cho từng liên hệ trong màn hình thông tin trò chuyện: Tắt, Không âm thanh, hoặc Âm thanh.</string>
-    <string name="your_address_suffix">(Địa chỉ của bạn)</string>
+    <string name="your_address">Địa chỉ của bạn</string>
 </resources>

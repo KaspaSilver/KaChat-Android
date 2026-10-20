@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">जब किसी संपर्क के लिए कोई कस्टम सूचना मोड सेट नहीं होता तब उपयोग होता है।</string>
     <string name="per_contact">प्रति संपर्क</string>
     <string name="per_contact_notification_hint">प्रत्येक चैट की जानकारी स्क्रीन में प्रति-संपर्क सूचना मोड सेट करें: Off, No Sound, या Sound।</string>
-    <string name="your_address_suffix">(आपका पता)</string>
+    <string name="your_address">आपका पता</string>
 </resources>

@@ -1359,5 +1359,5 @@
     <string name="notification_sound_footer">Wird verwendet, wenn für einen Kontakt kein benutzerdefinierter Benachrichtigungsmodus festgelegt ist.</string>
     <string name="per_contact">Pro Kontakt</string>
     <string name="per_contact_notification_hint">Stelle den Benachrichtigungsmodus pro Kontakt im Chat-Info-Bildschirm ein: Aus, Kein Ton oder Ton.</string>
-    <string name="your_address_suffix">(Deine Adresse)</string>
+    <string name="your_address">Deine Adresse</string>
 </resources>

@@ -1234,5 +1234,5 @@
     <string name="notification_sound_footer">Digunakan saat kontak tidak memiliki mode pemberitahuan khusus.</string>
     <string name="per_contact">Per Kontak</string>
     <string name="per_contact_notification_hint">Atur mode pemberitahuan per kontak di layar info obrolan: Mati, Tanpa Suara, atau Bersuara.</string>
-    <string name="your_address_suffix">(Alamat Anda)</string>
+    <string name="your_address">Alamat Anda</string>
 </resources>

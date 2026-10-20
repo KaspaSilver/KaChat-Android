@@ -226,26 +226,19 @@ fun addressDisplayName(
     alias: String? = null,
     knsName: String? = null,
     fallback: String = com.kachat.app.util.KaspaAddress.shortDisplay(address)
-): String = ownSuffixed(resolvedDisplayName(address, alias, knsName, fallback), address)
-
-private fun resolvedDisplayName(address: String, alias: String?, knsName: String?, fallback: String): String {
-    alias?.takeIf { it.isNotBlank() }?.let { return it }
-    com.kachat.app.services.AddressBookManager.nameFor(address)?.let { return it }
+): String {
+    // Your own chatting address goes by who you are on chain - your .kachat domain, else the
+    // short address - never a contact or Address Book name (the chat LIST names that chat "Your
+    // Address" itself). So the self chat's header reads kaspero.kachat the moment the domain
+    // exists, and the plain address before it (iOS 7d11735).
+    if (!com.kachat.app.services.WalletManager.isOwnChattingAddress(address)) {
+        alias?.takeIf { it.isNotBlank() }?.let { return it }
+        com.kachat.app.services.AddressBookManager.nameFor(address)?.let { return it }
+    }
     if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
         return com.kachat.app.services.kachatnames.KachatNamesRegistry.kachatName(address) ?: fallback
     }
     return knsName?.takeIf { it.isNotBlank() } ?: fallback
-}
-
-/**
- * The chat with your own chatting address says so: "kaspero.kachat (Your address)" - whatever the
- * name resolves to (your own alias, Address Book, .kachat, the short address), everywhere that
- * chat is named (iOS 2ccf3e1 `ownSuffixed`). Nothing is saved back with the suffix.
- */
-private fun ownSuffixed(name: String, address: String): String {
-    if (!com.kachat.app.services.WalletManager.isOwnChattingAddress(address)) return name
-    val suffix = com.kachat.app.services.WalletManager.ownAddressSuffix() ?: return name
-    return "$name $suffix"
 }
 
 /**

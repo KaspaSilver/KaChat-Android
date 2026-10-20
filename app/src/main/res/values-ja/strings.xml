@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">連絡先にカスタム通知モードが設定されていない場合に使用されます。</string>
     <string name="per_contact">連絡先ごと</string>
     <string name="per_contact_notification_hint">各チャットの情報画面で連絡先ごとの通知モードを設定: オフ、サウンドなし、またはサウンド。</string>
-    <string name="your_address_suffix">（自分のアドレス）</string>
+    <string name="your_address">自分のアドレス</string>
 </resources>

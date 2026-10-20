@@ -123,10 +123,6 @@ class WalletManager @Inject constructor(
             val own = instance?.activeAddressFlow?.value ?: return false
             return address.trim().equals(own.trim(), ignoreCase = true)
         }
-
-        /** "(Your address)", in the app's language - the self chat's name suffix. */
-        internal fun ownAddressSuffix(): String? =
-            instance?.context?.getString(com.kachat.app.R.string.your_address_suffix)
     }
 
     init {

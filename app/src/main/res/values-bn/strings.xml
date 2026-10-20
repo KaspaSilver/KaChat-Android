@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">যখন কোনো কন্টাক্টের কাস্টম নোটিফিকেশন মোড সেট করা নেই তখন ব্যবহৃত।</string>
     <string name="per_contact">প্রতি কন্টাক্ট</string>
     <string name="per_contact_notification_hint">প্রতিটি চ্যাটের তথ্য স্ক্রিনে প্রতি-কন্টাক্ট নোটিফিকেশন মোড সেট করুন: Off, No Sound, বা Sound।</string>
-    <string name="your_address_suffix">(আপনার ঠিকানা)</string>
+    <string name="your_address">আপনার ঠিকানা</string>
 </resources>

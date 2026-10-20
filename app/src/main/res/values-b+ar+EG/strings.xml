@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">يُستخدم عندما لا يكون لجهة الاتصال وضع إشعارات مخصص.</string>
     <string name="per_contact">لكل جهة اتصال</string>
     <string name="per_contact_notification_hint">عيّن وضع الإشعارات لكل جهة اتصال في شاشة معلومات المحادثة: إيقاف، بدون صوت، أو صوت.</string>
-    <string name="your_address_suffix">(عنوانك)</string>
+    <string name="your_address">عنوانك</string>
 </resources>

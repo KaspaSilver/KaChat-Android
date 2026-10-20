@@ -1362,5 +1362,5 @@
     <string name="notification_sound_footer">משמש כשלאיש קשר לא הוגדר מצב התראות מותאם.</string>
     <string name="per_contact">לכל איש קשר</string>
     <string name="per_contact_notification_hint">הגדר מצב התראות לכל איש קשר במסך פרטי הצ\'אט: כבוי, ללא צליל, או צליל.</string>
-    <string name="your_address_suffix">(הכתובת שלך)</string>
+    <string name="your_address">הכתובת שלך</string>
 </resources>
