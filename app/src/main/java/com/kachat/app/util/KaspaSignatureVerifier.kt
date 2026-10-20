@@ -8,12 +8,16 @@ import com.kachat.app.services.ScriptPublicKeyWithVersion
 import com.kachat.app.services.TransactionInput
 import com.kachat.app.services.TransactionOutput
 import com.kachat.app.services.TransactionResponse
+import org.bouncycastle.crypto.digests.Blake2bDigest
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Schnorr signature check of a transaction read from the REST API - the payment sync's guard on
  * incoming payments, a port of iOS `KasiaTransactionBuilder.verifyTransactionSignatures`
  * (KaChatTransactionBuilder.swift, "Schnorr Signature Verification (REST API path)") and of
- * `ChatService.verifyIncomingPaymentSignatures` (ChatService+Fetching.swift), as of iOS 5806362.
+ * `ChatService.verifyIncomingPaymentSignatures` (ChatService+Fetching.swift), as of iOS 8116ab9.
  *
  * Versions 0 and 1. The answer is [SignatureCheck.Valid] (every standard P2PK signature checks
  * out), [SignatureCheck.Invalid] (one is definitively wrong) or [SignatureCheck.Unknown] (it
@@ -21,12 +25,20 @@ import com.kachat.app.services.TransactionResponse
  * are not the standard Schnorr P2PK form (P2SH covenant spends and the like) are not
  * signature-checked. The sighash is the signer's own ([KaspaTransactionSigner.calculateSighash]),
  * the curve maths [Schnorr.verify].
+ *
+ * The verdict rule, the same on every client (audits AND-042, XP-033): a standard key-address
+ * (P2PK Schnorr) input must carry a well-formed signature - a blank, short or wrongly pushed one
+ * cannot be on chain. A signature that fails (or is malformed) makes the payment Invalid only
+ * when the REST fields rebuild the claimed transaction id ([restTransactionId]), i.e. the API
+ * described the transaction completely; otherwise a field the signature covers is missing (lock
+ * time, sequences) and the answer is Unknown. A sighash type other than SIGHASH_ALL is Unknown
+ * too, never a silent pass.
  */
 object KaspaSignatureVerifier {
 
     sealed class SignatureCheck {
         object Valid : SignatureCheck()
-        /** The signature of input [inputIndex] is wrong. */
+        /** The signature of input [inputIndex] (the first that failed) is wrong or malformed. */
         data class Invalid(val inputIndex: Int) : SignatureCheck()
         object Unknown : SignatureCheck()
     }
@@ -53,8 +65,9 @@ object KaspaSignatureVerifier {
         val covenantId: String? = null,
     )
 
-    /** iOS `verifyTransactionSignatures`. */
+    /** iOS `verifyTransactionSignatures`; [claimedTxId] is the id the API gave the transaction. */
     fun verifyTransactionSignatures(
+        claimedTxId: String,
         inputs: List<VerificationInput>,
         outputs: List<VerificationOutput>,
         version: Int,
@@ -105,15 +118,19 @@ object KaspaSignatureVerifier {
             payload = toHex(payload),
         )
 
-        for ((index, input) in inputs.withIndex()) {
-            // 1. 0x41 (push 65 bytes) + 64-byte Schnorr signature + 0x01 (SIGHASH_ALL)
-            val sigScript = hexToBytes(input.signatureScript)
-            if (sigScript == null || sigScript.size != 66 ||
-                sigScript[0] != 0x41.toByte() || sigScript[65] != 0x01.toByte()
-            ) continue // non-standard (a covenant spend, another sighash type): not checked here
-            val signature = sigScript.copyOfRange(1, 65)
+        // Whether the REST fields describe the transaction completely: they rebuild its id.
+        fun restFieldsRebuildId(): Boolean = restTransactionId(
+            version = version,
+            inputs = inputs.map { Triple(it.previousOutpointHash, it.previousOutpointIndex, it.sequence) },
+            outputs = rawOutputs.zip(covenants).map { (output, covenant) ->
+                Triple(output.amount, hexToBytes(output.scriptPublicKey.scriptPublicKey) ?: ByteArray(0), covenant)
+            },
+            lockTime = lockTime, subnetworkId = subnetworkId, gas = gas, payload = payload,
+        )?.equals(claimedTxId, ignoreCase = true) == true
+        var failedInput: Int? = null
 
-            // 2. The spent output's script and amount: without them this input can't be checked yet.
+        for ((index, input) in inputs.withIndex()) {
+            // 1. The spent output's script and amount: without them this input can't be checked yet.
             val address = input.previousOutpointAddress ?: return SignatureCheck.Unknown
             val amount = input.previousOutpointAmount ?: return SignatureCheck.Unknown
             val utxoScript = try {
@@ -122,11 +139,22 @@ object KaspaSignatureVerifier {
                 null
             } ?: return SignatureCheck.Unknown
 
-            // 3. P2PK: <push-32> <32-byte x-only key> OP_CHECKSIG
-            if (utxoScript.size < 34 || utxoScript[0] != 32.toByte() ||
-                utxoScript[utxoScript.size - 1] != 0xAC.toByte()
-            ) continue
+            // 2. Only standard P2PK Schnorr inputs are checked here: <push-32> <32-byte key> OP_CHECKSIG
+            if (utxoScript.size != 34 || utxoScript[0] != 32.toByte() || utxoScript[33] != 0xAC.toByte()) {
+                continue // P2SH (covenant spends), ECDSA and the like
+            }
             val xOnlyPubKey = utxoScript.copyOfRange(1, 33)
+
+            // 3. Such an input's signature script is 0x41 (push 65) + 64-byte Schnorr signature + a
+            // sighash type byte - anything else (blank, short, another push) can't be on chain.
+            val sigScript = hexToBytes(input.signatureScript)
+            if (sigScript == null || sigScript.size != 66 || sigScript[0] != 0x41.toByte()) {
+                if (failedInput == null) failedInput = index
+                continue
+            }
+            // a sighash type this check doesn't hash: can't be decided here
+            if (sigScript[65] != 0x01.toByte()) return SignatureCheck.Unknown
+            val signature = sigScript.copyOfRange(1, 65)
 
             // 4. The sighash this input signed (v0 or v1).
             val sighash = try {
@@ -138,10 +166,84 @@ object KaspaSignatureVerifier {
             // 5. Verify.
             val valid = Schnorr.verify(sighash, signature, xOnlyPubKey)
             sighash.fill(0)
-            if (!valid) return SignatureCheck.Invalid(index)
+            if (!valid && failedInput == null) failedInput = index
         }
-        return SignatureCheck.Valid
+        val failed = failedInput ?: return SignatureCheck.Valid
+        // forged only when the API described the whole transaction; else something it left out
+        // (that the signature covers) is the likelier reason
+        return if (restFieldsRebuildId()) SignatureCheck.Invalid(failed) else SignatureCheck.Unknown
     }
+
+    /**
+     * The transaction id as the chain computes it, from REST fields (iOS `restTransactionId`;
+     * rusty-kaspa consensus/core/src/hashing/tx.rs): version 0 = blake2b keyed "TransactionID"
+     * over the encoding with signature scripts and mass commitments excluded, payload included;
+     * version 1 = TransactionV1Id(PayloadDigest(payload) || TransactionRest(the same encoding with
+     * the payload excluded too)), keyed BLAKE3. Output script version 0. Inputs are (outpoint
+     * hash, index, sequence), outputs (amount, script, covenant). Null when an outpoint hash
+     * isn't 32 bytes of hex. Checked against real mainnet txs (KaspaSignatureVerifierTest).
+     */
+    fun restTransactionId(
+        version: Int,
+        inputs: List<Triple<String, Int, Long>>,
+        outputs: List<Triple<Long, ByteArray, KaspaTransactionSigner.OutputCovenant?>>,
+        lockTime: Long,
+        subnetworkId: ByteArray,
+        gas: Long,
+        payload: ByteArray,
+    ): String? {
+        val body = ByteArrayOutputStream()
+        body.write(le16(version))
+        body.write(le64(inputs.size.toLong()))
+        for ((hashHex, index, sequence) in inputs) {
+            val hash = hexToBytes(hashHex)
+            if (hash == null || hash.size != 32) return null
+            body.write(hash)
+            body.write(le32(index))
+            body.write(varBytes(ByteArray(0)))
+            body.write(le64(sequence))
+        }
+        body.write(le64(outputs.size.toLong()))
+        for ((amount, script, covenant) in outputs) {
+            body.write(le64(amount))
+            body.write(le16(0))
+            body.write(varBytes(script))
+            if (version >= 1) {
+                if (covenant != null) {
+                    body.write(1)
+                    body.write(le16(covenant.authorizingInput))
+                    body.write(covenant.covenantId)
+                } else {
+                    body.write(0)
+                }
+            }
+        }
+        body.write(le64(lockTime))
+        body.write(subnetworkId.copyOf(20)) // zero padded / cut to 20 bytes
+        body.write(le64(gas))
+        val digest = if (version == 0) {
+            val hasher = Blake2bDigest("TransactionID".toByteArray(Charsets.US_ASCII), 32, null, null)
+            val bytes = body.toByteArray() + varBytes(payload)
+            hasher.update(bytes, 0, bytes.size)
+            ByteArray(32).also { hasher.doFinal(it, 0) }
+        } else {
+            val payloadDigest = Blake3.domain("PayloadDigest").update(payload).finalize()
+            val rest = Blake3.domain("TransactionRest").update(body.toByteArray() + varBytes(ByteArray(0))).finalize()
+            Blake3.domain("TransactionV1Id").update(payloadDigest + rest).finalize()
+        }
+        return toHex(digest)
+    }
+
+    private fun le16(value: Int): ByteArray =
+        ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(value.toShort()).array()
+
+    private fun le32(value: Int): ByteArray =
+        ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
+
+    private fun le64(value: Long): ByteArray =
+        ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array()
+
+    private fun varBytes(bytes: ByteArray): ByteArray = le64(bytes.size.toLong()) + bytes
 
     /**
      * The check iOS `verifyIncomingPaymentSignatures` runs on a received REST transaction: every
@@ -192,6 +294,7 @@ object KaspaSignatureVerifier {
             )
         }
         return verifyTransactionSignatures(
+            claimedTxId = tx.transactionId,
             inputs = verificationInputs,
             outputs = outputs,
             version = tx.version?.trim()?.toIntOrNull() ?: 0,

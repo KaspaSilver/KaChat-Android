@@ -93,6 +93,9 @@ class ChatRepository @Inject constructor(
     /** Domain names for the KNS transfer messages the payment sync files ([ingestKnsTransferMessage]).
      *  Lazy like the services above, so it never joins a construction cycle. */
     private val knsServiceLazy: dagger.Lazy<com.kachat.app.services.KnsService>,
+    /** The node a received payment the REST answer can't settle is confirmed with
+     *  ([nodeConfirmsIncomingPayment]). Lazy like the services above. */
+    private val nodePoolManagerLazy: dagger.Lazy<com.kachat.app.services.NodePoolManager>,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -2599,7 +2602,8 @@ class ChatRepository @Inject constructor(
         // Payments held because their signatures couldn't be checked yet are read again by id -
         // the pages above may already be past them - and checked again below, past the time
         // filter (iOS 5806362 fetchPaymentsFromKaspaAPI). A read that fails just leaves the
-        // payment held; it never makes this sync incomplete.
+        // payment held; it never makes this sync incomplete. Every held txid is due, whether it is
+        // on these pages or read by id (iOS 8116ab9, IOS-091).
         val heldTxIds = HashSet<String>()
         val present = transactions.mapTo(HashSet()) { it.transactionId.lowercase() }
         for (txId in heldPaymentTxIds(myAddress)) {
@@ -2687,11 +2691,12 @@ class ChatRepository @Inject constructor(
      *  for the transient no-input-address-resolved gap, which the next poll must retry.
      *  Both directions, as iOS `processPayments`: a payment we sent goes to [processOutgoingPayment]. */
     private suspend fun processPayment(myAddress: String, tx: TransactionResponse, restApi: KaspaRestApi): Boolean {
-        val payloadBytes = tx.payload?.hexToBytes() ?: ByteArray(0)
+        // var: a payment only the node confirmed is filed without its payload (see the check below)
+        var payloadBytes = tx.payload?.hexToBytes() ?: ByteArray(0)
         // A KaChat payment carries `kchat:1:pay:` with its memo encrypted to us (iOS always
         // writes one; Android writes one when there is a memo, iOS 8d208b2). It is still a
         // payment - only messages and handshakes are someone else's job.
-        val isPaymentPayload = MessageProtocol.isPaymentPayload(payloadBytes)
+        var isPaymentPayload = MessageProtocol.isPaymentPayload(payloadBytes)
         if (!isPaymentPayload && MessageProtocol.isKaChatPayload(payloadBytes)) return true // real message/handshake, not a plain payment
         // A .kachat registry or offer transaction (its kchat:1:name: / offer: payload is caught
         // above) pays to or from a script (P2SH) address - the commit, the name's 1 KAS bond, an
@@ -2755,10 +2760,22 @@ class ChatRepository @Inject constructor(
                 return true
             }
             com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Unknown -> {
-                holdPayment(myAddress, tx.transactionId)
-                Log.i("ChatRepository", "Payment ${tx.transactionId.take(16)} held - its signatures can't be checked yet")
-                // Final for this read: the held list brings it back on every sync.
-                return true
+                // The REST answer can't settle it (a field the signature covers is missing). Our
+                // node can: a coin from this txid paying this address the amount means the
+                // payment is real (iOS 8116ab9, XP-033).
+                if (nodeConfirmsIncomingPayment(tx.transactionId, myAddress, receivedSompi)) {
+                    releaseHeldPayment(myAddress, tx.transactionId)
+                    Log.i("ChatRepository", "Payment ${tx.transactionId.take(16)} confirmed by the node (signatures not checkable from REST)")
+                    // the amount is proven, a memo from the REST answer is not (the payload is
+                    // part of what could not be checked): filed as a plain payment
+                    payloadBytes = ByteArray(0)
+                    isPaymentPayload = false
+                } else {
+                    holdPayment(myAddress, tx.transactionId)
+                    Log.i("ChatRepository", "Payment ${tx.transactionId.take(16)} held - its signatures can't be checked yet")
+                    // Final for this read: the held list brings it back on every sync.
+                    return true
+                }
             }
         }
         // Moving your own money between your own addresses is not a conversation (iOS
@@ -2930,6 +2947,19 @@ class ChatRepository @Inject constructor(
     }
 
     // MARK: Received payments held for their signature check (iOS 5806362)
+
+    /** Whether our node lists coins created by [txId] that pay [address] exactly [amount] (the
+     *  payment's outputs to us, still unspent - iOS `nodeConfirmsIncomingPayment`). The node is a
+     *  second source the REST API can't speak for; a coin already spent can't be seen this way,
+     *  so such a payment stays held. */
+    private suspend fun nodeConfirmsIncomingPayment(txId: String, address: String, amount: Long): Boolean {
+        if (amount <= 0) return false
+        val utxos = nodePoolManagerLazy.get().getUtxosByAddress(address) ?: return false
+        val paid = utxos
+            .filter { it.outpoint.transactionId.equals(txId, ignoreCase = true) }
+            .sumOf { it.utxoEntry.amount }
+        return paid == amount
+    }
 
     /** Serializes the read-modify-write of the held list (two syncs can run at once). */
     private val heldPaymentsMutex = kotlinx.coroutines.sync.Mutex()

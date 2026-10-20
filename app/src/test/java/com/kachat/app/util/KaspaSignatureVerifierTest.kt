@@ -76,40 +76,70 @@ class KaspaSignatureVerifierTest {
     }
 
     @Test
-    fun `a tampered or redirected output fails`() {
+    fun `the REST fields rebuild the real transaction ids`() {
+        for (id in listOf(v0Change, v0OneOut, v0Payment, v0Payload, v1Plain, v1Subnetwork) + v1Covenants) {
+            val tx = load(id)
+            val rebuilt = KaspaSignatureVerifier.restTransactionId(
+                version = tx.version!!.toInt(),
+                inputs = tx.inputs.map { Triple(it.previousOutpointHash, it.previousOutpointIndex, 0L) },
+                outputs = tx.outputs.map { output ->
+                    val covenant = output.covenantId?.let { idHex ->
+                        KaspaTransactionSigner.OutputCovenant(
+                            output.covenantAuthorizingInput!!.toInt(),
+                            ByteArray(32) { i -> idHex.substring(2 * i, 2 * i + 2).toInt(16).toByte() },
+                        )
+                    }
+                    Triple(output.amount, ByteArray(output.scriptPublicKey.length / 2) { i ->
+                        output.scriptPublicKey.substring(2 * i, 2 * i + 2).toInt(16).toByte()
+                    }, covenant)
+                },
+                lockTime = 0, subnetworkId = ByteArray(tx.subnetworkId!!.length / 2) { i ->
+                    tx.subnetworkId!!.substring(2 * i, 2 * i + 2).toInt(16).toByte()
+                },
+                gas = 0,
+                payload = ByteArray((tx.payload ?: "").length / 2) { i -> tx.payload!!.substring(2 * i, 2 * i + 2).toInt(16).toByte() },
+            )
+            assertEquals(id, id, rebuilt)
+        }
+    }
+
+    // A failure is Invalid only when the REST fields rebuild the claimed id (XP-033): a changed
+    // output, covenant or payload changes the id too, so the API's answer is incomplete - Unknown.
+    @Test
+    fun `a tampered or redirected output is unknown, as the id no longer rebuilds`() {
         for (id in listOf(v0Payment, v1Plain)) {
             val tx = load(id)
             val more = tx.outputs.toMutableList().also { it[0] = it[0].copy(amount = it[0].amount + 1) }
-            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(outputs = more)))
+            assertEquals(id, SignatureCheck.Unknown, check(tx.copy(outputs = more)))
             val redirected = tx.outputs.toMutableList().also { it[0] = it[0].copy(scriptPublicKey = tx.outputs[1].scriptPublicKey) }
-            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(outputs = redirected)))
+            assertEquals(id, SignatureCheck.Unknown, check(tx.copy(outputs = redirected)))
         }
     }
 
     @Test
-    fun `a tampered covenant binding fails the version 1 hash`() {
+    fun `a tampered covenant binding is unknown, as the id no longer rebuilds`() {
         val tx = load(v1Covenants[0])
         val bound = tx.outputs.indexOfFirst { it.covenantId != null }
-        val signed = tx.inputs.indexOfFirst { it.signatureScript.length == 132 }
         val otherId = tx.outputs.toMutableList().also {
             it[bound] = it[bound].copy(covenantId = "00".repeat(32))
         }
-        assertEquals(SignatureCheck.Invalid(signed), check(tx.copy(outputs = otherId)))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = otherId)))
         val unbound = tx.outputs.toMutableList().also {
             it[bound] = it[bound].copy(covenantAuthorizingInput = null, covenantId = null)
         }
-        assertEquals(SignatureCheck.Invalid(signed), check(tx.copy(outputs = unbound)))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = unbound)))
     }
 
     @Test
-    fun `a tampered spent amount or payload fails`() {
+    fun `a tampered spent amount fails, a tampered payload is unknown`() {
         for (id in listOf(v0Payload, v1Subnetwork)) {
             val tx = load(id)
             val input = tx.inputs[0]
+            // the spent amount is not part of the id: the API described the transaction, the signature fails
             assertEquals(id, SignatureCheck.Invalid(0), check(
                 tx.copy(inputs = listOf(input.copy(previousOutpointAmount = input.previousOutpointAmount!! - 1)))
             ))
-            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(payload = tx.payload!!.dropLast(2) + "00")))
+            assertEquals(id, SignatureCheck.Unknown, check(tx.copy(payload = tx.payload!!.dropLast(2) + "00")))
         }
     }
 
@@ -147,13 +177,21 @@ class KaspaSignatureVerifierTest {
     }
 
     @Test
-    fun `what cannot be checked is unknown, a coinbase and non-standard inputs pass`() {
+    fun `what cannot be checked is unknown, a coinbase passes, a malformed signature fails`() {
         val tx = load(v0OneOut)
         val input = tx.inputs[0]
         // a coinbase has no signatures
         assertEquals(SignatureCheck.Valid, check(tx.copy(inputs = emptyList())))
-        // a non-standard signature script (a covenant spend, another sighash type) is not checked
-        assertEquals(SignatureCheck.Valid, check(tx.copy(inputs = listOf(input.copy(signatureScript = "00")))))
+        // a key-address input must carry a well-formed signature: a blank, short or wrongly pushed
+        // one is a failure (AND-042), and the id rebuilds, so it is forged
+        for (script in listOf("", "00", input.signatureScript.drop(2), "40" + input.signatureScript.drop(2))) {
+            assertEquals(script, SignatureCheck.Invalid(0), check(tx.copy(inputs = listOf(input.copy(signatureScript = script)))))
+        }
+        // a sighash type other than SIGHASH_ALL can't be checked here: unknown, never a pass
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputs = listOf(input.copy(signatureScript = input.signatureScript.dropLast(2) + "81")))))
+        // a wrong claimed id: a failing signature can't be called forged
+        val flipped = input.signatureScript.substring(0, 10) + (if (input.signatureScript[10] == '0') '1' else '0') + input.signatureScript.substring(11)
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(transactionId = "00".repeat(32), inputs = listOf(input.copy(signatureScript = flipped)))))
         // an output without script data, a malformed covenant id, an address that doesn't decode
         assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(scriptPublicKey = "")))))
         assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(covenantAuthorizingInput = "0", covenantId = "abcd")))))
