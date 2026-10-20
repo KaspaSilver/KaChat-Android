@@ -1362,4 +1362,5 @@
     <string name="notification_sound_footer">Se usa cuando un contacto no tiene un modo de notificacion personalizado establecido.</string>
     <string name="per_contact">Por contacto</string>
     <string name="per_contact_notification_hint">Establece el modo de notificacion por contacto en la pantalla de info del chat: Desactivado, Sin sonido o Sonido.</string>
+    <string name="your_address_suffix">(Tu dirección)</string>
 </resources>

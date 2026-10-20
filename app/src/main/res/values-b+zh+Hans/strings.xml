@@ -1362,4 +1362,5 @@
     <string name="notification_sound_footer">当联系人未设置自定义通知模式时使用。</string>
     <string name="per_contact">按联系人</string>
     <string name="per_contact_notification_hint">在每个聊天的信息页面设置联系人通知模式：关闭、静音或声音。</string>
+    <string name="your_address_suffix">（你的地址）</string>
 </resources>

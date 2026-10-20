@@ -1362,4 +1362,5 @@
     <string name="notification_sound_footer">Bir kişinin özel bildirim modu ayarlanmadığında kullanılır.</string>
     <string name="per_contact">Kişi Başına</string>
     <string name="per_contact_notification_hint">Her sohbetin bilgi ekranında kişi başına bildirim modunu ayarlayın: Kapalı, Ses Yok veya Ses.</string>
+    <string name="your_address_suffix">(Adresiniz)</string>
 </resources>

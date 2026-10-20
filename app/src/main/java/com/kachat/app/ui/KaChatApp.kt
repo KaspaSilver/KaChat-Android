@@ -172,6 +172,7 @@ val Screen.hubTitle: String
         Screen.Swap -> "ChangeNOW Swap"
         Screen.KaspaWebsites -> "Kaspa Websites"
         Screen.Chess -> "Chess Online"
+        Screen.KachatNames -> ".kachat Domains"
         Screen.KachatStats -> "KaChat Stats"
         Screen.KachatBots -> "KaChat Bots"
         else -> label

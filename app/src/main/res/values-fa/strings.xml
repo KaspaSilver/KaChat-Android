@@ -1393,4 +1393,5 @@
     <string name="notification_sound_footer">زمانی استفاده می‌شود که مخاطب حالت اعلان سفارشی تنظیم نکرده باشد.</string>
     <string name="per_contact">به ازای هر مخاطب</string>
     <string name="per_contact_notification_hint">حالت اعلان هر مخاطب را در صفحه اطلاعات گفتگو تنظیم کنید: خاموش، بدون صدا، یا صدا.</string>
+    <string name="your_address_suffix">(نشانی شما)</string>
 </resources>

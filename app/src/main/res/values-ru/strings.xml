@@ -1362,4 +1362,5 @@
     <string name="notification_sound_footer">Используется, когда у контакта не установлен свой режим уведомлений.</string>
     <string name="per_contact">По контактам</string>
     <string name="per_contact_notification_hint">Установите режим уведомлений для каждого контакта в информации о чате: Выкл, Без звука или Звук.</string>
+    <string name="your_address_suffix">(Ваш адрес)</string>
 </resources>

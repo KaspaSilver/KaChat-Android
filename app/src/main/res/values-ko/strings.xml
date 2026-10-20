@@ -1362,4 +1362,5 @@
     <string name="notification_sound_footer">연락처에 사용자 지정 알림 모드가 설정되지 않은 경우 사용됩니다.</string>
     <string name="per_contact">연락처별</string>
     <string name="per_contact_notification_hint">각 채팅 정보 화면에서 연락처별 알림 모드를 설정하세요: 끄기, 소리 없음, 또는 소리.</string>
+    <string name="your_address_suffix">(내 주소)</string>
 </resources>

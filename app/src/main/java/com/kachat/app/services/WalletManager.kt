@@ -114,6 +114,19 @@ class WalletManager @Inject constructor(
         // an Android asset and initialize INSTANCE from it manually instead.
         private const val WORDLIST_ASSET_NAME = "bip39-wordlist-english.txt"
         private const val WORDLIST_SHA256 = "ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db"
+
+        @Volatile private var instance: WalletManager? = null
+
+        /** True when [address] is the active account's own chatting address - the chat with
+         *  yourself (iOS `WalletManager.shared.currentWallet?.publicAddress`). */
+        fun isOwnChattingAddress(address: String): Boolean {
+            val own = instance?.activeAddressFlow?.value ?: return false
+            return address.trim().equals(own.trim(), ignoreCase = true)
+        }
+
+        /** "(Your address)", in the app's language - the self chat's name suffix. */
+        internal fun ownAddressSuffix(): String? =
+            instance?.context?.getString(com.kachat.app.R.string.your_address_suffix)
     }
 
     init {
@@ -351,6 +364,12 @@ class WalletManager @Inject constructor(
 
     private fun refreshActiveAddressFlow() {
         _activeAddress.value = computeActiveAddress()
+    }
+
+    init {
+        // the display-name rule (addressDisplayName) reaches the active address through the
+        // companion, from code Hilt does not inject
+        instance = this
     }
 
     /**
