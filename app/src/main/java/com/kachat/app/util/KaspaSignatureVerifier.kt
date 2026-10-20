@@ -8,6 +8,7 @@ import com.kachat.app.services.ScriptPublicKeyWithVersion
 import com.kachat.app.services.TransactionInput
 import com.kachat.app.services.TransactionOutput
 import com.kachat.app.services.TransactionResponse
+import com.kachat.app.services.kachatnames.KachatNames
 import org.bouncycastle.crypto.digests.Blake2bDigest
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -21,10 +22,12 @@ import java.nio.ByteOrder
  *
  * Versions 0 and 1. The answer is [SignatureCheck.Valid] (every standard P2PK signature checks
  * out), [SignatureCheck.Invalid] (one is definitively wrong) or [SignatureCheck.Unknown] (it
- * can't be checked yet - a spent output not resolved, data missing): ask again later. Inputs that
- * are not the standard Schnorr P2PK form (P2SH covenant spends and the like) are not
- * signature-checked. The sighash is the signer's own ([KaspaTransactionSigner.calculateSighash]),
- * the curve maths [Schnorr.verify].
+ * can't be checked yet - a spent output not resolved, data missing): ask again later. Checked
+ * inputs are standard P2PK and KIP-22 quantum-address P2SH spends (the signature and key from the
+ * signature script, the key bound to the address by the redeem's hash, the sighash over the P2SH
+ * script - the same the signer uses, iOS 54265bf). Other P2SH spends (covenants) are not
+ * signature-checked; such a transaction is a contract and never files as a payment. The sighash
+ * is the signer's own ([KaspaTransactionSigner.calculateSighash]), the curve maths [Schnorr.verify].
  *
  * The verdict rule, the same on every client (audits AND-042, XP-033): a standard key-address
  * (P2PK Schnorr) input must carry a well-formed signature - a blank, short or wrongly pushed one
@@ -139,22 +142,51 @@ object KaspaSignatureVerifier {
                 null
             } ?: return SignatureCheck.Unknown
 
-            // 2. Only standard P2PK Schnorr inputs are checked here: <push-32> <32-byte key> OP_CHECKSIG
-            if (utxoScript.size != 34 || utxoScript[0] != 32.toByte() || utxoScript[33] != 0xAC.toByte()) {
-                continue // P2SH (covenant spends), ECDSA and the like
+            // 2. The input's kind, from the spent output's script. Standard P2PK Schnorr
+            // (<push-32> <32-byte key> OP_CHECKSIG) and KIP-22 quantum-address P2SH spends are both
+            // checked; any other P2SH spend is a covenant, not checked here - such a transaction is
+            // a contract and never files as a payment, while a KIP-22 spend passes the contract
+            // filter, so skipping it here would leave a forged all-quantum "payment" with no
+            // signature checked at all.
+            val xOnlyPubKey: ByteArray
+            val signature: ByteArray
+            if (utxoScript.size == 34 && utxoScript[0] == 32.toByte() && utxoScript[33] == 0xAC.toByte()) {
+                // 3. A P2PK input's signature script is 0x41 (push 65) + 64-byte Schnorr signature +
+                // a sighash type byte - anything else (blank, short, another push) can't be on chain.
+                val sigScript = hexToBytes(input.signatureScript)
+                if (sigScript == null || sigScript.size != 66 || sigScript[0] != 0x41.toByte()) {
+                    if (failedInput == null) failedInput = index
+                    continue
+                }
+                // a sighash type this check doesn't hash: can't be decided here
+                if (sigScript[65] != 0x01.toByte()) return SignatureCheck.Unknown
+                xOnlyPubKey = utxoScript.copyOfRange(1, 33)
+                signature = sigScript.copyOfRange(1, 65)
+            } else if (utxoScript.size == 35 && utxoScript[0] == 0xAA.toByte() && utxoScript[1] == 0x20.toByte() &&
+                utxoScript[34] == 0x87.toByte()
+            ) {
+                // 3b. P2SH. A KIP-22 spend's signature script is 0x41 <64-byte signature> <sighash
+                // byte> then the canonical push 0x22 of the 34-byte redeem 0x20 <x-only key> 0xac
+                // (101 bytes); any other shape is a covenant spend, skipped like before.
+                val sigScript = hexToBytes(input.signatureScript) ?: return SignatureCheck.Unknown
+                if (sigScript.size != 101 || sigScript[0] != 0x41.toByte() || sigScript[66] != 0x22.toByte() ||
+                    sigScript[67] != 0x20.toByte() || sigScript[100] != 0xAC.toByte()
+                ) {
+                    continue
+                }
+                // The key is bound to the address by the redeem's hash: a KIP-22-shaped script whose
+                // redeem doesn't hash to this very address can't be on chain for it.
+                val redeem = sigScript.copyOfRange(67, 101)
+                if (!KachatNames.blake2b256(redeem).contentEquals(utxoScript.copyOfRange(2, 34))) {
+                    if (failedInput == null) failedInput = index
+                    continue
+                }
+                if (sigScript[65] != 0x01.toByte()) return SignatureCheck.Unknown
+                xOnlyPubKey = sigScript.copyOfRange(68, 100)
+                signature = sigScript.copyOfRange(1, 65)
+            } else {
+                continue // ECDSA and the like: not checked here
             }
-            val xOnlyPubKey = utxoScript.copyOfRange(1, 33)
-
-            // 3. Such an input's signature script is 0x41 (push 65) + 64-byte Schnorr signature + a
-            // sighash type byte - anything else (blank, short, another push) can't be on chain.
-            val sigScript = hexToBytes(input.signatureScript)
-            if (sigScript == null || sigScript.size != 66 || sigScript[0] != 0x41.toByte()) {
-                if (failedInput == null) failedInput = index
-                continue
-            }
-            // a sighash type this check doesn't hash: can't be decided here
-            if (sigScript[65] != 0x01.toByte()) return SignatureCheck.Unknown
-            val signature = sigScript.copyOfRange(1, 65)
 
             // 4. The sighash this input signed (v0 or v1).
             val sighash = try {

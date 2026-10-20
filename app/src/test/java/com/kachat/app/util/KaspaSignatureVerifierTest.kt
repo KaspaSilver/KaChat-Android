@@ -1,10 +1,21 @@
 package com.kachat.app.util
 
 import com.google.gson.Gson
+import com.kachat.app.services.Outpoint
+import com.kachat.app.services.RawInput
+import com.kachat.app.services.RawOutputWithVersion
+import com.kachat.app.services.RawTransaction
+import com.kachat.app.services.ScriptPublicKey
+import com.kachat.app.services.ScriptPublicKeyWithVersion
 import com.kachat.app.services.TransactionOutput
 import com.kachat.app.services.TransactionResponse
+import com.kachat.app.services.UtxoData
+import com.kachat.app.services.UtxoEntry
+import com.kachat.app.services.WalletManager
 import com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck
 import kotlinx.coroutines.runBlocking
+import org.bitcoinj.crypto.ChildNumber
+import org.bitcoinj.crypto.HDKeyDerivation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -196,6 +207,121 @@ class KaspaSignatureVerifierTest {
         assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(scriptPublicKey = "")))))
         assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(covenantAuthorizingInput = "0", covenantId = "abcd")))))
         assertEquals(SignatureCheck.Unknown, check(tx.copy(inputs = listOf(input.copy(previousOutpointAddress = "kaspa:nope")))))
+    }
+
+    // KIP-22 quantum-address (P2SH) spends (iOS 54265bf), signed by the wallet's own signer with
+    // the QuantumAddressTest vectors (public all-zero-entropy test mnemonic - not a real wallet).
+    private val quantumChain by lazy { WalletManager.quantumChainNode(WalletManager.seedFor(List(23) { "abandon" } + "art", "")) }
+
+    /** A two-input spend from quantum address #1, signed with key #[signer]'s key and redeem. */
+    private fun quantumSpend(signer: Int = 1): Pair<RawTransaction, List<UtxoEntry>> {
+        val address = WalletManager.quantumAddress(quantumChain, 1)
+        val spk = KaspaAddress.getScriptPublicKey(address)
+        val utxos = listOf(150_000_000L, 70_000_000L).mapIndexed { i, amount ->
+            UtxoEntry(
+                address = address,
+                outpoint = Outpoint(transactionId = "%064x".format(i + 0xabc), index = i),
+                utxoEntry = UtxoData(amount = amount, scriptPublicKey = ScriptPublicKey(spk), blockDaaScore = 1L, isCoinbase = false)
+            )
+        }
+        val tx = RawTransaction(
+            inputs = utxos.map { RawInput(previousOutpoint = it.outpoint, signatureScript = "") },
+            outputs = listOf(
+                RawOutputWithVersion(200_000_000L, ScriptPublicKeyWithVersion(KaspaAddress.getScriptPublicKey("kaspa:qppt49jerlp2vjquvhfjcpzkna7g26jzu2r88wwsnt3zndq4qvnnywxtsehh8"), 0)),
+                RawOutputWithVersion(19_990_000L, ScriptPublicKeyWithVersion(KaspaAddress.getScriptPublicKey(WalletManager.quantumAddress(quantumChain, 2)), 0)),
+            ),
+        )
+        val key = HDKeyDerivation.deriveChildKey(quantumChain, ChildNumber(signer, false))
+        return KaspaTransactionSigner.signTransaction(tx, utxos, key.privKeyBytes, redeemScript = WalletManager.quantumRedeemScript(key)) to utxos
+    }
+
+    private fun bytes(hex: String) = ByteArray(hex.length / 2) { i -> hex.substring(2 * i, 2 * i + 2).toInt(16).toByte() }
+
+    /** The verifier's answer for [tx] as the REST API would describe it, its id rebuilt from the
+     *  same fields (so a failure is Invalid); [scripts] replaces the signature scripts. */
+    private fun verifyQuantum(tx: RawTransaction, utxos: List<UtxoEntry>, scripts: List<String> = tx.inputs.map { it.signatureScript }): SignatureCheck {
+        val id = KaspaSignatureVerifier.restTransactionId(
+            version = 0,
+            inputs = tx.inputs.map { Triple(it.previousOutpoint.transactionId, it.previousOutpoint.index, it.sequence) },
+            outputs = tx.outputs.map { Triple(it.amount, bytes(it.scriptPublicKey.scriptPublicKey), null) },
+            lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
+        )!!
+        return KaspaSignatureVerifier.verifyTransactionSignatures(
+            claimedTxId = id,
+            inputs = tx.inputs.mapIndexed { i, input ->
+                KaspaSignatureVerifier.VerificationInput(
+                    previousOutpointHash = input.previousOutpoint.transactionId,
+                    previousOutpointIndex = input.previousOutpoint.index,
+                    signatureScript = scripts[i],
+                    previousOutpointAddress = utxos[i].address,
+                    previousOutpointAmount = utxos[i].utxoEntry.amount,
+                    sequence = input.sequence,
+                    sigOpCount = input.sigOpCount,
+                )
+            },
+            outputs = tx.outputs.map { KaspaSignatureVerifier.VerificationOutput(it.amount, it.scriptPublicKey.scriptPublicKey) },
+            version = 0, lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
+        )
+    }
+
+    @Test
+    fun `a real KIP-22 spend verifies`() {
+        val (tx, utxos) = quantumSpend()
+        tx.inputs.forEach { assertEquals(202, it.signatureScript.length) }
+        assertTrue(utxos[0].utxoEntry.scriptPublicKey.scriptPublicKey.startsWith("aa20"))
+        assertEquals(SignatureCheck.Valid, verifyQuantum(tx, utxos))
+    }
+
+    @Test
+    fun `a KIP-22 spend with a tampered signature fails`() {
+        val (tx, utxos) = quantumSpend()
+        val scripts = tx.inputs.map { it.signatureScript }.toMutableList()
+        val sig = scripts[1]
+        scripts[1] = sig.substring(0, 10) + (if (sig[10] == '0') '1' else '0') + sig.substring(11)
+        assertEquals(SignatureCheck.Invalid(1), verifyQuantum(tx, utxos, scripts))
+    }
+
+    @Test
+    fun `a KIP-22 spend whose redeem hashes to another address fails`() {
+        // key #0 signs the sighash of address #1's outputs correctly, but its redeem is address #0's:
+        // the signature checks out against its own key, the key just isn't this address's
+        val (tx, utxos) = quantumSpend(signer = 0)
+        val key = HDKeyDerivation.deriveChildKey(quantumChain, ChildNumber(0, false))
+        val sighash = KaspaTransactionSigner.calculateSighash(tx, 0, utxos[0].utxoEntry.amount, utxos[0].utxoEntry.scriptPublicKey.scriptPublicKey)
+        assertTrue(Schnorr.verify(sighash, bytes(tx.inputs[0].signatureScript).copyOfRange(1, 65), Schnorr.publicKeyXOnly(key.privKeyBytes)))
+        assertEquals(SignatureCheck.Invalid(0), verifyQuantum(tx, utxos))
+    }
+
+    @Test
+    fun `a KIP-22 sighash type other than SIGHASH_ALL is unknown`() {
+        val (tx, utxos) = quantumSpend()
+        val scripts = tx.inputs.map { it.signatureScript }.toMutableList()
+        scripts[0] = scripts[0].substring(0, 130) + "81" + scripts[0].substring(132)
+        assertEquals(SignatureCheck.Unknown, verifyQuantum(tx, utxos, scripts))
+    }
+
+    @Test
+    fun `a covenant-shaped P2SH spend is skipped`() {
+        val (tx, utxos) = quantumSpend()
+        val script = tx.inputs[0].signatureScript
+        // not the KIP-22 shape: a redeem that isn't <push-32> <key> OP_CHECKSIG, a longer script,
+        // a different push - each a covenant spend, not signature-checked (and the input with it)
+        val covenants = listOf(
+            script.dropLast(2) + "87",
+            script + "51",
+            script.substring(0, 132) + "21" + script.substring(134),
+            "00",
+            "",
+        )
+        for (covenant in covenants) {
+            assertEquals(covenant, SignatureCheck.Valid, verifyQuantum(tx, utxos, listOf(covenant, covenant)))
+        }
+        // a skipped input doesn't excuse the KIP-22 one beside it
+        val second = tx.inputs[1].signatureScript
+        val flipped = second.substring(0, 10) + (if (second[10] == '0') '1' else '0') + second.substring(11)
+        assertEquals(SignatureCheck.Invalid(1), verifyQuantum(tx, utxos, listOf(covenants[0], flipped)))
+        // a signature script that isn't hex can't be read: unknown
+        assertEquals(SignatureCheck.Unknown, verifyQuantum(tx, utxos, listOf("zz", tx.inputs[1].signatureScript)))
     }
 
     @Test
