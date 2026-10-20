@@ -62,7 +62,11 @@ object KaspaUtxoSelector {
         changeScriptLen: Int,
         /** A flat extra on top of the mass-priced fee - the Send KAS sheet's Fast / Priority /
          *  custom fee (iOS extraFeeSompi, 62c2773). Paid exactly: it is part of [SelectionResult.estimatedFee]. */
-        extraFeeSompi: Long = 0L
+        extraFeeSompi: Long = 0L,
+        /** Each input's signature-script size: [KaspaMass.KIP22_SIGNATURE_SCRIPT_LEN] for a
+         *  quantum-safe (KIP-22) source, whose bigger inputs every estimate must price (iOS
+         *  `signatureScriptSize`). */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN
     ): SelectionResult {
         var totalSelected = 0L
         val selectedUtxos = mutableListOf<UtxoEntry>()
@@ -94,7 +98,8 @@ object KaspaUtxoSelector {
             val mass = KaspaMass.calculateMass(
                 numInputs = selectedUtxos.size,
                 outputScriptLens = outputScriptLens,
-                payloadSize = payloadSize
+                payloadSize = payloadSize,
+                sigScriptLens = KaspaMass.sigScriptLensFor(selectedUtxos.size, signatureScriptSize)
             )
             estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + extraFeeSompi
 
@@ -150,11 +155,18 @@ object KaspaUtxoSelector {
          *  control never underpays a payload-carrying send. */
         payloadBytes: ByteArray? = null,
         /** Flat extra fee on top - see [selectUtxosAndCalculateFee]. */
-        extraFeeSompi: Long = 0L
+        extraFeeSompi: Long = 0L,
+        /** Per-input signature-script size - see [selectUtxosAndCalculateFee]. */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN
     ): SelectionResult {
         val totalSelected = UtxoMath.total(utxos.map { it.utxoEntry.amount })
         val outputScriptLens = if (amountSompi > 0) listOf(recipientScriptLen, changeScriptLen) else listOf(changeScriptLen)
-        val mass = KaspaMass.calculateMass(numInputs = utxos.size, outputScriptLens = outputScriptLens, payloadSize = payloadBytes?.size ?: 0)
+        val mass = KaspaMass.calculateMass(
+            numInputs = utxos.size,
+            outputScriptLens = outputScriptLens,
+            payloadSize = payloadBytes?.size ?: 0,
+            sigScriptLens = KaspaMass.sigScriptLensFor(utxos.size, signatureScriptSize)
+        )
         val estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + extraFeeSompi
 
         var finalAmount = amountSompi

@@ -48,7 +48,8 @@ class PaymentRequestWallet @Inject constructor(
     fun ownAddresses(): Set<String> {
         val account = walletManager.getActiveAccount() ?: return emptySet()
         val wallet = account.address.lowercase()
-        val key = "$wallet|${maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)}"
+        // both chains: the key moves when either grows, or a new quantum address would not count
+        val key = "$wallet|${WalletManager.legacyMaxSpendingIndex(account)}|q${WalletManager.maxQuantumIndex(account)}"
         ownAddressCache?.let { if (it.first == key) return it.second }
         val addresses = HashSet<String>()
         addresses.add(wallet)

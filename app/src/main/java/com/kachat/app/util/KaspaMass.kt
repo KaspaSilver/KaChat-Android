@@ -28,6 +28,22 @@ object KaspaMass {
     /** Fixed size of a Schnorr signature script: 0x41 push-opcode + 64-byte signature + 0x01 SIGHASH_ALL. */
     private const val SCHNORR_SIG_SCRIPT_LEN = 66L
 
+    /** [SCHNORR_SIG_SCRIPT_LEN] as an Int, for the selectors' per-input signature-script size. */
+    const val SCHNORR_SIGNATURE_SCRIPT_LEN = 66
+
+    /**
+     * A KIP-22 (quantum-safe P2SH) input's signature script: the usual 66 bytes plus the pushed
+     * 34-byte redeem script (`0x20 <key> OP_CHECKSIG`, canonical push 0x22 + 34 = 35 bytes) - iOS
+     * `kip22SignatureScriptSize`.
+     */
+    const val KIP22_SIGNATURE_SCRIPT_LEN = 66 + 35
+
+    /** [calculateMass]'s `sigScriptLens` for [numInputs] inputs that all carry a
+     *  [signatureScriptSize]-byte signature script - null (the default 66 each) for a plain
+     *  Schnorr input, so every legacy estimate stays the exact call it was. */
+    fun sigScriptLensFor(numInputs: Int, signatureScriptSize: Int): List<Long>? =
+        if (signatureScriptSize == SCHNORR_SIGNATURE_SCRIPT_LEN) null else List(numInputs) { signatureScriptSize.toLong() }
+
     /**
      * @param numInputs number of transaction inputs
      * @param outputScriptLens byte length of each output's scriptPublicKey (34 for standard P2PK)

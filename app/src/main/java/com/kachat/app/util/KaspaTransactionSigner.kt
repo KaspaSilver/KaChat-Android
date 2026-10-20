@@ -22,21 +22,31 @@ object KaspaTransactionSigner {
     // keyed with this ASCII string (not used as a personalization tag).
     private val SIGNING_KEY = "TransactionSigningHash".toByteArray(Charsets.US_ASCII)
 
+    /**
+     * [redeemScript]: a KIP-22 (quantum-safe P2SH) sender's redeem script, pushed after each
+     * signature exactly as the KNS reveal spends P2SH ([signRevealInput]; iOS
+     * `signTransaction(redeemScript:)`). The sighash still hashes each UTXO's own
+     * scriptPublicKey - the P2SH script - never the redeem script.
+     */
     fun signTransaction(
         rawTx: RawTransaction,
         utxos: List<UtxoEntry>,
-        privateKey: ByteArray
+        privateKey: ByteArray,
+        redeemScript: ByteArray? = null
     ): RawTransaction {
+        val redeemPush = redeemScript?.let { KnsInscriptionScript.canonicalPush(it) } ?: ByteArray(0)
         val signedInputs = rawTx.inputs.mapIndexed { index, input ->
             val utxo = utxos[index]
             val hash = calculateSighash(rawTx, index, utxo.utxoEntry.amount, utxo.utxoEntry.scriptPublicKey.scriptPublicKey)
             val signature = Schnorr.sign(hash, privateKey) // 64 bytes
 
             // signatureScript = push-65-bytes opcode (0x41) || 64-byte signature || SIGHASH_ALL type byte (0x01)
-            val sigScript = ByteArray(66)
+            // [|| canonicalPush(redeemScript) for a quantum-safe sender]
+            val sigScript = ByteArray(66 + redeemPush.size)
             sigScript[0] = 0x41
             signature.copyInto(sigScript, 1)
             sigScript[65] = 0x01
+            redeemPush.copyInto(sigScript, 66)
             input.copy(signatureScript = sigScript.toHexString())
         }
 

@@ -106,6 +106,7 @@ class WalletManager @Inject constructor(
         private const val PREF_SPENDING_ADDRESS_CACHE = "spending_address_cache"
         private const val PREF_USED_SPENDING_ADDRESSES = "used_spending_addresses"
         private const val PREF_MANAGE_ADDRESSES_SNAPSHOT = "manage_addresses_snapshot"
+        private const val PREF_QUANTUM_SPENT_ADDRESSES = "quantum_spent_addresses"
 
         // bitcoinj's own `MnemonicCode.INSTANCE` static initializer loads its wordlist via
         // `Class.getResourceAsStream`, which is documented by bitcoinj itself as "Won't work on
@@ -116,6 +117,86 @@ class WalletManager @Inject constructor(
         private const val WORDLIST_SHA256 = "ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db"
 
         @Volatile private var instance: WalletManager? = null
+
+        // --- Quantum-safe chain (KIP-22; see the spending-address section below) ---------------
+
+        /**
+         * Quantum addresses live in the same Int index space as the legacy spending chain, offset
+         * by this base, so every API that passes a spending index (send sources, coin control,
+         * labels, the hidden set, the primary pointer, the address cache) works for both chains
+         * unchanged. Index `base + n` is quantum chain index `n` (iOS
+         * `WalletManager.quantumIndexBase`).
+         */
+        const val QUANTUM_INDEX_BASE = 1_000_000
+
+        fun isQuantumIndex(index: Int): Boolean = index >= QUANTUM_INDEX_BASE
+
+        /** A spending row's number on its own chain: "Address #3" / "Quantum #0" (iOS
+         *  `SpendingAddressEntry.displayTitle`, English like iOS). */
+        fun spendingAddressTitle(index: Int): String =
+            if (isQuantumIndex(index)) "Quantum #${index - QUANTUM_INDEX_BASE}" else "Address #$index"
+
+        /**
+         * The legacy chain's revealed bound: the stored max, widened by the primary only while the
+         * primary is a legacy index - a quantum primary (index >= [QUANTUM_INDEX_BASE]) must never
+         * widen the legacy chain (iOS `maxSpendingAddressIndex`).
+         */
+        fun legacyMaxSpendingIndex(account: Account): Int =
+            maxOf(account.maxSpendingAddressIndex, if (isQuantumIndex(account.spendingAddressIndex)) 0 else account.spendingAddressIndex)
+
+        /** The highest quantum chain index [account] has revealed; -1 before the first one. */
+        fun maxQuantumIndex(account: Account): Int = account.maxQuantumAddressIndex ?: -1
+
+        /** The signature-script size a send from [spendingIndex] prices per input: a quantum
+         *  source pushes its redeem script after the signature (iOS `kip22SignatureScriptSize`),
+         *  anything else is the plain 66-byte Schnorr push. Null = the chatting address. */
+        fun signatureScriptSize(spendingIndex: Int?): Int =
+            if (spendingIndex != null && isQuantumIndex(spendingIndex)) com.kachat.app.util.KaspaMass.KIP22_SIGNATURE_SCRIPT_LEN
+            else com.kachat.app.util.KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN
+
+        /** The legacy spending chain node m/44'/111111'/1'/0 of [seed] - see [spendingChainKey]. */
+        internal fun spendingChainNode(seed: ByteArray): DeterministicKey {
+            val masterKey = HDKeyDerivation.createMasterPrivateKey(seed)
+            val key44h = HDKeyDerivation.deriveChildKey(masterKey, ChildNumber(44, true))
+            val keyKaspaH = HDKeyDerivation.deriveChildKey(key44h, ChildNumber(111111, true))
+            val keyAccountH = HDKeyDerivation.deriveChildKey(keyKaspaH, ChildNumber(1, true))
+            return HDKeyDerivation.deriveChildKey(keyAccountH, ChildNumber(0, false))
+        }
+
+        /** A legacy (P2PK, version 0) spending address of [key], encoded for the network this
+         *  launch runs on. */
+        internal fun addressFromKey(key: DeterministicKey): String {
+            val pubKey = key.pubKey
+            val xOnlyPubKey = if (pubKey.size == 33) pubKey.sliceArray(1..32) else pubKey
+            return KaspaAddress.encode(com.kachat.app.util.KaspaNetwork.hrp, 0x00, xOnlyPubKey)
+        }
+
+        /** The quantum chain node m/22'/111111'/0'/0 (KIP-0022) of [seed]. */
+        internal fun quantumChainNode(seed: ByteArray): DeterministicKey {
+            val master = HDKeyDerivation.createMasterPrivateKey(seed)
+            val purpose = HDKeyDerivation.deriveChildKey(master, ChildNumber(22, true))
+            val coinType = HDKeyDerivation.deriveChildKey(purpose, ChildNumber(111111, true))
+            val account = HDKeyDerivation.deriveChildKey(coinType, ChildNumber(0, true))
+            return HDKeyDerivation.deriveChildKey(account, ChildNumber(0, false))
+        }
+
+        /** The KIP-22 redeem script of [key]: `0x20 <x-only key> OP_CHECKSIG` - the .kachat
+         *  registry's own P2PK script builder. Spends push it after the signature. */
+        internal fun quantumRedeemScript(key: DeterministicKey): ByteArray {
+            val pubKey = key.pubKey
+            val xOnly = if (pubKey.size == 33) pubKey.sliceArray(1..32) else pubKey
+            return com.kachat.app.services.kachatnames.KachatNames.Codec.p2pkScript(xOnly)
+        }
+
+        /** The quantum address at chain index [quantumIndex] under [chain]: the P2SH of its
+         *  redeem script, through the same helpers the .kachat registry uses on chain every day.
+         *  Encoded for the network this launch runs on. */
+        internal fun quantumAddress(chain: DeterministicKey, quantumIndex: Int): String {
+            val key = HDKeyDerivation.deriveChildKey(chain, ChildNumber(quantumIndex, false))
+            val p2sh = com.kachat.app.services.kachatnames.KachatNames.Codec.p2shScript(quantumRedeemScript(key))
+            return com.kachat.app.services.kachatnames.KachatNamesService.p2shAddress(p2sh)
+                ?: throw IllegalStateException("Could not encode the quantum address")
+        }
 
         /** True when [address] is the active account's own chatting address - the chat with
          *  yourself (iOS `WalletManager.shared.currentWallet?.publicAddress`). */
@@ -169,7 +250,12 @@ class WalletManager @Inject constructor(
         // "nfkd" on every record saved since the fix; "raw" on a record saved before it whose
         // passphrase NFKD changes. Null only on records from before the field existed, until the
         // one-time stamp in init; [passphraseFormOf] resolves those the same way.
-        val passphraseForm: String? = null
+        val passphraseForm: String? = null,
+        // The highest quantum-safe (KIP-22) chain index ever revealed, or null before the first
+        // one (iOS `maxQuantumAddressIndex`'s -1). Its own bound, kept apart from
+        // [maxSpendingAddressIndex]: the legacy max must never see base-space values. Nullable so
+        // Gson leaves old records at "none" rather than 0 (which would reveal slot 0 unasked).
+        val maxQuantumAddressIndex: Int? = null
     )
 
     /** How a passphrase enters the BIP39 seed - see [seedFor]. */
@@ -340,7 +426,7 @@ class WalletManager @Inject constructor(
         accountsCache = accounts
         sharedPrefs.edit().putString(PREF_ACCOUNTS, json).apply()
         // saveAccounts is the single choke point every spendingAddressIndex write goes through
-        // (send rotation via setSpendingAddressIndex, advanceSpendingAddressIndex, manual
+        // (send rotation via setSpendingAddressIndex, manual
         // activation, import), so refreshing here keeps primarySpendingIndexFlow current no
         // matter which path rotated the primary.
         refreshPrimarySpendingIndexFlow()
@@ -614,6 +700,7 @@ class WalletManager @Inject constructor(
                 mnemonic = mnemonic.joinToString(" "),
                 spendingAddressIndex = existing?.spendingAddressIndex ?: 0,
                 maxSpendingAddressIndex = existing?.maxSpendingAddressIndex ?: 0,
+                maxQuantumAddressIndex = existing?.maxQuantumAddressIndex,
                 // Stored in NFKD with the "nfkd" flag, as Desktop stores it (audit XP-013).
                 passphrase = nfkd(passphrase),
                 sourceFamily = family.name,
@@ -636,6 +723,7 @@ class WalletManager @Inject constructor(
         accountsCache = null
         spendingAddressCacheMemo = null
         usedAddressesMemo = null
+        quantumSpentMemo = null
         refreshActiveAddressFlow()
     }
 
@@ -826,12 +914,6 @@ class WalletManager @Inject constructor(
         return HDKeyDerivation.deriveChildKey(keyChain0, ChildNumber(addressIndex, false))
     }
 
-    private fun addressFromKey(key: DeterministicKey): String {
-        val pubKey = key.pubKey
-        val xOnlyPubKey = if (pubKey.size == 33) pubKey.sliceArray(1..32) else pubKey
-        return KaspaAddress.encode(com.kachat.app.util.KaspaNetwork.hrp, 0x00, xOnlyPubKey)
-    }
-
     /** The active account's BIP39 passphrase (empty when it has none), used to re-derive its keys. */
     private fun activePassphrase(): String = getActiveAccount()?.passphrase ?: ""
 
@@ -946,7 +1028,12 @@ class WalletManager @Inject constructor(
                 .firstOrNull { it.walletAddress == walletAddress && it.index == index }
                 ?.let { return it.address }
         }
-        val address = addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()))
+        val address = if (isQuantumIndex(index)) {
+            // the m/22' node, not the legacy chain (same cache: the index spaces cannot collide)
+            quantumAddress(quantumChainKey(), index - QUANTUM_INDEX_BASE)
+        } else {
+            addressFromKey(deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()))
+        }
         if (walletAddress != null) cacheSpendingAddresses(walletAddress, mapOf(index to address))
         return address
     }
@@ -958,35 +1045,119 @@ class WalletManager @Inject constructor(
      * every revealed address (pool validation, address-activity watch sets). Mirrors iOS's
      * `spendingChangeKey()` optimization.
      */
-    private fun spendingChainKey(): DeterministicKey {
-        val seed = seedFor(activeMnemonicWords(), activePassphrase(), activePassphraseForm())
-        val masterKey = HDKeyDerivation.createMasterPrivateKey(seed)
-        val key44h = HDKeyDerivation.deriveChildKey(masterKey, ChildNumber(44, true))
-        val keyKaspaH = HDKeyDerivation.deriveChildKey(key44h, ChildNumber(111111, true))
-        val keyAccountH = HDKeyDerivation.deriveChildKey(keyKaspaH, ChildNumber(1, true))
-        return HDKeyDerivation.deriveChildKey(keyAccountH, ChildNumber(0, false))
+    private fun spendingChainKey(): DeterministicKey =
+        spendingChainNode(seedFor(activeMnemonicWords(), activePassphrase(), activePassphraseForm()))
+
+    // --- Quantum-safe chain (KIP-22) --------------------------------------------------------
+    //
+    // Path m/22'/111111'/0'/0/<n> (KIP-0022), from the same seed. The address is the P2SH of the
+    // redeem script `<x-only key> OP_CHECKSIG`, so the chain shows only a hash of the key until
+    // the address spends - a quantum attacker reading addresses learns nothing. Public index
+    // [QUANTUM_INDEX_BASE] + n, with its own bound ([Account.maxQuantumAddressIndex]). The
+    // chatting address is unchanged by design (its key is published for encryption).
+
+    /** The quantum chain node (m/22'/111111'/0'/0), one seed derivation per call like
+     *  [spendingChainKey]. */
+    private fun quantumChainKey(): DeterministicKey =
+        quantumChainNode(seedFor(activeMnemonicWords(), activePassphrase(), activePassphraseForm()))
+
+    /** The active account's highest revealed quantum chain index; -1 before the first one. */
+    fun maxQuantumAddressIndex(): Int = getActiveAccount()?.let { maxQuantumIndex(it) } ?: -1
+
+    /** Raises [walletAddress]'s quantum bound to [quantumIndex] (chain index, not public). Only
+     *  ever grows. */
+    fun ensureMaxQuantumAddressIndexAtLeast(walletAddress: String, quantumIndex: Int) {
+        val accounts = getAccounts().map {
+            if (it.address == walletAddress && quantumIndex > maxQuantumIndex(it)) it.copy(maxQuantumAddressIndex = quantumIndex) else it
+        }
+        saveAccounts(accounts)
     }
 
-    /** Every revealed spending-chain address (0..max(spendingAddressIndex, maxSpendingAddressIndex)),
-     *  derived with a single seed computation — for own-address watch sets and received-pool
-     *  validation. Empty if there's no active account. */
+    /** One past every quantum slot ever revealed, in public index space - where a spend's
+     *  change goes (fresh and hidden-keyed, whatever chain the spend came from). */
+    fun nextFreshQuantumIndex(): Int = QUANTUM_INDEX_BASE + maxQuantumAddressIndex() + 1
+
+    /** The KIP-22 redeem script of a quantum index's key, pushed after each signature when it
+     *  spends; null for a legacy index. Derives from the seed. */
+    fun quantumRedeemScript(index: Int): ByteArray? {
+        if (!isQuantumIndex(index)) return null
+        return quantumRedeemScript(HDKeyDerivation.deriveChildKey(quantumChainKey(), ChildNumber(index - QUANTUM_INDEX_BASE, false)))
+    }
+
+    /**
+     * Reveals a brand-new quantum-safe slot and returns its public index - what Generate New
+     * Address makes from now on (iOS `generateNextQuantumAddress`). Always extends the chain: a
+     * never-spent-from address is the whole point, so nothing is recycled here.
+     */
+    fun generateNextQuantumAddress(walletAddress: String): Int {
+        val account = getAccounts().firstOrNull { it.address == walletAddress } ?: getActiveAccount()
+        val quantumIndex = (account?.let { maxQuantumIndex(it) } ?: -1) + 1
+        ensureMaxQuantumAddressIndexAtLeast(walletAddress, quantumIndex)
+        val index = QUANTUM_INDEX_BASE + quantumIndex
+        setSpendingAddressHidden(walletAddress, index, hidden = false)
+        return index
+    }
+
+    /** Quantum addresses this phone has spent FROM, lowercased: the spend put their key on chain
+     *  for good, so the shield comes off (iOS `qspent`). Address-keyed like the used cache - an
+     *  address is one wallet's. Never unmarked: a revealed key cannot be unrevealed. */
+    @Volatile private var quantumSpentMemo: Set<String>? = null
+
+    private fun quantumSpentAddresses(): Set<String> {
+        quantumSpentMemo?.let { return it }
+        val json = sharedPrefs.getString(PREF_QUANTUM_SPENT_ADDRESSES, null)
+            ?: return emptySet<String>().also { quantumSpentMemo = it }
+        val parsed = try {
+            gson.fromJson<Set<String>>(json, USED_ADDRESSES_TYPE) ?: emptySet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+        quantumSpentMemo = parsed
+        return parsed
+    }
+
+    /** Marks [address]'s key as revealed by a spend - the moment the app sends from it, or when
+     *  the chain shows a spend made elsewhere (WalletService.quantumAddressSpentState). */
+    fun markQuantumAddressSpent(address: String) {
+        val lowered = address.trim().lowercase()
+        if (lowered.isEmpty()) return
+        val current = quantumSpentAddresses()
+        if (lowered in current) return
+        val updated = current + lowered
+        quantumSpentMemo = updated
+        sharedPrefs.edit().putString(PREF_QUANTUM_SPENT_ADDRESSES, gson.toJson(updated)).apply()
+    }
+
+    fun isQuantumAddressSpentLocally(address: String): Boolean = address.trim().lowercase() in quantumSpentAddresses()
+
+    /** Every revealed spending address: the legacy chain (0..its bound), then the quantum chain
+     *  (0..its bound), derived with one seed computation per chain - for own-address watch sets
+     *  and received-pool validation. Empty if there's no active account. */
     fun allSpendingAddresses(): List<String> {
         val account = getActiveAccount() ?: return emptyList()
-        val maxIndex = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        val maxIndex = legacyMaxSpendingIndex(account)
+        val quantumMax = maxQuantumIndex(account)
+        val quantumRange = QUANTUM_INDEX_BASE until (QUANTUM_INDEX_BASE + quantumMax + 1)
         // Cache-first: this runs on the 30s address-activity poll, and the full PBKDF2 seed
         // derivation per pass was pure waste once every index has been derived once.
         val cached = getAllCachedSpendingAddresses()
             .filter { it.walletAddress == account.address }
             .associate { it.index to it.address }
-        if ((0..maxIndex).all { cached.containsKey(it) }) {
-            return (0..maxIndex).map { cached.getValue(it) }
+        if ((0..maxIndex).all { cached.containsKey(it) } && quantumRange.all { cached.containsKey(it) }) {
+            return (0..maxIndex).map { cached.getValue(it) } + quantumRange.map { cached.getValue(it) }
         }
         val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyList() }
         val derived = (0..maxIndex).associateWith { index ->
-            addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+            cached[index] ?: addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }.toMutableMap()
+        if (quantumMax >= 0) {
+            val quantumKey = try { quantumChainKey() } catch (e: Exception) { null }
+            if (quantumKey != null) {
+                for (index in quantumRange) derived[index] = cached[index] ?: quantumAddress(quantumKey, index - QUANTUM_INDEX_BASE)
+            }
         }
         cacheSpendingAddresses(account.address, derived)
-        return (0..maxIndex).map { derived.getValue(it) }
+        return derived.keys.sorted().map { derived.getValue(it) }
     }
 
     /**
@@ -1002,23 +1173,26 @@ class WalletManager @Inject constructor(
         val account = getActiveAccount() ?: return null
         val wallet = account.address.lowercase()
         if (target == wallet) return context.getString(com.kachat.app.R.string.chatting_address)
-        val maxIndex = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
-        val key = "$wallet|$maxIndex"
+        val maxIndex = maxOf(0, legacyMaxSpendingIndex(account))
+        val quantumMax = maxQuantumIndex(account)
+        val key = "$wallet|$maxIndex|q$quantumMax"
         val cached = ownAddressIndexCache
         val map = if (cached != null && cached.first == key) {
             cached.second
         } else {
-            val built = deriveSpendingAddresses(0..maxIndex).entries.associate { (index, spending) -> spending.lowercase() to index }
+            // both chains: the quantum range only once one has been revealed
+            val indices = (0..maxIndex) + (QUANTUM_INDEX_BASE until QUANTUM_INDEX_BASE + quantumMax + 1)
+            val built = deriveSpendingAddresses(indices).entries.associate { (index, spending) -> spending.lowercase() to index }
             // a failed derivation isn't remembered: the next call tries again
             if (built.isNotEmpty()) ownAddressIndexCache = key to built
             built
         }
         val index = map[target] ?: return null
         val named = getSpendingAddressLabels(account.address)[index]?.trim().orEmpty()
-        return named.ifEmpty { "Address #$index" }
+        return named.ifEmpty { spendingAddressTitle(index) }
     }
 
-    /** [ownAddressLabel]'s address-to-index map, keyed by "wallet|highest index". */
+    /** [ownAddressLabel]'s address-to-index map, keyed by "wallet|highest index|q highest quantum index". */
     @Volatile private var ownAddressIndexCache: Pair<String, Map<String, Int>>? = null
 
     /**
@@ -1043,9 +1217,17 @@ class WalletManager @Inject constructor(
         val missing = wanted.filter { !cached.containsKey(it) }
         if (missing.isEmpty()) return wanted.associateWith { cached.getValue(it) }
 
-        val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyMap() }
-        val derived = missing.associateWith { index ->
-            addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        // Each chain through its own node: a quantum index never touches the legacy m/44' chain.
+        val legacyMissing = missing.filter { !isQuantumIndex(it) }
+        val quantumMissing = missing.filter { isQuantumIndex(it) }
+        val derived = HashMap<Int, String>()
+        if (legacyMissing.isNotEmpty()) {
+            val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyMap() }
+            for (index in legacyMissing) derived[index] = addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        }
+        if (quantumMissing.isNotEmpty()) {
+            val quantumKey = try { quantumChainKey() } catch (e: Exception) { return emptyMap() }
+            for (index in quantumMissing) derived[index] = quantumAddress(quantumKey, index - QUANTUM_INDEX_BASE)
         }
         cacheSpendingAddresses(account.address, derived)
         return wanted.associateWith { cached[it] ?: derived.getValue(it) }
@@ -1095,51 +1277,59 @@ class WalletManager @Inject constructor(
      *  reject a received payment pool that tries to feed our own addresses back to us. */
     fun isOwnSpendingAddress(address: String): Boolean = allSpendingAddresses().contains(address)
 
-    /** Guards every fresh-spending-index allocation (payment change AND pool reservations) so two
-     *  concurrent allocators can never hand out the same index — see [allocateFreshSpendingIndices]. */
+    /** Guards every fresh-index allocation (payment change AND Request Payment reservations) so
+     *  two concurrent allocators can never hand out the same index — see [allocateFreshQuantumIndices]. */
     private val spendingIndexAllocationLock = Any()
 
     /**
-     * Reveals and returns [count] brand-new spending-chain slots in one atomic step — used both
-     * by the fresh-address payment pool feature (reserving addresses to offer a contact) and by
-     * spending-payment change routing. Indices start strictly past the all-time max
-     * (`max(spendingAddressIndex, maxSpendingAddressIndex) + 1`) and the max is bumped to cover
-     * them BEFORE returning, so: (a) they have never been revealed, funded, or offered before,
-     * and (b) no later payment-change address or pool reservation can ever land on the same
-     * index — both allocation paths funnel through this one synchronized method (the Android
-     * equivalent of iOS serializing reservation + payment-change derivation through the outgoing
-     * tx queue). [pastIndex] also keeps the slots past that index (a spending payment's source,
-     * iOS `max(maxSpendingAddressIndex, spendingIndex) + 1`). Returns (index, address) pairs;
-     * empty on failure.
+     * Reveals and returns [count] brand-new QUANTUM-SAFE slots (KIP-22) in one atomic step — what
+     * Request Payment's Fresh Address reserves and where every spending-address send's change
+     * goes (iOS `reserveFreshSpendingAddresses` / `nextFreshQuantumIndex`: fresh addresses handed
+     * out or funded are exactly what the quantum chain is for - never revealed, never funded, key
+     * hidden until they spend). Indices start strictly past the quantum chain's all-time max and
+     * the max is bumped to cover them BEFORE returning, so: (a) they have never been revealed,
+     * funded, or offered before, and (b) no later change address or reservation can ever land on
+     * the same index — every allocation funnels through this one synchronized method (the Android
+     * equivalent of iOS serializing them through the outgoing tx queue). Returns (public index,
+     * address) pairs; empty on failure. The legacy chain is never grown from here.
      */
-    fun allocateFreshSpendingIndices(count: Int, pastIndex: Int = -1): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
+    fun allocateFreshQuantumIndices(count: Int): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
         if (count <= 0) return@synchronized emptyList()
         val account = getActiveAccount() ?: return@synchronized emptyList()
-        val chainKey = try { spendingChainKey() } catch (e: Exception) { return@synchronized emptyList() }
-        val base = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex, pastIndex) + 1
-        val result = (0 until count).map { offset ->
-            val index = base + offset
-            index to addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+        val chainKey = try { quantumChainKey() } catch (e: Exception) { return@synchronized emptyList() }
+        val base = maxQuantumIndex(account) + 1
+        val result = try {
+            (0 until count).map { offset ->
+                val quantumIndex = base + offset
+                QUANTUM_INDEX_BASE + quantumIndex to quantumAddress(chainKey, quantumIndex)
+            }
+        } catch (e: Exception) {
+            return@synchronized emptyList()
         }
-        ensureMaxSpendingAddressIndexAtLeast(account.address, base + count - 1)
+        cacheSpendingAddresses(account.address, result.toMap())
+        ensureMaxQuantumAddressIndexAtLeast(account.address, base + count - 1)
         result
     }
 
     /**
-     * The address [allocateFreshSpendingIndices] hands out next - the slot after the last revealed
-     * one - DERIVED, not reserved: Request Payment shows it under Fresh Address before anything is
-     * copied, shared or sent, so opening the screen and cancelling uses no address up (iOS
-     * `spendingAddress(at: maxSpendingAddressIndex + 1)`, 3f5f79c). Null when it can't be derived.
-     * Derives from the seed, so call it off the main thread.
+     * The address [allocateFreshQuantumIndices] hands out next - the quantum slot after the last
+     * revealed one - DERIVED, not reserved: Request Payment shows it under Fresh Address before
+     * anything is copied, shared or sent, so opening the screen and cancelling uses no address up
+     * (iOS `spendingAddress(at: nextFreshQuantumIndex())`). Null when it can't be derived. Derives
+     * from the seed, so call it off the main thread.
      */
     fun nextFreshSpendingAddress(): String? {
-        val account = getActiveAccount() ?: return null
-        val index = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1
-        return try { deriveSpendingAddress(index) } catch (e: Exception) { null }
+        if (getActiveAccount() == null) return null
+        return try { deriveSpendingAddress(nextFreshQuantumIndex()) } catch (e: Exception) { null }
     }
 
+    /** The signing key of spending index [index], on whichever chain it lives. */
     fun getSpendingPrivateKeyBytes(index: Int): ByteArray =
-        deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()).privKeyBytes
+        if (isQuantumIndex(index)) {
+            HDKeyDerivation.deriveChildKey(quantumChainKey(), ChildNumber(index - QUANTUM_INDEX_BASE, false)).privKeyBytes
+        } else {
+            deriveKey(activeMnemonicWords(), accountIndex = 1, addressIndex = index, passphrase = activePassphrase(), form = activePassphraseForm()).privKeyBytes
+        }
 
     /** The spending address a "Pay in Kaspa" send should currently source funds from/top up. */
     fun currentSpendingAddress(): String {
@@ -1153,22 +1343,18 @@ class WalletManager @Inject constructor(
         return getSpendingPrivateKeyBytes(index)
     }
 
-    /** Called only after a spending-address send is actually accepted by the network. */
-    fun advanceSpendingAddressIndex(address: String) {
-        val accounts = getAccounts().map {
-            if (it.address == address) {
-                val next = it.spendingAddressIndex + 1
-                it.copy(spendingAddressIndex = next, maxSpendingAddressIndex = maxOf(it.maxSpendingAddressIndex, next))
-            } else it
-        }
-        saveAccounts(accounts)
-    }
-
-    /** Sets an explicit index as the one "Pay in Kaspa" sources from — used by the wallet-import gap-limit scan, and by manually activating an address from the Manage Addresses screen. */
+    /** Sets an explicit index as the one "Pay in Kaspa" sources from — used by the wallet-import
+     *  gap-limit scan, by manually activating an address from the Manage Addresses screen, and by
+     *  a send's primary following its change. A quantum index extends its own chain; the legacy
+     *  max must never see base-space values (iOS `setActiveSpendingAddress`). */
     fun setSpendingAddressIndex(address: String, index: Int) {
         val accounts = getAccounts().map {
             if (it.address == address) {
-                it.copy(spendingAddressIndex = index, maxSpendingAddressIndex = maxOf(it.maxSpendingAddressIndex, index))
+                if (isQuantumIndex(index)) {
+                    it.copy(spendingAddressIndex = index, maxQuantumAddressIndex = maxOf(maxQuantumIndex(it), index - QUANTUM_INDEX_BASE))
+                } else {
+                    it.copy(spendingAddressIndex = index, maxSpendingAddressIndex = maxOf(it.maxSpendingAddressIndex, index))
+                }
             } else it
         }
         saveAccounts(accounts)
@@ -1179,7 +1365,7 @@ class WalletManager @Inject constructor(
         var newMax = 0
         val accounts = getAccounts().map {
             if (it.address == address) {
-                newMax = maxOf(it.maxSpendingAddressIndex, it.spendingAddressIndex) + 1
+                newMax = legacyMaxSpendingIndex(it) + 1
                 it.copy(maxSpendingAddressIndex = newMax)
             } else it
         }

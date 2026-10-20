@@ -1363,4 +1363,7 @@
     <string name="per_contact">প্রতি কন্টাক্ট</string>
     <string name="per_contact_notification_hint">প্রতিটি চ্যাটের তথ্য স্ক্রিনে প্রতি-কন্টাক্ট নোটিফিকেশন মোড সেট করুন: Off, No Sound, বা Sound।</string>
     <string name="your_address">আপনার ঠিকানা</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">কোয়ান্টাম-নিরাপদ</string>
+    <string name="key_revealed_by_a_spend">খরচের ফলে চাবি প্রকাশিত</string>
 </resources>

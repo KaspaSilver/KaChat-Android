@@ -1363,4 +1363,7 @@
     <string name="per_contact">연락처별</string>
     <string name="per_contact_notification_hint">각 채팅 정보 화면에서 연락처별 알림 모드를 설정하세요: 끄기, 소리 없음, 또는 소리.</string>
     <string name="your_address">내 주소</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">양자 안전</string>
+    <string name="key_revealed_by_a_spend">지출로 키 공개됨</string>
 </resources>

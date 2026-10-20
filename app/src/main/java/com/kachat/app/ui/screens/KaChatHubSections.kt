@@ -2118,6 +2118,7 @@ private fun KachatMarketSourceSheet(
             walletViewModel = walletViewModel,
             onPick = { picked -> vm.actions.setMarketSource(picked) },
             onDismiss = { showChooser = false },
+            excludeQuantum = true,
         )
     }
     if (showFund && address != null) {

@@ -1360,4 +1360,7 @@
     <string name="per_contact">Pro Kontakt</string>
     <string name="per_contact_notification_hint">Stelle den Benachrichtigungsmodus pro Kontakt im Chat-Info-Bildschirm ein: Aus, Kein Ton oder Ton.</string>
     <string name="your_address">Deine Adresse</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">Quantensicher</string>
+    <string name="key_revealed_by_a_spend">Schlüssel durch eine Ausgabe offengelegt</string>
 </resources>

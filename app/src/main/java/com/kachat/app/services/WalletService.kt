@@ -282,7 +282,40 @@ class WalletService @Inject constructor(
         // index. Old persisted snapshots lack this field (Gson defaults it to false), which is
         // safe: only Generate consults it, and Generate only ever reads the live list.
         val liveChecked: Boolean = true
-    )
+    ) {
+        /** A quantum-safe (KIP-22) slot: public index [WalletManager.QUANTUM_INDEX_BASE] + n.
+         *  Computed, so snapshots from before the upgrade decode unchanged. */
+        val isQuantum: Boolean get() = WalletManager.isQuantumIndex(index)
+
+        /** The row's number on its own chain ("Address #3" / "Quantum #0"). */
+        val displayTitle: String get() = WalletManager.spendingAddressTitle(index)
+
+        /** Its nickname, else [displayTitle] (iOS `SpendingAddressEntry.displayLabel`). */
+        val displayLabel: String get() = label?.trim()?.takeIf { it.isNotEmpty() } ?: displayTitle
+    }
+
+    /**
+     * Whether a quantum-safe (KIP-22) address has ever SPENT - the one event that puts its key on
+     * chain (receiving reveals nothing; iOS `ChatService.quantumAddressSpentState`). true is
+     * marked locally and permanent; false means no spend in its history; null when the history
+     * can't be read right now. Quantum addresses are young, so one page covers them.
+     */
+    suspend fun quantumAddressSpentState(address: String): Boolean? {
+        if (walletManager.isQuantumAddressSpentLocally(address)) return true
+        val api = readyApi() ?: return null
+        val transactions = try {
+            api.getTransactions(address, limit = 200, offset = 0)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return null
+        }
+        val spent = transactions.any { tx ->
+            tx.inputs.any { it.previousOutpointAddress?.equals(address, ignoreCase = true) == true }
+        }
+        if (spent) walletManager.markQuantumAddressSpent(address)
+        return spent
+    }
 
     /**
      * Every spending-chain address derived/shown so far for the active account — index 0 through
@@ -297,11 +330,20 @@ class WalletService @Inject constructor(
      */
     suspend fun getSpendingAddressList(): List<SpendingAddressEntry> {
         val account = walletManager.getActiveAccount() ?: return emptyList()
-        val maxIndex = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        val maxIndex = WalletManager.legacyMaxSpendingIndex(account)
         val api = readyApi() ?: return emptyList()
         val hiddenIndices = walletManager.getHiddenSpendingIndices(account.address)
         val labels = walletManager.getSpendingAddressLabels(account.address)
-        val addressByIndex = (0..maxIndex).associateWith { walletManager.deriveSpendingAddress(it) }
+        val addressByIndex = (0..maxIndex).associateWith { walletManager.deriveSpendingAddress(it) }.toMutableMap()
+        // Both chains (iOS getSpendingAddressList): the quantum-safe slots after the legacy ones,
+        // derived with one seed computation for the whole range.
+        val quantumMax = WalletManager.maxQuantumIndex(account)
+        if (quantumMax >= 0) {
+            val base = WalletManager.QUANTUM_INDEX_BASE
+            val quantum = walletManager.deriveSpendingAddresses(base until base + quantumMax + 1)
+            if (quantum.size != quantumMax + 1) return emptyList()
+            addressByIndex.putAll(quantum)
+        }
         // Balances in ONE batched round trip (with fetchBalancesBatched's own per-address
         // fallback) instead of the old per-index burst — 2x(maxIndex+1) simultaneous requests
         // against the shared REST host routinely got throttled, and every swallowed failure
@@ -319,7 +361,7 @@ class WalletService @Inject constructor(
         // only never-used addresses re-probe (they can become used anytime). Probes run in small
         // chunks, not one big burst, for the same rate-limit reason as above.
         val entries = coroutineScope {
-            (0..maxIndex).chunked(4).flatMap { chunk ->
+            addressByIndex.keys.sorted().chunked(4).flatMap { chunk ->
                 chunk.map { index ->
                     async {
                         val address = addressByIndex.getValue(index)
@@ -400,7 +442,7 @@ class WalletService @Inject constructor(
     suspend fun seedImportedSpendingVisibility() {
         val account = walletManager.getActiveAccount() ?: return
         val primary = account.spendingAddressIndex
-        val maxIndex = maxOf(primary, account.maxSpendingAddressIndex)
+        val maxIndex = WalletManager.legacyMaxSpendingIndex(account)
         if (maxIndex <= 0) return
         if (walletManager.getHiddenSpendingIndices(account.address).isNotEmpty()) return
         if (walletManager.getManageAddressesSnapshot(account.address) != null) return
@@ -542,8 +584,11 @@ class WalletService @Inject constructor(
      *  address. */
     fun hideAllSpendingAddresses() {
         val account = walletManager.getActiveAccount() ?: return
-        val maxIndex = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
-        walletManager.setSpendingAddressesHidden(account.address, (0..maxIndex).toSet())
+        val maxIndex = maxOf(0, WalletManager.legacyMaxSpendingIndex(account))
+        // both chains: every revealed quantum slot too
+        val quantumMax = WalletManager.maxQuantumIndex(account)
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        walletManager.setSpendingAddressesHidden(account.address, (0..maxIndex).toSet() + (base until base + quantumMax + 1))
     }
 
     /** Sets or clears (blank/null) a user nickname for one spending-chain address — see [WalletManager.setSpendingAddressLabel]. */
@@ -556,6 +601,13 @@ class WalletService @Inject constructor(
     fun generateNextSpendingAddress(): Int {
         val address = walletManager.getAddress()
         return walletManager.generateNextSpendingAddress(address)
+    }
+
+    /** Reveals one more quantum-safe (KIP-22) slot, un-hidden, and returns its public index -
+     *  what Generate New Address makes from now on (iOS `generateNextQuantumAddress`). */
+    fun generateNextQuantumAddress(): Int {
+        val address = walletManager.getAddress()
+        return walletManager.generateNextQuantumAddress(address)
     }
 
     /**
@@ -919,8 +971,9 @@ class WalletService @Inject constructor(
         val payloadJson = Gson().toJson(KnsTransferDomainPayload(op = "transfer", p = "domain", id = trimmedAssetId, to = toAddress)).toByteArray()
 
         // A transfer funded by the PRIMARY spending address is a send out of it, so both
-        // transactions' change lands on a fresh index (past the all-time max: never revealed,
-        // funded or offered) and the primary rotates there once the commit is accepted - the
+        // transactions' change lands on a fresh quantum-safe slot (KIP-22, iOS
+        // `nextFreshQuantumIndex`: never revealed, funded or offered, key hidden until it spends)
+        // and the primary rotates there once the commit is accepted - the
         // same rule as chat payments and withdrawals. The domain itself leaves anyway; the old
         // address keeps any other domains it holds and stays listed in Manage Addresses. If the
         // fresh address cannot be derived, change stays on the source and nothing rotates - a
@@ -928,7 +981,7 @@ class WalletService @Inject constructor(
         val identityAddress = walletManager.getAddress()
         val activeSpendingIndex = walletManager.getActiveAccount()?.spendingAddressIndex
         val fresh = if (fromSpendingAddressIndex != null && fromSpendingAddressIndex == activeSpendingIndex) {
-            walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+            walletManager.allocateFreshQuantumIndices(1).firstOrNull()
         } else null
         val changeAddress = fresh?.second ?: sourceAddress
 

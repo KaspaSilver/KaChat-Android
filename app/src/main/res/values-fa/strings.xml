@@ -1394,4 +1394,7 @@
     <string name="per_contact">به ازای هر مخاطب</string>
     <string name="per_contact_notification_hint">حالت اعلان هر مخاطب را در صفحه اطلاعات گفتگو تنظیم کنید: خاموش، بدون صدا، یا صدا.</string>
     <string name="your_address">نشانی شما</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">ایمن در برابر کوانتوم</string>
+    <string name="key_revealed_by_a_spend">کلید با یک خرج فاش شد</string>
 </resources>

@@ -1363,4 +1363,7 @@
     <string name="per_contact">按联系人</string>
     <string name="per_contact_notification_hint">在每个聊天的信息页面设置联系人通知模式：关闭、静音或声音。</string>
     <string name="your_address">你的地址</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">抗量子</string>
+    <string name="key_revealed_by_a_spend">密钥已因支出而公开</string>
 </resources>

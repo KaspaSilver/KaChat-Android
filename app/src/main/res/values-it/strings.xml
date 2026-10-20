@@ -1363,4 +1363,7 @@
     <string name="per_contact">Per contatto</string>
     <string name="per_contact_notification_hint">Imposta la modalita di notifica per contatto nella schermata info di ogni chat: Disattivato, Nessun suono o Suono.</string>
     <string name="your_address">Il tuo indirizzo</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">A prova di quantistica</string>
+    <string name="key_revealed_by_a_spend">Chiave rivelata da una spesa</string>
 </resources>

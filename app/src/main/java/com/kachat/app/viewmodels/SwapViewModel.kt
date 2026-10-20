@@ -56,7 +56,7 @@ class SwapViewModel @Inject constructor(
 
     private fun nextFreshSpendingIndex(): Int {
         val account = walletManager.getActiveAccount() ?: return 0
-        return maxOf(account.maxSpendingAddressIndex, account.spendingAddressIndex) + 1
+        return WalletManager.legacyMaxSpendingIndex(account) + 1
     }
 
     fun selectToSpendingAddress(index: Int) {

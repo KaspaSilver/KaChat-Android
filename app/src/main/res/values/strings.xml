@@ -1625,4 +1625,7 @@
     <string name="group_info_remove_photo">Remove photo</string>
     <!-- The chat list's name for the chat with yourself (iOS 7d11735) -->
     <string name="your_address">Your Address</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">Quantum-safe</string>
+    <string name="key_revealed_by_a_spend">Key revealed by a spend</string>
 </resources>

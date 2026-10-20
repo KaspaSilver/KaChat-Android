@@ -1134,6 +1134,13 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Where the open Send KAS sheet (or KaPosts tip) pays from - its From (iOS 6333dd3
+     *  `SendSource`): null = the chatting address (the default), else that spending address.
+     *  The sheet resets it each time it opens and closes. [refreshSpendingUtxos] reads this
+     *  source's UTXOs, so the fee preview and Max price what the send will actually spend.
+     *  Declared before the fee preview below, which reads it. */
+    private val _paymentSourceIndex = MutableStateFlow<Int?>(null)
+
     /** What the fee preview prices: the message coins, the payment's coins (its From - the
      *  chatting address or a spending address, selected the same way either way) and the
      *  payment's coin control pick. */
@@ -1141,11 +1148,14 @@ class ChatViewModel @Inject constructor(
         val identity: List<com.kachat.app.services.UtxoEntry>,
         val payment: List<com.kachat.app.services.UtxoEntry>,
         val manual: List<com.kachat.app.services.UtxoEntry>?,
+        /** The payment From's per-input signature-script size: a quantum-safe (KIP-22) spending
+         *  address's inputs carry its redeem script too (iOS estimatePaymentFee(signatureScriptSize:)). */
+        val paymentSignatureScriptSize: Int,
     )
 
     private val utxosForFeeEstimate: Flow<FeeEstimateCoins> =
-        combine(_currentUtxos, _spendingUtxos, _paymentManualUtxos) { identity, spending, manual ->
-            FeeEstimateCoins(identity, spending, manual)
+        combine(_currentUtxos, _spendingUtxos, _paymentManualUtxos, _paymentSourceIndex) { identity, spending, manual, source ->
+            FeeEstimateCoins(identity, spending, manual, com.kachat.app.services.WalletManager.signatureScriptSize(source))
         }
 
     val estimatedFeeSompi: StateFlow<Long?> = combine(
@@ -1192,7 +1202,10 @@ class ChatViewModel @Inject constructor(
         val mass = com.kachat.app.util.KaspaMass.calculateMass(
             numInputs = count.coerceAtLeast(1),
             outputScriptLens = if (isPayment) listOf(34, 34) else listOf(34),
-            payloadSize = payloadSize
+            payloadSize = payloadSize,
+            sigScriptLens = if (isPayment) {
+                com.kachat.app.util.KaspaMass.sigScriptLensFor(count.coerceAtLeast(1), coins.paymentSignatureScriptSize)
+            } else null
         )
         // A payment is priced at the rate the send itself uses: the quote rounded up, never
         // under the network minimum (KaspaWalletEngine.fetchQuotedFeeRateSompiPerGram), so the
@@ -1233,6 +1246,7 @@ class ChatViewModel @Inject constructor(
             feeMultiplier = feeMultiplier,
             customExtraFeeSompi = customExtraFeeSompi,
             payloadSize = _paymentTip.value?.let { estimatedPaymentPayloadSize(note.trim(), balance, it) },
+            signatureScriptSize = com.kachat.app.services.WalletManager.signatureScriptSize(_paymentSourceIndex.value),
         )
     }
 
@@ -1434,12 +1448,6 @@ class ChatViewModel @Inject constructor(
 
     /** The account in use - never offered as a group member from the Address Book. */
     val activeAddress: String? get() = walletManager.activeAddressFlow.value
-
-    /** Where the open Send KAS sheet (or KaPosts tip) pays from - its From (iOS 6333dd3
-     *  `SendSource`): null = the chatting address (the default), else that spending address.
-     *  The sheet resets it each time it opens and closes. [refreshSpendingUtxos] reads this
-     *  source's UTXOs, so the fee preview and Max price what the send will actually spend. */
-    private val _paymentSourceIndex = MutableStateFlow<Int?>(null)
 
     fun setPaymentSource(index: Int?) {
         if (_paymentSourceIndex.value == index) return
@@ -3517,6 +3525,8 @@ class ChatViewModel @Inject constructor(
             feeMultiplier: Long,
             customExtraFeeSompi: Long?,
             payloadSize: Int? = null,
+            /** The source's per-input signature-script size (a quantum-safe source's is bigger). */
+            signatureScriptSize: Int = com.kachat.app.util.KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
         ): Long {
             // Every chat payment carries its payload, an empty memo too (iOS estimateMaxPaymentAmount).
             val pricedPayloadSize = payloadSize ?: MessageProtocol.estimatedPaymentPayloadSize(note.trim(), balanceSompi)
@@ -3528,6 +3538,7 @@ class ChatViewModel @Inject constructor(
                 feeMultiplier = feeMultiplier,
                 customExtraFeeSompi = customExtraFeeSompi,
                 payloadSize = pricedPayloadSize,
+                signatureScriptSize = signatureScriptSize,
             )
         }
 

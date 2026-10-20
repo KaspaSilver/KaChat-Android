@@ -113,6 +113,9 @@ class KaspaWalletEngine @Inject constructor(
      * the time this actually runs.
      * @param extraFeeSompi A flat extra on top of the mass-priced fee (the Send KAS sheet's Fast /
      * Priority / custom fee, iOS 62c2773) - paid exactly, whichever selector runs.
+     * @param senderRedeemScript A quantum-safe (KIP-22) [fromAddress]'s redeem script: pushed
+     * after each signature and priced into the fee (iOS `buildPlainTransferTx(senderRedeemScript:)`).
+     * Null for every P2PK source.
      * @return Result containing the transaction ID or an error.
      */
     suspend fun sendKaspa(
@@ -132,9 +135,15 @@ class KaspaWalletEngine @Inject constructor(
          * answer it (iOS buildHandshakeTx's third shape).
          */
         allowReducedAmount: Boolean = false,
-        extraFeeSompi: Long = 0L
+        extraFeeSompi: Long = 0L,
+        senderRedeemScript: ByteArray? = null
     ): Result<String> = sendMutex.withLock {
         try {
+            // A quantum-safe input carries its redeem script after the signature, so every input
+            // is priced at that bigger size.
+            val signatureScriptSize = senderRedeemScript
+                ?.let { KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN + com.kachat.app.util.KnsInscriptionScript.canonicalPushSize(it.size) }
+                ?: KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN
             // 1. Validate address: well formed, and of the network the app runs on - the script
             //    is built from the payload alone, so a kaspatest: address on mainnet would pay real
             //    KAS to that key's mainnet script (iOS ce20e87, AND-011).
@@ -192,7 +201,8 @@ class KaspaWalletEngine @Inject constructor(
                     recipientScriptLen = recipientScriptHex.length / 2,
                     changeScriptLen = changeScriptHex.length / 2,
                     payloadBytes = payloadBytes,
-                    extraFeeSompi = extraFeeSompi
+                    extraFeeSompi = extraFeeSompi,
+                    signatureScriptSize = signatureScriptSize
                 )
             } else {
                 KaspaUtxoSelector.selectUtxosAndCalculateFee(
@@ -202,7 +212,8 @@ class KaspaWalletEngine @Inject constructor(
                     payloadBytes = payloadBytes,
                     recipientScriptLen = recipientScriptHex.length / 2,
                     changeScriptLen = changeScriptHex.length / 2,
-                    extraFeeSompi = extraFeeSompi
+                    extraFeeSompi = extraFeeSompi,
+                    signatureScriptSize = signatureScriptSize
                 )
             }
             var finalAmount = selectionResult.finalAmount
@@ -289,7 +300,8 @@ class KaspaWalletEngine @Inject constructor(
             val signedTx = KaspaTransactionSigner.signTransaction(
                 rawTx = rawTx,
                 utxos = selectionResult.selectedUtxos,
-                privateKey = signingPrivateKey
+                privateKey = signingPrivateKey,
+                redeemScript = senderRedeemScript
             )
 
             // 7. Broadcast transaction.
@@ -423,9 +435,10 @@ class KaspaWalletEngine @Inject constructor(
      * first, just enough for the amount and fee, at most
      * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] - or, with coin control, exactly the picked
      * ones; whatever is not spent stays on the source address. The change goes to a never-used
-     * spending address, which is revealed (listed in Manage Addresses) once the send succeeds;
-     * it is never made the primary - nothing rotates a primary any more. A failed/rejected send
-     * moves nothing, safe to retry.
+     * quantum-safe (KIP-22) address, which is revealed (listed in Manage Addresses) once the send
+     * succeeds; it is never made the primary - nothing rotates a primary any more. A quantum source
+     * spends with its redeem script after each signature, and is marked spent (its shield comes
+     * off) once the network takes it. A failed/rejected send moves nothing, safe to retry.
      */
     suspend fun sendSpendingPayment(
         toAddress: String,
@@ -444,15 +457,20 @@ class KaspaWalletEngine @Inject constructor(
         val identityAddress = walletManager.getAddress()
         val sourceSpendingAddress = walletManager.deriveSpendingAddress(sourceSpendingIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(sourceSpendingIndex)
-        // Change goes one past the ALL-TIME max index, and past the source index itself (iOS
-        // `max(maxSpendingAddressIndex, spendingIndex) + 1`) - so it never lands on an address
-        // that has been used before, or manually generated from Manage Addresses. The allocation
-        // bumps the max atomically, so a concurrent allocation (Request Payment's Fresh Address,
-        // another payment) can't collide either. On failure the allocated index is simply burned
-        // unused - revealing an index is always safe, reusing one is not.
-        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshSpendingIndices(1, pastIndex = sourceSpendingIndex).firstOrNull()
+        // A quantum-safe source (KIP-22) spends with its redeem script pushed after the signature.
+        val isQuantumSource = WalletManager.isQuantumIndex(sourceSpendingIndex)
+        val senderRedeemScript = if (isQuantumSource) {
+            walletManager.quantumRedeemScript(sourceSpendingIndex)
+                ?: return Result.failure(IllegalStateException("Could not derive the quantum address's key"))
+        } else null
+        // Change always lands on a brand-new quantum-safe slot (iOS `nextFreshQuantumIndex`):
+        // never an address used before, and its key stays hidden until IT spends. The allocation
+        // bumps the quantum max atomically, so a concurrent allocation (Request Payment's Fresh
+        // Address, another payment) can't collide either. On failure the allocated index is
+        // simply burned unused - revealing an index is always safe, reusing one is not.
+        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshQuantumIndices(1).firstOrNull()
             ?: return Result.failure(IllegalStateException("Could not derive change address"))
-        if (nextIndex <= sourceSpendingIndex || nextSpendingAddress.equals(sourceSpendingAddress, ignoreCase = true)) {
+        if (nextIndex == sourceSpendingIndex || nextSpendingAddress.equals(sourceSpendingAddress, ignoreCase = true)) {
             return Result.failure(IllegalStateException("Could not derive change address"))
         }
 
@@ -469,11 +487,14 @@ class KaspaWalletEngine @Inject constructor(
             // price the same coins (ChatViewModel.paymentFeeInputs / paymentMaxCoins).
             manualUtxos = manualUtxos,
             extraFeeSompi = extraFeeSompi,
+            senderRedeemScript = senderRedeemScript,
         )
         if (result.isSuccess) {
             // Revealed, not made primary (iOS revealSpendingAddress): the allocation above already
             // raised the max to cover it; make sure it isn't hidden either.
             walletManager.setSpendingAddressHidden(identityAddress, nextIndex, hidden = false)
+            // a spend reveals the key for good: the shield comes off (KIP-22)
+            if (isQuantumSource) walletManager.markQuantumAddressSpent(sourceSpendingAddress)
         }
         return result
     }

@@ -314,7 +314,7 @@ class KachatNamesActions @Inject constructor(
         if (myKey?.contentEquals(owner) == true) return@withContext OwnAddress.Chatting
         val account = walletManager.getActiveAccount()
         if (account != null) {
-            val max = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
+            val max = maxOf(0, WalletManager.legacyMaxSpendingIndex(account))
             val spending = runCatching { walletManager.deriveSpendingAddresses(0..max) }.getOrNull().orEmpty()
             for ((index, address) in spending.entries.sortedBy { it.key }) {
                 if (KachatNamesRegistry.keyOf(address)?.contentEquals(owner) == true) {
@@ -479,7 +479,7 @@ class KachatNamesActions @Inject constructor(
      *  the wallet's keys are worked out again. */
     private fun ownKeysCacheKey(wallet: String): String {
         val account = walletManager.getActiveAccount()
-        val max = maxOf(0, account?.spendingAddressIndex ?: 0, account?.maxSpendingAddressIndex ?: 0)
+        val max = maxOf(0, account?.let { WalletManager.legacyMaxSpendingIndex(it) } ?: 0)
         return "$wallet|$max|${marketAddresses.size}"
     }
 
@@ -487,7 +487,7 @@ class KachatNamesActions @Inject constructor(
      *  when they can't be derived. Derives on a cache miss, so off the main thread. */
     private fun revealedSpendingAddresses(): List<String> {
         val account = walletManager.getActiveAccount() ?: return emptyList()
-        val max = maxOf(0, account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        val max = maxOf(0, WalletManager.legacyMaxSpendingIndex(account))
         return runCatching { walletManager.deriveSpendingAddresses(0..max) }.getOrNull().orEmpty()
             .entries.sortedBy { it.key }.map { it.value }
     }

@@ -125,7 +125,8 @@ fun SwapAddressPickerScreen(
                 ) {
                     if (!isGenerating) {
                         isGenerating = true
-                        viewModel.generateNewSpendingAddress { isGenerating = false }
+                        // Swap reveals the legacy chain, as iOS SwapView's generateNextSpendingAddress does.
+                        viewModel.generateNewSpendingAddress(quantum = false) { isGenerating = false }
                     }
                 }
                 if (isGenerating) {
@@ -177,7 +178,7 @@ fun SwapAddressPickerScreen(
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
+                                entry.displayLabel,
                                 color = colors.textSecondary,
                                 fontSize = 11.sp,
                             )
@@ -213,7 +214,7 @@ fun SwapAddressPickerScreen(
 
     actionTarget?.let { entry ->
         ActionSheetContainer(
-            title = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
+            title = entry.displayLabel,
             subtitle = entry.address.take(14) + "..." + entry.address.takeLast(6),
             onDismiss = { actionTarget = null },
         ) {

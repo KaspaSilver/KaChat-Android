@@ -767,10 +767,10 @@ fun SendInfoPill(
 
 // MARK: - From (which of your addresses a send comes out of)
 
-/** A spending address as the Send screens name it: its nickname, else "Address #N" (iOS
- *  `SpendingAddressEntry.displayLabel`, English like iOS). */
+/** A spending address as the Send screens name it: its nickname, else "Address #N" or, for a
+ *  quantum-safe slot, "Quantum #N" (iOS `SpendingAddressEntry.displayLabel`, English like iOS). */
 fun spendingAddressDisplayLabel(index: Int, label: String?): String =
-    label?.trim()?.takeIf { it.isNotEmpty() } ?: "Address #$index"
+    label?.trim()?.takeIf { it.isNotEmpty() } ?: com.kachat.app.services.WalletManager.spendingAddressTitle(index)
 
 /**
  * Where a send comes from (iOS 6333dd3 `SendSource`): the chatting address (every send screen's
@@ -952,6 +952,9 @@ fun OwnAddressPicker(
     walletViewModel: WalletViewModel,
     onPick: (SendSource) -> Unit,
     onDismiss: () -> Unit,
+    /** The .kachat market signs its funding inputs as plain P2PK, which a quantum-safe (KIP-22)
+     *  address can't be - its picker leaves them out (iOS `excludeQuantum`). */
+    excludeQuantum: Boolean = false,
 ) {
     val halfScreen = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp / 2).dp
     val chattingAddress by walletViewModel.address.collectAsState()
@@ -962,8 +965,10 @@ fun OwnAddressPicker(
         walletViewModel.loadManageAddressesAndAwait()
         loaded = true
     }
-    val entries = remember(allEntries) {
-        allEntries.filter { !it.hidden || it.balanceSompi > 0 }.sortedBy { it.index }
+    val entries = remember(allEntries, excludeQuantum) {
+        allEntries.filter { !it.hidden || it.balanceSompi > 0 }
+            .filter { !excludeQuantum || !it.isQuantum }
+            .sortedBy { it.index }
     }
     /** Used / unused per address; missing while its lookup is out (or failed). */
     val used = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }

@@ -1363,4 +1363,7 @@
     <string name="per_contact">Par contact</string>
     <string name="per_contact_notification_hint">Définissez le mode de notification par contact dans l\'écran d\'info de chaque discussion : Désactivées, Mode Silence ou Sonore.</string>
     <string name="your_address">Votre adresse</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">Résistant au quantique</string>
+    <string name="key_revealed_by_a_spend">Clé révélée par une dépense</string>
 </resources>

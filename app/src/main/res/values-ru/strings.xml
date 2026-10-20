@@ -1363,4 +1363,7 @@
     <string name="per_contact">По контактам</string>
     <string name="per_contact_notification_hint">Установите режим уведомлений для каждого контакта в информации о чате: Выкл, Без звука или Звук.</string>
     <string name="your_address">Ваш адрес</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">Квантово-устойчивый</string>
+    <string name="key_revealed_by_a_spend">Ключ раскрыт тратой</string>
 </resources>

@@ -1363,4 +1363,7 @@
     <string name="per_contact">Kişi Başına</string>
     <string name="per_contact_notification_hint">Her sohbetin bilgi ekranında kişi başına bildirim modunu ayarlayın: Kapalı, Ses Yok veya Ses.</string>
     <string name="your_address">Adresiniz</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">Kuantum güvenli</string>
+    <string name="key_revealed_by_a_spend">Anahtar bir harcamayla açığa çıktı</string>
 </resources>

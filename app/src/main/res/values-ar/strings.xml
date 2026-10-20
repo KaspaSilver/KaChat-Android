@@ -1363,4 +1363,7 @@
     <string name="per_contact">لكل جهة اتصال</string>
     <string name="per_contact_notification_hint">عيّن وضع الإشعارات لكل جهة اتصال في شاشة معلومات المحادثة: إيقاف، بدون صوت، أو صوت.</string>
     <string name="your_address">عنوانك</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">آمن كموميًا</string>
+    <string name="key_revealed_by_a_spend">انكشف المفتاح بعملية إنفاق</string>
 </resources>

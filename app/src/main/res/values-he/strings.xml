@@ -1363,4 +1363,7 @@
     <string name="per_contact">לכל איש קשר</string>
     <string name="per_contact_notification_hint">הגדר מצב התראות לכל איש קשר במסך פרטי הצ\'אט: כבוי, ללא צליל, או צליל.</string>
     <string name="your_address">הכתובת שלך</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">עמיד קוונטית</string>
+    <string name="key_revealed_by_a_spend">המפתח נחשף בהוצאה</string>
 </resources>

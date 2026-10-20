@@ -1235,4 +1235,7 @@
     <string name="per_contact">Per Kontak</string>
     <string name="per_contact_notification_hint">Atur mode pemberitahuan per kontak di layar info obrolan: Mati, Tanpa Suara, atau Bersuara.</string>
     <string name="your_address">Alamat Anda</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">Aman kuantum</string>
+    <string name="key_revealed_by_a_spend">Kunci terungkap oleh pengeluaran</string>
 </resources>

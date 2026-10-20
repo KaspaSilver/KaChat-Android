@@ -1363,4 +1363,7 @@
     <string name="per_contact">Theo liên hệ</string>
     <string name="per_contact_notification_hint">Đặt chế độ thông báo cho từng liên hệ trong màn hình thông tin trò chuyện: Tắt, Không âm thanh, hoặc Âm thanh.</string>
     <string name="your_address">Địa chỉ của bạn</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">An toàn lượng tử</string>
+    <string name="key_revealed_by_a_spend">Khóa đã lộ do một lần chi tiêu</string>
 </resources>

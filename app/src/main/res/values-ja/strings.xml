@@ -1363,4 +1363,7 @@
     <string name="per_contact">連絡先ごと</string>
     <string name="per_contact_notification_hint">各チャットの情報画面で連絡先ごとの通知モードを設定: オフ、サウンドなし、またはサウンド。</string>
     <string name="your_address">自分のアドレス</string>
+    <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
+    <string name="quantum_safe">量子耐性</string>
+    <string name="key_revealed_by_a_spend">送金で鍵が公開済み</string>
 </resources>

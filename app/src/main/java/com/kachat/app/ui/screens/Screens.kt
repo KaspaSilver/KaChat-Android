@@ -5247,6 +5247,8 @@ fun ManageAddressesScreen(
 
     // The spending addresses in number order, #0 first, under the chatting address (iOS 245a5d2).
     val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
+    // Quantum-safe rows whose key a spend has put on chain (their shield is off for good).
+    val quantumSpentAddresses by viewModel.quantumSpentAddresses.collectAsState()
     val visibleAddresses = remember(addresses) {
         addresses.filterNot { it.hidden }.sortedBy { it.index }
     }
@@ -5493,6 +5495,7 @@ fun ManageAddressesScreen(
                     ManageAddressRow(
                         entry = entry,
                         showsDomainTag = entry.address in domainOwningAddresses,
+                        quantumSpent = entry.address.lowercase() in quantumSpentAddresses,
                         onClick = { if (onAddressPicked != null) onAddressPicked(entry) else onNavigateToTxHistory(entry.index) },
                         onCopyClick = {
                             clipboardManager.setText(AnnotatedString(entry.address))
@@ -5566,13 +5569,13 @@ private fun RenameAddressDialog(
         title = { Text(stringResource(R.string.rename_address), color = LocalAppColors.current.textPrimary) },
         text = {
             Column {
-                Text("Address #$index", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
+                Text(com.kachat.app.services.WalletManager.spendingAddressTitle(index), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
                 com.kachat.app.ui.theme.IosTextField(
                     value = nameInput,
                     onValueChange = onNameChange,
                     label = { Text(stringResource(R.string.name)) },
-                    placeholder = { Text("Address #$index") },
+                    placeholder = { Text(com.kachat.app.services.WalletManager.spendingAddressTitle(index)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = LocalAppColors.current.textPrimary,
@@ -5613,6 +5616,7 @@ fun ManageAddressesHiddenScreen(
     onAddressPicked: ((com.kachat.app.services.WalletService.SpendingAddressEntry) -> Unit)? = null
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
+    val quantumSpentAddresses by viewModel.quantumSpentAddresses.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     var qrAddress by remember { mutableStateOf<String?>(null) }
@@ -5673,7 +5677,8 @@ fun ManageAddressesHiddenScreen(
                                 showAddressCopiedToast(context, entry.address)
                             },
                             onQrClick = { qrAddress = entry.address },
-                            onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" }
+                            onRenameClick = { renamingEntry = entry; renameInput = entry.label ?: "" },
+                            quantumSpent = entry.address.lowercase() in quantumSpentAddresses,
                         )
                     }
                 }
@@ -5718,7 +5723,9 @@ fun AddressVisibilityScreen(
     var page by remember { mutableStateOf(0) }
     val pageSize = 50
     val byIndex = remember(addresses) { addresses.associateBy { it.index } }
-    val listMax = remember(addresses) { addresses.maxOfOrNull { it.index } ?: -1 }
+    // The pager walks the legacy chain only (iOS Address Visibility): a quantum row's index sits
+    // a million up and must not stretch the legacy bound.
+    val listMax = remember(addresses) { addresses.filterNot { it.isQuantum }.maxOfOrNull { it.index } ?: -1 }
     // Lazily filled Used/Unused results for rows derived beyond the loaded list.
     val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
 
@@ -6032,6 +6039,9 @@ fun SpendingAddressSendFlow(
     val chattingAddress by viewModel.address.collectAsState()
     val sourceIndex = if (isCompoundMode) spendingIndex else source.spendingIndex
     val sourceAddress = if (isCompoundMode) fromAddress else (source.address(chattingAddress) ?: fromAddress)
+    // A quantum-safe (KIP-22) From prices every input with its redeem script too (iOS
+    // signatureScriptSize: kip22SignatureScriptSize).
+    val sourceSignatureScriptSize = com.kachat.app.services.WalletManager.signatureScriptSize(sourceIndex)
 
     var isResolvingKns by remember { mutableStateOf(false) }
     var knsResolvedAddress by remember { mutableStateOf<String?>(null) }
@@ -6086,9 +6096,9 @@ fun SpendingAddressSendFlow(
     }
     val manualInputCount = manualUtxos?.size?.takeIf { it > 0 }
     val defaultFeeSompi = when {
-        manualInputCount != null -> com.kachat.app.util.SendFeeModel.baseFee(manualInputCount, baseFeeRateSompiPerGram, recipientScriptLen = recipientScriptLen)
+        manualInputCount != null -> com.kachat.app.util.SendFeeModel.baseFee(manualInputCount, baseFeeRateSompiPerGram, recipientScriptLen = recipientScriptLen, signatureScriptSize = sourceSignatureScriptSize)
         feePreview != null -> feePreview!!.baseFeeSompi
-        else -> com.kachat.app.util.SendFeeModel.baseFee(1, baseFeeRateSompiPerGram)
+        else -> com.kachat.app.util.SendFeeModel.baseFee(1, baseFeeRateSompiPerGram, signatureScriptSize = sourceSignatureScriptSize)
     }
     // The preview settled its extra together with the inputs it needs; passing exactly that extra
     // makes the send pick those same inputs and pay the total shown.
@@ -6140,7 +6150,7 @@ fun SpendingAddressSendFlow(
     // they cost, so the fee shown is priced on the real inputs rather than an assumed one -
     // mirrors ColdSendFlow's previewSelection. Debounced; Send waits for it, so it never goes out
     // with an extra worked out for a different amount.
-    LaunchedEffect(previewAmountSompi, baseFeeRateSompiPerGram, feeTier, customExtraFeeSompi, manualUtxos, sourceAddress, recipientScriptLen) {
+    LaunchedEffect(previewAmountSompi, baseFeeRateSompiPerGram, feeTier, customExtraFeeSompi, manualUtxos, sourceAddress, recipientScriptLen, sourceSignatureScriptSize) {
         feePreview = null
         if (manualUtxos.isNullOrEmpty() && previewAmountSompi != null && previewAmountSompi > 0) {
             isPreviewingFee = true
@@ -6153,6 +6163,7 @@ fun SpendingAddressSendFlow(
                     feeMultiplier = feeTier.multiplier,
                     customExtraFeeSompi = customExtraFeeSompi,
                     recipientScriptLen = recipientScriptLen,
+                    signatureScriptSize = sourceSignatureScriptSize,
                 )
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -6181,7 +6192,7 @@ fun SpendingAddressSendFlow(
                 // one transaction's worth of UTXOs (largest-first, ≤MAX_INPUTS_PER_TRANSACTION) and
                 // estimate Max over exactly those. This is why Max works even when the address has
                 // more UTXOs than a single tx can hold - it consolidates one batch; repeat to reduce.
-                val chunk = viewModel.maxConsolidatableChunk(fromAddress, quotedRate, feeTier.multiplier, customExtraFeeSompi)
+                val chunk = viewModel.maxConsolidatableChunk(fromAddress, quotedRate, feeTier.multiplier, customExtraFeeSompi, signatureScriptSize = sourceSignatureScriptSize)
                 if (chunk != null) {
                     manualUtxos = chunk.second
                     fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
@@ -6266,7 +6277,7 @@ fun SpendingAddressSendFlow(
                 val maxTier = feeTier
                 val maxCustomExtra = customExtraFeeSompi
                 if (isCompoundMode) {
-                    val chunk = viewModel.maxConsolidatableChunk(fromAddress, liveFeeRateSompiPerGram, maxTier.multiplier, maxCustomExtra)
+                    val chunk = viewModel.maxConsolidatableChunk(fromAddress, liveFeeRateSompiPerGram, maxTier.multiplier, maxCustomExtra, signatureScriptSize = sourceSignatureScriptSize)
                     if (chunk != null) {
                         manualUtxos = chunk.second
                         fiatAmountState.setMaxKas(chunk.first / 100_000_000.0, fiatPriceInCurrency)
@@ -6280,7 +6291,7 @@ fun SpendingAddressSendFlow(
                     // null = the wallet cannot answer yet (the REST client is created a moment
                     // after launch); 0 = it answered, and the fee eats the balance. Neither may
                     // write "0" into the field, which is what made this read as a dead button.
-                    when (val maxSompi = viewModel.estimateMaxSendableAmount(sourceAddress, liveFeeRateSompiPerGram, manualUtxos, maxTier.multiplier, maxCustomExtra)) {
+                    when (val maxSompi = viewModel.estimateMaxSendableAmount(sourceAddress, liveFeeRateSompiPerGram, manualUtxos, maxTier.multiplier, maxCustomExtra, signatureScriptSize = sourceSignatureScriptSize)) {
                         null -> IosToasts.error("Still connecting. Try Max again in a moment.")
                         0L -> IosToasts.error("Not enough here to cover the network fee.")
                         else -> {
@@ -6636,7 +6647,7 @@ fun SpendingAddressTxHistoryScreen(
             SpendingAddressSendFlow(
                 fromAddress = entry.address,
                 balanceSompi = entry.balanceSompi,
-                title = "Send from Address #${entry.index}",
+                title = "Send from ${entry.displayTitle}",
                 spendingIndex = entry.index,
                 viewModel = viewModel,
                 portfolioViewModel = portfolioViewModel,
@@ -6647,7 +6658,7 @@ fun SpendingAddressTxHistoryScreen(
         }
     }
 
-    val displayName = entry?.label?.takeIf { it.isNotBlank() } ?: "Address #$index"
+    val displayName = entry?.label?.takeIf { it.isNotBlank() } ?: com.kachat.app.services.WalletManager.spendingAddressTitle(index)
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -7914,6 +7925,8 @@ private fun ManageAddressRow(
     onHideClick: (() -> Unit)? = null,
     /** "Contains domain" tag — this address owns at least one KNS domain (batched lookup). */
     showsDomainTag: Boolean = false,
+    /** A quantum-safe (KIP-22) row whose key a spend has put on chain - see [QuantumShield]. */
+    quantumSpent: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -7931,12 +7944,18 @@ private fun ManageAddressRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = entry.label?.takeIf { it.isNotBlank() } ?: "Address #${entry.index}",
-                color = LocalAppColors.current.textSecondary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            // iOS: the label and, on a quantum row, its shield, 6 apart.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = entry.displayLabel,
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (entry.isQuantum) {
+                    QuantumShield(spent = quantumSpent, funded = entry.balanceSompi > 0L)
+                }
+            }
             Text(
                 text = "${entry.address.take(14)}...${entry.address.takeLast(6)}",
                 color = LocalAppColors.current.textPrimary,
@@ -8022,6 +8041,32 @@ private fun ManageAddressRow(
                 ) { showMenu = false; onHideClick() }
             }
         }
+    }
+}
+
+/**
+ * The quantum (KIP-22) state of a Manage Addresses row, told honestly (iOS `quantumShield`):
+ * - shield: the key has never been on chain (receiving reveals nothing) - quantum-safe.
+ * - slashed shield: this address SPENT once, so its key is public forever; orange when funds sit
+ *   on it again (move them to a fresh address), gray when it is empty.
+ * iOS draws SF Symbols "shield.fill" / "shield.slash.fill" at .caption2 (11 pt).
+ */
+@Composable
+private fun QuantumShield(spent: Boolean, funded: Boolean) {
+    if (spent) {
+        Icon(
+            Icons.Filled.RemoveModerator,
+            contentDescription = stringResource(R.string.key_revealed_by_a_spend),
+            tint = if (funded) LocalAppColors.current.warning else LocalAppColors.current.textSecondary,
+            modifier = Modifier.size(11.dp),
+        )
+    } else {
+        Icon(
+            Icons.Filled.Shield,
+            contentDescription = stringResource(R.string.quantum_safe),
+            tint = LocalAppColors.current.success,
+            modifier = Modifier.size(11.dp),
+        )
     }
 }
 

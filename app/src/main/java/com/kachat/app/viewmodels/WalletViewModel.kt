@@ -226,6 +226,36 @@ class WalletViewModel @Inject constructor(
     private val _manageAddressesLoading = MutableStateFlow(false)
     val manageAddressesLoading: StateFlow<Boolean> = _manageAddressesLoading.asStateFlow()
 
+    /** Quantum-safe (KIP-22) rows whose key is on chain (they spent once), lowercased: the shield
+     *  is off for good. Seeded from the local marks, confirmed per row by the on-chain probe
+     *  (iOS ManageAddressesView.quantumSpentAddresses). */
+    private val _quantumSpentAddresses = MutableStateFlow<Set<String>>(emptySet())
+    val quantumSpentAddresses: StateFlow<Set<String>> = _quantumSpentAddresses.asStateFlow()
+
+    /** The running per-row shield probe; a newer load replaces it. */
+    private var quantumShieldJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Quantum shields for [rows] (iOS loadEntries): local spend marks at once, then the chain's
+     * word per row, one at a time, for spends made on another device or before a restore. A
+     * spent mark is permanent - a revealed key cannot be unrevealed.
+     */
+    private fun refreshQuantumShields(rows: List<WalletService.SpendingAddressEntry>) {
+        val quantum = rows.filter { it.isQuantum }
+        _quantumSpentAddresses.value = quantum.map { it.address.lowercase() }
+            .filter { walletManager.isQuantumAddressSpentLocally(it) }.toSet()
+        val candidates = quantum.filter { it.address.lowercase() !in _quantumSpentAddresses.value }
+        quantumShieldJob?.cancel()
+        if (candidates.isEmpty()) return
+        quantumShieldJob = viewModelScope.launch {
+            for (entry in candidates) {
+                if (walletService.quantumAddressSpentState(entry.address) == true) {
+                    _quantumSpentAddresses.value = _quantumSpentAddresses.value + entry.address.lowercase()
+                }
+            }
+        }
+    }
+
     // Monotonic ticket for loadManageAddresses commits: only the NEWEST in-flight live load may
     // write its result, so a slow load that started before a rotation/newer refresh can never
     // overwrite fresher rows with pre-rotation balances.
@@ -298,6 +328,7 @@ class WalletViewModel @Inject constructor(
             ) {
                 _manageAddressesRaw.value = live
             }
+            refreshQuantumShields(_manageAddressesRaw.value)
             // "Contains domain" tags: batched cached KNS lookups after the rows are visible.
             refreshDomainOwningAddresses(_manageAddressesRaw.value.map { it.address })
         } finally {
@@ -350,19 +381,21 @@ class WalletViewModel @Inject constructor(
     }
 
     /**
-     * The address to show on the Receive QR: one that has never been used.
+     * The address to show on the Receive QR: one that has never been used, on the quantum-safe
+     * chain (KIP-22).
      *
      * Reusing an address across payments links them to each other and to you, so the QR must
-     * never hand out one that has already appeared on chain. Three rules, in order:
+     * never hand out one that has already appeared on chain. Two rules, in order:
      *
-     * 1. The address it handed out last time, while that is still unused. It does NOT mint a new
-     *    address per tap - an unused address is still unused the second time you open it, and
-     *    minting one per tap would balloon the address list and lengthen every future gap-limit
-     *    scan for no privacy gained.
-     * 2. Otherwise the primary, while THAT is unused - a fresh wallet should not reveal a second
-     *    slot before the first one has seen anything.
-     * 3. Otherwise the lowest slot never used: the lowest hidden, live-confirmed unused one, else
-     *    the slot past the revealed range - remembered as the receive pointer for next time.
+     * 1. The address it handed out last time, while that is still unused - and quantum. It does
+     *    NOT mint a new address per tap - an unused address is still unused the second time you
+     *    open it, and minting one per tap would balloon the address list and lengthen every
+     *    future gap-limit scan for no privacy gained. A legacy pointer, even unused, carries its
+     *    key in the address itself (P2PK), so the QR moves to the quantum chain the first time it
+     *    is opened after the upgrade.
+     * 2. Otherwise the lowest quantum slot never used: the lowest hidden, live-confirmed unused
+     *    one (recycling it), else a brand-new slot past the quantum chain's end - remembered as
+     *    the receive pointer for next time.
      *
      * Picking has no side effects (iOS 24c2094): nothing is un-hidden or revealed, and the chain
      * is not extended. With [revealing] - the Receive QR is actually being shown - the address goes
@@ -391,30 +424,30 @@ class WalletViewModel @Inject constructor(
             }
             val entries = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
             // Unknown (list failed, or the row was not live-checked) counts as "not used" here,
-            // so a network wobble never rotates the pointer.
-            fun confirmedUsed(address: String): Boolean {
-                val entry = entries.firstOrNull { it.address == address } ?: return false
+            // so a network wobble never rotates the pointer. A slot the list doesn't hold yet (a
+            // pointer never revealed) asks the chain, as iOS's spendingAddressUsedState does.
+            suspend fun confirmedUsed(address: String): Boolean {
+                val entry = entries.firstOrNull { it.address == address }
+                    ?: return walletService.spendingAddressUsedState(address) == true
                 return entry.liveChecked && (entry.everUsed || entry.balanceSompi > 0L)
             }
 
             val storedIndex = walletManager.getReceiveAddressIndex(walletAddress)
             val stored = storedIndex?.let { try { walletManager.deriveSpendingAddress(it) } catch (e: Exception) { null } }
-            val chosen: Pair<Int, String> = if (storedIndex != null && stored != null && !confirmedUsed(stored)) {
-                // Rule 1: the pointer from last time, if it is still untouched.
+            val chosen: Pair<Int, String> = if (storedIndex != null && stored != null &&
+                WalletManager.isQuantumIndex(storedIndex) && !confirmedUsed(stored)
+            ) {
+                // Rule 1: the pointer from last time, while it is still untouched - and quantum.
                 storedIndex to stored
-            } else if (!confirmedUsed(current)) {
-                // Rule 2: the primary, while it has seen nothing.
-                walletManager.setReceiveAddressIndex(walletAddress, account.spendingAddressIndex)
-                account.spendingAddressIndex to current
             } else {
-                // Rule 3: the lowest slot never used (iOS lowestUnusedSpendingAddress, side-effect
-                // free): a hidden, live-confirmed unused row, else one past the revealed range -
-                // answered without extending the chain.
+                // Rule 2: the lowest quantum slot never used (iOS lowestUnusedQuantumAddress,
+                // side-effect free): a hidden, live-confirmed unused quantum row, else a brand-new
+                // slot past the chain's end - answered without extending the chain.
                 val index = entries.sortedBy { it.index }.firstOrNull { entry ->
-                    entry.hidden && entry.liveChecked && !entry.isCurrent &&
+                    entry.isQuantum && entry.hidden && entry.liveChecked && !entry.isCurrent &&
                         entry.index != account.spendingAddressIndex &&
                         entry.balanceSompi == 0L && !entry.everUsed
-                }?.index ?: (maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex) + 1)
+                }?.index ?: walletManager.nextFreshQuantumIndex()
                 val address = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
                 if (address == null) {
                     onResult(current)
@@ -436,8 +469,13 @@ class WalletViewModel @Inject constructor(
      * spoken for. [onResult] receives the index that is now ready, or null when the live check
      * failed and Generate refused (never derive or recycle blind — a wrongly re-offered index
      * could already be funded).
+     *
+     * [quantum]: Manage Addresses' Generate makes quantum-safe (KIP-22) slots from now on (iOS
+     * ManageAddressesView.generateNew): recycling considers only hidden unused QUANTUM rows, and
+     * the fresh path extends the quantum chain - the legacy chain is never grown again from
+     * there. Swap's picker keeps the legacy chain, as iOS SwapView's generateNextSpendingAddress.
      */
-    fun generateNewSpendingAddress(onResult: (Int?) -> Unit = {}) {
+    fun generateNewSpendingAddress(quantum: Boolean = true, onResult: (Int?) -> Unit = {}) {
         viewModelScope.launch {
             val walletAddress = try { walletManager.getAddress() } catch (e: Exception) { null }
             if (walletAddress == null) {
@@ -464,12 +502,17 @@ class WalletViewModel @Inject constructor(
             // and used-ness were both live-confirmed this load are recyclable; unconfirmed rows
             // are skipped rather than trusted.
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
-                entry.hidden && entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
+                entry.isQuantum == quantum &&
+                    entry.hidden && entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
                     entry.balanceSompi == 0L && !entry.everUsed
             }
             val readyIndex = if (pick != null) {
                 walletService.setSpendingAddressHidden(pick.index, false)
                 pick.index
+            } else if (quantum) {
+                // A brand-new quantum slot, un-hidden: always extends the chain (iOS
+                // generateNextQuantumAddress) - never revealed, funded, or offered.
+                walletService.generateNextQuantumAddress()
             } else {
                 // Every listed index is spoken for (or unconfirmed): extend the chain. A brand-new
                 // index past the all-time max has never been revealed, funded, or offered, so it
@@ -516,15 +559,20 @@ class WalletViewModel @Inject constructor(
      * bare.
      */
     suspend fun resolveOwnSpendingAddress(address: String): WalletService.SpendingAddressEntry? {
-        val all = withContext(Dispatchers.IO) { walletManager.allSpendingAddresses() }
-        val index = all.indexOfFirst { it.equals(address, ignoreCase = true) }
-        if (index < 0) return null
+        // Both chains (iOS OwnAddressHistorySheet.resolve): the legacy range and the quantum one.
+        val account = walletManager.getActiveAccount() ?: return null
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val indices = (0..maxOf(0, WalletManager.legacyMaxSpendingIndex(account))) +
+            (base until base + WalletManager.maxQuantumIndex(account) + 1)
+        val all = withContext(Dispatchers.IO) { walletManager.deriveSpendingAddresses(indices) }
+        val (index, ownAddress) = all.entries.firstOrNull { it.value.equals(address, ignoreCase = true) }
+            ?.let { it.key to it.value } ?: return null
         loadManageAddressesAndAwait()
         val isCurrent = walletManager.primarySpendingIndexFlow.value == index
         return _manageAddressesRaw.value.firstOrNull { it.index == index }?.copy(isCurrent = isCurrent)
             ?: WalletService.SpendingAddressEntry(
                 index = index,
-                address = all[index],
+                address = ownAddress,
                 balanceSompi = 0L,
                 everUsed = true,
                 isCurrent = isCurrent,
@@ -534,14 +582,14 @@ class WalletViewModel @Inject constructor(
 
     /**
      * Request Payment's Fresh Address (iOS `reserveFreshSpendingAddresses(count: 1)`, 86dfd2d /
-     * 6dee531): a spending address never revealed, used or handed out, reserved now - the revealed
-     * bound moves past it in the same step ([WalletManager.allocateFreshSpendingIndices], shared
-     * with payment change and pool reservations), so no later request, change output or
-     * reservation can ever get the same one. Null when it can't be derived. The address-activity
-     * poll watches every revealed address, so its payment shows the moment it lands.
+     * 6dee531): a quantum-safe (KIP-22) address never revealed, used or handed out, reserved now -
+     * the quantum bound moves past it in the same step ([WalletManager.allocateFreshQuantumIndices],
+     * shared with payment change), so no later request or change output can ever get the same
+     * one. Null when it can't be derived. The address-activity poll watches every revealed
+     * address, so its payment shows the moment it lands.
      */
     suspend fun reserveFreshSpendingAddress(): String? = withContext(Dispatchers.IO) {
-        try { walletManager.allocateFreshSpendingIndices(1).firstOrNull()?.second } catch (e: Exception) { null }
+        try { walletManager.allocateFreshQuantumIndices(1).firstOrNull()?.second } catch (e: Exception) { null }
     }
 
     /** The address [reserveFreshSpendingAddress] would hand out next, derived but NOT reserved
@@ -573,7 +621,21 @@ class WalletViewModel @Inject constructor(
      */
     fun revealSpendingAddress(index: Int) {
         val account = walletManager.getActiveAccount() ?: return
-        val currentMax = maxOf(account.spendingAddressIndex, account.maxSpendingAddressIndex)
+        if (WalletManager.isQuantumIndex(index)) {
+            // The quantum chain's own bound, the slots it newly covers hidden the same way.
+            val quantumIndex = index - WalletManager.QUANTUM_INDEX_BASE
+            val currentMax = WalletManager.maxQuantumIndex(account)
+            if (quantumIndex > currentMax) {
+                for (i in (currentMax + 1) until quantumIndex) {
+                    walletManager.setSpendingAddressHidden(account.address, WalletManager.QUANTUM_INDEX_BASE + i, true)
+                }
+                walletManager.ensureMaxQuantumAddressIndexAtLeast(account.address, quantumIndex)
+            }
+            walletManager.setSpendingAddressHidden(account.address, index, false)
+            loadManageAddresses()
+            return
+        }
+        val currentMax = WalletManager.legacyMaxSpendingIndex(account)
         if (index > currentMax) {
             for (i in (currentMax + 1) until index) {
                 walletManager.setSpendingAddressHidden(account.address, i, true)
@@ -594,13 +656,15 @@ class WalletViewModel @Inject constructor(
      * or a chat payment from a spending address (KaspaWalletEngine.sendSpendingPayment), this targets a single address by
      * [index]. Its progress and outcome are [sends]' under [sendId], the send screen's own.
      *
-     * For a NON-primary index the change stays on the same address: that is a scoped, explicit
-     * single-address operation, and the row's own balance is what the user is managing. The
-     * primary is different. A send from it puts its change on a fresh index and rotates the
+     * For a NON-primary legacy index the change stays on the same address: that is a scoped,
+     * explicit single-address operation, and the row's own balance is what the user is managing.
+     * The primary is different. A send from it puts its change on a fresh index and rotates the
      * primary to that index - exactly what a chat payment does - so the address you spend from
      * and hand out next has never been used before. This path used to leave the primary sitting
      * on the address it had just spent from. The old primary keeps whatever it still holds,
-     * listed in Manage Addresses like any other revealed slot.
+     * listed in Manage Addresses like any other revealed slot. A quantum-safe (KIP-22) source
+     * always rotates the same way: the spend reveals its key, and change back to it would park
+     * funds on a revealed address. The fresh change slot is quantum either way.
      */
     fun withdrawFromSpendingAddress(
         sendId: String,
@@ -626,9 +690,19 @@ class WalletViewModel @Inject constructor(
             // onto a fresh address nor rotates.
             val isSelfSend = toAddress.equals(fromAddress, ignoreCase = true)
             val activeIndex = walletManager.getActiveAccount()?.spendingAddressIndex
-            val fresh = if (!isSelfSend && index == activeIndex) {
-                walletManager.allocateFreshSpendingIndices(1).firstOrNull()
+            val isQuantumSource = WalletManager.isQuantumIndex(index)
+            // A self-send (Compound) still consolidates into the address itself, shield off.
+            val fresh = if (!isSelfSend && (isQuantumSource || index == activeIndex)) {
+                walletManager.allocateFreshQuantumIndices(1).firstOrNull()
             } else null
+            // A quantum-safe source spends with its redeem script pushed after the signature.
+            val redeemScript = if (isQuantumSource) {
+                try { walletManager.quantumRedeemScript(index) } catch (e: Exception) { null }
+            } else null
+            if (isQuantumSource && redeemScript == null) {
+                sends.finish(sendId, Result.failure(IllegalStateException("Could not derive the quantum address's key")))
+                return@launch
+            }
             val result = walletEngine.sendKaspa(
                 toAddress = toAddress,
                 amountSompi = amountSompi,
@@ -637,8 +711,13 @@ class WalletViewModel @Inject constructor(
                 changeAddress = fresh?.second ?: fromAddress,
                 feeRateOverride = feeRateOverride,
                 manualUtxos = manualUtxos,
-                extraFeeSompi = extraFeeSompi
+                extraFeeSompi = extraFeeSompi,
+                senderRedeemScript = redeemScript
             )
+            if (result.isSuccess && isQuantumSource) {
+                // the spend put this address's key on chain for good (self-sends included)
+                walletManager.markQuantumAddressSpent(fromAddress)
+            }
             if (result.isSuccess && fresh != null) {
                 // The primary follows its change onto the fresh address. Manage Addresses
                 // reloads below and moves its star.
@@ -675,6 +754,8 @@ class WalletViewModel @Inject constructor(
         feeMultiplier: Long,
         customExtraFeeSompi: Long?,
         recipientScriptLen: Int = SendFeeModel.STANDARD_SCRIPT_LEN,
+        /** Per-input signature-script size of [address] ([WalletManager.signatureScriptSize]). */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
     ): SendFeeModel.Preview? {
         if (!walletEngine.isRestApiReady) return null
         val utxos = walletEngine.fetchUtxos(address)
@@ -688,6 +769,7 @@ class WalletViewModel @Inject constructor(
             customExtraFeeSompi = customExtraFeeSompi,
             recipientScriptLen = recipientScriptLen,
             changeScriptLen = changeScriptLen,
+            signatureScriptSize = signatureScriptSize,
         )
     }
 
@@ -702,7 +784,10 @@ class WalletViewModel @Inject constructor(
         feeMultiplier: Long = 1L,
         customExtraFeeSompi: Long? = null,
     ): Long? =
-        estimateMaxSendableAmount(walletManager.deriveSpendingAddress(index), feeRateOverride, manualUtxos, feeMultiplier, customExtraFeeSompi)
+        estimateMaxSendableAmount(
+            walletManager.deriveSpendingAddress(index), feeRateOverride, manualUtxos, feeMultiplier, customExtraFeeSompi,
+            signatureScriptSize = WalletManager.signatureScriptSize(index),
+        )
 
     /**
      * Maximum sendable amount from any address this wallet holds the key for (spending-chain or
@@ -727,6 +812,9 @@ class WalletViewModel @Inject constructor(
         manualUtxos: List<UtxoEntry>? = null,
         feeMultiplier: Long = 1L,
         customExtraFeeSompi: Long? = null,
+        /** Per-input signature-script size of [address]: a quantum-safe source's inputs are
+         *  bigger ([WalletManager.signatureScriptSize]). */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
     ): Long? {
         if (!walletEngine.isRestApiReady) return null
         val fetched = walletEngine.fetchUtxos(address)
@@ -760,7 +848,7 @@ class WalletViewModel @Inject constructor(
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
 
-        return SendFeeModel.maxAfterFees(totalBalance, capped.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)
+        return SendFeeModel.maxAfterFees(totalBalance, capped.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi, signatureScriptSize = signatureScriptSize)
     }
 
     /**
@@ -779,6 +867,8 @@ class WalletViewModel @Inject constructor(
         feeRateOverride: Long? = null,
         feeMultiplier: Long = 1L,
         customExtraFeeSompi: Long? = null,
+        /** See [estimateMaxSendableAmount]. */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
     ): Pair<Long, List<UtxoEntry>>? {
         val fetched = walletEngine.fetchUtxos(address)
         if (fetched.isEmpty()) return null
@@ -789,7 +879,7 @@ class WalletViewModel @Inject constructor(
         val totalBalance = UtxoMath.checkedTotal(chunk.map { it.utxoEntry.amount }) ?: return null // IOS-020
         val feeRateSompiPerGram = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
             ?: walletEngine.fetchQuotedFeeRateSompiPerGram()
-        val maxAmount = SendFeeModel.maxAfterFees(totalBalance, chunk.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi)
+        val maxAmount = SendFeeModel.maxAfterFees(totalBalance, chunk.size, feeRateSompiPerGram, feeMultiplier, customExtraFeeSompi, signatureScriptSize = signatureScriptSize)
         return maxAmount to chunk
     }
 
@@ -872,9 +962,7 @@ class WalletViewModel @Inject constructor(
                 // empty now should not vanish from the list.
                 matched.maxOrNull()?.let { highest ->
                     val account = walletManager.getActiveAccount()
-                    val previousMax = account?.let {
-                        maxOf(it.spendingAddressIndex, it.maxSpendingAddressIndex)
-                    } ?: -1
+                    val previousMax = account?.let { WalletManager.legacyMaxSpendingIndex(it) } ?: -1
                     // Hide the empty indices the new bound sweeps in, exactly as
                     // revealSpendingAddress does. The scan now reaches a thousand addresses deep,
                     // so a match at index 291 would otherwise raise the bound and flood Manage
@@ -891,6 +979,9 @@ class WalletViewModel @Inject constructor(
                 // hiding is a tidying choice about empty addresses, not a decision that should
                 // outrank a balance.
                 matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
+                // The quantum-safe (KIP-22) chain's half (iOS discoverQuantumAddresses): funded
+                // quantum slots extend its own bound and are un-hidden the same way.
+                val quantumMatched = spendingAddressDiscovery.discoverQuantumAddresses()
                 // Load first, THEN reconcile: the list fetch already reads every address's
                 // balance in one go, so the reservation check can use those instead of making
                 // its own per-address REST calls - which is both faster and the reason this
@@ -898,7 +989,7 @@ class WalletViewModel @Inject constructor(
                 // public API throttles. loadManageAddressesAndAwait rather than the fire-and-
                 // forget variant, or the rows would not be there yet to read.
                 loadManageAddressesAndAwait()
-                onResult(matched.size)
+                onResult(matched.size + quantumMatched)
             } finally {
                 _discoveringAddresses.value = false
                 _spendingDiscoveryProgress.value = null
@@ -937,6 +1028,7 @@ class WalletViewModel @Inject constructor(
         _knsProfile.value = null
         _addressKnsDomains.value = emptyList()
         _domainOwningAddresses.value = emptySet()
+        _quantumSpentAddresses.value = emptySet()
         walletService.resetBalancesForAccountSwitch()
     }
 
@@ -1299,6 +1391,9 @@ class WalletViewModel @Inject constructor(
                         // Manage Addresses after a rebuild; every other recovered index starts
                         // hidden (see seedImportedSpendingVisibility's doc for the full rule).
                         walletService.seedImportedSpendingVisibility()
+                        // Restores scan both chains: funded quantum-safe (KIP-22) slots come back
+                        // too (iOS discoverQuantumAddresses).
+                        spendingAddressDiscovery.discoverQuantumAddresses()
                     } catch (e: Exception) {
                         android.util.Log.w("WalletViewModel", "Spending address discovery failed", e)
                     }

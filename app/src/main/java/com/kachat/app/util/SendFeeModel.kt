@@ -45,12 +45,16 @@ object SendFeeModel {
         payloadSize: Int = 0,
         recipientScriptLen: Int = STANDARD_SCRIPT_LEN,
         changeScriptLen: Int = STANDARD_SCRIPT_LEN,
+        /** Per-input signature-script size: a quantum-safe (KIP-22) source's inputs are bigger
+         *  ([KaspaMass.KIP22_SIGNATURE_SCRIPT_LEN]). */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
     ): Long =
         KaspaMass.calculateFee(
             KaspaMass.calculateMass(
                 numInputs = inputCount.coerceAtLeast(1),
                 outputScriptLens = listOf(recipientScriptLen, changeScriptLen),
                 payloadSize = payloadSize,
+                sigScriptLens = KaspaMass.sigScriptLensFor(inputCount.coerceAtLeast(1), signatureScriptSize),
             ),
             feeRateSompiPerGram,
         )
@@ -68,8 +72,10 @@ object SendFeeModel {
         feeMultiplier: Long = 1L,
         customExtraFeeSompi: Long? = null,
         payloadSize: Int = 0,
+        /** See [baseFee]. */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
     ): Long {
-        val base = baseFee(inputCount, feeRateSompiPerGram, payloadSize)
+        val base = baseFee(inputCount, feeRateSompiPerGram, payloadSize, signatureScriptSize = signatureScriptSize)
         val extra = extraFee(base, feeMultiplier, customExtraFeeSompi)
         return (totalSompi - base - extra).coerceAtLeast(0L)
     }
@@ -100,6 +106,8 @@ object SendFeeModel {
         customExtraFeeSompi: Long? = null,
         recipientScriptLen: Int = STANDARD_SCRIPT_LEN,
         changeScriptLen: Int = STANDARD_SCRIPT_LEN,
+        /** See [baseFee]. */
+        signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
     ): Preview? {
         if (amountSompi <= 0 || utxos.isEmpty()) return null
         var extra = customExtraFeeSompi?.coerceAtLeast(0L) ?: 0L
@@ -114,6 +122,7 @@ object SendFeeModel {
                     recipientScriptLen = recipientScriptLen,
                     changeScriptLen = changeScriptLen,
                     extraFeeSompi = extra,
+                    signatureScriptSize = signatureScriptSize,
                 )
             } catch (e: IllegalStateException) {
                 return null // invalid node data (UtxoMath): no preview rather than a wrong one
