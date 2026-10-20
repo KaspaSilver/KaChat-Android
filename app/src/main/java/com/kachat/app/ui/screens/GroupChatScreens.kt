@@ -627,6 +627,9 @@ fun GroupChatThreadScreen(
             // With the dock showing it rests just above the dock (LocalDockInset, which already
             // holds the system bar under the dock) and the messages run on under the dock; with
             // the keyboard up the dock is behind it, the inset is 0 and nothing changes here.
+            // The chain stays fixed (no navigationBarsPadding() swapped in with the keyboard), as
+            // on the public room, where that swap froze the app: the dock inset or the IME inset
+            // already covers the navigation bar.
             val dockInset = LocalDockInset.current
             Column(
                 modifier = Modifier
@@ -640,7 +643,6 @@ fun GroupChatThreadScreen(
                         )
                     )
                     .imePadding()
-                    .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
             ) {
             if (fundingGate.active) {
                 ZeroBalanceFundingCard(

@@ -1060,6 +1060,12 @@ fun BroadcastChannelScreen(
             // above it (LocalDockInset, which already holds the system bar under the dock); with
             // the keyboard up the dock is behind it, the inset is 0 and the composer sits on the
             // keyboard as before.
+            //
+            // One fixed modifier chain: the bottom padding and imePadding() never come or go.
+            // Swapping navigationBarsPadding() in and out ahead of imePadding() when the keyboard
+            // opened froze the app (an endless consumed-insets loop - an ANR seen while typing in
+            // a room). The navigation bar needs nothing of its own: without the keyboard the dock
+            // inset already holds it, and with the keyboard up the IME inset covers it.
             val composerBackground = LocalAppColors.current.background
             val dockInset = LocalDockInset.current
             Column(
@@ -1070,7 +1076,7 @@ fun BroadcastChannelScreen(
                             1f to composerBackground.copy(alpha = 0.85f),
                         )
                     )
-                    .then(if (dockInset > 0.dp) Modifier.padding(bottom = dockInset) else Modifier.navigationBarsPadding())
+                    .padding(bottom = dockInset)
                     .imePadding()
                     .padding(bottom = 2.dp)
             ) {
