@@ -90,10 +90,6 @@ enum class NameServiceTLD(val raw: String) {
     val isLive: Boolean get() = this != KACHAT || KachatNamesService.isLaunched
 
     companion object {
-        /** The tab Your Domains opens on: `.kachat` - its UI is on everywhere, live or not (iOS
-         *  7227d69). KNS only if that UI were ever switched back off. */
-        val defaultTab: NameServiceTLD get() = if (KachatNamesService.isEnabled) KACHAT else KAS
-
         /** The order the services are listed in: KaChat's own .kachat always first, then KNS,
          *  dotk and Kaspa Names. A bare name ("bob") resolves to .kachat only
          *  ([NameServicesClient.primary]); the rest are offered as "Other domains", never picked

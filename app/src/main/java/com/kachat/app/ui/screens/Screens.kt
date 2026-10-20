@@ -4466,7 +4466,7 @@ fun ProfileScreen(
  * on [ProfileScreen] itself; broken out once the list plus its two dialogs (inscribe/transfer)
  * made that screen too crowded to scan at a glance.
  */
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
@@ -4490,6 +4490,8 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
     var selectedDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
     var showSendScreen by remember { mutableStateOf(false) }
     var editingDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
+    // The name service whose card was tapped (iOS debd6fd), null on the cards themselves.
+    var openedService by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshOwnedDomainsAndAwait()
@@ -4549,67 +4551,123 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
         }
     }
 
-    // One tab per name ending, KaChat's own first: .kachat (not live yet), KNS (.kas), dotk (.k),
-    // Kaspa Names (.kaspa) - iOS df23b6f, 256e1c0, f9a8750. A sideways swipe changes the name
-    // service (7e5fa39). Opens on .kachat - its UI is on everywhere (iOS 7227d69).
-    val tabs = com.kachat.app.services.NameServiceTLD.entries
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
-        initialPage = tabs.indexOf(com.kachat.app.services.NameServiceTLD.defaultTab),
-        pageCount = { tabs.size }
-    )
-    val tabScope = rememberCoroutineScope()
-
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        // Runs on under the dock, as iOS's content runs on under its tab bar; each tab clears it
-        // (its pinned button above the dock, or its scroll's end).
-        contentWindowInsets = WindowInsets(0),
-        topBar = {
-            Column {
+    // The service a card opened: its own screen, titled by its ending, holding the list each
+    // service's tab used to show (iOS debd6fd - these used to be tabs on this screen).
+    openedService?.let { tld ->
+        androidx.activity.compose.BackHandler { openedService = null }
+        Scaffold(
+            containerColor = LocalAppColors.current.background,
+            // Runs on under the dock, as iOS's content runs on under its tab bar; each list clears
+            // it (its pinned button above the dock, or its scroll's end).
+            contentWindowInsets = WindowInsets(0),
+            topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("Your Domains", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                    title = { Text(tld.suffix, color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
+                        SheetBarBackButton(onClick = { openedService = null }, modifier = Modifier.padding(start = 12.dp))
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
                 )
-                UnderlineTabBar(
-                    titles = tabs.map { it.suffix },
-                    selectedIndex = pagerState.currentPage,
-                    onSelect = { index -> tabScope.launch { pagerState.animateScrollToPage(index) } },
-                )
+            },
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                when (tld) {
+                    com.kachat.app.services.NameServiceTLD.KAS -> KnsDomainListTab(
+                        domains = ownedDomainAssets.filter { it.asset != null },
+                        primaryDomainName = primaryDomainName,
+                        onRefresh = { viewModel.refreshOwnedDomainsAndAwait() },
+                        onSelect = { selectedDomain = it },
+                    )
+                    com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA ->
+                        ServiceNameListTab(tld = tld, viewModel = viewModel)
+                    // Live on both networks (testnet-10, and mainnet since iOS ef6b21e). The
+                    // "coming" note stays, unreachable.
+                    com.kachat.app.services.NameServiceTLD.KACHAT ->
+                        if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
+                            KachatLiveDomainsTab(
+                                walletAddress = walletAddress ?: "",
+                                onOpen = { selectedKachat = it },
+                                onInscribe = { showKachatMarket = true },
+                                refreshRequested = kachatRefreshRequested,
+                                onRefreshHandled = { kachatRefreshRequested = false },
+                            )
+                        } else {
+                            KachatNamesComingSoon()
+                        }
+                }
             }
+        }
+        return
+    }
+
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        // Runs on under the dock, as iOS's scroll runs on under its tab bar.
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Your Domains", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
         },
     ) { padding ->
-        androidx.compose.foundation.pager.HorizontalPager(
-            state = pagerState,
+        // One square card per name ending, KaChat's own first: .kachat, KNS (.kas), dotk (.k),
+        // Kaspa Names (.kaspa) - the same tile look as Kaspa Hub, two across (iOS debd6fd).
+        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize().padding(padding),
-            beyondBoundsPageCount = 1,
-        ) { page ->
-            when (val tld = tabs[page]) {
-                com.kachat.app.services.NameServiceTLD.KAS -> KnsDomainListTab(
-                    domains = ownedDomainAssets.filter { it.asset != null },
-                    primaryDomainName = primaryDomainName,
-                    onRefresh = { viewModel.refreshOwnedDomainsAndAwait() },
-                    onSelect = { selectedDomain = it },
-                )
-                com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA ->
-                    ServiceNameListTab(tld = tld, viewModel = viewModel)
-                // The live tab on every network (iOS 7227d69): empty with its Inscribe button where
-                // the registry isn't launched yet (mainnet). The "coming" note stays, unreachable.
-                com.kachat.app.services.NameServiceTLD.KACHAT ->
-                    if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
-                        KachatLiveDomainsTab(
-                            walletAddress = walletAddress ?: "",
-                            onOpen = { selectedKachat = it },
-                            onInscribe = { showKachatMarket = true },
-                            refreshRequested = kachatRefreshRequested,
-                            onRefreshHandled = { kachatRefreshRequested = false },
-                        )
-                    } else {
-                        KachatNamesComingSoon()
-                    }
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp + LocalDockInset.current),
+        ) {
+            items(com.kachat.app.services.NameServiceTLD.entries.size) { i ->
+                val tld = com.kachat.app.services.NameServiceTLD.entries[i]
+                DomainServiceCard(tld = tld, onClick = { openedService = tld })
             }
+        }
+    }
+}
+
+/**
+ * A Kaspa Hub style square (iOS debd6fd `serviceCard`): the name ending big in the brand style,
+ * who runs it under it. Same fill, 18 radius and 0.8 white hairline at 15% as the hub tiles.
+ */
+@Composable
+private fun DomainServiceCard(tld: com.kachat.app.services.NameServiceTLD, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(LocalAppColors.current.surface)
+            .border(0.8.dp, Color.White.copy(alpha = 0.15f), shape)
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // iOS .title2 rounded, heavy, in the accent colour.
+            Text(
+                tld.suffix,
+                color = KaspaTeal,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // iOS .caption semibold, secondary.
+            Text(
+                tld.serviceName,
+                color = LocalAppColors.current.textSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
