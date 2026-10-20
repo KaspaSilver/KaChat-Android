@@ -110,6 +110,91 @@ class ChatRepositoryTest {
         org.junit.Assert.assertFalse(ChatRepository.isScriptAddress("not an address"))
     }
 
+    // MARK: .kachat contract vs quantum (KIP-22) P2SH (iOS 0b4e27e)
+
+    // Quantum addresses 0 and 1 of the public all-"abandon ... art" test mnemonic and their
+    // redeem scripts (QuantumAddressTest's Python-checked vectors), and two key addresses.
+    private val quantum0 = "kaspa:pp4csja82vqaa9hstf6ned49w8j2tl79jmwjk5v79999qxsrfkj9zvq7y9wme"
+    private val redeem0 = "2008ddc68dcaad0b901868b764afe822a54e09e930064b21cc0846b4d08620136eac"
+    private val redeem1 = "203bc3d2f941e0e3f87bdff4ac632974ed3378ccebf0cd2821ed7496334bccbdf8ac"
+    private val keyA = "kaspa:qppt49jerlp2vjquvhfjcpzkna7g26jzu2r88wwsnt3zndq4qvnnywxtsehh8"
+    private val keyB = "kaspa:qphqs4c490zy80q6rjlnetvyv3hclg8zz6h8l774rsprdprryz88xk3qp39k7"
+    private val covenant = com.kachat.app.util.KaspaAddress.encode("kaspa", 0x08, ByteArray(32) { 7 })
+
+    /** A KIP-22 spend's signature script: 0x41 <64-byte sig> <sighash> 0x22 <redeem>. */
+    private fun kip22Script(redeemHex: String) = "41" + "ab".repeat(64) + "01" + "22" + redeemHex
+
+    private fun input(address: String?, script: String) =
+        com.kachat.app.services.TransactionInput("00".repeat(32), 0, address, 100_000_000L, script)
+
+    private fun output(address: String, amount: Long = 1L) =
+        com.kachat.app.services.TransactionOutput(amount, "", address)
+
+    private fun tx(inputs: List<com.kachat.app.services.TransactionInput>, outputs: List<String>, payload: String? = null) =
+        com.kachat.app.services.TransactionResponse("ff".repeat(32), inputs, outputs.map { output(it) }, 0L, payload)
+
+    private fun asciiHex(text: String) = text.toByteArray().joinToString("") { "%02x".format(it) }
+
+    private val schnorrScript = "41" + "cd".repeat(64) + "01"
+
+    @Test
+    fun `a payment paid from a quantum address is not a contract for the payee`() {
+        val t = tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(keyA, quantum0))
+        org.junit.Assert.assertTrue(ChatRepository.isKip22Spend(t.inputs[0]))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+    }
+
+    @Test
+    fun `a covenant-sized P2SH input is a contract`() {
+        val reveal = "41" + "ab".repeat(64) + "01" + "4c" + "50" + "51".repeat(80)
+        val t = tx(listOf(input(covenant, reveal)), listOf(keyA))
+        org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(t.inputs[0]))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+    }
+
+    @Test
+    fun `a KIP-22-shaped script whose redeem hashes to another address is a contract`() {
+        val t = tx(listOf(input(quantum0, kip22Script(redeem1))), listOf(keyA))
+        org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(t.inputs[0]))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+        // and one byte off the exact layout is not a KIP-22 spend either
+        val badPush = "41" + "ab".repeat(64) + "01" + "23" + redeem0
+        org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(input(quantum0, badPush)))
+        org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(input(quantum0, kip22Script(redeem0) + "00")))
+        org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(input(null, kip22Script(redeem0))))
+    }
+
+    @Test
+    fun `a received payment with P2SH change is not a contract`() {
+        val t = tx(listOf(input(keyB, schnorrScript)), listOf(keyA, quantum0))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+    }
+
+    @Test
+    fun `our own send whose only outside output is P2SH is a contract (the commit)`() {
+        val own = setOf(keyA.lowercase(), quantum0.lowercase())
+        val commit = tx(listOf(input(keyA, schnorrScript)), listOf(covenant, keyA))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(commit, own))
+        // the commit paid from a quantum address, change back to it
+        val fromQuantum = tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(covenant, quantum0))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(fromQuantum, own))
+        // our payment to a key address with quantum change is a payment
+        val payment = tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(keyB, quantum0))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(payment, own))
+        // and a send to ourselves only (no outside output) is not a contract
+        val toSelf = tx(listOf(input(keyA, schnorrScript)), listOf(quantum0))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(toSelf, own))
+    }
+
+    @Test
+    fun `a name or offer payload is a contract`() {
+        val own = setOf(keyA.lowercase())
+        val inputs = listOf(input(keyB, schnorrScript))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:name:register")), own))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:offer:make")), own))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:pay:x")), own))
+    }
+
     // MARK: first contact, whatever the address case (iOS 1e07e72, audit IOS-008)
 
     private val me = "kaspa:qrme0000000000000000000000000000000000000000000000000000000"

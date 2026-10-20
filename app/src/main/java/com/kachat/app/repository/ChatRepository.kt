@@ -20,6 +20,7 @@ import com.kachat.app.services.MeteredNetwork
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PushState
+import com.kachat.app.services.TransactionInput
 import com.kachat.app.services.TransactionResponse
 import com.kachat.app.services.WalletManager
 import com.kachat.app.services.database.KaChatDatabase
@@ -444,6 +445,16 @@ class ChatRepository @Inject constructor(
         if (isOwnSpendingAddress(address)) return
         if (database.contactDao().getContact(address, myAddress) != null) return
         addContact(ContactEntity(id = address, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
+    }
+
+    /** Every address this wallet spends from, lowercased: the chatting address [myAddress] and
+     *  every revealed spending address, the quantum chain included (iOS
+     *  `ownWalletAddressesLowercased`). Off the main thread, like [isOwnSpendingAddress]. */
+    private suspend fun ownWalletAddressesLowercased(myAddress: String): Set<String> {
+        val spending = kotlinx.coroutines.withContext(Dispatchers.Default) {
+            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
+        }
+        return (spending + myAddress).mapTo(HashSet()) { it.trim().lowercase() }
     }
 
     /** One of the active account's own spending addresses (any revealed index). Off the main
@@ -2699,11 +2710,11 @@ class ChatRepository @Inject constructor(
         var isPaymentPayload = MessageProtocol.isPaymentPayload(payloadBytes)
         if (!isPaymentPayload && MessageProtocol.isKaChatPayload(payloadBytes)) return true // real message/handshake, not a plain payment
         // A .kachat registry or offer transaction (its kchat:1:name: / offer: payload is caught
-        // above) pays to or from a script (P2SH) address - the commit, the name's 1 KAS bond, an
-        // offer's locked KAS and their refunds. A chat partner is always a key address, so such a
-        // transaction is never a payment chat; it shows in the wallet history (iOS 32fdaa4).
-        if (tx.outputs.any { isScriptAddress(it.scriptPublicKeyAddress) } ||
-            tx.inputs.any { isScriptAddress(it.previousOutpointAddress) }) return true
+        // above) moves a covenant's P2SH coin - the commit, the name's 1 KAS bond, an offer's
+        // locked KAS and their refunds - and is never a payment chat; it shows in the wallet
+        // history (iOS 32fdaa4). A quantum (KIP-22) address is P2SH too, so see
+        // [isKachatContractTransaction] for what still counts (iOS 0b4e27e).
+        if (isKachatContractTransaction(tx, ownWalletAddressesLowercased(myAddress))) return true
 
         // Which way the money went (iOS fetchPaymentsFromKaspaAPI's input/output analysis) - see
         // [classifyPaymentTx]. Every input is checked for a resolved address, not just the first:
@@ -3404,6 +3415,67 @@ class ChatRepository @Inject constructor(
             val domain = domainName?.trim().orEmpty()
             if (domain.isNotEmpty()) return if (isOutgoing) "Sent $domain domain" else "Received $domain domain"
             return if (isOutgoing) "Sent domain transfer" else "Received domain transfer"
+        }
+
+        /**
+         * A `.kachat` registry or offer transaction (register and its commit, buy, list, extend,
+         * renew, transfer, offers, release, reclaim) - never a payment chat (iOS 0b4e27e
+         * `isKachatContractTransaction`). [ownAddresses]: the chatting address and every revealed
+         * spending address, lowercased.
+         *
+         * Since quantum (KIP-22) addresses, "P2SH" alone no longer means "contract": every
+         * spending-address send carries P2SH change, and a payment can be PAID from a P2SH
+         * address. So:
+         * - a `kchat:1:name:` / `kchat:1:offer:` payload is a contract;
+         * - a P2SH input is a covenant spend UNLESS it is a KIP-22 spend of its own address
+         *   ([isKip22Spend]);
+         * - a P2SH output by itself proves nothing on a received payment (it is the payer's
+         *   change). The one contract transaction without a payload is the commit, and it pays
+         *   only the contract and the committer's own change - so only on this wallet's OWN
+         *   sends does "every outside output is P2SH" still mean the commit, never a chat (keeps
+         *   commits out of "sent 0.2" payment chats, iOS 32fdaa4).
+         */
+        internal fun isKachatContractTransaction(tx: TransactionResponse, ownAddresses: Set<String>): Boolean {
+            val payload = tx.payload?.takeIf { it.isNotEmpty() }?.let { runCatching { it.hexToBytes() }.getOrNull() }
+            if (payload != null) {
+                val text = String(payload, Charsets.UTF_8)
+                if (text.startsWith("kchat:1:name:") || text.startsWith("kchat:1:offer:")) return true
+            }
+            for (input in tx.inputs) {
+                if (isScriptAddress(input.previousOutpointAddress) && !isKip22Spend(input)) return true
+            }
+            val paidByUs = tx.inputs.any { input ->
+                val address = input.previousOutpointAddress?.lowercase() ?: return@any false
+                address in ownAddresses
+            }
+            if (!paidByUs) return false
+            val outside = tx.outputs.filter { output ->
+                val address = output.scriptPublicKeyAddress?.lowercase() ?: return@filter true
+                address !in ownAddresses
+            }
+            return outside.isNotEmpty() && outside.all { isScriptAddress(it.scriptPublicKeyAddress) }
+        }
+
+        /**
+         * A KIP-22 (quantum address) spend of a P2SH input (iOS `isKip22Spend`): the signature
+         * script is exactly `0x41 <64-byte sig> <sighash byte>` then the canonical push of the
+         * 34-byte redeem `0x20 <x-only key> 0xac` (101 bytes in all), and the redeem hashes to the
+         * input's own P2SH address. Anything else spending P2SH (the registry's reveal, bond, gap
+         * and offer covenants) is a contract.
+         */
+        internal fun isKip22Spend(input: TransactionInput): Boolean {
+            val hex = input.signatureScript as String?
+            if (hex == null || hex.length != 202) return false
+            val b = runCatching { hex.hexToBytes() }.getOrNull() ?: return false
+            if (b.size != 101 || b[0] != 0x41.toByte() || b[66] != 0x22.toByte() || b[67] != 0x20.toByte() ||
+                b[100] != 0xac.toByte()
+            ) return false
+            val redeem = b.copyOfRange(67, 101)
+            val address = input.previousOutpointAddress?.lowercase()?.takeIf { it.isNotEmpty() } ?: return false
+            val expected = com.kachat.app.services.kachatnames.KachatNamesService.p2shAddress(
+                com.kachat.app.services.kachatnames.KachatNames.Codec.p2shScript(redeem)
+            ) ?: return false
+            return expected.lowercase() == address
         }
 
         /** A pay-to-script-hash address (`kaspa:p...` / `kaspatest:p...`, version byte 0x08):

@@ -5966,12 +5966,23 @@ fun AddressVisibilityScreen(
                     Spacer(Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            // The chain-local number; the shield marks the quantum chain's rows
+                            // apart from the legacy chain's same numbers (iOS 0b4e27e).
                             Text(
-                                "#${entry.index}",
+                                "#${if (entry.isQuantum) entry.index - com.kachat.app.services.WalletManager.QUANTUM_INDEX_BASE else entry.index}",
                                 color = LocalAppColors.current.textSecondary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                            if (entry.isQuantum) {
+                                // iOS: SF Symbol "shield" (outline) at .caption2, secondary.
+                                Icon(
+                                    Icons.Outlined.Shield,
+                                    contentDescription = stringResource(R.string.quantum_safe),
+                                    tint = LocalAppColors.current.textSecondary,
+                                    modifier = Modifier.size(11.dp),
+                                )
+                            }
                             entry.label?.takeIf { it.isNotBlank() }?.let { label ->
                                 Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp, maxLines = 1)
                             }
@@ -8103,7 +8114,7 @@ private fun ManageAddressRow(
     // each one does, which a menu of bare verbs cannot.
     if (showMenu) {
         ManageAddressActionsSheet(
-            title = entry.label?.takeIf { it.isNotBlank() } ?: "Address ${entry.index}",
+            title = entry.displayLabel,
             subtitle = entry.address,
             onDismiss = { showMenu = false },
         ) {
