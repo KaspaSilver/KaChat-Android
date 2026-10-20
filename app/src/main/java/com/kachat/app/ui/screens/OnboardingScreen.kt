@@ -485,6 +485,17 @@ fun WelcomeScreen(
                 }
             }
         }
+        // Which build this phone runs, right where sign-in problems get reported from (iOS
+        // e8f4617). Drawn inside the column's 48dp bottom padding, above the gesture handle, so
+        // the height budget that keeps Create and Import on screen is untouched.
+        Text(
+            text = "KaChat ${com.kachat.app.util.AppVersion.display}",
+            fontSize = 11.sp,
+            color = LocalAppColors.current.textSecondary,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 22.dp)
+        )
         }
     }
 }
