@@ -141,7 +141,7 @@ class ChatRepositoryTest {
     fun `a payment paid from a quantum address is not a contract for the payee`() {
         val t = tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(keyA, quantum0))
         org.junit.Assert.assertTrue(ChatRepository.isKip22Spend(t.inputs[0]))
-        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(t) { setOf(keyA.lowercase()) })
     }
 
     @Test
@@ -149,14 +149,14 @@ class ChatRepositoryTest {
         val reveal = "41" + "ab".repeat(64) + "01" + "4c" + "50" + "51".repeat(80)
         val t = tx(listOf(input(covenant, reveal)), listOf(keyA))
         org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(t.inputs[0]))
-        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(t) { setOf(keyA.lowercase()) })
     }
 
     @Test
     fun `a KIP-22-shaped script whose redeem hashes to another address is a contract`() {
         val t = tx(listOf(input(quantum0, kip22Script(redeem1))), listOf(keyA))
         org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(t.inputs[0]))
-        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(t) { setOf(keyA.lowercase()) })
         // and one byte off the exact layout is not a KIP-22 spend either
         val badPush = "41" + "ab".repeat(64) + "01" + "23" + redeem0
         org.junit.Assert.assertFalse(ChatRepository.isKip22Spend(input(quantum0, badPush)))
@@ -167,32 +167,48 @@ class ChatRepositoryTest {
     @Test
     fun `a received payment with P2SH change is not a contract`() {
         val t = tx(listOf(input(keyB, schnorrScript)), listOf(keyA, quantum0))
-        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(t, setOf(keyA.lowercase())))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(t) { setOf(keyA.lowercase()) })
     }
 
     @Test
     fun `our own send whose only outside output is P2SH is a contract (the commit)`() {
         val own = setOf(keyA.lowercase(), quantum0.lowercase())
         val commit = tx(listOf(input(keyA, schnorrScript)), listOf(covenant, keyA))
-        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(commit, own))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(commit) { own })
         // the commit paid from a quantum address, change back to it
         val fromQuantum = tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(covenant, quantum0))
-        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(fromQuantum, own))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(fromQuantum) { own })
         // our payment to a key address with quantum change is a payment
         val payment = tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(keyB, quantum0))
-        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(payment, own))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(payment) { own })
         // and a send to ourselves only (no outside output) is not a contract
         val toSelf = tx(listOf(input(keyA, schnorrScript)), listOf(quantum0))
-        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(toSelf, own))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(toSelf) { own })
     }
 
     @Test
     fun `a name or offer payload is a contract`() {
         val own = setOf(keyA.lowercase())
         val inputs = listOf(input(keyB, schnorrScript))
-        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:name:register")), own))
-        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:offer:make")), own))
-        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:pay:x")), own))
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:name:register"))) { own })
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:offer:make"))) { own })
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(inputs, listOf(keyA), asciiHex("kchat:1:pay:x"))) { own })
+    }
+
+    @Test
+    fun `the own set is never read when there is no P2SH output (iOS d80c497)`() {
+        val reads = java.util.concurrent.atomic.AtomicInteger()
+        val own = { reads.incrementAndGet(); setOf(keyA.lowercase()) }
+        // our own all-key send, a received payment, a plain payload: no P2SH output, no read
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(listOf(input(keyA, schnorrScript)), listOf(keyB, keyA)), own))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(listOf(input(keyB, schnorrScript)), listOf(keyA)), own))
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(listOf(input(keyB, schnorrScript)), listOf(keyA), asciiHex("kchat:1:pay:x")), own))
+        // a quantum-paid payment to a key address only - the P2SH input is a KIP-22 spend
+        org.junit.Assert.assertFalse(ChatRepository.isKachatContractTransaction(tx(listOf(input(quantum0, kip22Script(redeem0))), listOf(keyA)), own))
+        org.junit.Assert.assertEquals(0, reads.get())
+        // a P2SH output does read it
+        org.junit.Assert.assertTrue(ChatRepository.isKachatContractTransaction(tx(listOf(input(keyA, schnorrScript)), listOf(covenant, keyA)), own))
+        org.junit.Assert.assertEquals(1, reads.get())
     }
 
     // MARK: first contact, whatever the address case (iOS 1e07e72, audit IOS-008)

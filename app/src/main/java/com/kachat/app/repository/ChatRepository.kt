@@ -447,24 +447,31 @@ class ChatRepository @Inject constructor(
         addContact(ContactEntity(id = address, walletAddress = myAddress, alias = null, knsName = null, publicKeyHex = null))
     }
 
-    /** Every address this wallet spends from, lowercased: the chatting address [myAddress] and
-     *  every revealed spending address, the quantum chain included (iOS
-     *  `ownWalletAddressesLowercased`). Off the main thread, like [isOwnSpendingAddress]. */
-    private suspend fun ownWalletAddressesLowercased(myAddress: String): Set<String> {
-        val spending = kotlinx.coroutines.withContext(Dispatchers.Default) {
-            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
+    /** Every address this wallet spends from, lowercased: the chatting address and every
+     *  revealed spending address, the quantum chain included - the memoized set
+     *  ([WalletManager.ownAddressSetLowercased], iOS d80c497). Off the main thread: a miss
+     *  costs a seed derivation. */
+    private suspend fun ownAddressSet(): Set<String> =
+        kotlinx.coroutines.withContext(Dispatchers.Default) {
+            runCatching { walletManager.ownAddressSetLowercased() }.getOrDefault(emptySet())
         }
-        return (spending + myAddress).mapTo(HashSet()) { it.trim().lowercase() }
-    }
 
-    /** One of the active account's own spending addresses (any revealed index). Off the main
-     *  thread: an index not derived yet costs a seed derivation. */
+    /** One of the active account's own spending addresses (any revealed index), the chatting
+     *  address excluded as before. Off the main thread, like [ownAddressSet]. */
     private suspend fun isOwnSpendingAddress(address: String): Boolean {
         val normalized = address.trim().lowercase()
-        val own = kotlinx.coroutines.withContext(Dispatchers.Default) {
-            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
-        }
-        return own.any { it.trim().lowercase() == normalized }
+        if (normalized.isEmpty()) return false
+        val chatting = runCatching { walletManager.getActiveAccount()?.address }.getOrNull()?.trim()?.lowercase()
+        return normalized != chatting && normalized in ownAddressSet()
+    }
+
+    /** An internal move within the own wallet: [sender] is one of the own spending addresses
+     *  (the memoized set, iOS d80c497) - but never the chatting address [myAddress] itself, which
+     *  keeps its own self-chat handling exactly as before. */
+    private fun isOwnMoveSender(sender: String, myAddress: String): Boolean {
+        val target = sender.trim().lowercase()
+        if (target.isEmpty() || target == myAddress.trim().lowercase()) return false
+        return target in runCatching { walletManager.ownAddressSetLowercased() }.getOrDefault(emptySet())
     }
 
     /**
@@ -2713,8 +2720,9 @@ class ChatRepository @Inject constructor(
         // above) moves a covenant's P2SH coin - the commit, the name's 1 KAS bond, an offer's
         // locked KAS and their refunds - and is never a payment chat; it shows in the wallet
         // history (iOS 32fdaa4). A quantum (KIP-22) address is P2SH too, so see
-        // [isKachatContractTransaction] for what still counts (iOS 0b4e27e).
-        if (isKachatContractTransaction(tx, ownWalletAddressesLowercased(myAddress))) return true
+        // [isKachatContractTransaction] for what still counts (iOS 0b4e27e). The own set is the
+        // memoized one, and only read when the transaction has a P2SH output (iOS d80c497).
+        if (isKachatContractTransaction(tx) { walletManager.ownAddressSetLowercased() }) return true
 
         // Which way the money went (iOS fetchPaymentsFromKaspaAPI's input/output analysis) - see
         // [classifyPaymentTx]. Every input is checked for a resolved address, not just the first:
@@ -2792,7 +2800,7 @@ class ChatRepository @Inject constructor(
         // Moving your own money between your own addresses is not a conversation (iOS
         // processPayments). Checked before the contact lookup, as iOS does: an own address CAN
         // also be a saved contact, and it is still not a conversation.
-        if (walletManager.isOwnSpendingAddress(sender)) return true
+        if (isOwnMoveSender(sender, myAddress)) return true
 
         // Same tombstone check as processHandshake/syncContextualMessages — an auto-detected
         // payment can just as easily resurrect a deleted contact as a message can. This one
@@ -2824,7 +2832,7 @@ class ChatRepository @Inject constructor(
             // nowhere in chats, and a sender rejected in Message Requests is kept out. Since iOS
             // 927322b a chat payment From a spending address is a plain transfer plus a
             // payment_notice ([handlePaymentNotice]), so this is an older app's payment.
-            if (walletManager.isOwnSpendingAddress(sender)) return true
+            if (isOwnMoveSender(sender, myAddress)) return true
             if (chatRequestStore.isBlocked(sender)) return true
             // A chat you deleted stays deleted for anything sent before the deletion.
             if (isTombstoned(database.contactDao().getDeletedContact(sender, myAddress), tx.transactionId, blockTime)) return true
@@ -2846,7 +2854,7 @@ class ChatRepository @Inject constructor(
             // with our own chatting address) with the sender noted in the bubble. The wallet
             // notification below still fires either way. A payment_notice naming it later moves
             // it into the payer's chat ([handlePaymentNotice]).
-            if (walletManager.isOwnSpendingAddress(sender)) return true
+            if (isOwnMoveSender(sender, myAddress)) return true
             val selfDeleted = database.contactDao().getDeletedContact(myAddress, myAddress)
             if (isTombstoned(selfDeleted, tx.transactionId, blockTime)) return true
             conversationId = myAddress
@@ -3104,11 +3112,8 @@ class ChatRepository @Inject constructor(
             Log.i("ChatRepository", "KNS transfer ${txId.take(12)} missing recipient in payload")
             return
         }
-        val myAddresses = HashSet<String>().apply {
-            add(me)
-            runCatching { walletManager.allSpendingAddresses() }.getOrDefault(emptyList())
-                .map { it.trim().lowercase() }.filter { it.isNotEmpty() }.forEach { add(it) }
-        }
+        // the memoized own set (iOS d80c497), plus the chatting address in use
+        val myAddresses = HashSet(ownAddressSet()).apply { add(me) }
         val inputAddresses = (tx.inputs as List<com.kachat.app.services.TransactionInput>?).orEmpty()
             .mapNotNull { it.previousOutpointAddress }
         val outputAddresses = (tx.outputs as List<com.kachat.app.services.TransactionOutput>?).orEmpty()
@@ -3421,7 +3426,8 @@ class ChatRepository @Inject constructor(
          * A `.kachat` registry or offer transaction (register and its commit, buy, list, extend,
          * renew, transfer, offers, release, reclaim) - never a payment chat (iOS 0b4e27e
          * `isKachatContractTransaction`). [ownAddresses]: the chatting address and every revealed
-         * spending address, lowercased.
+         * spending address, lowercased - read only when the transaction has a P2SH output, since
+         * without one the output rule can never say "contract" (iOS d80c497).
          *
          * Since quantum (KIP-22) addresses, "P2SH" alone no longer means "contract": every
          * spending-address send carries P2SH change, and a payment can be PAID from a P2SH
@@ -3435,7 +3441,7 @@ class ChatRepository @Inject constructor(
          *   sends does "every outside output is P2SH" still mean the commit, never a chat (keeps
          *   commits out of "sent 0.2" payment chats, iOS 32fdaa4).
          */
-        internal fun isKachatContractTransaction(tx: TransactionResponse, ownAddresses: Set<String>): Boolean {
+        internal fun isKachatContractTransaction(tx: TransactionResponse, ownAddresses: () -> Set<String>): Boolean {
             val payload = tx.payload?.takeIf { it.isNotEmpty() }?.let { runCatching { it.hexToBytes() }.getOrNull() }
             if (payload != null) {
                 val text = String(payload, Charsets.UTF_8)
@@ -3444,14 +3450,18 @@ class ChatRepository @Inject constructor(
             for (input in tx.inputs) {
                 if (isScriptAddress(input.previousOutpointAddress) && !isKip22Spend(input)) return true
             }
+            // Without a P2SH output the output rule below can never say "contract" - and the own
+            // set, memoized as it is, is not worth touching for the common all-key transaction.
+            if (tx.outputs.none { isScriptAddress(it.scriptPublicKeyAddress) }) return false
+            val own = ownAddresses()
             val paidByUs = tx.inputs.any { input ->
                 val address = input.previousOutpointAddress?.lowercase() ?: return@any false
-                address in ownAddresses
+                address in own
             }
             if (!paidByUs) return false
             val outside = tx.outputs.filter { output ->
                 val address = output.scriptPublicKeyAddress?.lowercase() ?: return@filter true
-                address !in ownAddresses
+                address !in own
             }
             return outside.isNotEmpty() && outside.all { isScriptAddress(it.scriptPublicKeyAddress) }
         }

@@ -1210,6 +1210,32 @@ class WalletManager @Inject constructor(
     @Volatile private var ownAddressIndexCache: Pair<String, Map<String, Int>>? = null
 
     /**
+     * [allSpendingAddresses] plus the chatting address, lowercased - MEMOIZED per account and
+     * chain lengths (the same key as [ownAddressLabel]'s cache; iOS d80c497
+     * `ownAddressSetLowercased`). The contract filter
+     * ([com.kachat.app.repository.ChatRepository.isKachatContractTransaction]) and the payment
+     * sync's own-address checks ask this per TRANSACTION, and [allSpendingAddresses] reads the
+     * whole cached address list (or derives) every call. Derives on a miss, so call it off the
+     * main thread.
+     */
+    fun ownAddressSetLowercased(): Set<String> {
+        val account = getActiveAccount() ?: return emptySet()
+        val wallet = account.address.trim().lowercase()
+        val key = "$wallet|${legacyMaxSpendingIndex(account)}|q${maxQuantumIndex(account)}"
+        ownAddressSetCache?.let { (cachedKey, set) -> if (cachedKey == key) return set }
+        val spending = runCatching { allSpendingAddresses() }.getOrDefault(emptyList())
+        val set = HashSet<String>(spending.size + 1)
+        spending.mapNotNullTo(set) { it.trim().lowercase().takeIf { s -> s.isNotEmpty() } }
+        set.add(wallet)
+        // a failed derivation isn't remembered: the next call tries again
+        if (spending.isNotEmpty()) ownAddressSetCache = key to set
+        return set
+    }
+
+    /** [ownAddressSetLowercased]'s set, keyed like [ownAddressIndexCache]. */
+    @Volatile private var ownAddressSetCache: Pair<String, Set<String>>? = null
+
+    /**
      * Addresses for an arbitrary set of indices, derived with ONE seed computation.
      *
      * [deriveSpendingAddress] is the single-lookup form and redoes the BIP-39 seed derivation
