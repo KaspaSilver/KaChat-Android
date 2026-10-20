@@ -977,32 +977,42 @@ class WalletService @Inject constructor(
         // same rule as chat payments and withdrawals. The domain itself leaves anyway; the old
         // address keeps any other domains it holds and stays listed in Manage Addresses. If the
         // fresh address cannot be derived, change stays on the source and nothing rotates - a
-        // pointer must never move to an address the funds did not reach.
-        val identityAddress = walletManager.getAddress()
+        // pointer must never move to an address the funds did not reach. The slot is picked, not
+        // revealed: held as in flight until the commit is decided, given back if it fails
+        // ([WalletManager.pickFreshQuantumChange]).
         val activeSpendingIndex = walletManager.getActiveAccount()?.spendingAddressIndex
         val fresh = if (fromSpendingAddressIndex != null && fromSpendingAddressIndex == activeSpendingIndex) {
-            walletManager.allocateFreshQuantumIndices(1).firstOrNull()
+            walletManager.pickFreshQuantumChange()
         } else null
-        val changeAddress = fresh?.second ?: sourceAddress
+        val changeAddress = fresh?.address ?: sourceAddress
 
         onStep(KnsInscribeStep.SUBMITTING_COMMIT)
-        val commit = knsInscriptionEngine.buildAndSubmitCommit(
-            payloadJson = payloadJson,
-            commitAmountSompi = TRANSFER_COMMIT_SOMPI,
-            revealAmountSompi = TRANSFER_REVEAL_SOMPI,
-            revealTargetAddress = sourceAddress,
-            operationType = "transfer",
-            fundingAddress = sourceAddress,
-            fundingPrivateKey = sourcePrivateKey,
-            ownerPrivateKey = sourcePrivateKey,
-            changeAddress = changeAddress
-        )
+        val commit = try {
+            knsInscriptionEngine.buildAndSubmitCommit(
+                payloadJson = payloadJson,
+                commitAmountSompi = TRANSFER_COMMIT_SOMPI,
+                revealAmountSompi = TRANSFER_REVEAL_SOMPI,
+                revealTargetAddress = sourceAddress,
+                operationType = "transfer",
+                fundingAddress = sourceAddress,
+                fundingPrivateKey = sourcePrivateKey,
+                ownerPrivateKey = sourcePrivateKey,
+                changeAddress = changeAddress
+            )
+        } catch (e: Throwable) {
+            // A commit that failed gives the slot back; one interrupted with its outcome unknown
+            // reveals it - revealing is always safe, handing a slot that may hold change out
+            // again is not.
+            fresh?.let { walletManager.finishQuantumChangePick(it, reveal = e is kotlinx.coroutines.CancellationException) }
+            throw e
+        }
         if (fresh != null) {
-            // The commit is accepted and its change is already on the fresh address, so the
-            // primary follows it now. Should the reveal still fail, the commit output is
-            // recoverable from the source key either way, and the pointer no longer names an
-            // address that just spent.
-            walletManager.setSpendingAddressIndex(identityAddress, fresh.first)
+            // The commit is accepted and its change is already on the fresh address, so it is
+            // revealed and the primary follows it now. Should the reveal still fail, the commit
+            // output is recoverable from the source key either way, and the pointer no longer
+            // names an address that just spent.
+            walletManager.finishQuantumChangePick(fresh, reveal = true)
+            walletManager.setSpendingAddressIndex(fresh.walletAddress, fresh.index)
         }
         onStep(KnsInscribeStep.SUBMITTING_REVEAL)
         val revealTxId = knsInscriptionEngine.buildAndSubmitReveal(commit, sourceAddress, changeAddress, sourcePrivateKey, priorityFeeSompi)

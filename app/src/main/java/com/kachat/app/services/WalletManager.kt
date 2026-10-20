@@ -148,6 +148,15 @@ class WalletManager @Inject constructor(
         /** The highest quantum chain index [account] has revealed; -1 before the first one. */
         fun maxQuantumIndex(account: Account): Int = account.maxQuantumAddressIndex ?: -1
 
+        /** The next fresh quantum slot (public index): one past [maxQuantumIndex] (chain index;
+         *  -1 = none revealed) and past every slot in [inFlight] (public indices a send picked
+         *  for its change and has not revealed yet). */
+        internal fun nextFreshQuantumIndex(maxQuantumIndex: Int, inFlight: Collection<Int>): Int {
+            val revealed = QUANTUM_INDEX_BASE + maxQuantumIndex + 1
+            val pending = inFlight.maxOrNull() ?: return revealed
+            return maxOf(revealed, pending + 1)
+        }
+
         /** The signature-script size a send from [spendingIndex] prices per input: a quantum
          *  source pushes its redeem script after the signature (iOS `kip22SignatureScriptSize`),
          *  anything else is the plain 66-byte Schnorr push. Null = the chatting address. */
@@ -1075,8 +1084,12 @@ class WalletManager @Inject constructor(
     }
 
     /** One past every quantum slot ever revealed, in public index space - where a spend's
-     *  change goes (fresh and hidden-keyed, whatever chain the spend came from). */
-    fun nextFreshQuantumIndex(): Int = QUANTUM_INDEX_BASE + maxQuantumAddressIndex() + 1
+     *  change goes (fresh and hidden-keyed, whatever chain the spend came from). Also past any
+     *  slot a send still in flight picked for its change ([pickFreshQuantumChange]), so nothing
+     *  else is handed the same one before that send reveals it. */
+    fun nextFreshQuantumIndex(): Int = synchronized(spendingIndexAllocationLock) {
+        nextFreshQuantumIndex(maxQuantumAddressIndex(), getActiveAccount()?.let { pendingQuantumChange[it.address] }.orEmpty())
+    }
 
     /** The KIP-22 redeem script of a quantum index's key, pushed after each signature when it
      *  spends; null for a legacy index. Derives from the seed. */
@@ -1279,26 +1292,96 @@ class WalletManager @Inject constructor(
     fun isOwnSpendingAddress(address: String): Boolean = allSpendingAddresses().contains(address)
 
     /** Guards every fresh-index allocation (payment change AND Request Payment reservations) so
-     *  two concurrent allocators can never hand out the same index — see [allocateFreshQuantumIndices]. */
+     *  two concurrent allocators can never hand out the same index — see [allocateFreshQuantumIndices]
+     *  and [pickFreshQuantumChange]. */
     private val spendingIndexAllocationLock = Any()
+
+    /** Quantum slots (public index) that sends still in flight picked for their change, per
+     *  account: not revealed yet, but taken - see [pickFreshQuantumChange]. Guarded by
+     *  [spendingIndexAllocationLock]. */
+    private val pendingQuantumChange = HashMap<String, MutableSet<Int>>()
+
+    /**
+     * Picks the fresh quantum-safe (KIP-22) slot a send's change goes to (iOS
+     * `nextFreshQuantumIndex`), WITHOUT revealing it: the send reveals it once the network takes
+     * the transaction ([finishQuantumChangePick]), so a failed send burns no slot. iOS picks with
+     * nothing held; here the pick is held as in flight until finished, so two sends at once (or a
+     * Request Payment reservation meanwhile) never get the same slot. Null when the address can't
+     * be derived - the caller then sends the change back to the source, as iOS does. Derives from
+     * the seed, so call it off the main thread.
+     */
+    fun pickFreshQuantumChange(): QuantumChangePick? = synchronized(spendingIndexAllocationLock) {
+        val account = getActiveAccount() ?: return@synchronized null
+        val index = nextFreshQuantumIndex()
+        val address = try {
+            quantumAddress(quantumChainKey(), index - QUANTUM_INDEX_BASE)
+        } catch (e: Exception) {
+            return@synchronized null
+        }
+        cacheSpendingAddresses(account.address, mapOf(index to address))
+        pendingQuantumChange.getOrPut(account.address) { HashSet() }.add(index)
+        QuantumChangePick(account.address, index, address)
+    }
+
+    /** A [pickFreshQuantumChange] pick: the account it was picked under, the slot's public index
+     *  and its address. */
+    data class QuantumChangePick(val walletAddress: String, val index: Int, val address: String)
+
+    /**
+     * Ends a [pickFreshQuantumChange] pick. [reveal] (the send went through - its change is on the
+     * slot): the quantum bound rises to cover it, the slots it newly passes are kept hidden and it
+     * is listed in Manage Addresses (iOS `revealSpendingAddress(at:)`). Without [reveal] the slot
+     * is simply given back. A caller that also rotates the primary onto the slot (withdraw, KNS
+     * transfer) does that after revealing it.
+     */
+    fun finishQuantumChangePick(pick: QuantumChangePick, reveal: Boolean) {
+        synchronized(spendingIndexAllocationLock) {
+            if (reveal) revealQuantumIndex(pick.walletAddress, pick.index)
+            pendingQuantumChange[pick.walletAddress]?.let { picks ->
+                picks.remove(pick.index)
+                if (picks.isEmpty()) pendingQuantumChange.remove(pick.walletAddress)
+            }
+        }
+    }
+
+    /** Raises [walletAddress]'s quantum bound to cover public [index], the slots it newly covers
+     *  hidden, and [index] itself listed (iOS `revealSpendingAddress(at:)`, quantum half). */
+    fun revealQuantumIndex(walletAddress: String, index: Int) {
+        if (!isQuantumIndex(index)) return
+        val quantumIndex = index - QUANTUM_INDEX_BASE
+        val currentMax = getAccounts().firstOrNull { it.address == walletAddress }?.let { maxQuantumIndex(it) } ?: return
+        if (quantumIndex > currentMax) {
+            for (i in (currentMax + 1) until quantumIndex) {
+                setSpendingAddressHidden(walletAddress, QUANTUM_INDEX_BASE + i, true)
+            }
+            ensureMaxQuantumAddressIndexAtLeast(walletAddress, quantumIndex)
+        }
+        setSpendingAddressHidden(walletAddress, index, false)
+    }
 
     /**
      * Reveals and returns [count] brand-new QUANTUM-SAFE slots (KIP-22) in one atomic step — what
-     * Request Payment's Fresh Address reserves and where every spending-address send's change
-     * goes (iOS `reserveFreshSpendingAddresses` / `nextFreshQuantumIndex`: fresh addresses handed
-     * out or funded are exactly what the quantum chain is for - never revealed, never funded, key
-     * hidden until they spend). Indices start strictly past the quantum chain's all-time max and
-     * the max is bumped to cover them BEFORE returning, so: (a) they have never been revealed,
-     * funded, or offered before, and (b) no later change address or reservation can ever land on
-     * the same index — every allocation funnels through this one synchronized method (the Android
-     * equivalent of iOS serializing them through the outgoing tx queue). Returns (public index,
-     * address) pairs; empty on failure. The legacy chain is never grown from here.
+     * Request Payment's Fresh Address reserves (iOS `reserveFreshSpendingAddresses`: fresh
+     * addresses handed out are exactly what the quantum chain is for - never revealed, never
+     * funded, key hidden until they spend). Indices start strictly past the quantum chain's
+     * all-time max and past every change slot a send still has in flight
+     * ([pickFreshQuantumChange]), and the max is bumped to cover them BEFORE returning, so: (a)
+     * they have never been revealed, funded, or offered before, and (b) no later change address or
+     * reservation can ever land on the same index — both go through [spendingIndexAllocationLock].
+     * Returns (public index, address) pairs; empty on failure. The legacy chain is never grown
+     * from here.
      */
     fun allocateFreshQuantumIndices(count: Int): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
         if (count <= 0) return@synchronized emptyList()
         val account = getActiveAccount() ?: return@synchronized emptyList()
         val chainKey = try { quantumChainKey() } catch (e: Exception) { return@synchronized emptyList() }
-        val base = maxQuantumIndex(account) + 1
+        // past any slot a send in flight picked for its change, too - kept hidden as the bound
+        // passes it, as a reveal past it would; its send lists it if it goes through
+        val base = nextFreshQuantumIndex() - QUANTUM_INDEX_BASE
+        val revealedMax = maxQuantumIndex(account)
+        pendingQuantumChange[account.address].orEmpty()
+            .filter { it - QUANTUM_INDEX_BASE > revealedMax }
+            .forEach { setSpendingAddressHidden(account.address, it, true) }
         val result = try {
             (0 until count).map { offset ->
                 val quantumIndex = base + offset

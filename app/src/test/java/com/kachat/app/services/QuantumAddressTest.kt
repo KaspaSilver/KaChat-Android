@@ -222,4 +222,17 @@ class QuantumAddressTest {
         val manualQuantum = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(utxos, 200_000_000L, rate, 34, 35, signatureScriptSize = KaspaMass.KIP22_SIGNATURE_SCRIPT_LEN)
         assertEquals(extraPerInput.toLong() * 2 * rate, manualQuantum.estimatedFee - manualLegacy.estimatedFee)
     }
+
+    @Test
+    fun `a fresh change slot is past the revealed bound and every slot still in flight`() {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        // nothing revealed, nothing in flight: quantum #0
+        assertEquals(base, WalletManager.nextFreshQuantumIndex(-1, emptySet()))
+        assertEquals(base + 4, WalletManager.nextFreshQuantumIndex(3, emptySet()))
+        // a send in flight holds its pick: the next one goes past it
+        assertEquals(base + 5, WalletManager.nextFreshQuantumIndex(3, setOf(base + 4)))
+        assertEquals(base + 7, WalletManager.nextFreshQuantumIndex(3, setOf(base + 4, base + 6)))
+        // a pick already covered by the bound (revealed meanwhile) changes nothing
+        assertEquals(base + 9, WalletManager.nextFreshQuantumIndex(8, setOf(base + 4)))
+    }
 }

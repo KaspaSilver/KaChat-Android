@@ -435,8 +435,8 @@ class KaspaWalletEngine @Inject constructor(
      * first, just enough for the amount and fee, at most
      * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] - or, with coin control, exactly the picked
      * ones; whatever is not spent stays on the source address. The change goes to a never-used
-     * quantum-safe (KIP-22) address, which is revealed (listed in Manage Addresses) once the send
-     * succeeds; it is never made the primary - nothing rotates a primary any more. A quantum source
+     * quantum-safe (KIP-22) address (back to the source if that can't be derived), which is
+     * revealed (listed in Manage Addresses) once the send succeeds; it is never made the primary - nothing rotates a primary any more. A quantum source
      * spends with its redeem script after each signature, and is marked spent (its shield comes
      * off) once the network takes it. A failed/rejected send moves nothing, safe to retry.
      */
@@ -454,7 +454,6 @@ class KaspaWalletEngine @Inject constructor(
         /** Fast / Priority / custom extra on top of the base fee, paid exactly. */
         extraFeeSompi: Long = 0L,
     ): Result<String> {
-        val identityAddress = walletManager.getAddress()
         val sourceSpendingAddress = walletManager.deriveSpendingAddress(sourceSpendingIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(sourceSpendingIndex)
         // A quantum-safe source (KIP-22) spends with its redeem script pushed after the signature.
@@ -464,38 +463,42 @@ class KaspaWalletEngine @Inject constructor(
                 ?: return Result.failure(IllegalStateException("Could not derive the quantum address's key"))
         } else null
         // Change always lands on a brand-new quantum-safe slot (iOS `nextFreshQuantumIndex`):
-        // never an address used before, and its key stays hidden until IT spends. The allocation
-        // bumps the quantum max atomically, so a concurrent allocation (Request Payment's Fresh
-        // Address, another payment) can't collide either. On failure the allocated index is
-        // simply burned unused - revealing an index is always safe, reusing one is not.
-        val (nextIndex, nextSpendingAddress) = walletManager.allocateFreshQuantumIndices(1).firstOrNull()
-            ?: return Result.failure(IllegalStateException("Could not derive change address"))
-        if (nextIndex == sourceSpendingIndex || nextSpendingAddress.equals(sourceSpendingAddress, ignoreCase = true)) {
-            return Result.failure(IllegalStateException("Could not derive change address"))
+        // never an address used before, and its key stays hidden until IT spends. Picked now,
+        // revealed only once the network takes the send - a failed send burns no slot - and held
+        // as in flight meanwhile, so a concurrent send or Request Payment reservation can't get
+        // the same one. If it can't be derived, the change goes back to the source (iOS).
+        val picked = walletManager.pickFreshQuantumChange()
+        val pick = if (picked != null && (picked.index == sourceSpendingIndex || picked.address.equals(sourceSpendingAddress, ignoreCase = true))) {
+            walletManager.finishQuantumChangePick(picked, reveal = false)
+            null
+        } else picked
+        val result = try {
+            sendKaspa(
+                toAddress = toAddress,
+                amountSompi = amountSompi,
+                payloadBytes = payloadBytes,
+                fromAddress = sourceSpendingAddress,
+                signingPrivateKey = spendingPrivateKey,
+                changeAddress = pick?.address ?: sourceSpendingAddress,
+                feeRateOverride = feeRateOverride,
+                // Coin control: only the chosen coins are spent (iOS 62c2773). Otherwise the normal
+                // largest-first selection, as a chatting-address payment - the fee preview and Max
+                // price the same coins (ChatViewModel.paymentFeeInputs / paymentMaxCoins).
+                manualUtxos = manualUtxos,
+                extraFeeSompi = extraFeeSompi,
+                senderRedeemScript = senderRedeemScript,
+            )
+        } catch (e: Throwable) {
+            // Interrupted with the outcome unknown: revealed, as revealing a slot is always safe
+            // and handing out one that may hold change is not.
+            pick?.let { walletManager.finishQuantumChangePick(it, reveal = true) }
+            throw e
         }
-
-        val result = sendKaspa(
-            toAddress = toAddress,
-            amountSompi = amountSompi,
-            payloadBytes = payloadBytes,
-            fromAddress = sourceSpendingAddress,
-            signingPrivateKey = spendingPrivateKey,
-            changeAddress = nextSpendingAddress,
-            feeRateOverride = feeRateOverride,
-            // Coin control: only the chosen coins are spent (iOS 62c2773). Otherwise the normal
-            // largest-first selection, as a chatting-address payment - the fee preview and Max
-            // price the same coins (ChatViewModel.paymentFeeInputs / paymentMaxCoins).
-            manualUtxos = manualUtxos,
-            extraFeeSompi = extraFeeSompi,
-            senderRedeemScript = senderRedeemScript,
-        )
-        if (result.isSuccess) {
-            // Revealed, not made primary (iOS revealSpendingAddress): the allocation above already
-            // raised the max to cover it; make sure it isn't hidden either.
-            walletManager.setSpendingAddressHidden(identityAddress, nextIndex, hidden = false)
-            // a spend reveals the key for good: the shield comes off (KIP-22)
-            if (isQuantumSource) walletManager.markQuantumAddressSpent(sourceSpendingAddress)
-        }
+        // Revealed, not made primary (iOS revealSpendingAddress), only when the send went
+        // through; a failed send gives it back.
+        pick?.let { walletManager.finishQuantumChangePick(it, reveal = result.isSuccess) }
+        // a spend reveals the key for good: the shield comes off (KIP-22)
+        if (result.isSuccess && isQuantumSource) walletManager.markQuantumAddressSpent(sourceSpendingAddress)
         return result
     }
 

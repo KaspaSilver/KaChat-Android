@@ -623,15 +623,7 @@ class WalletViewModel @Inject constructor(
         val account = walletManager.getActiveAccount() ?: return
         if (WalletManager.isQuantumIndex(index)) {
             // The quantum chain's own bound, the slots it newly covers hidden the same way.
-            val quantumIndex = index - WalletManager.QUANTUM_INDEX_BASE
-            val currentMax = WalletManager.maxQuantumIndex(account)
-            if (quantumIndex > currentMax) {
-                for (i in (currentMax + 1) until quantumIndex) {
-                    walletManager.setSpendingAddressHidden(account.address, WalletManager.QUANTUM_INDEX_BASE + i, true)
-                }
-                walletManager.ensureMaxQuantumAddressIndexAtLeast(account.address, quantumIndex)
-            }
-            walletManager.setSpendingAddressHidden(account.address, index, false)
+            walletManager.revealQuantumIndex(account.address, index)
             loadManageAddresses()
             return
         }
@@ -691,10 +683,6 @@ class WalletViewModel @Inject constructor(
             val isSelfSend = toAddress.equals(fromAddress, ignoreCase = true)
             val activeIndex = walletManager.getActiveAccount()?.spendingAddressIndex
             val isQuantumSource = WalletManager.isQuantumIndex(index)
-            // A self-send (Compound) still consolidates into the address itself, shield off.
-            val fresh = if (!isSelfSend && (isQuantumSource || index == activeIndex)) {
-                walletManager.allocateFreshQuantumIndices(1).firstOrNull()
-            } else null
             // A quantum-safe source spends with its redeem script pushed after the signature.
             val redeemScript = if (isQuantumSource) {
                 try { walletManager.quantumRedeemScript(index) } catch (e: Exception) { null }
@@ -703,25 +691,40 @@ class WalletViewModel @Inject constructor(
                 sends.finish(sendId, Result.failure(IllegalStateException("Could not derive the quantum address's key")))
                 return@launch
             }
-            val result = walletEngine.sendKaspa(
-                toAddress = toAddress,
-                amountSompi = amountSompi,
-                fromAddress = fromAddress,
-                signingPrivateKey = walletManager.getSpendingPrivateKeyBytes(index),
-                changeAddress = fresh?.second ?: fromAddress,
-                feeRateOverride = feeRateOverride,
-                manualUtxos = manualUtxos,
-                extraFeeSompi = extraFeeSompi,
-                senderRedeemScript = redeemScript
-            )
+            // A self-send (Compound) still consolidates into the address itself, shield off.
+            // Picked, not revealed: held as in flight so nothing else gets the same slot, and
+            // given back if the send fails ([WalletManager.pickFreshQuantumChange]).
+            val fresh = if (!isSelfSend && (isQuantumSource || index == activeIndex)) {
+                withContext(Dispatchers.Default) { walletManager.pickFreshQuantumChange() }
+            } else null
+            val result = try {
+                walletEngine.sendKaspa(
+                    toAddress = toAddress,
+                    amountSompi = amountSompi,
+                    fromAddress = fromAddress,
+                    signingPrivateKey = walletManager.getSpendingPrivateKeyBytes(index),
+                    changeAddress = fresh?.address ?: fromAddress,
+                    feeRateOverride = feeRateOverride,
+                    manualUtxos = manualUtxos,
+                    extraFeeSompi = extraFeeSompi,
+                    senderRedeemScript = redeemScript
+                )
+            } catch (e: Throwable) {
+                // outcome unknown: revealing a slot is always safe, handing it out again is not
+                fresh?.let { walletManager.finishQuantumChangePick(it, reveal = true) }
+                throw e
+            }
             if (result.isSuccess && isQuantumSource) {
                 // the spend put this address's key on chain for good (self-sends included)
                 walletManager.markQuantumAddressSpent(fromAddress)
             }
-            if (result.isSuccess && fresh != null) {
-                // The primary follows its change onto the fresh address. Manage Addresses
-                // reloads below and moves its star.
-                walletManager.setSpendingAddressIndex(walletManager.getAddress(), fresh.first)
+            if (fresh != null) {
+                walletManager.finishQuantumChangePick(fresh, reveal = result.isSuccess)
+                if (result.isSuccess) {
+                    // The primary follows its change onto the fresh address. Manage Addresses
+                    // reloads below and moves its star.
+                    walletManager.setSpendingAddressIndex(fresh.walletAddress, fresh.index)
+                }
             }
             sends.finish(sendId, result)
             if (result.isSuccess) {
@@ -1391,9 +1394,9 @@ class WalletViewModel @Inject constructor(
                         // Manage Addresses after a rebuild; every other recovered index starts
                         // hidden (see seedImportedSpendingVisibility's doc for the full rule).
                         walletService.seedImportedSpendingVisibility()
-                        // Restores scan both chains: funded quantum-safe (KIP-22) slots come back
-                        // too (iOS discoverQuantumAddresses).
-                        spendingAddressDiscovery.discoverQuantumAddresses()
+                        // The quantum-safe (KIP-22) chain is not scanned here: as on iOS, funded
+                        // quantum slots come back from Manage Addresses' Discover
+                        // (discoverQuantumAddresses), never on import.
                     } catch (e: Exception) {
                         android.util.Log.w("WalletViewModel", "Spending address discovery failed", e)
                     }
