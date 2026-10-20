@@ -202,13 +202,14 @@ interface MessageDao {
     suspend fun contactsWithDeliveredSends(walletAddress: String): List<String>
 
     /** Received payment bubbles an older build filed from contract (P2SH) transactions - the
-     *  .kachat commit, bond and offer refunds: in a conversation with a script address, or in
-     *  the self-chat noted "From: kaspa(test):p..." (iOS 32fdaa4, purgeContractAddressPaymentChats). */
+     *  .kachat commit, bond and offer refunds - in a conversation with a script address (iOS
+     *  32fdaa4, purgeContractAddressPaymentChats). Not the self-chat's "From: kaspa:p..."
+     *  payments, as iOS's purge never touched those either: since KIP-22 a script address can
+     *  be someone's quantum-safe spending address, and those are real payments (iOS 0b4e27e). */
     @Query(
         """
         DELETE FROM messages WHERE walletAddress = :walletAddress AND type = 'pay' AND (
             contactId LIKE 'kaspa:p%' OR contactId LIKE 'kaspatest:p%'
-            OR (contactId = :walletAddress AND (plaintextBody LIKE '%From: kaspa:p%' OR plaintextBody LIKE '%From: kaspatest:p%'))
         )
         """
     )
