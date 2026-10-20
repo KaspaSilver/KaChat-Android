@@ -2217,8 +2217,12 @@ class KaPostsViewModel @Inject constructor(
                     val author = quoted.posterPubkey ?: error("Quoted post has no author key")
                     kaPostsService.submitQuote(post.text, contentId, author)
                 } else if (poll != null) {
-                    // and a failed poll as the poll
-                    kaPostsService.submitPoll(post.text, poll.options, poll.closesAtMs, mentionedPubkeys(post.text))
+                    // and a failed poll as the poll - its full length again from now, so a late
+                    // retry never puts an already-closed poll on chain (iOS 1d4b895, IOS-093)
+                    val length = maxOf(poll.closesAtMs - post.timestamp, 60_000L)
+                    val closesAtMs = System.currentTimeMillis() + length
+                    mutateEverywhere(post.id) { it.copy(poll = it.poll?.copy(closesAtMs = closesAtMs)) }
+                    kaPostsService.submitPoll(post.text, poll.options, closesAtMs, mentionedPubkeys(post.text))
                 } else if (parent != null) {
                     val parentRemoteId = parent.remoteId ?: error("Parent post is not on-chain yet")
                     kaPostsService.submitReply(post.text, parentRemoteId, parent.posterPubkey, mentionedPubkeys(post.text))
