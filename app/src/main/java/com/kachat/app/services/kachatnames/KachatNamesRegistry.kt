@@ -32,8 +32,10 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -900,13 +902,32 @@ class KachatNamesRegistry @Inject constructor(
                     age >= backoff || registryMoved
                 }
                 .distinct()
-                // a few at a time, the people you talk to most recently first
-                .take(40)
                 .toList()
-            for (key in targets) {
+            if (targets.isEmpty()) return
+            // One batch for everyone due (the indexer's /identity/batch), so a pass is a single
+            // request however many contacts are unnamed - and nobody waits behind the 40-cap.
+            identitiesBatch(targets)?.let { found ->
+                val answered = targets.mapNotNull { key -> found[key]?.let { key to it } }.toMap()
+                for (key in targets) {
+                    val identity = answered[key]
+                    if (identity == null) {
+                        // not in the answer (the indexer skipped it): a miss, asked again in a minute
+                        identityMisses[key] = System.currentTimeMillis()
+                        continue
+                    }
+                    identityMisses.remove(key)
+                    // one more "no name" in a row backs the next ask off further
+                    if (identity.label == null) unnamedAnswers[key] = (unnamedAnswers[key] ?: 0) + 1 else unnamedAnswers.remove(key)
+                }
+                // one cache update for the whole answer, so the lists redraw once
+                storeFetchedIdentities(answered)
+                return
+            }
+            // No batch (the chain walker - local lookups - or an indexer without the endpoint
+            // yet): a few at a time, the people you talk to most recently first.
+            for (key in targets.take(40)) {
                 if (!isActive()) return
                 val found = refreshIdentity(key) ?: continue
-                // one more "no name" in a row backs the next ask off further
                 if (found.label == null) unnamedAnswers[key] = (unnamedAnswers[key] ?: 0) + 1 else unnamedAnswers.remove(key)
             }
         } finally {
@@ -934,17 +955,63 @@ class KachatNamesRegistry @Inject constructor(
         } catch (_: Exception) {
             return null
         }
-        val now = System.currentTimeMillis()
         identityMisses.remove(key)
-        identityAsked[key] = _revision.value to now
-        synchronized(identityLock) {
-            identityStoredAt[key] = now
-            if (identities[key] != found) {
-                identities = identities + (key to found)
-                persistIdentitiesSoon()
-            }
-        }
+        storeFetchedIdentities(mapOf(key to found))
         return found
+    }
+
+    /**
+     * Files fetched identities (by lowercased address) in the cache, in one update; true when any
+     * changed. An unchanged answer only stamps the entry fresh. The one place the found-identity
+     * bookkeeping lives - [refreshIdentity], [cachedIdentity]'s lookup and the unnamed sweep's
+     * batch all come through here (iOS 710b78f `storeFetchedIdentity`).
+     */
+    private fun storeFetchedIdentities(found: Map<String, Identity>): Boolean {
+        if (found.isEmpty()) return false
+        val now = System.currentTimeMillis()
+        val rev = _revision.value
+        synchronized(identityLock) {
+            found.keys.forEach { key ->
+                identityAsked[key] = rev to now
+                identityStoredAt[key] = now
+            }
+            val changed = found.filter { (key, identity) -> identities[key] != identity }
+            if (changed.isEmpty()) return false
+            identities = identities + changed
+            persistIdentitiesSoon()
+            return true
+        }
+    }
+
+    /**
+     * Everyone at once: `POST /identity/batch` (one request and two set queries on the indexer,
+     * against one GET per address), keyed back by lowercased address. Null when the source is the
+     * chain walker (each lookup is local anyway) or the indexer doesn't serve the endpoint yet -
+     * the caller falls back to per-address lookups (iOS 710b78f `identitiesBatch`).
+     */
+    private suspend fun identitiesBatch(addresses: List<String>): Map<String, Identity>? {
+        if (!KachatNamesService.isLaunched || addresses.isEmpty()) return null
+        return try {
+            prepare()
+            val base = (_source.value as? Source.Indexer)?.base ?: return null
+            val out = HashMap<String, Identity>()
+            // the indexer takes at most 200 per call
+            for (chunk in addresses.chunked(200)) {
+                val body = com.google.gson.JsonObject().apply {
+                    add("addresses", com.google.gson.JsonArray().apply { chunk.forEach { add(it) } })
+                }
+                val answer = post(base, "/identity/batch", body).asJsonObject.getAsJsonObject("identities")
+                    ?: return null
+                for ((address, identity) in answer.entrySet()) {
+                    out[address.lowercase()] = IndexerApi.IdentityJson.parse(identity).identity
+                }
+            }
+            out
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun cachedIdentity(address: String): Identity? {
@@ -972,13 +1039,7 @@ class KachatNamesRegistry @Inject constructor(
                 try {
                     val found = identity(key)
                     identityMisses.remove(key)
-                    synchronized(identityLock) {
-                        if (identities[key] != found) {
-                            identities = identities + (key to found)
-                            identityStoredAt[key] = System.currentTimeMillis()
-                            persistIdentitiesSoon()
-                        }
-                    }
+                    storeFetchedIdentities(mapOf(key to found))
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -1123,6 +1184,24 @@ class KachatNamesRegistry @Inject constructor(
     private suspend fun get(base: String, path: String): JsonElement = withContext(Dispatchers.IO) {
         val request = runCatching {
             Request.Builder().url(base + path).header("Accept", "application/json").build()
+        }.getOrNull() ?: throw KachatNames.Failure("bad indexer URL")
+        http.newCall(request).execute().use { response ->
+            val code = response.code
+            if (code != 200) {
+                if (code == 404) throw KachatNames.Failure("not found")
+                throw KachatNames.Failure("the names indexer answered $code")
+            }
+            JsonParser.parseString(response.body?.string() ?: "")
+        }
+    }
+
+    /** Like [get]: a JSON POST to the names indexer. */
+    private suspend fun post(base: String, path: String, body: JsonElement): JsonElement = withContext(Dispatchers.IO) {
+        val request = runCatching {
+            Request.Builder().url(base + path)
+                .header("Accept", "application/json")
+                .post(gson.toJson(body).toRequestBody("application/json".toMediaType()))
+                .build()
         }.getOrNull() ?: throw KachatNames.Failure("bad indexer URL")
         http.newCall(request).execute().use { response ->
             val code = response.code
