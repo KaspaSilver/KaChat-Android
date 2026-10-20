@@ -896,6 +896,9 @@
     <string name="kn_done_listed">Listed for sale</string>
     <string name="kn_done_transferred">Name transferred</string>
     <string name="kn_done_profile_saved">Profile saved</string>
+    <string name="kn_clear_profile">Clear Profile</string>
+    <string name="kn_done_profile_cleared">Profile cleared</string>
+    <string name="kn_clear_footer">Clearing writes an empty profile to the chain from your address to itself, for a network fee, so KaChat shows nothing for your address again.</string>
     <string name="kn_done_primary_set">Primary name set</string>
     <string name="kn_done_registered">Name registered</string>
     <string name="kn_done_commit_cancelled">Commit cancelled</string>

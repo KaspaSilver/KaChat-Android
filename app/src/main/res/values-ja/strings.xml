@@ -722,6 +722,9 @@
     <string name="kn_done_listed">出品しました</string>
     <string name="kn_done_transferred">名前を譲渡しました</string>
     <string name="kn_done_profile_saved">プロフィールを保存しました</string>
+    <string name="kn_clear_profile">プロフィールをクリア</string>
+    <string name="kn_done_profile_cleared">プロフィールをクリアしました</string>
+    <string name="kn_clear_footer">クリアすると、あなたのアドレスから自分自身へ空のプロフィールがチェーンに書き込まれます（ネットワーク手数料のみ）。以後、KaChat はあなたのアドレスに何も表示しません。</string>
     <string name="kn_done_primary_set">メインの名前を設定しました</string>
     <string name="kn_done_registered">名前を登録しました</string>
     <string name="kn_done_commit_cancelled">コミットを取り消しました</string>

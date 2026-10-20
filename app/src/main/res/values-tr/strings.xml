@@ -722,6 +722,9 @@
     <string name="kn_done_listed">Satışa çıkarıldı</string>
     <string name="kn_done_transferred">Ad aktarıldı</string>
     <string name="kn_done_profile_saved">Profil kaydedildi</string>
+    <string name="kn_clear_profile">Profili Temizle</string>
+    <string name="kn_done_profile_cleared">Profil temizlendi</string>
+    <string name="kn_clear_footer">Temizleme, adresinizden kendisine zincire boş bir profil yazar (yalnızca ağ ücreti) ve KaChat artık adresiniz için hiçbir şey göstermez.</string>
     <string name="kn_done_primary_set">Ana ad ayarlandı</string>
     <string name="kn_done_registered">Ad kaydedildi</string>
     <string name="kn_done_commit_cancelled">Taahhüt iptal edildi</string>

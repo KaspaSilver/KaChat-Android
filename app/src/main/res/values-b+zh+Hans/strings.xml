@@ -722,6 +722,9 @@
     <string name="kn_done_listed">已上架出售</string>
     <string name="kn_done_transferred">名称已转让</string>
     <string name="kn_done_profile_saved">个人资料已保存</string>
+    <string name="kn_clear_profile">清除资料</string>
+    <string name="kn_done_profile_cleared">资料已清除</string>
+    <string name="kn_clear_footer">清除会从你的地址向其自身在链上写入一份空资料（仅需网络费用），此后 KaChat 不再为你的地址显示任何内容。</string>
     <string name="kn_done_primary_set">主名称已设置</string>
     <string name="kn_done_registered">名称已注册</string>
     <string name="kn_done_commit_cancelled">承诺已取消</string>

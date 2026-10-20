@@ -759,6 +759,9 @@
     <string name="kn_done_listed">برای فروش گذاشته شد</string>
     <string name="kn_done_transferred">نام منتقل شد</string>
     <string name="kn_done_profile_saved">نمایه ذخیره شد</string>
+    <string name="kn_clear_profile">پاک کردن پروفایل</string>
+    <string name="kn_done_profile_cleared">پروفایل پاک شد</string>
+    <string name="kn_clear_footer">پاک کردن یک پروفایل خالی را روی زنجیره از آدرس شما به خودش می‌نویسد، در ازای کارمزد شبکه، و از آن پس کاچت چیزی برای آدرس شما نشان نمی‌دهد.</string>
     <string name="kn_done_primary_set">نام اصلی تنظیم شد</string>
     <string name="kn_done_registered">نام ثبت شد</string>
     <string name="kn_done_commit_cancelled">تعهد لغو شد</string>

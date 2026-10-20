@@ -722,6 +722,9 @@
     <string name="kn_done_listed">Выставлено на продажу</string>
     <string name="kn_done_transferred">Имя передано</string>
     <string name="kn_done_profile_saved">Профиль сохранён</string>
+    <string name="kn_clear_profile">Очистить профиль</string>
+    <string name="kn_done_profile_cleared">Профиль очищен</string>
+    <string name="kn_clear_footer">Очистка записывает в цепочку пустой профиль с вашего адреса на него же за сетевую комиссию — после этого KaChat снова ничего не показывает для вашего адреса.</string>
     <string name="kn_done_primary_set">Основное имя задано</string>
     <string name="kn_done_registered">Имя зарегистрировано</string>
     <string name="kn_done_commit_cancelled">Коммит отменён</string>

@@ -722,6 +722,9 @@
     <string name="kn_done_listed">הוצע למכירה</string>
     <string name="kn_done_transferred">השם הועבר</string>
     <string name="kn_done_profile_saved">הפרופיל נשמר</string>
+    <string name="kn_clear_profile">ניקוי הפרופיל</string>
+    <string name="kn_done_profile_cleared">הפרופיל נוקה</string>
+    <string name="kn_clear_footer">הניקוי כותב פרופיל ריק לשרשרת מהכתובת שלך אל עצמה, תמורת עמלת רשת, ומאז KaChat לא מציג דבר עבור הכתובת שלך.</string>
     <string name="kn_done_primary_set">השם הראשי הוגדר</string>
     <string name="kn_done_registered">השם נרשם</string>
     <string name="kn_done_commit_cancelled">ההתחייבות בוטלה</string>

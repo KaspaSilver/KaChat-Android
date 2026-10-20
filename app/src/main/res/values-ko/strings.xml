@@ -722,6 +722,9 @@
     <string name="kn_done_listed">판매 등록했습니다</string>
     <string name="kn_done_transferred">이름을 이전했습니다</string>
     <string name="kn_done_profile_saved">프로필을 저장했습니다</string>
+    <string name="kn_clear_profile">프로필 지우기</string>
+    <string name="kn_done_profile_cleared">프로필을 지웠습니다</string>
+    <string name="kn_clear_footer">지우기는 네트워크 수수료만으로 내 주소에서 자신에게 빈 프로필을 체인에 기록하며, 이후 KaChat은 내 주소에 아무것도 표시하지 않습니다.</string>
     <string name="kn_done_primary_set">대표 이름을 설정했습니다</string>
     <string name="kn_done_registered">이름을 등록했습니다</string>
     <string name="kn_done_commit_cancelled">커밋을 취소했습니다</string>

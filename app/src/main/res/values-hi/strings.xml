@@ -722,6 +722,9 @@
     <string name="kn_done_listed">बिक्री के लिए सूचीबद्ध</string>
     <string name="kn_done_transferred">नाम ट्रांसफ़र किया गया</string>
     <string name="kn_done_profile_saved">प्रोफ़ाइल सहेजी गई</string>
+    <string name="kn_clear_profile">प्रोफ़ाइल साफ़ करें</string>
+    <string name="kn_done_profile_cleared">प्रोफ़ाइल साफ़ हो गई</string>
+    <string name="kn_clear_footer">साफ़ करने पर आपके पते से खुद को चेन पर एक खाली प्रोफ़ाइल लिखी जाती है, नेटवर्क शुल्क पर, जिसके बाद KaChat आपके पते के लिए कुछ नहीं दिखाता।</string>
     <string name="kn_done_primary_set">मुख्य नाम सेट किया गया</string>
     <string name="kn_done_registered">नाम पंजीकृत हुआ</string>
     <string name="kn_done_commit_cancelled">कमिट रद्द हुआ</string>

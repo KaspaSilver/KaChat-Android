@@ -619,6 +619,9 @@
     <string name="kn_done_listed">Dijual</string>
     <string name="kn_done_transferred">Nama dipindahkan</string>
     <string name="kn_done_profile_saved">Profil disimpan</string>
+    <string name="kn_clear_profile">Hapus Profil</string>
+    <string name="kn_done_profile_cleared">Profil dihapus</string>
+    <string name="kn_clear_footer">Menghapus menulis profil kosong ke chain dari alamat Anda ke dirinya sendiri, dengan biaya jaringan, sehingga KaChat tidak menampilkan apa pun lagi untuk alamat Anda.</string>
     <string name="kn_done_primary_set">Nama utama diatur</string>
     <string name="kn_done_registered">Nama terdaftar</string>
     <string name="kn_done_commit_cancelled">Komitmen dibatalkan</string>

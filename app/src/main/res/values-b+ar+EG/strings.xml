@@ -722,6 +722,9 @@
     <string name="kn_done_listed">معروض للبيع</string>
     <string name="kn_done_transferred">الاسم اتنقل</string>
     <string name="kn_done_profile_saved">البروفايل اتحفظ</string>
+    <string name="kn_clear_profile">مسح الملف الشخصي</string>
+    <string name="kn_done_profile_cleared">تم مسح الملف الشخصي</string>
+    <string name="kn_clear_footer">المسح يكتب ملفًا شخصيًا فارغًا على السلسلة من عنوانك إلى نفسه، مقابل رسوم الشبكة، فلا يعرض كاتشات بعدها أي شيء لعنوانك.</string>
     <string name="kn_done_primary_set">الاسم الأساسي اتحدد</string>
     <string name="kn_done_registered">الاسم اتسجل</string>
     <string name="kn_done_commit_cancelled">الالتزام اتلغى</string>

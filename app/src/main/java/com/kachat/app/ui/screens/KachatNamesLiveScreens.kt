@@ -876,6 +876,21 @@ private fun FormTextField(
     )
 }
 
+/** A filled field's trailing clear button (iOS `xmark.circle.fill`, secondary). */
+@Composable
+private fun FormClearButton(onClick: () -> Unit) {
+    Icon(
+        Icons.Default.Cancel,
+        contentDescription = stringResource(R.string.clear),
+        tint = LocalAppColors.current.textSecondary,
+        modifier = Modifier
+            .padding(end = 16.dp)
+            .size(20.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+    )
+}
+
 /** A Form section: header, the rounded card, and its footer. */
 @Composable
 private fun FormSection(
@@ -4494,6 +4509,13 @@ private fun KachatSourceField(
             Modifier.weight(1f),
             keyboardType = KeyboardType.Uri
         )
+        // One tap empties the field; saving then writes the profile without it (iOS 9638498).
+        if (input.handle.isNotEmpty()) {
+            FormClearButton {
+                onInput(KachatSourceInput())
+                onLookup(KachatSocialLookup.NONE)
+            }
+        }
     }
     // Only while the handle names an account: no empty row, and the lookup starts when it appears.
     input.source(kind)?.link?.let { link ->
@@ -4531,6 +4553,8 @@ fun KachatLiveProfileEditorScreen(
     var loaded by remember { mutableStateOf(false) }
     // Save Profile opens the review sheet (iOS 7e238e5), which saves and then closes the editor.
     var showSave by remember { mutableStateOf(false) }
+    // Clear Profile opens the same review sheet with the empty record (iOS 9638498).
+    var showClear by remember { mutableStateOf(false) }
     var pickPrimary by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -4597,6 +4621,16 @@ fun KachatLiveProfileEditorScreen(
         )
         return
     }
+    // The newest record is the whole profile, so the empty record IS "this address has nothing":
+    // the indexer and every app show nothing for it from then on (iOS 9638498).
+    if (showClear && vm != null) {
+        KachatProfileSaveSheet(
+            title = stringResource(R.string.kn_clear_profile), confirmTitle = stringResource(R.string.kn_clear_profile),
+            doneTitle = R.string.kn_done_profile_cleared, makeProfile = { Profile() },
+            onClose = { showClear = false }, onSaved = onBack, vm = vm
+        )
+        return
+    }
 
     @Composable
     fun invalidHandleNote() = FormFooter(stringResource(R.string.kn_handle_bad), colors.danger)
@@ -4628,6 +4662,7 @@ fun KachatLiveProfileEditorScreen(
             Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("linktr.ee/", color = colors.textSecondary)
                 FormTextField(linktree, { linktree = it }, stringResource(R.string.kn_username), Modifier.weight(1f), keyboardType = KeyboardType.Uri)
+                if (linktree.isNotEmpty()) FormClearButton { linktree = "" }
             }
         }
         FormSection(
@@ -4678,6 +4713,10 @@ fun KachatLiveProfileEditorScreen(
             }
         }) {
             FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked && KachatNamesService.profilesEnabled) { showSave = true }
+        }
+        FormSection(footer = { FormFooter(stringResource(R.string.kn_clear_footer)) }) {
+            // Same gate as saving: a clear IS a save, of the empty record.
+            FormButtonRow(stringResource(R.string.kn_clear_profile), enabled = loaded && KachatNamesService.profilesEnabled, destructive = true) { showClear = true }
         }
     }
 }

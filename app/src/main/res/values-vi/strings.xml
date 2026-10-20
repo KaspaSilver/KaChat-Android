@@ -722,6 +722,9 @@
     <string name="kn_done_listed">Đã đăng bán</string>
     <string name="kn_done_transferred">Đã chuyển tên</string>
     <string name="kn_done_profile_saved">Đã lưu hồ sơ</string>
+    <string name="kn_clear_profile">Xóa hồ sơ</string>
+    <string name="kn_done_profile_cleared">Đã xóa hồ sơ</string>
+    <string name="kn_clear_footer">Xóa sẽ ghi một hồ sơ trống lên chuỗi từ địa chỉ của bạn đến chính nó, với phí mạng, và KaChat sẽ không hiển thị gì cho địa chỉ của bạn nữa.</string>
     <string name="kn_done_primary_set">Đã đặt tên chính</string>
     <string name="kn_done_registered">Đã đăng ký tên</string>
     <string name="kn_done_commit_cancelled">Đã hủy cam kết</string>

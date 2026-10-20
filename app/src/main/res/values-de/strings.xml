@@ -722,6 +722,9 @@
     <string name="kn_done_listed">Zum Verkauf angeboten</string>
     <string name="kn_done_transferred">Name übertragen</string>
     <string name="kn_done_profile_saved">Profil gespeichert</string>
+    <string name="kn_clear_profile">Profil löschen</string>
+    <string name="kn_done_profile_cleared">Profil gelöscht</string>
+    <string name="kn_clear_footer">Das Löschen schreibt ein leeres Profil auf die Chain, von deiner Adresse an sich selbst, gegen die Netzwerkgebühr – KaChat zeigt dann wieder nichts zu deiner Adresse.</string>
     <string name="kn_done_primary_set">Hauptname festgelegt</string>
     <string name="kn_done_registered">Name registriert</string>
     <string name="kn_done_commit_cancelled">Commit storniert</string>

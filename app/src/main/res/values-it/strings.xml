@@ -722,6 +722,9 @@
     <string name="kn_done_listed">Messo in vendita</string>
     <string name="kn_done_transferred">Nome trasferito</string>
     <string name="kn_done_profile_saved">Profilo salvato</string>
+    <string name="kn_clear_profile">Cancella profilo</string>
+    <string name="kn_done_profile_cleared">Profilo cancellato</string>
+    <string name="kn_clear_footer">La cancellazione scrive un profilo vuoto sulla chain dal tuo indirizzo a sé stesso, al costo della commissione di rete: KaChat poi non mostra più nulla per il tuo indirizzo.</string>
     <string name="kn_done_primary_set">Nome principale impostato</string>
     <string name="kn_done_registered">Nome registrato</string>
     <string name="kn_done_commit_cancelled">Impegno annullato</string>

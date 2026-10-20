@@ -722,6 +722,9 @@
     <string name="kn_done_listed">বিক্রির জন্য তালিকাভুক্ত</string>
     <string name="kn_done_transferred">নাম হস্তান্তর হয়েছে</string>
     <string name="kn_done_profile_saved">প্রোফাইল সংরক্ষিত</string>
+    <string name="kn_clear_profile">প্রোফাইল মুছুন</string>
+    <string name="kn_done_profile_cleared">প্রোফাইল মুছে ফেলা হয়েছে</string>
+    <string name="kn_clear_footer">মুছে ফেলা আপনার ঠিকানা থেকে নিজের কাছে চেইনে একটি খালি প্রোফাইল লেখে, নেটওয়ার্ক ফি-র বিনিময়ে, তারপর KaChat আপনার ঠিকানার জন্য আর কিছুই দেখায় না।</string>
     <string name="kn_done_primary_set">প্রাথমিক নাম সেট হয়েছে</string>
     <string name="kn_done_registered">নাম নিবন্ধিত হয়েছে</string>
     <string name="kn_done_commit_cancelled">কমিট বাতিল হয়েছে</string>
