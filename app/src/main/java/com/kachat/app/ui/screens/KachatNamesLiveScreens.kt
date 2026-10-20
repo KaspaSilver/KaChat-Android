@@ -3998,6 +3998,52 @@ fun kachatNameExpiryLine(n: NameInfo, graceMs: Long): String? = when (n.status(g
 }
 
 /**
+ * How many .kachat names [walletAddress] holds, for its Your Domains card (iOS 2ee667c
+ * `refreshKachatCount`): the same read [KachatLiveDomainsTab] does, reduced to a count - the whole
+ * wallet's held names for the own chatting address, the one address's otherwise. Counted again
+ * whenever the registry revision moves, so a name inscribed, bought, transferred or lapsed behind
+ * a card shows the moment you are back. Null until the first count lands (the card shows a dash,
+ * not a made-up 0).
+ */
+@Composable
+fun rememberKachatHeldCount(
+    walletAddress: String,
+    vm: KachatLiveViewModel? = if (KachatNamesService.isLaunched) hiltViewModel() else null,
+): Int? {
+    // `vm` is null for the screen's whole life where the registry isn't launched.
+    val revision = vm?.registry?.revision?.collectAsState()?.value
+    var count by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(revision, walletAddress) {
+        if (vm == null || !KachatNamesService.isEnabled) { count = 0; return@LaunchedEffect }
+        if (vm.registry.refreshedAt.value == null) vm.registry.refresh()
+        val own = if (walletAddress.lowercase() == vm.actions.myAddress) {
+            try {
+                vm.actions.ownNamesAndOffers(heldOnly = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+        val key = KachatNamesRegistry.keyOf(walletAddress)
+        count = when {
+            own != null -> own.first.size
+            key != null -> try {
+                vm.registry.heldNames(key).size
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            else -> 0
+        }
+    }
+    return count
+}
+
+/**
  * Your Domains > .kachat: the wallet's names (iOS `KachatLiveDomainsTab`). On every network since
  * iOS 7227d69 - where the registry isn't launched (mainnet) [vm] is null and the tab is its empty
  * state with the Inscribe button, without ever building the registry.

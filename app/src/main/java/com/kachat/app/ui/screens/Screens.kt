@@ -4476,6 +4476,13 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
     // or Kaspa Hub; the list refreshes when it closes (iOS e4da63d).
     var showKachatMarket by remember { mutableStateOf(false) }
     var kachatRefreshRequested by remember { mutableStateOf(false) }
+    // The name service whose card was tapped (iOS debd6fd), null on the cards themselves. Held
+    // above the marketplace's early return, so closing the marketplace lands back on .kachat.
+    var openedService by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
+    val walletAddress by viewModel.address.collectAsState()
+    // The cards' counts (iOS 2ee667c), kept while a card's screen is open.
+    val ownedServiceNames by viewModel.nameServices.owned.collectAsState()
+    val kachatCount = rememberKachatHeldCount(walletAddress ?: "")
     if (showKachatMarket) {
         androidx.activity.compose.BackHandler { showKachatMarket = false; kachatRefreshRequested = true }
         KachatMarketScreen(
@@ -4484,14 +4491,11 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
         )
         return
     }
-    val walletAddress by viewModel.address.collectAsState()
     val primaryDomainName by viewModel.primaryDomainName.collectAsState()
     val setPrimaryState by viewModel.setPrimaryState.collectAsState()
     var selectedDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
     var showSendScreen by remember { mutableStateOf(false) }
     var editingDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
-    // The name service whose card was tapped (iOS debd6fd), null on the cards themselves.
-    var openedService by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshOwnedDomainsAndAwait()
@@ -4625,7 +4629,14 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
         ) {
             items(com.kachat.app.services.NameServiceTLD.entries.size) { i ->
                 val tld = com.kachat.app.services.NameServiceTLD.entries[i]
-                DomainServiceCard(tld = tld, onClick = { openedService = tld })
+                // How many names this wallet has with each service, 0 included; null while the
+                // answer is not in yet (first load, or the service unreachable) - iOS 2ee667c.
+                val count = when (tld) {
+                    com.kachat.app.services.NameServiceTLD.KAS -> ownedDomainAssets.count { it.asset != null }
+                    com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA -> ownedServiceNames[tld]?.size
+                    com.kachat.app.services.NameServiceTLD.KACHAT -> kachatCount
+                }
+                DomainServiceCard(tld = tld, count = count, onClick = { openedService = tld })
             }
         }
     }
@@ -4636,7 +4647,12 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
  * who runs it under it. Same fill, 18 radius and 0.8 white hairline at 15% as the hub tiles.
  */
 @Composable
-private fun DomainServiceCard(tld: com.kachat.app.services.NameServiceTLD, onClick: () -> Unit) {
+private fun DomainServiceCard(
+    tld: com.kachat.app.services.NameServiceTLD,
+    /** How many names you hold there; null draws a dash until the answer is in (iOS 2ee667c). */
+    count: Int?,
+    onClick: () -> Unit,
+) {
     val shape = RoundedCornerShape(18.dp)
     Box(
         modifier = Modifier
@@ -4668,6 +4684,24 @@ private fun DomainServiceCard(tld: com.kachat.app.services.NameServiceTLD, onCli
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            // How many you have there, 0 included; a dash until the answer is in.
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .defaultMinSize(minWidth = 28.dp, minHeight = 22.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(KaspaTeal.copy(alpha = 0.14f))
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    count?.toString() ?: "\u2013",
+                    color = KaspaTeal,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
