@@ -2129,7 +2129,7 @@ private fun ChatsNewSheet(
                                     ChatsNewTile(
                                         size = tileSize,
                                         icon = Icons.Default.QrCode,
-                                        title = stringResource(R.string.chats_fund_chatting_address),
+                                        title = stringResource(R.string.chatting_address),
                                         hint = stringResource(R.string.chats_fund_subtitle),
                                     ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
                                 }
