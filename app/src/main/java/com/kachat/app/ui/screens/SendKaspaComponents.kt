@@ -767,8 +767,8 @@ fun SendInfoPill(
 
 // MARK: - From (which of your addresses a send comes out of)
 
-/** A spending address as the Send screens name it: its nickname, else "Address #N" or, for a
- *  quantum-safe slot, "Quantum #N" (iOS `SpendingAddressEntry.displayLabel`, English like iOS). */
+/** A spending address as the Send screens name it: its nickname, else "Address #N", numbered on
+ *  its own chain (iOS `SpendingAddressEntry.displayLabel`, English like iOS). */
 fun spendingAddressDisplayLabel(index: Int, label: String?): String =
     label?.trim()?.takeIf { it.isNotEmpty() } ?: com.kachat.app.services.WalletManager.spendingAddressTitle(index)
 

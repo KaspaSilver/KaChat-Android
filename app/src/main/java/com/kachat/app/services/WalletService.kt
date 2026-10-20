@@ -287,7 +287,7 @@ class WalletService @Inject constructor(
          *  Computed, so snapshots from before the upgrade decode unchanged. */
         val isQuantum: Boolean get() = WalletManager.isQuantumIndex(index)
 
-        /** The row's number on its own chain ("Address #3" / "Quantum #0"). */
+        /** The row's number on its own chain, "Address #n" on both (quantum restarts at 0). */
         val displayTitle: String get() = WalletManager.spendingAddressTitle(index)
 
         /** Its nickname, else [displayTitle] (iOS `SpendingAddressEntry.displayLabel`). */

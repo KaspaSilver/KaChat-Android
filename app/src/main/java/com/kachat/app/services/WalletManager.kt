@@ -131,10 +131,11 @@ class WalletManager @Inject constructor(
 
         fun isQuantumIndex(index: Int): Boolean = index >= QUANTUM_INDEX_BASE
 
-        /** A spending row's number on its own chain: "Address #3" / "Quantum #0" (iOS
+        /** A spending row's number on its own chain, both named "Address #n" - quantum numbering
+         *  starts at 0 again; the shield is what tells the chains apart (iOS
          *  `SpendingAddressEntry.displayTitle`, English like iOS). */
         fun spendingAddressTitle(index: Int): String =
-            if (isQuantumIndex(index)) "Quantum #${index - QUANTUM_INDEX_BASE}" else "Address #$index"
+            "Address #${if (isQuantumIndex(index)) index - QUANTUM_INDEX_BASE else index}"
 
         /**
          * The legacy chain's revealed bound: the stored max, widened by the primary only while the

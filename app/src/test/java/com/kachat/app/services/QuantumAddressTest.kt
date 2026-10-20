@@ -94,7 +94,7 @@ class QuantumAddressTest {
         assertFalse(WalletManager.isQuantumIndex(999_999))
         assertTrue(WalletManager.isQuantumIndex(1_000_000))
         assertEquals("Address #3", WalletManager.spendingAddressTitle(3))
-        assertEquals("Quantum #0", WalletManager.spendingAddressTitle(1_000_000))
+        assertEquals("Address #0", WalletManager.spendingAddressTitle(1_000_000))
         // a quantum primary never widens the legacy chain
         val account = WalletManager.Account(
             name = "t", address = "kaspa:x", mnemonic = "m",

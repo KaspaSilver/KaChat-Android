@@ -5299,7 +5299,8 @@ fun ManageAddressesScreen(
                 onGenerate = {
                     showActionsMenu = false
                     viewModel.generateNewSpendingAddress { index ->
-                        if (index != null) IosToasts.show("Spending address #$index is ready.")
+                        // The chain-local number, never the raw public index (1000000+ for a quantum slot).
+                        if (index != null) IosToasts.show("${com.kachat.app.services.WalletManager.spendingAddressTitle(index)} is ready.")
                         else IosToasts.error("Could not check addresses. Try again when connected.")
                     }
                 },
