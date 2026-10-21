@@ -52,6 +52,30 @@ class KaspaWalletEngineTest {
     }
 
     @Test
+    fun `a pending change coin locked to another address is never offered`() {
+        // iOS ca53cd1: a pending coin is signed with the fetched address's key, so one whose
+        // script is another address's would be rejected ("false stack entry").
+        val own = utxo("own-change", 1)
+        val foreign = UtxoEntry(
+            address = "kaspa:other",
+            outpoint = Outpoint(transactionId = "foreign-change", index = 1),
+            utxoEntry = UtxoData(amount = 1_000_000L, scriptPublicKey = ScriptPublicKey("bb"), blockDaaScore = 0, isCoinbase = false)
+        )
+        val confirmedForeign = UtxoEntry(
+            address = "kaspa:test",
+            outpoint = Outpoint(transactionId = "confirmed", index = 0),
+            utxoEntry = UtxoData(amount = 1_000_000L, scriptPublicKey = ScriptPublicKey("bb"), blockDaaScore = 5, isCoinbase = false)
+        )
+
+        val result = KaspaWalletEngine.reconcilePendingUtxos(
+            listOf(confirmedForeign), mutableSetOf(), mutableListOf(own, foreign), ownScriptHex = "AA"
+        )
+
+        // confirmed coins are not filtered; only the own pending coin joins them
+        assertEquals(listOf("confirmed", "own-change"), result.map { it.outpoint.transactionId })
+    }
+
+    @Test
     fun `pending change tracking is dropped once the fresh fetch has indexed it, without duplicating it`() {
         val change = utxo("our-new-tx", 1, amount = 500_000L)
         val pendingChange = mutableListOf(change)

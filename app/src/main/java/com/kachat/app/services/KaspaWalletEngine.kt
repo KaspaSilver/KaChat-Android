@@ -67,7 +67,33 @@ class KaspaWalletEngine @Inject constructor(
         // signed transaction would be invalid by the time its moment came (iOS's
         // KaPostsScheduledStore.filterReserved, applied at the same choke point).
         val available = KaPostsScheduledStore.filterReserved(freshUtxos)
-        return reconcilePendingUtxos(available, spent, change)
+        val ownScriptHex = try { KaspaAddress.getScriptPublicKey(address) } catch (_: Exception) { null }
+        return reconcilePendingUtxos(available, spent, change, ownScriptHex)
+    }
+
+    /** Drops these pending change coins of [address] (iOS consumePendingUtxos): a chained coin
+     *  whose recorded amount or script is wrong would fail every retry until it expires. */
+    private fun dropPendingChange(address: String, coins: List<UtxoEntry>) {
+        val keys = coins.map { outpointKey(it.outpoint) }.toSet()
+        if (keys.isEmpty()) return
+        pendingChangeUtxos[address]?.removeAll { outpointKey(it.outpoint) in keys }
+    }
+
+    /** Every input of a signature-rejected send, so the failure names its coin: amount, whether it
+     *  was pending (a chained change output) or confirmed, and whether its script is the sender's
+     *  own (iOS logSignatureRejection). */
+    private fun logSignatureRejection(inputs: List<UtxoEntry>, senderScriptHex: String?) {
+        Log.w("KaspaWalletEngine", "Signature rejected - ${inputs.size} input(s):")
+        inputs.forEachIndexed { index, utxo ->
+            val script = utxo.utxoEntry.scriptPublicKey.scriptPublicKey
+            Log.w(
+                "KaspaWalletEngine",
+                "  input $index ${utxo.outpoint.transactionId.take(16)}:${utxo.outpoint.index} amount=${utxo.utxoEntry.amount} " +
+                    "${if (utxo.utxoEntry.blockDaaScore == 0L) "PENDING" else "confirmed"} " +
+                    "script=${if (senderScriptHex != null && script.equals(senderScriptHex, ignoreCase = true)) "sender" else "OTHER(${script.length / 2}B)"} " +
+                    "coinbase=${if (utxo.utxoEntry.isCoinbase) "yes" else "no"}"
+            )
+        }
     }
 
     /** Call after a successful broadcast so the very next send (before this one confirms) doesn't reuse or miss these UTXOs. */
@@ -90,6 +116,11 @@ class KaspaWalletEngine @Inject constructor(
         val message = e.message?.lowercase() ?: return false
         return message.contains("orphan") || message.contains("already spent")
     }
+
+    /** The node refused an input's signature (kaspad "failed to verify the signature script"),
+     *  iOS isSignatureRejection. */
+    private fun isSignatureRejection(e: Exception): Boolean =
+        e.message?.lowercase()?.contains("signature script") == true
 
     /**
      * Sends Kaspa to a given address.
@@ -180,11 +211,14 @@ class KaspaWalletEngine @Inject constructor(
 
             val recipientScriptHex = KaspaAddress.getScriptPublicKey(toAddress)
             val changeScriptHex = KaspaAddress.getScriptPublicKey(changeAddress)
+            val fromScriptHex = try { KaspaAddress.getScriptPublicKey(fromAddress) } catch (_: Exception) { null }
 
             // One build -> sign -> submit attempt against a fixed candidate set. Split out so
             // the transient-rejection fallback below can rerun the whole attempt against a
             // freshly fetched, confirmed-only input set (iOS buildSignSubmitBroadcast /
             // the 1:1 confirmed-only fallback).
+            // The inputs the latest attempt signed, so a signature rejection can name and drop them.
+            var attemptInputs: List<UtxoEntry> = emptyList()
             suspend fun attempt(candidates: List<UtxoEntry>): Result<SubmittedSend> {
             val utxos = candidates
             // 4. UTXO selection and fee calculation using Kaspa's real mass model
@@ -296,6 +330,7 @@ class KaspaWalletEngine @Inject constructor(
                 payload = payloadHex
             )
 
+            attemptInputs = selectionResult.selectedUtxos
             // 6. Sign transaction with private key (locally)
             val signedTx = KaspaTransactionSigner.signTransaction(
                 rawTx = rawTx,
@@ -411,7 +446,15 @@ class KaspaWalletEngine @Inject constructor(
                 // transient state mismatch, not a user error. Retry ONCE with a freshly fetched,
                 // confirmed-only input set before giving up, exactly as iOS does. Coin control
                 // fixed the inputs on purpose, so it is left to its own verdict.
-                if (!isTransientNodeRejection(e) || !manualUtxos.isNullOrEmpty()) throw e
+                // A signature rejection (kaspad "failed to verify the signature script") runs the
+                // same fallback: the pending coins that attempt signed are dropped first, and
+                // every input is logged (iOS ca53cd1).
+                val signatureRejected = isSignatureRejection(e)
+                if (signatureRejected) {
+                    logSignatureRejection(attemptInputs, fromScriptHex)
+                    dropPendingChange(fromAddress, attemptInputs.filter { it.utxoEntry.blockDaaScore == 0L })
+                }
+                if (!(isTransientNodeRejection(e) || signatureRejected) || !manualUtxos.isNullOrEmpty()) throw e
                 val refetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
                 val confirmedOnly = filterSpendableCoinbase(reconcileUtxos(fromAddress, refetched))
                     .filter { it.utxoEntry.blockDaaScore > 0L }
@@ -796,12 +839,20 @@ class KaspaWalletEngine @Inject constructor(
         internal fun reconcilePendingUtxos(
             freshUtxos: List<UtxoEntry>,
             pendingSpentKeys: MutableSet<String>,
-            pendingChange: MutableList<UtxoEntry>
+            pendingChange: MutableList<UtxoEntry>,
+            /** The fetched address's own script. A pending coin is signed with that address's key,
+             *  so only coins locked to it may be offered - one locked elsewhere is rejected by the
+             *  network ("false stack entry at end of script execution", iOS ca53cd1). Confirmed
+             *  coins are not filtered. Null = no filter. */
+            ownScriptHex: String? = null
         ): List<UtxoEntry> {
             val freshKeys = freshUtxos.map { outpointKey(it.outpoint) }.toSet()
             pendingSpentKeys.retainAll(freshKeys)
             pendingChange.removeAll { outpointKey(it.outpoint) in freshKeys }
-            return freshUtxos.filter { outpointKey(it.outpoint) !in pendingSpentKeys } + pendingChange
+            val ownChange = if (ownScriptHex == null) pendingChange else pendingChange.filter {
+                !it.utxoEntry.isCoinbase && it.utxoEntry.scriptPublicKey.scriptPublicKey.equals(ownScriptHex, ignoreCase = true)
+            }
+            return freshUtxos.filter { outpointKey(it.outpoint) !in pendingSpentKeys } + ownChange
         }
 
         /**
