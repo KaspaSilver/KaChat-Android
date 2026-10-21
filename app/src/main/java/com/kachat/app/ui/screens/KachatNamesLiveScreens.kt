@@ -655,6 +655,12 @@ class KachatLiveViewModel @Inject constructor(
             onReady(address)
         }
     }
+
+    /** "Address #3" (or its name) for one of this wallet's addresses, else null
+     *  ([WalletManager.ownAddressLabel], iOS 6e938ff). Off the main thread: it derives on a miss. */
+    suspend fun ownAddressLabel(address: String): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+        runCatching { walletManager.ownAddressLabel(address) }.getOrNull()
+    }
 }
 
 /**
@@ -2457,13 +2463,15 @@ fun KachatTxSheet(
     var payerInfo by remember { mutableStateOf<Pair<String, ByteArray>?>(null) }
     /** The paying address's balance when it isn't the chatting address (iOS `payerBalance`). */
     var payerBalance by remember { mutableStateOf<Long?>(null) }
-    val marketSource by vm.actions.marketSource.collectAsState()
+    /** The paying address's own label ("Address #3", or its name) when it is one of yours. */
+    var payerOwnLabel by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(operationKey) {
         val op = currentOperation
         payerInfo = op?.let { vm.actions.payer(it) }
         val address = payerInfo?.first ?: return@LaunchedEffect
         if (address == vm.actions.myAddress) return@LaunchedEffect
+        payerOwnLabel = vm.ownAddressLabel(address)
         val utxos = try {
             vm.service.utxosByAddresses(listOf(address))
         } catch (e: CancellationException) {
@@ -2474,12 +2482,8 @@ fun KachatTxSheet(
         payerBalance = utxos.sumOf { it.entry.amount }
     }
 
-    /** "Address #3" (or its name) for the marketplace's address, else the short address. */
-    fun payerLabel(address: String): String {
-        val source = marketSource
-        if (source is SendSource.Spending && source.address.equals(address, ignoreCase = true)) return source.label
-        return KachatNamesRegistry.compactAddress(address)
-    }
+    /** "Address #3" (or its name) for one of your addresses, else the short address (iOS 6e938ff). */
+    fun payerLabel(address: String): String = payerOwnLabel ?: KachatNamesRegistry.compactAddress(address)
 
     fun feeChoice(): KachatNamesActions.FeeChoice =
         customFee?.let { KachatNamesActions.FeeChoice.CustomTotal(it) } ?: KachatNamesActions.FeeChoice.Tier(feeTier)
@@ -2595,8 +2599,8 @@ fun KachatTxSheet(
 
             val payer = payerInfo ?: vm.myKey?.let { me -> vm.actions.myAddress?.let { it to me } }
             if (p != null && payer != null) {
-                // Spends from, and pays back to, the address that pays: the chatting address, the
-                // marketplace's chosen one, or the spending address holding the name (iOS eb9b027).
+                // Spends from, and pays back to, the address that pays: the chatting address, or the
+                // spending address holding the name (iOS eb9b027, 6e938ff).
                 val change = KachatLive.balanceChange(p, payer.second)
                 val fromChatting = payer.first == vm.actions.myAddress
                 val balance = if (fromChatting) chattingBalance.takeIf { chattingBalanceKnown } else payerBalance
@@ -2700,8 +2704,6 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
     var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
     var feeTouched by remember { mutableStateOf(false) }
     val feeEstimate by vm.actions.feeEstimate.collectAsState()
-    // The marketplace's address: it pays, and the name lands on it (iOS eb9b027).
-    val marketSource by vm.actions.marketSource.collectAsState()
     // Once the registration started, this sheet shows its progress (iOS `progressId`).
     var progressId by remember { mutableStateOf<String?>(null) }
     val maxYears = manifest?.params?.maxYears ?: 2L
@@ -2893,10 +2895,6 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
 
                             quote?.let { q ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    // the marketplace's address pays, and the name will be on it (iOS eb9b027)
-                                    (marketSource as? SendSource.Spending)?.let { source ->
-                                        SendInfoPill { Text(stringResource(R.string.kn_from_value, source.label)) }
-                                    }
                                     SendInfoPill { Text(stringResource(R.string.kn_available_value, KaspaUnit.amount(q.spendable))) }
                                 }
                                 // said up front: the KAS is in many small coins (iOS f1c16ec)
@@ -2934,7 +2932,7 @@ fun KachatClaimSheet(target: KachatClaimTarget, onClose: () -> Unit, onStarted: 
                             if (q != null && !q.affordable) {
                                 Text(
                                     KaspaUnit.label(
-                                        stringResource(if (marketSource is SendSource.Spending) R.string.kn_not_enough_on_this_address else R.string.kn_not_enough)
+                                        stringResource(R.string.kn_not_enough)
                                     ),
                                     color = colors.danger, fontSize = 13.sp, modifier = Modifier.fillMaxWidth()
                                 )

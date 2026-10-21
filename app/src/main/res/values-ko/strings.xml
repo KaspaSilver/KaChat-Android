@@ -1304,12 +1304,7 @@
     <string name="kn_not_enough_funds_send_1_kas">잔액이 부족합니다. 채팅 주소로 최소 1 KAS를 보내 주세요.</string>
     <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
     <string name="kn_from_value">보낸 주소: %1$s</string>
-    <string name="kn_buy_from">구매할 주소</string>
     <string name="kn_fund">입금</string>
-    <string name="kn_copy_address_a11y">주소 복사</string>
-    <string name="kn_not_enough_on_this_address">이 주소에 이 이름을 위한 KAS가 부족합니다.</string>
-    <string name="kn_send_kas_to_buy_with">이 주소로 구매하려면 이 주소로 KAS를 보내세요.</string>
-    <string name="kn_choose_market_address">마켓에서 구매에 쓸 주소 선택</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">내 주소: %1$s</string>
     <!-- User Info: look the person's avatar, banner and bio up again now -->

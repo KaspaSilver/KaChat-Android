@@ -1304,12 +1304,7 @@
     <string name="kn_not_enough_funds_send_1_kas">Non hai fondi sufficienti. Invia almeno 1 KAS al tuo indirizzo di chat.</string>
     <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
     <string name="kn_from_value">Da: %1$s</string>
-    <string name="kn_buy_from">Acquista da</string>
     <string name="kn_fund">Ricarica</string>
-    <string name="kn_copy_address_a11y">Copia indirizzo</string>
-    <string name="kn_not_enough_on_this_address">Non ci sono abbastanza KAS su questo indirizzo per questo nome.</string>
-    <string name="kn_send_kas_to_buy_with">Invia KAS a questo indirizzo per acquistare con esso.</string>
-    <string name="kn_choose_market_address">Scegli l\'indirizzo con cui il mercato acquista</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Il tuo indirizzo: %1$s</string>
     <!-- User Info: look the person's avatar, banner and bio up again now -->

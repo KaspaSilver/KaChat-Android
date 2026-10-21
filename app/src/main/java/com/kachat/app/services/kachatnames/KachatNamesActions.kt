@@ -11,7 +11,6 @@ import com.google.gson.reflect.TypeToken
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.WalletManager
 import com.kachat.app.ui.screens.ColdFeeTier
-import com.kachat.app.ui.screens.SendSource
 import com.kachat.app.services.kachatnames.KachatNames.Codec
 import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.services.kachatnames.KachatNames.unhex
@@ -170,23 +169,6 @@ class KachatNamesActions @Inject constructor(
     @Volatile private var pendingWallet: String? = null
     @Volatile private var driver: Job? = null
 
-    private val _marketSource = MutableStateFlow<SendSource>(SendSource.Chatting)
-    /**
-     * The address the marketplace pays and buys with: claims, purchases, offers, and extend or
-     * renew opened from the marketplace. A name claimed or bought this way belongs to that
-     * address. The chatting address unless the person picked another with the marketplace's
-     * balance pill (`KachatMarketSourcePill`); back to it when the marketplace closes (iOS
-     * eb9b027 `marketSource`).
-     */
-    val marketSource: StateFlow<SendSource> = _marketSource.asStateFlow()
-
-    /** Picks the marketplace's address; a spending address is remembered for this wallet
-     *  ([marketAddresses], iOS `marketSource.didSet`). */
-    fun setMarketSource(source: SendSource) {
-        _marketSource.value = source
-        if (source is SendSource.Spending) rememberMarketAddress(source.address)
-    }
-
     /** Action errors; English like iOS's service errors (iOS localizes these five). */
     sealed class ActionError(message: String) : Exception(message) {
         class NoWallet : ActionError("No wallet is open.")
@@ -341,10 +323,9 @@ class KachatNamesActions @Inject constructor(
      * The signer for [op]. Owner-only actions (transfer, list/delist, accept, release) on a name
      * held by one of this wallet's spending addresses sign - and pay their fee - from that
      * address, and so does a decline of an offer made to one (with the key the offer was made to).
-     * An offer is withdrawn (or refunded) with the key it was made from. Buy, offer, extend and
-     * renew are paid by - and a buy or an offer belongs to - the marketplace's address
-     * ([marketSource], the chatting address outside the marketplace); everything else uses the
-     * chatting address (iOS 881ada6 `signer(for:)`, decline from 49c0baa, eb9b027).
+     * An offer is withdrawn (or refunded) with the key it was made from. Everything else,
+     * including extend and renew (anyone may pay those), uses the chatting address (iOS 881ada6
+     * `signer(for:)`, decline from 49c0baa, eb9b027, 6e938ff).
      */
     private suspend fun signer(op: Operation): Signer {
         val heldBy: ByteArray? = when (op) {
@@ -365,7 +346,7 @@ class KachatNamesActions @Inject constructor(
             // buyer's own address pays its fee the same way)
             is Operation.Withdraw -> ownerSignerOrNull(op.offer.buyer) ?: signer()
             is Operation.Refund -> ownerSignerOrNull(op.offer.buyer) ?: signer()
-            // paid by, and (buy, offer) belonging to, the marketplace's address
+            // paid by, and (buy, offer) belonging to, the chatting address
             is Operation.Buy, is Operation.Offer, is Operation.Extend, is Operation.Renew -> buyerSigner()
             else -> signer()
         }
@@ -405,11 +386,13 @@ class KachatNamesActions @Inject constructor(
         null
     }
 
-    /** The marketplace's address ([marketSource]; iOS eb9b027 `buyerSigner`). */
-    fun buyerSigner(): Signer {
-        val source = _marketSource.value as? SendSource.Spending ?: return signer()
-        return spendingSigner(source.index, source.address, expected = null)
-    }
+    /**
+     * Who buys: claims, purchases, offers, extend and renew always pay from - and a new name
+     * always belongs to - the chatting address (owner's call, iOS 6e938ff: no Buy From picker).
+     * Names an earlier build bought from a spending address keep that owner, and the owner's own
+     * key still signs for them ([signer], [ownAddress]).
+     */
+    fun buyerSigner(): Signer = signer()
 
     /**
      * Who pays [op] (and, for a buy or an offer, who it belongs to), for the confirmation's
@@ -431,16 +414,6 @@ class KachatNamesActions @Inject constructor(
             val own = ownAddress(held)
             if (own is OwnAddress.Spending) return own.address.lowercase() to held
         }
-        when (op) {
-            is Operation.Buy, is Operation.Offer, is Operation.Extend, is Operation.Renew -> {
-                val source = _marketSource.value
-                if (source is SendSource.Spending) {
-                    val key = KachatNamesRegistry.keyOf(source.address)
-                    if (key != null) return source.address.lowercase() to key
-                }
-            }
-            else -> Unit
-        }
         val me = myKey ?: return null
         val address = myAddress ?: return null
         return address to me
@@ -453,9 +426,11 @@ class KachatNamesActions @Inject constructor(
 
     private val marketAddressesKey: String? get() = myAddress?.let { "kachat_market_addresses.$it" }
 
-    /** Spending addresses picked to buy with in the marketplace, per wallet: known used, so
-     *  [ownNameKeys] asks about them without a history lookup (every revealed address's names
-     *  count as the wallet's since iOS d1026de). */
+    /** Spending addresses an earlier build bought with (the retired Buy From picker), per
+     *  wallet: known used, so [ownNameKeys] asks about them without a history lookup (every
+     *  revealed address's names count as the wallet's since iOS d1026de). Your Domains and the
+     *  marketplace still list the names and offers they hold. Nothing adds to it any more (iOS
+     *  6e938ff). */
     val marketAddresses: List<String>
         get() {
             val key = marketAddressesKey ?: return emptyList()
@@ -463,19 +438,9 @@ class KachatNamesActions @Inject constructor(
             return runCatching { gson.fromJson<List<String>>(raw, STRING_LIST_TYPE) }.getOrNull().orEmpty()
         }
 
-    private fun rememberMarketAddress(address: String) {
-        val key = marketAddressesKey ?: return
-        synchronized(lock) {
-            val list = marketAddresses
-            val a = address.lowercase()
-            if (a in list) return
-            marketPrefs.edit().putString(key, gson.toJson(list + a)).apply()
-        }
-    }
-
     // This wallet's keys (iOS d1026de, IOS-085 / XP-024)
 
-    /** "wallet|highest revealed spending index|addresses Buy From was set to": when this changes,
+    /** "wallet|highest revealed spending index|addresses Buy From was once set to": when this changes,
      *  the wallet's keys are worked out again. */
     private fun ownKeysCacheKey(wallet: String): String {
         val account = walletManager.getActiveAccount()
