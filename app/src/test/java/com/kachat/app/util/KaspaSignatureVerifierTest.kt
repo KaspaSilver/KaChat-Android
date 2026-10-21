@@ -35,8 +35,14 @@ class KaspaSignatureVerifierTest {
         return stream.reader().use { Gson().fromJson(it, TransactionResponse::class.java) }
     }
 
+    /** The receiving wallet: an address in none of the fixtures (only compared, never decoded). */
+    private val me = "kaspa:qqnotinanyfixture"
+
+    private fun received(tx: TransactionResponse, spent: Map<String, TransactionOutput> = emptyMap(), myAddress: String = me) =
+        runBlocking { KaspaSignatureVerifier.checkReceivedTransaction(tx, myAddress) { hash, index -> spent["$hash:$index"] } }
+
     private fun check(tx: TransactionResponse, spent: Map<String, TransactionOutput> = emptyMap()): SignatureCheck =
-        runBlocking { KaspaSignatureVerifier.checkReceivedTransaction(tx) { hash, index -> spent["$hash:$index"] } }
+        received(tx, spent).check
 
     // version 0
     private val v0Change = "5edbcad29c52e5670a5989f32dd749d8f1d6b5fbd74bce30c8af4ca58e1c24c0"
@@ -188,11 +194,11 @@ class KaspaSignatureVerifierTest {
     }
 
     @Test
-    fun `what cannot be checked is unknown, a coinbase passes, a malformed signature fails`() {
+    fun `what cannot be checked is unknown, a coinbase too, a malformed signature fails`() {
         val tx = load(v0OneOut)
         val input = tx.inputs[0]
-        // a coinbase has no signatures
-        assertEquals(SignatureCheck.Valid, check(tx.copy(inputsOrNull = emptyList())))
+        // a coinbase has no signatures: nothing was checked, nothing is vouched for (IOS-094)
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputsOrNull = emptyList())))
         // a key-address input must carry a well-formed signature: a blank, short or wrongly pushed
         // one is a failure (AND-042), and the id rebuilds, so it is forged
         for (script in listOf("", "00", input.signatureScript.drop(2), "40" + input.signatureScript.drop(2))) {
@@ -313,15 +319,106 @@ class KaspaSignatureVerifierTest {
             "00",
             "",
         )
+        // ...and with not one input checked the payment is not vouched for: unknown (AND-054)
         for (covenant in covenants) {
-            assertEquals(covenant, SignatureCheck.Valid, verifyQuantum(tx, utxos, listOf(covenant, covenant)))
+            assertEquals(covenant, SignatureCheck.Unknown, verifyQuantum(tx, utxos, listOf(covenant, covenant)))
         }
+        // one checked KIP-22 input beside a skipped one is enough
+        assertEquals(SignatureCheck.Valid, verifyQuantum(tx, utxos, listOf(covenants[0], tx.inputs[1].signatureScript)))
         // a skipped input doesn't excuse the KIP-22 one beside it
         val second = tx.inputs[1].signatureScript
         val flipped = second.substring(0, 10) + (if (second[10] == '0') '1' else '0') + second.substring(11)
         assertEquals(SignatureCheck.Invalid(1), verifyQuantum(tx, utxos, listOf(covenants[0], flipped)))
-        // a signature script that isn't hex can't be read: unknown
-        assertEquals(SignatureCheck.Unknown, verifyQuantum(tx, utxos, listOf("zz", tx.inputs[1].signatureScript)))
+        // a signature script that isn't hex can't be on chain: invalid outright (AND-046)
+        assertEquals(SignatureCheck.Invalid(0), verifyQuantum(tx, utxos, listOf("zz", tx.inputs[1].signatureScript)))
+    }
+
+    // MARK: run 17 (iOS 5a78d06): AND-046 malformed = invalid outright, AND-054 nothing checked =
+    // unknown, IOS-094 the sender from the checked inputs
+
+    @Test
+    fun `a malformed P2PK signature script is invalid even when the claimed id doesn't rebuild`() {
+        val tx = load(v0OneOut)
+        val input = tx.inputs[0]
+        for (script in listOf("", "00", input.signatureScript.drop(2), "40" + input.signatureScript.drop(2), "zz")) {
+            assertEquals(script, SignatureCheck.Invalid(0), check(
+                tx.copy(transactionId = "00".repeat(32), inputsOrNull = listOf(input.copy(signatureScript = script)))
+            ))
+        }
+    }
+
+    @Test
+    fun `a KIP-22 redeem for another address is invalid even when the claimed id doesn't rebuild`() {
+        val (tx, utxos) = quantumSpend(signer = 0)
+        val result = KaspaSignatureVerifier.verifyTransactionSignatures(
+            claimedTxId = "00".repeat(32),
+            inputs = tx.inputs.mapIndexed { i, input ->
+                KaspaSignatureVerifier.VerificationInput(
+                    input.previousOutpoint.transactionId, input.previousOutpoint.index, input.signatureScript,
+                    utxos[i].address, utxos[i].utxoEntry.amount, input.sequence, input.sigOpCount,
+                )
+            },
+            outputs = tx.outputs.map { KaspaSignatureVerifier.VerificationOutput(it.amount, it.scriptPublicKey.scriptPublicKey) },
+            version = 0, lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
+        )
+        assertEquals(SignatureCheck.Invalid(0), result)
+    }
+
+    @Test
+    fun `every input is examined before an unknown, so a later malformed one is invalid`() {
+        val (tx, utxos) = quantumSpend()
+        val scripts = tx.inputs.map { it.signatureScript }.toMutableList()
+        // input 0: a sighash type the check doesn't hash (undecided); input 1: not even hex
+        scripts[0] = scripts[0].substring(0, 130) + "81" + scripts[0].substring(132)
+        assertEquals(SignatureCheck.Unknown, verifyQuantum(tx, utxos, scripts))
+        scripts[1] = "zz"
+        assertEquals(SignatureCheck.Invalid(1), verifyQuantum(tx, utxos, scripts))
+        // an unresolved input first doesn't hide a malformed one after it either
+        val first = KaspaSignatureVerifier.verifyTransactionSignatures(
+            claimedTxId = "00".repeat(32),
+            inputs = tx.inputs.mapIndexed { i, input ->
+                KaspaSignatureVerifier.VerificationInput(
+                    input.previousOutpoint.transactionId, input.previousOutpoint.index,
+                    if (i == 1) "zz" else input.signatureScript,
+                    if (i == 0) null else utxos[i].address, utxos[i].utxoEntry.amount, input.sequence, input.sigOpCount,
+                )
+            },
+            outputs = tx.outputs.map { KaspaSignatureVerifier.VerificationOutput(it.amount, it.scriptPublicKey.scriptPublicKey) },
+            version = 0, lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
+        )
+        assertEquals(SignatureCheck.Invalid(1), first)
+    }
+
+    @Test
+    fun `a payment whose every input is ECDSA had nothing checked and is unknown`() {
+        val tx = load(v0OneOut)
+        val ecdsa = KaspaAddress.encode("kaspa", 1, ByteArray(33) { if (it == 0) 2 else 7 })
+        val input = tx.inputs[0].copy(previousOutpointAddress = ecdsa, signatureScript = "00")
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputsOrNull = listOf(input))))
+    }
+
+    @Test
+    fun `a valid payment's sender is the first checked input that isn't ours`() {
+        val tx = load(v0Payment)
+        val payer = tx.inputs[0].previousOutpointAddress!!
+        val valid = received(tx)
+        assertEquals(SignatureCheck.Valid, valid.check)
+        assertEquals(payer, valid.sender)
+        // an input filled in from its previous transaction counts as checked too
+        val input = tx.inputs[0]
+        val unresolved = tx.copy(inputsOrNull = listOf(input.copy(previousOutpointAddress = null, previousOutpointAmount = null)) + tx.inputs.drop(1))
+        val spent = TransactionOutput(
+            amount = input.previousOutpointAmount!!,
+            scriptPublicKey = KaspaAddress.getScriptPublicKey(payer),
+            scriptPublicKeyAddress = payer,
+            index = input.previousOutpointIndex,
+        )
+        assertEquals(payer, received(unresolved, mapOf("${input.previousOutpointHash}:${input.previousOutpointIndex}" to spent)).sender)
+        // our own inputs are never the sender; with only ours there is none
+        assertEquals(SignatureCheck.Valid, received(tx, myAddress = payer.uppercase()).check)
+        assertEquals(null, received(tx, myAddress = payer.uppercase()).sender)
+        // nothing proven, no sender
+        assertEquals(null, received(tx.copy(transactionId = "00".repeat(32), inputsOrNull = listOf(input.copy(signatureScript = "")))).sender)
     }
 
     @Test

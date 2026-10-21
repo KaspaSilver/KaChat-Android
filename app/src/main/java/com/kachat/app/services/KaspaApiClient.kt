@@ -416,6 +416,18 @@ interface KasiaIndexerApi {
     ): List<HandshakeIndexerResponse>
 
     /**
+     * Payments to [address] from [blockTime] on (the indexer reads them forward). Read only as
+     * the second source for a node-confirmed received payment: the indexer takes the sender from
+     * its own node, which the REST server can't speak for (iOS 5a78d06, IOS-096 / AND-044).
+     */
+    @GET("payments/by-receiver")
+    suspend fun getPaymentsByReceiver(
+        @Query("address") address: String,
+        @Query("limit") limit: Int = 50,
+        @Query("block_time") blockTime: Long = 0
+    ): List<PaymentIndexerResponse>
+
+    /**
      * [aliasHex] is the SENDER's own alias (from their handshake), UTF-8-encoded then hex-encoded.
      * [blockTime], when given, returns only messages at or after that block time (same cursor
      * param as [getHandshakesByReceiver]) — safe even if the boundary item comes back again, since
@@ -550,6 +562,15 @@ data class HandshakeIndexerResponse(
     val receiver: String,
     @SerializedName("block_time") val blockTime: Long,
     @SerializedName("message_payload") val messagePayload: String
+)
+
+/** One `payments/by-receiver` row (iOS `PaymentResponse`). The indexer stores a payment before
+ *  resolving its sender and sends `"sender": null` until then, so every field is nullable. */
+data class PaymentIndexerResponse(
+    @SerializedName("tx_id") val txId: String? = null,
+    val sender: String? = null,
+    val receiver: String? = null,
+    @SerializedName("block_time") val blockTime: Long? = null,
 )
 
 data class SelfStashIndexerResponse(

@@ -333,6 +333,90 @@ class ChatRepositoryTest {
         )
     }
 
+    // MARK: run 17 (iOS 5a78d06) - "paid to me" from the script (AND-045), the node-only sender (AND-044)
+
+    private fun fixture(txId: String): com.kachat.app.services.TransactionResponse {
+        val stream = javaClass.classLoader!!.getResourceAsStream("kaspa-transactions/$txId.json") ?: error("missing fixture $txId")
+        return stream.reader().use { com.google.gson.Gson().fromJson(it, com.kachat.app.services.TransactionResponse::class.java) }
+    }
+
+    /** A real mainnet payment (KaspaSignatureVerifierTest's v0 payment fixture). */
+    private val realPayment = "1feb8b58162de1cac138a2061ce43c11f4d63d7b4195d4362016f3025d13e410"
+
+    /** A wallet that is in no fixture, as a real address (its script is derived). */
+    private val wallet = com.kachat.app.util.KaspaAddress.encode("kaspa", 0, ByteArray(32) { 5 })
+
+    @Test
+    fun `a real payment relabelled as ours only in the address label is not paid to us`() {
+        val tx = fixture(realPayment)
+        val payer = tx.inputs[0].previousOutpointAddress!!
+        val relabelled = tx.copy(outputs = tx.outputs.mapIndexed { i, o -> if (i == 0) o.copy(scriptPublicKeyAddress = wallet) else o })
+        // the labels are covered by nothing: every signature still verifies...
+        assertEquals(
+            com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid,
+            kotlinx.coroutines.runBlocking {
+                com.kachat.app.util.KaspaSignatureVerifier.checkReceivedTransaction(relabelled, wallet) { _, _ -> null }.check
+            }
+        )
+        // ...but the script says the output isn't ours: no payment to us
+        assertEquals(PaymentTxDirection.None, ChatRepository.classifyPaymentTx(wallet, relabelled))
+        // an output whose script IS ours pays us, whatever its label says
+        val ours = tx.copy(outputs = tx.outputs.mapIndexed { i, o ->
+            if (i == 0) o.copy(scriptPublicKey = com.kachat.app.util.KaspaAddress.getScriptPublicKey(wallet).uppercase(), scriptPublicKeyAddress = payer) else o
+        })
+        assertEquals(PaymentTxDirection.Incoming(payer, tx.outputs[0].amount), ChatRepository.classifyPaymentTx(wallet, ours))
+        // with no script to read, the label is all there is
+        val noScript = relabelled.copy(outputs = relabelled.outputs.mapIndexed { i, o -> if (i == 0) o.copy(scriptPublicKey = "") else o })
+        assertEquals(PaymentTxDirection.Incoming(payer, tx.outputs[0].amount), ChatRepository.classifyPaymentTx(wallet, noScript))
+    }
+
+    @Test
+    fun `an output labelled ours whose script isn't counts for nobody`() {
+        val mine = "20" + "05".repeat(32) + "ac"
+        val theirs = "20" + "09".repeat(32) + "ac"
+        // our send: the relabelled output is neither our change nor the destination
+        assertEquals(
+            PaymentTxDirection.Outgoing(payee, 7L),
+            ChatRepository.classifyPaymentTx(
+                me, inputs = listOf(me), outputs = listOf(me to 1_000L, payee to 7L),
+                outputScripts = listOf(theirs, theirs), myScriptHex = mine,
+            )
+        )
+        assertEquals(
+            PaymentTxDirection.None,
+            ChatRepository.classifyPaymentTx(
+                me, inputs = listOf(payer), outputs = listOf(me to 1_000L),
+                outputScripts = listOf(theirs), myScriptHex = mine,
+            )
+        )
+    }
+
+    @Test
+    fun `a node-confirmed payment files only with the indexer's agreeing sender`() {
+        // no indexer row: held
+        assertEquals(null, ChatRepository.nodeOnlyPaymentSender(payer, null))
+        // the indexer names someone else: held
+        assertEquals(null, ChatRepository.nodeOnlyPaymentSender(payer, payee))
+        // both agree (case aside): filed from that sender
+        assertEquals(payer, ChatRepository.nodeOnlyPaymentSender(payer.uppercase(), payer)?.lowercase())
+        // REST named none: the indexer's
+        assertEquals(payee, ChatRepository.nodeOnlyPaymentSender(null, payee))
+    }
+
+    @Test
+    fun `the indexer's sender is read from the row with the same txid`() {
+        val rows = listOf(
+            com.kachat.app.services.PaymentIndexerResponse(txId = "AA11", sender = " ${payee.uppercase()} "),
+            com.kachat.app.services.PaymentIndexerResponse(txId = "bb22", sender = null),
+            com.kachat.app.services.PaymentIndexerResponse(txId = "cc33", sender = "  "),
+            com.kachat.app.services.PaymentIndexerResponse(txId = null, sender = payer),
+        )
+        assertEquals(payee, ChatRepository.indexedPaymentSender(rows, "aa11"))
+        assertEquals(null, ChatRepository.indexedPaymentSender(rows, "bb22"))
+        assertEquals(null, ChatRepository.indexedPaymentSender(rows, "cc33"))
+        assertEquals(null, ChatRepository.indexedPaymentSender(rows, "dd44"))
+    }
+
     // MARK: KNS domain transfers in the payment scan (iOS ingestKNSTransferMessage)
 
     /** A reveal input's signature script, built the way the app's own reveal is

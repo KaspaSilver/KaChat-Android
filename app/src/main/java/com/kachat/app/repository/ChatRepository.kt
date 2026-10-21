@@ -2746,18 +2746,23 @@ class ChatRepository @Inject constructor(
         // memoized one, and only read when the transaction has a P2SH output (iOS d80c497).
         if (isKachatContractTransaction(tx) { walletManager.ownAddressSetLowercased() }) return true
 
+        // A transaction with no inputs (a block reward) is never a chat payment, and nothing in it
+        // can be signature-checked - a lying REST server could otherwise file a made-up payment,
+        // memo included, "from" anyone (iOS 5a78d06, IOS-094). Final, not a retry: rewards stay in
+        // the address history and the balance; the reward bot's pings are messages of their own.
+        if (tx.inputs.isEmpty()) return true
+
         // Which way the money went (iOS fetchPaymentsFromKaspaAPI's input/output analysis) - see
         // [classifyPaymentTx]. Every input is checked for a resolved address, not just the first:
         // the REST API's resolve_previous_outpoints=light can leave an individual input's address
         // unresolved (e.g. transient lookup gap) even when a later input in the same tx resolved
         // fine. Bailing out on inputs[0] being unresolved used to silently drop an otherwise-valid
         // received payment with no message, no contact, and no notification.
-        val direction = classifyPaymentTx(
-            myAddress,
-            tx.inputs.map { it.previousOutpointAddress },
-            tx.outputs.map { it.scriptPublicKeyAddress to it.amount }
-        )
-        val sender: String
+        // Whether an output pays us is read from its script - the signed data the signature check
+        // rebuilds - not from the unsigned address label, which a lying API could set to ours on
+        // someone else's payment (iOS 5a78d06, IOS-098 / AND-045).
+        val direction = classifyPaymentTx(myAddress, tx)
+        var sender: String
         val receivedSompi: Long
         when (direction) {
             PaymentTxDirection.Unresolved -> {
@@ -2781,7 +2786,7 @@ class ChatRepository @Inject constructor(
         // resolve is looked up through its previous transaction. Invalid drops it; a payment that
         // still can't be checked is held and checked again on later syncs - never dropped on the
         // first miss, never shown unverified. See [com.kachat.app.util.KaspaSignatureVerifier].
-        val check = com.kachat.app.util.KaspaSignatureVerifier.checkReceivedTransaction(tx) { previousTxId, index ->
+        val verdict = com.kachat.app.util.KaspaSignatureVerifier.checkReceivedTransaction(tx, myAddress) { previousTxId, index ->
             val previous = try {
                 restApi.getTransaction(previousTxId)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -2791,9 +2796,13 @@ class ChatRepository @Inject constructor(
             }
             previous?.let { com.kachat.app.util.KaspaSignatureVerifier.outputAt(it, index) }
         }
-        when (check) {
-            com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid ->
+        when (val check = verdict.check) {
+            com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid -> {
                 releaseHeldPayment(myAddress, tx.transactionId)
+                // the sender from the very inputs whose signatures were just checked - never from a
+                // second, unchecked read (iOS 5a78d06, IOS-094)
+                verdict.sender?.let { sender = it }
+            }
             is com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Invalid -> {
                 releaseHeldPayment(myAddress, tx.transactionId)
                 Log.w("ChatRepository", "Schnorr signature INVALID for input ${check.inputIndex} of a v${tx.version?.trim()?.toIntOrNull() ?: 0} tx")
@@ -2802,11 +2811,20 @@ class ChatRepository @Inject constructor(
             }
             com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Unknown -> {
                 // The REST answer can't settle it (a field the signature covers is missing). Our
-                // node can: a coin from this txid paying this address the amount means the
-                // payment is real (iOS 8116ab9, XP-033).
-                if (nodeConfirmsIncomingPayment(tx.transactionId, myAddress, receivedSompi)) {
+                // node can prove the coins: a coin from this txid paying this address the amount
+                // means the payment is real (iOS 8116ab9, XP-033). It can't prove WHO paid, so the
+                // sender must come from a second source the REST server doesn't speak for - the
+                // KaChat indexer, which reads it from its own node (owner's call for IOS-096 /
+                // AND-044, iOS 5a78d06). Until both agree the payment stays held. Filed this way
+                // it can never replace a message of ours: [insertMessageIfAbsent] never writes
+                // over a stored row, and the sync skips any stored txid before it gets here.
+                val confirmedSender = if (nodeConfirmsIncomingPayment(tx.transactionId, myAddress, receivedSompi)) {
+                    nodeOnlyPaymentSender(sender, indexerPaymentSender(tx.transactionId, myAddress, tx.blockTime ?: 0L))
+                } else null
+                if (confirmedSender != null) {
                     releaseHeldPayment(myAddress, tx.transactionId)
-                    Log.i("ChatRepository", "Payment ${tx.transactionId.take(16)} confirmed by the node (signatures not checkable from REST)")
+                    sender = confirmedSender
+                    Log.i("ChatRepository", "Payment ${tx.transactionId.take(16)} confirmed by the node, sender by the indexer")
                     // the amount is proven, a memo from the REST answer is not (the payload is
                     // part of what could not be checked): filed as a plain payment
                     payloadBytes = ByteArray(0)
@@ -3000,6 +3018,25 @@ class ChatRepository @Inject constructor(
             .filter { it.outpoint.transactionId.equals(txId, ignoreCase = true) }
             .sumOf { it.utxoEntry.amount }
         return paid == amount
+    }
+
+    /** The sender the KaChat indexer recorded for [txId] paid to [receiver], lowercased (iOS
+     *  `indexerSender`) - read by the indexer from its own node, so it is a source the REST server
+     *  can't speak for. Null when the indexer has no such row (it indexes payments that carry a
+     *  KaChat payload), names no sender, or can't be read. Second source for a node-confirmed
+     *  payment (iOS 5a78d06, IOS-096 / AND-044). */
+    private suspend fun indexerPaymentSender(txId: String, receiver: String, blockTime: Long): String? {
+        val api = networkService.indexerApi.value ?: return null
+        // its rows are read forward from block_time: start a little before the payment
+        val from = if (blockTime > 600_000L) blockTime - 600_000L else 0L
+        val rows = try {
+            api.getPaymentsByReceiver(address = receiver, limit = 50, blockTime = from)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return null
+        }
+        return indexedPaymentSender(rows, txId)
     }
 
     /** Serializes the read-modify-write of the held list (two syncs can run at once). */
@@ -3271,7 +3308,9 @@ class ChatRepository @Inject constructor(
         /**
          * The payment sync's direction analysis (iOS `fetchPaymentsFromKaspaAPI`): [inputs] are the
          * spent outpoints' addresses (null = not resolved), [outputs] each output's address and
-         * amount.
+         * amount, [outputScripts] each output's script hex. An output pays us when its script is
+         * [myScriptHex]; only an output without a script (or without [myScriptHex]) falls back to
+         * its address label, and one labelled ours whose script isn't counts for nobody (IOS-098).
          *  - Outgoing: one of the inputs is ours and something goes to another address. The
          *    destination is the smallest output to an address that is neither ours nor the
          *    first foreign input's (the larger one is usually change); a foreign input's own
@@ -3285,6 +3324,8 @@ class ChatRepository @Inject constructor(
             myAddress: String,
             inputs: List<String?>,
             outputs: List<Pair<String?, Long>>,
+            outputScripts: List<String?> = emptyList(),
+            myScriptHex: String? = null,
         ): PaymentTxDirection {
             val resolved = inputs.mapNotNull { it?.trim()?.takeIf { a -> a.isNotEmpty() } }
             if (resolved.isEmpty()) return PaymentTxDirection.Unresolved
@@ -3295,12 +3336,24 @@ class ChatRepository @Inject constructor(
             var toOthers = 0L
             var recipient: String? = null
             var recipientAmount = 0L
-            for ((rawAddress, amount) in outputs) {
-                val address = rawAddress?.trim()?.takeIf { it.isNotEmpty() } ?: continue
-                if (address.equals(myAddress, ignoreCase = true)) {
+            for ((i, output) in outputs.withIndex()) {
+                val (rawAddress, amount) = output
+                // paid to us: by the output's script when there is one (the signed data), else
+                // by its label (IOS-098 / AND-045)
+                val script = outputScripts.getOrNull(i)?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+                val paysUs = if (script != null && myScriptHex != null) {
+                    script == myScriptHex
+                } else {
+                    rawAddress?.trim()?.equals(myAddress, ignoreCase = true) == true
+                }
+                if (paysUs) {
                     toUs += amount
                     continue
                 }
+                val address = rawAddress?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+                // labelled ours, but the script says otherwise: not ours, and not anyone's we can
+                // name either
+                if (address.equals(myAddress, ignoreCase = true)) continue
                 toOthers += amount
                 if (foreignSender == null || !address.equals(foreignSender, ignoreCase = true)) {
                     // the actual destination, not change back to a co-signing sender: prefer the
@@ -3321,6 +3374,39 @@ class ChatRepository @Inject constructor(
             }
             if (toUs <= 0 || foreignSender == null) return PaymentTxDirection.None
             return PaymentTxDirection.Incoming(foreignSender, toUs)
+        }
+
+        /** [classifyPaymentTx] over a REST transaction as the payment sync reads it: "paid to
+         *  [myAddress]" from each output's script hex compared with [myAddress]'s own script - the
+         *  signed data - with the address label only when there is no script (iOS 5a78d06,
+         *  IOS-098 / AND-045). */
+        internal fun classifyPaymentTx(myAddress: String, tx: TransactionResponse): PaymentTxDirection {
+            val myScriptHex = runCatching { KaspaAddress.getScriptPublicKey(myAddress).lowercase() }.getOrNull()
+            // Gson leaves a field the JSON lacks null whatever its Kotlin type
+            val outputs = (tx.outputs as List<com.kachat.app.services.TransactionOutput>?).orEmpty()
+            return classifyPaymentTx(
+                myAddress,
+                tx.inputs.map { it.previousOutpointAddress },
+                outputs.map { it.scriptPublicKeyAddress to it.amount },
+                outputScripts = outputs.map { it.scriptPublicKey as String? },
+                myScriptHex = myScriptHex,
+            )
+        }
+
+        /** The indexer's sender for [txId] among its `payments/by-receiver` [rows], trimmed and
+         *  lowercased; null when no row names it (iOS `indexerSender`). */
+        internal fun indexedPaymentSender(rows: List<com.kachat.app.services.PaymentIndexerResponse>, txId: String): String? {
+            val row = rows.firstOrNull { it.txId?.equals(txId, ignoreCase = true) == true } ?: return null
+            return row.sender?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+        }
+
+        /** Who a node-confirmed payment is filed from (iOS 5a78d06, IOS-096 / AND-044): only when
+         *  the indexer names a sender and it agrees with the REST one (or REST named none) - else
+         *  null, and the payment stays held. */
+        internal fun nodeOnlyPaymentSender(restSender: String?, indexedSender: String?): String? {
+            if (indexedSender == null) return null
+            if (restSender != null && restSender.lowercase() != indexedSender) return null
+            return restSender ?: indexedSender
         }
 
         /** How many held payments one sync re-reads at most, and how long one is kept (iOS 5806362). */

@@ -29,13 +29,16 @@ import java.nio.ByteOrder
  * signature-checked; such a transaction is a contract and never files as a payment. The sighash
  * is the signer's own ([KaspaTransactionSigner.calculateSighash]), the curve maths [Schnorr.verify].
  *
- * The verdict rule, the same on every client (audits AND-042, XP-033): a standard key-address
- * (P2PK Schnorr) input must carry a well-formed signature - a blank, short or wrongly pushed one
- * cannot be on chain. A signature that fails (or is malformed) makes the payment Invalid only
- * when the REST fields rebuild the claimed transaction id ([restTransactionId]), i.e. the API
- * described the transaction completely; otherwise a field the signature covers is missing (lock
- * time, sequences) and the answer is Unknown. A sighash type other than SIGHASH_ALL is Unknown
- * too, never a silent pass.
+ * The verdict rule, the same on every client (audits AND-042, XP-033, iOS 5a78d06): a standard
+ * key-address (P2PK Schnorr) input must carry a well-formed signature - a blank, short or wrongly
+ * pushed one cannot be on chain, and neither can a P2SH script that isn't hex or a KIP-22 redeem
+ * that doesn't hash to its address: such a malformed script is Invalid outright (AND-046). A
+ * well-formed signature that fails makes the payment Invalid only when the REST fields rebuild
+ * the claimed transaction id ([restTransactionId]), i.e. the API described the transaction
+ * completely; otherwise a field the signature covers is missing (lock time, sequences) and the
+ * answer is Unknown. A sighash type other than SIGHASH_ALL is Unknown too, never a silent pass.
+ * Every input is examined before any Unknown, and a transaction where not one input was actually
+ * checked (no inputs, all ECDSA, unmodelled kinds) is Unknown, never Valid (AND-054).
  */
 object KaspaSignatureVerifier {
 
@@ -45,6 +48,11 @@ object KaspaSignatureVerifier {
         data class Invalid(val inputIndex: Int) : SignatureCheck()
         object Unknown : SignatureCheck()
     }
+
+    /** A received transaction's verdict and, when [check] is [SignatureCheck.Valid], its proven
+     *  sender: the first input address that isn't ours among the very inputs whose signatures
+     *  were checked (iOS 5a78d06 `verifyIncomingPaymentSignatures`, IOS-094). Null otherwise. */
+    data class ReceivedCheck(val check: SignatureCheck, val sender: String?)
 
     /** One input as the REST API resolves it (iOS `VerificationInput`). The spent output's
      *  address and amount are null when neither the API nor the previous transaction gave them:
@@ -79,8 +87,9 @@ object KaspaSignatureVerifier {
         gas: Long,
         payload: ByteArray,
     ): SignatureCheck {
-        // no inputs (a coinbase): no signatures to check
-        if (inputs.isEmpty()) return SignatureCheck.Valid
+        // no inputs (a coinbase): nothing was checked, so nothing is vouched for (IOS-094) - the
+        // received-payment path drops such a transaction before it gets here
+        if (inputs.isEmpty()) return SignatureCheck.Unknown
 
         // The transaction as signed: EVERY input (the sighash commits to all outpoints and
         // sequences), with an empty signature script.
@@ -130,17 +139,31 @@ object KaspaSignatureVerifier {
             },
             lockTime = lockTime, subnetworkId = subnetworkId, gas = gas, payload = payload,
         )?.equals(claimedTxId, ignoreCase = true) == true
+        // A signature that fails to verify is forged only when the REST fields rebuild the claimed
+        // id (XP-033: else a field it covers is missing). A signature script of a shape no accepted
+        // transaction can carry needs no such excuse - it is invalid outright (AND-046 / IOS-097).
+        // Every input is looked at before any "can't decide" answer, so a malformed input later in
+        // the list is never hidden behind an earlier unknown.
         var failedInput: Int? = null
+        var malformedInput: Int? = null
+        var undecided = false
+        // inputs whose signature was actually checked; a payment with none is not Valid (AND-054 /
+        // IOS-106: an all-ECDSA or otherwise unmodelled payment had zero checks and passed)
+        var checkedInputs = 0
 
         for ((index, input) in inputs.withIndex()) {
             // 1. The spent output's script and amount: without them this input can't be checked yet.
-            val address = input.previousOutpointAddress ?: return SignatureCheck.Unknown
-            val amount = input.previousOutpointAmount ?: return SignatureCheck.Unknown
-            val utxoScript = try {
+            val address = input.previousOutpointAddress
+            val amount = input.previousOutpointAmount
+            val utxoScript = if (address == null || amount == null) null else try {
                 hexToBytes(KaspaAddress.getScriptPublicKey(address))
             } catch (e: Exception) {
                 null
-            } ?: return SignatureCheck.Unknown
+            }
+            if (amount == null || utxoScript == null) {
+                undecided = true
+                continue
+            }
 
             // 2. The input's kind, from the spent output's script. Standard P2PK Schnorr
             // (<push-32> <32-byte key> OP_CHECKSIG) and KIP-22 quantum-address P2SH spends are both
@@ -155,11 +178,14 @@ object KaspaSignatureVerifier {
                 // a sighash type byte - anything else (blank, short, another push) can't be on chain.
                 val sigScript = hexToBytes(input.signatureScript)
                 if (sigScript == null || sigScript.size != 66 || sigScript[0] != 0x41.toByte()) {
-                    if (failedInput == null) failedInput = index
+                    if (malformedInput == null) malformedInput = index
                     continue
                 }
                 // a sighash type this check doesn't hash: can't be decided here
-                if (sigScript[65] != 0x01.toByte()) return SignatureCheck.Unknown
+                if (sigScript[65] != 0x01.toByte()) {
+                    undecided = true
+                    continue
+                }
                 xOnlyPubKey = utxoScript.copyOfRange(1, 33)
                 signature = sigScript.copyOfRange(1, 65)
             } else if (utxoScript.size == 35 && utxoScript[0] == 0xAA.toByte() && utxoScript[1] == 0x20.toByte() &&
@@ -167,8 +193,13 @@ object KaspaSignatureVerifier {
             ) {
                 // 3b. P2SH. A KIP-22 spend's signature script is 0x41 <64-byte signature> <sighash
                 // byte> then the canonical push 0x22 of the 34-byte redeem 0x20 <x-only key> 0xac
-                // (101 bytes); any other shape is a covenant spend, skipped like before.
-                val sigScript = hexToBytes(input.signatureScript) ?: return SignatureCheck.Unknown
+                // (101 bytes); any other shape is a covenant spend, skipped like before. A script
+                // that is not even hex can't be on chain.
+                val sigScript = hexToBytes(input.signatureScript)
+                if (sigScript == null) {
+                    if (malformedInput == null) malformedInput = index
+                    continue
+                }
                 if (sigScript.size != 101 || sigScript[0] != 0x41.toByte() || sigScript[66] != 0x22.toByte() ||
                     sigScript[67] != 0x20.toByte() || sigScript[100] != 0xAC.toByte()
                 ) {
@@ -178,10 +209,13 @@ object KaspaSignatureVerifier {
                 // redeem doesn't hash to this very address can't be on chain for it.
                 val redeem = sigScript.copyOfRange(67, 101)
                 if (!KachatNames.blake2b256(redeem).contentEquals(utxoScript.copyOfRange(2, 34))) {
-                    if (failedInput == null) failedInput = index
+                    if (malformedInput == null) malformedInput = index
                     continue
                 }
-                if (sigScript[65] != 0x01.toByte()) return SignatureCheck.Unknown
+                if (sigScript[65] != 0x01.toByte()) {
+                    undecided = true
+                    continue
+                }
                 xOnlyPubKey = sigScript.copyOfRange(68, 100)
                 signature = sigScript.copyOfRange(1, 65)
             } else {
@@ -192,18 +226,24 @@ object KaspaSignatureVerifier {
             val sighash = try {
                 KaspaTransactionSigner.calculateSighash(rawTx, index, amount, toHex(utxoScript), covenants)
             } catch (e: Exception) {
-                return SignatureCheck.Unknown
+                undecided = true
+                continue
             }
 
             // 5. Verify.
             val valid = Schnorr.verify(sighash, signature, xOnlyPubKey)
             sighash.fill(0)
+            checkedInputs++
             if (!valid && failedInput == null) failedInput = index
         }
-        val failed = failedInput ?: return SignatureCheck.Valid
-        // forged only when the API described the whole transaction; else something it left out
-        // (that the signature covers) is the likelier reason
-        return if (restFieldsRebuildId()) SignatureCheck.Invalid(failed) else SignatureCheck.Unknown
+        malformedInput?.let { return SignatureCheck.Invalid(it) }
+        failedInput?.let { failed ->
+            // forged only when the API described the whole transaction; else something it left
+            // out (that the signature covers) is the likelier reason
+            return if (restFieldsRebuildId()) SignatureCheck.Invalid(failed) else SignatureCheck.Unknown
+        }
+        if (undecided || checkedInputs == 0) return SignatureCheck.Unknown
+        return SignatureCheck.Valid
     }
 
     /**
@@ -285,20 +325,23 @@ object KaspaSignatureVerifier {
      * part of every input's sighash). A missing sequence reads 0 and sig-op count 1, the version,
      * lock time and gas 0 (iOS FlexibleUInt64: a value that doesn't parse reads 0); the
      * subnetwork id is the transaction's (20 zero bytes when it isn't hex), the payload its bytes.
-     * No inputs (a coinbase) is [SignatureCheck.Valid].
+     * No inputs (a coinbase) is [SignatureCheck.Unknown] - nothing was checked (IOS-094). On
+     * Valid the sender is the first checked input's address that isn't [myAddress].
      */
     suspend fun checkReceivedTransaction(
         tx: TransactionResponse,
+        myAddress: String,
         spentOutput: suspend (previousTxId: String, index: Int) -> TransactionOutput?,
-    ): SignatureCheck {
+    ): ReceivedCheck {
+        val unknown = ReceivedCheck(SignatureCheck.Unknown, null)
         // Gson leaves a field the JSON lacks null whatever its Kotlin type, hence the nullable reads.
         val inputs = (tx.inputs as List<TransactionInput>?).orEmpty()
-        if (inputs.isEmpty()) return SignatureCheck.Valid
+        if (inputs.isEmpty()) return unknown
         val verificationInputs = ArrayList<VerificationInput>(inputs.size)
         for (input in inputs) {
-            val hash = (input.previousOutpointHash as String?) ?: return SignatureCheck.Unknown
+            val hash = (input.previousOutpointHash as String?) ?: return unknown
             val index = input.previousOutpointIndex
-            if (index < 0) return SignatureCheck.Unknown
+            if (index < 0) return unknown
             var address = input.previousOutpointAddress
             var amount = input.previousOutpointAmount
             if (address == null || amount == null) {
@@ -325,7 +368,7 @@ object KaspaSignatureVerifier {
                 covenantId = output.covenantId,
             )
         }
-        return verifyTransactionSignatures(
+        val check = verifyTransactionSignatures(
             claimedTxId = tx.transactionId,
             inputs = verificationInputs,
             outputs = outputs,
@@ -335,6 +378,13 @@ object KaspaSignatureVerifier {
             gas = tx.gas?.let { flexibleLong(it) ?: 0L } ?: 0L,
             payload = hexToBytes(tx.payload ?: "") ?: ByteArray(0),
         )
+        // On Valid every input's address was the one its signature was checked against, so the
+        // first that isn't ours is the proven sender.
+        val sender = if (check == SignatureCheck.Valid) {
+            verificationInputs.mapNotNull { it.previousOutpointAddress }
+                .firstOrNull { !it.equals(myAddress, ignoreCase = true) }
+        } else null
+        return ReceivedCheck(check, sender)
     }
 
     /** The spent output [index] of a previous transaction (iOS: the output whose `index` is it,
