@@ -442,14 +442,15 @@ class WalletViewModel @Inject constructor(
             } else {
                 // Rule 2: the lowest quantum slot never used (iOS lowestUnusedQuantumAddress,
                 // side-effect free): a hidden, live-confirmed unused quantum row, else a brand-new
-                // slot past the chain's end - answered without extending the chain. Never a slot
-                // a send still in flight picked for its change (Android's own guarantee).
+                // slot past the chain's end - answered without extending the chain, and checked on
+                // chain first (iOS da2c8e2 `verifiedFreshQuantumIndex`, IOS-101 / AND-049). Never
+                // a slot a send still in flight picked for its change (Android's own guarantee).
                 val inFlight = walletManager.inFlightQuantumChange()
                 val index = entries.sortedBy { it.index }.firstOrNull { entry ->
                     entry.isQuantum && entry.hidden && entry.liveChecked && !entry.isCurrent &&
                         entry.index != account.spendingAddressIndex &&
                         entry.balanceSompi == 0L && !entry.everUsed && entry.index !in inFlight
-                }?.index ?: walletManager.nextFreshQuantumIndex()
+                }?.index ?: walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
                 val address = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
                 if (address == null) {
                     onResult(current)
@@ -590,10 +591,19 @@ class WalletViewModel @Inject constructor(
      * the quantum bound moves past it in the same step ([WalletManager.allocateFreshQuantumIndices],
      * shared with payment change), so no later request or change output can ever get the same
      * one. Null when it can't be derived. The address-activity poll watches every revealed
-     * address, so its payment shows the moment it lands.
+     * address, so its payment shows the moment it lands. The slot is checked on chain first: one
+     * that already has history is skipped (iOS da2c8e2 `verifiedFreshQuantumIndex`, IOS-101 /
+     * AND-049).
      */
     suspend fun reserveFreshSpendingAddress(): String? = withContext(Dispatchers.IO) {
-        try { walletManager.allocateFreshQuantumIndices(1).firstOrNull()?.second } catch (e: Exception) { null }
+        try {
+            walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
+            walletManager.allocateFreshQuantumIndices(1).firstOrNull()?.second
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** The address [reserveFreshSpendingAddress] would hand out next, derived but NOT reserved
@@ -697,10 +707,20 @@ class WalletViewModel @Inject constructor(
             }
             // A self-send (Compound) still consolidates into the address itself, shield off.
             // Picked, not revealed: held as in flight so nothing else gets the same slot, and
-            // given back if the send fails ([WalletManager.pickFreshQuantumChange]).
+            // given back if the send fails ([WalletManager.pickFreshQuantumChange]). Checked on
+            // chain first: a slot that already has history is skipped (iOS da2c8e2
+            // `verifiedFreshQuantumIndex`, IOS-101 / AND-049).
             val fresh = if (!isSelfSend && (isQuantumSource || index == activeIndex)) {
+                walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
                 withContext(Dispatchers.Default) { walletManager.pickFreshQuantumChange() }
             } else null
+            // Never change back onto the key this spend reveals: a quantum source whose fresh
+            // slot can't be derived stops here (iOS da2c8e2, IOS-104 / AND-052). A legacy source
+            // keeps its fallback - change and primary stay put.
+            if (fresh == null && !isSelfSend && isQuantumSource) {
+                sends.finish(sendId, Result.failure(IllegalStateException(appContext.getString(com.kachat.app.R.string.quantum_next_address_failed))))
+                return@launch
+            }
             val result = try {
                 walletEngine.sendKaspa(
                     toAddress = toAddress,
@@ -1398,12 +1418,15 @@ class WalletViewModel @Inject constructor(
                         // Manage Addresses after a rebuild; every other recovered index starts
                         // hidden (see seedImportedSpendingVisibility's doc for the full rule).
                         walletService.seedImportedSpendingVisibility()
-                        // The quantum-safe (KIP-22) chain is not scanned here: as on iOS, funded
-                        // quantum slots come back from Manage Addresses' Discover
-                        // (discoverQuantumAddresses), never on import.
                     } catch (e: Exception) {
                         android.util.Log.w("WalletViewModel", "Spending address discovery failed", e)
                     }
+                    // A restored seed finds its spending addresses by itself - legacy and quantum,
+                    // the same sweep as Manage Addresses' Discover Addresses - so balances and
+                    // change rotation are right without anyone knowing to tap it (owner's call,
+                    // iOS da2c8e2). Only this path: a typed-in recovery phrase; creating or
+                    // switching accounts doesn't scan.
+                    discoverSpendingAddresses { }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("WalletViewModel", "importWallet failed", e)

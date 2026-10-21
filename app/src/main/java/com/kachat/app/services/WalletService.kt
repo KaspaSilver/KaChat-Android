@@ -222,6 +222,7 @@ class WalletService @Inject constructor(
             payloadBytes = payloadBytes,
             manualUtxos = manualUtxos,
             extraFeeSompi = extraFeeSompi,
+            isAddressUsed = { spendingAddressUsedState(it) },
         )
 
         if (result.isSuccess) {
@@ -299,23 +300,27 @@ class WalletService @Inject constructor(
     /**
      * Whether a quantum-safe (KIP-22) address has ever SPENT - the one event that puts its key on
      * chain (receiving reveals nothing; iOS `ChatService.quantumAddressSpentState`). true is
-     * marked locally and permanent; false means no spend in its history; null when the history
-     * can't be read right now. Quantum addresses are young, so one page covers them.
+     * marked locally and permanent; false means no spend in its whole history; null when the
+     * history can't be read right now, or is deeper than the walk goes.
+     *
+     * The whole history, a page at a time ([quantumSpentFromPages]): a spend buried under later
+     * activity still revealed the key (iOS da2c8e2, IOS-105 / AND-051). A found spend is marked
+     * for good, so the walk runs once per address; a page that can't be read leaves the answer
+     * unknown, never "not spent".
      */
     suspend fun quantumAddressSpentState(address: String): Boolean? {
         if (walletManager.isQuantumAddressSpentLocally(address)) return true
         val api = readyApi() ?: return null
-        val transactions = try {
-            api.getTransactions(address, limit = 200, offset = 0)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            return null
+        val spent = quantumSpentFromPages(address) { offset, limit ->
+            try {
+                api.getTransactions(address, limit = limit, offset = offset)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
         }
-        val spent = transactions.any { tx ->
-            tx.inputs.any { it.previousOutpointAddress?.equals(address, ignoreCase = true) == true }
-        }
-        if (spent) walletManager.markQuantumAddressSpent(address)
+        if (spent == true) walletManager.markQuantumAddressSpent(address)
         return spent
     }
 
@@ -989,6 +994,9 @@ class WalletService @Inject constructor(
         // ([WalletManager.pickFreshQuantumChange]).
         val activeSpendingIndex = walletManager.getActiveAccount()?.spendingAddressIndex
         val fresh = if (fromSpendingAddressIndex != null && fromSpendingAddressIndex == activeSpendingIndex) {
+            // checked on chain first: a slot that already has history is skipped (iOS da2c8e2
+            // `verifiedFreshQuantumIndex`, IOS-101 / AND-049)
+            walletManager.verifyFreshQuantumIndex { spendingAddressUsedState(it) }
             walletManager.pickFreshQuantumChange()
         } else null
         val changeAddress = fresh?.address ?: sourceAddress
@@ -1116,6 +1124,36 @@ class WalletService @Inject constructor(
     }
 
     companion object {
+        /** The shield probe's page size and how many pages it reads at most (iOS da2c8e2: 200 x
+         *  50 = 10,000 transactions). */
+        internal const val QUANTUM_SPENT_PAGE_SIZE = 200
+        internal const val QUANTUM_SPENT_MAX_PAGES = 50
+
+        /**
+         * The shield probe's walk (iOS `quantumAddressSpentState`, da2c8e2 / IOS-105 / AND-051):
+         * [page] (offset, limit) reads one page of [address]'s history, null when it can't. True
+         * at the first page where an input spends from [address]; false once a short page ends
+         * the history without one; null when a page can't be read, or the history is deeper than
+         * [QUANTUM_SPENT_MAX_PAGES] pages - never "not spent" on a guess.
+         */
+        internal suspend fun quantumSpentFromPages(
+            address: String,
+            page: suspend (offset: Int, limit: Int) -> List<TransactionResponse>?,
+        ): Boolean? {
+            var offset = 0
+            while (offset < QUANTUM_SPENT_MAX_PAGES * QUANTUM_SPENT_PAGE_SIZE) {
+                val transactions = page(offset, QUANTUM_SPENT_PAGE_SIZE) ?: return null
+                val spent = transactions.any { tx ->
+                    tx.inputs.any { it.previousOutpointAddress?.equals(address, ignoreCase = true) == true }
+                }
+                if (spent) return true
+                if (transactions.size < QUANTUM_SPENT_PAGE_SIZE) return false
+                offset += QUANTUM_SPENT_PAGE_SIZE
+            }
+            // deeper than the walk goes: say so rather than claim the key is hidden
+            return null
+        }
+
         /**
          * Why a KNS domain transfer is refused up front, or null (iOS 2a8ca5a). KNS names a
          * domain's owner by the public key in the reveal script, and a quantum-safe (KIP-22)

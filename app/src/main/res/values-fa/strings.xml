@@ -1398,4 +1398,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS نمی‌تواند دامنه را از یک آدرس مقاوم در برابر کوانتوم خارج کند: KNS مالک دامنه را با یک کلید عمومی می‌شناسد و آدرس مقاوم در برابر کوانتوم کلیدش را پنهان نگه می‌دارد.</string>
     <string name="kns_transfer_to_script_address">دامنه‌ی ‎.kas را نمی‌توان به آدرس مقاوم در برابر کوانتوم یا آدرس اسکریپتی دیگر فرستاد: KNS دیگر هرگز نمی‌تواند آن را جابه‌جا کند. به‌جای آن به یک آدرس معمولی بفرستید.</string>
+    <string name="quantum_next_address_failed">آماده‌سازی آدرس بعدی ممکن نشد. دوباره تلاش کنید.</string>
 </resources>

@@ -1367,4 +1367,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS 无法把域名移出抗量子地址：KNS 通过公钥识别域名所有者，而抗量子地址会隐藏其公钥。</string>
     <string name="kns_transfer_to_script_address">.kas 域名不能发送到抗量子地址或其他脚本地址：KNS 将再也无法把它移出。请改为发送到普通地址。</string>
+    <string name="quantum_next_address_failed">无法准备下一个地址。请重试。</string>
 </resources>

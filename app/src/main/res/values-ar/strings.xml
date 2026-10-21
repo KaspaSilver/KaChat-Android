@@ -1367,4 +1367,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">لا يمكن لـ KNS نقل نطاق من عنوان مقاوم للكم: يحدد KNS مالك النطاق بمفتاح عام، والعنوان المقاوم للكم يُبقي مفتاحه مخفيًا.</string>
     <string name="kns_transfer_to_script_address">لا يمكن إرسال نطاق ‎.kas إلى عنوان مقاوم للكم أو عنوان سكربت آخر: لن يتمكن KNS من نقله مرة أخرى أبدًا. أرسله إلى عنوان عادي بدلًا من ذلك.</string>
+    <string name="quantum_next_address_failed">تعذّر تجهيز العنوان التالي. حاول مرة أخرى.</string>
 </resources>

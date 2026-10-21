@@ -1367,4 +1367,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS не может вывести домен с квантово-устойчивого адреса: KNS определяет владельца домена по открытому ключу, а квантово-устойчивый адрес скрывает свой ключ.</string>
     <string name="kns_transfer_to_script_address">Домен .kas нельзя отправить на квантово-устойчивый или другой скриптовый адрес: KNS больше никогда не сможет его переместить. Отправьте его на обычный адрес.</string>
+    <string name="quantum_next_address_failed">Не удалось подготовить следующий адрес. Попробуйте ещё раз.</string>
 </resources>

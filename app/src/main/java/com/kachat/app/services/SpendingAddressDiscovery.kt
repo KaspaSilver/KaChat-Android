@@ -150,10 +150,55 @@ class SpendingAddressDiscovery @Inject constructor(
          *  the usual BIP44 gap (the batched balance sweep beside it covers funded addresses past
          *  any longer run of unpaid Fresh Address requests). */
         const val IMPORT_FALLBACK_GAP = 20
-        /** How deep discovery looks on the quantum-safe chain (iOS `quantumScanFloor`). The chain
-         *  is young and change rotation only ever extends it one slot at a time, so a short
-         *  window covers it; funded matches past it would need a later, deeper rescan. */
+        /** How many quantum slots one step of the restore sweep looks at (iOS `quantumScanFloor`).
+         *  The sweep keeps stepping while a window turns up any activity (IOS-101 / AND-049: a
+         *  fixed 200 missed funds past slot 199), up to [QUANTUM_SCAN_LIMIT]. */
         const val QUANTUM_SCAN_FLOOR = 200
+        /** Where the quantum sweep stops whatever it finds (iOS `quantumScanLimit`). */
+        const val QUANTUM_SCAN_LIMIT = 10_000
+
+        /** What the quantum sweep found: the funded slots (public index) and the highest slot
+         *  (chain index, -1 = none) that ever saw activity, funded or not. */
+        internal data class QuantumSweep(val funded: List<Int>, val highestUsed: Int)
+
+        /**
+         * The quantum chain's restore sweep (iOS da2c8e2 `discoverQuantumAddresses`, IOS-101 /
+         * AND-049): [QUANTUM_SCAN_FLOOR]-slot windows from [base], stepping on while a window
+         * shows any activity, up to [QUANTUM_SCAN_LIMIT]. Activity decides how far the chain
+         * reaches; funds decide what is shown. Without the bulk [activity] answer (a REST server
+         * that doesn't serve it, null) only the first window's [balances] are read, and the sweep
+         * stops there as before. A window that can't be derived ends it.
+         */
+        internal suspend fun sweepQuantumWindows(
+            base: Int,
+            derive: suspend (List<Int>) -> Map<Int, String>,
+            activity: suspend (List<String>) -> Map<String, Long>?,
+            balances: suspend (List<String>) -> Map<String, Long>?,
+        ): QuantumSweep {
+            var start = 0
+            val funded = ArrayList<Int>()
+            var highestUsed = -1
+            while (start < QUANTUM_SCAN_LIMIT) {
+                val indices = (base + start until base + start + QUANTUM_SCAN_FLOOR).toList()
+                val derived = derive(indices)
+                val ordered = indices.mapNotNull { i -> derived[i]?.let { i to it } }
+                if (ordered.isEmpty()) break
+                val seen = activity(ordered.map { it.second })
+                val touched = seen?.let { a -> ordered.filter { a.containsKey(it.second) } } ?: ordered
+                if (seen != null) {
+                    touched.maxOfOrNull { it.first }?.let { highestUsed = maxOf(highestUsed, it - base) }
+                }
+                if (touched.isNotEmpty()) {
+                    balances(touched.map { it.second })?.let { read ->
+                        funded += touched.filter { (read[it.second] ?: 0L) > 0L }.map { it.first }
+                    }
+                }
+                if (seen == null || touched.isEmpty()) break
+                start += QUANTUM_SCAN_FLOOR
+            }
+            funded.maxOrNull()?.let { highestUsed = maxOf(highestUsed, it - base) }
+            return QuantumSweep(funded, highestUsed)
+        }
     }
 
     /**
@@ -277,38 +322,33 @@ class SpendingAddressDiscovery @Inject constructor(
     }
 
     /**
-     * The quantum-chain (KIP-22) half of discovery (iOS `discoverQuantumAddresses`): funded
-     * quantum-safe addresses found on chain extend the active account's quantum bound so a
-     * restored seed shows them again; the empty slots the new bound sweeps in start hidden, and
-     * every match is un-hidden. Same shape as the legacy sweep - the bulk-activity filter first
-     * where the REST host offers it, straight to balances otherwise - over the first
-     * [QUANTUM_SCAN_FLOOR] slots. Returns how many funded slots it found.
+     * The quantum chain's restore sweep (iOS `discoverQuantumAddresses`, da2c8e2 / IOS-101 /
+     * AND-049): funded quantum-safe slots are shown again, and the chain's end is set past every
+     * slot that EVER saw activity - not only funded ones - so a restored wallet never hands out
+     * an already-used (possibly key-revealed) slot as fresh change or a fresh receive address.
+     * The sweep steps in [QUANTUM_SCAN_FLOOR]-slot windows while a window shows activity, up to
+     * [QUANTUM_SCAN_LIMIT] ([sweepQuantumWindows]). The empty slots the new bound sweeps in start
+     * hidden, and every funded one is un-hidden. Returns how many funded slots it found.
      */
     suspend fun discoverQuantumAddresses(): Int {
         val account = walletManager.getActiveAccount() ?: return 0
         val base = WalletManager.QUANTUM_INDEX_BASE
-        val windowIndices = (base until base + QUANTUM_SCAN_FLOOR).toList()
-        val window = deriveOffMain(windowIndices)
-        val ordered = windowIndices.mapNotNull { i -> window[i]?.let { i to it } }
-        if (ordered.isEmpty()) return 0
-
-        // Funded decides surfacing, exactly as on the legacy chain.
-        var candidates = ordered
-        addressActivity.lastActivity(ordered.map { it.second })?.let { activity ->
-            candidates = ordered.filter { activity.containsKey(it.second) }
-        }
-        if (candidates.isEmpty()) return 0
-        val balances = fetchBalances(candidates.map { it.second }) ?: return 0
-        val matched = candidates.filter { (balances[it.second] ?: 0L) > 0L }.map { it.first }.toSet()
-        val highest = matched.maxOrNull() ?: return 0
+        val sweep = sweepQuantumWindows(
+            base = base,
+            derive = { deriveOffMain(it) },
+            activity = { addressActivity.lastActivity(it) },
+            balances = { fetchBalances(it) },
+        )
+        if (sweep.highestUsed < 0) return 0
+        val matched = sweep.funded.toSet()
 
         val walletAddress = account.address
         val previousMax = WalletManager.maxQuantumIndex(account)
-        if (highest - base > previousMax) {
-            for (index in (base + previousMax + 1) until highest) {
+        if (sweep.highestUsed > previousMax) {
+            for (index in (base + previousMax + 1)..(base + sweep.highestUsed)) {
                 if (index !in matched) walletManager.setSpendingAddressHidden(walletAddress, index, true)
             }
-            walletManager.ensureMaxQuantumAddressIndexAtLeast(walletAddress, highest - base)
+            walletManager.ensureMaxQuantumAddressIndexAtLeast(walletAddress, sweep.highestUsed)
         }
         matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
         return matched.size

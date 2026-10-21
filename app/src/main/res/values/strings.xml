@@ -1629,4 +1629,6 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS can\'t move a domain out of a quantum-safe address: KNS identifies a domain\'s owner by a public key, and a quantum-safe address keeps its key hidden.</string>
     <string name="kns_transfer_to_script_address">A .kas domain can\'t be sent to a quantum-safe or other script address: KNS could never move it out again. Send it to a regular address instead.</string>
+    <!-- Quantum-safe send: the next change address could not be prepared (iOS da2c8e2) -->
+    <string name="quantum_next_address_failed">Couldn\'t prepare the next address. Try again.</string>
 </resources>

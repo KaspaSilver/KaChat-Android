@@ -1239,4 +1239,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS tidak dapat memindahkan domain keluar dari alamat aman-kuantum: KNS mengenali pemilik domain dari kunci publik, dan alamat aman-kuantum menyembunyikan kuncinya.</string>
     <string name="kns_transfer_to_script_address">Domain .kas tidak dapat dikirim ke alamat aman-kuantum atau alamat skrip lain: KNS tidak akan pernah bisa memindahkannya lagi. Kirim ke alamat biasa saja.</string>
+    <string name="quantum_next_address_failed">Tidak dapat menyiapkan alamat berikutnya. Coba lagi.</string>
 </resources>

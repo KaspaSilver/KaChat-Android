@@ -161,6 +161,34 @@ class WalletManager @Inject constructor(
             return maxOf(revealed, pending + 1)
         }
 
+        /** How many used slots [verifyFreshQuantumIndex] skips at most (iOS
+         *  `verifiedFreshQuantumIndex`'s 20). */
+        const val MAX_USED_FRESH_QUANTUM_SKIPS = 20
+
+        /**
+         * iOS `verifiedFreshQuantumIndex`'s walk (da2c8e2, IOS-101 / AND-049): [next] is the
+         * fresh slot (public index) as things stand; while [isUsed] says its [address] already has
+         * history it is [skip]ped (the chain's end raised past it) and the next one asked, up to
+         * [MAX_USED_FRESH_QUANTUM_SKIPS] times. A slot whose address can't be derived, or whose
+         * check can't be answered (null), is taken as is - an unreachable server never blocks a
+         * send.
+         */
+        internal suspend fun firstFreshQuantumSlot(
+            next: () -> Int,
+            address: suspend (Int) -> String?,
+            isUsed: suspend (String) -> Boolean?,
+            skip: (Int) -> Unit,
+        ): Int {
+            var index = next()
+            repeat(MAX_USED_FRESH_QUANTUM_SKIPS) {
+                val candidate = address(index) ?: return index
+                if (isUsed(candidate) != true) return index
+                skip(index)
+                index = next()
+            }
+            return index
+        }
+
         /** The signature-script size a send from [spendingIndex] prices per input: a quantum
          *  source pushes its redeem script after the signature (iOS `kip22SignatureScriptSize`),
          *  anything else is the plain 66-byte Schnorr push. Null = the chatting address. */
@@ -1095,6 +1123,42 @@ class WalletManager @Inject constructor(
         nextFreshQuantumIndex(maxQuantumAddressIndex(), getActiveAccount()?.let { pendingQuantumChange[it.address] }.orEmpty())
     }
 
+    /**
+     * Checks the fresh quantum slot on chain before it is handed out (iOS
+     * `verifiedFreshQuantumIndex`, da2c8e2 / IOS-101 / AND-049): the chain's end on this phone
+     * can sit below slots used elsewhere (another device, a restore that ran before the sweep
+     * looked far enough). While [isUsed] (the REST history check,
+     * WalletService.spendingAddressUsedState) says the slot has history it is skipped and the end
+     * raised, up to [MAX_USED_FRESH_QUANTUM_SKIPS] times; a check that can't be answered takes the
+     * slot as is. Returns the slot (public index) - what [nextFreshQuantumIndex],
+     * [pickFreshQuantumChange] and [allocateFreshQuantumIndices] hand out next, unless another
+     * allocation takes it first: they stay the only allocators, under
+     * [spendingIndexAllocationLock], so the in-flight guard is unchanged. Derives from the seed
+     * off the main thread.
+     */
+    suspend fun verifyFreshQuantumIndex(isUsed: suspend (String) -> Boolean?): Int =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            firstFreshQuantumSlot(
+                next = { nextFreshQuantumIndex() },
+                address = { index -> try { deriveSpendingAddress(index) } catch (e: Exception) { null } },
+                isUsed = isUsed,
+                skip = { index -> skipUsedQuantumSlot(index) },
+            )
+        }
+
+    /** Raises the active account's quantum bound past used public [index] (iOS
+     *  `setMaxQuantumAddressIndex(index - quantumIndexBase)`), keeping hidden any slot a send in
+     *  flight picked that the bound newly passes - as [allocateFreshQuantumIndices] does. */
+    private fun skipUsedQuantumSlot(index: Int) = synchronized(spendingIndexAllocationLock) {
+        val account = getActiveAccount() ?: return@synchronized
+        android.util.Log.i("WalletManager", "Quantum slot ${index - QUANTUM_INDEX_BASE} already has history - skipping it")
+        val revealedMax = maxQuantumIndex(account)
+        pendingQuantumChange[account.address].orEmpty()
+            .filter { it - QUANTUM_INDEX_BASE > revealedMax && it < index }
+            .forEach { setSpendingAddressHidden(account.address, it, true) }
+        ensureMaxQuantumAddressIndexAtLeast(account.address, index - QUANTUM_INDEX_BASE)
+    }
+
     /** The KIP-22 redeem script of a quantum index's key, pushed after each signature when it
      *  spends; null for a legacy index. Derives from the seed. */
     fun quantumRedeemScript(index: Int): ByteArray? {
@@ -1352,8 +1416,9 @@ class WalletManager @Inject constructor(
      * the transaction ([finishQuantumChangePick]), so a failed send burns no slot. iOS picks with
      * nothing held; here the pick is held as in flight until finished, so two sends at once (or a
      * Request Payment reservation meanwhile) never get the same slot. Null when the address can't
-     * be derived - the caller then sends the change back to the source, as iOS does. Derives from
-     * the seed, so call it off the main thread.
+     * be derived - the caller then sends a legacy source's change back to it, as iOS does, and
+     * stops a quantum source's send (iOS da2c8e2, IOS-104). Callers check the slot on chain first
+     * ([verifyFreshQuantumIndex]). Derives from the seed, so call it off the main thread.
      */
     fun pickFreshQuantumChange(): QuantumChangePick? = synchronized(spendingIndexAllocationLock) {
         val account = getActiveAccount() ?: return@synchronized null

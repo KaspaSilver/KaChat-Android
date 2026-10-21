@@ -238,4 +238,117 @@ class QuantumAddressTest {
         // a pick already covered by the bound (revealed meanwhile) changes nothing
         assertEquals(base + 9, WalletManager.nextFreshQuantumIndex(8, setOf(base + 4)))
     }
+
+    // MARK: run 17 (iOS da2c8e2) - IOS-101 / AND-049 restore sweep + checked fresh slots,
+    // IOS-105 / AND-051 the shield reads the full history
+
+    @Test
+    fun `a used fresh slot is skipped and the bound raised, up to 20 times`() = kotlinx.coroutines.runBlocking {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        var max = 3
+        val inFlight = setOf(base + 4)
+        val next = { WalletManager.nextFreshQuantumIndex(max, inFlight) }
+        val skip = { index: Int -> max = maxOf(max, index - base) }
+        // slots 5 and 6 already have history (used elsewhere): 7 is handed out, past the send in flight
+        val used = setOf("a${base + 5}", "a${base + 6}")
+        assertEquals(base + 7, WalletManager.firstFreshQuantumSlot(next, { "a$it" }, { it in used }, skip))
+        assertEquals(6, max)
+        // an unanswerable check takes the slot as is - a REST outage never blocks a send
+        assertEquals(base + 7, WalletManager.firstFreshQuantumSlot(next, { "a$it" }, { null }, skip))
+        // so does a slot that can't be derived
+        assertEquals(base + 7, WalletManager.firstFreshQuantumSlot(next, { null }, { true }, skip))
+        // everything used: 20 skips, then the next slot unchecked
+        var asked = 0
+        val result = WalletManager.firstFreshQuantumSlot(next, { "a$it" }, { asked++; true }, skip)
+        assertEquals(WalletManager.MAX_USED_FRESH_QUANTUM_SKIPS, asked)
+        assertEquals(base + 7 + WalletManager.MAX_USED_FRESH_QUANTUM_SKIPS, result)
+        assertEquals(6 + WalletManager.MAX_USED_FRESH_QUANTUM_SKIPS, max)
+    }
+
+    private fun sweep(
+        activeUpTo: Int,
+        funded: Set<Int> = emptySet(),
+        activityServed: Boolean = true,
+        balancesServed: Boolean = true,
+        windows: MutableList<Int> = ArrayList(),
+    ) = kotlinx.coroutines.runBlocking {
+        SpendingAddressDiscovery.sweepQuantumWindows(
+            base = 0,
+            derive = { indices -> windows += indices.first(); indices.associateWith { "q$it" } },
+            activity = { addresses ->
+                if (!activityServed) null
+                else addresses.filter { it.drop(1).toInt() <= activeUpTo }.associateWith { 1L }
+            },
+            balances = { addresses ->
+                if (!balancesServed) null
+                else addresses.associateWith { if (it.drop(1).toInt() in funded) 5L else 0L }
+            },
+        )
+    }
+
+    @Test
+    fun `the quantum sweep keeps stepping while a window shows activity`() {
+        val windows = ArrayList<Int>()
+        // activity up to slot 450: windows 0, 200, 400 show it, 600 is quiet and ends the sweep
+        val result = sweep(activeUpTo = 450, funded = setOf(230), windows = windows)
+        assertEquals(listOf(0, 200, 400, 600), windows)
+        assertEquals(listOf(230), result.funded)
+        // the bound covers the highest USED slot, not only the funded one
+        assertEquals(450, result.highestUsed)
+    }
+
+    @Test
+    fun `the quantum sweep stops at 10,000 slots`() {
+        val windows = ArrayList<Int>()
+        val result = sweep(activeUpTo = Int.MAX_VALUE, windows = windows)
+        assertEquals(SpendingAddressDiscovery.QUANTUM_SCAN_LIMIT / SpendingAddressDiscovery.QUANTUM_SCAN_FLOOR, windows.size)
+        assertEquals(SpendingAddressDiscovery.QUANTUM_SCAN_LIMIT - 1, result.highestUsed)
+    }
+
+    @Test
+    fun `without the activity answer the quantum sweep reads one window's balances`() {
+        val windows = ArrayList<Int>()
+        val result = sweep(activeUpTo = 450, funded = setOf(12, 230), activityServed = false, windows = windows)
+        assertEquals(listOf(0), windows)
+        assertEquals(listOf(12), result.funded)
+        assertEquals(12, result.highestUsed)
+        // nothing used at all: no bound
+        assertEquals(-1, sweep(activeUpTo = -1).highestUsed)
+        // balances unreadable: nothing shown, the activity bound still set
+        val unread = sweep(activeUpTo = 250, funded = setOf(3), balancesServed = false)
+        assertEquals(emptyList<Int>(), unread.funded)
+        assertEquals(250, unread.highestUsed)
+    }
+
+    private fun page(spender: String?, size: Int) = List(size) { i ->
+        TransactionResponse(
+            transactionId = "%064x".format(i),
+            inputsOrNull = listOf(TransactionInput("00".repeat(32), 0, if (i == 0) spender else "kaspa:qqother", 1L, "")),
+            outputs = emptyList(),
+            blockTime = null,
+            payload = null,
+        )
+    }
+
+    @Test
+    fun `the shield reads the whole history, a page at a time`() = kotlinx.coroutines.runBlocking {
+        val me = "kaspa:pqme"
+        val size = WalletService.QUANTUM_SPENT_PAGE_SIZE
+        val offsets = ArrayList<Int>()
+        // the spend is on the third page: found
+        val spent = WalletService.quantumSpentFromPages(me) { offset, limit ->
+            offsets += offset
+            page(if (offset == 2 * size) me.uppercase() else null, limit)
+        }
+        assertEquals(true, spent)
+        assertEquals(listOf(0, size, 2 * size), offsets)
+        // a short page ends the history: not spent
+        assertEquals(false, WalletService.quantumSpentFromPages(me) { offset, limit -> page(null, if (offset == size) 3 else limit) })
+        // a page that can't be read: unknown, never "not spent"
+        assertEquals(null, WalletService.quantumSpentFromPages(me) { offset, limit -> if (offset == size) null else page(null, limit) })
+        // deeper than 10,000 transactions: unknown
+        var pages = 0
+        assertEquals(null, WalletService.quantumSpentFromPages(me) { _, limit -> pages++; page(null, limit) })
+        assertEquals(WalletService.QUANTUM_SPENT_MAX_PAGES, pages)
+    }
 }

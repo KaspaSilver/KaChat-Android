@@ -1367,4 +1367,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS, kuantum güvenli bir adresten alan adını çıkaramaz: KNS bir alan adının sahibini açık anahtarla tanır ve kuantum güvenli adres anahtarını gizli tutar.</string>
     <string name="kns_transfer_to_script_address">Bir .kas alan adı kuantum güvenli veya başka bir betik adresine gönderilemez: KNS onu bir daha asla taşıyamaz. Bunun yerine normal bir adrese gönderin.</string>
+    <string name="quantum_next_address_failed">Sonraki adres hazırlanamadı. Tekrar deneyin.</string>
 </resources>

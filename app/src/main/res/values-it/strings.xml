@@ -1367,4 +1367,5 @@
     <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
     <string name="kns_transfer_quantum_source">KNS non può spostare un dominio fuori da un indirizzo resistente ai quanti: KNS identifica il proprietario di un dominio tramite una chiave pubblica, e un indirizzo resistente ai quanti tiene nascosta la sua chiave.</string>
     <string name="kns_transfer_to_script_address">Un dominio .kas non può essere inviato a un indirizzo resistente ai quanti o ad altri indirizzi script: KNS non potrebbe mai più spostarlo. Invialo invece a un indirizzo normale.</string>
+    <string name="quantum_next_address_failed">Impossibile preparare l\'indirizzo successivo. Riprova.</string>
 </resources>

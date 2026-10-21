@@ -24,7 +24,9 @@ internal const val COIN_FETCH_NOT_CONNECTED = "Not connected to a Kaspa node yet
 class KaspaWalletEngine @Inject constructor(
     private val networkService: NetworkService,
     private val walletManager: WalletManager,
-    private val nodePoolManager: NodePoolManager
+    private val nodePoolManager: NodePoolManager,
+    /** For a send's localized refusal (iOS da2c8e2, "Couldn't prepare the next address"). */
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) {
     // The REST UTXO endpoint lags behind what we've actually broadcast — sending twice
     // in quick succession (e.g. two chat messages back to back) would otherwise select
@@ -478,7 +480,9 @@ class KaspaWalletEngine @Inject constructor(
      * first, just enough for the amount and fee, at most
      * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] - or, with coin control, exactly the picked
      * ones; whatever is not spent stays on the source address. The change goes to a never-used
-     * quantum-safe (KIP-22) address (back to the source if that can't be derived), which is
+     * quantum-safe (KIP-22) address, checked on chain first ([WalletManager.verifyFreshQuantumIndex]
+     * with [isAddressUsed]); when it can't be derived a legacy source takes the change back, a
+     * quantum source fails the send (IOS-104 / AND-052). It is
      * revealed (listed in Manage Addresses) once the send succeeds; it is never made the primary - nothing rotates a primary any more. A quantum source
      * spends with its redeem script after each signature, and is marked spent (its shield comes
      * off) once the network takes it. A failed/rejected send moves nothing, safe to retry.
@@ -496,6 +500,9 @@ class KaspaWalletEngine @Inject constructor(
         manualUtxos: List<UtxoEntry>? = null,
         /** Fast / Priority / custom extra on top of the base fee, paid exactly. */
         extraFeeSompi: Long = 0L,
+        /** Whether an address already has on-chain history (WalletService.spendingAddressUsedState;
+         *  null = can't tell): the fresh change slot is checked with it first (iOS da2c8e2). */
+        isAddressUsed: suspend (String) -> Boolean?,
     ): Result<String> {
         val sourceSpendingAddress = walletManager.deriveSpendingAddress(sourceSpendingIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(sourceSpendingIndex)
@@ -509,12 +516,21 @@ class KaspaWalletEngine @Inject constructor(
         // never an address used before, and its key stays hidden until IT spends. Picked now,
         // revealed only once the network takes the send - a failed send burns no slot - and held
         // as in flight meanwhile, so a concurrent send or Request Payment reservation can't get
-        // the same one. If it can't be derived, the change goes back to the source (iOS).
+        // the same one. The slot is checked on chain first: one that already has history (used
+        // from another device, or past where a restore looked) is skipped (iOS
+        // `verifiedFreshQuantumIndex`, IOS-101 / AND-049).
+        walletManager.verifyFreshQuantumIndex(isAddressUsed)
         val picked = walletManager.pickFreshQuantumChange()
         val pick = if (picked != null && (picked.index == sourceSpendingIndex || picked.address.equals(sourceSpendingAddress, ignoreCase = true))) {
             walletManager.finishQuantumChangePick(picked, reveal = false)
             null
         } else picked
+        // If it can't be derived a legacy source takes its change back (iOS); a quantum source's
+        // spend reveals its key, and change back to it would park funds on a revealed key - the
+        // send stops instead (iOS da2c8e2, IOS-104 / AND-052).
+        if (pick == null && isQuantumSource) {
+            return Result.failure(IllegalStateException(appContext.getString(com.kachat.app.R.string.quantum_next_address_failed)))
+        }
         val result = try {
             sendKaspa(
                 toAddress = toAddress,
