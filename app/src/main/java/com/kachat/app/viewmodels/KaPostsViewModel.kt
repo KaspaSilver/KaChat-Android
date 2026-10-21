@@ -159,6 +159,16 @@ class KaPostsViewModel @Inject constructor(
         private const val TAG = "KaPostsViewModel"
         const val UNDO_DELAY_MS = 5_000L
 
+        /** [key] lowercased when it is a K pubkey ("02"/"03" + 64 hex) whose x-only half is
+         *  [xOnly] (lowercase) - the address's own key in either parity - else null (iOS
+         *  `resolveKaPostsPubkey`'s `named`, 0a0c914 / IOS-099). */
+        internal fun kaPostsKeyNamed(key: String?, xOnly: String): String? {
+            val lowered = key?.lowercase() ?: return null
+            if (lowered.length != 66) return null
+            if (!lowered.startsWith("02") && !lowered.startsWith("03")) return null
+            return lowered.takeIf { it.drop(2) == xOnly }
+        }
+
         /**
          * Who a poster is, everywhere in KaPosts (feed, quotes, engagement, follow lists,
          * notifications, search - iOS 3d6fb7c): the alias YOU set for a saved contact, else
@@ -2889,9 +2899,9 @@ class KaPostsViewModel @Inject constructor(
         ensureSenderProfileFetched(address)
         posterProfileJob = viewModelScope.launch {
             // No pubkey handed over: the address gives the x-only key, but a K key starts with 02
-            // or 03 (about half of all users post with 03) - try both and keep the one the
-            // indexer has posts or followers for (iOS 9fe4dd3, XP-034). The profile's pubkey is
-            // what Follow uses, so it is a handed or resolved one, never a guess.
+            // or 03 (about half of all users post with 03) - the key is the one the indexer's
+            // DATA names (iOS 9fe4dd3 / 0a0c914, XP-034, IOS-099 / AND-047). The profile's pubkey
+            // is what Follow uses, so it is a handed or resolved one, never a guess.
             val pubkey = handedPubkey ?: resolveKaPostsPubkey(address)
             // another profile opened meanwhile: this one is no longer on screen
             if (_posterProfile.value?.address != address) return@launch
@@ -2929,11 +2939,18 @@ class KaPostsViewModel @Inject constructor(
         }
     }
 
-    /** The K pubkey behind an address: "02" or "03" + its x-only key, whichever the indexer has
-     *  posts (or followers) for; null when neither has any (iOS `resolveKaPostsPubkey`). */
+    /**
+     * The K pubkey behind an address: "02" or "03" + its x-only key, as the indexer's DATA names
+     * it - the key on the person's posts, else on their profile details - checked against the
+     * address ([kaPostsKeyNamed]) (iOS `resolveKaPostsPubkey`, 0a0c914). Never the probe: the
+     * indexer answers a probe in either parity form, so returning whichever probe "had data"
+     * handed back the 02 guess for an 03 user, and Follow posted it on chain (IOS-099 / AND-047).
+     * Null when the data names no key; Follow then stays local-only.
+     */
     private suspend fun resolveKaPostsPubkey(address: String): String? {
         val even = KaPostsService.kapostPubkeyFromAddress(address) ?: return null
-        val candidates = listOf(even, "03" + even.drop(2))
+        val xOnly = even.drop(2).lowercase()
+        val candidates = listOf(even.lowercase(), "03$xOnly")
         for (candidate in candidates) {
             val posts = try {
                 kaPostsService.fetchUserPostsPage(candidate, limit = 1, includeReplies = true).items
@@ -2942,7 +2959,7 @@ class KaPostsViewModel @Inject constructor(
             } catch (_: Exception) {
                 null
             }
-            if (!posts.isNullOrEmpty()) return candidate
+            posts?.firstNotNullOfOrNull { kaPostsKeyNamed(it.userPublicKey as String?, xOnly) }?.let { return it }
         }
         for (candidate in candidates) {
             val details = try {
@@ -2952,7 +2969,7 @@ class KaPostsViewModel @Inject constructor(
             } catch (_: Exception) {
                 null
             }
-            if (details != null && ((details.followersCount ?: 0) > 0 || (details.followingCount ?: 0) > 0)) return candidate
+            kaPostsKeyNamed(details?.userPublicKey, xOnly)?.let { return it }
         }
         return null
     }
