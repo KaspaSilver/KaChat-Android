@@ -1972,11 +1972,13 @@ class KaPostsViewModel @Inject constructor(
 
     /** Tapped @mention: resolve the token by the mention rule - the owner the post's author
      *  signed ([signed], the post's mentioned pubkeys) when one answers, else the ending typed,
-     *  .kachat, then .kas (iOS e493c97, IOS-068) - and open that user's profile. */
+     *  .kachat, then .kas (iOS e493c97, IOS-068) - and open that user's profile. No key is handed
+     *  over: the address gives only the x-only key, and a K key starts with 02 or 03 - the
+     *  profile resolves which (XP-034), so Follow never posts for a guessed key (iOS 474388a). */
     fun openMentionProfile(domain: String, signed: List<String> = emptyList()) {
         viewModelScope.launch {
             val owner = mentionAddress(domain, signed) ?: return@launch
-            openPosterProfile(owner, KaPostsService.kapostPubkeyFromAddress(owner))
+            openPosterProfile(owner, null)
         }
     }
 
