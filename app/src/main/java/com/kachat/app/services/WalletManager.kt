@@ -1106,14 +1106,29 @@ class WalletManager @Inject constructor(
      * Reveals a brand-new quantum-safe slot and returns its public index - what Generate New
      * Address makes from now on (iOS `generateNextQuantumAddress`). Always extends the chain: a
      * never-spent-from address is the whole point, so nothing is recycled here.
+     *
+     * Past every change slot a send still has in flight, too ([nextFreshQuantumIndex], under
+     * [spendingIndexAllocationLock] like every other allocation): Generate must never hand out the
+     * slot a send picked for its change. Those it passes stay hidden, as a reservation leaves them
+     * ([allocateFreshQuantumIndices]); their send lists them if it goes through. iOS has no
+     * in-flight tracking - this is Android's own guarantee.
      */
-    fun generateNextQuantumAddress(walletAddress: String): Int {
+    fun generateNextQuantumAddress(walletAddress: String): Int = synchronized(spendingIndexAllocationLock) {
         val account = getAccounts().firstOrNull { it.address == walletAddress } ?: getActiveAccount()
-        val quantumIndex = (account?.let { maxQuantumIndex(it) } ?: -1) + 1
-        ensureMaxQuantumAddressIndexAtLeast(walletAddress, quantumIndex)
-        val index = QUANTUM_INDEX_BASE + quantumIndex
+        val revealedMax = account?.let { maxQuantumIndex(it) } ?: -1
+        val inFlight = pendingQuantumChange[walletAddress].orEmpty()
+        val index = nextFreshQuantumIndex(revealedMax, inFlight)
+        inFlight.filter { it - QUANTUM_INDEX_BASE > revealedMax }
+            .forEach { setSpendingAddressHidden(walletAddress, it, true) }
+        ensureMaxQuantumAddressIndexAtLeast(walletAddress, index - QUANTUM_INDEX_BASE)
         setSpendingAddressHidden(walletAddress, index, hidden = false)
-        return index
+        index
+    }
+
+    /** The quantum slots (public index) sends still in flight picked for their change on the
+     *  active account - taken, so never recycled or handed out ([pickFreshQuantumChange]). */
+    fun inFlightQuantumChange(): Set<Int> = synchronized(spendingIndexAllocationLock) {
+        getActiveAccount()?.let { pendingQuantumChange[it.address]?.toSet() }.orEmpty()
     }
 
     /** Quantum addresses this phone has spent FROM, lowercased: the spend put their key on chain

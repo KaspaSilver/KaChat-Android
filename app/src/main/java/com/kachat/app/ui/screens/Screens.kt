@@ -5935,14 +5935,20 @@ fun AddressVisibilityScreen(
             items(pageEntries, key = { it.index }) { entry ->
                 val funded = entry.balanceSompi > 0
                 // Every row toggles both ways - funded ones too (Hide All starts the list over).
-                val visible = entry.index <= listMax && !entry.hidden
+                // A revealed quantum row sits a million past the legacy listMax, so it shows and
+                // toggles by its own hidden flag (iOS ManageAddressesView's row: visible =
+                // !hidden); only a slot the list doesn't hold yet is revealed instead.
+                val listedQuantum = entry.isQuantum && entry.index in byIndex
+                val visible = (listedQuantum || entry.index <= listMax) && !entry.hidden
                 // Used-state comes from the page's own sweep below, not a per-row effect: fifty
                 // rows each launching their own history probe fired fifty requests the moment a
                 // page appeared, which is the other half of what made this screen unusable.
-                val used = if (entry.index <= listMax) entry.everUsed else usedCache[entry.index]
+                val used = if (listedQuantum || entry.index <= listMax) entry.everUsed else usedCache[entry.index]
                 // The WHOLE row toggles, not just the checkmark.
                 val toggleVisibility: () -> Unit = {
                     when {
+                        listedQuantum ->
+                            viewModel.setManageAddressHidden(entry.index, !entry.hidden)
                         entry.index > listMax ->
                             viewModel.revealSpendingAddress(entry.index)
                         else -> viewModel.setManageAddressHidden(entry.index, !entry.hidden)

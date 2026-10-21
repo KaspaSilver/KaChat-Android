@@ -442,11 +442,13 @@ class WalletViewModel @Inject constructor(
             } else {
                 // Rule 2: the lowest quantum slot never used (iOS lowestUnusedQuantumAddress,
                 // side-effect free): a hidden, live-confirmed unused quantum row, else a brand-new
-                // slot past the chain's end - answered without extending the chain.
+                // slot past the chain's end - answered without extending the chain. Never a slot
+                // a send still in flight picked for its change (Android's own guarantee).
+                val inFlight = walletManager.inFlightQuantumChange()
                 val index = entries.sortedBy { it.index }.firstOrNull { entry ->
                     entry.isQuantum && entry.hidden && entry.liveChecked && !entry.isCurrent &&
                         entry.index != account.spendingAddressIndex &&
-                        entry.balanceSompi == 0L && !entry.everUsed
+                        entry.balanceSompi == 0L && !entry.everUsed && entry.index !in inFlight
                 }?.index ?: walletManager.nextFreshQuantumIndex()
                 val address = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
                 if (address == null) {
@@ -500,11 +502,13 @@ class WalletViewModel @Inject constructor(
             // adds a row the user can see. A visible unused row is already on screen; re-picking
             // it made press two a silent no-op (the stall this replaces). Only rows whose balance
             // and used-ness were both live-confirmed this load are recyclable; unconfirmed rows
-            // are skipped rather than trusted.
+            // are skipped rather than trusted. A slot a send still in flight picked for its change
+            // is taken, never recycled (Android's own guarantee; iOS tracks no in-flight picks).
+            val inFlight = walletManager.inFlightQuantumChange()
             val pick = entries.sortedBy { it.index }.firstOrNull { entry ->
                 entry.isQuantum == quantum &&
                     entry.hidden && entry.liveChecked && entry.index != primaryIndex && !entry.isCurrent &&
-                    entry.balanceSompi == 0L && !entry.everUsed
+                    entry.balanceSompi == 0L && !entry.everUsed && entry.index !in inFlight
             }
             val readyIndex = if (pick != null) {
                 walletService.setSpendingAddressHidden(pick.index, false)
