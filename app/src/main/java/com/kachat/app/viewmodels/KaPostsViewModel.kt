@@ -2856,7 +2856,25 @@ class KaPostsViewModel @Inject constructor(
     ) { lists -> lists.toList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** The load for the profile now on screen; cancelled when another opens or it closes. */
+    private var posterProfileJob: Job? = null
+
+    /**
+     * Writes into the poster profile only while it is still [address] (and, once resolved,
+     * [pubkey]) - a slow load for a profile that has since been replaced never lands in the next
+     * one (iOS ties the load to the profile with `.task(id: target.id)`).
+     */
+    private fun updatePosterProfileIf(address: String, pubkey: String?, change: (PosterProfile) -> PosterProfile) {
+        val current = _posterProfile.value ?: return
+        if (current.address != address) return
+        if (pubkey != null && current.pubkey != null && current.pubkey != pubkey) return
+        _posterProfile.value = change(current)
+    }
+
     fun openPosterProfile(address: String, handedPubkey: String?) {
+        // The previous profile's load stops here: its follower counts and loading state belong
+        // to that profile, not the one opening now.
+        posterProfileJob?.cancel()
         // The two poster lists are shared by every profile that opens in them, so retire the
         // outgoing profile's paging surfaces: an in-flight load-more for the previous account
         // must not append its rows into the account now on screen.
@@ -2865,7 +2883,7 @@ class KaPostsViewModel @Inject constructor(
         _posterProfilePosts.value = emptyList()
         _posterProfileReplies.value = emptyList()
         ensureSenderProfileFetched(address)
-        viewModelScope.launch {
+        posterProfileJob = viewModelScope.launch {
             // No pubkey handed over: the address gives the x-only key, but a K key starts with 02
             // or 03 (about half of all users post with 03) - try both and keep the one the
             // indexer has posts or followers for (iOS 9fe4dd3, XP-034). The profile's pubkey is
@@ -2874,25 +2892,35 @@ class KaPostsViewModel @Inject constructor(
             // another profile opened meanwhile: this one is no longer on screen
             if (_posterProfile.value?.address != address) return@launch
             if (pubkey == null) {
-                _posterProfile.value = _posterProfile.value?.copy(isLoading = false)
+                updatePosterProfileIf(address, null) { it.copy(isLoading = false) }
                 return@launch
             }
-            if (handedPubkey == null) _posterProfile.value = _posterProfile.value?.copy(pubkey = pubkey)
+            if (handedPubkey == null) updatePosterProfileIf(address, null) { it.copy(pubkey = pubkey) }
             try {
-                val details = try { kaPostsService.fetchUserDetails(pubkey) } catch (_: Exception) { null }
+                val details = try {
+                    kaPostsService.fetchUserDetails(pubkey)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
                 // Replies come from get-replies?user= - the indexer's get-posts never returns them.
                 val postsDeferred = async { loadProfileTab(pubkey, isMine = false, replies = false) }
                 val repliesDeferred = async { loadProfileTab(pubkey, isMine = false, replies = true) }
                 postsDeferred.await()
                 repliesDeferred.await()
-                _posterProfile.value = _posterProfile.value?.copy(
-                    followersCount = details?.followersCount,
-                    followingCount = details?.followingCount,
-                    isLoading = false,
-                )
+                updatePosterProfileIf(address, pubkey) {
+                    it.copy(
+                        followersCount = details?.followersCount,
+                        followingCount = details?.followingCount,
+                        isLoading = false,
+                    )
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Poster profile load failed", e)
-                _posterProfile.value = _posterProfile.value?.copy(isLoading = false)
+                updatePosterProfileIf(address, pubkey) { it.copy(isLoading = false) }
             }
         }
     }
@@ -2926,6 +2954,8 @@ class KaPostsViewModel @Inject constructor(
     }
 
     fun closePosterProfile() {
+        posterProfileJob?.cancel()
+        posterProfileJob = null
         retirePosterProfileSurfaces()
         _posterProfile.value = null
     }
