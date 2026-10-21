@@ -56,7 +56,34 @@ data class TransactionResponse(
     @SerializedName("lock_time") val lockTime: String? = null,
     val gas: String? = null,
     @SerializedName("accepting_block_time") val acceptingBlockTime: Long? = null,
+    @SerializedName("is_accepted") val isAccepted: Boolean? = null,
 ) {
+    /** A block reward: the coinbase subnetwork, and no inputs (iOS
+     *  KaspaFullTransactionResponse.isCoinbase). */
+    val isCoinbase: Boolean
+        get() {
+            val subnetwork = subnetworkId?.lowercase()
+            if (!subnetwork.isNullOrEmpty()) return subnetwork == COINBASE_SUBNETWORK_ID
+            // Gson leaves a missing array null despite the non-null type
+            val ins: List<TransactionInput>? = inputs
+            return ins.isNullOrEmpty()
+        }
+
+    /**
+     * Whether an address's history lists it. A block reward counts only once the chain accepted
+     * it: every block carries a coinbase paying its miner, but only those the selected chain
+     * accepts are ever applied - the rest never paid anything (a live mining address, checked
+     * 2026-10-20: 149 of its last 200 coinbases were not accepted). Everything else is listed
+     * as before: a payment just sent is briefly unaccepted too, and must still show.
+     * Mirrors iOS d194a38.
+     */
+    val belongsInHistory: Boolean
+        get() = !isCoinbase || isAccepted == true
+
+    companion object {
+        const val COINBASE_SUBNETWORK_ID = "0100000000000000000000000000000000000000"
+    }
+
     /**
      * The fee this transaction paid: inputs minus outputs. Known only when the API resolved
      * every input's amount (`resolve_previous_outpoints`, which the history fetches ask for);

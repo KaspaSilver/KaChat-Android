@@ -353,7 +353,8 @@ class ColdStorageAddressDiscovery @Inject constructor(
         }
         val fetched = transactions
             ?: return HistoryResult(emptyList(), complete = false)
-        return HistoryResult(mapHistory(address, fetched), complete = true)
+        // block rewards the chain never accepted paid nothing: not history
+        return HistoryResult(mapHistory(address, fetched.filter { it.belongsInHistory }), complete = true)
     }
 
     private fun mapHistory(address: String, transactions: List<TransactionResponse>): List<AddressTransaction> {
@@ -413,8 +414,10 @@ class ColdStorageAddressDiscovery @Inject constructor(
             pageRetries = 0
             if (page.isEmpty()) break
 
+            // a block reward the chain never accepted paid nothing: not a ledger row (the page's
+            // full count still decides whether there is another page)
             all.addAll(
-                page.map { tx ->
+                page.filter { it.belongsInHistory }.map { tx ->
                     val sent = tx.inputs.any { it.previousOutpointAddress == address }
                     val amount = if (sent) {
                         tx.outputs.filter { it.scriptPublicKeyAddress != address }.sumOf { it.amount }
