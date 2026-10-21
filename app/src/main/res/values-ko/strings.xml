@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">양자 안전</string>
     <string name="key_revealed_by_a_spend">지출로 키 공개됨</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS는 양자 내성 주소에서 도메인을 옮길 수 없습니다. KNS는 공개 키로 도메인 소유자를 식별하는데, 양자 내성 주소는 키를 숨겨 둡니다.</string>
+    <string name="kns_transfer_to_script_address">.kas 도메인은 양자 내성 주소나 다른 스크립트 주소로 보낼 수 없습니다. KNS가 다시는 옮길 수 없게 됩니다. 대신 일반 주소로 보내세요.</string>
 </resources>

@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">抗量子</string>
     <string name="key_revealed_by_a_spend">密钥已因支出而公开</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS 无法把域名移出抗量子地址：KNS 通过公钥识别域名所有者，而抗量子地址会隐藏其公钥。</string>
+    <string name="kns_transfer_to_script_address">.kas 域名不能发送到抗量子地址或其他脚本地址：KNS 将再也无法把它移出。请改为发送到普通地址。</string>
 </resources>

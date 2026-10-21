@@ -1241,4 +1241,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">Aman kuantum</string>
     <string name="key_revealed_by_a_spend">Kunci terungkap oleh pengeluaran</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS tidak dapat memindahkan domain keluar dari alamat aman-kuantum: KNS mengenali pemilik domain dari kunci publik, dan alamat aman-kuantum menyembunyikan kuncinya.</string>
+    <string name="kns_transfer_to_script_address">Domain .kas tidak dapat dikirim ke alamat aman-kuantum atau alamat skrip lain: KNS tidak akan pernah bisa memindahkannya lagi. Kirim ke alamat biasa saja.</string>
 </resources>

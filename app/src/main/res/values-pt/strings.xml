@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">Seguro contra quântica</string>
     <string name="key_revealed_by_a_spend">Chave revelada por um gasto</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">O KNS não consegue tirar um domínio de um endereço resistente a computação quântica: o KNS identifica o dono de um domínio por uma chave pública, e um endereço resistente a quântica mantém a chave oculta.</string>
+    <string name="kns_transfer_to_script_address">Um domínio .kas não pode ser enviado para um endereço resistente a quântica ou outro endereço de script: o KNS nunca mais conseguiria movê-lo. Envie para um endereço comum.</string>
 </resources>

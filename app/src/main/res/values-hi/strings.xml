@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">क्वांटम-सुरक्षित</string>
     <string name="key_revealed_by_a_spend">खर्च से चाबी उजागर</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS किसी क्वांटम-सुरक्षित पते से डोमेन बाहर नहीं ले जा सकता: KNS डोमेन के मालिक को पब्लिक की से पहचानता है, और क्वांटम-सुरक्षित पता अपनी की छिपाकर रखता है।</string>
+    <string name="kns_transfer_to_script_address">.kas डोमेन को क्वांटम-सुरक्षित या किसी अन्य स्क्रिप्ट पते पर नहीं भेजा जा सकता: KNS उसे फिर कभी बाहर नहीं ले जा पाएगा। इसके बजाय किसी सामान्य पते पर भेजें।</string>
 </resources>

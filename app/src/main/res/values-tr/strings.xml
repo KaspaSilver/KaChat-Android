@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">Kuantum güvenli</string>
     <string name="key_revealed_by_a_spend">Anahtar bir harcamayla açığa çıktı</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS, kuantum güvenli bir adresten alan adını çıkaramaz: KNS bir alan adının sahibini açık anahtarla tanır ve kuantum güvenli adres anahtarını gizli tutar.</string>
+    <string name="kns_transfer_to_script_address">Bir .kas alan adı kuantum güvenli veya başka bir betik adresine gönderilemez: KNS onu bir daha asla taşıyamaz. Bunun yerine normal bir adrese gönderin.</string>
 </resources>

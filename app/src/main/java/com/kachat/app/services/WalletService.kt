@@ -43,6 +43,8 @@ class WalletService @Inject constructor(
     /** Writes the `saved_handshake` note after every handshake (XP-003). Lazy: the note service
      *  sends through this one. */
     private val contactNotesLazy: dagger.Lazy<ContactNoteService>,
+    /** For the KNS transfer refusals' localized text (iOS 2a8ca5a). */
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) {
     private val gson = Gson()
 
@@ -945,6 +947,11 @@ class WalletService @Inject constructor(
         val trimmedAssetId = assetId.trim()
         require(trimmedAssetId.isNotEmpty()) { "Missing KNS asset id" }
         // One key does everything — no split between funder and owner.
+        // Said plainly, before anything is built or spent (iOS 2a8ca5a): KNS cannot move a domain
+        // out of a quantum-safe address, nor ever out of a script address it is sent to.
+        knsTransferRefusalRes(fromSpendingAddressIndex, toAddress)?.let {
+            throw IllegalStateException(appContext.getString(it))
+        }
         val sourceAddress: String
         val sourcePrivateKey: ByteArray
         if (fromSpendingAddressIndex != null) {
@@ -1109,6 +1116,21 @@ class WalletService @Inject constructor(
     }
 
     companion object {
+        /**
+         * Why a KNS domain transfer is refused up front, or null (iOS 2a8ca5a). KNS names a
+         * domain's owner by the public key in the reveal script, and a quantum-safe (KIP-22)
+         * address keeps its key hidden behind a hash - so KNS cannot move a domain out of one,
+         * and a domain sent to any script (P2SH) address, quantum-safe ones included, would be
+         * stuck there for good.
+         */
+        @androidx.annotation.StringRes
+        internal fun knsTransferRefusalRes(fromSpendingAddressIndex: Int?, toAddress: String): Int? = when {
+            fromSpendingAddressIndex != null && WalletManager.isQuantumIndex(fromSpendingAddressIndex) ->
+                com.kachat.app.R.string.kns_transfer_quantum_source
+            ChatRepository.isScriptAddress(toAddress) -> com.kachat.app.R.string.kns_transfer_to_script_address
+            else -> null
+        }
+
         private const val MAINNET_REVENUE_ADDRESS = "kaspa:qyp4nvaq3pdq7609z09fvdgwtc9c7rg07fuw5zgeee7xpr085de59eseqfcmynn"
 
         /** Legacy per-conversation random alias — 6 random bytes as 12 lowercase hex chars, the

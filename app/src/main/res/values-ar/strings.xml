@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">آمن كموميًا</string>
     <string name="key_revealed_by_a_spend">انكشف المفتاح بعملية إنفاق</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">لا يمكن لـ KNS نقل نطاق من عنوان مقاوم للكم: يحدد KNS مالك النطاق بمفتاح عام، والعنوان المقاوم للكم يُبقي مفتاحه مخفيًا.</string>
+    <string name="kns_transfer_to_script_address">لا يمكن إرسال نطاق ‎.kas إلى عنوان مقاوم للكم أو عنوان سكربت آخر: لن يتمكن KNS من نقله مرة أخرى أبدًا. أرسله إلى عنوان عادي بدلًا من ذلك.</string>
 </resources>

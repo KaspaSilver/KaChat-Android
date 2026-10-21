@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">An toàn lượng tử</string>
     <string name="key_revealed_by_a_spend">Khóa đã lộ do một lần chi tiêu</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS không thể chuyển tên miền ra khỏi địa chỉ an toàn lượng tử: KNS nhận diện chủ tên miền bằng khóa công khai, còn địa chỉ an toàn lượng tử giữ kín khóa của nó.</string>
+    <string name="kns_transfer_to_script_address">Không thể gửi tên miền .kas đến địa chỉ an toàn lượng tử hoặc địa chỉ script khác: KNS sẽ không bao giờ chuyển nó ra được nữa. Hãy gửi đến một địa chỉ thông thường.</string>
 </resources>

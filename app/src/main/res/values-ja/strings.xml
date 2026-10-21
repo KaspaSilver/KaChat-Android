@@ -1369,4 +1369,7 @@
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">量子耐性</string>
     <string name="key_revealed_by_a_spend">送金で鍵が公開済み</string>
+    <!-- KNS domain transfers and quantum-safe (script) addresses (iOS 2a8ca5a) -->
+    <string name="kns_transfer_quantum_source">KNS は量子耐性アドレスからドメインを移動できません。KNS はドメインの所有者を公開鍵で識別しますが、量子耐性アドレスは鍵を隠しています。</string>
+    <string name="kns_transfer_to_script_address">.kas ドメインは量子耐性アドレスやその他のスクリプトアドレスには送れません。KNS が二度と移動できなくなります。通常のアドレスに送ってください。</string>
 </resources>
