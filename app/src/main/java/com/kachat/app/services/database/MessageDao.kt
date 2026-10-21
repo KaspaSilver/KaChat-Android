@@ -73,6 +73,11 @@ interface MessageDao {
         limit: Int,
     ): List<MessageEntity>
 
+    /** Each decrypted message's text with its chat, for this wallet - what the Chats search reads
+     *  (iOS matches a chat by any of its messages); only the two columns it needs. */
+    @Query("SELECT contactId, plaintextBody FROM messages WHERE walletAddress = :walletAddress AND plaintextBody IS NOT NULL")
+    suspend fun getMessageBodiesForWallet(walletAddress: String): List<ContactMessageBody>
+
     /** Every message for this wallet, across all contacts — used by chat-history export, not the live UI. */
     @Query("SELECT * FROM messages WHERE walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     suspend fun getAllMessagesForWallet(walletAddress: String): List<MessageEntity>
@@ -376,6 +381,12 @@ interface MessageDao {
     @Query("DELETE FROM message_sync_cursors WHERE walletAddress = :walletAddress AND contactId IN (:contactIds)")
     suspend fun deleteSyncCursorsForContacts(walletAddress: String, contactIds: List<String>)
 }
+
+/** Row of [MessageDao.getMessageBodiesForWallet]. */
+data class ContactMessageBody(
+    val contactId: String,
+    val plaintextBody: String?,
+)
 
 /** Row of [MessageDao.getContactMessageStats]. */
 data class ContactMessageStats(

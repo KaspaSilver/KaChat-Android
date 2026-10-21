@@ -213,22 +213,23 @@ fun ChatsScreen(
         }
     }
 
-    // Matches on whatever's already shown per row — display name/alias, KNS domain, the raw
-    // address (so pasting/typing part of an address you recognize still finds it), and the last
-    // message preview text (reply/voice-aware, same as what's rendered) — not just the name.
-    val filteredConversations = remember(conversations, searchQuery) {
+    // iOS ChatListView's search: the chat's display name (the name you gave it, else its Address
+    // Book name, else who it is on chain, else the short address - for your own chat, only who
+    // you are on chain), the raw address (so pasting part of an address you recognize still
+    // finds it), or any of its messages. The messages are read from the database off the main
+    // thread; until that answers the previous answer stays.
+    val messageMatchIds by produceState<Set<String>>(initialValue = emptySet(), searchQuery, conversations) {
+        value = chatViewModel.contactIdsWithMessageMatching(searchQuery)
+    }
+    val filteredConversations = remember(conversations, searchQuery, messageMatchIds) {
         val query = searchQuery.trim()
         if (query.isBlank()) {
             conversations
         } else {
             conversations.filter { convo ->
-                val contactLabel = convo.contact.displayName
-                listOfNotNull(
-                    convo.contact.alias,
-                    convo.contact.knsName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY },
-                    convo.contact.id,
-                    messagePreviewText(convo.lastMessage, contactLabel, context)
-                ).any { it.contains(query, ignoreCase = true) }
+                convo.contact.displayName.contains(query, ignoreCase = true) ||
+                    convo.contact.id.contains(query, ignoreCase = true) ||
+                    convo.contact.id in messageMatchIds
             }
         }
     }

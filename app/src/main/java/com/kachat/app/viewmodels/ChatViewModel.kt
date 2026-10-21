@@ -1580,6 +1580,14 @@ class ChatViewModel @Inject constructor(
      * address, or any of its messages (up to 4 KB each). Broader than the circles row, which
      * matches the name alone - so Select All while searching picks the same groups on both.
      */
+    /** The 1:1 chats one of whose messages matches the Chats search (iOS ChatListView). */
+    suspend fun contactIdsWithMessageMatching(query: String): Set<String> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptySet()
+        return runCatching { chatRepository.contactIdsWithMessageContaining(q) }
+            .getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it else emptySet() }
+    }
+
     suspend fun groupIdsMatchingSearch(groups: List<com.kachat.app.models.GroupEntity>, query: String): Set<String> {
         val q = query.trim()
         if (q.isEmpty()) return groups.map { it.groupId }.toSet()

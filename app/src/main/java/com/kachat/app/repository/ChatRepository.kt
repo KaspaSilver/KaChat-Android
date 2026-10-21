@@ -228,6 +228,28 @@ class ChatRepository @Inject constructor(
         return scopedToActiveAccount({ address -> database.messageDao().getLatestMessagePerContact(address) }, emptyList())
     }
 
+    /**
+     * The chats with a message containing [query] (iOS ChatListView's search: case-insensitive,
+     * never the cross-device placeholder, nothing over 4096 bytes - a media envelope's text is
+     * not something you typed).
+     */
+    suspend fun contactIdsWithMessageContaining(query: String): Set<String> {
+        val address = walletManager.getAddress()
+        if (address.isEmpty() || query.isEmpty()) return emptySet()
+        val rows = database.messageDao().getMessageBodiesForWallet(address)
+        return kotlinx.coroutines.withContext(Dispatchers.Default) {
+            rows.asSequence()
+                .filter { row ->
+                    val body = row.plaintextBody ?: return@filter false
+                    body.contains(query, ignoreCase = true) &&
+                        !MessageEntity.isSentPlaceholder(body) &&
+                        body.toByteArray(Charsets.UTF_8).size <= 4096
+                }
+                .map { it.contactId }
+                .toSet()
+        }
+    }
+
     /** Every message for the active wallet, across all contacts — for chat-history export, not the live UI. */
     suspend fun getAllMessages(): List<MessageEntity> {
         return database.messageDao().getAllMessagesForWallet(walletManager.getAddress())
