@@ -431,7 +431,7 @@ class PushRegistrationManager @Inject constructor(
         // The aliases INCOMING messages from these contacts carry (same aliases the message sync
         // fetches with). Registering them narrows the server's alias filter to OUR conversations,
         // so a contact's messages to OTHER people don't match us (iOS: knownIncomingAliases).
-        val aliases = collectIncomingAliases(activeContacts)
+        val aliases = collectIncomingAliases(activeContacts, privateKey)
         val broadcastChannels = if (childMode) emptyList() else broadcastRepository.getNotifyEnabledChannelNames().first().toList()
         val hiddenSenders = collectHiddenBroadcastSenders(broadcastChannels)
         // Blinded group ids to be pushed for (per group, per other non-muted member) — iOS parity.
@@ -637,11 +637,13 @@ class PushRegistrationManager @Inject constructor(
      * Registering them makes the server's alias filter match only OUR conversations, not the
      * contact's messages to third parties. Mirrors iOS's knownIncomingAliases. Case-preserved.
      */
-    private fun collectIncomingAliases(activeContacts: List<com.kachat.app.models.ContactEntity>): List<String> {
+    private fun collectIncomingAliases(activeContacts: List<com.kachat.app.models.ContactEntity>, privateKey: ByteArray): List<String> {
         val aliases = mutableSetOf<String>()
         for (contact in activeContacts) {
             contact.theirAlias?.trim()?.takeIf { it.isNotEmpty() }?.let { aliases += it }
-            runCatching { walletManager.myDeterministicAlias(contact.id) }
+            // Only from the key of the account this contact belongs to: a registration that
+            // spanned an account switch derives none from the other account's key (iOS dfaba68).
+            runCatching { walletManager.myDeterministicAlias(contact.id, privateKey, contact.walletAddress) }
                 .getOrNull()?.trim()?.takeIf { it.isNotEmpty() }?.let { aliases += it }
             // Every alias they have been seen sending to us under (PeerAliasStore), so a push is
             // sent for those messages too.

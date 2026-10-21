@@ -703,6 +703,18 @@ class ChatRepository @Inject constructor(
         return true
     }
 
+    /**
+     * The active account's private key, only while it is [address]'s own (iOS dfaba68
+     * isCurrentAccountKey) - null once the account has switched. A sync holds its account's
+     * address from the start; the key is re-read at the point of use, so without this a sync
+     * that spanned a switch derived aliases from, and decrypted with, the NEW account's key and
+     * filed the result under the old address. Read it once and use that same key throughout.
+     */
+    private fun accountKey(address: String): ByteArray? {
+        val key = runCatching { walletManager.getPrivateKeyBytes() }.getOrNull() ?: return null
+        return key.takeIf { com.kachat.app.util.AccountKey.belongsTo(it, address) }
+    }
+
     /** The account in use right now - the one address that can never be a contact of itself. */
     private fun isActiveWalletAddress(address: String): Boolean {
         val normalized = address.trim().lowercase()
@@ -1780,7 +1792,11 @@ class ChatRepository @Inject constructor(
             Log.w("ChatRepository", "Handshake ${handshake.txId.take(16)} payload is not a sealed message - skipped")
             return true
         }
-        val decryptedJson = MessageProtocol.decrypt(encryptedMessage, walletManager.getPrivateKeyBytes())
+        // The sender lookup above may have spanned an account switch: this account's handshake
+        // is never opened with, nor its alias filed by, the next one's key. Kept inside the next
+        // fetch window (false) so it is handled when this account syncs again.
+        val privateKey = accountKey(myAddress) ?: return false
+        val decryptedJson = MessageProtocol.decrypt(encryptedMessage, privateKey)
         val payload = try { gson.fromJson(decryptedJson, HandshakePayload::class.java) } catch (e: Exception) { null }
         val theirAlias = payload?.alias
         // Every alias they announce is kept, not just this latest one - see PeerAliasStore.
@@ -1855,10 +1871,9 @@ class ChatRepository @Inject constructor(
      *
      * Throttled: the conversation on screen at most every 30 seconds, anyone else every 5 minutes.
      */
-    private suspend fun discoverPeerAliases(myAddress: String, contact: ContactEntity, onScreen: Boolean) {
+    private suspend fun discoverPeerAliases(myAddress: String, contact: ContactEntity, onScreen: Boolean, privateKey: ByteArray) {
         if (contact.id == myAddress) return
         val key = "$myAddress|${contact.id}"
-        val privateKey = walletManager.getPrivateKeyBytes()
 
         if (aliasBackfilled.add(key)) {
             for (row in database.messageDao().getReceivedHandshakes(contact.id, myAddress)) {
@@ -1961,6 +1976,10 @@ class ChatRepository @Inject constructor(
 
         for ((index, contact) in syncableContacts.withIndex()) {
             if (sweepSpacing && index > 0) delay(CONTACT_SWEEP_SPACING_MS)
+            // This account's own key for everything below - aliases, alias discovery, decrypting
+            // - or nothing: once the account has switched, the rest is the next sync's (iOS
+            // dfaba68). Cursors stay where they are, so nothing is skipped for this account.
+            val privateKey = accountKey(myAddress) ?: break
             // See processHandshake's identical tombstone check — still needed even with the
             // block_time cursor below, since a newly re-created contact's first-ever sync has no
             // cursor yet and could otherwise surface old pre-deletion messages.
@@ -1971,7 +1990,7 @@ class ChatRepository @Inject constructor(
             // handshake at all — see WalletManager.myDeterministicAlias.
             val legacyAliasHex = contact.theirAlias?.let { hexEncodeAscii(it) }
             val deterministicAliasHex = try {
-                hexEncodeAscii(walletManager.myDeterministicAlias(contact.id))
+                hexEncodeAscii(walletManager.myDeterministicAlias(contact.id, privateKey, myAddress))
             } catch (e: Exception) {
                 null // Non-Schnorr/invalid address — skip the deterministic candidate for this contact.
             }
@@ -1981,7 +2000,7 @@ class ChatRepository @Inject constructor(
             // aliases, which need not be the one its last handshake named; missing it meant not
             // one of their messages ever arrived here, while ours reached them fine.
             val knownAliasHexes = try {
-                discoverPeerAliases(myAddress, contact, onScreen = contact.id == notificationHelper.currentContactId)
+                discoverPeerAliases(myAddress, contact, onScreen = contact.id == notificationHelper.currentContactId, privateKey = privateKey)
                 peerAliasStore.aliases(myAddress, contact.id).map { hexEncodeAscii(it) }
             } catch (e: Exception) {
                 Log.w("ChatRepository", "Alias discovery failed for ${contact.id.takeLast(8)}", e)
@@ -2044,7 +2063,7 @@ class ChatRepository @Inject constructor(
                             // decrypt now replaces it and the message appears (iOS c130dc1).
                             if (database.messageDao().existsShown(message.txId, myAddress, MessageEntity.HIDDEN_PLACEHOLDERS)) continue
                             if (isTombstoned(deleted, message.txId, message.blockTime)) continue
-                            processContextualMessage(myAddress, contact, message)
+                            processContextualMessage(myAddress, contact, message, privateKey)
                         } catch (e: Exception) {
                             Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
                         }
@@ -2101,16 +2120,17 @@ class ChatRepository @Inject constructor(
      * [myAddress] is passed down from [syncContextualMessages] rather than re-read here via
      * `walletManager.getAddress()` — if the user switched the active account mid-sync, a fresh
      * read here would stamp this message under the NEW account even though [contact] belongs
-     * to the account the sync actually started with.
+     * to the account the sync actually started with. [privateKey] is that account's own key
+     * (checked by the caller, [accountKey]) for the same reason.
      */
-    private suspend fun processContextualMessage(myAddress: String, contact: ContactEntity, message: ContextualMessageIndexerResponse) {
+    private suspend fun processContextualMessage(myAddress: String, contact: ContactEntity, message: ContextualMessageIndexerResponse, privateKey: ByteArray) {
         // Rejected in Message Requests: nothing they send is kept, until the user writes to them.
         if (contact.id != myAddress && chatRequestStore.isBlocked(contact.id)) return
         val encryptedBytes = decodeContextualMessagePayload(message.messagePayload)
         val encryptedMessage = KasiaCipher.EncryptedMessage.fromBytes(encryptedBytes) ?: return
         // Decryption only needs our own private key + the ephemeral key embedded in the
         // message itself (ECDH) — the sender's static pubkey is never required here.
-        val plaintext = MessageProtocol.decrypt(encryptedMessage, walletManager.getPrivateKeyBytes())
+        val plaintext = MessageProtocol.decrypt(encryptedMessage, privateKey)
 
         // An edit is never a bubble either: it changes the message it names (if the editor sent
         // that message) and is otherwise dropped - see [applyIncomingEdit]. Checked before the

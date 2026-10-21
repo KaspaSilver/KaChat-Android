@@ -95,6 +95,9 @@ class ContactNoteService @Inject constructor(
         val wallet = runCatching { walletManager.getAddress() }.getOrNull() ?: return@withLock
         val api = networkService.indexerApi.value ?: return@withLock
         val privateKey = runCatching { walletManager.getPrivateKeyBytes() }.getOrNull() ?: return@withLock
+        // Read one after the other, so a switch in between hands out the next account's key:
+        // that one never reads this account's notes (iOS dfaba68).
+        if (!com.kachat.app.util.AccountKey.belongsTo(privateKey, wallet)) return@withLock
 
         val highWater = prefs.getLong(highWaterKey(wallet), 0L)
         val lastFullScanAt = prefs.getLong(fullScanKey(wallet), 0L)
@@ -127,15 +130,13 @@ class ContactNoteService @Inject constructor(
             return@withLock
         }
 
-        notes.mapNotNull { it.blockTime }.maxOrNull()?.takeIf { it > highWater }?.let {
-            prefs.edit().putLong(highWaterKey(wallet), it).apply()
-        }
-        if (fullScanDue) prefs.edit().putLong(fullScanKey(wallet), now).apply()
-
         val noted = mutableSetOf<String>()
         for (note in notes) {
             val data = note.stashedData ?: continue
             val content = decrypt(data, privateKey) ?: continue
+            // The read above may have spanned an account switch: nothing from this account's
+            // notes is written once another one is active (iOS dfaba68, like the handshake path).
+            if (!isActive(wallet)) return@withLock
             val contact = content.contactAddress
             if (contact.isEmpty()) continue
             noted += contact
@@ -148,6 +149,12 @@ class ContactNoteService @Inject constructor(
             if (handshakeNote) content.theirAlias?.let { peerAliasStore.add(wallet, contact, it) }
             restoreContact(wallet, contact, fromHandshake = handshakeNote)
         }
+        // Only once every note read has been applied: a loop stopped by a switch reads them
+        // again next time (re-applying one is a no-op).
+        notes.mapNotNull { it.blockTime }.maxOrNull()?.takeIf { it > highWater }?.let {
+            prefs.edit().putLong(highWaterKey(wallet), it).apply()
+        }
+        if (fullScanDue) prefs.edit().putLong(fullScanKey(wallet), now).apply()
         // A wallet switch during the read must not credit this wallet's notes to the next one.
         if (!isActive(wallet)) return@withLock
         // "Complete" means from block time 0 AND to the end: a read stopped at the page cap

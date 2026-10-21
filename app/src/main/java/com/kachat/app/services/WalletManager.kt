@@ -1651,11 +1651,19 @@ class WalletManager @Inject constructor(
         return com.kachat.app.util.KasiaCipher.deriveSymmetricKey(getPrivateKeyBytes(), peerPubKey)
     }
 
-    /** The alias I watch for incoming deterministic-alias messages from this contact. */
-    fun myDeterministicAlias(contactAddress: String): String {
+    /** The alias I watch for incoming deterministic-alias messages from this contact. Throws
+     *  when the active account changed between reading its address and its key (iOS dfaba68):
+     *  an alias is never derived for one account from another's key. */
+    fun myDeterministicAlias(contactAddress: String): String =
+        myDeterministicAlias(contactAddress, getPrivateKeyBytes(), getAddress())
+
+    /** [myDeterministicAlias] for [myAddress] with [privateKey] - refused (throws) unless the
+     *  key is [myAddress]'s own ([com.kachat.app.util.AccountKey]). */
+    fun myDeterministicAlias(contactAddress: String, privateKey: ByteArray, myAddress: String): String {
+        check(com.kachat.app.util.AccountKey.belongsTo(privateKey, myAddress)) { "Not this account's key" }
         val theirPubKey = KaspaAddress.decode(contactAddress).second
-        val myPubKey = KaspaAddress.decode(getAddress()).second
-        return com.kachat.app.util.KasiaCipher.deriveDeterministicAlias(getPrivateKeyBytes(), theirPubKey, contextXOnlyPubKey = myPubKey)
+        val myPubKey = KaspaAddress.decode(myAddress).second
+        return com.kachat.app.util.KasiaCipher.deriveDeterministicAlias(privateKey, theirPubKey, contextXOnlyPubKey = myPubKey)
     }
 
     /** The alias I tag outgoing deterministic-alias messages to this contact with. */
