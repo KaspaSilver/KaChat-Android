@@ -213,7 +213,7 @@ open class KachatNamesRegistryTest {
         )
         r.eq(state.names.map { it.name }.sorted(), (imported + "alpha-tn").sorted(), "names left after the e2e plan")
         r.eq(state.gaps.size, 2 + lead, "gaps left after the e2e plan")
-        val entries = vectors.getAsJsonObject("migrationRules")?.optO("snapshot")?.arr("entries")
+        val entries = vectors.optO("migrationRules")?.optO("snapshot")?.arr("entries")
         if (lead > 0 && entries != null) {
             // registry v5: each import is the snapshot entry exactly - owner, paid period - and unlisted
             r.eq(entries.size, lead, "v5: one import per snapshot entry")

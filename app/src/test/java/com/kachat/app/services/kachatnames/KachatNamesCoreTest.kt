@@ -269,8 +269,9 @@ open class KachatNamesCoreTest {
 
     /**
      * The manifest bundled for phase 2 (assets/kachat-names-testnet-10.json) is the live
-     * testnet-10 registry v5 of 2026-10-09 on the audited contracts (funding outpoint
-     * 408682e6...dfda5, registry 1283f749...bfa2, importing the drill registry fdc403f5...571d;
+     * testnet-10 registry v5 of 2026-10-09 on the audited contracts (genesis txid
+     * b6223f0f...e24f spending the funding outpoint 408682e6...dfda5:1, registry
+     * 1283f749...bfa2, importing the drill registry fdc403f5...571d;
      * kachat-domains e99bbac, iOS 427efd7): it verifies both as bundled and as an indexer would serve it (the name pinned
      * in the app, the gap and offer for this deployment), it is not a dry run, it carries the
      * pinned price tables and its migration, and a tampered offer pin or a changed price is refused.
@@ -284,8 +285,9 @@ open class KachatNamesCoreTest {
         assertFalse("the bundled manifest must not be a dry run", m.isDryRun)
         assertEquals(5, m.registryVersion)
         assertEquals("1283f749506c454488a6b7264197658ed1c12051f1887905c4396243a89fbfa2", KachatNames.hex(m.registryCovenantId))
-        assertEquals("408682e6", KachatNames.hex(m.genesisTxid).take(8))
-        assertEquals("dfda5", KachatNames.hex(m.genesisTxid).takeLast(5))
+        assertEquals("b6223f0f", KachatNames.hex(m.genesisTxid).take(8))
+        assertEquals("e24f", KachatNames.hex(m.genesisTxid).takeLast(4))
+        assertEquals("408682e6d46f483ef0bb2564f96a78ead5f2af6401fbb2fdbdb8ecd8f61dfda5:1", m.genesisOutpoint.toString())
         assertEquals("9fe90632a60e8771f2b8ac5e4368d5f4a2990fb9e5ad0fa6f3771b6287ee4242", KachatNames.hex(m.gap.templateHash))
         assertEquals("7cb988f2b608aa5575bed8455b006f4ce11b8c2ac09aae377d41b1f94c935100", KachatNames.hex(m.offer.templateHash))
         val mig = m.params.migration

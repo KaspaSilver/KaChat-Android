@@ -28,6 +28,10 @@ class PaymentMaxTest {
     private val coins = listOf(utxo(4 * kas, 0), utxo(3 * kas, 1), utxo(3 * kas, 2))
     private val balance = coins.sumOf { it.utxoEntry.amount }
 
+    /** A chat payment always carries its kchat:1:pay: payload, an empty memo too (AND-035, iOS
+     *  estimateMaxPaymentAmount prices buildPaymentPayload whatever the memo). */
+    private val emptyMemoPayload = MessageProtocol.estimatedPaymentPayloadSize("", balance)
+
     private fun send(amount: Long, extraFeeSompi: Long) = KaspaUtxoSelector.selectUtxosAndCalculateFee(
         utxos = coins,
         amountSompi = amount,
@@ -40,7 +44,7 @@ class PaymentMaxTest {
 
     @Test
     fun `Max with Priority and an empty amount leaves room for Priority's extra`() {
-        val base = SendFeeModel.baseFee(3, rate)
+        val base = SendFeeModel.baseFee(3, rate, payloadSize = emptyMemoPayload)
         val max = ChatViewModel.computePaymentMaxSompi(balance, 3, "", rate.toDouble(), feeMultiplier = 5, customExtraFeeSompi = null)
         assertEquals(balance - 5 * base, max)
 
@@ -56,13 +60,13 @@ class PaymentMaxTest {
 
     @Test
     fun `Max with Fast leaves room for one more base`() {
-        val base = SendFeeModel.baseFee(3, rate)
+        val base = SendFeeModel.baseFee(3, rate, payloadSize = emptyMemoPayload)
         assertEquals(balance - 2 * base, ChatViewModel.computePaymentMaxSompi(balance, 3, "", rate.toDouble(), 2, null))
     }
 
     @Test
     fun `Max subtracts a custom extra flat, whatever the speed`() {
-        val base = SendFeeModel.baseFee(3, rate)
+        val base = SendFeeModel.baseFee(3, rate, payloadSize = emptyMemoPayload)
         assertEquals(
             balance - base - 1_234_567L,
             ChatViewModel.computePaymentMaxSompi(balance, 3, "", rate.toDouble(), 5, customExtraFeeSompi = 1_234_567L)
@@ -71,7 +75,7 @@ class PaymentMaxTest {
 
     @Test
     fun `Normal is unchanged - balance less the base`() {
-        val base = SendFeeModel.baseFee(3, rate)
+        val base = SendFeeModel.baseFee(3, rate, payloadSize = emptyMemoPayload)
         assertEquals(balance - base, ChatViewModel.computePaymentMaxSompi(balance, 3, "", rate.toDouble(), 1, null))
     }
 
@@ -86,11 +90,11 @@ class PaymentMaxTest {
     @Test
     fun `the rate is rounded up and never under the network minimum`() {
         assertEquals(
-            balance - SendFeeModel.baseFee(3, 101L),
+            balance - SendFeeModel.baseFee(3, 101L, payloadSize = emptyMemoPayload),
             ChatViewModel.computePaymentMaxSompi(balance, 3, "", 100.2, 1, null)
         )
         assertEquals(
-            balance - SendFeeModel.baseFee(3, 100L),
+            balance - SendFeeModel.baseFee(3, 100L, payloadSize = emptyMemoPayload),
             ChatViewModel.computePaymentMaxSompi(balance, 3, "", 1.0, 1, null)
         )
     }

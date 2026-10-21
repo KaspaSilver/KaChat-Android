@@ -8,7 +8,6 @@ import com.kachat.app.ui.screens.MAX_PAYMENT_MEMO_LENGTH
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 import java.math.BigInteger
 import java.security.SecureRandom
@@ -30,11 +29,21 @@ class KaPostTipTest {
         assertEquals(140, MAX_PAYMENT_MEMO_LENGTH)
     }
 
+    /** Since AND-035 every chat payment carries its payload, memo or not (iOS buildPaymentPayload). */
     @Test
-    fun `a tip without a memo carries no payload`() {
-        val pub = Schnorr.publicKeyXOnly(randomScalarBytes())
-        assertNull(MessageProtocol.paymentMemoPayload("", 100_000_000L, pub))
-        assertNull(MessageProtocol.paymentMemoPayload("  \n\t ", 100_000_000L, pub))
+    fun `a payment without a memo still carries its kchat 1 pay payload`() {
+        val priv = randomScalarBytes()
+        val pub = Schnorr.publicKeyXOnly(priv)
+        val prefix = "kchat:1:pay:".toByteArray(Charsets.US_ASCII)
+        for (memo in listOf("", "  \n\t ")) {
+            val payload = MessageProtocol.paymentMemoPayload(memo, 100_000_000L, pub)
+            assertNotNull(payload)
+            assertArrayEquals(prefix, payload.copyOfRange(0, prefix.size))
+            assertEquals(MessageProtocol.estimatedPaymentPayloadSize("", 100_000_000L), payload.size)
+            val opened = MessageProtocol.decryptPaymentPayload(payload, priv)!!
+            assertEquals("", opened.message)
+            assertEquals(100_000_000L, opened.amount)
+        }
     }
 
     @Test

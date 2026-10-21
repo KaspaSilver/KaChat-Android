@@ -36,16 +36,22 @@ class NameServicesTest {
     }
 
     @Test
-    fun `primary prefers the typed ending, else resolution order`() {
+    fun `primary is the typed ending, and a bare name is a kachat name only`() {
         val results = listOf(
             NameResolution(NameServiceTLD.KAS, "bob.kas", null, false),
             NameResolution(NameServiceTLD.K, "bob.k", "kaspa:k", false),
             NameResolution(NameServiceTLD.KASPA, "bob.kaspa", "kaspa:kaspa", false),
         )
-        assertEquals(NameServiceTLD.K, NameServicesClient.primary(results, "bob")?.tld)
+        // A bare "bob" means bob.kachat (Android ea932a0a = iOS 5a5122d): another service's bob
+        // is never picked for it.
+        assertNull(NameServicesClient.primary(results, "bob"))
         assertEquals(NameServiceTLD.KASPA, NameServicesClient.primary(results, "bob.kaspa")?.tld)
         assertNull(NameServicesClient.primary(results, "bob.kas"))
         assertTrue(NameServicesClient.looksLikeName("bob.k"))
         assertFalse(NameServicesClient.looksLikeName("kaspa:qqq"))
+
+        val withKachat = results + NameResolution(NameServiceTLD.KACHAT, "bob.kachat", "kaspa:kachat", false)
+        assertEquals(NameServiceTLD.KACHAT, NameServicesClient.primary(withKachat, "bob")?.tld)
+        assertEquals(NameServiceTLD.K, NameServicesClient.primary(withKachat, "bob.k")?.tld)
     }
 }
