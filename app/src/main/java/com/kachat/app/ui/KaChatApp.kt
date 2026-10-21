@@ -1311,15 +1311,15 @@ fun MainShell(
             // In the Settings stack the whole host draws as iOS's sheet: its rounded top 10 below
             // the status bar, black above it. The status-bar padding is consumed here, so the
             // settings screens' own statusBarsPadding adds nothing inside the sheet.
+            // One fixed modifier chain: only the values change with inSettingsSheet, so no inset
+            // modifier ever comes or goes (swapping one in and out is what froze the public room
+            // with an endless consumed-insets loop). Outside Settings the insets are zero, the
+            // padding 0 and the clip a plain rectangle - the same as no modifier at all.
             // What the dock's glass samples.
             modifier = Modifier
-                .then(
-                    if (inSettingsSheet) Modifier
-                        .statusBarsPadding()
-                        .padding(top = 10.dp)
-                        .clip(com.kachat.app.ui.theme.IosSheetShape)
-                    else Modifier
-                )
+                .windowInsetsPadding(if (inSettingsSheet) WindowInsets.statusBars else WindowInsets(0))
+                .padding(top = if (inSettingsSheet) 10.dp else 0.dp)
+                .clip(if (inSettingsSheet) com.kachat.app.ui.theme.IosSheetShape else androidx.compose.ui.graphics.RectangleShape)
                 .haze(state = dockHaze),
             // NavHost's own default is a 700ms crossfade — noticeably sluggish for something
             // that happens on every single tab switch/screen push. A short, snappy fade reads

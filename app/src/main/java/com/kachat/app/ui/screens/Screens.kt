@@ -841,10 +841,9 @@ fun ChatThreadScreen(
                     onReject = { showRejectRequestConfirm = true },
                 )
             } else {
-            // navigationBarsPadding() keeps the mic/send row clear of the system nav bar
-            // (gesture pill or 3-button bar) when the keyboard is closed — its height varies
-            // a lot across devices/manufacturers, so a fixed dp padding isn't enough on every
-            // phone. imePadding() on the Scaffold above already handles the keyboard-open case.
+            // The mic/send row clears the system nav bar (gesture pill or 3-button bar, whose
+            // height varies a lot across devices) through the dock inset when the keyboard is
+            // closed; imePadding() on the Scaffold above handles the keyboard-open case.
             // Zero-balance funding gate: the whole composer (text field, camera, "+" menu, send,
             // mic, payment entry) dims and stops responding until the chatting address is funded
             // — see Modifier.zeroBalanceComposerGate in ZeroBalanceFundingUi.kt.
@@ -854,6 +853,11 @@ fun ChatThreadScreen(
             // With the dock showing it rests just above the dock (LocalDockInset, which already
             // holds the system bar under the dock) and the messages run on under the dock; with
             // the keyboard up the dock is behind it, the inset is 0 and nothing changes here.
+            // One fixed modifier chain: no navigationBarsPadding() comes or goes when the chat
+            // zeroes the dock inset for the keyboard. That swap froze the public room (an endless
+            // consumed-insets loop - an ANR seen while typing). The navigation bar needs nothing
+            // of its own: with the keyboard down the dock inset already holds it, and with the
+            // keyboard up the Scaffold's imePadding() covers it.
             val dockInset = LocalDockInset.current
             Column(
                 modifier = Modifier
@@ -866,7 +870,6 @@ fun ChatThreadScreen(
                             1f to LocalAppColors.current.background.copy(alpha = 0.85f),
                         )
                     )
-                    .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
             ) {
             if (fundingGate.active) {
                 ZeroBalanceFundingCard(
@@ -2118,13 +2121,15 @@ private fun UnnotifiedMessageBanner(
 private fun MessageRequestBar(displayName: String, onAccept: () -> Unit, onReject: () -> Unit) {
     val colors = LocalAppColors.current
     // Just above the dock while it shows (the thread runs on under it), else above the system bar.
+    // A fixed chain, as on the composer: the dock inset holds the navigation bar with the keyboard
+    // down and the Scaffold's imePadding() covers it with the keyboard up, so no
+    // navigationBarsPadding() is swapped in and out (the swap that froze the public room).
     val dockInset = LocalDockInset.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = dockInset)
             .background(colors.background)
-            .then(if (dockInset > 0.dp) Modifier else Modifier.navigationBarsPadding())
             .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
