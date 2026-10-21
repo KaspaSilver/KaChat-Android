@@ -129,6 +129,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -3192,6 +3193,9 @@ private fun ConverterRow(title: String, text: String, onTextChange: (String) -> 
             onValueChange = onTextChange,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
+            // The text sits at the right, so a tap usually lands left of it and the cursor
+            // started before the number ("|1"). Editing starts at the end instead (iOS c130dc1).
+            cursorAtEndOnFocus = true,
         )
         Text(
             trailing,
@@ -3207,7 +3211,8 @@ private fun ConverterRow(title: String, text: String, onTextChange: (String) -> 
 /**
  * A bare SwiftUI-style `TextField("0", ...)` with the decimal pad: 20pt semibold, the placeholder
  * "0" in the faint label colour while it is empty, the accent caret. No box of its own - the
- * caller draws the row it sits in.
+ * caller draws the row it sits in. [cursorAtEndOnFocus] puts the cursor after the number when
+ * editing starts, wherever the tap landed.
  */
 @Composable
 private fun IosNumberField(
@@ -3215,17 +3220,38 @@ private fun IosNumberField(
     onValueChange: (String) -> Unit,
     textAlign: TextAlign,
     modifier: Modifier = Modifier,
+    cursorAtEndOnFocus: Boolean = false,
 ) {
     val colors = LocalAppColors.current
     val style = TextStyle(color = colors.textPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = textAlign)
+    // The String overload's own bookkeeping, held here so the selection can be moved: the text
+    // always comes from [value], the selection is the field's (clamped to the text).
+    var fieldState by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(value)) }
+    val fieldValue = fieldState.copy(text = value)
+    val currentText by androidx.compose.runtime.rememberUpdatedState(value)
+    var focused by remember { mutableStateOf(false) }
+    // After the focusing tap has placed its cursor (same event, before this effect runs), as
+    // iOS waits a runloop turn - so the tap can't put it back.
+    LaunchedEffect(focused) {
+        if (focused && cursorAtEndOnFocus) {
+            fieldState = androidx.compose.ui.text.input.TextFieldValue(
+                text = currentText,
+                selection = androidx.compose.ui.text.TextRange(currentText.length),
+            )
+        }
+    }
     BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = fieldValue,
+        onValueChange = { next ->
+            fieldState = next
+            // A cursor move alone is not an edit.
+            if (next.text != value) onValueChange(next.text)
+        },
         singleLine = true,
         textStyle = style,
         cursorBrush = SolidColor(KaspaTeal),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { focused = it.isFocused },
         decorationBox = { inner ->
             Box(contentAlignment = if (textAlign == TextAlign.End) Alignment.CenterEnd else Alignment.CenterStart) {
                 if (value.isEmpty()) {

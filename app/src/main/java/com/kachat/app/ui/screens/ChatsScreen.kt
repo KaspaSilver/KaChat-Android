@@ -1456,6 +1456,9 @@ private fun ChatsUnreadBadge(count: Int, modifier: Modifier = Modifier) {
  */
 private fun messagePreviewText(message: MessageEntity?, contactLabel: String, context: android.content.Context): String? {
     val body = message?.plaintextBody ?: return null
+    // Hidden placeholders (cross-device, undecryptable) never surface anywhere. The chat list's
+    // latest-message query already skips them; this is a backstop for any other route.
+    if (MessageEntity.isHiddenPlaceholder(body)) return ""
     val replyContent = MessageReply.parseOrNull(body)
     if (replyContent != null) {
         val who = if (message.direction == "sent") "You" else contactLabel

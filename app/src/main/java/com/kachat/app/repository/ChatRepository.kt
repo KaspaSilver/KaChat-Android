@@ -225,13 +225,13 @@ class ChatRepository @Inject constructor(
     fun chatRequestStateFlow(): Flow<ChatRequestState> = chatRequestStore.stateFlow()
 
     fun getLatestMessages(): Flow<List<MessageEntity>> {
-        return scopedToActiveAccount({ address -> database.messageDao().getLatestMessagePerContact(address) }, emptyList())
+        return scopedToActiveAccount({ address -> database.messageDao().getLatestMessagePerContact(address, MessageEntity.HIDDEN_PLACEHOLDERS) }, emptyList())
     }
 
     /**
      * The chats with a message containing [query] (iOS ChatListView's search: case-insensitive,
-     * never the cross-device placeholder, nothing over 4096 bytes - a media envelope's text is
-     * not something you typed).
+     * never a hidden placeholder - cross-device or undecryptable - nothing over 4096 bytes - a
+     * media envelope's text is not something you typed).
      */
     suspend fun contactIdsWithMessageContaining(query: String): Set<String> {
         val address = walletManager.getAddress()
@@ -242,7 +242,7 @@ class ChatRepository @Inject constructor(
                 .filter { row ->
                     val body = row.plaintextBody ?: return@filter false
                     body.contains(query, ignoreCase = true) &&
-                        !MessageEntity.isSentPlaceholder(body) &&
+                        !MessageEntity.isHiddenPlaceholder(body) &&
                         body.toByteArray(Charsets.UTF_8).size <= 4096
                 }
                 .map { it.contactId }
@@ -256,7 +256,7 @@ class ChatRepository @Inject constructor(
     }
 
     fun getUnreadCounts(): Flow<List<UnreadCount>> {
-        return scopedToActiveAccount({ address -> database.messageDao().getUnreadCounts(address) }, emptyList())
+        return scopedToActiveAccount({ address -> database.messageDao().getUnreadCounts(address, MessageEntity.HIDDEN_PLACEHOLDERS) }, emptyList())
     }
 
     /** One row per contact - their newest reaction across every message in that conversation,
@@ -1942,7 +1942,7 @@ class ChatRepository @Inject constructor(
                 if (syncableContacts.size > CONTACT_SWEEP_CAP) {
                     // Prioritize by most recent message activity; the open conversation always
                     // makes the cut regardless of where its history ranks.
-                    val latestByContact = database.messageDao().getLatestMessagePerContact(myAddress)
+                    val latestByContact = database.messageDao().getLatestMessagePerContact(myAddress, MessageEntity.HIDDEN_PLACEHOLDERS)
                         .first().associate { it.contactId to it.blockTimestamp }
                     val top = syncableContacts
                         .sortedByDescending { latestByContact[it.id] ?: 0L }
@@ -2040,7 +2040,9 @@ class ChatRepository @Inject constructor(
 
                     for (message in messages) {
                         try {
-                            if (database.messageDao().exists(message.txId, myAddress)) continue
+                            // A stored "[Encrypted message]" doesn't count as had: a successful
+                            // decrypt now replaces it and the message appears (iOS c130dc1).
+                            if (database.messageDao().existsShown(message.txId, myAddress, MessageEntity.HIDDEN_PLACEHOLDERS)) continue
                             if (isTombstoned(deleted, message.txId, message.blockTime)) continue
                             processContextualMessage(myAddress, contact, message)
                         } catch (e: Exception) {
@@ -2204,7 +2206,10 @@ class ChatRepository @Inject constructor(
         val notificationText = com.kachat.app.util.dmNotificationText(plaintext, notificationHelper.dmNotificationLabels())
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. Only a device with no push at all banners from here.
-        if (!backfill && !unwantedCall && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, message.txId)) {
+        // Nor a banner for one the chat won't show (a hidden placeholder, iOS c130dc1).
+        if (!backfill && !unwantedCall && !pushState.isActive && !MessageEntity.isHiddenPlaceholder(plaintext) &&
+            !notifyAsMessageRequest(contact, myAddress, message.txId)
+        ) {
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.displayName,

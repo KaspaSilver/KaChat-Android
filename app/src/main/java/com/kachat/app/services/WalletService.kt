@@ -95,6 +95,9 @@ class WalletService @Inject constructor(
     fun resetBalancesForAccountSwitch() {
         _balance.value = 0L
         _spendingBalance.value = 0L
+        // Profile's Manage Addresses total belongs to the account it was read for: cleared (the
+        // card shows no figure) until the new account's lands, never carried over (iOS c130dc1).
+        _spendingTotalBalance.value = null
         _balanceKnown.value = false
     }
 

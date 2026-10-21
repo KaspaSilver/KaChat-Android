@@ -359,7 +359,9 @@ class ChatHistoryExportImportService @Inject constructor(
                 restoredAny = true
                 val entity = toMessageEntity(archiveMessage, contactAddress, myAddress)
                 val existing = chatRepository.getMessage(entity.id)
-                if (existing != null) {
+                // A stored "[Encrypted message]" is a hidden stand-in: the archive's real body
+                // replaces it (iOS preferMessage), and the message appears.
+                if (existing != null && !(existing.isHiddenPlaceholder && !entity.isHiddenPlaceholder)) {
                     // Healer: the archive proves this txId was broadcast, so a local copy still
                     // stuck at pending/failed (a finalize that never ran) flips to sent in place.
                     if (existing.direction == "sent" && existing.deliveryStatus != "sent" && entity.deliveryStatus == "sent") {
@@ -420,8 +422,7 @@ class ChatHistoryExportImportService @Inject constructor(
         private val STATUS_PRIORITY = mapOf("pending" to 0, "warning" to 1, "failed" to 2, "sent" to 3)
 
         /** Bodies that mean "we know a message exists but not what it says" — a real body always wins over these. */
-        private val PLACEHOLDER_BODIES =
-            setOf(com.kachat.app.models.MessageEntity.SENT_VIA_OTHER_DEVICE_PLACEHOLDER, "[Encrypted message]")
+        private val PLACEHOLDER_BODIES = com.kachat.app.models.MessageEntity.HIDDEN_PLACEHOLDERS.toSet()
 
         private val UUID_PATTERN =
             Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")

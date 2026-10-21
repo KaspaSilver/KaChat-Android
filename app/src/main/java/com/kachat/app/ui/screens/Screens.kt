@@ -268,7 +268,8 @@ fun ChatThreadScreen(
     val hasOlderMessages by chatViewModel.hasOlderMessages(contactId).collectAsState(initial = true)
     // "Sent via another device" rows are backup fill-in slots, never UI (matches iOS and the
     // chess mini chat); legacy restores from pre-1d236ba builds can still hold such rows.
-    val messages = remember(allMessages) { allMessages.filterNot { it.isSentPlaceholder } }
+    // Messages this account can't decrypt are hidden the same way (isHiddenPlaceholder).
+    val messages = remember(allMessages) { allMessages.filterNot { it.isHiddenPlaceholder } }
     val reactions by chatViewModel.getReactions(contactId).collectAsState(initial = emptyList())
     val reactionsByTxId = remember(reactions) { reactions.groupBy { it.targetTxId } }
     // The newest edit per message (see MessageEdit) - applied to the bubble as it is drawn, the

@@ -92,21 +92,39 @@ interface MessageDao {
      * share a timestamp. The trailing GROUP BY collapses a genuine tie within one contact to a
      * single row.
      */
+    /*
+     * [hidden] ([MessageEntity.HIDDEN_PLACEHOLDERS]) are bodies never shown: a chat whose newest
+     * row is one previews its newest real message instead, or nothing (iOS
+     * Conversation.newestRealMessage).
+     */
     @Query(
         """
         SELECT m.* FROM messages m
         JOIN (
             SELECT contactId, MAX(blockTimestamp) AS maxTs FROM messages
-            WHERE walletAddress = :walletAddress GROUP BY contactId
+            WHERE walletAddress = :walletAddress
+              AND (plaintextBody IS NULL OR plaintextBody NOT IN (:hidden))
+            GROUP BY contactId
         ) newest ON m.contactId = newest.contactId AND m.blockTimestamp = newest.maxTs
         WHERE m.walletAddress = :walletAddress
+          AND (m.plaintextBody IS NULL OR m.plaintextBody NOT IN (:hidden))
         GROUP BY m.contactId
         """
     )
-    fun getLatestMessagePerContact(walletAddress: String): Flow<List<MessageEntity>>
+    fun getLatestMessagePerContact(walletAddress: String, hidden: List<String>): Flow<List<MessageEntity>>
 
     @Query("SELECT EXISTS(SELECT 1 FROM messages WHERE id = :id AND walletAddress = :walletAddress)")
     suspend fun exists(id: String, walletAddress: String): Boolean
+
+    /** [exists], except a stored hidden placeholder ([hidden], e.g. "[Encrypted message]") does
+     *  not count: a later successful decrypt still replaces it. */
+    @Query(
+        """
+        SELECT EXISTS(SELECT 1 FROM messages WHERE id = :id AND walletAddress = :walletAddress
+            AND (plaintextBody IS NULL OR plaintextBody NOT IN (:hidden)))
+        """
+    )
+    suspend fun existsShown(id: String, walletAddress: String, hidden: List<String>): Boolean
 
     /** Per contact: when its first message was and whether you ever sent anything - what
      *  Message Requests decides from (ChatRequestStore.isMessageRequest). */
@@ -220,14 +238,16 @@ interface MessageDao {
     )
     suspend fun deleteContractAddressPayments(walletAddress: String): Int
 
+    /** A hidden placeholder ([hidden]) is never unread: a badge nobody could clear (iOS c130dc1). */
     @Query(
         """
         SELECT contactId, COUNT(*) as count FROM messages
         WHERE isRead = 0 AND direction = 'received' AND walletAddress = :walletAddress
+          AND (plaintextBody IS NULL OR plaintextBody NOT IN (:hidden))
         GROUP BY contactId
         """
     )
-    fun getUnreadCounts(walletAddress: String): Flow<List<UnreadCount>>
+    fun getUnreadCounts(walletAddress: String, hidden: List<String>): Flow<List<UnreadCount>>
 
     @Query("UPDATE messages SET isRead = 1 WHERE contactId = :contactId AND walletAddress = :walletAddress AND isRead = 0")
     suspend fun markAllAsRead(contactId: String, walletAddress: String)

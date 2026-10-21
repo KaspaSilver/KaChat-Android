@@ -42,6 +42,10 @@ data class MessageEntity(
     val isSentPlaceholder: Boolean
         get() = isSentPlaceholder(plaintextBody)
 
+    /** See [isHiddenPlaceholder]. */
+    val isHiddenPlaceholder: Boolean
+        get() = isHiddenPlaceholder(plaintextBody)
+
     companion object {
         /**
          * Exact content of the cross-device fill-in row iOS creates when a device discovers this
@@ -57,6 +61,25 @@ data class MessageEntity(
         /** True if [content] is exactly the cross-device placeholder above. Use this everywhere
          *  the placeholder is matched or hidden - mirrors iOS's ChatMessage.isSentPlaceholder. */
         fun isSentPlaceholder(content: String?): Boolean = content == SENT_VIA_OTHER_DEVICE_PLACEHOLDER
+
+        /**
+         * A message this account could not decrypt - typically one encrypted for another account
+         * that reached this contact's chat through an account mix-up. Android's own sync never
+         * files one (a failed decrypt keeps nothing), but archives written by iOS carry them. It
+         * reads as nothing, so it is hidden like the cross-device placeholder; the record stays,
+         * and a later successful decrypt replaces it and it appears. Mirrors iOS's
+         * ChatMessage.unreadablePlaceholder.
+         */
+        const val UNREADABLE_PLACEHOLDER = "[Encrypted message]"
+
+        /** Bodies the app never shows: [SENT_VIA_OTHER_DEVICE_PLACEHOLDER] and [UNREADABLE_PLACEHOLDER]. */
+        val HIDDEN_PLACEHOLDERS: List<String> = listOf(SENT_VIA_OTHER_DEVICE_PLACEHOLDER, UNREADABLE_PLACEHOLDER)
+
+        /** Placeholders the app never shows: cross-device sends and undecryptable messages. Hidden
+         *  from the chat, the chat-list preview and search, and never unread or a banner -
+         *  mirrors iOS's ChatMessage.isHiddenPlaceholder. */
+        fun isHiddenPlaceholder(content: String?): Boolean =
+            isSentPlaceholder(content) || content == UNREADABLE_PLACEHOLDER
 
         /**
          * Prefix of the synthetic local id the optimistic send paths give a row BEFORE the
