@@ -317,10 +317,13 @@ fun WelcomeScreen(
                 tint = LocalAppColors.current.textSecondary
             )
         }
+        // iOS keeps Create and Import 40 above the safe area: the navigation bar (gesture handle
+        // or 3-button bar) is cleared first, then the 40 - a fixed chain, nothing swapped in.
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 48.dp),
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, top = 48.dp, bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Top spacer to help center the middle content
@@ -486,15 +489,17 @@ fun WelcomeScreen(
             }
         }
         // Which build this phone runs, right where sign-in problems get reported from (iOS
-        // e8f4617). Drawn inside the column's 48dp bottom padding, above the gesture handle, so
-        // the height budget that keeps Create and Import on screen is untouched.
+        // e8f4617). Drawn inside the column's 40dp bottom padding, 10 above the navigation bar
+        // (iOS: 10pt above the safe area), so the height budget that keeps Create and Import on
+        // screen is untouched and a 3-button bar never covers it.
         Text(
             text = "KaChat ${com.kachat.app.util.AppVersion.display}",
             fontSize = 11.sp,
             color = LocalAppColors.current.textSecondary,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 10.dp)
         )
         }
     }
