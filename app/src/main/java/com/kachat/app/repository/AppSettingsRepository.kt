@@ -216,19 +216,22 @@ class AppSettingsRepository @Inject constructor(
         val KEY_TAB_ORDER = stringPreferencesKey("tab_order")
         // Kept in sync with KaChatApp.kt's bottomNavItems default order. "settings" is deliberately
         // absent - it isn't a tab (matches iOS), it's reached one tap in from Profile's gear icon.
-        val DEFAULT_TAB_ORDER = listOf("cold_storage", "portfolio", "chats", "kaspa_hub", "profile", "swap", "kaposts", "broadcasts")
+        val DEFAULT_TAB_ORDER = listOf("kaspa_hub", "portfolio", "chats", "kaposts", "profile", "cold_storage", "address_book", "kachat_names", "kachat_stats", "kachat_bots", "swap", "broadcasts", "kaspa_websites", "chess")
         // Placement, not visibility: every tab is in the dock or in Kaspa Hub, always exactly one
         // of them. Replaces the old on/off + "first five of an order" rule, under which a tab
         // could be pushed past the cap and simply vanish with nothing saying so.
         val KEY_DOCK_TABS = stringPreferencesKey("dock_tabs")
         val KEY_HUB_TABS = stringPreferencesKey("hub_tabs")
-        val DEFAULT_DOCK_TABS = listOf("cold_storage", "portfolio", "chats", "kaspa_hub", "profile")
+        // What a fresh install starts with (owner's order, iOS 7b39caf defaultDock). Everything
+        // else starts in Kaspa Hub. A saved arrangement is the person's and is never reset to this.
+        val DEFAULT_DOCK_TABS = listOf("kaspa_hub", "portfolio", "chats", "kaposts", "profile")
         // .kachat and KaChat Stats first on a fresh install (iOS b064468, f38cac2); existing
         // users get them appended (kaspaHubSections adds any eligible tab the list lacks).
         // Address Book first on a fresh install (iOS 00767a4 defaultHub); existing users get it
         // appended like any tab their stored list lacks.
         // KaChat Bots after KaChat Stats (iOS 82ab31d defaultHub).
-        val DEFAULT_HUB_TABS = listOf("address_book", "kachat_names", "kachat_stats", "kachat_bots", "kaposts", "broadcasts", "swap")
+        // Cold Storage first, KaPosts moved to the dock (iOS 7b39caf defaultHub).
+        val DEFAULT_HUB_TABS = listOf("cold_storage", "address_book", "kachat_names", "kachat_stats", "kachat_bots", "broadcasts", "swap")
         // One-time derivation of a placement from what an existing user could already SEE.
         val KEY_PLACEMENT_APPLIED = booleanPreferencesKey("dock_placement_applied")
         // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >

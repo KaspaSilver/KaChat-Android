@@ -189,7 +189,7 @@ val Screen.hubTitle: String
  * be reinserted sensibly; where they sit among the five is the person's (Customize Dock), that
  * they are there is not.
  */
-val PINNED_DOCK_ROUTES = listOf(Screen.Chats.route, Screen.KaspaHub.route, Screen.Profile.route)
+val PINNED_DOCK_ROUTES = listOf(Screen.KaspaHub.route, Screen.Chats.route, Screen.Profile.route)
 
 /**
  * ChangeNOW Swap, off for now (iOS f94db5a). An in-app crypto exchange - a third-party one like
@@ -222,19 +222,21 @@ val ALWAYS_VISIBLE_TAB_ROUTES = setOf(Screen.Chats.route, Screen.Profile.route)
 
 // All top-level tabs, in the app's default order (matches iOS's AppTab.defaultOrder). Settings
 // isn't a tab at all (matches iOS) — it's reached one tap in from Profile's gear icon instead,
-// see ProfileScreen.
+// see ProfileScreen. A default install shows exactly the five the dock can fit - Kaspa Hub,
+// Portfolio, Chats, KaPosts, Profile - with Cold Storage, Swap and the websites list still
+// ENABLED but living inside Kaspa Hub rather than competing for a dock slot.
 val bottomNavItems = listOf(
-    Screen.Portfolio,
-    Screen.ColdStorage,
-    Screen.Chats,
     Screen.KaspaHub,
+    Screen.Portfolio,
+    Screen.Chats,
+    Screen.KaPosts,
     Screen.Profile,
+    Screen.ColdStorage,
     Screen.AddressBook,
     Screen.KachatNames,
     Screen.KachatStats,
     Screen.KachatBots,
     Screen.Swap,
-    Screen.KaPosts,
     Screen.Broadcasts,
     Screen.KaspaWebsites,
     Screen.Chess
