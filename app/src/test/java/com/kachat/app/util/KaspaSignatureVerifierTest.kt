@@ -82,7 +82,7 @@ class KaspaSignatureVerifierTest {
             val tx = load(id)
             val sig = tx.inputs[0].signatureScript
             val flipped = sig.substring(0, 10) + (if (sig[10] == '0') '1' else '0') + sig.substring(11)
-            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(inputs = listOf(tx.inputs[0].copy(signatureScript = flipped)))))
+            assertEquals(id, SignatureCheck.Invalid(0), check(tx.copy(inputsOrNull = listOf(tx.inputs[0].copy(signatureScript = flipped)))))
         }
     }
 
@@ -148,7 +148,7 @@ class KaspaSignatureVerifierTest {
             val input = tx.inputs[0]
             // the spent amount is not part of the id: the API described the transaction, the signature fails
             assertEquals(id, SignatureCheck.Invalid(0), check(
-                tx.copy(inputs = listOf(input.copy(previousOutpointAmount = input.previousOutpointAmount!! - 1)))
+                tx.copy(inputsOrNull = listOf(input.copy(previousOutpointAmount = input.previousOutpointAmount!! - 1)))
             ))
             assertEquals(id, SignatureCheck.Unknown, check(tx.copy(payload = tx.payload!!.dropLast(2) + "00")))
         }
@@ -158,7 +158,7 @@ class KaspaSignatureVerifierTest {
     fun `an unresolved input is looked up through its previous transaction`() {
         val tx = load(v1Plain)
         val input = tx.inputs[0]
-        val unresolved = tx.copy(inputs = listOf(input.copy(previousOutpointAddress = null, previousOutpointAmount = null)))
+        val unresolved = tx.copy(inputsOrNull = listOf(input.copy(previousOutpointAddress = null, previousOutpointAmount = null)))
         // not readable yet: held, never dropped
         assertEquals(SignatureCheck.Unknown, check(unresolved))
         // the previous transaction's output at that index fills it in
@@ -192,21 +192,21 @@ class KaspaSignatureVerifierTest {
         val tx = load(v0OneOut)
         val input = tx.inputs[0]
         // a coinbase has no signatures
-        assertEquals(SignatureCheck.Valid, check(tx.copy(inputs = emptyList())))
+        assertEquals(SignatureCheck.Valid, check(tx.copy(inputsOrNull = emptyList())))
         // a key-address input must carry a well-formed signature: a blank, short or wrongly pushed
         // one is a failure (AND-042), and the id rebuilds, so it is forged
         for (script in listOf("", "00", input.signatureScript.drop(2), "40" + input.signatureScript.drop(2))) {
-            assertEquals(script, SignatureCheck.Invalid(0), check(tx.copy(inputs = listOf(input.copy(signatureScript = script)))))
+            assertEquals(script, SignatureCheck.Invalid(0), check(tx.copy(inputsOrNull = listOf(input.copy(signatureScript = script)))))
         }
         // a sighash type other than SIGHASH_ALL can't be checked here: unknown, never a pass
-        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputs = listOf(input.copy(signatureScript = input.signatureScript.dropLast(2) + "81")))))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputsOrNull = listOf(input.copy(signatureScript = input.signatureScript.dropLast(2) + "81")))))
         // a wrong claimed id: a failing signature can't be called forged
         val flipped = input.signatureScript.substring(0, 10) + (if (input.signatureScript[10] == '0') '1' else '0') + input.signatureScript.substring(11)
-        assertEquals(SignatureCheck.Unknown, check(tx.copy(transactionId = "00".repeat(32), inputs = listOf(input.copy(signatureScript = flipped)))))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(transactionId = "00".repeat(32), inputsOrNull = listOf(input.copy(signatureScript = flipped)))))
         // an output without script data, a malformed covenant id, an address that doesn't decode
         assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(scriptPublicKey = "")))))
         assertEquals(SignatureCheck.Unknown, check(tx.copy(outputs = listOf(tx.outputs[0].copy(covenantAuthorizingInput = "0", covenantId = "abcd")))))
-        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputs = listOf(input.copy(previousOutpointAddress = "kaspa:nope")))))
+        assertEquals(SignatureCheck.Unknown, check(tx.copy(inputsOrNull = listOf(input.copy(previousOutpointAddress = "kaspa:nope")))))
     }
 
     // KIP-22 quantum-address (P2SH) spends (iOS 54265bf), signed by the wallet's own signer with

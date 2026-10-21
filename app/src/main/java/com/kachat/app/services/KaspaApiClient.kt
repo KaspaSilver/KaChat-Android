@@ -44,7 +44,11 @@ data class ActiveAddressResponse(
 // a bare Gson converter (no naming policy) needs explicit @SerializedName for these.
 data class TransactionResponse(
     @SerializedName("transaction_id") val transactionId: String,
-    val inputs: List<TransactionInput>,
+    // A block reward arrives as `"inputs": null`, and Gson writes that null straight into a
+    // non-null List - every `inputs.any{}` then crashed (the address history screens, once
+    // d194a38 kept accepted rewards). Held nullable here and read through [inputs], an empty
+    // list for a reward, as iOS's `(inputs ?? [])`.
+    @SerializedName("inputs") val inputsOrNull: List<TransactionInput>?,
     val outputs: List<TransactionOutput>,
     @SerializedName("block_time") val blockTime: Long?,
     val payload: String?,  // hex-encoded — contains kchat:1:* (or legacy ciph_msg:1:*) for KaChat messages
@@ -64,9 +68,7 @@ data class TransactionResponse(
         get() {
             val subnetwork = subnetworkId?.lowercase()
             if (!subnetwork.isNullOrEmpty()) return subnetwork == COINBASE_SUBNETWORK_ID
-            // Gson leaves a missing array null despite the non-null type
-            val ins: List<TransactionInput>? = inputs
-            return ins.isNullOrEmpty()
+            return inputsOrNull.isNullOrEmpty()
         }
 
     /**
@@ -79,6 +81,10 @@ data class TransactionResponse(
      */
     val belongsInHistory: Boolean
         get() = !isCoinbase || isAccepted == true
+
+    /** The transaction's inputs; empty for a block reward (see [inputsOrNull]). */
+    val inputs: List<TransactionInput>
+        get() = inputsOrNull.orEmpty()
 
     companion object {
         const val COINBASE_SUBNETWORK_ID = "0100000000000000000000000000000000000000"

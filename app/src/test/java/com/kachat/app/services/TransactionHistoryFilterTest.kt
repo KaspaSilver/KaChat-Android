@@ -2,6 +2,7 @@ package com.kachat.app.services
 
 import com.google.gson.Gson
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,7 +23,7 @@ class TransactionHistoryFilterTest {
     private fun tx(subnetworkId: String?, isAccepted: Boolean?, inputs: List<TransactionInput> = emptyList()) =
         TransactionResponse(
             transactionId = "ff".repeat(32),
-            inputs = inputs,
+            inputsOrNull = inputs,
             outputs = listOf(TransactionOutput(500L, "20" + "ab".repeat(32) + "ac", "kaspa:miner")),
             blockTime = 0L,
             payload = null,
@@ -88,5 +89,20 @@ class TransactionHistoryFilterTest {
             TransactionResponse::class.java,
         )
         assertTrue(accepted.belongsInHistory)
+    }
+
+    @Test
+    fun `an accepted reward decoded with null inputs reads as no inputs, never a crash`() {
+        // what api.kaspa.org returns for a block reward: the history lists keep it now (d194a38),
+        // and every reader calls inputs.any{} / inputs.isEmpty() on it
+        val reward = Gson().fromJson(
+            """{"transaction_id":"${"ff".repeat(32)}","inputs":null,"outputs":[{"amount":500,"script_public_key":"20${"ab".repeat(32)}ac","script_public_key_address":"kaspa:miner"}],"subnetwork_id":"$coinbase","is_accepted":true}""",
+            TransactionResponse::class.java,
+        )
+        assertTrue(reward.inputs.isEmpty())
+        assertFalse(reward.inputs.any { it.previousOutpointAddress == "kaspa:miner" })
+        assertNull(reward.feeSompi)
+        assertTrue(reward.isCoinbase)
+        assertTrue(reward.belongsInHistory)
     }
 }
