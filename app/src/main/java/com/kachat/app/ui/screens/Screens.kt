@@ -13594,9 +13594,11 @@ fun ChatInfoScreen(
                                 // It focuses the field too, so it works as the affordance it
                                 // looks like rather than being decoration next to the real target.
                                 val nameFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                                // Your own chatting address is who you are on chain - your
+                                // .kachat name, else the short address - never your alias or its
+                                // Address Book name (iOS displayName(for:)), as the chat header.
                                 if (isSelf) Text(
-                                    text = kachatLabel?.let { "$it.kachat" }
-                                        ?: contactName.ifBlank { knsProfile?.selectedDomain ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId) },
+                                    text = kachatLabel?.let { "$it.kachat" } ?: com.kachat.app.models.addressDisplayName(contactId),
                                     color = LocalAppColors.current.textPrimary,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
                                     maxLines = 1,
