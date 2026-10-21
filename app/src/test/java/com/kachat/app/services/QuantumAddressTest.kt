@@ -103,6 +103,9 @@ class QuantumAddressTest {
         assertEquals(7, WalletManager.legacyMaxSpendingIndex(account))
         assertEquals(4, WalletManager.maxQuantumIndex(account))
         assertEquals(9, WalletManager.legacyMaxSpendingIndex(account.copy(spendingAddressIndex = 9)))
+        // nor does a stored legacy max that somehow landed in quantum space (iOS 28ecee0)
+        assertEquals(0, WalletManager.legacyMaxSpendingIndex(account.copy(maxSpendingAddressIndex = 1_000_002)))
+        assertEquals(3, WalletManager.legacyMaxSpendingIndex(account.copy(spendingAddressIndex = 3, maxSpendingAddressIndex = 1_000_002)))
         // a record from before the field reads as "no quantum slot yet"
         val old = com.google.gson.Gson().fromJson("""{"name":"a","address":"kaspa:x","mnemonic":"m"}""", WalletManager.Account::class.java)
         assertEquals(-1, WalletManager.maxQuantumIndex(old))

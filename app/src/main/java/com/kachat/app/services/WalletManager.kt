@@ -140,10 +140,14 @@ class WalletManager @Inject constructor(
         /**
          * The legacy chain's revealed bound: the stored max, widened by the primary only while the
          * primary is a legacy index - a quantum primary (index >= [QUANTUM_INDEX_BASE]) must never
-         * widen the legacy chain (iOS `maxSpendingAddressIndex`).
+         * widen the legacy chain (iOS `maxSpendingAddressIndex`). A stored max in quantum space is
+         * ignored too: either term at 1,000,000+ would make every 0..max loop derive a million
+         * legacy addresses (iOS 28ecee0, the launch hang).
          */
-        fun legacyMaxSpendingIndex(account: Account): Int =
-            maxOf(account.maxSpendingAddressIndex, if (isQuantumIndex(account.spendingAddressIndex)) 0 else account.spendingAddressIndex)
+        fun legacyMaxSpendingIndex(account: Account): Int = maxOf(
+            if (isQuantumIndex(account.maxSpendingAddressIndex)) 0 else account.maxSpendingAddressIndex,
+            if (isQuantumIndex(account.spendingAddressIndex)) 0 else account.spendingAddressIndex,
+        )
 
         /** The highest quantum chain index [account] has revealed; -1 before the first one. */
         fun maxQuantumIndex(account: Account): Int = account.maxQuantumAddressIndex ?: -1
@@ -1491,7 +1495,8 @@ class WalletManager @Inject constructor(
      */
     fun ensureMaxSpendingAddressIndexAtLeast(address: String, minIndex: Int) {
         val accounts = getAccounts().map {
-            if (it.address == address && minIndex > it.maxSpendingAddressIndex) {
+            // Legacy chain only: a quantum index here would make the legacy chain a million long.
+            if (it.address == address && !isQuantumIndex(minIndex) && minIndex > it.maxSpendingAddressIndex) {
                 it.copy(maxSpendingAddressIndex = minIndex)
             } else it
         }
