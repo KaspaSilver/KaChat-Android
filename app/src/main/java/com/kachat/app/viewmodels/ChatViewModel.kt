@@ -1234,10 +1234,16 @@ class ChatViewModel @Inject constructor(
      *
      * Only what one transaction can spend counts: the 80 largest coins when there are more (see
      * [paymentMaxCoins]) - a busy address holding more was refused at send (AND-012).
+     *
+     * The speed's base is the fee preview's own for the max send (iOS df4aba6): the coins and
+     * payload [estimatedFeeSompi] would price for that amount.
      */
     fun paymentMaxSompi(sourceBalanceSompi: Long, feeMultiplier: Long, customExtraFeeSompi: Long?): Long {
-        val (balance, inputs) = paymentMaxCoins(sourceBalanceSompi, _spendingUtxos.value, _paymentManualUtxos.value)
+        val spending = _spendingUtxos.value
+        val manual = _paymentManualUtxos.value
+        val (balance, inputs) = paymentMaxCoins(sourceBalanceSompi, spending, manual)
         val note = _paymentNote.value
+        val tip = _paymentTip.value
         return computePaymentMaxSompi(
             balanceSompi = balance,
             inputCount = inputs,
@@ -1245,8 +1251,12 @@ class ChatViewModel @Inject constructor(
             feeRate = _feeRateOverride.value?.toDouble() ?: _networkFeeRate.value,
             feeMultiplier = feeMultiplier,
             customExtraFeeSompi = customExtraFeeSompi,
-            payloadSize = _paymentTip.value?.let { estimatedPaymentPayloadSize(note.trim(), balance, it) },
+            payloadSize = tip?.let { estimatedPaymentPayloadSize(note.trim(), balance, it) },
             signatureScriptSize = com.kachat.app.services.WalletManager.signatureScriptSize(_paymentSourceIndex.value),
+            provisionalShape = { provisional ->
+                paymentFeeInputs(spending, manual, provisional).second to
+                    estimatedPaymentPayloadSize(note.trim(), provisional, tip)
+            },
         )
     }
 
@@ -3522,8 +3532,15 @@ class ChatViewModel @Inject constructor(
         /**
          * [paymentMaxSompi]'s arithmetic: [balanceSompi] over [inputCount] inputs, less the base
          * fee at [feeRate] (rounded up, never under the network minimum - the rate the send pays)
-         * with the memo's payload priced in, less the extra derived from that same base.
-         * [payloadSize] prices a payload other than the chat payment's own (a tip's, AND-041).
+         * with the memo's payload priced in, less the extra. [payloadSize] prices a payload other
+         * than the chat payment's own (a tip's, AND-041).
+         *
+         * The extra is the custom one when set. Otherwise a speed above Normal multiplies the
+         * base fee of the max send itself, worked out as iOS df4aba6 does: the Normal max first
+         * (provisional), then the fee preview's base for sending that much - [provisionalShape]
+         * gives its (input count, payload size); by default [inputCount] and the memo's payload
+         * for that amount - and extra = base x (multiplier - 1). That base is never under what the
+         * preview charges once Max fills the amount in, so the send is always covered (AND-010).
          */
         fun computePaymentMaxSompi(
             balanceSompi: Long,
@@ -3535,19 +3552,30 @@ class ChatViewModel @Inject constructor(
             payloadSize: Int? = null,
             /** The source's per-input signature-script size (a quantum-safe source's is bigger). */
             signatureScriptSize: Int = com.kachat.app.util.KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
+            provisionalShape: ((provisionalSompi: Long) -> Pair<Int, Int>)? = null,
         ): Long {
             // Every chat payment carries its payload, an empty memo too (iOS estimateMaxPaymentAmount).
             val pricedPayloadSize = payloadSize ?: MessageProtocol.estimatedPaymentPayloadSize(note.trim(), balanceSompi)
             val rate = kotlin.math.ceil(feeRate).toLong().coerceAtLeast(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
-            return com.kachat.app.util.SendFeeModel.maxAfterFees(
+            fun max(extra: Long?) = com.kachat.app.util.SendFeeModel.maxAfterFees(
                 totalSompi = balanceSompi,
                 inputCount = inputCount,
                 feeRateSompiPerGram = rate,
-                feeMultiplier = feeMultiplier,
-                customExtraFeeSompi = customExtraFeeSompi,
+                customExtraFeeSompi = extra,
                 payloadSize = pricedPayloadSize,
                 signatureScriptSize = signatureScriptSize,
             )
+            if (customExtraFeeSompi != null || feeMultiplier <= 1) {
+                return max(customExtraFeeSompi?.coerceAtLeast(0L) ?: 0L)
+            }
+            val provisional = max(0L)
+            if (provisional <= 0L) return 0L
+            val (provisionalInputs, provisionalPayload) = provisionalShape?.invoke(provisional)
+                ?: (inputCount to (payloadSize ?: MessageProtocol.estimatedPaymentPayloadSize(note.trim(), provisional)))
+            val base = com.kachat.app.util.SendFeeModel.baseFee(
+                provisionalInputs, rate, provisionalPayload, signatureScriptSize = signatureScriptSize
+            )
+            return max(com.kachat.app.util.SendFeeModel.extraFee(base, feeMultiplier, null))
         }
 
         /** The longest a pull-to-refresh wheel stays up; the work itself keeps going. */

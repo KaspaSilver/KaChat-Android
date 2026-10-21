@@ -92,9 +92,19 @@ data class KaPostDraft(
         val counts: List<Int>,
         val closesAtMs: Long,
         val myVote: Int? = null,
+        /** How long the author chose to keep it open, for a poll posted from this device - a
+         *  retry re-opens it for exactly this long from the retry. (Re-deriving it as closesAt
+         *  minus the post's time grew it on every retry: the retry moves closesAt, the post's
+         *  time stays.) Null for a poll read from the network (iOS df4aba6). */
+        val lengthMs: Long? = null,
     ) {
         val total: Int get() = counts.sum()
         val isClosed: Boolean get() = closesAtMs <= System.currentTimeMillis()
+
+        /** A failed poll's retry length: its chosen length, else closesAt minus the post's time,
+         *  at least a minute (iOS IOS-093 / df4aba6). */
+        fun retryLengthMs(postTimestampMs: Long): Long =
+            maxOf(lengthMs ?: (closesAtMs - postTimestampMs), 60_000L)
     }
 
     @Immutable

@@ -1765,9 +1765,10 @@ class KaPostsViewModel @Inject constructor(
         val myAddress = myAddress() ?: return
         val clean = options.map { it.trim() }.filter { it.isNotEmpty() }
         if (clean.size < KaPostsService.POLL_MIN_OPTIONS || clean.size > KaPostsService.POLL_MAX_OPTIONS) return
+        val now = System.currentTimeMillis()
         val newPost = KaPostDraft(
             text = question,
-            timestamp = System.currentTimeMillis(),
+            timestamp = now,
             posterAddress = myAddress,
             posterPubkey = try { kaPostsService.requesterPubkey() } catch (_: Exception) { null },
             deliveryStatus = KaPostDraft.Delivery.PENDING,
@@ -1776,6 +1777,7 @@ class KaPostsViewModel @Inject constructor(
                 counts = List(clean.size) { 0 },
                 closesAtMs = closesAtMs,
                 myVote = null,
+                lengthMs = closesAtMs - now,
             ),
         )
         _localPosts.value = listOf(newPost) + _localPosts.value
@@ -2221,7 +2223,7 @@ class KaPostsViewModel @Inject constructor(
                 } else if (poll != null) {
                     // and a failed poll as the poll - its full length again from now, so a late
                     // retry never puts an already-closed poll on chain (iOS 1d4b895, IOS-093)
-                    val length = maxOf(poll.closesAtMs - post.timestamp, 60_000L)
+                    val length = poll.retryLengthMs(post.timestamp)
                     val closesAtMs = System.currentTimeMillis() + length
                     mutateEverywhere(post.id) { it.copy(poll = it.poll?.copy(closesAtMs = closesAtMs)) }
                     kaPostsService.submitPoll(post.text, poll.options, closesAtMs, mentionedPubkeys(post.text))
