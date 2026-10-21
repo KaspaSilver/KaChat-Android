@@ -52,7 +52,7 @@ import com.kachat.app.R
 import com.kachat.app.services.ShareCompose
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
-import com.kachat.app.util.KaspaAddress
+import com.kachat.app.models.displayName
 import com.kachat.app.viewmodels.ChatViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,12 +82,11 @@ fun ShareComposeSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val contactLabel = remember(conversations, share.contactId) {
-        val contact = conversations.firstOrNull { it.contact.id == share.contactId }?.contact
-        contact?.alias?.takeIf { it.isNotBlank() }
-            ?: contact?.knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
-            ?: KaspaAddress.shortDisplay(share.contactId)
-    }
+    // The app's one display-name rule, as the chat rows name a chat (iOS shares under
+    // ContactsManager.displayName): your name for them, their Address Book name, their .kachat
+    // name, else the short address. Not remembered: the .kachat name re-renders when it lands.
+    val contact = conversations.firstOrNull { it.contact.id == share.contactId }?.contact
+    val contactLabel = contact?.displayName ?: com.kachat.app.models.addressDisplayName(share.contactId)
 
     var text by remember(share) { mutableStateOf(share.text.orEmpty()) }
     var isSending by remember { mutableStateOf(false) }

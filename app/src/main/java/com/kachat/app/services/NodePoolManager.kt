@@ -748,6 +748,13 @@ class NodePoolManager @Inject constructor(
                     )
                 )
             }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            // The node's own request timeout: a failed node, so REST is asked instead.
+            Log.w("NodePoolManager", "Node UTXO fetch timed out, falling back to REST: ${e.message}")
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // A cancelled caller is not a failed node: no REST fallback, the cancel goes on.
+            throw e
         } catch (e: Exception) {
             Log.w("NodePoolManager", "Node UTXO fetch failed, falling back to REST: ${e.message}")
             null

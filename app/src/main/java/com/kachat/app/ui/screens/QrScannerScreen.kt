@@ -47,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -97,6 +98,20 @@ private fun CameraQrScanner(modifier: Modifier = Modifier, onResult: (Result) ->
     val lifecycleOwner = LocalLifecycleOwner.current
     var camera by remember { mutableStateOf<Camera?>(null) }
     var zoomRatio by remember { mutableStateOf(1f) }
+    // One analysis thread per scanner, stopped when the scanner goes: the analyzer is cleared
+    // first (on the main thread, so CameraX hands it no further frame), then the thread shuts
+    // down after any frame it is still decoding. A scanner that closes before the camera
+    // provider answers never sets the analyzer at all.
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
+    val analysisRef = remember { arrayOfNulls<ImageAnalysis>(1) }
+    val disposed = remember { booleanArrayOf(false) }
+    DisposableEffect(Unit) {
+        onDispose {
+            disposed[0] = true
+            analysisRef[0]?.clearAnalyzer()
+            analysisExecutor.shutdown()
+        }
+    }
 
     AndroidView(
         modifier = modifier.pointerInput(Unit) {
@@ -117,6 +132,7 @@ private fun CameraQrScanner(modifier: Modifier = Modifier, onResult: (Result) ->
             }
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
             cameraProviderFuture.addListener({
+                if (disposed[0]) return@addListener
                 val cameraProvider = cameraProviderFuture.get()
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
@@ -133,9 +149,10 @@ private fun CameraQrScanner(modifier: Modifier = Modifier, onResult: (Result) ->
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setResolutionSelector(resolutionSelector)
                     .build()
-                analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                analysis.setAnalyzer(analysisExecutor) { imageProxy ->
                     decodeQrCode(imageProxy, onResult)
                 }
+                analysisRef[0] = analysis
                 try {
                     cameraProvider.unbindAll()
                     camera = cameraProvider.bindToLifecycle(

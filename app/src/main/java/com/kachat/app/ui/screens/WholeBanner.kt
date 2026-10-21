@@ -64,7 +64,13 @@ fun WholeBanner(
                     Image(memoryImage.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
                 } else Box(Modifier.fillMaxSize()) { placeholder() }
             },
-            error = { Box(Modifier.fillMaxSize()) { placeholder() } },
+            // A failed (re)load still shows the picture already in memory, as iOS's
+            // `loadedImage ?? memoryImage`; only with nothing in memory is it the placeholder.
+            error = {
+                if (memoryImage != null) {
+                    Image(memoryImage.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                } else Box(Modifier.fillMaxSize()) { placeholder() }
+            },
             onSuccess = { state: AsyncImagePainter.State.Success ->
                 val size = state.painter.intrinsicSize
                 bannerAspect(size.width, size.height)?.let { aspect = it }

@@ -910,7 +910,7 @@ class WalletViewModel @Inject constructor(
     fun loadSpendingAddressTxHistory(address: String) {
         viewModelScope.launch {
             _loadingSpendingAddressTxHistory.value = true
-            val result = coldStorageAddressDiscovery.getTransactionHistoryResult(address, limit = 50)
+            val result = coldStorageAddressDiscovery.getTransactionHistoryResult(address, limit = ColdStorageAddressDiscovery.HISTORY_PAGE_SIZE)
             _spendingAddressTxHistory.value = result.transactions
             _spendingAddressTxHistoryFailed.value = !result.complete
             _loadingSpendingAddressTxHistory.value = false

@@ -876,19 +876,25 @@ private fun FormTextField(
     )
 }
 
-/** A filled field's trailing clear button (iOS `xmark.circle.fill`, secondary). */
+/** A filled field's trailing clear button (iOS `xmark.circle.fill`, secondary). The 20dp icon
+ *  sits 16 in from the edge as before; the tap target around it is 44dp, iOS's minimum. */
 @Composable
 private fun FormClearButton(onClick: () -> Unit) {
-    Icon(
-        Icons.Default.Cancel,
-        contentDescription = stringResource(R.string.clear),
-        tint = LocalAppColors.current.textSecondary,
+    Box(
         modifier = Modifier
-            .padding(end = 16.dp)
-            .size(20.dp)
+            .padding(end = 4.dp)
+            .size(44.dp)
             .clip(CircleShape)
             .clickable(onClick = onClick),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Default.Cancel,
+            contentDescription = stringResource(R.string.clear),
+            tint = LocalAppColors.current.textSecondary,
+            modifier = Modifier.size(20.dp),
+        )
+    }
 }
 
 /** A Form section: header, the rounded card, and its footer. */
@@ -964,7 +970,15 @@ private fun FormButtonRow(title: String, enabled: Boolean, busy: Boolean = false
 /** A sheet: a Form with its title, Cancel top left (Done top right once it is finished). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KachatLiveForm(title: String, onClose: () -> Unit, finished: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+private fun KachatLiveForm(
+    title: String,
+    onClose: () -> Unit,
+    finished: Boolean = false,
+    /** Held by the caller when the form steps away and comes back (a review shown in its place)
+     *  and has to come back where it was, as under an iOS sheet. */
+    scrollState: androidx.compose.foundation.ScrollState = rememberScrollState(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
     BackHandler(onBack = onClose)
     val colors = LocalAppColors.current
     Scaffold(
@@ -984,7 +998,7 @@ private fun KachatLiveForm(title: String, onClose: () -> Unit, finished: Boolean
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 40.dp),
+            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(scrollState).padding(16.dp).padding(bottom = 40.dp),
             content = content,
         )
     }
@@ -4574,6 +4588,9 @@ fun KachatLiveProfileEditorScreen(
     // Clear Profile opens the same review sheet with the empty record (iOS 9638498).
     var showClear by remember { mutableStateOf(false) }
     var pickPrimary by remember { mutableStateOf(false) }
+    // The editor's scroll position outlives the Save / Clear review drawn in its place, so Cancel
+    // there returns to the field you were at - iOS shows the review as a sheet over the editor.
+    val formScroll = rememberScrollState()
 
     LaunchedEffect(Unit) {
         val address = vm?.actions?.myAddress
@@ -4653,7 +4670,7 @@ fun KachatLiveProfileEditorScreen(
     @Composable
     fun invalidHandleNote() = FormFooter(stringResource(R.string.kn_handle_bad), colors.danger)
 
-    KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack) {
+    KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack, scrollState = formScroll) {
         FormSection(footer = { FormFooter(stringResource(R.string.kn_profile_pieces_footer)) }) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
                 Icon(Icons.Outlined.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))

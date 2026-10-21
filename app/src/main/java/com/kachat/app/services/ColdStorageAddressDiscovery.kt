@@ -336,10 +336,10 @@ class ColdStorageAddressDiscovery @Inject constructor(
      *  rate-limits, and a single 429 used to return "no transactions". */
     private val historyRetryDelaysMs = listOf(0L, 600L, 2_000L, 5_000L)
 
-    suspend fun getTransactionHistory(address: String, limit: Int = 50): List<AddressTransaction> =
+    suspend fun getTransactionHistory(address: String, limit: Int = HISTORY_PAGE_SIZE): List<AddressTransaction> =
         getTransactionHistoryResult(address, limit).transactions
 
-    suspend fun getTransactionHistoryResult(address: String, limit: Int = 50): HistoryResult {
+    suspend fun getTransactionHistoryResult(address: String, limit: Int = HISTORY_PAGE_SIZE): HistoryResult {
         val api = networkService.kaspaRestApi.value ?: return HistoryResult(emptyList(), complete = false)
         var transactions: List<TransactionResponse>? = null
         for ((attempt, delay) in historyRetryDelaysMs.withIndex()) {
@@ -443,6 +443,10 @@ class ColdStorageAddressDiscovery @Inject constructor(
     )
 
     companion object {
+        /** One address's history page: the 200 iOS asks for on Manage Addresses, the address
+         *  book and Cold Storage (pageSize 200, maxTransactions 200). */
+        const val HISTORY_PAGE_SIZE = 200
+
         /** Per-page retry budget for [getFullTransactionHistoryPaginated] — retries resume the
          *  same offset with exponential backoff (1.5s, 3s, 6s) before settling for partial history. */
         private const val MAX_PAGE_RETRIES = 3
