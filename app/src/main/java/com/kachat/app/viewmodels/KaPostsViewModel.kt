@@ -2941,7 +2941,7 @@ class KaPostsViewModel @Inject constructor(
 
     /**
      * The K pubkey behind an address: "02" or "03" + its x-only key, as the indexer's DATA names
-     * it - the stored key on the person's posts - checked against the address ([kaPostsKeyNamed])
+     * it - the stored key on the person's posts, else replies - checked against the address ([kaPostsKeyNamed])
      * (iOS `resolveKaPostsPubkey`, 0a0c914). Never the probe: the indexer answers a probe in
      * either parity form, so returning whichever probe "had data" handed back the 02 guess for an
      * 03 user, and Follow posted it on chain (IOS-099 / AND-047). Not get-user-details either: it
@@ -2954,13 +2954,26 @@ class KaPostsViewModel @Inject constructor(
         val candidates = listOf(even.lowercase(), "03$xOnly")
         for (candidate in candidates) {
             val posts = try {
-                kaPostsService.fetchUserPostsPage(candidate, limit = 1, includeReplies = true).items
+                kaPostsService.fetchUserPostsPage(candidate, limit = 1).items
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (_: Exception) {
                 null
             }
             posts?.firstNotNullOfOrNull { kaPostsKeyNamed(it.userPublicKey as String?, xOnly) }?.let { return it }
+        }
+        // The deployed get-posts ignores includeReplies, so someone who has only ever replied is
+        // read from get-replies - which, like get-posts, carries the STORED key (iOS 80f514e,
+        // verified live).
+        for (candidate in candidates) {
+            val replies = try {
+                kaPostsService.fetchUserRepliesPage(candidate, limit = 1).items
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            replies?.firstNotNullOfOrNull { kaPostsKeyNamed(it.userPublicKey as String?, xOnly) }?.let { return it }
         }
         return null
     }
