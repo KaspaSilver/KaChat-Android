@@ -2941,11 +2941,12 @@ class KaPostsViewModel @Inject constructor(
 
     /**
      * The K pubkey behind an address: "02" or "03" + its x-only key, as the indexer's DATA names
-     * it - the key on the person's posts, else on their profile details - checked against the
-     * address ([kaPostsKeyNamed]) (iOS `resolveKaPostsPubkey`, 0a0c914). Never the probe: the
-     * indexer answers a probe in either parity form, so returning whichever probe "had data"
-     * handed back the 02 guess for an 03 user, and Follow posted it on chain (IOS-099 / AND-047).
-     * Null when the data names no key; Follow then stays local-only.
+     * it - the stored key on the person's posts - checked against the address ([kaPostsKeyNamed])
+     * (iOS `resolveKaPostsPubkey`, 0a0c914). Never the probe: the indexer answers a probe in
+     * either parity form, so returning whichever probe "had data" handed back the 02 guess for an
+     * 03 user, and Follow posted it on chain (IOS-099 / AND-047). Not get-user-details either: it
+     * ECHOES the key it was asked with (iOS 21e1c5d, verified live: asked with 02 it answers 02
+     * for an 03 user). Null when no post names the key; Follow then stays local-only.
      */
     private suspend fun resolveKaPostsPubkey(address: String): String? {
         val even = KaPostsService.kapostPubkeyFromAddress(address) ?: return null
@@ -2960,16 +2961,6 @@ class KaPostsViewModel @Inject constructor(
                 null
             }
             posts?.firstNotNullOfOrNull { kaPostsKeyNamed(it.userPublicKey as String?, xOnly) }?.let { return it }
-        }
-        for (candidate in candidates) {
-            val details = try {
-                kaPostsService.fetchUserDetails(candidate)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                null
-            }
-            kaPostsKeyNamed(details?.userPublicKey, xOnly)?.let { return it }
         }
         return null
     }
