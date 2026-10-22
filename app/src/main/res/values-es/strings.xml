@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">Añadir %1$s a tu dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Propinas</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Me gusta</string>
+    <string name="kaposts_dislikes">No me gusta</string>
+    <string name="kaposts_reposts">Reposts</string>
+    <string name="kaposts_quotes">Citas</string>
     <string name="kaposts_no_tips_yet">Aún no hay propinas.</string>
     <string name="kaposts_who_tipped">Quién dio propina a esta publicación</string>
     <string name="kaposts_bell_on_note">Ahora recibirás un aviso cuando %1$s publique.</string>

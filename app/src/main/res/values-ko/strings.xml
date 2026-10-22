@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">%1$s을(를) 독에 추가</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">팁</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">좋아요</string>
+    <string name="kaposts_dislikes">싫어요</string>
+    <string name="kaposts_reposts">리포스트</string>
+    <string name="kaposts_quotes">인용</string>
     <string name="kaposts_no_tips_yet">아직 팁이 없습니다.</string>
     <string name="kaposts_who_tipped">이 게시물에 팁을 보낸 사람</string>
     <string name="kaposts_bell_on_note">이제 %1$s님이 게시하면 알림을 받습니다.</string>

@@ -1196,6 +1196,11 @@
     <string name="customize_dock_add">Tambahkan %1$s ke dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Tip</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Suka</string>
+    <string name="kaposts_dislikes">Tidak suka</string>
+    <string name="kaposts_reposts">Repost</string>
+    <string name="kaposts_quotes">Kutipan</string>
     <string name="kaposts_no_tips_yet">Belum ada tip.</string>
     <string name="kaposts_who_tipped">Siapa yang memberi tip pada postingan ini</string>
     <string name="kaposts_bell_on_note">Anda sekarang akan diberi tahu saat %1$s memposting.</string>

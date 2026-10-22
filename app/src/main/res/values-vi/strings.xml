@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">Thêm %1$s vào dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Tiền tip</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Lượt thích</string>
+    <string name="kaposts_dislikes">Lượt không thích</string>
+    <string name="kaposts_reposts">Lượt đăng lại</string>
+    <string name="kaposts_quotes">Trích dẫn</string>
     <string name="kaposts_no_tips_yet">Chưa có tiền tip.</string>
     <string name="kaposts_who_tipped">Ai đã tip cho bài viết này</string>
     <string name="kaposts_bell_on_note">Từ giờ bạn sẽ được thông báo khi %1$s đăng bài.</string>

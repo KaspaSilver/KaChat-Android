@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">%1$s öğesini dock\'a ekle</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Bahşişler</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Beğeniler</string>
+    <string name="kaposts_dislikes">Beğenmemeler</string>
+    <string name="kaposts_reposts">Yeniden paylaşımlar</string>
+    <string name="kaposts_quotes">Alıntılar</string>
     <string name="kaposts_no_tips_yet">Henüz bahşiş yok.</string>
     <string name="kaposts_who_tipped">Bu gönderiye kim bahşiş verdi</string>
     <string name="kaposts_bell_on_note">Artık %1$s paylaşım yaptığında bildirim alacaksınız.</string>

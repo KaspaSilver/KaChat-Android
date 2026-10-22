@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">%1$s ডকে যোগ করুন</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">টিপ</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">লাইক</string>
+    <string name="kaposts_dislikes">ডিসলাইক</string>
+    <string name="kaposts_reposts">রিপোস্ট</string>
+    <string name="kaposts_quotes">উদ্ধৃতি</string>
     <string name="kaposts_no_tips_yet">এখনও কোনো টিপ নেই।</string>
     <string name="kaposts_who_tipped">কে এই পোস্টে টিপ দিয়েছে</string>
     <string name="kaposts_bell_on_note">%1$s পোস্ট করলে এখন আপনাকে জানানো হবে।</string>

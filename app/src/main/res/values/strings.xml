@@ -1524,6 +1524,11 @@
     <string name="customize_dock_add">Add %1$s to your dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Tips</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Likes</string>
+    <string name="kaposts_dislikes">Dislikes</string>
+    <string name="kaposts_reposts">Reposts</string>
+    <string name="kaposts_quotes">Quotes</string>
     <string name="kaposts_no_tips_yet">No tips yet.</string>
     <string name="kaposts_who_tipped">Who tipped this post</string>
     <string name="kaposts_bell_on_note">You\'ll now be notified when %1$s posts.</string>

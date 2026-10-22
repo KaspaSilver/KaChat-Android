@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">הוספת %1$s למעגן</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">טיפים</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">לייקים</string>
+    <string name="kaposts_dislikes">דיסלייקים</string>
+    <string name="kaposts_reposts">שיתופים מחדש</string>
+    <string name="kaposts_quotes">ציטוטים</string>
     <string name="kaposts_no_tips_yet">עדיין אין טיפים.</string>
     <string name="kaposts_who_tipped">מי נתן טיפ לפוסט הזה</string>
     <string name="kaposts_bell_on_note">מעכשיו תקבלו התראה כש־%1$s מפרסם.</string>

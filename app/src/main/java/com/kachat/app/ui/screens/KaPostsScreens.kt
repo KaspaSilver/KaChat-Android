@@ -27,6 +27,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,6 +82,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FormatListNumbered
@@ -6347,8 +6349,20 @@ fun KaPostsFollowListOverlay(
 
 // MARK: - Engagement overlay (who liked/disliked/reposted/quoted, and who tipped)
 
-/** Post Activity's Tips tab - after Likes, Dislikes, Reposts and Quotes (iOS 8015069). */
+/** Post Activity's Tips card - after Likes, Dislikes, Reposts and Quotes (iOS 8015069). */
 private const val TIPS_TAB = 4
+
+/**
+ * A Post Activity card's number (iOS 8ffa130 `countText`), 0 included. Likes, dislikes and tips
+ * also have the post's own [counter], so the larger of that and the [loaded] people; reposts and
+ * quotes (no counter) are counted from the list, with a "+" while [hasMore] pages remain. A dash
+ * until the first page is in ([ready]) - unless the counter already has something to show.
+ */
+internal fun postActivityCount(counter: Int?, loaded: Int, ready: Boolean, hasMore: Boolean): String {
+    if (counter != null) return if (ready || counter > 0) "${maxOf(counter, loaded)}" else "–"
+    if (!ready) return "–"
+    return if (hasMore && loaded > 0) "$loaded+" else "$loaded"
+}
 
 @Composable
 fun KaPostEngagementOverlay(
@@ -6361,19 +6375,14 @@ fun KaPostEngagementOverlay(
     val uriHandler = LocalUriHandler.current
     val lists by viewModel.engagementLists.collectAsState()
     val loaded by viewModel.engagementLoaded.collectAsState()
-    var selectedTab by remember { mutableStateOf(0) }
-    val listState = rememberLazyListState()
+    // The kind whose card was tapped (iOS 8ffa130 - these used to be tabs), null on the cards.
+    var openedKind by remember { mutableStateOf<Int?>(null) }
     val paging = pagingStateOf(
         viewModel,
         post.remoteId?.let { KaPostsViewModel.pageEngagement(it) } ?: "engagement:none",
     )
 
     LaunchedEffect(post.remoteId) { viewModel.loadEngagement(post) }
-    // The stream carries all four kinds at once, so the loop targets the OPEN tab: switching tabs
-    // re-arms the trigger against the kind the reader is now looking at. Tips page on their own.
-    EndlessScroll(listState = listState, key = post.remoteId to selectedTab) {
-        if (selectedTab != TIPS_TAB) viewModel.loadMoreEngagement(post, selectedTab)
-    }
 
     // Who tipped the post (`get-post-tippers`, iOS 8015069): its own list, with amounts.
     var tips by remember(post.remoteId) { mutableStateOf<List<com.kachat.app.services.KTip>>(emptyList()) }
@@ -6400,50 +6409,73 @@ fun KaPostEngagementOverlay(
     LaunchedEffect(post.remoteId) { loadTips(more = false) }
     LaunchedEffect(tipsMoreRequests) { if (tipsMoreRequests > 0) loadTips(more = true) }
 
-    val tabs = listOf("Likes", "Dislikes", "Reposts", "Quotes", "Tips")
+    val kindNames = listOf(
+        stringResource(R.string.kaposts_likes),
+        stringResource(R.string.kaposts_dislikes),
+        stringResource(R.string.kaposts_reposts),
+        stringResource(R.string.kaposts_quotes),
+        stringResource(R.string.kaposts_tips),
+    )
 
     KaPostsOverlayScaffold(title = "Post Activity", onClose = onClose) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                tabs.forEachIndexed { index, label ->
-                    val isSelected = index == selectedTab
-                    val count = lists?.let {
-                        when (index) {
-                            0 -> maxOf(post.likes, it.likes.size)
-                            1 -> maxOf(post.dislikes, it.dislikes.size)
-                            2 -> it.reposts.size
-                            3 -> it.quotes.size
-                            else -> maxOf(post.tips, tips.size)
-                        }
-                    } ?: if (index == TIPS_TAB) maxOf(post.tips, tips.size) else 0
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTab = index }
-                            .padding(vertical = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            if (count > 0) "$label ($count)" else label,
-                            color = if (isSelected) colors.textPrimary else colors.textSecondary,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 13.sp,
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(36.dp)
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(if (isSelected) KaspaTeal else Color.Transparent),
-                        )
+            // One square per kind, the count big on it (0 included) - the Your Domains cards'
+            // look, two across (iOS 8ffa130). Each opens that kind's people.
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
+            ) {
+                items(kindNames.size) { kind ->
+                    val count = when (kind) {
+                        0 -> postActivityCount(post.likes, lists?.likes?.size ?: 0, loaded, paging.hasMore)
+                        1 -> postActivityCount(post.dislikes, lists?.dislikes?.size ?: 0, loaded, paging.hasMore)
+                        2 -> postActivityCount(null, lists?.reposts?.size ?: 0, loaded, paging.hasMore)
+                        3 -> postActivityCount(null, lists?.quotes?.size ?: 0, loaded, paging.hasMore)
+                        else -> postActivityCount(post.tips, tips.size, tipsLoaded, tipsHasMore)
                     }
+                    PostActivityCard(kind = kind, count = count, name = kindNames[kind], onClick = { openedKind = kind })
                 }
             }
+
             HorizontalDivider(color = colors.surfaceVariant)
+            post.remoteId?.let { txId ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { uriHandler.openUri(kaspaExplorer.txUrl(txId)) }
+                        .padding(vertical = 14.dp),
+                ) {
+                    Icon(Icons.Default.Public, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "View Post Transaction in Explorer",
+                        color = KaspaTeal,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+        }
+    }
+
+    // The people behind one card, pushed over the cards and titled by the kind: tips with their
+    // amounts, the rest with a link to the action's transaction. Back returns to the cards.
+    openedKind?.let { kind ->
+        KaPostsOverlayScaffold(title = kindNames[kind], onClose = { openedKind = null }) {
+            val listState = rememberLazyListState()
+            // The stream carries all four kinds at once, so the loop targets the OPEN kind. Tips
+            // page on their own.
+            EndlessScroll(listState = listState, key = post.remoteId to kind) {
+                if (kind != TIPS_TAB) viewModel.loadMoreEngagement(post, kind)
+            }
 
             val rows = lists?.let {
-                when (selectedTab) {
+                when (kind) {
                     0 -> it.likes
                     1 -> it.dislikes
                     2 -> it.reposts
@@ -6451,8 +6483,8 @@ fun KaPostEngagementOverlay(
                 }
             } ?: emptyList()
 
-            Box(modifier = Modifier.weight(1f)) {
-                if (selectedTab == TIPS_TAB) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (kind == TIPS_TAB) {
                     // Tips: who tipped, how much and when, newest first.
                     if (!tipsLoaded) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -6543,32 +6575,54 @@ fun KaPostEngagementOverlay(
                             HorizontalDivider(color = colors.surfaceVariant, modifier = Modifier.padding(start = 64.dp))
                         }
                         pagingFooter(paging, keySuffix = "engagement") {
-                            viewModel.loadMoreEngagement(post, selectedTab, manual = true)
+                            viewModel.loadMoreEngagement(post, kind, manual = true)
                         }
                     }
                 }
             }
+        }
+    }
+}
 
-            HorizontalDivider(color = colors.surfaceVariant)
-            post.remoteId?.let { txId ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { uriHandler.openUri(kaspaExplorer.txUrl(txId)) }
-                        .padding(vertical = 14.dp),
-                ) {
-                    Icon(Icons.Default.Public, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "View Post Transaction in Explorer",
-                        color = KaspaTeal,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+/**
+ * One Post Activity square (iOS 8ffa130 `kindCard`), the Your Domains cards' tile: the kind's
+ * icon, its count big in the accent, the kind's name under it. Same fill, 18 radius and 0.8 white
+ * hairline at 15%.
+ */
+@Composable
+private fun PostActivityCard(kind: Int, count: String, name: String, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(colors.surface)
+            .border(0.8.dp, Color.White.copy(alpha = 0.15f), shape)
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The same symbols and tints as the post's action bar, 26 high.
+            Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
+                when (kind) {
+                    0 -> Icon(Icons.Default.Favorite, null, tint = colors.danger, modifier = Modifier.size(26.dp))
+                    1 -> Icon(Icons.Filled.ThumbDown, null, tint = Color(0xFFFF9500), modifier = Modifier.size(26.dp))
+                    2 -> Icon(Icons.Default.Repeat, null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+                    3 -> Icon(Icons.Filled.FormatQuote, null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+                    else -> androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_kaspa_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
             }
+            // iOS 40pt heavy rounded in the accent, shrinking to half before it is cut.
+            KachatFitText(count, color = KaspaTeal, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, minScale = 0.5f)
+            // iOS .subheadline semibold, secondary.
+            KachatFitText(name, color = colors.textSecondary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, minScale = 0.8f)
         }
     }
 }

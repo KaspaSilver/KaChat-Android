@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">将 %1$s 添加到程序坞</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">打赏</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">点赞</string>
+    <string name="kaposts_dislikes">点踩</string>
+    <string name="kaposts_reposts">转发</string>
+    <string name="kaposts_quotes">引用</string>
     <string name="kaposts_no_tips_yet">暂无打赏。</string>
     <string name="kaposts_who_tipped">谁打赏了这条帖子</string>
     <string name="kaposts_bell_on_note">%1$s 发帖时你将收到通知。</string>

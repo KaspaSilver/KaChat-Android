@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">Aggiungi %1$s al dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Mance</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Mi piace</string>
+    <string name="kaposts_dislikes">Non mi piace</string>
+    <string name="kaposts_reposts">Repost</string>
+    <string name="kaposts_quotes">Citazioni</string>
     <string name="kaposts_no_tips_yet">Ancora nessuna mancia.</string>
     <string name="kaposts_who_tipped">Chi ha dato una mancia a questo post</string>
     <string name="kaposts_bell_on_note">D\'ora in poi riceverai una notifica quando %1$s pubblica.</string>

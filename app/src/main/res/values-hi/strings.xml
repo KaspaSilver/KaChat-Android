@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">%1$s को डॉक में जोड़ें</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">टिप</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">लाइक</string>
+    <string name="kaposts_dislikes">डिसलाइक</string>
+    <string name="kaposts_reposts">रीपोस्ट</string>
+    <string name="kaposts_quotes">कोट</string>
     <string name="kaposts_no_tips_yet">अभी कोई टिप नहीं।</string>
     <string name="kaposts_who_tipped">इस पोस्ट पर किसने टिप दी</string>
     <string name="kaposts_bell_on_note">अब %1$s के पोस्ट करने पर आपको सूचना मिलेगी।</string>

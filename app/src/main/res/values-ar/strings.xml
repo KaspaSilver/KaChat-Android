@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">إضافة %1$s إلى الشريط</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">الإكراميات</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">الإعجابات</string>
+    <string name="kaposts_dislikes">عدم الإعجاب</string>
+    <string name="kaposts_reposts">إعادات النشر</string>
+    <string name="kaposts_quotes">الاقتباسات</string>
     <string name="kaposts_no_tips_yet">لا توجد إكراميات بعد.</string>
     <string name="kaposts_who_tipped">من أرسل إكرامية لهذا المنشور</string>
     <string name="kaposts_bell_on_note">سيصلك إشعار عندما ينشر %1$s.</string>

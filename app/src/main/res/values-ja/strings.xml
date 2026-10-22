@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">%1$s をドックに追加</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">チップ</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">いいね</string>
+    <string name="kaposts_dislikes">よくないね</string>
+    <string name="kaposts_reposts">リポスト</string>
+    <string name="kaposts_quotes">引用</string>
     <string name="kaposts_no_tips_yet">まだチップはありません。</string>
     <string name="kaposts_who_tipped">この投稿にチップを送った人</string>
     <string name="kaposts_bell_on_note">%1$s が投稿すると通知されるようになりました。</string>

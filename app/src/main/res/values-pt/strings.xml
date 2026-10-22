@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">Adicionar %1$s ao dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Gorjetas</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Curtidas</string>
+    <string name="kaposts_dislikes">Descurtidas</string>
+    <string name="kaposts_reposts">Republicações</string>
+    <string name="kaposts_quotes">Citações</string>
     <string name="kaposts_no_tips_yet">Ainda sem gorjetas.</string>
     <string name="kaposts_who_tipped">Quem deu gorjeta a este post</string>
     <string name="kaposts_bell_on_note">Agora você será avisado quando %1$s postar.</string>

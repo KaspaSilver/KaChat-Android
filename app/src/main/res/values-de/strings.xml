@@ -1321,6 +1321,11 @@
     <string name="customize_dock_add">%1$s zum Dock hinzufügen</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Trinkgelder</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Likes</string>
+    <string name="kaposts_dislikes">Dislikes</string>
+    <string name="kaposts_reposts">Reposts</string>
+    <string name="kaposts_quotes">Zitate</string>
     <string name="kaposts_no_tips_yet">Noch keine Trinkgelder.</string>
     <string name="kaposts_who_tipped">Wer diesem Beitrag Trinkgeld gab</string>
     <string name="kaposts_bell_on_note">Du wirst jetzt benachrichtigt, wenn %1$s etwas postet.</string>

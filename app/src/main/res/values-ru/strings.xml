@@ -1324,6 +1324,11 @@
     <string name="customize_dock_add">Добавить %1$s в док</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">Чаевые</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">Лайки</string>
+    <string name="kaposts_dislikes">Дизлайки</string>
+    <string name="kaposts_reposts">Репосты</string>
+    <string name="kaposts_quotes">Цитаты</string>
     <string name="kaposts_no_tips_yet">Чаевых пока нет.</string>
     <string name="kaposts_who_tipped">Кто отправил чаевые за этот пост</string>
     <string name="kaposts_bell_on_note">Теперь вы будете получать уведомления о новых постах %1$s.</string>

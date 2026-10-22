@@ -1355,6 +1355,11 @@
     <string name="customize_dock_add">افزودن %1$s به داک</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <string name="kaposts_tips">انعام‌ها</string>
+    <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
+    <string name="kaposts_likes">پسندها</string>
+    <string name="kaposts_dislikes">نپسندیدن‌ها</string>
+    <string name="kaposts_reposts">بازنشرها</string>
+    <string name="kaposts_quotes">نقل‌قول‌ها</string>
     <string name="kaposts_no_tips_yet">هنوز انعامی نیست.</string>
     <string name="kaposts_who_tipped">چه کسانی به این پست انعام دادند</string>
     <string name="kaposts_bell_on_note">از این پس وقتی %1$s پست بگذارد به شما اطلاع داده می‌شود.</string>
