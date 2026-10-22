@@ -313,6 +313,10 @@ class WalletService @Inject constructor(
      */
     suspend fun quantumAddressSpentState(address: String): Boolean? {
         if (walletManager.isQuantumAddressSpentLocally(address)) return true
+        // the account whose address this is; the pages below can span an account switch, and a
+        // found spend is marked for it - nowhere once it was removed (iOS ca09dd0, IOS-109 /
+        // AND-056)
+        val owner = walletManager.getActiveAccount()?.address
         val api = readyApi() ?: return null
         val spent = quantumSpentFromPages(address) { offset, limit ->
             try {
@@ -323,7 +327,7 @@ class WalletService @Inject constructor(
                 null
             }
         }
-        if (spent == true) walletManager.markQuantumAddressSpent(address)
+        if (spent == true) walletManager.markQuantumAddressSpent(address, owner = owner)
         return spent
     }
 
@@ -1047,7 +1051,9 @@ class WalletService @Inject constructor(
             // The commit is accepted and its change is already on the fresh address, so it is
             // revealed and the primary follows it now. Should the reveal still fail, the commit
             // output is recoverable from the source key either way, and the pointer no longer
-            // names an address that just spent.
+            // names an address that just spent. Both on the account this transfer started on
+            // (the pick's own, [sourceOwner]) even if another is active by now, and nothing once
+            // it was removed (iOS ca09dd0, IOS-109 / AND-056).
             walletManager.finishQuantumChangePick(fresh, reveal = true)
             walletManager.setSpendingAddressIndex(fresh.walletAddress, fresh.index)
         }

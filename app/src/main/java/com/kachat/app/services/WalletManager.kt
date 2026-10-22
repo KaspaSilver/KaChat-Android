@@ -204,6 +204,61 @@ class WalletManager @Inject constructor(
             return List(count) { first + it }
         }
 
+        // --- Writes after a send land on the account it started on (iOS ca09dd0, IOS-109 / AND-056)
+
+        /** Whether a write meant for [owner] may go ahead: [owner] null means the active account
+         *  (always), otherwise it must still be saved - a send's account removed while the network
+         *  answered gets nothing (iOS `accountStillSaved(owner)`). */
+        internal fun ownerStillSaved(accounts: List<Account>, owner: String?): Boolean =
+            owner == null || accounts.any { it.address == owner }
+
+        /**
+         * The account list [setSpendingAddressIndex] writes (iOS `setActiveSpendingAddress(_:owner:)`,
+         * ca09dd0): [owner]'s primary moved to [index] and its own chain's bound raised to cover it -
+         * a quantum index never touches the legacy bound - and every other account left as is,
+         * whichever one is active. Null, so nothing is written, once [owner] has been removed.
+         */
+        internal fun withSpendingAddressIndex(accounts: List<Account>, owner: String, index: Int): List<Account>? {
+            if (index < 0 || accounts.none { it.address == owner }) return null
+            return accounts.map {
+                when {
+                    it.address != owner -> it
+                    isQuantumIndex(index) -> it.copy(
+                        spendingAddressIndex = index,
+                        maxQuantumAddressIndex = maxOf(maxQuantumIndex(it), index - QUANTUM_INDEX_BASE),
+                    )
+                    else -> it.copy(spendingAddressIndex = index, maxSpendingAddressIndex = maxOf(it.maxSpendingAddressIndex, index))
+                }
+            }
+        }
+
+        /**
+         * What [revealSpendingAddress] writes for one account (iOS `revealSpendingAddress(at:owner:)`,
+         * ca09dd0): [account]'s record with its own chain's bound raised to [index] when it is past
+         * it, and its [hidden] set with the slots the raise newly covers added and [index] itself
+         * taken out (listed). Null, so nothing is written, when [account] is null - removed.
+         */
+        internal fun spendingReveal(account: Account?, hidden: Set<Int>, index: Int): Pair<Account, Set<Int>>? {
+            if (account == null || index < 0) return null
+            var record: Account = account
+            var newlyCovered: List<Int> = emptyList()
+            if (isQuantumIndex(index)) {
+                val quantumIndex = index - QUANTUM_INDEX_BASE
+                val currentMax = maxQuantumIndex(account)
+                if (quantumIndex > currentMax) {
+                    record = account.copy(maxQuantumAddressIndex = quantumIndex)
+                    newlyCovered = ((currentMax + 1) until quantumIndex).map { QUANTUM_INDEX_BASE + it }
+                }
+            } else {
+                val currentMax = legacyMaxSpendingIndex(account)
+                if (index > currentMax) {
+                    record = account.copy(maxSpendingAddressIndex = index)
+                    newlyCovered = ((currentMax + 1) until index).toList()
+                }
+            }
+            return record to (hidden + newlyCovered - index)
+        }
+
         /** The signature-script size a send from [spendingIndex] prices per input: a quantum
          *  source pushes its redeem script after the signature (iOS `kip22SignatureScriptSize`),
          *  anything else is the plain 66-byte Schnorr push. Null = the chatting address. */
@@ -1270,8 +1325,14 @@ class WalletManager @Inject constructor(
     }
 
     /** Marks [address]'s key as revealed by a spend - the moment the app sends from it, or when
-     *  the chain shows a spend made elsewhere (WalletService.quantumAddressSpentState). */
-    fun markQuantumAddressSpent(address: String) {
+     *  the chain shows a spend made elsewhere (WalletService.quantumAddressSpentState).
+     *
+     *  [owner]: the account whose address spent, when the caller started before an await the
+     *  person may have switched accounts across (iOS ca09dd0, IOS-109 / AND-056). The mark is
+     *  address-keyed here, so it is that account's whichever is active; nothing is written once
+     *  [owner] has been removed. Null = the active account. */
+    fun markQuantumAddressSpent(address: String, owner: String? = null) {
+        if (!ownerStillSaved(getAccounts(), owner)) return
         val lowered = address.trim().lowercase()
         if (lowered.isEmpty()) return
         val current = quantumSpentAddresses()
@@ -1568,10 +1629,14 @@ class WalletManager @Inject constructor(
      * is listed in Manage Addresses (iOS `revealSpendingAddress(at:)`). Without [reveal] the slot
      * is simply given back. A caller that also rotates the primary onto the slot (withdraw, KNS
      * transfer) does that after revealing it.
+     *
+     * The reveal goes to the pick's own account - the one the send started on - even if another
+     * is active when the network answers, and nowhere once it has been removed (iOS ca09dd0,
+     * IOS-109 / AND-056).
      */
     fun finishQuantumChangePick(pick: QuantumChangePick, reveal: Boolean) {
         synchronized(spendingIndexAllocationLock) {
-            if (reveal) revealQuantumIndex(pick.walletAddress, pick.index)
+            if (reveal) revealSpendingAddress(pick.walletAddress, pick.index)
             pendingQuantumChange[pick.walletAddress]?.let { picks ->
                 picks.remove(pick.index)
                 if (picks.isEmpty()) pendingQuantumChange.remove(pick.walletAddress)
@@ -1579,19 +1644,21 @@ class WalletManager @Inject constructor(
         }
     }
 
-    /** Raises [walletAddress]'s quantum bound to cover public [index], the slots it newly covers
-     *  hidden, and [index] itself listed (iOS `revealSpendingAddress(at:)`, quantum half). */
-    fun revealQuantumIndex(walletAddress: String, index: Int) {
-        if (!isQuantumIndex(index)) return
-        val quantumIndex = index - QUANTUM_INDEX_BASE
-        val currentMax = getAccounts().firstOrNull { it.address == walletAddress }?.let { maxQuantumIndex(it) } ?: return
-        if (quantumIndex > currentMax) {
-            for (i in (currentMax + 1) until quantumIndex) {
-                setSpendingAddressHidden(walletAddress, QUANTUM_INDEX_BASE + i, true)
-            }
-            ensureMaxQuantumAddressIndexAtLeast(walletAddress, quantumIndex)
-        }
-        setSpendingAddressHidden(walletAddress, index, false)
+    /**
+     * Lists spending [index] on [owner]'s Manage Addresses (iOS `revealSpendingAddress(at:owner:)`,
+     * ca09dd0): its own chain's bound raised to cover it, the slots that newly covers kept hidden
+     * (so revealing a far-out row doesn't flood the list), and [index] itself un-hidden - written
+     * to [owner]'s record and hidden set whichever account is active, so a send that ends after
+     * an account switch lists its change on the account it started on (IOS-109 / AND-056). False,
+     * writing nothing, once [owner] has been removed.
+     */
+    fun revealSpendingAddress(owner: String, index: Int): Boolean = synchronized(spendingIndexAllocationLock) {
+        val accounts = getAccounts()
+        val stored = accounts.find { it.address == owner }
+        val (record, hidden) = spendingReveal(stored, getHiddenSpendingIndices(owner), index) ?: return@synchronized false
+        if (record != stored) saveAccounts(accounts.map { if (it.address == owner) record else it })
+        setSpendingAddressesHidden(owner, hidden)
+        true
     }
 
     /**
@@ -1664,18 +1731,16 @@ class WalletManager @Inject constructor(
     /** Sets an explicit index as the one "Pay in Kaspa" sources from — used by the wallet-import
      *  gap-limit scan, by manually activating an address from the Manage Addresses screen, and by
      *  a send's primary following its change. A quantum index extends its own chain; the legacy
-     *  max must never see base-space values (iOS `setActiveSpendingAddress`). */
-    fun setSpendingAddressIndex(address: String, index: Int) {
-        val accounts = getAccounts().map {
-            if (it.address == address) {
-                if (isQuantumIndex(index)) {
-                    it.copy(spendingAddressIndex = index, maxQuantumAddressIndex = maxOf(maxQuantumIndex(it), index - QUANTUM_INDEX_BASE))
-                } else {
-                    it.copy(spendingAddressIndex = index, maxSpendingAddressIndex = maxOf(it.maxSpendingAddressIndex, index))
-                }
-            } else it
-        }
+     *  max must never see base-space values (iOS `setActiveSpendingAddress`).
+     *
+     *  [address] is the account whose primary moves - for a send, the one it started on, even if
+     *  another is active by the time the network answers (iOS ca09dd0 `owner`, IOS-109 / AND-056).
+     *  Another account's move changes nothing on screen: [primarySpendingIndexFlow] follows the
+     *  active account only. False, writing nothing, once [address] has been removed. */
+    fun setSpendingAddressIndex(address: String, index: Int): Boolean {
+        val accounts = withSpendingAddressIndex(getAccounts(), address, index) ?: return false
         saveAccounts(accounts)
+        return true
     }
 
     /** Derives one more spending-chain address for the Manage Addresses screen to show, without changing which one is currently active. Returns the new highest index. */

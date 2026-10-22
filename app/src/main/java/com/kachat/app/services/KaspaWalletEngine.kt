@@ -558,10 +558,12 @@ class KaspaWalletEngine @Inject constructor(
             throw e
         }
         // Revealed, not made primary (iOS revealSpendingAddress), only when the send went
-        // through; a failed send gives it back.
+        // through; a failed send gives it back. Both writes go to the account this send started
+        // on (the pick's own, and [owner]), even if another is active by now; nothing once it was
+        // removed (iOS ca09dd0, IOS-109 / AND-056).
         pick?.let { walletManager.finishQuantumChangePick(it, reveal = result.isSuccess) }
         // a spend reveals the key for good: the shield comes off (KIP-22)
-        if (result.isSuccess && isQuantumSource) walletManager.markQuantumAddressSpent(sourceSpendingAddress)
+        if (result.isSuccess && isQuantumSource) walletManager.markQuantumAddressSpent(sourceSpendingAddress, owner = owner)
         return result
     }
 

@@ -399,6 +399,105 @@ class QuantumAddressTest {
         assertEquals(9, store.bound[OTHER])
     }
 
+    /** Two saved accounts' records, hidden sets and the spent marks, which one is active, and the
+     *  writes a send makes once the network answers, wired the way WalletManager wires them (iOS
+     *  ca09dd0, IOS-109 / AND-056): [reveal] as [WalletManager.revealSpendingAddress], [setPrimary]
+     *  as [WalletManager.setSpendingAddressIndex], [markSpent] as
+     *  [WalletManager.markQuantumAddressSpent]. */
+    private class SendWriteStore {
+        var accounts = listOf(
+            WalletManager.Account(name = "A", address = OWNER, mnemonic = "a", spendingAddressIndex = 2, maxSpendingAddressIndex = 4, maxQuantumAddressIndex = 3),
+            WalletManager.Account(name = "B", address = OTHER, mnemonic = "b", spendingAddressIndex = 5, maxSpendingAddressIndex = 7, maxQuantumAddressIndex = 9),
+        )
+        var active = OWNER
+        val hidden = mutableMapOf<String, Set<Int>>(OTHER to setOf(1))
+        val spent = mutableSetOf<String>()
+
+        fun reveal(owner: String, index: Int): Boolean {
+            val stored = accounts.find { it.address == owner }
+            val (record, newHidden) = WalletManager.spendingReveal(stored, hidden[owner].orEmpty(), index) ?: return false
+            accounts = accounts.map { if (it.address == owner) record else it }
+            hidden[owner] = newHidden
+            return true
+        }
+
+        fun setPrimary(owner: String, index: Int): Boolean {
+            accounts = WalletManager.withSpendingAddressIndex(accounts, owner, index) ?: return false
+            return true
+        }
+
+        fun markSpent(address: String, owner: String?) {
+            if (!WalletManager.ownerStillSaved(accounts, owner)) return
+            spent += address.lowercase()
+        }
+
+        fun record(owner: String) = accounts.single { it.address == owner }
+
+        /** What primarySpendingIndexFlow shows: the active account's primary only. */
+        fun primaryOnScreen() = accounts.find { it.address == active }?.spendingAddressIndex
+    }
+
+    @Test
+    fun `a send that ends after an account switch writes only the account it started on`() {
+        // iOS ca09dd0 (IOS-109 / AND-056, last part): a send from A's primary is out when the
+        // user switches to B. Its change slot is listed on A, A's primary follows it and the spent
+        // mark is A's - B's record, hidden set and on-screen primary are never touched
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = SendWriteStore()
+        val otherBefore = store.record(OTHER)
+        store.active = OTHER
+        assertTrue(store.reveal(OWNER, base + 6))
+        assertTrue(store.setPrimary(OWNER, base + 6))
+        store.markSpent("$OWNER/q2", owner = OWNER)
+        assertEquals(6, store.record(OWNER).maxQuantumAddressIndex)
+        assertEquals(base + 6, store.record(OWNER).spendingAddressIndex)
+        assertEquals(4, store.record(OWNER).maxSpendingAddressIndex)
+        assertEquals(setOf(base + 4, base + 5), store.hidden[OWNER])
+        assertEquals(setOf("$OWNER/q2"), store.spent)
+        assertEquals(otherBefore, store.record(OTHER))
+        assertEquals(setOf(1), store.hidden[OTHER])
+        assertEquals(5, store.primaryOnScreen())
+    }
+
+    @Test
+    fun `a send whose account was removed meanwhile writes nothing`() {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = SendWriteStore()
+        store.accounts = store.accounts.filter { it.address != OWNER }
+        store.active = OTHER
+        val before = store.accounts
+        assertFalse(store.reveal(OWNER, base + 6))
+        assertFalse(store.setPrimary(OWNER, base + 6))
+        store.markSpent("$OWNER/q2", owner = OWNER)
+        assertEquals(before, store.accounts)
+        assertEquals(null, store.hidden[OWNER])
+        assertEquals(setOf(1), store.hidden[OTHER])
+        assertTrue(store.spent.isEmpty())
+        // the active account's own writes (no owner) still go through
+        store.markSpent("$OTHER/q0", owner = null)
+        assertEquals(setOf("$OTHER/q0"), store.spent)
+    }
+
+    @Test
+    fun `a reveal raises its own chain's bound only and lists the slot`() {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = SendWriteStore()
+        // legacy past the bound: 5 and 6 newly covered, kept hidden; the quantum bound untouched
+        assertTrue(store.reveal(OWNER, 7))
+        assertEquals(7, store.record(OWNER).maxSpendingAddressIndex)
+        assertEquals(3, store.record(OWNER).maxQuantumAddressIndex)
+        assertEquals(setOf(5, 6), store.hidden[OWNER])
+        // a slot already covered is only un-hidden
+        assertTrue(store.reveal(OWNER, 5))
+        assertEquals(7, store.record(OWNER).maxSpendingAddressIndex)
+        assertEquals(setOf(6), store.hidden[OWNER])
+        // a quantum primary never widens the legacy bound
+        assertTrue(store.setPrimary(OWNER, base + 2))
+        assertEquals(7, store.record(OWNER).maxSpendingAddressIndex)
+        assertEquals(3, store.record(OWNER).maxQuantumAddressIndex)
+        assertEquals(base + 2, store.record(OWNER).spendingAddressIndex)
+    }
+
     private fun sweep(
         activeUpTo: Int,
         funded: Set<Int> = emptySet(),

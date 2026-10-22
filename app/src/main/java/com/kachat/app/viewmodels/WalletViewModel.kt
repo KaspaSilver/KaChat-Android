@@ -471,8 +471,9 @@ class WalletViewModel @Inject constructor(
                 onResult(null)
                 return@launch
             }
-            // Shown now: it goes on the Manage Addresses list (and is watched for payments).
-            if (revealing) revealSpendingAddress(chosen.first)
+            // Shown now: it goes on the Manage Addresses list (and is watched for payments) - of
+            // the account the QR was resolved for (iOS ca09dd0, IOS-109 / AND-056).
+            if (revealing) revealSpendingAddress(chosen.first, owner = walletAddress)
             onResult(chosen.second)
         }
     }
@@ -660,25 +661,18 @@ class WalletViewModel @Inject constructor(
     /**
      * iOS parity (WalletManager.revealSpendingAddress): raises the revealed bound to [index],
      * keeping the intermediate indices hidden so revealing a far-out address doesn't flood the
-     * main Manage Addresses list.
+     * main Manage Addresses list - on its own chain (the quantum chain has its own bound).
+     *
+     * [owner]: the account a caller started on before an await (iOS ca09dd0 `owner`, IOS-109 /
+     * AND-056) - its list gets the address even if another account is active by now, and the
+     * active account's Manage Addresses is then left alone; nothing is written once [owner] has
+     * been removed. Null = the active account.
      */
-    fun revealSpendingAddress(index: Int) {
-        val account = walletManager.getActiveAccount() ?: return
-        if (WalletManager.isQuantumIndex(index)) {
-            // The quantum chain's own bound, the slots it newly covers hidden the same way.
-            walletManager.revealQuantumIndex(account.address, index)
-            loadManageAddresses()
-            return
-        }
-        val currentMax = WalletManager.legacyMaxSpendingIndex(account)
-        if (index > currentMax) {
-            for (i in (currentMax + 1) until index) {
-                walletManager.setSpendingAddressHidden(account.address, i, true)
-            }
-            walletManager.ensureMaxSpendingAddressIndexAtLeast(account.address, index)
-        }
-        walletManager.setSpendingAddressHidden(account.address, index, false)
-        loadManageAddresses()
+    fun revealSpendingAddress(index: Int, owner: String? = null) {
+        val active = walletManager.getActiveAccount()?.address
+        val target = owner ?: active ?: return
+        if (!walletManager.revealSpendingAddress(target, index)) return
+        if (target == active) loadManageAddresses()
     }
 
     /** Used-check for Address Visibility rows derived beyond the loaded list. */
@@ -771,9 +765,12 @@ class WalletViewModel @Inject constructor(
                 fresh?.let { walletManager.finishQuantumChangePick(it, reveal = true) }
                 throw e
             }
+            // Every write below goes to the account this send started on ([owner], the pick's
+            // own), even if another is active by now; nothing once it was removed (iOS ca09dd0,
+            // IOS-109 / AND-056).
             if (result.isSuccess && isQuantumSource) {
                 // the spend put this address's key on chain for good (self-sends included)
-                walletManager.markQuantumAddressSpent(fromAddress)
+                walletManager.markQuantumAddressSpent(fromAddress, owner = owner)
             }
             if (fresh != null) {
                 walletManager.finishQuantumChangePick(fresh, reveal = result.isSuccess)
@@ -784,7 +781,9 @@ class WalletViewModel @Inject constructor(
                 }
             }
             sends.finish(sendId, result)
-            if (result.isSuccess) {
+            // Another account's primary moves without touching what is on screen now (iOS
+            // ca09dd0: no notification for another account).
+            if (result.isSuccess && walletManager.getActiveAccount()?.address == owner) {
                 refreshSpendingAddress()
                 loadManageAddresses()
             }
