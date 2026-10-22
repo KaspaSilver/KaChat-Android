@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">KNS কোয়ান্টাম-নিরাপদ ঠিকানা থেকে ডোমেইন সরাতে পারে না: KNS একটি পাবলিক কী দিয়ে ডোমেইনের মালিক চেনে, আর কোয়ান্টাম-নিরাপদ ঠিকানা তার কী লুকিয়ে রাখে।</string>
     <string name="kns_transfer_to_script_address">একটি .kas ডোমেইন কোয়ান্টাম-নিরাপদ বা অন্য স্ক্রিপ্ট ঠিকানায় পাঠানো যায় না: KNS আর কখনো এটি সরাতে পারবে না। এর বদলে একটি সাধারণ ঠিকানায় পাঠান।</string>
     <string name="quantum_next_address_failed">পরবর্তী ঠিকানা প্রস্তুত করা যায়নি। আবার চেষ্টা করুন।</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">কোয়ান্টাম ঠিকানা</string>
+    <string name="non_quantum_addresses">নন-কোয়ান্টাম ঠিকানা</string>
+    <string name="addresses_shown_count">%2$d-এর মধ্যে %1$d দেখানো হচ্ছে</string>
 </resources>

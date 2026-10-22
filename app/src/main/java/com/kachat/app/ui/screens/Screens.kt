@@ -5803,12 +5803,12 @@ fun ManageAddressesHiddenScreen(
 }
 
 /**
- * Address Visibility (iOS parity: SpendingAddressVisibilityView) — a compact checkmark list of
- * EVERY spending address, paged 50 at a time, so dozens can be toggled off the main Manage
- * Addresses list in one sitting. The right arrow never runs out: future pages derive addresses
- * beyond the revealed bound on the fly, and toggling one on raises the bound while keeping the
- * intermediate indices hidden. Every address toggles both ways, funded ones too, and Hide All
- * (confirmed) starts the list over with only the chatting address (iOS 245a5d2).
+ * Address Visibility (iOS parity: SpendingAddressVisibilityView, d7e6dd1): first a card per
+ * chain - Quantum Addresses and Non-Quantum Addresses - then that chain's checklist
+ * ([AddressVisibilityChainList]). One pager over raw indices could never reach the quantum chain,
+ * which starts at [com.kachat.app.services.WalletManager.QUANTUM_INDEX_BASE]. Hide All
+ * (confirmed) covers both chains and starts the list over with only the chatting address
+ * (iOS 245a5d2). The cards and the list read the same loaded rows, so a toggle updates the counts.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -5816,26 +5816,189 @@ fun AddressVisibilityScreen(
     viewModel: WalletViewModel,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
     val addresses by viewModel.manageAddresses.collectAsState()
+    val loading by viewModel.manageAddressesLoading.collectAsState()
     var showHideAllConfirm by remember { mutableStateOf(false) }
+    // The chain whose card was tapped (true = quantum), null on the cards themselves.
+    var openedChain by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Boolean?>(null) }
+
+    // Refresh on entry: rows inherited from a previous screen visit can carry a stale
+    // isCurrent/balance (the primary rotates after every send), and the toggle guards in the
+    // checklist read those flags. The live reload also runs the self-heal purge for any wrongly
+    // hidden primary/funded index.
+    LaunchedEffect(Unit) { viewModel.loadManageAddresses() }
+
+    openedChain?.let { quantum ->
+        androidx.activity.compose.BackHandler { openedChain = null }
+        AddressVisibilityChainList(viewModel = viewModel, quantum = quantum, onBack = { openedChain = null })
+        return
+    }
+
+    Scaffold(
+        containerColor = LocalAppColors.current.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    // Hide All leads the bar, Done trails it (iOS 245a5d2).
+                    SheetBarButton(stringResource(R.string.hide_all), onClick = { showHideAllConfirm = true }, modifier = Modifier.padding(start = 12.dp))
+                },
+                actions = {
+                    SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
+            )
+        }
+    ) { padding ->
+        // Two Kaspa Hub style squares, quantum first (iOS d7e6dd1).
+        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize().padding(padding),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp),
+        ) {
+            items(2) { i ->
+                val quantum = i == 0
+                // "n of m shown": m = this chain's revealed addresses (every row the loaded list
+                // holds for it), n = those Manage Addresses shows (not hidden).
+                val chain = addresses.filter { it.isQuantum == quantum }
+                AddressVisibilityChainCard(
+                    quantum = quantum,
+                    shown = chain.count { !it.hidden },
+                    total = chain.size,
+                    loading = loading,
+                    onClick = { openedChain = quantum }
+                )
+            }
+        }
+    }
+
+    if (showHideAllConfirm) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showHideAllConfirm = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.hide_all_addresses_title), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.hide_all_addresses_message), color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showHideAllConfirm = false
+                    // Every revealed address hidden, both chains.
+                    viewModel.hideAllSpendingAddresses()
+                }) {
+                    Text(stringResource(R.string.hide_all), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHideAllConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            }
+        )
+    }
+}
+
+/**
+ * A Kaspa Hub style square (iOS d7e6dd1 `chainCard`): the chain's glyph, its name, and how many
+ * of its addresses Manage Addresses shows. Same fill, 18 radius and 0.8 white hairline at 15% as
+ * the hub tiles and the Your Domains cards.
+ */
+@Composable
+private fun AddressVisibilityChainCard(
+    quantum: Boolean,
+    shown: Int,
+    total: Int,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(18.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(LocalAppColors.current.surface)
+            .border(0.8.dp, Color.White.copy(alpha = 0.15f), shape)
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (quantum) {
+                // "shield.fill"
+                Icon(Icons.Filled.Shield, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+            } else {
+                // "circle.grid.2x2.fill": four dots in a square.
+                androidx.compose.foundation.Canvas(Modifier.size(26.dp)) {
+                    val r = size.minDimension * 0.2f
+                    for (cx in listOf(0.27f, 0.73f)) for (cy in listOf(0.27f, 0.73f)) {
+                        drawCircle(KaspaTeal, radius = r, center = Offset(size.width * cx, size.height * cy))
+                    }
+                }
+            }
+            // iOS .subheadline semibold, primary, up to two lines.
+            Text(
+                stringResource(if (quantum) R.string.quantum_addresses else R.string.non_quantum_addresses),
+                color = LocalAppColors.current.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (loading) {
+                com.kachat.app.ui.theme.IosActivityIndicator(modifier = Modifier.size(16.dp))
+            } else {
+                // iOS .caption, secondary.
+                Text(
+                    stringResource(R.string.addresses_shown_count, shown, total),
+                    color = LocalAppColors.current.textSecondary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One chain's Address Visibility checklist (iOS d7e6dd1 `AddressVisibilityChainList`) — a compact
+ * checkmark list of EVERY address on that chain, paged 50 at a time from the chain's own start
+ * (the quantum chain at [com.kachat.app.services.WalletManager.QUANTUM_INDEX_BASE]) and numbered
+ * from #0, so dozens can be toggled off the main Manage Addresses list in one sitting. The right
+ * arrow never runs out: future pages derive addresses beyond the chain's revealed bound on the
+ * fly, and toggling one on raises the bound while keeping the intermediate indices hidden. Every
+ * address toggles both ways, funded ones too (iOS 245a5d2).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddressVisibilityChainList(
+    viewModel: WalletViewModel,
+    quantum: Boolean,
+    onBack: () -> Unit
+) {
+    val addresses by viewModel.manageAddresses.collectAsState()
     var page by remember { mutableStateOf(0) }
     val pageSize = 50
     val byIndex = remember(addresses) { addresses.associateBy { it.index } }
-    // The pager walks the legacy chain only (iOS Address Visibility): a quantum row's index sits
-    // a million up and must not stretch the legacy bound.
+    // The legacy bound: a quantum row's index sits a million up and must not stretch it.
     val listMax = remember(addresses) { addresses.filterNot { it.isQuantum }.maxOfOrNull { it.index } ?: -1 }
+    // This chain's own revealed bound - past it, rows are derived on the fly.
+    val chainMax = if (quantum) {
+        addresses.filter { it.isQuantum }.maxOfOrNull { it.index }
+            ?: (com.kachat.app.services.WalletManager.QUANTUM_INDEX_BASE - 1)
+    } else {
+        listMax
+    }
     // Lazily filled Used/Unused results for rows derived beyond the loaded list.
     val usedCache = remember { mutableStateMapOf<Int, Boolean>() }
 
-    // Refresh on entry: rows inherited from a previous screen visit can carry a stale
-    // isCurrent/balance (the primary rotates after every send), and the toggle guards below
-    // read those flags. The live reload also runs the self-heal purge for any wrongly hidden
-    // primary/funded index.
-    LaunchedEffect(Unit) { viewModel.loadManageAddresses() }
-
-    val start = page * pageSize
-    val end = start + pageSize - 1
+    // Chain-local numbers for the pager label; raw indices for the rows.
+    val localStart = page * pageSize
+    val localEnd = localStart + pageSize - 1
+    val chainBase = if (quantum) com.kachat.app.services.WalletManager.QUANTUM_INDEX_BASE else 0
+    val start = chainBase + localStart
+    val end = chainBase + localEnd
     // Addresses for rows the loaded list does not cover, derived OFF the main thread and once
     // per page.
     //
@@ -5846,8 +6009,8 @@ fun AddressVisibilityScreen(
     // that a row could not be tapped. `deriveSpendingAddresses` pays the seed cost once for the
     // whole range, and it happens in a coroutine on the default dispatcher.
     var derivedAddresses by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-    LaunchedEffect(page, listMax) {
-        val needed = (start..end).filter { it > listMax }
+    LaunchedEffect(page, chainMax) {
+        val needed = (start..end).filter { it > chainMax }
         if (needed.isEmpty()) {
             derivedAddresses = emptyMap()
             return@LaunchedEffect
@@ -5888,13 +6051,16 @@ fun AddressVisibilityScreen(
         containerColor = LocalAppColors.current.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Address Visibility", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    // Hide All leads the bar, Done trails it (iOS 245a5d2).
-                    SheetBarButton(stringResource(R.string.hide_all), onClick = { showHideAllConfirm = true }, modifier = Modifier.padding(start = 12.dp))
+                title = {
+                    Text(
+                        stringResource(if (quantum) R.string.quantum_addresses else R.string.non_quantum_addresses),
+                        color = LocalAppColors.current.textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
                 },
-                actions = {
-                    SheetBarButton(stringResource(R.string.done), onClick = onBack, modifier = Modifier.padding(end = 12.dp))
+                // Hide All and Done stay on the cards (iOS d7e6dd1); this list only goes back.
+                navigationIcon = {
+                    SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -5916,7 +6082,7 @@ fun AddressVisibilityScreen(
                     )
                 }
                 Text(
-                    "#$start - #$end",
+                    "#$localStart - #$localEnd",
                     color = LocalAppColors.current.textSecondary,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodySmall
@@ -6024,28 +6190,6 @@ fun AddressVisibilityScreen(
                 }
             }
         }
-    }
-
-    if (showHideAllConfirm) {
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { showHideAllConfirm = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.hide_all_addresses_title), color = LocalAppColors.current.textPrimary) },
-            text = { Text(stringResource(R.string.hide_all_addresses_message), color = LocalAppColors.current.textSecondary) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showHideAllConfirm = false
-                    viewModel.hideAllSpendingAddresses()
-                }) {
-                    Text(stringResource(R.string.hide_all), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showHideAllConfirm = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
     }
 }
 

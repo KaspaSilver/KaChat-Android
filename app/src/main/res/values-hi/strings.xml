@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">KNS किसी क्वांटम-सुरक्षित पते से डोमेन बाहर नहीं ले जा सकता: KNS डोमेन के मालिक को पब्लिक की से पहचानता है, और क्वांटम-सुरक्षित पता अपनी की छिपाकर रखता है।</string>
     <string name="kns_transfer_to_script_address">.kas डोमेन को क्वांटम-सुरक्षित या किसी अन्य स्क्रिप्ट पते पर नहीं भेजा जा सकता: KNS उसे फिर कभी बाहर नहीं ले जा पाएगा। इसके बजाय किसी सामान्य पते पर भेजें।</string>
     <string name="quantum_next_address_failed">अगला पता तैयार नहीं हो सका। फिर से कोशिश करें।</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">क्वांटम पते</string>
+    <string name="non_quantum_addresses">नॉन-क्वांटम पते</string>
+    <string name="addresses_shown_count">%2$d में से %1$d दिखाए गए</string>
 </resources>

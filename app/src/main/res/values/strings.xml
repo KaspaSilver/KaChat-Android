@@ -1631,4 +1631,8 @@
     <string name="kns_transfer_to_script_address">A .kas domain can\'t be sent to a quantum-safe or other script address: KNS could never move it out again. Send it to a regular address instead.</string>
     <!-- Quantum-safe send: the next change address could not be prepared (iOS da2c8e2) -->
     <string name="quantum_next_address_failed">Couldn\'t prepare the next address. Try again.</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">Quantum Addresses</string>
+    <string name="non_quantum_addresses">Non-Quantum Addresses</string>
+    <string name="addresses_shown_count">%1$d of %2$d shown</string>
 </resources>

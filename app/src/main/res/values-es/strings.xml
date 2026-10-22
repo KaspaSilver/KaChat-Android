@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">KNS no puede mover un dominio fuera de una dirección resistente a la computación cuántica: KNS identifica al dueño de un dominio por una clave pública, y una dirección resistente a la cuántica mantiene su clave oculta.</string>
     <string name="kns_transfer_to_script_address">No se puede enviar un dominio .kas a una dirección resistente a la cuántica ni a otra dirección de script: KNS nunca podría volver a moverlo. Envíalo a una dirección normal.</string>
     <string name="quantum_next_address_failed">No se pudo preparar la siguiente dirección. Inténtalo de nuevo.</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">Direcciones cuánticas</string>
+    <string name="non_quantum_addresses">Direcciones no cuánticas</string>
+    <string name="addresses_shown_count">%1$d de %2$d visibles</string>
 </resources>

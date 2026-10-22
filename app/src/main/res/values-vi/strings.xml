@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">KNS không thể chuyển tên miền ra khỏi địa chỉ an toàn lượng tử: KNS nhận diện chủ tên miền bằng khóa công khai, còn địa chỉ an toàn lượng tử giữ kín khóa của nó.</string>
     <string name="kns_transfer_to_script_address">Không thể gửi tên miền .kas đến địa chỉ an toàn lượng tử hoặc địa chỉ script khác: KNS sẽ không bao giờ chuyển nó ra được nữa. Hãy gửi đến một địa chỉ thông thường.</string>
     <string name="quantum_next_address_failed">Không thể chuẩn bị địa chỉ tiếp theo. Hãy thử lại.</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">Địa chỉ lượng tử</string>
+    <string name="non_quantum_addresses">Địa chỉ không lượng tử</string>
+    <string name="addresses_shown_count">Hiển thị %1$d/%2$d</string>
 </resources>

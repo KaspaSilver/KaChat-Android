@@ -1365,4 +1365,8 @@
     <string name="kns_transfer_quantum_source">KNS kann eine Domain nicht von einer quantensicheren Adresse wegbewegen: KNS erkennt den Besitzer einer Domain an einem öffentlichen Schlüssel, und eine quantensichere Adresse hält ihren Schlüssel verborgen.</string>
     <string name="kns_transfer_to_script_address">Eine .kas-Domain kann nicht an eine quantensichere oder andere Skript-Adresse gesendet werden: KNS könnte sie nie wieder wegbewegen. Sende sie stattdessen an eine normale Adresse.</string>
     <string name="quantum_next_address_failed">Die nächste Adresse konnte nicht vorbereitet werden. Versuche es erneut.</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">Quantensichere Adressen</string>
+    <string name="non_quantum_addresses">Nicht quantensichere Adressen</string>
+    <string name="addresses_shown_count">%1$d von %2$d angezeigt</string>
 </resources>

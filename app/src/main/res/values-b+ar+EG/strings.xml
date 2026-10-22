@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">لا يمكن لـ KNS نقل نطاق من عنوان مقاوم للكم: يحدد KNS مالك النطاق بمفتاح عام، والعنوان المقاوم للكم يُبقي مفتاحه مخفيًا.</string>
     <string name="kns_transfer_to_script_address">لا يمكن إرسال نطاق ‎.kas إلى عنوان مقاوم للكم أو عنوان سكربت آخر: لن يتمكن KNS من نقله مرة أخرى أبدًا. أرسله إلى عنوان عادي بدلًا من ذلك.</string>
     <string name="quantum_next_address_failed">تعذّر تجهيز العنوان التالي. حاول مرة أخرى.</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">العناوين المقاومة للكم</string>
+    <string name="non_quantum_addresses">العناوين غير المقاومة للكم</string>
+    <string name="addresses_shown_count">%1$d من %2$d معروضة</string>
 </resources>

@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">KNS は量子耐性アドレスからドメインを移動できません。KNS はドメインの所有者を公開鍵で識別しますが、量子耐性アドレスは鍵を隠しています。</string>
     <string name="kns_transfer_to_script_address">.kas ドメインは量子耐性アドレスやその他のスクリプトアドレスには送れません。KNS が二度と移動できなくなります。通常のアドレスに送ってください。</string>
     <string name="quantum_next_address_failed">次のアドレスを準備できませんでした。もう一度お試しください。</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">量子耐性アドレス</string>
+    <string name="non_quantum_addresses">非量子耐性アドレス</string>
+    <string name="addresses_shown_count">%2$d件中%1$d件を表示</string>
 </resources>

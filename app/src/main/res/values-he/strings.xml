@@ -1368,4 +1368,8 @@
     <string name="kns_transfer_quantum_source">KNS לא יכול להוציא דומיין מכתובת עמידה לקוונטים: KNS מזהה את בעל הדומיין לפי מפתח ציבורי, וכתובת עמידה לקוונטים שומרת את המפתח שלה מוסתר.</string>
     <string name="kns_transfer_to_script_address">אי אפשר לשלוח דומיין ‎.kas לכתובת עמידה לקוונטים או לכתובת סקריפט אחרת: KNS לא יוכל להוציא אותו משם לעולם. שלחו אותו לכתובת רגילה במקום.</string>
     <string name="quantum_next_address_failed">לא ניתן היה להכין את הכתובת הבאה. נסו שוב.</string>
+    <!-- Address Visibility: a card per chain (iOS d7e6dd1) -->
+    <string name="quantum_addresses">כתובות קוונטיות</string>
+    <string name="non_quantum_addresses">כתובות לא קוונטיות</string>
+    <string name="addresses_shown_count">%1$d מתוך %2$d מוצגות</string>
 </resources>
