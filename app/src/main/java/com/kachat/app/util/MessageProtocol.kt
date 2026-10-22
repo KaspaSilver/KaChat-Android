@@ -258,6 +258,16 @@ object MessageProtocol {
     fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray): KasiaCipher.EncryptedMessage =
         KasiaCipher.encrypt(plaintext, recipientXOnlyPubKey)
 
+    /**
+     * The sealed body of a 1:1 (`comm` / `dm`) message - iOS `encryptContextualMessage`: a photo
+     * or voice note (media-file JSON with an image/audio base64 data URL) travels as the binary
+     * media frame, raw bytes with one base64 layer instead of two; everything else as UTF-8 text.
+     * Groups and public chats never come through here.
+     */
+    fun encryptContextual(content: String, recipientXOnlyPubKey: ByteArray): KasiaCipher.EncryptedMessage =
+        ContextualMediaFrame.frameForEnvelope(content)?.let { KasiaCipher.encrypt(it, recipientXOnlyPubKey) }
+            ?: KasiaCipher.encrypt(content, recipientXOnlyPubKey)
+
     fun decrypt(encrypted: KasiaCipher.EncryptedMessage, privateKey: ByteArray): String =
         KasiaCipher.decrypt(encrypted, privateKey)
 

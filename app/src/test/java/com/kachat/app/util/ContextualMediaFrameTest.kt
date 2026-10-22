@@ -3,6 +3,7 @@ package com.kachat.app.util
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.math.BigInteger
@@ -146,5 +147,74 @@ class ContextualMediaFrameTest {
             assertEquals(text, KasiaCipher.decrypt(KasiaCipher.encrypt(text, pub), priv))
             assertNull(ContextualMediaFrame.envelopeText(text.toByteArray(Charsets.UTF_8)))
         }
+    }
+
+    // --- sending (iOS ContextualMediaFrame.frame(forEnvelope:), encryptContextualMessage) ---
+
+    private fun b64(raw: ByteArray) = Base64.getEncoder().encodeToString(raw)
+
+    @Test
+    fun `a photo envelope becomes the frame iOS builds`() {
+        val envelope = ImageMessage.encode("photo.jpg", jpeg.size.toLong(), b64(jpeg))
+        val f = ContextualMediaFrame.frameForEnvelope(envelope)!!
+        val header = "{\"mimeType\":\"image\\/jpeg\",\"name\":\"photo.jpg\",\"size\":26}"
+        assertEquals(frame(header, jpeg).toList(), f.toList())
+        // and it reads back as the iOS text form (not Gson's "\u003d"-escaped one)
+        assertEquals(iosTextForm("photo.jpg", "image/jpeg", jpeg), ContextualMediaFrame.envelopeText(f))
+    }
+
+    @Test
+    fun `a voice envelope becomes a frame and round-trips through the 1-1 cipher`() {
+        val priv = randomScalarBytes()
+        val pub = Schnorr.publicKeyXOnly(priv)
+        val opus = ByteArray(5_000) { (it * 31).toByte() }
+        val envelope = VoiceMessage.encode("voice_1.webm", opus.size.toLong(), b64(opus))
+        val sealed = MessageProtocol.encryptContextual(envelope, pub)
+        // raw bytes + frame header inside the cipher, not the base64 JSON
+        assertTrue(sealed.ciphertext.size < opus.size + 100)
+        assertEquals(iosTextForm("voice_1.webm", "audio/webm", opus), MessageProtocol.decrypt(sealed, priv))
+    }
+
+    @Test
+    fun `everything else is sent as text`() {
+        val priv = randomScalarBytes()
+        val pub = Schnorr.publicKeyXOnly(priv)
+        val notFramed = listOf(
+            "hello",
+            "{\"type\":\"file\"}",
+            "{\"type\":\"reply\",\"content\":\"data:image/jpeg;base64,AQID\"}",
+            "{\"type\":\"file\",\"name\":\"a.mp4\",\"size\":3,\"mimeType\":\"video/mp4\",\"content\":\"data:video/mp4;base64,AQID\"}",
+            "{\"type\":\"file\",\"name\":\"a.pdf\",\"size\":3,\"mimeType\":\"application/pdf\",\"content\":\"data:application/pdf;base64,AQID\"}",
+            "{\"type\":\"file\",\"name\":\"a.jpg\",\"size\":2,\"mimeType\":\"image/jpeg\",\"content\":\"data:image/jpeg;base64,AQI\"}",
+            "{\"type\":\"file\",\"name\":\"a.jpg\",\"size\":2,\"mimeType\":\"image/jpeg\",\"content\":\"data:image/jpeg,AQID\"}",
+            "{\"type\":\"file\",\"name\":\"a.jpg\",\"size\":0,\"mimeType\":\"image/jpeg\",\"content\":\"data:image/jpeg;base64,\"}",
+            "{\"type\":\"file\",\"name\":\"a.jpg\",\"size\":2,\"mimeType\":\"image/jpeg\",\"content\":\"data:image/jpeg;base64,!!!!\"}",
+            " {\"type\":\"file\",\"content\":\"data:image/jpeg;base64,AQID\"}",
+            "https://cloud.example.com/s/abc",
+        )
+        for (text in notFramed) {
+            assertNull(text, ContextualMediaFrame.frameForEnvelope(text))
+            assertEquals(text, MessageProtocol.decrypt(MessageProtocol.encryptContextual(text, pub), priv))
+        }
+    }
+
+    @Test
+    fun `any image or audio mime is framed, case-insensitively, with its name kept`() {
+        val envelope = "{\"type\":\"file\",\"name\":\"a/\\\"b\\\".png\",\"size\":3,\"mimeType\":\"Image/PNG\",\"content\":\"data:Image/PNG;base64,AQID\"}"
+        val f = ContextualMediaFrame.frameForEnvelope(envelope)!!
+        assertEquals(
+            frame("{\"mimeType\":\"Image\\/PNG\",\"name\":\"a\\/\\\"b\\\".png\",\"size\":3}", byteArrayOf(1, 2, 3)).toList(),
+            f.toList()
+        )
+        assertEquals(
+            "{\"type\":\"file\",\"name\":\"a/\\\"b\\\".png\",\"size\":3,\"mimeType\":\"Image/PNG\",\"content\":\"data:Image/PNG;base64,AQID\"}",
+            ContextualMediaFrame.envelopeText(f)
+        )
+    }
+
+    @Test
+    fun `the photo fee preview prices the single encoding`() {
+        assertEquals(26_946, ImagePrep.estimatedWirePayloadSize(20_000))
+        assertEquals(42_946, ImagePrep.estimatedWirePayloadSize(32_000))
     }
 }

@@ -29,6 +29,57 @@ object ContextualMediaFrame {
 
     private val jsonElementAdapter = Gson().getAdapter(JsonElement::class.java)
 
+    /**
+     * The frame for a media-file envelope whose content is a base64 data URL of an image or
+     * audio type; null for anything else, which is sent as UTF-8 text as before. Mirrors iOS
+     * `ContextualMediaFrame.frame(forEnvelope:)` - including its header, which iOS writes with
+     * JSONSerialization's sorted keys (`mimeType, name, size`, "/" as "\/").
+     */
+    fun frameForEnvelope(text: String): ByteArray? {
+        if (!text.startsWith("{") || !text.contains("\"type\":\"file\"")) return null
+        val envelope = parseObject(text) ?: return null
+        if (envelope.stringField("type") != "file") return null
+        val content = envelope.stringField("content") ?: return null
+        if (!content.startsWith("data:")) return null
+        val comma = content.indexOf(',').takeIf { it >= 0 } ?: return null
+        val meta = content.substring(5, comma)
+        if (!meta.endsWith(";base64")) return null
+        val mimeType = meta.dropLast(";base64".length)
+        val lowered = mimeType.lowercase()
+        if (!lowered.startsWith("image/") && !lowered.startsWith("audio/")) return null
+        val base64 = content.substring(comma + 1)
+        // Foundation's Data(base64Encoded:) wants the padding; java.util.Base64 would let it go.
+        if (base64.length % 4 != 0) return null
+        val raw = try { Base64.getDecoder().decode(base64) } catch (e: IllegalArgumentException) { return null }
+        if (raw.isEmpty()) return null
+        val name = envelope.stringField("name") ?: "file"
+        val header = "{\"mimeType\":${jsonString(mimeType)},\"name\":${jsonString(name)},\"size\":${raw.size}}"
+            .toByteArray(Charsets.UTF_8)
+        val length = header.size
+        val lengthBytes = byteArrayOf((length ushr 24).toByte(), (length ushr 16).toByte(), (length ushr 8).toByte(), length.toByte())
+        return MAGIC + lengthBytes + header + raw
+    }
+
+    /** A JSON string the way Foundation's JSONSerialization writes one: `"`, `\` and `/`
+     *  escaped, control characters as their short or `\u00xx` form, everything else as is. */
+    private fun jsonString(value: String): String {
+        val out = StringBuilder(value.length + 2).append('"')
+        for (c in value) {
+            when (c) {
+                '"' -> out.append("\\\"")
+                '\\' -> out.append("\\\\")
+                '/' -> out.append("\\/")
+                '\b' -> out.append("\\b")
+                '\u000C' -> out.append("\\f")
+                '\n' -> out.append("\\n")
+                '\r' -> out.append("\\r")
+                '\t' -> out.append("\\t")
+                else -> if (c < ' ') out.append("\\u%04x".format(c.code)) else out.append(c)
+            }
+        }
+        return out.append('"').toString()
+    }
+
     /** True when [data] begins with 0xFF - a frame, or bytes no UTF-8 text can start with. */
     fun startsWithFrameByte(data: ByteArray): Boolean = data.isNotEmpty() && data[0] == MAGIC[0]
 
@@ -69,13 +120,20 @@ object ContextualMediaFrame {
     private fun escape(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"")
 
     /** The header as a JSON object - strict UTF-8 and strict JSON (one object, nothing after
-     *  it), like iOS's JSONSerialization; null for anything else. */
+     *  it), like iOS's JSONSerialization; null for anything else. [parseObject] alike for text. */
     private fun parseHeader(data: ByteArray, start: Int, end: Int): Map<String, JsonElement>? = try {
-        val text = Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(data, start, end - start))
-            .toString()
+        parseObject(
+            Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(data, start, end - start))
+                .toString()
+        )
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun parseObject(text: String): Map<String, JsonElement>? = try {
         val reader = JsonReader(StringReader(text)).apply { isLenient = false }
         val element = jsonElementAdapter.read(reader)
         if (reader.peek() != JsonToken.END_DOCUMENT || element == null || !element.isJsonObject) null

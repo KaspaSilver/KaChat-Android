@@ -120,6 +120,21 @@ object VoiceMessage {
         return (BASE_OVERHEAD_BYTES + elapsedSeconds * BYTES_PER_SECOND_OF_RECORDING).toInt()
     }
 
+    /**
+     * [estimatedWirePayloadSize] for a 1:1 voice note, which travels in the binary media frame
+     * (iOS f5f6a11): the recording's raw bytes, then only the payload's own base64 - the same
+     * single-encoding shape as [ImagePrep.estimatedWirePayloadSize]. Preview only.
+     */
+    fun estimatedFramedWirePayloadSize(elapsedMs: Long): Int =
+        ((estimatedRecordingBytes(elapsedMs) + 150) * 4.0 / 3.0).toInt() + 80
+
+    /** Raw recording bytes after [elapsedMs]: the same calibration as [estimatedWirePayloadSize]
+     *  with both base64 layers (4/3 each) taken back off - ~1,600 bytes a second. */
+    fun estimatedRecordingBytes(elapsedMs: Long): Int =
+        (WEBM_HEADER_BYTES + elapsedMs / 1000.0 * RAW_BYTES_PER_SECOND_OF_RECORDING).toInt()
+
     private const val BASE_OVERHEAD_BYTES = 150
     private const val BYTES_PER_SECOND_OF_RECORDING = 2870.0
+    private const val WEBM_HEADER_BYTES = 200
+    private const val RAW_BYTES_PER_SECOND_OF_RECORDING = BYTES_PER_SECOND_OF_RECORDING * 9.0 / 16.0
 }

@@ -1123,12 +1123,11 @@ class ChatViewModel @Inject constructor(
         // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
         val connected = nextcloudService.isConnected
         if (recording.status == VoiceRecordingStatus.RECORDING) {
-            if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedWirePayloadSize(recording.elapsedMs)
+            if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedFramedWirePayloadSize(recording.elapsedMs)
         } else if (photoUri != null) {
-            // Compressed image bytes -> inner base64 (+33%) -> JSON envelope overhead -> encryption
-            // + outer base64 (+33%) -- rough multiplier, calibrated the same way VoiceMessage's
-            // estimate is: never used for the real fee, only this live preview.
-            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else (ImagePrep.DEFAULT_CHAT_TARGET_BYTES * 1.33 * 1.33).toInt() + 150
+            // Compressed image bytes in the binary media frame -> encryption -> the payload's one
+            // base64 layer (iOS f5f6a11): never used for the real fee, only this live preview.
+            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else ImagePrep.estimatedWirePayloadSize()
         } else {
             textBytes
         }

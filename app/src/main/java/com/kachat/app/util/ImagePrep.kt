@@ -55,6 +55,15 @@ object ImagePrep {
     /** Default raw-byte budget for [prepareForChatMessage] — lands the final encrypted+base64'd on-chain wire payload in the same ballpark as a real proven-working voice message transaction (~28.7KB, see VoiceMessage.kt's calibration comment). */
     const val DEFAULT_CHAT_TARGET_BYTES = 15_000
 
+    /**
+     * Rough estimate of the final wire payload size for a picked-but-not-yet-compressed 1:1
+     * photo, used only for the live "fee so far" preview - the real send always measures actual
+     * bytes. The binary media frame carries the raw bytes; only the payload's own base64 remains
+     * (frame header + cipher overhead ~150 bytes, then 4/3) - iOS `estimatedWirePayloadSize`.
+     */
+    fun estimatedWirePayloadSize(targetBytes: Int = DEFAULT_CHAT_TARGET_BYTES): Int =
+        ((targetBytes + 150) * 4.0 / 3.0).toInt() + 80
+
     private const val CHAT_MAX_DIMENSION = 1280
     private const val MAX_SHRINK_ATTEMPTS = 4
 

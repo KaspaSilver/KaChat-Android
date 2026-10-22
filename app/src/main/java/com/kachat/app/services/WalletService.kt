@@ -651,7 +651,7 @@ class WalletService @Inject constructor(
             deterministicAlias = walletManager.theirDeterministicAlias(toContactId),
         )
 
-        val encrypted = MessageProtocol.encrypt(text, recipientPubKey)
+        val encrypted = MessageProtocol.encryptContextual(text, recipientPubKey)
         // First contact carries their inbox tag so they can find it (NO_HANDSHAKE_MESSAGING.md §3).
         val inboxTag = if (firstContactTag) chatRepository.firstContactInboxTag(toContactId) else null
         val payloadBytes = MessageProtocol.buildCommPayload(alias, encrypted, inboxTag)
@@ -676,7 +676,7 @@ class WalletService @Inject constructor(
             myAlias = contact?.myAlias,
             deterministicAlias = walletManager.theirDeterministicAlias(toContactId),
         )
-        val encrypted = MessageProtocol.encrypt(text, recipientPubKey)
+        val encrypted = MessageProtocol.encryptContextual(text, recipientPubKey)
         return MessageProtocol.buildCommPayload(alias, encrypted, null).toHexString()
     }
 
