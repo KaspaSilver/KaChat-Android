@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">Zincir Üstü Kaydet</string>
     <string name="media_take_on_chain_photo_subtitle">Bir fotoğraf çekip zincir üstü gönder, sığacak şekilde sıkıştırılır.</string>
     <string name="media_send_photo_on_chain_subtitle">Bir görsel seçip zincir üstü gönder, sığacak şekilde sıkıştırılır.</string>
-    <string name="media_record_on_chain_subtitle">25 saniyeye kadar, zincirde gönderilir.</string>
+    <string name="media_record_on_chain_subtitle">En fazla 10 saniye, zincir üstü gönderilir.</string>
+    <string name="media_record_on_chain_25s_subtitle">25 saniyeye kadar, zincirde gönderilir.</string>
     <string name="higher_quality_photos">Daha yüksek kaliteli fotoğraflar</string>
     <string name="media_take_photo_via_nextcloud">Nextcloud ile Fotoğraf Çek</string>
     <string name="media_record_via_nextcloud">Nextcloud ile Kaydet</string>

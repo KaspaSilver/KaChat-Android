@@ -29,10 +29,14 @@ enum class ComposerMediaKind { CAMERA, PHOTO, VOICE }
  * Android's camera is the system photo capture, which takes stills only, so "Take Photo via
  * Nextcloud" says "Full quality." where iOS's own camera adds "or a video" - a video goes via
  * Nextcloud from Photo instead ("Send Photo or Video via Nextcloud").
+ *
+ * [onChainVoiceSeconds] is the on-chain voice cap of the chat that opened it (iOS caf0742): 25 s
+ * in 1:1 chats (binary media frame), 10 s in groups and public chats, whose payloads are unchanged.
  */
 @Composable
 fun ComposerMediaRouteSheet(
     kind: ComposerMediaKind,
+    onChainVoiceSeconds: Int = 10,
     onChoose: (viaNextcloud: Boolean) -> Unit,
     onBack: () -> Unit,
     onDismiss: () -> Unit,
@@ -50,7 +54,11 @@ fun ComposerMediaRouteSheet(
     val onChainSubtitle = when (kind) {
         ComposerMediaKind.CAMERA -> R.string.media_take_on_chain_photo_subtitle
         ComposerMediaKind.PHOTO -> R.string.media_send_photo_on_chain_subtitle
-        ComposerMediaKind.VOICE -> R.string.media_record_on_chain_subtitle
+        ComposerMediaKind.VOICE -> if (onChainVoiceSeconds >= 25) {
+            R.string.media_record_on_chain_25s_subtitle
+        } else {
+            R.string.media_record_on_chain_subtitle
+        }
     }
     val nextcloudTitle = when (kind) {
         ComposerMediaKind.CAMERA -> R.string.media_take_photo_via_nextcloud

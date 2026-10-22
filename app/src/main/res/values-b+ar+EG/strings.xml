@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">سجّل على السلسلة</string>
     <string name="media_take_on_chain_photo_subtitle">صوّر صورة وابعتها على السلسلة، متضغطة عشان تكفي.</string>
     <string name="media_send_photo_on_chain_subtitle">اختار صورة وابعتها على السلسلة، متضغطة عشان تكفي.</string>
-    <string name="media_record_on_chain_subtitle">حتى 25 ثانية، تُرسل على السلسلة.</string>
+    <string name="media_record_on_chain_subtitle">لحد 10 ثواني، بتتبعت على السلسلة.</string>
+    <string name="media_record_on_chain_25s_subtitle">حتى 25 ثانية، تُرسل على السلسلة.</string>
     <string name="higher_quality_photos">صور بجودة أعلى</string>
     <string name="media_take_photo_via_nextcloud">صوّر عن طريق Nextcloud</string>
     <string name="media_record_via_nextcloud">سجّل عن طريق Nextcloud</string>

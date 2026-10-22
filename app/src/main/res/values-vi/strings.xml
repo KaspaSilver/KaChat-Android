@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">Ghi âm on-chain</string>
     <string name="media_take_on_chain_photo_subtitle">Chụp ảnh và gửi on-chain, được nén cho vừa.</string>
     <string name="media_send_photo_on_chain_subtitle">Chọn ảnh và gửi on-chain, được nén cho vừa.</string>
-    <string name="media_record_on_chain_subtitle">Tối đa 25 giây, gửi trên chuỗi.</string>
+    <string name="media_record_on_chain_subtitle">Tối đa 10 giây, gửi on-chain.</string>
+    <string name="media_record_on_chain_25s_subtitle">Tối đa 25 giây, gửi trên chuỗi.</string>
     <string name="higher_quality_photos">Ảnh chất lượng cao hơn</string>
     <string name="media_take_photo_via_nextcloud">Chụp ảnh qua Nextcloud</string>
     <string name="media_record_via_nextcloud">Ghi âm qua Nextcloud</string>

@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">অন-চেইন রেকর্ড করুন</string>
     <string name="media_take_on_chain_photo_subtitle">একটি ছবি তুলে অন-চেইন পাঠান, আঁটানোর জন্য সংকুচিত।</string>
     <string name="media_send_photo_on_chain_subtitle">একটি ছবি বেছে অন-চেইন পাঠান, আঁটানোর জন্য সংকুচিত।</string>
-    <string name="media_record_on_chain_subtitle">সর্বোচ্চ ২৫ সেকেন্ড, চেইনে পাঠানো হয়।</string>
+    <string name="media_record_on_chain_subtitle">১০ সেকেন্ড পর্যন্ত, অন-চেইন পাঠানো হয়।</string>
+    <string name="media_record_on_chain_25s_subtitle">সর্বোচ্চ ২৫ সেকেন্ড, চেইনে পাঠানো হয়।</string>
     <string name="higher_quality_photos">উচ্চমানের ছবি</string>
     <string name="media_take_photo_via_nextcloud">Nextcloud দিয়ে ছবি তুলুন</string>
     <string name="media_record_via_nextcloud">Nextcloud দিয়ে রেকর্ড করুন</string>

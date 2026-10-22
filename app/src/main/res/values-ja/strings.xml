@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">オンチェーンで録音</string>
     <string name="media_take_on_chain_photo_subtitle">写真を撮ってオンチェーンで送信します（収まるよう圧縮）。</string>
     <string name="media_send_photo_on_chain_subtitle">画像を選んでオンチェーンで送信します（収まるよう圧縮）。</string>
-    <string name="media_record_on_chain_subtitle">最大25秒、オンチェーンで送信。</string>
+    <string name="media_record_on_chain_subtitle">最大10秒、オンチェーンで送信。</string>
+    <string name="media_record_on_chain_25s_subtitle">最大25秒、オンチェーンで送信。</string>
     <string name="higher_quality_photos">高画質の写真</string>
     <string name="media_take_photo_via_nextcloud">Nextcloudで写真を撮る</string>
     <string name="media_record_via_nextcloud">Nextcloudで録音</string>

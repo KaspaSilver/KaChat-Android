@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">Enregistrer on-chain</string>
     <string name="media_take_on_chain_photo_subtitle">Prenez une photo et envoyez-la on-chain, compressée pour tenir.</string>
     <string name="media_send_photo_on_chain_subtitle">Choisissez une image et envoyez-la on-chain, compressée pour tenir.</string>
-    <string name="media_record_on_chain_subtitle">Jusqu\'à 25 secondes, envoyé sur la chaîne.</string>
+    <string name="media_record_on_chain_subtitle">Jusqu\'à 10 secondes, envoyé on-chain.</string>
+    <string name="media_record_on_chain_25s_subtitle">Jusqu\'à 25 secondes, envoyé sur la chaîne.</string>
     <string name="higher_quality_photos">Photos de meilleure qualité</string>
     <string name="media_take_photo_via_nextcloud">Prendre une photo via Nextcloud</string>
     <string name="media_record_via_nextcloud">Enregistrer via Nextcloud</string>

@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">הקלטה על השרשרת</string>
     <string name="media_take_on_chain_photo_subtitle">צלמו תמונה ושלחו אותה על השרשרת, דחוסה כדי שתתאים.</string>
     <string name="media_send_photo_on_chain_subtitle">בחרו תמונה ושלחו אותה על השרשרת, דחוסה כדי שתתאים.</string>
-    <string name="media_record_on_chain_subtitle">עד 25 שניות, נשלח על השרשרת.</string>
+    <string name="media_record_on_chain_subtitle">עד 10 שניות, נשלח על השרשרת.</string>
+    <string name="media_record_on_chain_25s_subtitle">עד 25 שניות, נשלח על השרשרת.</string>
     <string name="higher_quality_photos">תמונות באיכות גבוהה יותר</string>
     <string name="media_take_photo_via_nextcloud">צילום תמונה דרך Nextcloud</string>
     <string name="media_record_via_nextcloud">הקלטה דרך Nextcloud</string>

@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">온체인 녹음</string>
     <string name="media_take_on_chain_photo_subtitle">사진을 찍어 온체인으로 보냅니다. 크기에 맞게 압축됩니다.</string>
     <string name="media_send_photo_on_chain_subtitle">이미지를 골라 온체인으로 보냅니다. 크기에 맞게 압축됩니다.</string>
-    <string name="media_record_on_chain_subtitle">최대 25초, 체인으로 전송됩니다.</string>
+    <string name="media_record_on_chain_subtitle">최대 10초, 온체인으로 전송됩니다.</string>
+    <string name="media_record_on_chain_25s_subtitle">최대 25초, 체인으로 전송됩니다.</string>
     <string name="higher_quality_photos">더 높은 화질의 사진</string>
     <string name="media_take_photo_via_nextcloud">Nextcloud로 사진 촬영</string>
     <string name="media_record_via_nextcloud">Nextcloud로 녹음</string>

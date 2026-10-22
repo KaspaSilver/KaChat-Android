@@ -178,6 +178,7 @@ import com.kachat.app.repository.ChatRepository
 import com.kachat.app.services.ColdStorageAddressDiscovery
 import com.kachat.app.services.KnsInscriptionEngine
 import com.kachat.app.services.KnsService
+import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.services.UtxoEntry
 import com.kachat.app.ui.theme.KaspaBlue
 import com.kachat.app.ui.theme.KaspaSubtext
@@ -1287,6 +1288,9 @@ fun ChatThreadScreen(
                                     // photo / voice note goes (iOS ComposerMediaRouteStep).
                                     ComposerMediaRouteSheet(
                                         kind = kind,
+                                        // 1:1's on-chain voice cap (25 s); groups and public
+                                        // chats keep the sheet's 10 s default (iOS caf0742).
+                                        onChainVoiceSeconds = (VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS / 1000).toInt(),
                                         onChoose = { viaNextcloud ->
                                             composerMediaStep = null
                                             showComposerMenu = false

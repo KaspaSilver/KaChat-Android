@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">ऑन-चेन रिकॉर्ड करें</string>
     <string name="media_take_on_chain_photo_subtitle">फ़ोटो लें और ऑन-चेन भेजें, फ़िट होने के लिए संपीड़ित।</string>
     <string name="media_send_photo_on_chain_subtitle">कोई इमेज चुनें और ऑन-चेन भेजें, फ़िट होने के लिए संपीड़ित।</string>
-    <string name="media_record_on_chain_subtitle">25 सेकंड तक, चेन पर भेजा जाता है।</string>
+    <string name="media_record_on_chain_subtitle">10 सेकंड तक, ऑन-चेन भेजा जाता है।</string>
+    <string name="media_record_on_chain_25s_subtitle">25 सेकंड तक, चेन पर भेजा जाता है।</string>
     <string name="higher_quality_photos">उच्च गुणवत्ता वाली फ़ोटो</string>
     <string name="media_take_photo_via_nextcloud">Nextcloud से फ़ोटो लें</string>
     <string name="media_record_via_nextcloud">Nextcloud से रिकॉर्ड करें</string>
