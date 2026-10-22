@@ -248,7 +248,7 @@ class QuantumAddressTest {
         var max = 3
         val inFlight = setOf(base + 4)
         val next = { WalletManager.nextFreshQuantumIndex(max, inFlight) }
-        val skip = { index: Int -> max = maxOf(max, index - base) }
+        val skip = { index: Int -> max = maxOf(max, index - base); true }
         // slots 5 and 6 already have history (used elsewhere): 7 is handed out, past the send in flight
         val used = setOf("a${base + 5}", "a${base + 6}")
         assertEquals(base + 7, WalletManager.firstFreshQuantumSlot(next, { "a$it" }, { it in used }, skip))
@@ -263,6 +263,69 @@ class QuantumAddressTest {
         assertEquals(WalletManager.MAX_USED_FRESH_QUANTUM_SKIPS, asked)
         assertEquals(base + 7 + WalletManager.MAX_USED_FRESH_QUANTUM_SKIPS, result)
         assertEquals(6 + WalletManager.MAX_USED_FRESH_QUANTUM_SKIPS, max)
+    }
+
+    /** Two saved accounts' quantum bounds, which one is active, and the fresh-slot probe for
+     *  [owner] wired the way [WalletManager.verifyFreshQuantumIndex] wires it: the next slot
+     *  and every skip read and write [owner]'s bound only, and a skip writes nothing once
+     *  [owner] has been removed (IOS-109 / AND-056). */
+    private class ProbeStore {
+        val saved = mutableSetOf(OWNER, OTHER)
+        var active = OWNER
+        val bound = mutableMapOf(OWNER to 3, OTHER to 9)
+
+        suspend fun probe(owner: String, isUsed: suspend (String) -> Boolean?): Int {
+            val base = WalletManager.QUANTUM_INDEX_BASE
+            return WalletManager.firstFreshQuantumSlot(
+                next = { WalletManager.nextFreshQuantumIndex(if (owner in saved) bound.getValue(owner) else -1, emptySet()) },
+                // the owner's own chain: its name in the address, whatever account is active
+                address = { index -> "$owner/${index - base}" },
+                isUsed = isUsed,
+                skip = { index ->
+                    if (owner !in saved) false
+                    else { bound[owner] = maxOf(bound.getValue(owner), index - base); true }
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `an account switch mid-probe writes only to the account it started for`() = kotlinx.coroutines.runBlocking {
+        // AND-056 / IOS-109: A's slots 4 and 5 are used elsewhere; the user switches to B while
+        // the first check is out. The probe still walks A's chain and raises A's bound - B's is
+        // never touched, and every address checked is A's
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = ProbeStore()
+        val asked = ArrayList<String>()
+        val slot = store.probe(OWNER) { address ->
+            asked += address
+            store.active = OTHER
+            address == "$OWNER/4" || address == "$OWNER/5"
+        }
+        assertEquals(OTHER, store.active)
+        assertEquals(base + 6, slot)
+        assertEquals(5, store.bound[OWNER])
+        assertEquals(9, store.bound[OTHER])
+        assertEquals(listOf("$OWNER/4", "$OWNER/5", "$OWNER/6"), asked)
+    }
+
+    @Test
+    fun `a probe whose account was removed writes nothing`() = kotlinx.coroutines.runBlocking {
+        // removed while the first check is out: the used slot is not written to anyone, and the
+        // slot past it comes back unchecked
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = ProbeStore()
+        var asked = 0
+        val slot = store.probe(OWNER) { address ->
+            asked++
+            store.saved -= OWNER
+            store.active = OTHER
+            address == "$OWNER/4"
+        }
+        assertEquals(1, asked)
+        assertEquals(base + 5, slot)
+        assertEquals(3, store.bound[OWNER])
+        assertEquals(9, store.bound[OTHER])
     }
 
     private fun sweep(

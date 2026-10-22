@@ -171,19 +171,21 @@ class WalletManager @Inject constructor(
          * history it is [skip]ped (the chain's end raised past it) and the next one asked, up to
          * [MAX_USED_FRESH_QUANTUM_SKIPS] times. A slot whose address can't be derived, or whose
          * check can't be answered (null), is taken as is - an unreachable server never blocks a
-         * send.
+         * send. [skip] answers false when the probe's account has been removed meanwhile (iOS
+         * 6891935, IOS-109 / AND-056): nothing more is written, and the slot past the used one is
+         * returned unchecked.
          */
         internal suspend fun firstFreshQuantumSlot(
             next: () -> Int,
             address: suspend (Int) -> String?,
             isUsed: suspend (String) -> Boolean?,
-            skip: (Int) -> Unit,
+            skip: (Int) -> Boolean,
         ): Int {
             var index = next()
             repeat(MAX_USED_FRESH_QUANTUM_SKIPS) {
                 val candidate = address(index) ?: return index
                 if (isUsed(candidate) != true) return index
-                skip(index)
+                if (!skip(index)) return index + 1
                 index = next()
             }
             return index
@@ -1156,28 +1158,48 @@ class WalletManager @Inject constructor(
      * allocation takes it first: they stay the only allocators, under
      * [spendingIndexAllocationLock], so the in-flight guard is unchanged. Derives from the seed
      * off the main thread.
+     *
+     * The probe belongs to the account it started for (iOS 6891935, IOS-109 / AND-056, the
+     * sweep's rule from IOS-107): [owner] (default: the active account) is taken when it starts,
+     * its slots are derived from that account's own quantum chain and a used slot raises THAT
+     * account's chain end, even if another account is active when a probe returns. Once the
+     * account has been removed it writes nothing more.
      */
-    suspend fun verifyFreshQuantumIndex(isUsed: suspend (String) -> Boolean?): Int =
+    suspend fun verifyFreshQuantumIndex(owner: String? = null, isUsed: suspend (String) -> Boolean?): Int {
+        val account = spendingSweepAccount(owner) ?: return nextFreshQuantumIndex()
+        return verifyFreshQuantumIndex(account, isUsed)
+    }
+
+    /** [verifyFreshQuantumIndex] for an account already taken (Generate New Address reveals on
+     *  the same one it probed). */
+    suspend fun verifyFreshQuantumIndex(account: SpendingSweepAccount, isUsed: suspend (String) -> Boolean?): Int =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             firstFreshQuantumSlot(
-                next = { nextFreshQuantumIndex() },
-                address = { index -> try { deriveSpendingAddress(index) } catch (e: Exception) { null } },
+                next = { nextFreshQuantumIndex(account) },
+                address = { index -> deriveSpendingAddresses(listOf(index), account)[index] },
                 isUsed = isUsed,
-                skip = { index -> skipUsedQuantumSlot(index) },
+                skip = { index -> skipUsedQuantumSlot(account, index) },
             )
         }
 
-    /** Raises the active account's quantum bound past used public [index] (iOS
-     *  `setMaxQuantumAddressIndex(index - quantumIndexBase)`), keeping hidden any slot a send in
-     *  flight picked that the bound newly passes - as [allocateFreshQuantumIndices] does. */
-    private fun skipUsedQuantumSlot(index: Int) = synchronized(spendingIndexAllocationLock) {
-        val account = getActiveAccount() ?: return@synchronized
+    /** [nextFreshQuantumIndex] for [account], whichever account is active. */
+    private fun nextFreshQuantumIndex(account: SpendingSweepAccount): Int = synchronized(spendingIndexAllocationLock) {
+        nextFreshQuantumIndex(sweepAccountRecord(account)?.let { maxQuantumIndex(it) } ?: -1, pendingQuantumChange[account.owner].orEmpty())
+    }
+
+    /** Raises [account]'s quantum bound past used public [index] (iOS
+     *  `setMaxQuantumAddressIndex(index - quantumIndexBase, owner:)`), keeping hidden any slot a
+     *  send in flight picked that the bound newly passes - as [allocateFreshQuantumIndices] does.
+     *  False, writing nothing, once [account] has been removed (IOS-109 / AND-056). */
+    private fun skipUsedQuantumSlot(account: SpendingSweepAccount, index: Int): Boolean = synchronized(spendingIndexAllocationLock) {
+        val record = sweepAccountRecord(account) ?: return@synchronized false
         android.util.Log.i("WalletManager", "Quantum slot ${index - QUANTUM_INDEX_BASE} already has history - skipping it")
-        val revealedMax = maxQuantumIndex(account)
-        pendingQuantumChange[account.address].orEmpty()
+        val revealedMax = maxQuantumIndex(record)
+        pendingQuantumChange[record.address].orEmpty()
             .filter { it - QUANTUM_INDEX_BASE > revealedMax && it < index }
-            .forEach { setSpendingAddressHidden(account.address, it, true) }
-        ensureMaxQuantumAddressIndexAtLeast(account.address, index - QUANTUM_INDEX_BASE)
+            .forEach { setSpendingAddressHidden(record.address, it, true) }
+        ensureMaxQuantumAddressIndexAtLeast(record.address, index - QUANTUM_INDEX_BASE)
+        true
     }
 
     /** The KIP-22 redeem script of a quantum index's key, pushed after each signature when it

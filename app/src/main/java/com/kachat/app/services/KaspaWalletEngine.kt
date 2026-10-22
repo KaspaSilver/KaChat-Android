@@ -518,8 +518,9 @@ class KaspaWalletEngine @Inject constructor(
         // as in flight meanwhile, so a concurrent send or Request Payment reservation can't get
         // the same one. The slot is checked on chain first: one that already has history (used
         // from another device, or past where a restore looked) is skipped (iOS
-        // `verifiedFreshQuantumIndex`, IOS-101 / AND-049).
-        walletManager.verifyFreshQuantumIndex(isAddressUsed)
+        // `verifiedFreshQuantumIndex`, IOS-101 / AND-049), on the account active as it starts
+        // (IOS-109 / AND-056).
+        walletManager.verifyFreshQuantumIndex(isUsed = isAddressUsed)
         val picked = walletManager.pickFreshQuantumChange()
         val pick = if (picked != null && (picked.index == sourceSpendingIndex || picked.address.equals(sourceSpendingAddress, ignoreCase = true))) {
             walletManager.finishQuantumChangePick(picked, reveal = false)

@@ -625,10 +625,14 @@ class WalletService @Inject constructor(
      *  IOS-101 / AND-049): a slot already used elsewhere is skipped, never handed out as new.
      *  The reveal itself stays under the allocation lock with the in-flight guard
      *  ([WalletManager.generateNextQuantumAddress]). */
-    suspend fun generateNextQuantumAddress(): Int {
-        val address = walletManager.getAddress()
-        walletManager.verifyFreshQuantumIndex { spendingAddressUsedState(it) }
-        return walletManager.generateNextQuantumAddress(address)
+    suspend fun generateNextQuantumAddress(owner: String? = null): Int {
+        // One account for the probe and the reveal, taken now (iOS 6891935, IOS-109 / AND-056):
+        // the slot is probed on that account's chain and revealed there, whichever account is
+        // active by then. Removed meanwhile: nothing is revealed.
+        val account = walletManager.spendingSweepAccount(owner) ?: throw IllegalStateException("No active account")
+        val index = walletManager.verifyFreshQuantumIndex(account) { spendingAddressUsedState(it) }
+        if (!walletManager.sweepAccountStillSaved(account)) return index
+        return walletManager.generateNextQuantumAddress(account.owner)
     }
 
     /**

@@ -450,7 +450,7 @@ class WalletViewModel @Inject constructor(
                     entry.isQuantum && entry.hidden && entry.liveChecked && !entry.isCurrent &&
                         entry.index != account.spendingAddressIndex &&
                         entry.balanceSompi == 0L && !entry.everUsed && entry.index !in inFlight
-                }?.index ?: walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
+                }?.index ?: walletManager.verifyFreshQuantumIndex(owner = walletAddress) { walletService.spendingAddressUsedState(it) }
                 val address = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
                 if (address == null) {
                     onResult(current)
@@ -517,8 +517,9 @@ class WalletViewModel @Inject constructor(
             } else if (quantum) {
                 // A brand-new quantum slot, un-hidden: always extends the chain (iOS
                 // generateNextQuantumAddress) - never revealed, funded, or offered, and checked
-                // on chain first (iOS 2343e84, IOS-101): a slot already used is skipped.
-                walletService.generateNextQuantumAddress()
+                // on chain first (iOS 2343e84, IOS-101): a slot already used is skipped. Probed
+                // and revealed on the account this press started for (IOS-109 / AND-056).
+                walletService.generateNextQuantumAddress(owner = walletAddress)
             } else {
                 // Every listed index is spoken for (or unconfirmed): extend the chain. A brand-new
                 // index past the all-time max has never been revealed, funded, or offered, so it
