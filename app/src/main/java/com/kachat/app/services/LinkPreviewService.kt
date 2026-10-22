@@ -374,7 +374,11 @@ object LinkPreviewService {
     private fun parseHtml(html: String, url: String): LinkPreviewData? {
         val title = metaContent("og:title", html, useProperty = true) ?: titleTag(html)
         val description = metaContent("og:description", html, useProperty = true) ?: metaContent("description", html, useProperty = false)
-        val imageUrl = metaContent("og:image", html, useProperty = true)?.let { resolveUrl(it, url) }
+        // Entities decoded BEFORE the URL is used: an HTML attribute writes `&` as `&amp;`, and a
+        // signed CDN link (Instagram's cdninstagram `...&oh=...&oe=...`) left as `&amp;oh=` loses
+        // its signature - the CDN answers 403 and the card falls back to text only (iOS c97e78f:
+        // raw 403, decoded 200).
+        val imageUrl = metaContent("og:image", html, useProperty = true)?.let { resolveUrl(it.decodeHtmlEntities(), url) }
         val siteName = metaContent("og:site_name", html, useProperty = true) ?: runCatching { java.net.URI(url).host }.getOrNull()
 
         if (title == null && description == null && imageUrl == null) return null
@@ -421,6 +425,8 @@ object LinkPreviewService {
     private fun String.decodeHtmlEntities(): String {
         return this
             .replace("&amp;", "&")
+            .replace("&#38;", "&")
+            .replace("&#x26;", "&")
             .replace("&quot;", "\"")
             .replace("&#39;", "'")
             .replace("&apos;", "'")
