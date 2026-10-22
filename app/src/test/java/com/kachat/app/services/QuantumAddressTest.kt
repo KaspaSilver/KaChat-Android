@@ -271,7 +271,7 @@ class QuantumAddressTest {
         activityServed: Boolean = true,
         balancesServed: Boolean = true,
         windows: MutableList<Int> = ArrayList(),
-        stillOwner: () -> Boolean = { true },
+        stillSaved: () -> Boolean = { true },
     ) = kotlinx.coroutines.runBlocking {
         SpendingAddressDiscovery.sweepQuantumWindows(
             base = 0,
@@ -284,11 +284,11 @@ class QuantumAddressTest {
                 if (!balancesServed) null
                 else addresses.associateWith { if (it.drop(1).toInt() in funded) 5L else 0L }
             },
-            stillOwner = stillOwner,
+            stillSaved = stillSaved,
         )
     }
 
-    /** [sweep] for an account that stays active the whole time: it always finishes. */
+    /** [sweep] for an account that stays saved the whole time: it always finishes. */
     private fun sweepOwned(
         activeUpTo: Int,
         funded: Set<Int> = emptySet(),
@@ -298,26 +298,118 @@ class QuantumAddressTest {
     ) = sweep(activeUpTo, funded, activityServed, balancesServed, windows)!!
 
     @Test
-    fun `an account switch mid-sweep stops the quantum sweep with nothing to write`() {
-        // the owner is checked before and after every window's derivation: switched during the
+    fun `a removed account stops the quantum sweep with nothing to write`() {
+        // the account is checked before and after every window's derivation: removed during the
         // second window's derivation, the sweep stops right there and hands back nothing
         val windows = ArrayList<Int>()
         var checks = 0
-        val stopped = sweep(activeUpTo = 450, funded = setOf(230), windows = windows, stillOwner = { ++checks <= 3 })
+        val stopped = sweep(activeUpTo = 450, funded = setOf(230), windows = windows, stillSaved = { ++checks <= 3 })
         assertEquals(null, stopped)
         assertEquals(listOf(0, 200), windows)
-        // switched before it began: not one window derived
+        // removed before it began: not one window derived
         val none = ArrayList<Int>()
-        assertEquals(null, sweep(activeUpTo = 450, windows = none, stillOwner = { false }))
+        assertEquals(null, sweep(activeUpTo = 450, windows = none, stillSaved = { false }))
         assertEquals(emptyList<Int>(), none)
-        // switched after the last window: still nothing to write
+        // removed after the last window: still nothing to write
         var after = 0
         val lastWindows = ArrayList<Int>()
         // windows 0, 200, 400, 600 = 8 checks around their derivations, the 9th is the final one
-        assertEquals(null, sweep(activeUpTo = 450, windows = lastWindows, stillOwner = { ++after <= 8 }))
+        assertEquals(null, sweep(activeUpTo = 450, windows = lastWindows, stillSaved = { ++after <= 8 }))
         assertEquals(listOf(0, 200, 400, 600), lastWindows)
-        // the account stays put: the same sweep finishes
-        assertEquals(450, sweep(activeUpTo = 450, stillOwner = { true })?.highestUsed)
+        // the account stays saved: the same sweep finishes
+        assertEquals(450, sweep(activeUpTo = 450, stillSaved = { true })?.highestUsed)
+    }
+
+    /** Two saved accounts, the per-account hidden sets and quantum bounds the sweep writes, and
+     *  which one is active - what [SpendingAddressDiscovery.runQuantumDiscovery] sees of
+     *  WalletManager. */
+    private class SweepStore {
+        val saved = mutableSetOf(OWNER, OTHER)
+        var active = OWNER
+        val hidden = HashMap<String, MutableMap<Int, Boolean>>()
+        val bound = mutableMapOf(OWNER to -1, OTHER to -1)
+    }
+
+    private fun quantumDiscovery(
+        store: SweepStore,
+        activeUpTo: Int,
+        funded: Set<Int>,
+        onWindow: (Int) -> Unit,
+    ) = kotlinx.coroutines.runBlocking {
+        SpendingAddressDiscovery.runQuantumDiscovery(
+            owner = OWNER,
+            base = 0,
+            // the owner's own chain, taken at the start: it doesn't follow the active account
+            derive = { indices -> onWindow(indices.first()); indices.associateWith { "q$it" } },
+            activity = { addresses -> addresses.filter { it.drop(1).toInt() <= activeUpTo }.associateWith { 1L } },
+            balances = { addresses -> addresses.associateWith { if (it.drop(1).toInt() in funded) 5L else 0L } },
+            stillSaved = { OWNER in store.saved },
+            previousMax = { store.bound[OWNER]?.takeIf { OWNER in store.saved } },
+            setHidden = { owner, index, hidden -> store.hidden.getOrPut(owner) { HashMap() }[index] = hidden },
+            raiseBound = { owner, quantumIndex -> if (quantumIndex > store.bound.getValue(owner)) store.bound[owner] = quantumIndex },
+        )
+    }
+
+    @Test
+    fun `an account switch mid-sweep still completes and writes to the sweep's own account`() {
+        // IOS-107 (iOS e571f45): switched to another account during the second window, the sweep
+        // carries on through every window and writes the hidden set and the bound to its OWN
+        // account - the newly active one is never touched
+        val store = SweepStore()
+        val windows = ArrayList<Int>()
+        val found = quantumDiscovery(store, activeUpTo = 450, funded = setOf(230)) { start ->
+            windows += start
+            if (start == 200) store.active = OTHER
+        }
+        assertEquals(OTHER, store.active)
+        assertEquals(listOf(0, 200, 400, 600), windows)
+        assertEquals(1, found)
+        assertEquals(450, store.bound[OWNER])
+        assertEquals(-1, store.bound[OTHER])
+        assertEquals(setOf(OWNER), store.hidden.keys)
+        val ownerHidden = store.hidden.getValue(OWNER)
+        // the slots the new bound swept in start hidden, the funded one is shown
+        assertEquals(false, ownerHidden[230])
+        assertEquals((0..450).filter { it != 230 }.toSet(), ownerHidden.filterValues { it }.keys)
+    }
+
+    @Test
+    fun `a removed account's quantum sweep drops its results`() {
+        // removed during the second window: nothing is written anywhere and nothing counted
+        val store = SweepStore()
+        val found = quantumDiscovery(store, activeUpTo = 450, funded = setOf(230)) { start ->
+            if (start == 200) {
+                store.saved -= OWNER
+                store.active = OTHER
+            }
+        }
+        assertEquals(0, found)
+        assertTrue(store.hidden.isEmpty())
+        assertEquals(-1, store.bound[OWNER])
+        assertEquals(-1, store.bound[OTHER])
+        // removed before it starts: not one window derived
+        val gone = SweepStore().apply { saved -= OWNER }
+        val windows = ArrayList<Int>()
+        assertEquals(0, quantumDiscovery(gone, activeUpTo = 450, funded = setOf(230)) { windows += it })
+        assertEquals(emptyList<Int>(), windows)
+        assertTrue(gone.hidden.isEmpty())
+    }
+
+    @Test
+    fun `the sweep account derives its own chains from what it took at the start`() {
+        // both chains from the account's own words (iOS e571f45 SpendingSweepAccount), whatever
+        // account is active - the same addresses the reference vectors give
+        val account = WalletManager.SpendingSweepAccount(OWNER, words, "", WalletManager.PassphraseForm.NFKD)
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val derived = account.derive(listOf(0, 1, base, base + 1))
+        assertEquals("kaspa:qppt49jerlp2vjquvhfjcpzkna7g26jzu2r88wwsnt3zndq4qvnnywxtsehh8", derived[0])
+        assertEquals("kaspa:qphqs4c490zy80q6rjlnetvyv3hclg8zz6h8l774rsprdprryz88xk3qp39k7", derived[1])
+        assertEquals("kaspa:pp4csja82vqaa9hstf6ned49w8j2tl79jmwjk5v79999qxsrfkj9zvq7y9wme", derived[base])
+        assertEquals("kaspa:pzc4ja4jywkqelzxeqn42z6mfqcf0aacgudadtszz52xpc9vr5wkxuyd47277", derived[base + 1])
+        assertEquals(OWNER, account.owner)
+        // another account's material gives another account's addresses
+        val other = WalletManager.SpendingSweepAccount(OTHER, words, "other passphrase", WalletManager.PassphraseForm.NFKD)
+        assertFalse(other.derive(listOf(0))[0] == derived[0])
     }
 
     @Test
@@ -384,5 +476,10 @@ class QuantumAddressTest {
         var pages = 0
         assertEquals(null, WalletService.quantumSpentFromPages(me) { _, limit -> pages++; page(null, limit) })
         assertEquals(WalletService.QUANTUM_SPENT_MAX_PAGES, pages)
+    }
+
+    private companion object {
+        const val OWNER = "kaspa:owner"
+        const val OTHER = "kaspa:other"
     }
 }

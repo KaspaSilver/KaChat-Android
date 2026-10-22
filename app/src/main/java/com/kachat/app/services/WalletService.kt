@@ -448,16 +448,22 @@ class WalletService @Inject constructor(
      * still hides the non-primary rows — hiding a funded row is self-healing (the list loader
      * force-unhides primary/funded rows on every successful load), while painting dozens of
      * random rows is not.
+     *
+     * For [restored], the account the restore started for, whichever account is active by now
+     * (iOS e571f45, IOS-107): its own record, chain and hidden set; nothing once it was removed.
      */
-    suspend fun seedImportedSpendingVisibility() {
-        val account = walletManager.getActiveAccount() ?: return
+    suspend fun seedImportedSpendingVisibility(restored: WalletManager.SpendingSweepAccount) {
+        val account = walletManager.sweepAccountRecord(restored) ?: return
         val primary = account.spendingAddressIndex
         val maxIndex = WalletManager.legacyMaxSpendingIndex(account)
         if (maxIndex <= 0) return
         if (walletManager.getHiddenSpendingIndices(account.address).isNotEmpty()) return
         if (walletManager.getManageAddressesSnapshot(account.address) != null) return
-        val addressByIndex = (0..maxIndex).associateWith { walletManager.deriveSpendingAddress(it) }
+        val addressByIndex = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            walletManager.deriveSpendingAddresses(0..maxIndex, restored)
+        }
         val balances = fetchBalancesBatched(addressByIndex.values.toList())
+        if (!walletManager.sweepAccountStillSaved(restored)) return
         for ((index, address) in addressByIndex) {
             if (index == primary) continue
             if ((balances[address] ?: 0L) > 0L) continue

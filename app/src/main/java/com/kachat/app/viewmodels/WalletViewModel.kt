@@ -986,28 +986,32 @@ class WalletViewModel @Inject constructor(
      *  recovered index - see [SpendingAddressDiscovery.discoverFunded].
      *
      *  The sweep belongs to the account it started for - [owner], or the active account when
-     *  the sweep starts (iOS 2343e84, IOS-107): every derivation and write resolves the CURRENT
-     *  account and the awaits can span an account switch, so the owner is re-checked before every
-     *  write (legacy bound, hidden set, quantum bound) and between windows, and the sweep stops,
-     *  writing nothing more, the moment another account is active. */
+     *  the sweep starts (iOS e571f45, IOS-107, owner's choice): that account's address and chain
+     *  material are taken at the start ([WalletManager.spendingSweepAccount]), and every
+     *  derivation and write (legacy bound, hidden set, quantum bound, address cache) goes to that
+     *  account even if another one is active by the time an await returns. Its results are
+     *  dropped only if the account was removed meanwhile. */
     fun discoverSpendingAddresses(owner: String? = null, onResult: (Int) -> Unit) {
         if (_discoveringAddresses.value) return
         viewModelScope.launch {
             _discoveringAddresses.value = true
             _spendingDiscoveryProgress.value = SpendingAddressDiscovery.DiscoveryProgress(0, 0)
             try {
-                val walletAddress = owner ?: walletManager.getActiveAccount()?.address
-                if (walletAddress == null || walletManager.getActiveAccount()?.address != walletAddress) {
+                val sweepAccount = walletManager.spendingSweepAccount(owner)
+                if (sweepAccount == null) {
                     onResult(0)
                     return@launch
                 }
-                val matched = spendingAddressDiscovery.discoverFunded(owner = walletAddress) { progress ->
+                val walletAddress = sweepAccount.owner
+                val matched = spendingAddressDiscovery.discoverFunded(sweepAccount) { progress ->
                     _spendingDiscoveryProgress.value = progress
                 }
-                // IOS-107: checked before any write; nothing between here and the quantum sweep
-                // suspends, so the legacy writes below all land on the account that was swept.
-                if (walletManager.getActiveAccount()?.address != walletAddress) {
-                    android.util.Log.i("WalletViewModel", "Discovery stopped: the account changed during the sweep")
+                // IOS-107: the writes below go to the swept account whichever one is active now;
+                // they are dropped only if it was removed. Nothing between here and the quantum
+                // sweep suspends.
+                val sweptRecord = walletManager.sweepAccountRecord(sweepAccount)
+                if (sweptRecord == null) {
+                    android.util.Log.i("WalletViewModel", "Discovery dropped: its account was removed during the sweep")
                     onResult(0)
                     return@launch
                 }
@@ -1015,8 +1019,7 @@ class WalletViewModel @Inject constructor(
                 // and shown. It only ever grows: an address that held funds last month and is
                 // empty now should not vanish from the list.
                 matched.maxOrNull()?.let { highest ->
-                    val account = walletManager.getActiveAccount()
-                    val previousMax = account?.let { WalletManager.legacyMaxSpendingIndex(it) } ?: -1
+                    val previousMax = WalletManager.legacyMaxSpendingIndex(sweptRecord)
                     // Hide the empty indices the new bound sweeps in, exactly as
                     // revealSpendingAddress does. The scan now reaches a thousand addresses deep,
                     // so a match at index 291 would otherwise raise the bound and flood Manage
@@ -1035,8 +1038,9 @@ class WalletViewModel @Inject constructor(
                 matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
                 // The quantum-safe (KIP-22) chain's half (iOS discoverQuantumAddresses): funded
                 // quantum slots extend its own bound and are un-hidden the same way.
-                // Tied to the same account: switched mid-sweep, it writes nothing and counts 0.
-                val quantumMatched = spendingAddressDiscovery.discoverQuantumAddresses(owner = walletAddress)
+                // Tied to the same account: it writes there even after a switch, and nothing
+                // (counting 0) once that account has been removed.
+                val quantumMatched = spendingAddressDiscovery.discoverQuantumAddresses(sweepAccount)
                 // Load first, THEN reconcile: the list fetch already reads every address's
                 // balance in one go, so the reservation check can use those instead of making
                 // its own per-address REST calls - which is both faster and the reason this
@@ -1440,16 +1444,21 @@ class WalletViewModel @Inject constructor(
                 val importedAddress = walletManager.getAddress()
                 launch {
                     try {
-                        val recoveredIndex = spendingAddressDiscovery.discoverIndex()
-                        // Only for the account it scanned (IOS-107, as the sweep below): the scan
-                        // derives from whatever account is active, so a switch meanwhile writes
-                        // nothing - neither the index nor the visibility of another account.
-                        if (walletManager.getActiveAccount()?.address == importedAddress) {
-                            walletManager.setSpendingAddressIndex(importedAddress, recoveredIndex)
-                            // Initial visibility: only the primary and funded addresses paint on
-                            // Manage Addresses after a rebuild; every other recovered index starts
-                            // hidden (see seedImportedSpendingVisibility's doc for the full rule).
-                            walletService.seedImportedSpendingVisibility()
+                        // The restored account's own (IOS-107, as the sweep below, iOS e571f45):
+                        // the scan derives that account's chain and the index and visibility go
+                        // to it even if another account is active by then; dropped only if it
+                        // was removed meanwhile.
+                        val restored = walletManager.spendingSweepAccount(importedAddress)
+                        if (restored != null) {
+                            val recoveredIndex = spendingAddressDiscovery.discoverIndex(restored)
+                            if (walletManager.sweepAccountStillSaved(restored)) {
+                                walletManager.setSpendingAddressIndex(restored.owner, recoveredIndex)
+                                // Initial visibility: only the primary and funded addresses paint
+                                // on Manage Addresses after a rebuild; every other recovered index
+                                // starts hidden (see seedImportedSpendingVisibility's doc for the
+                                // full rule).
+                                walletService.seedImportedSpendingVisibility(restored)
+                            }
                         }
                     } catch (e: Exception) {
                         android.util.Log.w("WalletViewModel", "Spending address discovery failed", e)
@@ -1458,8 +1467,8 @@ class WalletViewModel @Inject constructor(
                     // the same sweep as Manage Addresses' Discover Addresses - so balances and
                     // change rotation are right without anyone knowing to tap it (owner's call,
                     // iOS da2c8e2). Only this path: a typed-in recovery phrase; creating or
-                    // switching accounts doesn't scan. Tied to the restored account: switched
-                    // away meanwhile, it does nothing (iOS 2343e84, IOS-107).
+                    // switching accounts doesn't scan. Tied to the restored account: it writes
+                    // there even if another account is active by then (iOS e571f45, IOS-107).
                     discoverSpendingAddresses(owner = importedAddress) { }
                 }
             } catch (e: Exception) {

@@ -43,8 +43,11 @@ class SpendingAddressDiscovery @Inject constructor(
      * one, up to [MAX_SCAN_INDEX]. When the REST host doesn't serve that route, it falls back to a
      * history walk with a gap of [IMPORT_FALLBACK_GAP], plus the batched balance sweep over the
      * floor, so a funded address past any gap is still covered.
+     *
+     * Derived for [account], the restored account taken when the restore started (iOS e571f45,
+     * IOS-107) - not whichever account is active by the time a window is derived.
      */
-    suspend fun discoverIndex(): Int {
+    suspend fun discoverIndex(account: WalletManager.SpendingSweepAccount): Int {
         val api = networkService.kaspaRestApi.value ?: return 0
         var lastUsedIndex = -1
         var windowStart = 0
@@ -52,7 +55,7 @@ class SpendingAddressDiscovery @Inject constructor(
 
         while (windowStart < MAX_SCAN_INDEX) {
             val indices = (windowStart until minOf(windowStart + DEEP_SCAN_FLOOR, MAX_SCAN_INDEX)).toList()
-            val window = deriveOffMain(indices)
+            val window = deriveOffMain(indices, account)
             if (window.isEmpty()) break
             val activity = addressActivity.lastActivity(indices.mapNotNull { window[it] })
             if (activity == null) {
@@ -77,11 +80,11 @@ class SpendingAddressDiscovery @Inject constructor(
 
         Log.w("SpendingAddressDiscovery", "Bulk activity unavailable, using the history walk and the batched balance sweep")
         lastUsedIndex = -1
-        val floor = deriveOffMain((0 until DEEP_SCAN_FLOOR).toList())
+        val floor = deriveOffMain((0 until DEEP_SCAN_FLOOR).toList(), account)
         var consecutiveUnused = 0
         var index = 0
         while (consecutiveUnused < IMPORT_FALLBACK_GAP && index < MAX_SCAN_INDEX) {
-            val address = floor[index] ?: deriveOffMain(listOf(index))[index] ?: break
+            val address = floor[index] ?: deriveOffMain(listOf(index), account)[index] ?: break
             val everUsed = try {
                 api.getTransactions(address, limit = 1).isNotEmpty()
             } catch (e: Exception) {
@@ -120,11 +123,12 @@ class SpendingAddressDiscovery @Inject constructor(
     }
 
     /** Address derivation is CPU work (and a seed derivation when nothing is cached yet) - kept
-     *  off the main thread the import's coroutine runs on. Empty when it fails. */
-    private suspend fun deriveOffMain(indices: List<Int>): Map<Int, String> =
+     *  off the main thread the import's coroutine runs on. Always [account]'s own chains, whichever
+     *  account is active (IOS-107). Empty when it fails. */
+    private suspend fun deriveOffMain(indices: List<Int>, account: WalletManager.SpendingSweepAccount): Map<Int, String> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             try {
-                walletManager.deriveSpendingAddresses(indices)
+                walletManager.deriveSpendingAddresses(indices, account)
             } catch (e: Exception) {
                 Log.w("SpendingAddressDiscovery", "Could not derive spending addresses", e)
                 emptyMap()
@@ -169,27 +173,28 @@ class SpendingAddressDiscovery @Inject constructor(
          * that doesn't serve it, null) only the first window's [balances] are read, and the sweep
          * stops there as before. A window that can't be derived ends it.
          *
-         * The sweep belongs to the account it started for (iOS 2343e84, IOS-107): [derive]
-         * resolves the CURRENT account, and the awaits can span an account switch, so
-         * [stillOwner] is asked before and after every window's derivation (between windows
-         * included) and once more at the end - the moment it says no the sweep stops and returns
-         * null, and its caller writes nothing.
+         * The sweep belongs to the account it started for (iOS e571f45, IOS-107, owner's
+         * choice): [derive] is that account's own chain, so another account becoming active
+         * meanwhile changes nothing and the sweep goes on. [stillSaved] says whether the account
+         * is still saved on this phone; it is asked before and after every window's derivation
+         * and once more at the end, and only once the account has been REMOVED does the sweep
+         * stop and return null, its caller writing nothing.
          */
         internal suspend fun sweepQuantumWindows(
             base: Int,
             derive: suspend (List<Int>) -> Map<Int, String>,
             activity: suspend (List<String>) -> Map<String, Long>?,
             balances: suspend (List<String>) -> Map<String, Long>?,
-            stillOwner: () -> Boolean = { true },
+            stillSaved: () -> Boolean = { true },
         ): QuantumSweep? {
             var start = 0
             val funded = ArrayList<Int>()
             var highestUsed = -1
             while (start < QUANTUM_SCAN_LIMIT) {
-                if (!stillOwner()) return null
+                if (!stillSaved()) return null
                 val indices = (base + start until base + start + QUANTUM_SCAN_FLOOR).toList()
                 val derived = derive(indices)
-                if (!stillOwner()) return null
+                if (!stillSaved()) return null
                 val ordered = indices.mapNotNull { i -> derived[i]?.let { i to it } }
                 if (ordered.isEmpty()) break
                 val seen = activity(ordered.map { it.second })
@@ -205,9 +210,47 @@ class SpendingAddressDiscovery @Inject constructor(
                 if (seen == null || touched.isEmpty()) break
                 start += QUANTUM_SCAN_FLOOR
             }
-            if (!stillOwner()) return null
+            if (!stillSaved()) return null
             funded.maxOrNull()?.let { highestUsed = maxOf(highestUsed, it - base) }
             return QuantumSweep(funded, highestUsed)
+        }
+
+        /**
+         * The quantum restore sweep end to end ([discoverQuantumAddresses]), for [owner]: the
+         * windows ([sweepQuantumWindows]), then the writes - the empty slots the new bound sweeps
+         * in start hidden, every funded one is un-hidden, and the bound is raised - every one
+         * keyed to [owner], whichever account is active by then (iOS e571f45, IOS-107).
+         * [previousMax] is [owner]'s quantum bound as it stands at the write (null = the account
+         * is gone). Nothing is written, and 0 returned, once [stillSaved] says the account was
+         * removed. Returns how many funded slots it found.
+         */
+        internal suspend fun runQuantumDiscovery(
+            owner: String,
+            base: Int,
+            derive: suspend (List<Int>) -> Map<Int, String>,
+            activity: suspend (List<String>) -> Map<String, Long>?,
+            balances: suspend (List<String>) -> Map<String, Long>?,
+            stillSaved: () -> Boolean,
+            previousMax: () -> Int?,
+            setHidden: (owner: String, index: Int, hidden: Boolean) -> Unit,
+            raiseBound: (owner: String, quantumIndex: Int) -> Unit,
+            onDropped: () -> Unit = {},
+        ): Int {
+            if (!stillSaved()) return 0
+            val sweep = sweepQuantumWindows(base, derive, activity, balances, stillSaved) ?: return 0.also { onDropped() }
+            if (sweep.highestUsed < 0 || !stillSaved()) return 0
+            val matched = sweep.funded.toSet()
+
+            // read now, after the sweep: the owner's bound as it stands
+            val before = previousMax() ?: return 0
+            if (sweep.highestUsed > before) {
+                for (index in (base + before + 1)..(base + sweep.highestUsed)) {
+                    if (index !in matched) setHidden(owner, index, true)
+                }
+                raiseBound(owner, sweep.highestUsed)
+            }
+            matched.forEach { setHidden(owner, it, false) }
+            return matched.size
         }
     }
 
@@ -239,19 +282,18 @@ class SpendingAddressDiscovery @Inject constructor(
      *
      * Returns every matching index, in ascending order.
      *
-     * The sweep belongs to the account it started for, [owner] (default: the active one): every
-     * derivation resolves the CURRENT account and the awaits can span an account switch, so it is
-     * re-checked around each derivation and the scan stops, empty-handed, the moment another
-     * account is active (iOS 2343e84, IOS-107). The caller re-checks before it writes.
+     * The sweep belongs to the account it started for, [account] (iOS e571f45, IOS-107, owner's
+     * choice): every derivation is that account's own chain, so it carries on through an account
+     * switch, and only once the account has been removed does it stop, empty-handed. The caller
+     * writes the matches to the same account.
      */
     suspend fun discoverFunded(
+        account: WalletManager.SpendingSweepAccount,
         gapLimit: Int = 60,
-        owner: String? = null,
         onProgress: ((DiscoveryProgress) -> Unit)? = null,
     ): List<Int> {
-        val owningAddress = owner ?: walletManager.getActiveAccount()?.address ?: return emptyList()
-        fun stillOwner() = isActiveAccount(owningAddress)
-        if (!stillOwner()) return emptyList()
+        fun stillSaved() = walletManager.sweepAccountStillSaved(account)
+        if (!stillSaved()) return emptyList()
         val api = networkService.kaspaRestApi.value ?: return emptyList()
         val matched = sortedSetOf<Int>()
         var index = 0
@@ -265,12 +307,12 @@ class SpendingAddressDiscovery @Inject constructor(
         // removes the gap limit, which is what let the funded address at index 291 go unfound.
         val windowIndices = (0 until minOf(DEEP_SCAN_FLOOR, MAX_SCAN_INDEX)).toList()
         val window = try {
-            walletManager.deriveSpendingAddresses(windowIndices)
+            walletManager.deriveSpendingAddresses(windowIndices, account)
         } catch (e: Exception) {
             Log.w("SpendingAddressDiscovery", "Could not derive the scan window", e)
             emptyMap()
         }
-        if (!stillOwner()) return emptyList()
+        if (!stillSaved()) return emptyList()
         val ordered = windowIndices.mapNotNull { i -> window[i]?.let { i to it } }
         onProgress?.invoke(DiscoveryProgress(checkingIndex = 0, foundCount = 0))
 
@@ -307,14 +349,14 @@ class SpendingAddressDiscovery @Inject constructor(
                 val batch = (index until minOf(index + BATCH_SIZE, MAX_SCAN_INDEX)).toList()
                 onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matched.size))
 
-                if (!stillOwner()) return emptyList()
+                if (!stillSaved()) return emptyList()
                 val addresses = try {
-                    walletManager.deriveSpendingAddresses(batch)
+                    walletManager.deriveSpendingAddresses(batch, account)
                 } catch (e: Exception) {
                     Log.w("SpendingAddressDiscovery", "Could not derive batch at $index, stopping scan", e)
                     break
                 }
-                if (!stillOwner()) return emptyList()
+                if (!stillSaved()) return emptyList()
                 if (addresses.isEmpty()) break
 
                 val balances = fetchBalances(addresses.values.toList())
@@ -339,13 +381,10 @@ class SpendingAddressDiscovery @Inject constructor(
             }
         }
 
-        if (!stillOwner()) return emptyList()
+        if (!stillSaved()) return emptyList()
         onProgress?.invoke(DiscoveryProgress(checkingIndex = index, foundCount = matched.size))
         return matched.toList()
     }
-
-    /** Whether [address]'s account is the active one - the sweep's owner check (IOS-107). */
-    private fun isActiveAccount(address: String): Boolean = walletManager.getActiveAccount()?.address == address
 
     /**
      * The quantum chain's restore sweep (iOS `discoverQuantumAddresses`, da2c8e2 / IOS-101 /
@@ -356,38 +395,24 @@ class SpendingAddressDiscovery @Inject constructor(
      * [QUANTUM_SCAN_LIMIT] ([sweepQuantumWindows]). The empty slots the new bound sweeps in start
      * hidden, and every funded one is un-hidden. Returns how many funded slots it found.
      *
-     * Same account rule as the legacy sweep (iOS 2343e84, IOS-107): it belongs to [owner]
-     * (default: the active account), re-checked around every window and before the writes; an
-     * account switch mid-sweep stops it, writing nothing.
+     * Same account rule as the legacy sweep (iOS e571f45, IOS-107): it belongs to [account],
+     * derives that account's own quantum chain and writes the hidden set and the bound to it even
+     * if another account is active by then ([runQuantumDiscovery]); dropped only if the account
+     * was removed.
      */
-    suspend fun discoverQuantumAddresses(owner: String? = null): Int {
-        val walletAddress = owner ?: walletManager.getActiveAccount()?.address ?: return 0
-        if (!isActiveAccount(walletAddress)) return 0
-        val base = WalletManager.QUANTUM_INDEX_BASE
-        val sweep = sweepQuantumWindows(
-            base = base,
-            derive = { deriveOffMain(it) },
+    suspend fun discoverQuantumAddresses(account: WalletManager.SpendingSweepAccount): Int =
+        runQuantumDiscovery(
+            owner = account.owner,
+            base = WalletManager.QUANTUM_INDEX_BASE,
+            derive = { deriveOffMain(it, account) },
             activity = { addressActivity.lastActivity(it) },
             balances = { fetchBalances(it) },
-            stillOwner = { isActiveAccount(walletAddress) },
-        ) ?: return 0.also {
-            Log.i("SpendingAddressDiscovery", "Quantum discovery stopped: the account changed during the sweep")
-        }
-        if (sweep.highestUsed < 0) return 0
-        val matched = sweep.funded.toSet()
-
-        // read now, after the sweep: the bound as it stands for the account that is still active
-        val account = walletManager.getActiveAccount()?.takeIf { it.address == walletAddress } ?: return 0
-        val previousMax = WalletManager.maxQuantumIndex(account)
-        if (sweep.highestUsed > previousMax) {
-            for (index in (base + previousMax + 1)..(base + sweep.highestUsed)) {
-                if (index !in matched) walletManager.setSpendingAddressHidden(walletAddress, index, true)
-            }
-            walletManager.ensureMaxQuantumAddressIndexAtLeast(walletAddress, sweep.highestUsed)
-        }
-        matched.forEach { walletManager.setSpendingAddressHidden(walletAddress, it, false) }
-        return matched.size
-    }
+            stillSaved = { walletManager.sweepAccountStillSaved(account) },
+            previousMax = { walletManager.sweepAccountRecord(account)?.let { WalletManager.maxQuantumIndex(it) } },
+            setHidden = walletManager::setSpendingAddressHidden,
+            raiseBound = walletManager::ensureMaxQuantumAddressIndexAtLeast,
+            onDropped = { Log.i("SpendingAddressDiscovery", "Quantum discovery dropped: its account was removed during the sweep") },
+        )
 
     /**
      * Balances for a whole batch in one request, falling back to a paced per-address sweep when

@@ -240,6 +240,27 @@ class WalletManager @Inject constructor(
                 ?: throw IllegalStateException("Could not encode the quantum address")
         }
 
+        /** [indices]' spending addresses, each chain through its own node - a quantum index never
+         *  touches the legacy m/44' chain; a node is only made when one of its indices is asked. */
+        internal fun deriveChainAddresses(
+            indices: Collection<Int>,
+            legacyNode: () -> DeterministicKey,
+            quantumNode: () -> DeterministicKey,
+        ): Map<Int, String> {
+            val derived = HashMap<Int, String>()
+            val legacy = indices.filter { it >= 0 && !isQuantumIndex(it) }
+            val quantum = indices.filter { isQuantumIndex(it) }
+            if (legacy.isNotEmpty()) {
+                val chainKey = legacyNode()
+                for (index in legacy) derived[index] = addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
+            }
+            if (quantum.isNotEmpty()) {
+                val quantumKey = quantumNode()
+                for (index in quantum) derived[index] = quantumAddress(quantumKey, index - QUANTUM_INDEX_BASE)
+            }
+            return derived
+        }
+
         /** True when [address] is the active account's own chatting address - the chat with
          *  yourself (iOS `WalletManager.shared.currentWallet?.publicAddress`). */
         fun isOwnChattingAddress(address: String): Boolean {
@@ -1331,30 +1352,83 @@ class WalletManager @Inject constructor(
      * nothing at all. Unlike that one this takes any indices, not just 0..revealed bound.
      */
     fun deriveSpendingAddresses(indices: Iterable<Int>): Map<Int, String> {
+        val account = getActiveAccount() ?: return emptyMap()
+        return deriveCachedSpendingAddresses(account.address, indices, cacheResults = true) { missing ->
+            deriveChainAddresses(missing, { spendingChainKey() }, { quantumChainKey() })
+        }
+    }
+
+    /**
+     * [deriveSpendingAddresses] for the Discover sweep's own account (iOS e571f45
+     * `sweepAddresses(inRange:account:)`, IOS-107): [account]'s chain nodes and its own slice of
+     * the address cache, whichever account is active now. Nothing is cached once the account has
+     * been removed - its results are dropped anyway.
+     */
+    fun deriveSpendingAddresses(indices: Iterable<Int>, account: SpendingSweepAccount): Map<Int, String> =
+        deriveCachedSpendingAddresses(account.owner, indices, cacheResults = sweepAccountStillSaved(account)) { missing ->
+            account.derive(missing)
+        }
+
+    /** Cache-first derivation under [walletAddress]'s slice of the address cache; [derive] fills
+     *  the misses (throwing = nothing derived). */
+    private fun deriveCachedSpendingAddresses(
+        walletAddress: String,
+        indices: Iterable<Int>,
+        cacheResults: Boolean,
+        derive: (List<Int>) -> Map<Int, String>,
+    ): Map<Int, String> {
         val wanted = indices.filter { it >= 0 }.distinct()
         if (wanted.isEmpty()) return emptyMap()
-        val account = getActiveAccount() ?: return emptyMap()
         val cached = getAllCachedSpendingAddresses()
-            .filter { it.walletAddress == account.address }
+            .filter { it.walletAddress == walletAddress }
             .associate { it.index to it.address }
         val missing = wanted.filter { !cached.containsKey(it) }
         if (missing.isEmpty()) return wanted.associateWith { cached.getValue(it) }
 
-        // Each chain through its own node: a quantum index never touches the legacy m/44' chain.
-        val legacyMissing = missing.filter { !isQuantumIndex(it) }
-        val quantumMissing = missing.filter { isQuantumIndex(it) }
-        val derived = HashMap<Int, String>()
-        if (legacyMissing.isNotEmpty()) {
-            val chainKey = try { spendingChainKey() } catch (e: Exception) { return emptyMap() }
-            for (index in legacyMissing) derived[index] = addressFromKey(HDKeyDerivation.deriveChildKey(chainKey, ChildNumber(index, false)))
-        }
-        if (quantumMissing.isNotEmpty()) {
-            val quantumKey = try { quantumChainKey() } catch (e: Exception) { return emptyMap() }
-            for (index in quantumMissing) derived[index] = quantumAddress(quantumKey, index - QUANTUM_INDEX_BASE)
-        }
-        cacheSpendingAddresses(account.address, derived)
+        val derived = try { derive(missing) } catch (e: Exception) { return emptyMap() }
+        if (cacheResults) cacheSpendingAddresses(walletAddress, derived)
         return wanted.associateWith { cached[it] ?: derived.getValue(it) }
     }
+
+    /**
+     * The Discover sweep's own copy of the account it started for (iOS e571f45
+     * `SpendingSweepAccount`, IOS-107): that account's address and what both its chain nodes come
+     * from - legacy m/44'/111111'/1'/0 and quantum m/22'/111111'/0'/0 - taken once at the start
+     * ([spendingSweepAccount]). Every derivation and write of the sweep goes through it, so
+     * switching accounts mid-sweep can't send results to the other account; they still land in
+     * this one's keys. The nodes are made on first use, from one seed computation, so a sweep
+     * whose addresses are all cached never runs the seed's PBKDF2.
+     */
+    class SpendingSweepAccount internal constructor(
+        val owner: String,
+        private val words: List<String>,
+        private val passphrase: String,
+        private val form: PassphraseForm,
+    ) {
+        private val seed: ByteArray by lazy { seedFor(words, passphrase, form) }
+        private val changeKey: DeterministicKey by lazy { spendingChainNode(seed) }
+        private val chainKey: DeterministicKey by lazy { quantumChainNode(seed) }
+
+        /** [indices]' addresses on this account's own chains (no cache). Throws when the seed
+         *  can't be made. */
+        internal fun derive(indices: Collection<Int>): Map<Int, String> =
+            deriveChainAddresses(indices, { changeKey }, { chainKey })
+    }
+
+    /** The sweep's account: [owner]'s saved record (default: the active account), taken now -
+     *  null when no such account is saved. */
+    fun spendingSweepAccount(owner: String? = null): SpendingSweepAccount? {
+        val record = (if (owner == null) getActiveAccount() else getAccounts().find { it.address == owner }) ?: return null
+        return SpendingSweepAccount(record.address, record.mnemonic.split(" "), record.passphrase ?: "", passphraseFormOf(record))
+    }
+
+    /** [account]'s saved record as it stands now (its bounds), whether or not it is the active
+     *  one; null once it has been removed. */
+    fun sweepAccountRecord(account: SpendingSweepAccount): Account? = getAccounts().find { it.address == account.owner }
+
+    /** The sweep's results are dropped only if its account was removed meanwhile - a mere switch
+     *  keeps them (iOS e571f45 `sweepAccountStillSaved`, IOS-107). */
+    fun sweepAccountStillSaved(account: SpendingSweepAccount): Boolean = sweepAccountRecord(account) != null
 
     // --- "Ever used" cache: monotonic (a used address can never become unused), so positive
     // answers persist forever and skip the network history probe — mirrors iOS. Address-keyed:
