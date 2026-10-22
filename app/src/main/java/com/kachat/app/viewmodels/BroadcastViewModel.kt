@@ -873,27 +873,29 @@ class BroadcastViewModel @Inject constructor(
     fun startVoiceRecording(channelName: String, viaNextcloud: Boolean = false) {
         if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
         _nextcloudVoiceRequested.value = viaNextcloud
+        // Same dynamic ceiling as 1:1/group chats: on-chain broadcast notes are payload-capped
+        // at 10s (iOS PublicChatAudioRecorder: 10 s / 13 KB), but a "Record via Nextcloud" note
+        // only needs to fit the server, so it runs to the app-wide Nextcloud ceiling.
         try {
-            voiceRecorderService.startRecording()
+            if (voiceViaNextcloud) {
+                voiceRecorderService.startRecording(VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS)
+            } else {
+                voiceRecorderService.startRecording(
+                    maxDurationMs = VoiceRecorderService.MAX_RECORDING_DURATION_MS,
+                    maxBytes = VoiceRecorderService.GROUP_ON_CHAIN_VOICE_BYTES
+                )
+            }
         } catch (e: Exception) {
             Log.e("BroadcastViewModel", "Could not start voice recording", e)
             return
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
-        // Same dynamic ceiling as 1:1/group chats: on-chain broadcast notes are payload-capped
-        // at 10s, but a "Record via Nextcloud" note only needs to fit the server, so it runs to
-        // the app-wide Nextcloud ceiling.
-        val maxDurationMs = if (voiceViaNextcloud) {
-            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
-        } else {
-            VoiceRecorderService.MAX_RECORDING_DURATION_MS
-        }
         recordingTickerJob = viewModelScope.launch {
             while (isActive && _voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _voiceRecordingState.value = _voiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= maxDurationMs) {
+                if (voiceRecorderService.reachedLimit(elapsed)) {
                     stopAndSendVoiceRecording(channelName)
                     break
                 }

@@ -221,9 +221,12 @@ class ContextualMediaFrameTest {
     @Test
     fun `a 1-1 voice note stops at 31 KB, within one transaction`() {
         val cap = com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES
-        // Android's encoder writes ~1.6 KB a second, so 31 KB comes before 25 s ...
-        assertTrue(VoiceMessage.estimatedRecordingBytes(com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS) > cap)
-        assertTrue(VoiceMessage.estimatedRecordingBytes(10_000) < cap)
+        val fullNote = com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS
+        // iOS's own WebM layout (~1.06 KB a second) holds the full 25 s ...
+        assertTrue(VoiceMessage.estimatedRecordingBytes(fullNote) < cap)
+        // ... MediaRecorder's (~1.6 KB a second, the fallback) reaches 31 KB before 25 s
+        assertTrue(VoiceMessage.estimatedRecordingBytes(fullNote, ownWebM = false) > cap)
+        assertTrue(VoiceMessage.estimatedRecordingBytes(10_000, ownWebM = false) < cap)
         // ... and a full note's payload stays under the ~43 KB a 32 KB photo takes
         assertTrue(((cap + 150) * 4.0 / 3.0).toInt() + 80 < ImagePrep.estimatedWirePayloadSize(ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES))
     }

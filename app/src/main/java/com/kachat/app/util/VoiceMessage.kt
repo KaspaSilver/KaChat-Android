@@ -125,16 +125,27 @@ object VoiceMessage {
      * (iOS f5f6a11): the recording's raw bytes, then only the payload's own base64 - the same
      * single-encoding shape as [ImagePrep.estimatedWirePayloadSize]. Preview only.
      */
-    fun estimatedFramedWirePayloadSize(elapsedMs: Long): Int =
-        ((estimatedRecordingBytes(elapsedMs) + 150) * 4.0 / 3.0).toInt() + 80
+    fun estimatedFramedWirePayloadSize(elapsedMs: Long, ownWebM: Boolean = true): Int =
+        ((estimatedRecordingBytes(elapsedMs, ownWebM) + 150) * 4.0 / 3.0).toInt() + 80
 
-    /** Raw recording bytes after [elapsedMs]: the same calibration as [estimatedWirePayloadSize]
-     *  with both base64 layers (4/3 each) taken back off - ~1,600 bytes a second. */
-    fun estimatedRecordingBytes(elapsedMs: Long): Int =
-        (WEBM_HEADER_BYTES + elapsedMs / 1000.0 * RAW_BYTES_PER_SECOND_OF_RECORDING).toInt()
+    /**
+     * Raw recording bytes after [elapsedMs]. [ownWebM]: iOS's layout ([WebMOpusWriter]) at 6 kbps
+     * CBR - 50 packets of 15 + 6 bytes and a Cluster's 10 a second, 1,060 bytes, after ~152 of
+     * header (25 s: 26,652; the real file is 26,651). Otherwise MediaRecorder's WebM: the same
+     * calibration as [estimatedWirePayloadSize] with both base64 layers (4/3 each) taken back off -
+     * ~1,600 bytes a second.
+     */
+    fun estimatedRecordingBytes(elapsedMs: Long, ownWebM: Boolean = true): Int =
+        if (ownWebM) {
+            (OWN_WEBM_HEADER_BYTES + elapsedMs / 1000.0 * OWN_WEBM_BYTES_PER_SECOND).toInt()
+        } else {
+            (WEBM_HEADER_BYTES + elapsedMs / 1000.0 * RAW_BYTES_PER_SECOND_OF_RECORDING).toInt()
+        }
 
     private const val BASE_OVERHEAD_BYTES = 150
     private const val BYTES_PER_SECOND_OF_RECORDING = 2870.0
     private const val WEBM_HEADER_BYTES = 200
     private const val RAW_BYTES_PER_SECOND_OF_RECORDING = BYTES_PER_SECOND_OF_RECORDING * 9.0 / 16.0
+    private const val OWN_WEBM_HEADER_BYTES = 152
+    private const val OWN_WEBM_BYTES_PER_SECOND = 1_060.0
 }

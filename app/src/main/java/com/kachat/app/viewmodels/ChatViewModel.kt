@@ -1129,7 +1129,7 @@ class ChatViewModel @Inject constructor(
         // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
         val connected = nextcloudService.isConnected
         if (recording.status == VoiceRecordingStatus.RECORDING) {
-            if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedFramedWirePayloadSize(recording.elapsedMs)
+            if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedFramedWirePayloadSize(recording.elapsedMs, voiceRecorderService.writesOwnWebM)
         } else if (photoUri != null) {
             // Compressed image bytes in the binary media frame -> encryption -> the payload's one
             // base64 layer (iOS f5f6a11), at the chosen budget (Chats > Higher quality photos):
@@ -2688,8 +2688,21 @@ class ChatViewModel @Inject constructor(
     fun startVoiceRecording(contactId: String, viaNextcloud: Boolean = false) {
         _nextcloudVoiceRequested.value = viaNextcloud
         if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
+        // On-chain 1:1 notes are payload-capped: 25 s or 31 KB, whichever comes first (iOS
+        // f5f6a11) - the own-WebM recorder fits the full 25 s (iOS 48f0dce); a "Record via
+        // Nextcloud" note only needs to fit the server, so it runs to the app-wide Nextcloud
+        // ceiling (5 minutes, iOS 8b13460).
+        val onChain = !voiceViaNextcloud
         try {
-            voiceRecorderService.startRecording()
+            if (onChain) {
+                voiceRecorderService.startRecording(
+                    maxDurationMs = VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS,
+                    maxBytes = VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES,
+                    fallbackStopsAtBytes = true
+                )
+            } else {
+                voiceRecorderService.startRecording(VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS)
+            }
         } catch (e: Exception) {
             Log.e("ChatViewModel", "Could not start voice recording", e)
             reportSendFailure(contactId, "Failed to start recording: ${UserFacingError.message(e, "Recording failed. Please try again.")}")
@@ -2697,20 +2710,11 @@ class ChatViewModel @Inject constructor(
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
-        // On-chain 1:1 notes are payload-capped: 25 s or 31 KB, whichever comes first (iOS
-        // f5f6a11); a "Record via Nextcloud" note only needs to fit the server, so it runs to the
-        // app-wide Nextcloud ceiling (5 minutes, iOS 8b13460).
-        val onChain = !voiceViaNextcloud
-        val maxDurationMs = if (onChain) {
-            VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS
-        } else {
-            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
-        }
         recordingTickerJob = viewModelScope.launch {
             while (isActive && _voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _voiceRecordingState.value = _voiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= maxDurationMs || (onChain && directOnChainVoiceFull(elapsed))) {
+                if (voiceRecorderService.reachedLimit(elapsed)) {
                     stopAndSendVoiceRecording(contactId)
                     break
                 }
@@ -2718,14 +2722,6 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
-
-    /** The 1:1 on-chain voice note has reached iOS's 31 KB: by what the recorder has written, or
-     *  by this encoder's measured rate when its container has not written it out yet. Android's
-     *  MediaRecorder writes more than iOS's encoder per second, so this, not 25 s, usually ends
-     *  the note - a 25 s note from it would not fit one transaction. */
-    private fun directOnChainVoiceFull(elapsedMs: Long): Boolean =
-        maxOf(voiceRecorderService.currentRecordingBytes(), VoiceMessage.estimatedRecordingBytes(elapsedMs).toLong()) >=
-            VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES
 
     /** Stops recording and sends it — unless it was too short to be a real message (a stray tap), in which case it's discarded silently, same as a cancel. */
     fun stopAndSendVoiceRecording(contactId: String) {
@@ -2773,27 +2769,29 @@ class ChatViewModel @Inject constructor(
     fun startGroupVoiceRecording(groupId: String, viaNextcloud: Boolean = false) {
         _groupNextcloudVoiceRequested.value = viaNextcloud
         if (_groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
+        // Same dynamic ceiling as 1:1's startVoiceRecording: on-chain group notes are
+        // payload-capped at 10s (iOS PublicChatAudioRecorder: 10 s / 13 KB), but a "Record via
+        // Nextcloud" note only needs to fit the server, so it runs to the app-wide Nextcloud ceiling.
         try {
-            voiceRecorderService.startRecording()
+            if (groupVoiceViaNextcloud) {
+                voiceRecorderService.startRecording(VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS)
+            } else {
+                voiceRecorderService.startRecording(
+                    maxDurationMs = VoiceRecorderService.MAX_RECORDING_DURATION_MS,
+                    maxBytes = VoiceRecorderService.GROUP_ON_CHAIN_VOICE_BYTES
+                )
+            }
         } catch (e: Exception) {
             Log.e("ChatViewModel", "Could not start group voice recording", e)
             return
         }
         _groupVoiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
-        // Same dynamic ceiling as 1:1's startVoiceRecording: on-chain group notes are
-        // payload-capped at 10s, but a "Record via Nextcloud" note only needs to fit the server,
-        // so it runs to the app-wide Nextcloud ceiling.
-        val maxDurationMs = if (groupVoiceViaNextcloud) {
-            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
-        } else {
-            VoiceRecorderService.MAX_RECORDING_DURATION_MS
-        }
         groupRecordingTickerJob = viewModelScope.launch {
             while (isActive && _groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _groupVoiceRecordingState.value = _groupVoiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= maxDurationMs) {
+                if (voiceRecorderService.reachedLimit(elapsed)) {
                     stopAndSendGroupVoiceRecording(groupId)
                     break
                 }
