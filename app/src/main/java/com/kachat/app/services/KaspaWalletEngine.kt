@@ -504,6 +504,9 @@ class KaspaWalletEngine @Inject constructor(
          *  null = can't tell): the fresh change slot is checked with it first (iOS da2c8e2). */
         isAddressUsed: suspend (String) -> Boolean?,
     ): Result<String> {
+        // The account the source is derived from: its change slot is probed and picked there too
+        // (iOS fb2323e, IOS-109 / AND-056 follow-up).
+        val owner = walletManager.getActiveAccount()?.address
         val sourceSpendingAddress = walletManager.deriveSpendingAddress(sourceSpendingIndex)
         val spendingPrivateKey = walletManager.getSpendingPrivateKeyBytes(sourceSpendingIndex)
         // A quantum-safe source (KIP-22) spends with its redeem script pushed after the signature.
@@ -518,10 +521,10 @@ class KaspaWalletEngine @Inject constructor(
         // as in flight meanwhile, so a concurrent send or Request Payment reservation can't get
         // the same one. The slot is checked on chain first: one that already has history (used
         // from another device, or past where a restore looked) is skipped (iOS
-        // `verifiedFreshQuantumIndex`, IOS-101 / AND-049), on the account active as it starts
-        // (IOS-109 / AND-056).
-        walletManager.verifyFreshQuantumIndex(isUsed = isAddressUsed)
-        val picked = walletManager.pickFreshQuantumChange()
+        // `verifiedFreshQuantumIndex`, IOS-101 / AND-049). Slot and address both come from the
+        // account the source was derived from, whichever is active once the probe returns (iOS
+        // fb2323e `verifiedFreshQuantumSlot`, IOS-109 / AND-056 follow-up).
+        val picked = owner?.let { walletManager.verifiedFreshQuantumChange(owner = it, isUsed = isAddressUsed) }
         val pick = if (picked != null && (picked.index == sourceSpendingIndex || picked.address.equals(sourceSpendingAddress, ignoreCase = true))) {
             walletManager.finishQuantumChangePick(picked, reveal = false)
             null

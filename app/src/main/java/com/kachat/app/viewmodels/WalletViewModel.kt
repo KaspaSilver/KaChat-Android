@@ -422,6 +422,10 @@ class WalletViewModel @Inject constructor(
                 onResult(null)
                 return@launch
             }
+            // The QR is for the account active now: an answer that comes back after a switch
+            // belongs to the other account and is dropped, nothing written (iOS fb2323e, IOS-109
+            // / AND-056 follow-up).
+            fun switched() = walletManager.getActiveAccount()?.address != walletAddress
             val entries = try { walletService.getSpendingAddressList() } catch (e: Exception) { emptyList() }
             // Unknown (list failed, or the row was not live-checked) counts as "not used" here,
             // so a network wobble never rotates the pointer. A slot the list doesn't hold yet (a
@@ -451,6 +455,10 @@ class WalletViewModel @Inject constructor(
                         entry.index != account.spendingAddressIndex &&
                         entry.balanceSompi == 0L && !entry.everUsed && entry.index !in inFlight
                 }?.index ?: walletManager.verifyFreshQuantumIndex(owner = walletAddress) { walletService.spendingAddressUsedState(it) }
+                if (switched()) {
+                    onResult(null)
+                    return@launch
+                }
                 val address = try { walletManager.deriveSpendingAddress(index) } catch (e: Exception) { null }
                 if (address == null) {
                     onResult(current)
@@ -458,6 +466,10 @@ class WalletViewModel @Inject constructor(
                 }
                 walletManager.setReceiveAddressIndex(walletAddress, index)
                 index to address
+            }
+            if (switched()) {
+                onResult(null)
+                return@launch
             }
             // Shown now: it goes on the Manage Addresses list (and is watched for payments).
             if (revealing) revealSpendingAddress(chosen.first)
@@ -595,12 +607,15 @@ class WalletViewModel @Inject constructor(
      * one. Null when it can't be derived. The address-activity poll watches every revealed
      * address, so its payment shows the moment it lands. The slot is checked on chain first: one
      * that already has history is skipped (iOS da2c8e2 `verifiedFreshQuantumIndex`, IOS-101 /
-     * AND-049).
+     * AND-049). Probe, address and the raised bound all belong to the account active when this
+     * starts; nothing is reserved if it was removed meanwhile (iOS fb2323e, IOS-109 / AND-056
+     * follow-up).
      */
     suspend fun reserveFreshSpendingAddress(): String? = withContext(Dispatchers.IO) {
         try {
-            walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
-            walletManager.allocateFreshQuantumIndices(1).firstOrNull()?.second
+            val account = walletManager.spendingSweepAccount() ?: return@withContext null
+            walletManager.verifyFreshQuantumIndex(account) { walletService.spendingAddressUsedState(it) }
+            walletManager.allocateFreshQuantumIndices(1, account).firstOrNull()?.second
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -611,16 +626,19 @@ class WalletViewModel @Inject constructor(
     /** The address [reserveFreshSpendingAddress] would hand out next, derived but NOT reserved
      *  (iOS 3f5f79c) - see [WalletManager.nextFreshSpendingAddress]. Checked on chain first (iOS
      *  2343e84 `verifiedFreshQuantumIndex`, IOS-101), so the preview never shows a slot already
-     *  used: a used one is skipped (the chain's end raised past it), as the reservation does. */
+     *  used: a used one is skipped (the chain's end raised past it), as the reservation does.
+     *  Slot and address from the same account, the one active when this starts (iOS fb2323e
+     *  `verifiedFreshQuantumSlot()?.address`, IOS-109 / AND-056 follow-up). */
     suspend fun nextFreshSpendingAddress(): String? = withContext(Dispatchers.IO) {
+        val account = walletManager.spendingSweepAccount() ?: return@withContext null
         try {
-            walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
+            walletManager.verifyFreshQuantumIndex(account) { walletService.spendingAddressUsedState(it) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             // the check is best effort, as verifyFreshQuantumIndex itself treats an unanswered one
         }
-        walletManager.nextFreshSpendingAddress()
+        walletManager.nextFreshSpendingAddress(account)
     }
 
     /** See [WalletService.cachedSpendingAddressUsedState]. */
@@ -696,6 +714,9 @@ class WalletViewModel @Inject constructor(
     ) {
         sends.start(sendId)
         viewModelScope.launch {
+            // The account the source is derived from: the fresh change slot is probed and picked
+            // there too (iOS fb2323e, IOS-109 / AND-056 follow-up).
+            val owner = walletManager.getActiveAccount()?.address
             val fromAddress = walletManager.deriveSpendingAddress(index)
             // Fresh change index for the primary only: past the all-time max, so it has never
             // been revealed, funded or offered (the rule KaspaWalletEngine.sendSpendingPayment
@@ -720,10 +741,11 @@ class WalletViewModel @Inject constructor(
             // Picked, not revealed: held as in flight so nothing else gets the same slot, and
             // given back if the send fails ([WalletManager.pickFreshQuantumChange]). Checked on
             // chain first: a slot that already has history is skipped (iOS da2c8e2
-            // `verifiedFreshQuantumIndex`, IOS-101 / AND-049).
-            val fresh = if (!isSelfSend && (isQuantumSource || index == activeIndex)) {
-                walletManager.verifyFreshQuantumIndex { walletService.spendingAddressUsedState(it) }
-                withContext(Dispatchers.Default) { walletManager.pickFreshQuantumChange() }
+            // `verifiedFreshQuantumIndex`, IOS-101 / AND-049). Slot and address from the source's
+            // account, whichever is active once the probe returns (iOS fb2323e
+            // `verifiedFreshQuantumSlot`, IOS-109 / AND-056 follow-up).
+            val fresh = if (owner != null && !isSelfSend && (isQuantumSource || index == activeIndex)) {
+                walletManager.verifiedFreshQuantumChange(owner = owner) { walletService.spendingAddressUsedState(it) }
             } else null
             // Never change back onto the key this spend reveals: a quantum source whose fresh
             // slot can't be derived stops here (iOS da2c8e2, IOS-104 / AND-052). A legacy source

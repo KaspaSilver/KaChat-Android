@@ -191,6 +191,19 @@ class WalletManager @Inject constructor(
             return index
         }
 
+        /**
+         * The public slots one allocation on an account takes (iOS fb2323e, IOS-109 / AND-056
+         * follow-up): [count] in a row from THAT account's fresh slot - past [revealedMax], its
+         * quantum bound, and [inFlight], its own sends' change picks - whichever account is
+         * active. Null, so nothing is taken or written, when [revealedMax] is null: the account
+         * has been removed since its probe started.
+         */
+        internal fun freshQuantumAllocation(revealedMax: Int?, inFlight: Collection<Int>, count: Int): List<Int>? {
+            if (revealedMax == null || count <= 0) return null
+            val first = nextFreshQuantumIndex(revealedMax, inFlight)
+            return List(count) { first + it }
+        }
+
         /** The signature-script size a send from [spendingIndex] prices per input: a quantum
          *  source pushes its redeem script after the signature (iOS `kip22SignatureScriptSize`),
          *  anything else is the plain 66-byte Schnorr push. Null = the chatting address. */
@@ -1513,20 +1526,36 @@ class WalletManager @Inject constructor(
      * nothing held; here the pick is held as in flight until finished, so two sends at once (or a
      * Request Payment reservation meanwhile) never get the same slot. Null when the address can't
      * be derived - the caller then sends a legacy source's change back to it, as iOS does, and
-     * stops a quantum source's send (iOS da2c8e2, IOS-104). Callers check the slot on chain first
-     * ([verifyFreshQuantumIndex]). Derives from the seed, so call it off the main thread.
+     * stops a quantum source's send (iOS da2c8e2, IOS-104).
+     *
+     * Slot and address both come from [account], the one its probe ran on (iOS fb2323e
+     * `verifiedFreshQuantumSlot`, IOS-109 / AND-056 follow-up): its bound, its in-flight picks,
+     * its own quantum chain - whichever account is active now. Null, holding nothing, once
+     * [account] has been removed. Callers go through [verifiedFreshQuantumChange]. Derives from
+     * the seed, so call it off the main thread.
      */
-    fun pickFreshQuantumChange(): QuantumChangePick? = synchronized(spendingIndexAllocationLock) {
-        val account = getActiveAccount() ?: return@synchronized null
-        val index = nextFreshQuantumIndex()
-        val address = try {
-            quantumAddress(quantumChainKey(), index - QUANTUM_INDEX_BASE)
-        } catch (e: Exception) {
-            return@synchronized null
-        }
-        cacheSpendingAddresses(account.address, mapOf(index to address))
-        pendingQuantumChange.getOrPut(account.address) { HashSet() }.add(index)
-        QuantumChangePick(account.address, index, address)
+    fun pickFreshQuantumChange(account: SpendingSweepAccount): QuantumChangePick? = synchronized(spendingIndexAllocationLock) {
+        val revealedMax = sweepAccountRecord(account)?.let { maxQuantumIndex(it) }
+        val index = freshQuantumAllocation(revealedMax, pendingQuantumChange[account.owner].orEmpty(), 1)?.single()
+            ?: return@synchronized null
+        val address = deriveSpendingAddresses(listOf(index), account)[index] ?: return@synchronized null
+        pendingQuantumChange.getOrPut(account.owner) { HashSet() }.add(index)
+        QuantumChangePick(account.owner, index, address)
+    }
+
+    /**
+     * A send's fresh change slot, checked on chain and picked on ONE account (iOS fb2323e
+     * `verifiedFreshQuantumSlot`, IOS-109 / AND-056 follow-up): [owner] (default: the active
+     * account - the one the send's source was derived from) is taken now, probed
+     * ([verifyFreshQuantumIndex]) and picked ([pickFreshQuantumChange]) there, so an account
+     * switch while the probe is out never hands this send the other account's unprobed slot.
+     * Null when no such account is saved, it was removed meanwhile, or the address can't be
+     * derived.
+     */
+    suspend fun verifiedFreshQuantumChange(owner: String? = null, isUsed: suspend (String) -> Boolean?): QuantumChangePick? {
+        val account = spendingSweepAccount(owner) ?: return null
+        verifyFreshQuantumIndex(account, isUsed)
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { pickFreshQuantumChange(account) }
     }
 
     /** A [pickFreshQuantumChange] pick: the account it was picked under, the slot's public index
@@ -1577,27 +1606,22 @@ class WalletManager @Inject constructor(
      * Returns (public index, address) pairs; empty on failure. The legacy chain is never grown
      * from here.
      */
-    fun allocateFreshQuantumIndices(count: Int): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
-        if (count <= 0) return@synchronized emptyList()
-        val account = getActiveAccount() ?: return@synchronized emptyList()
-        val chainKey = try { quantumChainKey() } catch (e: Exception) { return@synchronized emptyList() }
+    fun allocateFreshQuantumIndices(count: Int, account: SpendingSweepAccount): List<Pair<Int, String>> = synchronized(spendingIndexAllocationLock) {
+        // [account]'s own slots, bound and in-flight picks - the account its probe ran on, even
+        // if another is active now; nothing is reserved or written once it has been removed (iOS
+        // fb2323e, IOS-109 / AND-056 follow-up)
+        val record = sweepAccountRecord(account) ?: return@synchronized emptyList()
+        val revealedMax = maxQuantumIndex(record)
+        val inFlight = pendingQuantumChange[account.owner].orEmpty()
         // past any slot a send in flight picked for its change, too - kept hidden as the bound
         // passes it, as a reveal past it would; its send lists it if it goes through
-        val base = nextFreshQuantumIndex() - QUANTUM_INDEX_BASE
-        val revealedMax = maxQuantumIndex(account)
-        pendingQuantumChange[account.address].orEmpty()
-            .filter { it - QUANTUM_INDEX_BASE > revealedMax }
-            .forEach { setSpendingAddressHidden(account.address, it, true) }
-        val result = try {
-            (0 until count).map { offset ->
-                val quantumIndex = base + offset
-                QUANTUM_INDEX_BASE + quantumIndex to quantumAddress(chainKey, quantumIndex)
-            }
-        } catch (e: Exception) {
-            return@synchronized emptyList()
-        }
-        cacheSpendingAddresses(account.address, result.toMap())
-        ensureMaxQuantumAddressIndexAtLeast(account.address, base + count - 1)
+        val indices = freshQuantumAllocation(revealedMax, inFlight, count) ?: return@synchronized emptyList()
+        val derived = try { account.derive(indices) } catch (e: Exception) { return@synchronized emptyList() }
+        val result = indices.map { index -> index to (derived[index] ?: return@synchronized emptyList()) }
+        inFlight.filter { it - QUANTUM_INDEX_BASE > revealedMax }
+            .forEach { setSpendingAddressHidden(account.owner, it, true) }
+        cacheSpendingAddresses(account.owner, result.toMap())
+        ensureMaxQuantumAddressIndexAtLeast(account.owner, indices.last() - QUANTUM_INDEX_BASE)
         result
     }
 
@@ -1605,12 +1629,16 @@ class WalletManager @Inject constructor(
      * The address [allocateFreshQuantumIndices] hands out next - the quantum slot after the last
      * revealed one - DERIVED, not reserved: Request Payment shows it under Fresh Address before
      * anything is copied, shared or sent, so opening the screen and cancelling uses no address up
-     * (iOS `spendingAddress(at: nextFreshQuantumIndex())`). Null when it can't be derived. Derives
-     * from the seed, so call it off the main thread.
+     * (iOS `spendingAddress(at: nextFreshQuantumIndex())`). Slot and address from [account], the
+     * one its probe ran on (iOS fb2323e `verifiedFreshQuantumSlot()?.address`, IOS-109 / AND-056
+     * follow-up). Null when it can't be derived or [account] has been removed. Derives from the
+     * seed, so call it off the main thread.
      */
-    fun nextFreshSpendingAddress(): String? {
-        if (getActiveAccount() == null) return null
-        return try { deriveSpendingAddress(nextFreshQuantumIndex()) } catch (e: Exception) { null }
+    fun nextFreshSpendingAddress(account: SpendingSweepAccount): String? {
+        val index = synchronized(spendingIndexAllocationLock) {
+            freshQuantumAllocation(sweepAccountRecord(account)?.let { maxQuantumIndex(it) }, pendingQuantumChange[account.owner].orEmpty(), 1)?.single()
+        } ?: return null
+        return deriveSpendingAddresses(listOf(index), account)[index]
     }
 
     /** The signing key of spending index [index], on whichever chain it lives. */

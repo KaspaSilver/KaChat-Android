@@ -287,6 +287,77 @@ class QuantumAddressTest {
                 },
             )
         }
+
+        /** Each account's in-flight change picks (public index). */
+        val inFlight = mutableMapOf(OWNER to mutableSetOf<Int>(), OTHER to mutableSetOf())
+
+        /** A change pick / reservation on [owner], wired the way
+         *  [WalletManager.pickFreshQuantumChange] / [WalletManager.allocateFreshQuantumIndices]
+         *  wire it (iOS fb2323e): [owner]'s bound and in-flight picks, [owner]'s chain for the
+         *  address, whichever account is active; nothing taken or written once [owner] is gone. */
+        fun take(owner: String, count: Int, reserve: Boolean): List<Pair<Int, String>> {
+            val base = WalletManager.QUANTUM_INDEX_BASE
+            val revealedMax = if (owner in saved) bound.getValue(owner) else null
+            val indices = WalletManager.freshQuantumAllocation(revealedMax, inFlight.getValue(owner), count) ?: return emptyList()
+            if (reserve) bound[owner] = maxOf(bound.getValue(owner), indices.last() - base)
+            else inFlight.getValue(owner) += indices
+            return indices.map { it to "$owner/${it - base}" }
+        }
+    }
+
+    @Test
+    fun `an allocation takes its own account's slots in a row past its bound and in-flight picks`() {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        assertEquals(listOf(base + 4), WalletManager.freshQuantumAllocation(3, emptySet(), 1))
+        assertEquals(listOf(base + 6, base + 7), WalletManager.freshQuantumAllocation(3, setOf(base + 5), 2))
+        // removed account: nothing taken
+        assertEquals(null, WalletManager.freshQuantumAllocation(null, emptySet(), 1))
+        assertEquals(null, WalletManager.freshQuantumAllocation(3, emptySet(), 0))
+    }
+
+    @Test
+    fun `a switch between probe and change pick never yields the other account's slot`() = kotlinx.coroutines.runBlocking {
+        // iOS fb2323e (IOS-109 / AND-056 follow-up): A's slot 4 is used elsewhere and the user
+        // switches to B while it is checked. The change pick still comes from A - the slot past
+        // A's raised bound, on A's chain, held in flight on A - never B's unprobed slot 10
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = ProbeStore()
+        val probed = store.probe(OWNER) { address ->
+            store.active = OTHER
+            address == "$OWNER/4"
+        }
+        val pick = store.take(OWNER, 1, reserve = false).single()
+        assertEquals(OTHER, store.active)
+        assertEquals(probed, pick.first)
+        assertEquals(base + 5 to "$OWNER/5", pick)
+        assertEquals(setOf(base + 5), store.inFlight[OWNER])
+        assertTrue(store.inFlight.getValue(OTHER).isEmpty())
+        assertEquals(9, store.bound[OTHER])
+        // a second send on A while the first is in flight gets the next one, still A's
+        assertEquals(base + 6 to "$OWNER/6", store.take(OWNER, 1, reserve = false).single())
+    }
+
+    @Test
+    fun `a Request Payment reservation raises the starting account's bound only`() = kotlinx.coroutines.runBlocking {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        val store = ProbeStore()
+        store.probe(OWNER) { store.active = OTHER; false }
+        val reserved = store.take(OWNER, 1, reserve = true)
+        assertEquals(listOf(base + 4 to "$OWNER/4"), reserved)
+        assertEquals(4, store.bound[OWNER])
+        assertEquals(9, store.bound[OTHER])
+    }
+
+    @Test
+    fun `a pick or reservation whose account was removed after its probe writes nothing`() = kotlinx.coroutines.runBlocking {
+        val store = ProbeStore()
+        store.probe(OWNER) { store.saved -= OWNER; store.active = OTHER; false }
+        assertTrue(store.take(OWNER, 1, reserve = false).isEmpty())
+        assertTrue(store.take(OWNER, 1, reserve = true).isEmpty())
+        assertEquals(3, store.bound[OWNER])
+        assertTrue(store.inFlight.getValue(OWNER).isEmpty())
+        assertEquals(9, store.bound[OTHER])
+        assertTrue(store.inFlight.getValue(OTHER).isEmpty())
     }
 
     @Test

@@ -977,6 +977,10 @@ class WalletService @Inject constructor(
         }
         val sourceAddress: String
         val sourcePrivateKey: ByteArray
+        // The account the source is derived from: a fresh change slot is probed and picked there
+        // too, even if another account is active by then (iOS fb2323e, IOS-109 / AND-056
+        // follow-up).
+        val sourceOwner = walletManager.getActiveAccount()?.address
         if (fromSpendingAddressIndex != null) {
             sourceAddress = walletManager.deriveSpendingAddress(fromSpendingAddressIndex)
             sourcePrivateKey = walletManager.getSpendingPrivateKeyBytes(fromSpendingAddressIndex)
@@ -1013,9 +1017,9 @@ class WalletService @Inject constructor(
         val activeSpendingIndex = walletManager.getActiveAccount()?.spendingAddressIndex
         val fresh = if (fromSpendingAddressIndex != null && fromSpendingAddressIndex == activeSpendingIndex) {
             // checked on chain first: a slot that already has history is skipped (iOS da2c8e2
-            // `verifiedFreshQuantumIndex`, IOS-101 / AND-049)
-            walletManager.verifyFreshQuantumIndex { spendingAddressUsedState(it) }
-            walletManager.pickFreshQuantumChange()
+            // `verifiedFreshQuantumIndex`, IOS-101 / AND-049); slot and address from the source's
+            // account (iOS fb2323e `verifiedFreshQuantumSlot`)
+            sourceOwner?.let { owner -> walletManager.verifiedFreshQuantumChange(owner = owner) { spendingAddressUsedState(it) } }
         } else null
         val changeAddress = fresh?.address ?: sourceAddress
 
