@@ -7101,9 +7101,10 @@ internal fun KaPostsOverlayStatusBar(modifier: Modifier = Modifier) {
 /**
  * iOS 26's segmented Picker: a 32-high capsule track (systemFill grey) with the chosen segment on
  * a raised capsule thumb, the labels 14pt - measured on the iPhone's KaPosts Search.
+ * Also Chess Online's leaderboard period (iOS 77d6038).
  */
 @Composable
-private fun KaPostsSegmentedPicker(titles: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+internal fun KaPostsSegmentedPicker(titles: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalAppColors.current
     val track = Color(0xFF767680).copy(alpha = if (colors.isDark) 0.24f else 0.12f)
     val thumb = if (colors.isDark) Color(0xFF5A5A5E) else Color.White

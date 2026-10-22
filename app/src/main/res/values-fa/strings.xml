@@ -1405,4 +1405,14 @@
     <string name="quantum_addresses">آدرس‌های کوانتومی</string>
     <string name="non_quantum_addresses">آدرس‌های غیرکوانتومی</string>
     <string name="addresses_shown_count">%1$d از %2$d نمایش داده شده</string>
+    <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="chess_leaderboard_this_month">این ماه</string>
+    <string name="chess_leaderboard_all_time">همه زمان‌ها</string>
+    <string name="chess_leaderboard_period">دوره جدول امتیازات</string>
+    <string name="chess_leaderboard_resets_monthly">اول هر ماه بازنشانی می‌شود (UTC).</string>
+    <string name="chess_leaderboard_counted_from">شمارش از %1$s.</string>
+    <string name="chess_no_finished_duels_this_month">هنوز بازی 1v1 تمام‌شده‌ای در این ماه نیست.</string>
+    <string name="chess_no_finished_duels">هنوز بازی 1v1 تمام‌شده‌ای نیست.</string>
+    <string name="chess_no_finished_tournaments_this_month">هنوز تورنمنت تمام‌شده‌ای در این ماه نیست.</string>
+    <string name="chess_no_finished_tournaments">هنوز تورنمنت تمام‌شده‌ای نیست.</string>
 </resources>

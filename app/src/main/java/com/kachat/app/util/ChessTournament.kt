@@ -559,6 +559,14 @@ data class ChessTournament(
     }
 }
 
+/** Which stretch a leaderboard covers. Both start at the fresh-start cutoff
+ *  ([ChessTournamentEngine.LEADERBOARD_FRESH_FROM_MS]); this month also starts on the 1st (UTC).
+ *  [raw] is the indexer's `period` value. */
+enum class ChessLeaderboardPeriod(val raw: String) {
+    MONTH("month"),
+    ALL_TIME("all"),
+}
+
 /**
  * One player's record, computed from what the phone has read. Two boards read it: 1v1 (duel
  * games, public and private) and Tournaments (tournaments won, then the games inside them).
@@ -872,11 +880,41 @@ object ChessTournamentEngine {
 
     // MARK: - Leaderboard
 
-    fun leaderboard(tournaments: Collection<ChessTournament>): List<ChessLeaderboardRow> {
+    /** The leaderboards started fresh at this moment (2026-10-22 05:46 UTC): anything that
+     *  started earlier never counts on either period. Must equal the indexer's
+     *  chess::LEADERBOARD_FRESH_FROM_MS (iOS 77d6038). */
+    const val LEADERBOARD_FRESH_FROM_MS = 1_792_647_960_000L
+
+    /** Start of the UTC calendar month containing [nowMs], in ms. */
+    fun utcMonthStartMs(nowMs: Long): Long {
+        val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+        calendar.timeInMillis = nowMs
+        calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    /** The first counted start time: all time = the fresh-start cutoff; this month = the later
+     *  of the cutoff and the start of the current UTC month. */
+    fun periodSinceMs(period: ChessLeaderboardPeriod, nowMs: Long): Long = when (period) {
+        ChessLeaderboardPeriod.ALL_TIME -> LEADERBOARD_FRESH_FROM_MS
+        ChessLeaderboardPeriod.MONTH -> maxOf(LEADERBOARD_FRESH_FROM_MS, utcMonthStartMs(nowMs))
+    }
+
+    /** A tournament or 1v1 counts in the period it STARTED in (startedAt >= since), with every
+     *  one of its games, even ones that end after the month rolls over. */
+    fun leaderboard(
+        tournaments: Collection<ChessTournament>,
+        since: Long = LEADERBOARD_FRESH_FROM_MS,
+    ): List<ChessLeaderboardRow> {
         val rows = HashMap<String, ChessLeaderboardRow>()
         fun row(address: String) = rows[address] ?: ChessLeaderboardRow(address)
         for (tournament in tournaments) {
             val started = tournament.startedAt ?: continue
+            if (started < since) continue
             // A 1v1 is not a tournament: it counts on the 1v1 board only.
             if (!tournament.isDuel) {
                 for (player in tournament.players) {

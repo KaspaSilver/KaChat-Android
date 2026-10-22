@@ -1374,4 +1374,14 @@
     <string name="quantum_addresses">양자 내성 주소</string>
     <string name="non_quantum_addresses">비양자 주소</string>
     <string name="addresses_shown_count">%2$d개 중 %1$d개 표시</string>
+    <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="chess_leaderboard_this_month">이번 달</string>
+    <string name="chess_leaderboard_all_time">전체 기간</string>
+    <string name="chess_leaderboard_period">리더보드 기간</string>
+    <string name="chess_leaderboard_resets_monthly">매월 1일(UTC)에 초기화됩니다.</string>
+    <string name="chess_leaderboard_counted_from">%1$s부터 집계됩니다.</string>
+    <string name="chess_no_finished_duels_this_month">이번 달에 끝난 1v1 게임이 아직 없습니다.</string>
+    <string name="chess_no_finished_duels">끝난 1v1 게임이 아직 없습니다.</string>
+    <string name="chess_no_finished_tournaments_this_month">이번 달에 끝난 토너먼트가 아직 없습니다.</string>
+    <string name="chess_no_finished_tournaments">끝난 토너먼트가 아직 없습니다.</string>
 </resources>

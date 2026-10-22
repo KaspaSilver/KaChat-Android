@@ -1246,4 +1246,14 @@
     <string name="quantum_addresses">Alamat Kuantum</string>
     <string name="non_quantum_addresses">Alamat Non-Kuantum</string>
     <string name="addresses_shown_count">%1$d dari %2$d ditampilkan</string>
+    <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="chess_leaderboard_this_month">Bulan ini</string>
+    <string name="chess_leaderboard_all_time">Sepanjang waktu</string>
+    <string name="chess_leaderboard_period">Periode papan peringkat</string>
+    <string name="chess_leaderboard_resets_monthly">Diatur ulang setiap tanggal 1 (UTC).</string>
+    <string name="chess_leaderboard_counted_from">Dihitung sejak %1$s.</string>
+    <string name="chess_no_finished_duels_this_month">Belum ada game 1v1 yang selesai bulan ini.</string>
+    <string name="chess_no_finished_duels">Belum ada game 1v1 yang selesai.</string>
+    <string name="chess_no_finished_tournaments_this_month">Belum ada turnamen yang selesai bulan ini.</string>
+    <string name="chess_no_finished_tournaments">Belum ada turnamen yang selesai.</string>
 </resources>

@@ -1374,4 +1374,14 @@
     <string name="quantum_addresses">क्वांटम पते</string>
     <string name="non_quantum_addresses">नॉन-क्वांटम पते</string>
     <string name="addresses_shown_count">%2$d में से %1$d दिखाए गए</string>
+    <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="chess_leaderboard_this_month">इस महीने</string>
+    <string name="chess_leaderboard_all_time">अब तक</string>
+    <string name="chess_leaderboard_period">लीडरबोर्ड अवधि</string>
+    <string name="chess_leaderboard_resets_monthly">हर महीने की 1 तारीख को रीसेट होता है (UTC)।</string>
+    <string name="chess_leaderboard_counted_from">%1$s से गिना गया।</string>
+    <string name="chess_no_finished_duels_this_month">इस महीने अभी तक कोई 1v1 गेम पूरा नहीं हुआ।</string>
+    <string name="chess_no_finished_duels">अभी तक कोई 1v1 गेम पूरा नहीं हुआ।</string>
+    <string name="chess_no_finished_tournaments_this_month">इस महीने अभी तक कोई टूर्नामेंट पूरा नहीं हुआ।</string>
+    <string name="chess_no_finished_tournaments">अभी तक कोई टूर्नामेंट पूरा नहीं हुआ।</string>
 </resources>

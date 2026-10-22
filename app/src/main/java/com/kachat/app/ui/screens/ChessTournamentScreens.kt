@@ -75,6 +75,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -94,6 +97,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.kachat.app.R
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.displayName
 import com.kachat.app.services.ChessTournamentService
@@ -1080,14 +1084,19 @@ private fun ChessBracketPlaceholderRow(text: String, height: Dp) {
 /**
  * One kind's leaderboard, as the second tab of its screen: 1v1 is wins and losses in 1v1 games;
  * Tournaments is whole tournaments only - won (champion) and lost (knocked out); a game won
- * inside a tournament is not a score there (iOS e86868e, 7049e70).
+ * inside a tournament is not a score there (iOS e86868e, 7049e70). For this UTC month or all
+ * time: the indexer's boards (ONLINE_CHESS.md §6) merged with what the phone has read; both count
+ * from [com.kachat.app.util.ChessTournamentEngine.LEADERBOARD_FRESH_FROM_MS] (iOS 77d6038).
  */
 @Composable
 private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavController? = null) {
     val vm: ChessTournamentViewModel = hiltViewModel()
     val service = vm.service
     val colors = LocalAppColors.current
-    val board by service.leaderboard.collectAsState()
+    var period by androidx.compose.runtime.saveable.rememberSaveable {
+        mutableStateOf(com.kachat.app.util.ChessLeaderboardPeriod.MONTH)
+    }
+    val board by service.board(period).collectAsState()
     val contacts by vm.contacts.collectAsState()
     val knsNames by service.knsNames.collectAsState()
     val me = service.myAddress
@@ -1097,7 +1106,52 @@ private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavControl
     } else {
         com.kachat.app.util.ChessTournamentEngine.tournamentLeaderboard(board)
     }
+    // On appear and on every period switch, like iOS's onAppear / onChange(of: period).
+    LaunchedEffect(period) { service.refreshIndexerLeaderboards() }
+    val emptyText = when (period) {
+        com.kachat.app.util.ChessLeaderboardPeriod.MONTH -> stringResource(
+            if (duel) R.string.chess_no_finished_duels_this_month else R.string.chess_no_finished_tournaments_this_month
+        )
+        com.kachat.app.util.ChessLeaderboardPeriod.ALL_TIME -> stringResource(
+            if (duel) R.string.chess_no_finished_duels else R.string.chess_no_finished_tournaments
+        )
+    }
+    val periodNote = when (period) {
+        com.kachat.app.util.ChessLeaderboardPeriod.MONTH -> stringResource(R.string.chess_leaderboard_resets_monthly)
+        com.kachat.app.util.ChessLeaderboardPeriod.ALL_TIME -> {
+            // iOS `.dateTime.year().month(.wide).day()`: the cutoff's day, in the user's language.
+            val locale = java.util.Locale.getDefault()
+            val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, "yMMMMd")
+            val day = java.text.SimpleDateFormat(pattern, locale)
+                .format(java.util.Date(com.kachat.app.util.ChessTournamentEngine.LEADERBOARD_FRESH_FROM_MS))
+            stringResource(R.string.chess_leaderboard_counted_from, day)
+        }
+    }
+    val periodLabel = stringResource(R.string.chess_leaderboard_period)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp + LocalDockInset.current)) {
+        item {
+            // iOS: a segmented Picker on its own row at the top, its note as the section footer.
+            KaPostsSegmentedPicker(
+                titles = listOf(
+                    stringResource(R.string.chess_leaderboard_this_month),
+                    stringResource(R.string.chess_leaderboard_all_time),
+                ),
+                selected = if (period == com.kachat.app.util.ChessLeaderboardPeriod.MONTH) 0 else 1,
+                onSelect = {
+                    period = if (it == 0) com.kachat.app.util.ChessLeaderboardPeriod.MONTH
+                    else com.kachat.app.util.ChessLeaderboardPeriod.ALL_TIME
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .semantics { contentDescription = periodLabel },
+            )
+            Text(
+                periodNote,
+                color = colors.textSecondary, fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(top = 6.dp, bottom = 10.dp),
+            )
+        }
         item {
             // What this board counts, in its own words (iOS 1d32335).
             Text(
@@ -1109,7 +1163,7 @@ private fun ChessLeaderboardRows(mode: ChessLobbyMode, navController: NavControl
         if (rows.isEmpty()) {
             item {
                 Text(
-                    if (duel) "No finished games yet." else "No finished tournaments yet.",
+                    emptyText,
                     color = colors.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(20.dp),
                 )
             }

@@ -554,6 +554,28 @@ class BroadcastRepository @Inject constructor(
         com.kachat.app.services.IndexerTrackedRooms.setReported(channels)
     }
 
+    /**
+     * GET /chess/leaderboard on [channelName]'s indexer - its own where it has one, the app-wide
+     * one otherwise (iOS ChessTournamentService.refreshIndexerLeaderboards). Null on any failure:
+     * the phone's own boards stay in place.
+     */
+    suspend fun fetchChessLeaderboard(
+        channelName: String,
+        period: String,
+    ): com.kachat.app.services.ChessIndexerLeaderboardResponse? {
+        val override = settings.broadcastIndexerOverrides.first()[channelName.trim().lowercase()]
+        val api = (override?.let { networkService.broadcastIndexerApiFor(it) }
+            ?: networkService.broadcastIndexerApi.value) ?: return null
+        return try {
+            api.getChessLeaderboard(period = period, limit = 1000)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("BroadcastRepository", "Chess leaderboard ($period) not served: ${e.message}")
+            null
+        }
+    }
+
     suspend fun backfillFromIndexer(channelName: String): Int {
         // This room's own indexer where it has one, the app-wide client otherwise. A broadcast is
         // on-chain, so any indexer watching the same network serves the same room.

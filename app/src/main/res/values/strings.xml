@@ -1637,4 +1637,14 @@
     <string name="quantum_addresses">Quantum Addresses</string>
     <string name="non_quantum_addresses">Non-Quantum Addresses</string>
     <string name="addresses_shown_count">%1$d of %2$d shown</string>
+    <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="chess_leaderboard_this_month">This month</string>
+    <string name="chess_leaderboard_all_time">All time</string>
+    <string name="chess_leaderboard_period">Leaderboard period</string>
+    <string name="chess_leaderboard_resets_monthly">Resets on the 1st of every month (UTC).</string>
+    <string name="chess_leaderboard_counted_from">Counted from %1$s.</string>
+    <string name="chess_no_finished_duels_this_month">No finished 1v1 games this month yet.</string>
+    <string name="chess_no_finished_duels">No finished 1v1 games yet.</string>
+    <string name="chess_no_finished_tournaments_this_month">No finished tournaments this month yet.</string>
+    <string name="chess_no_finished_tournaments">No finished tournaments yet.</string>
 </resources>

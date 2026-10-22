@@ -6,6 +6,7 @@ import com.kachat.app.repository.BroadcastRepository
 import com.kachat.app.services.database.KaChatDatabase
 import com.kachat.app.util.ChessEngine
 import com.kachat.app.util.ChessArenaEvent
+import com.kachat.app.util.ChessLeaderboardPeriod
 import com.kachat.app.util.ChessLeaderboardRow
 import com.kachat.app.util.ChessMove
 import com.kachat.app.util.ChessPendingChatLine
@@ -52,8 +53,14 @@ class ChessTournamentService @Inject constructor(
     private val _tournaments = MutableStateFlow<Map<String, ChessTournament>>(emptyMap())
     val tournaments: StateFlow<Map<String, ChessTournament>> = _tournaments.asStateFlow()
 
+    /** All time (since [ChessTournamentEngine.LEADERBOARD_FRESH_FROM_MS]) and this UTC month: the
+     *  indexer's boards (all history) merged with what this phone has read (the newest rows). */
     private val _leaderboard = MutableStateFlow<List<ChessLeaderboardRow>>(emptyList())
     val leaderboard: StateFlow<List<ChessLeaderboardRow>> = _leaderboard.asStateFlow()
+    private val _monthlyLeaderboard = MutableStateFlow<List<ChessLeaderboardRow>>(emptyList())
+    val monthlyLeaderboard: StateFlow<List<ChessLeaderboardRow>> = _monthlyLeaderboard.asStateFlow()
+    fun board(period: ChessLeaderboardPeriod): StateFlow<List<ChessLeaderboardRow>> =
+        if (period == ChessLeaderboardPeriod.MONTH) monthlyLeaderboard else leaderboard
 
     /** Chain time as this phone estimates it: wall clock, for running clocks between blocks. */
     private val _now = MutableStateFlow(System.currentTimeMillis())
@@ -105,6 +112,7 @@ class ChessTournamentService @Inject constructor(
             runCatching { broadcastRepository.joinChannel(ChessTournamentCodec.ARENA_CHANNEL) }
                 .onFailure { Log.w(TAG, "Could not join the arena", it) }
         }
+        refreshIndexerLeaderboards()
         liveViewing = scanningService.startLiveViewing(ChessTournamentCodec.ARENA_CHANNEL)
         // The live block scan only ever sees what is mined while it runs, so on its own a phone
         // opening Chess cannot see a seat taken a minute earlier - the two would never find each
@@ -149,6 +157,12 @@ class ChessTournamentService @Inject constructor(
                 delay(1_000)
                 _now.value = System.currentTimeMillis()
                 claimTimeoutsIfDue()
+                // The 1st of the month (UTC) came while a chess screen was up: a new month board.
+                val monthStart = boardsMonthStart
+                if (monthStart != 0L && ChessTournamentEngine.utcMonthStartMs(_now.value) != monthStart) {
+                    recomputeLocalBoards()
+                    refreshIndexerLeaderboards(force = true)
+                }
             }
         }
     }
@@ -189,7 +203,7 @@ class ChessTournamentService @Inject constructor(
         val reduced = ChessTournamentEngine.reduce(events)
         _tournaments.value = reduced
         resolveNames(reduced.values.flatMap { it.players }.toSet() + listOfNotNull(mineAddress))
-        _leaderboard.value = ChessTournamentEngine.leaderboard(reduced.values)
+        recomputeLocalBoards()
         // Asked to join a public room that filled first: queue into the next one, once.
         val queued = queuedPublicRoomId
         val me = myAddress
@@ -479,6 +493,76 @@ class ChessTournamentService @Inject constructor(
         }
     }
 
+    // MARK: - Leaderboards
+
+    /** One period's board as the indexer served it: the window it counted, and its rows. */
+    data class IndexerBoard(val since: Long, val rows: List<ChessLeaderboardRow>)
+
+    private val boardsLock = Any()
+    private var localBoards: Map<ChessLeaderboardPeriod, List<ChessLeaderboardRow>> = emptyMap()
+    private val indexerBoards = HashMap<ChessLeaderboardPeriod, IndexerBoard>()
+    @Volatile
+    private var boardsMonthStart = 0L
+    private var lastIndexerLeaderboardFetch: Long? = null
+    private var indexerLeaderboardJob: Job? = null
+
+    private fun recomputeLocalBoards() {
+        val nowMs = System.currentTimeMillis()
+        val all = _tournaments.value.values
+        val boards = ChessLeaderboardPeriod.entries.associateWith { period ->
+            ChessTournamentEngine.leaderboard(all, since = ChessTournamentEngine.periodSinceMs(period, nowMs))
+        }
+        synchronized(boardsLock) {
+            boardsMonthStart = ChessTournamentEngine.utcMonthStartMs(nowMs)
+            localBoards = boards
+            publishBoards()
+        }
+    }
+
+    /**
+     * Per player, each figure is the larger of the two sources: both count the same window, the
+     * indexer has the older history and this phone the newest blocks, so neither can be above
+     * the true count. An indexer board for another window (an old indexer without `period`, or a
+     * month that has since rolled over) is not used. Call with [boardsLock] held.
+     */
+    private fun publishBoards() {
+        val nowMs = System.currentTimeMillis()
+        fun merged(period: ChessLeaderboardPeriod) = mergedBoard(
+            localBoards[period].orEmpty(),
+            usableIndexerRows(period, indexerBoards[period], nowMs),
+        )
+        val all = merged(ChessLeaderboardPeriod.ALL_TIME)
+        val month = merged(ChessLeaderboardPeriod.MONTH)
+        if (all != _leaderboard.value) _leaderboard.value = all
+        if (month != _monthlyLeaderboard.value) _monthlyLeaderboard.value = month
+    }
+
+    /**
+     * GET /chess/leaderboard?period=month|all on the arena's indexer (ONLINE_CHESS.md §6). At
+     * most every 20 s unless forced; any failure leaves the phone's own boards in place.
+     */
+    fun refreshIndexerLeaderboards(force: Boolean = false) {
+        synchronized(boardsLock) {
+            val last = lastIndexerLeaderboardFetch
+            if (!force && last != null && System.currentTimeMillis() - last < INDEXER_LEADERBOARD_INTERVAL_MS) return
+            lastIndexerLeaderboardFetch = System.currentTimeMillis()
+            indexerLeaderboardJob?.cancel()
+            indexerLeaderboardJob = scope.launch {
+                for (period in ChessLeaderboardPeriod.entries) {
+                    val response = broadcastRepository.fetchChessLeaderboard(ChessTournamentCodec.ARENA_CHANNEL, period.raw)
+                        ?: continue
+                    val board = acceptedIndexerBoard(period, response) ?: continue
+                    if (!isActive) return@launch
+                    synchronized(boardsLock) {
+                        indexerBoards[period] = board
+                        publishBoards()
+                    }
+                    resolveNames(board.rows.take(100).map { it.address }.toSet())
+                }
+            }
+        }
+    }
+
     // MARK: - Fees
 
     /**
@@ -567,6 +651,78 @@ class ChessTournamentService @Inject constructor(
 
         /** The tighter pull while a seat is held or a game is on - see [acquire]. */
         private const val FAST_POLL_INTERVAL_MS = 2_000L
+
+        /** The indexer's leaderboards are re-read at most this often unless forced. */
+        private const val INDEXER_LEADERBOARD_INTERVAL_MS = 20_000L
+
+        /**
+         * The indexer's answer for [period], or null when it is not one: another `period` (an old
+         * indexer without it), no `since`, or a row missing a figure - iOS's strict Decodable
+         * refuses the whole answer then too.
+         */
+        internal fun acceptedIndexerBoard(
+            period: ChessLeaderboardPeriod,
+            response: ChessIndexerLeaderboardResponse,
+        ): IndexerBoard? {
+            if (response.period != period.raw) return null
+            val since = response.since ?: return null
+            val players = response.players ?: return null
+            val rows = players.map { p ->
+                ChessLeaderboardRow(
+                    address = p?.address ?: return null,
+                    wins = p.wins ?: return null,
+                    losses = p.losses ?: return null,
+                    tournamentsPlayed = p.tournamentsPlayed ?: return null,
+                    tournamentsWon = p.tournamentsWon ?: return null,
+                    tournamentsLost = p.tournamentsLost ?: return null,
+                    lastPlayedAt = p.lastPlayedAt ?: return null,
+                    duelWins = p.duelWins ?: return null,
+                    duelLosses = p.duelLosses ?: return null,
+                    tournamentGameWins = p.tournamentGameWins ?: return null,
+                    tournamentGameLosses = p.tournamentGameLosses ?: return null,
+                )
+            }
+            return IndexerBoard(since, rows)
+        }
+
+        /** The indexer's rows for [period], only if they count the window this phone counts now. */
+        internal fun usableIndexerRows(
+            period: ChessLeaderboardPeriod,
+            board: IndexerBoard?,
+            nowMs: Long,
+        ): List<ChessLeaderboardRow>? =
+            board?.takeIf { it.since == ChessTournamentEngine.periodSinceMs(period, nowMs) }?.rows
+
+        /** Per player, the larger of each figure; then most wins, fewest losses, latest played.
+         *  Without an indexer board the phone's own board is shown as it is. */
+        internal fun mergedBoard(
+            local: List<ChessLeaderboardRow>,
+            remote: List<ChessLeaderboardRow>?,
+        ): List<ChessLeaderboardRow> {
+            if (remote == null) return local
+            val rows = LinkedHashMap<String, ChessLeaderboardRow>()
+            for (r in remote) rows.putIfAbsent(r.address, r)
+            for (r in local) {
+                val m = rows[r.address]
+                rows[r.address] = if (m == null) r else m.copy(
+                    wins = maxOf(m.wins, r.wins),
+                    losses = maxOf(m.losses, r.losses),
+                    duelWins = maxOf(m.duelWins, r.duelWins),
+                    duelLosses = maxOf(m.duelLosses, r.duelLosses),
+                    tournamentGameWins = maxOf(m.tournamentGameWins, r.tournamentGameWins),
+                    tournamentGameLosses = maxOf(m.tournamentGameLosses, r.tournamentGameLosses),
+                    tournamentsPlayed = maxOf(m.tournamentsPlayed, r.tournamentsPlayed),
+                    tournamentsWon = maxOf(m.tournamentsWon, r.tournamentsWon),
+                    tournamentsLost = maxOf(m.tournamentsLost, r.tournamentsLost),
+                    lastPlayedAt = maxOf(m.lastPlayedAt, r.lastPlayedAt),
+                )
+            }
+            return rows.values.sortedWith(
+                compareByDescending<ChessLeaderboardRow> { it.wins }
+                    .thenBy { it.losses }
+                    .thenByDescending { it.lastPlayedAt }
+            )
+        }
 
         /** Rooms the app uses as machinery, never shown as chats: the chess arena. Hidden from
          *  Public Chats, no unread, no banners (iOS BroadcastService.serviceChannels). */

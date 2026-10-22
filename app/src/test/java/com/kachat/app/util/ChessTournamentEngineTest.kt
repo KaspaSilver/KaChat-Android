@@ -202,7 +202,7 @@ class ChessTournamentEngineTest {
         // Seed 1 had white once, seed 7 had black: seed 7 has fewer whites, so seed 7 is white.
         assertEquals(players[6], semi.white)
         assertEquals(players[0], semi.black)
-        val board = ChessTournamentEngine.leaderboard(listOf(t))
+        val board = ChessTournamentEngine.leaderboard(listOf(t), since = 0)
         assertEquals(8, board.size)
         val seed1 = board.first { it.address == players[0] }
         assertEquals(1, seed1.wins)
@@ -314,7 +314,7 @@ class ChessTournamentEngineTest {
         // A tournament, one round-1 game decided.
         seatEight()
         post(players[7], ChessTournamentCodec.resign(id, "1-0"))
-        val rows = ChessTournamentEngine.leaderboard(ChessTournamentEngine.reduce(events).values)
+        val rows = ChessTournamentEngine.leaderboard(ChessTournamentEngine.reduce(events).values, since = 0)
         val winner = rows.first { it.address == players[0] }
         assertEquals(1, winner.duelWins)
         assertEquals(1, winner.tournamentGameWins)
@@ -348,5 +348,72 @@ class ChessTournamentEngineTest {
             compareByDescending<ChessLeaderboardRow> { it.wins }.thenBy { it.losses }.thenByDescending { it.lastPlayedAt }
         )
         assertEquals(listOf("b", "a", "c"), sorted.map { it.address })
+    }
+
+    // MARK: - Periods (iOS 77d6038)
+
+    @Test
+    fun `all time counts from the cutoff, this month from the later of the cutoff and the 1st UTC`() {
+        val cutoff = ChessTournamentEngine.LEADERBOARD_FRESH_FROM_MS
+        assertEquals(1_792_647_960_000L, cutoff)
+        val oct1 = 1_790_812_800_000L // 2026-10-01 00:00 UTC
+        val nov1 = 1_793_491_200_000L // 2026-11-01 00:00 UTC
+        val dec1 = 1_796_083_200_000L // 2026-12-01 00:00 UTC
+        val now = cutoff + 3_600_000L
+        assertEquals(cutoff, ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.ALL_TIME, now))
+        // October: its 1st is before the cutoff, so the month board starts at the cutoff too.
+        assertEquals(oct1, ChessTournamentEngine.utcMonthStartMs(now))
+        assertEquals(cutoff, ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.MONTH, now))
+        // November onwards: the 1st, 00:00 UTC; all time stays at the cutoff.
+        assertEquals(nov1, ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.MONTH, nov1 + 15L * 86_400_000L))
+        assertEquals(cutoff, ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.ALL_TIME, nov1 + 15L * 86_400_000L))
+        assertEquals(dec1, ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.MONTH, dec1 + 1))
+    }
+
+    @Test
+    fun `the month turns over at midnight UTC whatever the phone's time zone`() {
+        val nov1 = 1_793_491_200_000L // 2026-11-01 00:00 UTC = Oct 31, 17:00 in Los Angeles
+        val saved = java.util.TimeZone.getDefault()
+        for (zone in listOf("America/Los_Angeles", "Asia/Tokyo", "UTC")) {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+            try {
+                assertEquals(zone, nov1, ChessTournamentEngine.utcMonthStartMs(nov1))
+                assertEquals(zone, 1_790_812_800_000L, ChessTournamentEngine.utcMonthStartMs(nov1 - 1))
+                assertEquals(zone, nov1, ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.MONTH, nov1))
+                assertEquals(zone, ChessTournamentEngine.LEADERBOARD_FRESH_FROM_MS,
+                    ChessTournamentEngine.periodSinceMs(ChessLeaderboardPeriod.MONTH, nov1 - 1))
+            } finally {
+                java.util.TimeZone.setDefault(saved)
+            }
+        }
+    }
+
+    @Test
+    fun `a room counts in the period it started in, with every one of its games`() {
+        // Started before `since`, decided after it: never counts.
+        val early = ChessTournamentCodec.duelId(1)
+        post(players[0], ChessTournamentCodec.join(early))
+        post(players[1], ChessTournamentCodec.join(early))
+        val since = clock + 1
+        post(players[1], ChessTournamentCodec.resign(early, "1-0"))
+        // Started after `since`: counts, its game with it.
+        val late = ChessTournamentCodec.duelId(2)
+        post(players[2], ChessTournamentCodec.join(late))
+        post(players[3], ChessTournamentCodec.join(late))
+        post(players[3], ChessTournamentCodec.resign(late, "1-0"))
+        val all = rooms()
+        val lateStart = all[late]!!.startedAt!!
+        assertTrue(all[early]!!.startedAt!! < since && lateStart >= since)
+
+        val board = ChessTournamentEngine.leaderboard(all.values, since = since)
+        assertEquals(setOf(players[2], players[3]), board.map { it.address }.toSet())
+        assertEquals(1, board.first { it.address == players[2] }.duelWins)
+        assertEquals(1, board.first { it.address == players[3] }.duelLosses)
+        // startedAt >= since: a room that started at the very instant counts, one ms later not.
+        assertEquals(2, ChessTournamentEngine.leaderboard(all.values, since = lateStart).size)
+        assertEquals(0, ChessTournamentEngine.leaderboard(all.values, since = lateStart + 1).size)
+        // Everything here is older than the fresh start, which is the default.
+        assertEquals(4, ChessTournamentEngine.leaderboard(all.values, since = 0).size)
+        assertTrue(ChessTournamentEngine.leaderboard(all.values).isEmpty())
     }
 }

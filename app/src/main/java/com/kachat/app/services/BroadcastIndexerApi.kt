@@ -25,7 +25,40 @@ interface BroadcastIndexerApi {
      */
     @GET("broadcast-channels")
     suspend fun getTrackedChannels(): BroadcastTrackedChannelsResponse
+
+    /**
+     * GET /chess/leaderboard?period=month|all&limit= (ONLINE_CHESS.md §6): the arena replayed
+     * over all its history, for one period. An indexer that predates `period` answers without
+     * it, and its board is not used (iOS 77d6038).
+     */
+    @GET("chess/leaderboard")
+    suspend fun getChessLeaderboard(
+        @Query("period") period: String,
+        @Query("limit") limit: Int = 1000,
+    ): ChessIndexerLeaderboardResponse
 }
+
+/** Every field is nullable so a row missing one can be refused as a whole, like iOS's strict
+ *  Decodable (see ChessTournamentService.acceptedIndexerBoard). */
+data class ChessIndexerLeaderboardResponse(
+    val players: List<ChessIndexerLeaderboardPlayer?>?,
+    val period: String?,
+    val since: Long?,
+)
+
+data class ChessIndexerLeaderboardPlayer(
+    val address: String?,
+    val wins: Int?,
+    val losses: Int?,
+    val duelWins: Int?,
+    val duelLosses: Int?,
+    val tournamentGameWins: Int?,
+    val tournamentGameLosses: Int?,
+    val tournamentsPlayed: Int?,
+    val tournamentsWon: Int?,
+    val tournamentsLost: Int?,
+    val lastPlayedAt: Long?,
+)
 
 data class BroadcastTrackedChannelsResponse(
     val channels: List<String?>?,
