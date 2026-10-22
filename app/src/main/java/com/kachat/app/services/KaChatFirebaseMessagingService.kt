@@ -466,7 +466,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /** Base64 → EncryptedMessage → ChaCha20-Poly1305 decrypt with the wallet key. Null on failure
-     * (no encrypted body attached, e.g. an oversized/media message; or a tag/key mismatch). */
+     * (no encrypted body attached, e.g. an oversized/media message; or a tag/key mismatch). An
+     * iPhone photo or voice note in the binary media frame opens as its media-file JSON here too
+     * (KasiaCipher.decrypt, iOS NotificationService.mediaFrameEnvelope), so its banner is "Sent a
+     * photo" / "Sent a voice message" as before. */
     private fun decryptDirectMessage(encPayload: String?): String? {
         if (encPayload.isNullOrEmpty()) return null
         return try {

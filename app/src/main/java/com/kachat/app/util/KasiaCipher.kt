@@ -70,7 +70,14 @@ object KasiaCipher {
      * Encrypts [plaintext] for a recipient identified by their 32-byte x-only
      * secp256k1 public key (this is exactly the payload of their Kaspa address).
      */
-    fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray): EncryptedMessage {
+    fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray): EncryptedMessage =
+        encrypt(plaintext.toByteArray(Charsets.UTF_8), recipientXOnlyPubKey)
+
+    /**
+     * Encrypts raw bytes - the binary media frame ([ContextualMediaFrame]) of a photo or voice
+     * note travels this way, without a base64 layer inside the encryption (iOS `encrypt(data:)`).
+     */
+    fun encrypt(data: ByteArray, recipientXOnlyPubKey: ByteArray): EncryptedMessage {
         val ephemeralPrivate = randomScalar()
         val ephemeralPublic = Secp256k1.G.multiply(ephemeralPrivate).normalize().getEncoded(true)
 
@@ -79,7 +86,7 @@ object KasiaCipher {
         val key = hkdfSha256(sharedX, ByteArray(0), 32)
 
         val nonce = ByteArray(NONCE_SIZE).also { SecureRandom().nextBytes(it) }
-        val ciphertext = chaChaPolyEncrypt(key, nonce, plaintext.toByteArray(Charsets.UTF_8))
+        val ciphertext = chaChaPolyEncrypt(key, nonce, data)
 
         return EncryptedMessage(nonce, ephemeralPublic, ciphertext)
     }
@@ -93,8 +100,17 @@ object KasiaCipher {
         val key = hkdfSha256(sharedX, ByteArray(0), 32)
 
         val plaintext = chaChaPolyDecrypt(key, message.nonce, message.ciphertext)
+        // A binary media frame comes back as the same media-file JSON a text-encoded one always
+        // was, so everything after decryption is unchanged (iOS KasiaCipher.decrypt).
+        ContextualMediaFrame.envelopeText(plaintext)?.let { return it }
+        // 0xFF never begins UTF-8: a frame that does not parse (cut short, a header length past
+        // the end, a newer version) is unreadable, as on iOS - never text full of U+FFFD.
+        if (ContextualMediaFrame.startsWithFrameByte(plaintext)) throw UnreadablePlaintextException()
         return String(plaintext, Charsets.UTF_8)
     }
+
+    /** The plaintext opened but is neither text nor a well-formed binary media frame. */
+    class UnreadablePlaintextException : IllegalStateException("Decrypted bytes are not text or a media frame")
 
     /**
      * Derives the raw 32-byte symmetric key (post-HKDF) for a given peer's
