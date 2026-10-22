@@ -4,10 +4,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
+import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
 
 /**
@@ -41,5 +43,28 @@ object IosSymbols {
         addPaths(Icons.Filled.Lock.root)
         builder.clearGroup()
         builder.build()
+    }
+
+    /**
+     * "quote.bubble.fill": a solid speech bubble (Material ChatBubble) with two quote marks
+     * (Material FormatQuote at 0.6x about the bubble's centre) cut out of it - one even-odd
+     * path, so the marks are holes that show what is behind.
+     */
+    val QuoteBubbleFill: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "QuoteBubbleFill",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).addPath(
+            pathData = addPathNodes(
+                "M20,2H4c-1.1,0 -2,0.9 -2,2v18l4,-4h14c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2z" +
+                    "M8.4,13h1.8l1.2,-2.4V7H7.8v3.6h1.8z" +
+                    "M13.2,13H15l1.2,-2.4V7h-3.6v3.6h1.8z"
+            ),
+            pathFillType = PathFillType.EvenOdd,
+            fill = SolidColor(Color.Black),
+        ).build()
     }
 }

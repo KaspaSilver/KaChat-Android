@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.IosSymbols
 import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.layout.statusBars
@@ -83,7 +84,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FormatBold
-import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FormatListNumbered
@@ -6612,7 +6612,7 @@ private fun PostActivityCard(kind: Int, count: String, name: String, onClick: ()
                     0 -> Icon(Icons.Default.Favorite, null, tint = colors.danger, modifier = Modifier.size(26.dp))
                     1 -> Icon(Icons.Filled.ThumbDown, null, tint = Color(0xFFFF9500), modifier = Modifier.size(26.dp))
                     2 -> Icon(Icons.Default.Repeat, null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
-                    3 -> Icon(Icons.Filled.FormatQuote, null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
+                    3 -> Icon(IosSymbols.QuoteBubbleFill, null, tint = KaspaTeal, modifier = Modifier.size(26.dp))
                     else -> androidx.compose.foundation.Image(
                         painter = androidx.compose.ui.res.painterResource(R.drawable.ic_kaspa_logo),
                         contentDescription = null,
