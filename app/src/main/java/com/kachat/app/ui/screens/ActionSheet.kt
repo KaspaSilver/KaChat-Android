@@ -1,6 +1,7 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.foundation.layout.statusBars
+import com.kachat.app.ui.theme.IosSymbols
 import com.kachat.app.ui.theme.iosGlass
 
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -107,7 +108,6 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.FormatQuote
 import com.kachat.app.util.KaspaUnit
 
 /**
@@ -1079,7 +1079,7 @@ fun RepostActionsSheet(
             tint = if (isReposted) LocalAppColors.current.danger else KaspaTeal,
         ) { onDismiss(); onRepost() }
         ActionSheetRow(
-            icon = Icons.Default.FormatQuote,
+            icon = IosSymbols.QuoteBubble,
             title = "Quote",
             subtitle = "Adds your own words above it.",
         ) { onDismiss(); onQuote() }

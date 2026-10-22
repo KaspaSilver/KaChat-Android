@@ -4677,15 +4677,14 @@ private fun DomainServiceCard(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // iOS .title2 rounded, heavy, in the accent colour.
-            Text(
+            // iOS .title2 rounded, heavy, in the accent colour; one line, shrinking to 0.6.
+            KachatFitText(
                 tld.suffix,
                 color = KaspaTeal,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 fontFamily = IosRoundedFontFamily,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                minScale = 0.6f,
             )
             // iOS .caption semibold, secondary.
             Text(

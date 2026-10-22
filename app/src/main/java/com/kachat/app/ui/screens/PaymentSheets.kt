@@ -354,13 +354,14 @@ fun PaymentDetailSheet(
                             fontSize = 15.sp,
                         )
                         if (parts != null) {
-                            Text(
+                            // iOS: one line, shrinking to 0.6 before it is cut.
+                            KachatFitText(
                                 "${parts.first} ${KaspaUnit.symbol}",
                                 color = colors.textPrimary,
-                                fontWeight = FontWeight.Bold,
                                 fontSize = 34.sp,
+                                fontWeight = FontWeight.Bold,
                                 fontFamily = IosRoundedFontFamily,
-                                maxLines = 1,
+                                minScale = 0.6f,
                             )
                             parts.second?.let { note ->
                                 Text(note, color = colors.textPrimary, fontSize = 15.sp, textAlign = TextAlign.Center)
