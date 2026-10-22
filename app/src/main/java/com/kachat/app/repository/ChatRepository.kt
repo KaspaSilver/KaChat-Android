@@ -2821,11 +2821,13 @@ class ChatRepository @Inject constructor(
             }
             previous?.let { com.kachat.app.util.KaspaSignatureVerifier.outputAt(it, index) }
         }
-        when (val check = verdict.check) {
+        // Valid but no verified input names a sender: the REST label is all there is, so it goes
+        // the Unknown way (node + indexer), never filed under the label (iOS 2343e84, IOS-094).
+        when (val check = paymentSignatureCheck(verdict)) {
             com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid -> {
                 releaseHeldPayment(myAddress, tx.transactionId)
-                // the sender from the very inputs whose signatures were just checked - never from a
-                // second, unchecked read (iOS 5a78d06, IOS-094)
+                // the sender from the very inputs whose signatures were just verified - never from
+                // a second, unchecked read (iOS 5a78d06 / 2343e84, IOS-094)
                 verdict.sender?.let { sender = it }
             }
             is com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Invalid -> {
@@ -3433,6 +3435,18 @@ class ChatRepository @Inject constructor(
             if (restSender != null && restSender.lowercase() != indexedSender) return null
             return restSender ?: indexedSender
         }
+
+        /** The verdict a received payment is filed by (iOS 2343e84, IOS-094): a Valid check with no
+         *  verified input that isn't ours names no sender - the REST label is all there is - so it
+         *  goes the Unknown way (node + indexer cross-check), never filed under the label. */
+        internal fun paymentSignatureCheck(
+            verdict: com.kachat.app.util.KaspaSignatureVerifier.ReceivedCheck,
+        ): com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck =
+            if (verdict.check == com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid && verdict.sender == null) {
+                com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Unknown
+            } else {
+                verdict.check
+            }
 
         /** How many held payments one sync re-reads at most, and how long one is kept (iOS 5806362). */
         internal const val HELD_PAYMENTS_PER_SYNC = 25

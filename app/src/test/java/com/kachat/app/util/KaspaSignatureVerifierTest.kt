@@ -421,6 +421,99 @@ class KaspaSignatureVerifierTest {
         assertEquals(null, received(tx.copy(transactionId = "00".repeat(32), inputsOrNull = listOf(input.copy(signatureScript = "")))).sender)
     }
 
+    // MARK: run 18 (iOS 2343e84): IOS-094 the sender only from inputs whose signature VERIFIED
+
+    /** A forger's key (test-only bytes) and its P2PK address. */
+    private val forgerKey = ByteArray(32) { (it + 41).toByte() }
+    private val forger by lazy { KaspaAddress.encode("kaspa", 0, Schnorr.publicKeyXOnly(forgerKey)) }
+    /** An ECDSA address: its inputs are skipped unchecked. */
+    private val ecdsaVictim = KaspaAddress.encode("kaspa", 1, ByteArray(33) { if (it == 0) 2 else 7 })
+
+    /** A two-input payment as the REST API describes it: input 0 spent from [first] and left with
+     *  an unchecked script, input 1 spent from the forger's address and really signed by them. */
+    private fun forgedPayment(first: String): TransactionResponse {
+        val utxos = listOf(first to 300_000_000L, forger to 50_000_000L).mapIndexed { i, (address, amount) ->
+            UtxoEntry(
+                address = address,
+                outpoint = Outpoint(transactionId = "%064x".format(i + 0xdef), index = i),
+                utxoEntry = UtxoData(amount = amount, scriptPublicKey = ScriptPublicKey(KaspaAddress.getScriptPublicKey(address)), blockDaaScore = 1L, isCoinbase = false)
+            )
+        }
+        val raw = RawTransaction(
+            inputs = utxos.map { RawInput(previousOutpoint = it.outpoint, signatureScript = "") },
+            outputs = listOf(RawOutputWithVersion(349_990_000L, ScriptPublicKeyWithVersion(KaspaAddress.getScriptPublicKey(forger), 0))),
+        )
+        val signed = KaspaTransactionSigner.signTransaction(raw, utxos, forgerKey)
+        return TransactionResponse(
+            transactionId = "00".repeat(32),
+            inputsOrNull = signed.inputs.mapIndexed { i, input ->
+                com.kachat.app.services.TransactionInput(
+                    previousOutpointHash = input.previousOutpoint.transactionId,
+                    previousOutpointIndex = input.previousOutpoint.index,
+                    previousOutpointAddress = utxos[i].address,
+                    previousOutpointAmount = utxos[i].utxoEntry.amount,
+                    // input 0: whatever the forger likes - its kind isn't checked here
+                    signatureScript = if (i == 0) "00" else input.signatureScript,
+                    sequence = input.sequence.toString(),
+                    sigOpCount = input.sigOpCount.toString(),
+                )
+            },
+            outputs = signed.outputs.mapIndexed { i, output ->
+                TransactionOutput(output.amount, output.scriptPublicKey.scriptPublicKey, forger, index = i)
+            },
+            blockTime = 1L,
+            payload = "",
+            version = "0",
+            subnetworkId = "00".repeat(20),
+        )
+    }
+
+    @Test
+    fun `an unchecked ECDSA input listed first is never the sender, the verified one is`() {
+        val tx = forgedPayment(first = ecdsaVictim)
+        val verdict = received(tx)
+        // the forger's own input verifies, the ECDSA one is skipped: valid...
+        assertEquals(SignatureCheck.Valid, verdict.check)
+        // ...and the sender is the input whose signature verified, never the first non-mine one
+        assertEquals(forger, verdict.sender)
+        // the verified inputs are reported by index
+        val verified = ArrayList<Int>()
+        KaspaSignatureVerifier.verifyTransactionSignatures(
+            claimedTxId = tx.transactionId,
+            inputs = tx.inputs.map {
+                KaspaSignatureVerifier.VerificationInput(
+                    it.previousOutpointHash, it.previousOutpointIndex, it.signatureScript,
+                    it.previousOutpointAddress, it.previousOutpointAmount, 0L, 1,
+                )
+            },
+            outputs = tx.outputs.map { KaspaSignatureVerifier.VerificationOutput(it.amount, it.scriptPublicKey) },
+            version = 0, lockTime = 0, subnetworkId = ByteArray(20), gas = 0, payload = ByteArray(0),
+            onVerifiedInput = { verified += it },
+        )
+        assertEquals(listOf(1), verified)
+    }
+
+    @Test
+    fun `only unchecked inputs not ours beside a verified own input name no sender and go the unknown way`() {
+        val tx = forgedPayment(first = ecdsaVictim)
+        // the verified input is ours: the only non-mine input is the unchecked ECDSA one
+        val verdict = received(tx, myAddress = forger.uppercase())
+        assertEquals(SignatureCheck.Valid, verdict.check)
+        assertEquals(null, verdict.sender)
+        // the payment sync then takes the unknown way (node + indexer), never the REST label
+        assertEquals(SignatureCheck.Unknown, com.kachat.app.repository.ChatRepository.paymentSignatureCheck(verdict))
+        // a valid verdict that does name a sender stays valid; the other verdicts pass through
+        assertEquals(SignatureCheck.Valid, com.kachat.app.repository.ChatRepository.paymentSignatureCheck(received(tx)))
+        assertEquals(
+            SignatureCheck.Invalid(1),
+            com.kachat.app.repository.ChatRepository.paymentSignatureCheck(KaspaSignatureVerifier.ReceivedCheck(SignatureCheck.Invalid(1), null))
+        )
+        assertEquals(
+            SignatureCheck.Unknown,
+            com.kachat.app.repository.ChatRepository.paymentSignatureCheck(KaspaSignatureVerifier.ReceivedCheck(SignatureCheck.Unknown, null))
+        )
+    }
+
     @Test
     fun `the wallet's own version 0 signing hash is unchanged by covenant data`() {
         // A version-0 transaction ignores covenants entirely (rusty-kaspa: v1 only).

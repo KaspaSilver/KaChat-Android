@@ -271,6 +271,7 @@ class QuantumAddressTest {
         activityServed: Boolean = true,
         balancesServed: Boolean = true,
         windows: MutableList<Int> = ArrayList(),
+        stillOwner: () -> Boolean = { true },
     ) = kotlinx.coroutines.runBlocking {
         SpendingAddressDiscovery.sweepQuantumWindows(
             base = 0,
@@ -283,14 +284,47 @@ class QuantumAddressTest {
                 if (!balancesServed) null
                 else addresses.associateWith { if (it.drop(1).toInt() in funded) 5L else 0L }
             },
+            stillOwner = stillOwner,
         )
+    }
+
+    /** [sweep] for an account that stays active the whole time: it always finishes. */
+    private fun sweepOwned(
+        activeUpTo: Int,
+        funded: Set<Int> = emptySet(),
+        activityServed: Boolean = true,
+        balancesServed: Boolean = true,
+        windows: MutableList<Int> = ArrayList(),
+    ) = sweep(activeUpTo, funded, activityServed, balancesServed, windows)!!
+
+    @Test
+    fun `an account switch mid-sweep stops the quantum sweep with nothing to write`() {
+        // the owner is checked before and after every window's derivation: switched during the
+        // second window's derivation, the sweep stops right there and hands back nothing
+        val windows = ArrayList<Int>()
+        var checks = 0
+        val stopped = sweep(activeUpTo = 450, funded = setOf(230), windows = windows, stillOwner = { ++checks <= 3 })
+        assertEquals(null, stopped)
+        assertEquals(listOf(0, 200), windows)
+        // switched before it began: not one window derived
+        val none = ArrayList<Int>()
+        assertEquals(null, sweep(activeUpTo = 450, windows = none, stillOwner = { false }))
+        assertEquals(emptyList<Int>(), none)
+        // switched after the last window: still nothing to write
+        var after = 0
+        val lastWindows = ArrayList<Int>()
+        // windows 0, 200, 400, 600 = 8 checks around their derivations, the 9th is the final one
+        assertEquals(null, sweep(activeUpTo = 450, windows = lastWindows, stillOwner = { ++after <= 8 }))
+        assertEquals(listOf(0, 200, 400, 600), lastWindows)
+        // the account stays put: the same sweep finishes
+        assertEquals(450, sweep(activeUpTo = 450, stillOwner = { true })?.highestUsed)
     }
 
     @Test
     fun `the quantum sweep keeps stepping while a window shows activity`() {
         val windows = ArrayList<Int>()
         // activity up to slot 450: windows 0, 200, 400 show it, 600 is quiet and ends the sweep
-        val result = sweep(activeUpTo = 450, funded = setOf(230), windows = windows)
+        val result = sweepOwned(activeUpTo = 450, funded = setOf(230), windows = windows)
         assertEquals(listOf(0, 200, 400, 600), windows)
         assertEquals(listOf(230), result.funded)
         // the bound covers the highest USED slot, not only the funded one
@@ -300,7 +334,7 @@ class QuantumAddressTest {
     @Test
     fun `the quantum sweep stops at 10,000 slots`() {
         val windows = ArrayList<Int>()
-        val result = sweep(activeUpTo = Int.MAX_VALUE, windows = windows)
+        val result = sweepOwned(activeUpTo = Int.MAX_VALUE, windows = windows)
         assertEquals(SpendingAddressDiscovery.QUANTUM_SCAN_LIMIT / SpendingAddressDiscovery.QUANTUM_SCAN_FLOOR, windows.size)
         assertEquals(SpendingAddressDiscovery.QUANTUM_SCAN_LIMIT - 1, result.highestUsed)
     }
@@ -308,14 +342,14 @@ class QuantumAddressTest {
     @Test
     fun `without the activity answer the quantum sweep reads one window's balances`() {
         val windows = ArrayList<Int>()
-        val result = sweep(activeUpTo = 450, funded = setOf(12, 230), activityServed = false, windows = windows)
+        val result = sweepOwned(activeUpTo = 450, funded = setOf(12, 230), activityServed = false, windows = windows)
         assertEquals(listOf(0), windows)
         assertEquals(listOf(12), result.funded)
         assertEquals(12, result.highestUsed)
         // nothing used at all: no bound
-        assertEquals(-1, sweep(activeUpTo = -1).highestUsed)
+        assertEquals(-1, sweepOwned(activeUpTo = -1).highestUsed)
         // balances unreadable: nothing shown, the activity bound still set
-        val unread = sweep(activeUpTo = 250, funded = setOf(3), balancesServed = false)
+        val unread = sweepOwned(activeUpTo = 250, funded = setOf(3), balancesServed = false)
         assertEquals(emptyList<Int>(), unread.funded)
         assertEquals(250, unread.highestUsed)
     }

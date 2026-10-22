@@ -614,9 +614,14 @@ class WalletService @Inject constructor(
     }
 
     /** Reveals one more quantum-safe (KIP-22) slot, un-hidden, and returns its public index -
-     *  what Generate New Address makes from now on (iOS `generateNextQuantumAddress`). */
-    fun generateNextQuantumAddress(): Int {
+     *  what Generate New Address makes from now on (iOS `generateNextQuantumAddress`). Checked on
+     *  chain first, like every other fresh quantum slot (iOS 2343e84 `verifiedFreshQuantumIndex`,
+     *  IOS-101 / AND-049): a slot already used elsewhere is skipped, never handed out as new.
+     *  The reveal itself stays under the allocation lock with the in-flight guard
+     *  ([WalletManager.generateNextQuantumAddress]). */
+    suspend fun generateNextQuantumAddress(): Int {
         val address = walletManager.getAddress()
+        walletManager.verifyFreshQuantumIndex { spendingAddressUsedState(it) }
         return walletManager.generateNextQuantumAddress(address)
     }
 

@@ -50,8 +50,10 @@ object KaspaSignatureVerifier {
     }
 
     /** A received transaction's verdict and, when [check] is [SignatureCheck.Valid], its proven
-     *  sender: the first input address that isn't ours among the very inputs whose signatures
-     *  were checked (iOS 5a78d06 `verifyIncomingPaymentSignatures`, IOS-094). Null otherwise. */
+     *  sender: the first input address that isn't ours among the inputs whose signature VERIFIED
+     *  (iOS 2343e84 `verifyIncomingPaymentSignatures`, IOS-094). Null otherwise - including a
+     *  Valid verdict with no verified input that isn't ours, which the payment sync then treats
+     *  as Unknown, never filing it under the REST label. */
     data class ReceivedCheck(val check: SignatureCheck, val sender: String?)
 
     /** One input as the REST API resolves it (iOS `VerificationInput`). The spent output's
@@ -76,7 +78,10 @@ object KaspaSignatureVerifier {
         val covenantId: String? = null,
     )
 
-    /** iOS `verifyTransactionSignatures`; [claimedTxId] is the id the API gave the transaction. */
+    /** iOS `verifyTransactionSignatures`; [claimedTxId] is the id the API gave the transaction.
+     *  [onVerifiedInput] is called with the index of every input whose signature VERIFIED. A
+     *  payment's sender may only come from these: ECDSA and covenant-shaped inputs are skipped
+     *  unchecked, so the first non-mine input can be one nobody signed (IOS-094, iOS 2343e84). */
     fun verifyTransactionSignatures(
         claimedTxId: String,
         inputs: List<VerificationInput>,
@@ -86,6 +91,7 @@ object KaspaSignatureVerifier {
         subnetworkId: ByteArray,
         gas: Long,
         payload: ByteArray,
+        onVerifiedInput: (Int) -> Unit = {},
     ): SignatureCheck {
         // no inputs (a coinbase): nothing was checked, so nothing is vouched for (IOS-094) - the
         // received-payment path drops such a transaction before it gets here
@@ -234,7 +240,11 @@ object KaspaSignatureVerifier {
             val valid = Schnorr.verify(sighash, signature, xOnlyPubKey)
             sighash.fill(0)
             checkedInputs++
-            if (!valid && failedInput == null) failedInput = index
+            if (!valid) {
+                if (failedInput == null) failedInput = index
+            } else {
+                onVerifiedInput(index)
+            }
         }
         malformedInput?.let { return SignatureCheck.Invalid(it) }
         failedInput?.let { failed ->
@@ -326,7 +336,8 @@ object KaspaSignatureVerifier {
      * lock time and gas 0 (iOS FlexibleUInt64: a value that doesn't parse reads 0); the
      * subnetwork id is the transaction's (20 zero bytes when it isn't hex), the payload its bytes.
      * No inputs (a coinbase) is [SignatureCheck.Unknown] - nothing was checked (IOS-094). On
-     * Valid the sender is the first checked input's address that isn't [myAddress].
+     * Valid the sender is the first VERIFIED input's address that isn't [myAddress] (null when
+     * there is none - IOS-094, iOS 2343e84).
      */
     suspend fun checkReceivedTransaction(
         tx: TransactionResponse,
@@ -368,6 +379,7 @@ object KaspaSignatureVerifier {
                 covenantId = output.covenantId,
             )
         }
+        val verifiedInputs = ArrayList<Int>()
         val check = verifyTransactionSignatures(
             claimedTxId = tx.transactionId,
             inputs = verificationInputs,
@@ -377,11 +389,16 @@ object KaspaSignatureVerifier {
             subnetworkId = hexToBytes(tx.subnetworkId ?: "") ?: ByteArray(20),
             gas = tx.gas?.let { flexibleLong(it) ?: 0L } ?: 0L,
             payload = hexToBytes(tx.payload ?: "") ?: ByteArray(0),
+            onVerifiedInput = { verifiedInputs += it },
         )
-        // On Valid every input's address was the one its signature was checked against, so the
-        // first that isn't ours is the proven sender.
+        // The proven sender is the first input that isn't ours AMONG THOSE WHOSE SIGNATURE
+        // VERIFIED - never just the first input: ECDSA and covenant-shaped inputs are skipped
+        // unchecked, and a forger could list one first and sign a second input of their own
+        // (IOS-094, owner's choice for the run-18 reopen, iOS 2343e84). No verified non-mine
+        // input, no sender.
         val sender = if (check == SignatureCheck.Valid) {
-            verificationInputs.mapNotNull { it.previousOutpointAddress }
+            verifiedInputs.asSequence()
+                .mapNotNull { verificationInputs[it].previousOutpointAddress }
                 .firstOrNull { !it.equals(myAddress, ignoreCase = true) }
         } else null
         return ReceivedCheck(check, sender)
