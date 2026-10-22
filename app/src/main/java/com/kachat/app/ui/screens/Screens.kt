@@ -3697,7 +3697,7 @@ fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}, size: Dp = 40.
     }
 }
 
-/** "0:07" — the composer's live recording timer, capped display-wise the same way the recording itself is capped at 10s. */
+/** "0:07" — the composer's live recording timer. */
 fun formatRecordingElapsed(elapsedMs: Long): String = VoiceMessage.formatDuration(elapsedMs.toInt())
 
 /**
@@ -9596,11 +9596,17 @@ fun SettingsScreen(
             if (sectionKey == "chats") {
                 SettingsFormSection(title = stringResource(R.string.chats)) {
                     val requirePhotoApproval by settingsViewModel.requirePhotoApprovalForNewContacts.collectAsState()
+                    val higherQualityPhotos by settingsViewModel.higherQualityPhotos.collectAsState()
                     val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
                     // iOS: photos from someone you never added or wrote to stay behind "Show Photo"
                     // until you choose otherwise in their Chat Info. Off shows every photo.
                     SettingsSwitchItem(stringResource(R.string.require_photo_approval_new_contacts), requirePhotoApproval) { enabled ->
                         settingsViewModel.setRequirePhotoApprovalForNewContacts(enabled)
+                    }
+                    SettingsDivider()
+                    // iOS f5f6a11: 1:1 on-chain photos at the largest size one transaction carries.
+                    SettingsSwitchItem(stringResource(R.string.higher_quality_photos), higherQualityPhotos) { enabled ->
+                        settingsViewModel.setHigherQualityPhotos(enabled)
                     }
                     SettingsDivider()
                     // The emojis in iOS's caption, in the label colour.

@@ -217,4 +217,14 @@ class ContextualMediaFrameTest {
         assertEquals(26_946, ImagePrep.estimatedWirePayloadSize(20_000))
         assertEquals(42_946, ImagePrep.estimatedWirePayloadSize(32_000))
     }
+
+    @Test
+    fun `a 1-1 voice note stops at 31 KB, within one transaction`() {
+        val cap = com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES
+        // Android's encoder writes ~1.6 KB a second, so 31 KB comes before 25 s ...
+        assertTrue(VoiceMessage.estimatedRecordingBytes(com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS) > cap)
+        assertTrue(VoiceMessage.estimatedRecordingBytes(10_000) < cap)
+        // ... and a full note's payload stays under the ~43 KB a 32 KB photo takes
+        assertTrue(((cap + 150) * 4.0 / 3.0).toInt() + 80 < ImagePrep.estimatedWirePayloadSize(ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES))
+    }
 }

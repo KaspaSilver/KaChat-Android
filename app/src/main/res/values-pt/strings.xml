@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">Gravar on-chain</string>
     <string name="media_take_on_chain_photo_subtitle">Tire uma foto e envie on-chain, comprimida para caber.</string>
     <string name="media_send_photo_on_chain_subtitle">Escolha uma imagem e envie on-chain, comprimida para caber.</string>
-    <string name="media_record_on_chain_subtitle">Até 10 segundos, enviado on-chain.</string>
+    <string name="media_record_on_chain_subtitle">Até 25 segundos, enviado na chain.</string>
+    <string name="higher_quality_photos">Fotos em maior qualidade</string>
     <string name="media_take_photo_via_nextcloud">Tirar foto via Nextcloud</string>
     <string name="media_record_via_nextcloud">Gravar via Nextcloud</string>
     <string name="media_take_photo_via_nextcloud_subtitle">Qualidade total. Vai para o seu Nextcloud; o chat leva o link.</string>

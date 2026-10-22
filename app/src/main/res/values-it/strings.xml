@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">Registra on-chain</string>
     <string name="media_take_on_chain_photo_subtitle">Scatta una foto e inviala on-chain, compressa per starci.</string>
     <string name="media_send_photo_on_chain_subtitle">Scegli un\'immagine e inviala on-chain, compressa per starci.</string>
-    <string name="media_record_on_chain_subtitle">Fino a 10 secondi, inviato on-chain.</string>
+    <string name="media_record_on_chain_subtitle">Fino a 25 secondi, inviato sulla chain.</string>
+    <string name="higher_quality_photos">Foto di qualità superiore</string>
     <string name="media_take_photo_via_nextcloud">Scatta foto tramite Nextcloud</string>
     <string name="media_record_via_nextcloud">Registra tramite Nextcloud</string>
     <string name="media_take_photo_via_nextcloud_subtitle">Qualità piena. Caricata sul tuo Nextcloud; la chat contiene il link.</string>

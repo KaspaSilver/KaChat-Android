@@ -187,6 +187,10 @@ class AppSettingsRepository @Inject constructor(
         // you never added or wrote to stay behind "Show Photo" unless their Chat Info says
         // otherwise. Off shows every contact's photos unless that contact is set to Always Hide.
         val KEY_REQUIRE_PHOTO_APPROVAL = booleanPreferencesKey("require_photo_approval_for_new_contacts")
+        // Settings > Chats > Higher quality photos (iOS AppSettings.higherQualityPhotos, off by
+        // default): 1:1 on-chain photos use ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES, the largest
+        // one transaction carries, instead of the default, for a higher fee.
+        val KEY_HIGHER_QUALITY_PHOTOS = booleanPreferencesKey("higher_quality_photos")
 
         // Customizable double-tap quick-reaction set - see QUICK_REACTION_EMOJIS's default and
         // QuickReactionBar (Screens.kt) / QuickReactionBarView (iOS) for where this is read.
@@ -751,6 +755,10 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_REQUIRE_PHOTO_APPROVAL] ?: true
     }
 
+    val higherQualityPhotos: Flow<Boolean> = dataStore.data.map {
+        it[KEY_HIGHER_QUALITY_PHOTOS] ?: false
+    }
+
     /** Falls back to [DEFAULT_QUICK_REACTION_EMOJIS] (matches the default in `Screens.kt`'s
      *  `QUICK_REACTION_EMOJIS` / iOS's `AppSettings.defaultQuickReactionEmojis`) if never
      *  customized, or if a stored value somehow isn't exactly 6 entries. */
@@ -1105,6 +1113,7 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = value }
     suspend fun setShowFeeEstimate(value: Boolean) = dataStore.edit { it[KEY_SHOW_FEE_ESTIMATE] = value }
     suspend fun setRequirePhotoApprovalForNewContacts(value: Boolean) = dataStore.edit { it[KEY_REQUIRE_PHOTO_APPROVAL] = value }
+    suspend fun setHigherQualityPhotos(value: Boolean) = dataStore.edit { it[KEY_HIGHER_QUALITY_PHOTOS] = value }
     suspend fun setQuickReactionEmojis(value: List<String>) = dataStore.edit { it[KEY_QUICK_REACTION_EMOJIS] = Gson().toJson(value) }
     suspend fun setNotificationSoundEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_SOUND] = value }
     suspend fun setNotificationVibrationEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_VIBRATION] = value }

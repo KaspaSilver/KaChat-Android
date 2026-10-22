@@ -60,6 +60,10 @@ class VoiceRecorderService @Inject constructor(
         return file
     }
 
+    /** Bytes the active recording has written so far (0 when not recording) - the 1:1 on-chain
+     *  cap's direct measure; a container that writes late shows less than it holds. */
+    fun currentRecordingBytes(): Long = outputFile?.length() ?: 0L
+
     /** Stops the active recording and returns the file, or null if nothing usable was captured. */
     fun stopRecording(): File? {
         val current = recorder ?: return null
@@ -98,7 +102,14 @@ class VoiceRecorderService @Inject constructor(
     companion object {
         private const val SAMPLE_RATE_HZ = 48_000
         private const val BIT_RATE_BPS = 6_000
+        /** On-chain voice notes in groups and public chats (payload-bound, unchanged). */
         const val MAX_RECORDING_DURATION_MS = 10_000L
+        /** On-chain 1:1 voice notes, which travel in the binary media frame (iOS f5f6a11): up to
+         *  25 s or [MAX_DIRECT_ON_CHAIN_VOICE_BYTES], whichever comes first - as long as one
+         *  transaction carries with margin. Size follows length, so a short note costs what it did. */
+        const val MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS = 25_000L
+        /** iOS `maxAudioBytes`: ~31 KB of Opus in the frame, ~42 KB of payload. */
+        const val MAX_DIRECT_ON_CHAIN_VOICE_BYTES = 31_000L
         /** Nextcloud-uploaded voice notes aren't payload-bound — the server carries them — so a
          *  "Record via Nextcloud" note runs to this, everywhere in the app (1:1, groups and
          *  public chats). 5 minutes, down from 10 (iOS 8b13460 `ComposerMediaLimits`). */

@@ -770,7 +770,8 @@
     <string name="media_record_on_chain">链上录音</string>
     <string name="media_take_on_chain_photo_subtitle">拍一张照片并链上发送，会压缩到合适大小。</string>
     <string name="media_send_photo_on_chain_subtitle">选择一张图片并链上发送，会压缩到合适大小。</string>
-    <string name="media_record_on_chain_subtitle">最长 10 秒，链上发送。</string>
+    <string name="media_record_on_chain_subtitle">最长 25 秒，在链上发送。</string>
+    <string name="higher_quality_photos">更高画质的照片</string>
     <string name="media_take_photo_via_nextcloud">通过 Nextcloud 拍照</string>
     <string name="media_record_via_nextcloud">通过 Nextcloud 录音</string>
     <string name="media_take_photo_via_nextcloud_subtitle">原画质。上传到你的 Nextcloud，聊天中发送链接。</string>

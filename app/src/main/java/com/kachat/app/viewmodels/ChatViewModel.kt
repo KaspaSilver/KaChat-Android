@@ -1107,6 +1107,11 @@ class ChatViewModel @Inject constructor(
     val isEstimatingFee: StateFlow<Boolean> = com.kachat.app.util.TypingFeeGate.estimating(typedTextPreview)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
+    /** The 1:1 on-chain photo budget for this send (Chats > Higher quality photos, iOS f5f6a11). */
+    private val onChainPhotoTargetBytes: Flow<Int> = settings.higherQualityPhotos.map { higher ->
+        if (higher) ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES else ImagePrep.DEFAULT_CHAT_TARGET_BYTES
+    }
+
     /**
      * The payload byte count to price the live fee preview off of: the real typed-text length
      * while composing, a rough elapsed-time-based estimate of the final encoded/encrypted size
@@ -1118,7 +1123,8 @@ class ChatViewModel @Inject constructor(
         combine(typedTextPreviewBytes, voiceRecordingState, pendingPhotoUri) { textBytes, recording, photoUri -> Triple(textBytes, recording, photoUri) },
         _nextcloudPhotoRequested,
         _nextcloudVoiceRequested,
-    ) { (textBytes, recording, photoUri), photoNextcloud, voiceNextcloud ->
+        onChainPhotoTargetBytes,
+    ) { (textBytes, recording, photoUri), photoNextcloud, voiceNextcloud, photoTargetBytes ->
         // Via Nextcloud (chosen in the "+" sheet), the chain only carries the ~100-byte share
         // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
         val connected = nextcloudService.isConnected
@@ -1126,8 +1132,9 @@ class ChatViewModel @Inject constructor(
             if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedFramedWirePayloadSize(recording.elapsedMs)
         } else if (photoUri != null) {
             // Compressed image bytes in the binary media frame -> encryption -> the payload's one
-            // base64 layer (iOS f5f6a11): never used for the real fee, only this live preview.
-            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else ImagePrep.estimatedWirePayloadSize()
+            // base64 layer (iOS f5f6a11), at the chosen budget (Chats > Higher quality photos):
+            // never used for the real fee, only this live preview.
+            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else ImagePrep.estimatedWirePayloadSize(photoTargetBytes)
         } else {
             textBytes
         }
@@ -2690,18 +2697,20 @@ class ChatViewModel @Inject constructor(
         }
         _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
         val startedAt = System.currentTimeMillis()
-        // On-chain notes are payload-capped at 10s; a "Record via Nextcloud" note only needs to
-        // fit the server, so it runs to the app-wide Nextcloud ceiling (5 minutes, iOS 8b13460).
-        val maxDurationMs = if (voiceViaNextcloud) {
-            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
+        // On-chain 1:1 notes are payload-capped: 25 s or 31 KB, whichever comes first (iOS
+        // f5f6a11); a "Record via Nextcloud" note only needs to fit the server, so it runs to the
+        // app-wide Nextcloud ceiling (5 minutes, iOS 8b13460).
+        val onChain = !voiceViaNextcloud
+        val maxDurationMs = if (onChain) {
+            VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS
         } else {
-            VoiceRecorderService.MAX_RECORDING_DURATION_MS
+            VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS
         }
         recordingTickerJob = viewModelScope.launch {
             while (isActive && _voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 _voiceRecordingState.value = _voiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (elapsed >= maxDurationMs) {
+                if (elapsed >= maxDurationMs || (onChain && directOnChainVoiceFull(elapsed))) {
                     stopAndSendVoiceRecording(contactId)
                     break
                 }
@@ -2709,6 +2718,14 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
+    /** The 1:1 on-chain voice note has reached iOS's 31 KB: by what the recorder has written, or
+     *  by this encoder's measured rate when its container has not written it out yet. Android's
+     *  MediaRecorder writes more than iOS's encoder per second, so this, not 25 s, usually ends
+     *  the note - a 25 s note from it would not fit one transaction. */
+    private fun directOnChainVoiceFull(elapsedMs: Long): Boolean =
+        maxOf(voiceRecorderService.currentRecordingBytes(), VoiceMessage.estimatedRecordingBytes(elapsedMs).toLong()) >=
+            VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES
 
     /** Stops recording and sends it — unless it was too short to be a real message (a stray tap), in which case it's discarded silently, same as a cancel. */
     fun stopAndSendVoiceRecording(contactId: String) {
@@ -2916,7 +2933,10 @@ class ChatViewModel @Inject constructor(
                 }
             }
             try {
-                val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri) }
+                // On chain, the photo budget: 20 KB, or the largest a transaction carries with
+                // Chats > Higher quality photos on (iOS f5f6a11).
+                val targetBytes = onChainPhotoTargetBytes.first()
+                val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, targetBytes) }
                 val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
                 val json = ImageMessage.encode(fileName = prepared.fileName, sizeBytes = prepared.bytes.size.toLong(), base64Image = base64, mimeType = prepared.mimeType)
                 sendMessage(contactId, json, sendFailureAlert(contactId))

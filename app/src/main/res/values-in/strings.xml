@@ -652,7 +652,8 @@
     <string name="media_record_on_chain">Rekam On-Chain</string>
     <string name="media_take_on_chain_photo_subtitle">Ambil foto dan kirim on-chain, dikompres agar muat.</string>
     <string name="media_send_photo_on_chain_subtitle">Pilih gambar dan kirim on-chain, dikompres agar muat.</string>
-    <string name="media_record_on_chain_subtitle">Hingga 10 detik, dikirim on-chain.</string>
+    <string name="media_record_on_chain_subtitle">Hingga 25 detik, dikirim di chain.</string>
+    <string name="higher_quality_photos">Foto kualitas lebih tinggi</string>
     <string name="media_take_photo_via_nextcloud">Ambil Foto via Nextcloud</string>
     <string name="media_record_via_nextcloud">Rekam via Nextcloud</string>
     <string name="media_take_photo_via_nextcloud_subtitle">Kualitas penuh. Diunggah ke Nextcloud Anda; chat membawa tautannya.</string>
