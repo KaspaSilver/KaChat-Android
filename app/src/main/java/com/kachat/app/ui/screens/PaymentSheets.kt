@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.kachat.app.R
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.models.MessageEntity
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaUnit
@@ -358,6 +359,7 @@ fun PaymentDetailSheet(
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 34.sp,
+                                fontFamily = IosRoundedFontFamily,
                                 maxLines = 1,
                             )
                             parts.second?.let { note ->

@@ -68,6 +68,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import com.kachat.app.R
 import com.kachat.app.models.PaymentRequest
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaUnit
@@ -671,6 +672,7 @@ private fun OwnPaymentRequestSheet(request: PaymentRequest, onDismissed: () -> U
                         color = colors.textPrimary,
                         fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
+                        fontFamily = IosRoundedFontFamily,
                         textAlign = TextAlign.Center,
                     )
                     if (request.memo.isNotEmpty()) {

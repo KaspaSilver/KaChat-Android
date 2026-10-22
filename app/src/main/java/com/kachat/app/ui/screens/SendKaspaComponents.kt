@@ -106,6 +106,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.collectAsState
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.services.UtxoEntry
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.KaspaAddress
@@ -390,6 +391,7 @@ fun KaspaAmountEntry(
                     color = colors.textPrimary,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Bold,
+                    fontFamily = IosRoundedFontFamily,
                     textAlign = TextAlign.Center,
                 ),
                 cursorBrush = SolidColor(KaspaTeal),
@@ -401,7 +403,7 @@ fun KaspaAmountEntry(
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.Center) {
                         if (display.isEmpty()) {
-                            Text("0", color = colors.textTertiary, fontSize = fontSize, fontWeight = FontWeight.Bold)
+                            Text("0", color = colors.textTertiary, fontSize = fontSize, fontWeight = FontWeight.Bold, fontFamily = IosRoundedFontFamily)
                         }
                         inner()
                     }
@@ -413,6 +415,7 @@ fun KaspaAmountEntry(
                 color = colors.textSecondary,
                 fontSize = fontSize * 0.55f,
                 fontWeight = FontWeight.SemiBold,
+                fontFamily = IosRoundedFontFamily,
                 modifier = Modifier.padding(bottom = 6.dp),
             )
         }

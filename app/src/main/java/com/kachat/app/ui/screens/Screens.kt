@@ -44,6 +44,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.iosGlass
 import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -4682,6 +4683,7 @@ private fun DomainServiceCard(
                 color = KaspaTeal,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
+                fontFamily = IosRoundedFontFamily,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

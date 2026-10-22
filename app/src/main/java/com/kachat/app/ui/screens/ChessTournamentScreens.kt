@@ -103,6 +103,7 @@ import com.kachat.app.models.displayName
 import com.kachat.app.services.ChessTournamentService
 import com.kachat.app.ui.tabIconModifier
 import com.kachat.app.ui.tabIconPainter
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.ChessColor
@@ -1492,7 +1493,7 @@ private fun ChessWaitingRoom(
                         Box(
                             Modifier.size(64.dp).clip(CircleShape).background(colors.surfaceVariant),
                             contentAlignment = Alignment.Center,
-                        ) { Text("?", color = colors.textSecondary, fontSize = 26.sp, fontWeight = FontWeight.SemiBold) }
+                        ) { Text("?", color = colors.textSecondary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, fontFamily = IosRoundedFontFamily) }
                         Spacer(Modifier.height(8.dp))
                         Text("Waiting", color = colors.textSecondary, fontSize = 12.sp)
                     }
@@ -1506,7 +1507,7 @@ private fun ChessWaitingRoom(
                         color = colors.textPrimary,
                         fontSize = 56.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = IosRoundedFontFamily,
                     )
                     Text(
                         if (duel) "Taking both of you to the board" else "Taking everyone to their boards",
@@ -1527,7 +1528,7 @@ private fun ChessWaitingRoom(
                 Text(
                     left?.let { "%d:%02d".format(it / 60, it % 60) } ?: "--:--",
                     color = if (left != null && left < 30) colors.danger else colors.textPrimary,
-                    fontSize = 44.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
+                    fontSize = 44.sp, fontWeight = FontWeight.SemiBold, fontFamily = IosRoundedFontFamily,
                 )
                 Text(
                     when {
@@ -1784,7 +1785,7 @@ fun ChessTournamentScreen(tournamentId: String, navController: NavController) {
                                         Text(
                                             "${(nextGameCountdownMs + 999) / 1000}",
                                             color = KaspaTeal, fontSize = 34.sp, fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.Monospace,
+                                            fontFamily = IosRoundedFontFamily,
                                         )
                                     }
                                 }
@@ -1999,7 +2000,7 @@ private fun ChessGameEndOverlay(winnerName: String, outcome: ChessTournamentOutc
                 modifier = Modifier.size(54.dp),
             )
             Spacer(Modifier.height(8.dp))
-            Text(headline, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+            Text(headline, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, fontFamily = IosRoundedFontFamily)
             Text(detail, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -2096,7 +2097,7 @@ private fun ChessGameResultScreen(
                             Text(
                                 if (total == 0) "-" else "%.0f%%".format(shownWins * 100.0 / total),
                                 color = colors.textPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = IosRoundedFontFamily,
                             )
                             Text("Win rate", color = colors.textSecondary, fontSize = 12.sp)
                         }
@@ -2167,7 +2168,7 @@ private fun ChessGameResultScreen(
 private fun ChessResultStat(label: String, value: Int, delta: Int, color: Color, revealed: Boolean) {
     val colors = LocalAppColors.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("$value", color = color, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        Text("$value", color = color, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = IosRoundedFontFamily)
         Text(label, color = colors.textSecondary, fontSize = 12.sp)
         Text(
             if (delta > 0) "+$delta" else " ",

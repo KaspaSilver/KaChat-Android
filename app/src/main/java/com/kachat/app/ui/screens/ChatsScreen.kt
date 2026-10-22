@@ -66,6 +66,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import com.kachat.app.R
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.KaspaBlue
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.ui.theme.KaspaSubtext
@@ -1196,7 +1197,7 @@ private fun ChatCircleAvatar(item: ChatCircle) {
             modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("#", color = KaspaTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text("#", color = KaspaTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = IosRoundedFontFamily)
         }
         // The bot's own icon, as on its Kaspa Hub card (iOS 5fcf755).
         is ChatCircle.Bot -> Box(

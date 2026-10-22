@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.iosGlass
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.filled.AddComment
@@ -625,7 +626,7 @@ private fun PublicChatRow(
             modifier = Modifier.size(50.dp).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center,
         ) {
-            Text("#", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+            Text("#", color = KaspaTeal, fontWeight = FontWeight.Bold, fontSize = 24.sp, fontFamily = IosRoundedFontFamily)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

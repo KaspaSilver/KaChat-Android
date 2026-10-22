@@ -54,6 +54,7 @@ import com.google.gson.JsonObject
 import com.kachat.app.R
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.ui.tabIconPainter
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -974,10 +975,11 @@ fun KaChatStatsScreen(onBack: (() -> Unit)?, viewModel: KaChatStatsViewModel = h
                             kaChatStatsGrouped(allTimeTotal.coerceAtLeast(0L)),
                             color = colors.textPrimary,
                             fontSize = 44.sp,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = IosRoundedFontFamily,
                             minScale = 0.5f,
                         )
-                        snapshot != null || failure != null -> Text("—", color = colors.textPrimary, fontWeight = FontWeight.Black, fontSize = 44.sp)
+                        snapshot != null || failure != null -> Text("—", color = colors.textPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 44.sp, fontFamily = IosRoundedFontFamily)
                         else -> Box(Modifier.padding(vertical = 8.dp)) { Redacted(180, 40) }
                     }
                     Spacer(Modifier.height(2.dp))

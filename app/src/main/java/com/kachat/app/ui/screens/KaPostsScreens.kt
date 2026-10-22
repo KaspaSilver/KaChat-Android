@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.layout.statusBars
 
@@ -6620,7 +6621,7 @@ private fun PostActivityCard(kind: Int, count: String, name: String, onClick: ()
                 }
             }
             // iOS 40pt heavy rounded in the accent, shrinking to half before it is cut.
-            KachatFitText(count, color = KaspaTeal, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, minScale = 0.5f)
+            KachatFitText(count, color = KaspaTeal, fontSize = 40.sp, fontWeight = FontWeight.ExtraBold, fontFamily = IosRoundedFontFamily, minScale = 0.5f)
             // iOS .subheadline semibold, secondary.
             KachatFitText(name, color = colors.textSecondary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, minScale = 0.8f)
         }
