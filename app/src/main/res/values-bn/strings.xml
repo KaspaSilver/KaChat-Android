@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">টেস্টনেট চালু থাকলে Nextcloud বন্ধ থাকে।</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud-এর মাধ্যমে ব্যাকআপ, সিঙ্ক, মিডিয়া ও কল শুধু মেইননেটে কাজ করে, তাই টেস্টনেট কখনো আপনার মেইননেট ব্যাকআপ মুছে লিখতে পারে না। সেটিংস > সংযোগ থেকে টেস্টনেট বন্ধ করলে আপনার Nextcloud সংযোগ আগের মতো ফিরে আসবে।</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">টেস্টনেটে চালু (testnet-10 রেজিস্ট্রি)</string>
     <string name="kn_ev_transferred">হস্তান্তরিত</string>
     <string name="kn_ev_delisted">তালিকা থেকে সরানো</string>
     <string name="kn_ev_sold">বিক্রি হয়েছে</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">.kachat রেজিস্ট্রি আপগ্রেড হচ্ছে। নতুন রেজিস্ট্রি চালু হলে নামগুলো এখানে আবার খুলবে।</string>
     <string name="kn_err_no_wallet_open">কোনো ওয়ালেট খোলা নেই।</string>
-    <string name="kn_live_on_mainnet">Mainnet-এ চালু</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">নামের মেয়াদ শেষ হওয়ার আগেই অফারটি ফেরতযোগ্য হতে হবে।</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud כבוי כל עוד רשת הבדיקה פועלת.</string>
     <string name="nextcloud_off_on_testnet_footer">גיבויים, סנכרון, מדיה ושיחות דרך Nextcloud פועלים רק ברשת הראשית, כך שרשת הבדיקה לעולם לא תדרוס את הגיבוי של הרשת הראשית. כבה את רשת הבדיקה בהגדרות > חיבור והחיבור ל-Nextcloud יחזור כפי שהיה.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">פעיל ב-Testnet (רישום testnet-10)</string>
     <string name="kn_ev_transferred">הועבר</string>
     <string name="kn_ev_delisted">הוסר מהמכירה</string>
     <string name="kn_ev_sold">נמכר</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">מרשם .kachat משודרג. השמות יחזרו לכאן ברגע שהמרשם החדש יהיה פעיל.</string>
     <string name="kn_err_no_wallet_open">אין ארנק פתוח.</string>
-    <string name="kn_live_on_mainnet">פעיל ב-Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">הצעה חייבת להיות ניתנת להחזר לפני שהשם פג.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">测试网开启时，Nextcloud 处于关闭状态。</string>
     <string name="nextcloud_off_on_testnet_footer">通过 Nextcloud 的备份、同步、媒体和通话仅在主网可用，因此测试网绝不会覆盖你的主网备份。在“设置 > 连接”中关闭测试网，Nextcloud 连接就会恢复原样。</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">已在测试网上线（testnet-10 注册表）</string>
     <string name="kn_ev_transferred">已转让</string>
     <string name="kn_ev_delisted">已下架</string>
     <string name="kn_ev_sold">已售出</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">.kachat 注册表正在升级。新注册表上线后,名称会在这里重新开放。</string>
     <string name="kn_err_no_wallet_open">没有打开的钱包。</string>
-    <string name="kn_live_on_mainnet">已在主网上线</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">报价必须在名称到期前可以退回。</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

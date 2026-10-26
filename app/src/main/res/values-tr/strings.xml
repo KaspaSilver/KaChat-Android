@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">Testnet açıkken Nextcloud kapalıdır.</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud üzerinden yedekleme, eşitleme, medya ve aramalar yalnızca mainnet\'te çalışır; böylece testnet mainnet yedeğinizin üzerine asla yazamaz. Ayarlar > Bağlantı bölümünden Testnet\'i kapatın, Nextcloud bağlantınız olduğu gibi geri gelir.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">Testnet\'te etkin (testnet-10 kaydı)</string>
     <string name="kn_ev_transferred">Devredildi</string>
     <string name="kn_ev_delisted">Satıştan kaldırıldı</string>
     <string name="kn_ev_sold">Satıldı</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">.kachat kayıt defteri yükseltiliyor. Yeni kayıt defteri devreye girince isimler burada yeniden açılır.</string>
     <string name="kn_err_no_wallet_open">Açık bir cüzdan yok.</string>
-    <string name="kn_live_on_mainnet">Mainnet\'te canlı</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Teklif, isim süresi dolmadan iade edilebilir olmalıdır.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

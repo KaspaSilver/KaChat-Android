@@ -299,7 +299,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud nonaktif selama Testnet aktif.</string>
     <string name="nextcloud_off_on_testnet_footer">Cadangan, sinkronisasi, media, dan panggilan lewat Nextcloud hanya berjalan di mainnet, jadi testnet tidak akan pernah menimpa cadangan mainnet Anda. Matikan Testnet di Pengaturan > Koneksi dan koneksi Nextcloud Anda kembali seperti semula.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">Aktif di Testnet (registri testnet-10)</string>
     <string name="kn_ev_transferred">Dipindahkan</string>
     <string name="kn_ev_delisted">Ditarik dari penjualan</string>
     <string name="kn_ev_sold">Terjual</string>
@@ -679,7 +678,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">Registri .kachat sedang ditingkatkan. Nama akan terbuka lagi di sini setelah registri baru aktif.</string>
     <string name="kn_err_no_wallet_open">Tidak ada dompet yang terbuka.</string>
-    <string name="kn_live_on_mainnet">Aktif di Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Tawaran harus bisa dikembalikan sebelum nama kedaluwarsa.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

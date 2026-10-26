@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud ist aus, solange Testnet an ist.</string>
     <string name="nextcloud_off_on_testnet_footer">Backups, Sync, Medien und Anrufe über Nextcloud funktionieren nur im Mainnet, damit das Testnet dein Mainnet-Backup nie überschreiben kann. Schalte Testnet unter Einstellungen > Verbindung aus, und deine Nextcloud-Verbindung ist wieder wie zuvor da.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">Live im Testnet (Registry auf testnet-10)</string>
     <string name="kn_ev_transferred">Übertragen</string>
     <string name="kn_ev_delisted">Nicht mehr angeboten</string>
     <string name="kn_ev_sold">Verkauft</string>
@@ -738,7 +737,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">Die .kachat-Registry wird aktualisiert. Namen sind hier wieder verfügbar, sobald die neue Registry live ist.</string>
     <string name="kn_err_no_wallet_open">Keine Wallet geöffnet.</string>
-    <string name="kn_live_on_mainnet">Live im Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Ein Angebot muss vor Ablauf des Namens rückerstattbar sein.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

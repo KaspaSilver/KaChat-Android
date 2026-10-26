@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud tắt khi Testnet đang bật.</string>
     <string name="nextcloud_off_on_testnet_footer">Sao lưu, đồng bộ, tệp phương tiện và cuộc gọi qua Nextcloud chỉ hoạt động trên mainnet, nên testnet không bao giờ ghi đè bản sao lưu mainnet của bạn. Tắt Testnet trong Cài đặt > Kết nối và kết nối Nextcloud sẽ trở lại như cũ.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">Đang chạy trên Testnet (sổ đăng ký testnet-10)</string>
     <string name="kn_ev_transferred">Đã chuyển</string>
     <string name="kn_ev_delisted">Đã gỡ bán</string>
     <string name="kn_ev_sold">Đã bán</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">Sổ đăng ký .kachat đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
     <string name="kn_err_no_wallet_open">Chưa mở ví nào.</string>
-    <string name="kn_live_on_mainnet">Đang chạy trên Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Đề nghị phải hoàn lại được trước khi tên hết hạn.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

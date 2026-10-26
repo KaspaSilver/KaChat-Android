@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">테스트넷이 켜져 있는 동안 Nextcloud는 꺼집니다.</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud를 통한 백업, 동기화, 미디어, 통화는 메인넷에서만 작동하므로 테스트넷이 메인넷 백업을 덮어쓸 일은 없습니다. 설정 > 연결에서 테스트넷을 끄면 Nextcloud 연결이 그대로 돌아옵니다.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">테스트넷에서 운영 중 (testnet-10 레지스트리)</string>
     <string name="kn_ev_transferred">이전됨</string>
     <string name="kn_ev_delisted">판매 취소됨</string>
     <string name="kn_ev_sold">판매됨</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">.kachat 레지스트리를 업그레이드하는 중입니다. 새 레지스트리가 가동되면 여기서 이름을 다시 쓸 수 있습니다.</string>
     <string name="kn_err_no_wallet_open">열린 지갑이 없습니다.</string>
-    <string name="kn_live_on_mainnet">Mainnet 가동 중</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">제안은 이름이 만료되기 전에 환불할 수 있어야 합니다.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

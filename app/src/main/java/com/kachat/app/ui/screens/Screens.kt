@@ -11503,13 +11503,10 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             2 -> {
             // .kachat first: it is what every address field resolves before anything else (iOS 6ac48a7).
             SettingsFormSection(title = stringResource(R.string.kn_kachat_names), footer = stringResource(R.string.kachat_names_resolved_first_footer)) {
-                val isMainnet = network.equals("mainnet", ignoreCase = true)
-                // Read through the chat indexer above when it serves this network's names, else
-                // straight from the chain (KachatNamesRegistry, iOS 5df42b4, ef6b21e).
-                ConnectionUrlField(
-                    label = "KaChat Names (.kachat)",
-                    value = stringResource(if (isMainnet) R.string.kn_live_on_mainnet else R.string.kn_live_testnet_registry)
-                )
+                // Read through the message indexer (the Indexer tab) when it serves this network's
+                // names, else straight from the chain (KachatNamesRegistry, iOS 5df42b4, ef6b21e).
+                // Its address, as the registry uses it, in the .kas rows' style (iOS 955220b).
+                ConnectionUrlField(label = "KaChat Names (.kachat)", value = indexerUrl.trim().trimEnd('/'))
             }
             // The other name services this app reads (see NameServicesClient). Shown, not
             // editable; the .kas URL follows the selected network.

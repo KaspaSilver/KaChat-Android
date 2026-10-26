@@ -361,7 +361,6 @@
     <string name="nextcloud_off_on_testnet">Nextcloud متوقف أثناء تشغيل الشبكة التجريبية.</string>
     <string name="nextcloud_off_on_testnet_footer">النسخ الاحتياطي والمزامنة والوسائط والمكالمات عبر Nextcloud تعمل على الشبكة الرئيسية فقط، فلا يمكن للشبكة التجريبية أبدًا الكتابة فوق نسختك الاحتياطية الرئيسية. أوقف الشبكة التجريبية من الإعدادات > الاتصال وسيعود اتصال Nextcloud كما كان.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">مفعّل على الشبكة التجريبية (سجل testnet-10)</string>
     <string name="kn_ev_transferred">تم النقل</string>
     <string name="kn_ev_delisted">أُزيل من البيع</string>
     <string name="kn_ev_sold">تم البيع</string>
@@ -741,7 +740,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">سجل .kachat قيد الترقية. تعود الأسماء هنا بمجرد تشغيل السجل الجديد.</string>
     <string name="kn_err_no_wallet_open">لا توجد محفظة مفتوحة.</string>
-    <string name="kn_live_on_mainnet">مباشر على Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">يجب أن يكون العرض قابلًا للاسترداد قبل انتهاء الاسم.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->

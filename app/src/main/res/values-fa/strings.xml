@@ -394,7 +394,6 @@
     <string name="nextcloud_off_on_testnet">تا وقتی شبکه آزمایشی روشن است، Nextcloud خاموش است.</string>
     <string name="nextcloud_off_on_testnet_footer">پشتیبان‌گیری، همگام‌سازی، رسانه و تماس از طریق Nextcloud فقط در شبکه اصلی کار می‌کند، تا شبکه آزمایشی هرگز نسخه پشتیبان شبکه اصلی شما را بازنویسی نکند. شبکه آزمایشی را در تنظیمات > اتصال خاموش کنید تا اتصال Nextcloud شما همان‌طور که بود برگردد.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
-    <string name="kn_live_testnet_registry">فعال در تست‌نت (رجیستری testnet-10)</string>
     <string name="kn_ev_transferred">منتقل شد</string>
     <string name="kn_ev_delisted">از فروش برداشته شد</string>
     <string name="kn_ev_sold">فروخته شد</string>
@@ -768,7 +767,6 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">رجیستری .kachat در حال ارتقاست. نام‌ها پس از راه‌اندازی رجیستری جدید دوباره اینجا باز می‌شوند.</string>
     <string name="kn_err_no_wallet_open">هیچ کیف پولی باز نیست.</string>
-    <string name="kn_live_on_mainnet">فعال در Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">پیشنهاد باید پیش از انقضای نام قابل بازپرداخت باشد.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
