@@ -362,16 +362,20 @@ fun MainShell(
     // tapped KaChat Profile card). It opens User Info for anyone - contact or not - with Open Chat
     // one tap away and their name and avatar to check who the link is for before writing to them
     // (iOS 81df734). Your own shows your own card, and you are never added as your own contact
-    // (iOS 95f50ca); someone new gets an auto-added contact. Chats are not hidden by Simple Mode:
-    // no gate.
-    val pendingProfileAddress by com.kachat.app.ui.screens.ProfileDeepLink.pendingAddress.collectAsState()
-    LaunchedEffect(pendingProfileAddress) {
-        val address = pendingProfileAddress ?: return@LaunchedEffect
+    // (iOS 95f50ca); someone new gets an auto-added contact. A link from outside the app with
+    // `chat=1` (KaPosts' Chat button) opens the 1:1 chat itself, started if need be, the way the
+    // Addresses screen's Chat does (iOS 724d477) - but not for your own address, which has no
+    // chat with itself.
+    val pendingProfile by com.kachat.app.ui.screens.ProfileDeepLink.pending.collectAsState()
+    LaunchedEffect(pendingProfile) {
+        val link = pendingProfile ?: return@LaunchedEffect
         com.kachat.app.ui.screens.ProfileDeepLink.consumePending()
+        val address = link.address
         val mine = walletViewModel.address.value
         when {
             mine != null && mine.equals(address, ignoreCase = true) ->
                 navController.navigate("chat_info/$mine")
+            link.openChat -> chatViewModel.openProfile(address) { navController.navigate("chat/$it") }
             else -> chatViewModel.openProfile(address) { navController.navigate("chat_info/$it") }
         }
     }

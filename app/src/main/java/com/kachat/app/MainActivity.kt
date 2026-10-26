@@ -499,7 +499,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** kachat://profile/<address> or https://kachat.app/u/<address> - someone's shared profile
-     *  (iOS 863b0e9). The address is validated, checksum and all, before anything routes. */
+     *  (iOS 863b0e9). The address is validated, checksum and all, before anything routes. With
+     *  `chat=1` (KaPosts' Chat button) it asks for the 1:1 chat rather than User Info (iOS
+     *  724d477); a KaChat without that ignores the query. */
     private fun handleProfileDeepLink(intent: Intent) {
         if (intent.action != Intent.ACTION_VIEW) return
         val uri = intent.data ?: return
@@ -511,7 +513,10 @@ class MainActivity : AppCompatActivity() {
                 uri.pathSegments.firstOrNull() == "u" -> uri.pathSegments.getOrNull(1)
             else -> null
         } ?: return
-        com.kachat.app.ui.screens.ProfileDeepLink.request(raw)
+        val asksForChat = uri.queryParameterNames.any { name ->
+            name.equals("chat", ignoreCase = true) && uri.getQueryParameter(name) == "1"
+        }
+        com.kachat.app.ui.screens.ProfileDeepLink.request(raw, openChat = asksForChat)
     }
 
     /** kachat://pay/<address>?... or https://kachat.app/pay/<address>?... - someone's payment

@@ -890,19 +890,22 @@ fun openKaChatLink(ref: KaChatLinkRef) {
 
 /**
  * A profile link waiting to be opened - from a tapped card, a system intent or a kachat.app link.
- * MainShell routes it: your own link lands on the chat list, anyone else's opens their User Info
- * (iOS 81df734). The address is always one [KaChatLink.profileAddress] already validated.
+ * MainShell routes it: your own link shows your User Info, anyone else's opens their User Info
+ * (iOS 81df734), or their 1:1 chat when the link asked for it with `chat=1` (iOS 724d477). The
+ * address is always one [KaChatLink.profileAddress] already validated.
  */
 object ProfileDeepLink {
-    private val _pendingAddress = MutableStateFlow<String?>(null)
-    val pendingAddress: StateFlow<String?> = _pendingAddress.asStateFlow()
+    data class Pending(val address: String, val openChat: Boolean)
 
-    fun request(address: String) {
-        _pendingAddress.value = KaChatLink.profileAddress(address) ?: return
+    private val _pending = MutableStateFlow<Pending?>(null)
+    val pending: StateFlow<Pending?> = _pending.asStateFlow()
+
+    fun request(address: String, openChat: Boolean = false) {
+        _pending.value = Pending(KaChatLink.profileAddress(address) ?: return, openChat)
     }
 
     fun consumePending() {
-        _pendingAddress.value = null
+        _pending.value = null
     }
 }
 

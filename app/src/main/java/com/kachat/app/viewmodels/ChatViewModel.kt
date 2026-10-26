@@ -861,8 +861,8 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** A profile link's person: their contact, auto-added exactly as a tapped public chat sender's
-     *  is when there is none yet, so the name and settings saved on User Info stick (iOS 81df734). */
+    /** A profile link's person: their contact, auto-added when there is none yet, so the name and
+     *  settings saved on User Info - or the chat a `chat=1` link opens - stick (iOS 81df734). */
     fun openProfile(address: String, onReady: (String) -> Unit) {
         viewModelScope.launch {
             if (chatRepository.getContact(address) == null) {
