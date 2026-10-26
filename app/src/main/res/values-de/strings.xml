@@ -34,7 +34,6 @@
     <string name="choose_photo">Foto wählen</string>
     <string name="clear_search">Suche löschen</string>
     <string name="close">Schließen</string>
-    <string name="cold_storage">Kaltlagerung</string>
     <string name="confirm">Bestätigen</string>
     <string name="connect_to_a_node">Mit einem Knoten verbinden</string>
     <string name="connected_only_to_this_node">Nur mit diesem Knoten verbunden</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Fotonachricht, Vollbild</string>
     <string name="photos">Fotos</string>
     <string name="pool_health">Pool-Zustand</string>
-    <string name="portfolio">Portfolio</string>
     <string name="promote_pawn_to">Bauer befördern zu:</string>
     <string name="qr_code">QR-Code</string>
     <string name="read">Gelesen</string>

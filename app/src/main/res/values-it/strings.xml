@@ -34,7 +34,6 @@
     <string name="choose_photo">Scegli foto</string>
     <string name="clear_search">Cancella ricerca</string>
     <string name="close">Chiudi</string>
-    <string name="cold_storage">Cold storage</string>
     <string name="confirm">Conferma</string>
     <string name="connect_to_a_node">Connetti a un nodo</string>
     <string name="connected_only_to_this_node">Connesso solo a questo nodo</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Messaggio foto, schermo intero</string>
     <string name="photos">Foto</string>
     <string name="pool_health">Salute del pool</string>
-    <string name="portfolio">Portafoglio</string>
     <string name="promote_pawn_to">Promuovi pedone a:</string>
     <string name="qr_code">Codice QR</string>
     <string name="read">Letto</string>

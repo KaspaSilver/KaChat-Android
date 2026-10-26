@@ -24,8 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -63,7 +61,6 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.CreateAccountSteps
 import com.kachat.app.util.authenticateWithDeviceCredential
 import com.kachat.app.viewmodels.WalletViewModel
-import kotlinx.coroutines.launch
 
 /**
  * Main entry point for the onboarding flow.
@@ -256,14 +253,8 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
         composable("app_settings_security") {
             AppSecurityScreen(
                 onBack = { navController.popBackStack() },
-                onNavigateToChildMode = { navController.navigate("app_settings_child_mode") },
                 walletViewModel = viewModel
             )
-        }
-        composable("app_settings_child_mode") {
-            // Fully functional with no account active - the password record and enabled flag
-            // are device-global (ChildModeService's EncryptedSharedPreferences + DataStore).
-            ChildModeSettingsScreen(onBack = { navController.popBackStack() })
         }
         // The same Connection page as in-account Settings (iOS ConnectionHubPage): Connection
         // Settings, the Testnet switch, Kaspa Explorer.

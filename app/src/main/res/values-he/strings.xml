@@ -34,7 +34,6 @@
     <string name="choose_photo">בחר תמונה</string>
     <string name="clear_search">נקה חיפוש</string>
     <string name="close">סגור</string>
-    <string name="cold_storage">אחסון קר</string>
     <string name="confirm">אישור</string>
     <string name="connect_to_a_node">התחבר לצומת</string>
     <string name="connected_only_to_this_node">מחובר רק לצומת זה</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">הודעת תמונה, מסך מלא</string>
     <string name="photos">תמונות</string>
     <string name="pool_health">בריאות המאגר</string>
-    <string name="portfolio">תיק השקעות</string>
     <string name="promote_pawn_to">קדם רגלי ל:</string>
     <string name="qr_code">קוד QR</string>
     <string name="read">נקרא</string>

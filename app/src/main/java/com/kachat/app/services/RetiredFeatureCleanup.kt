@@ -13,7 +13,8 @@ import java.io.File
  *   indexer-tracked rooms;
  * - Portfolio, Cold Storage and the .kachat market (iOS d54ea87): Portfolio's fees, tombstones and
  *   price history (the current KAS price stays: the Send screens read it), the KasSigner accounts
- *   and the .kachat name notifier's and reminders' state.
+ *   and the .kachat name notifier's and reminders' state;
+ * - Simple Mode (iOS eb2ccac): its password record and attempt counters.
  * Their DataStore keys go with [com.kachat.app.repository.AppSettingsRepository.removeRetiredFeatureKeys],
  * and their database tables with the Room migrations that dropped them.
  */
@@ -50,6 +51,8 @@ object RetiredFeatureCleanup {
             // the .kachat expiry reminders still queued: their worker left with them
             WorkManager.getInstance(context).cancelAllWorkByTag("kachat-reminder-")
         },
+        // Simple Mode (iOS eb2ccac): its salted-hash password record and attempt counters
+        Pass("retired_feature_files_cleaned_v3", listOf("kachat_child_mode_prefs")),
     )
 
     fun deleteLocalFiles(context: Context) {

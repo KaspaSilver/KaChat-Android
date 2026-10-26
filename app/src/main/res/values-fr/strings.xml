@@ -34,7 +34,6 @@
     <string name="choose_photo">Choisir une photo</string>
     <string name="clear_search">Effacer la recherche</string>
     <string name="close">Fermer</string>
-    <string name="cold_storage">Stockage a froid</string>
     <string name="confirm">Confirmer</string>
     <string name="connect_to_a_node">Se connecter a un nœud</string>
     <string name="connected_only_to_this_node">Connecte uniquement a ce nœud</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Message photo, plein ecran</string>
     <string name="photos">Photos</string>
     <string name="pool_health">Santé du pool</string>
-    <string name="portfolio">Portefeuille</string>
     <string name="promote_pawn_to">Promouvoir le pion en :</string>
     <string name="qr_code">Code QR</string>
     <string name="read">Lu</string>

@@ -393,11 +393,6 @@ fun MainShell(
     LaunchedEffect(pendingWelcomeGuide) {
         if (pendingWelcomeGuide) {
             welcomeGuidePresentedThisSession = true
-            // First-run auto-present: the "Who will use KaChat?" step is now owed an answer -
-            // persist the marker so killing the app mid-wizard re-presents the step at next
-            // launch. Never downgrades an already-"chosen" device (see markUserTypePending), and
-            // legacy installs that never auto-present are never marked (so never forced).
-            walletViewModel.markUserTypePending()
             // Onboarding runs are unskippable end to end - a run only completes at Finish, and
             // this persisted marker re-presents an interrupted run at next launch.
             walletViewModel.markOnboardingWizardPending()
@@ -407,10 +402,8 @@ fun MainShell(
     }
 
     // Interrupted first run: the auto-present trigger above is in-memory only and lost on
-    // relaunch, so the persisted markers re-present the guide until it's genuinely finished -
-    // jumping back to the Adult/Child choice when that's what is still owed, otherwise replaying
-    // the whole onboarding run from the top (still unskippable).
-    val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
+    // relaunch, so the persisted marker re-presents the guide until it's genuinely finished,
+    // replaying the whole onboarding run from the top (still unskippable).
     val onboardingWizardPendingMarker by walletViewModel.onboardingWizardPending.collectAsState()
     // A hold with no wizard behind it would strand the account unsynced forever. Once the guide
     // is neither pending nor on screen, lift it.
@@ -420,12 +413,10 @@ fun MainShell(
         }
     }
 
-    LaunchedEffect(userTypePendingMarker, onboardingWizardPendingMarker, pendingWelcomeGuide, currentTopRoute) {
+    LaunchedEffect(onboardingWizardPendingMarker, pendingWelcomeGuide, currentTopRoute) {
         if (pendingWelcomeGuide || welcomeGuidePresentedThisSession) return@LaunchedEffect
         if (currentTopRoute == null || currentTopRoute.startsWith("welcome_guide")) return@LaunchedEffect
-        if (userTypePendingMarker == true) {
-            navController.navigate("welcome_guide?startAtUserType=true&onboarding=true")
-        } else if (onboardingWizardPendingMarker == true) {
+        if (onboardingWizardPendingMarker == true) {
             navController.navigate("welcome_guide?onboarding=true")
         }
     }
@@ -1003,9 +994,8 @@ fun MainShell(
             }
 
             composable(
-                "welcome_guide?startAtUserType={startAtUserType}&onboarding={onboarding}",
+                "welcome_guide?onboarding={onboarding}",
                 arguments = listOf(
-                    navArgument("startAtUserType") { type = NavType.BoolType; defaultValue = false },
                     // Explicit presentation context (never inferred from persisted markers):
                     // true only for auto-presented onboarding runs, which are unskippable end
                     // to end. Help replays keep the default false and stay skippable.
@@ -1014,7 +1004,6 @@ fun MainShell(
             ) { backStackEntry ->
                 WelcomeGuideScreen(
                     walletViewModel = walletViewModel,
-                    startAtUserType = backStackEntry.arguments?.getBoolean("startAtUserType") ?: false,
                     isOnboardingRun = backStackEntry.arguments?.getBoolean("onboarding") ?: false,
                     onFinished = {
                         // The import run is over — a later Help replay of this same guide must not
@@ -1068,12 +1057,6 @@ fun MainShell(
                 CacheSettingsScreen(
                     onBack = { navController.popBackStack() },
                     cacheManager = cacheManager,
-                )
-            }
-
-            composable("child_mode_settings") {
-                ChildModeSettingsScreen(
-                    onBack = { navController.popBackStack() }
                 )
             }
 

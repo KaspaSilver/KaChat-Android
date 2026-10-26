@@ -9320,10 +9320,7 @@ fun SettingsScreen(
                 SettingsFormSection(title = stringResource(R.string.security)) {
                     // Shared with the accounts screen's App Settings (see AppSettingsScreen.kt) -
                     // every row is app-wide, so both entry points render the exact same items.
-                    SecuritySettingsItems(
-                        walletViewModel = walletViewModel,
-                        onNavigateToChildMode = { navController.navigate("child_mode_settings") }
-                    )
+                    SecuritySettingsItems(walletViewModel = walletViewModel)
                 }
             }
 
@@ -10465,16 +10462,13 @@ fun SettingsFooter(text: String) {
 }
 
 /**
- * The Security section's rows. The biometric toggles and Child Mode are app-wide, so the same
- * items render both in the in-account Settings > Security page and in the accounts screen's App
- * Settings sheet (see AppSettingsScreen.kt), one source of truth. Caller supplies the enclosing [SettingsSection] and the navigation to the Child Mode screen
- * (each host has its own NavHost).
+ * The Security section's rows: the three biometric toggles. They are app-wide, so the same items
+ * render both in the in-account Settings > Security page and in the accounts screen's App
+ * Settings sheet (see AppSettingsScreen.kt), one source of truth. Caller supplies the enclosing
+ * [SettingsSection].
  */
 @Composable
-fun SecuritySettingsItems(
-    walletViewModel: WalletViewModel,
-    onNavigateToChildMode: () -> Unit
-) {
+fun SecuritySettingsItems(walletViewModel: WalletViewModel) {
     val biometricSeedPhraseEnabled by walletViewModel.biometricSeedPhraseEnabled.collectAsState()
     val biometricAccountLoginEnabled by walletViewModel.biometricAccountLoginEnabled.collectAsState()
     val biometricSpendingKeyEnabled by walletViewModel.biometricSpendingKeyEnabled.collectAsState()
@@ -10512,20 +10506,6 @@ fun SecuritySettingsItems(
         onCheckedChange = gated(stringResource(R.string.unlock_change_private_key_lock)) {
             walletViewModel.setBiometricSpendingKeyEnabled(it)
         },
-    )
-    SettingsDivider()
-    // Child Mode (matches iOS Settings > Security > Child Mode). NEVER biometric-gated - the
-    // whole point is that the device owner (the child) can pass fingerprint/face unlock but
-    // must not know the parent's password. Fully functional with no account active: the
-    // password record and enabled flag are device-global (ChildModeService/DataStore).
-    val childModeEnabled by walletViewModel.childModeEnabled.collectAsState()
-    // iOS: the lock.shield symbol, On / Off in caption.
-    SettingsNavigationItem(
-        stringResource(R.string.child_mode),
-        com.kachat.app.ui.theme.IosSymbols.LockShield,
-        if (childModeEnabled) stringResource(R.string.on) else stringResource(R.string.off),
-        valueFontSize = 12.sp,
-        onClick = onNavigateToChildMode
     )
 }
 

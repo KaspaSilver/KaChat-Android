@@ -34,7 +34,6 @@
     <string name="choose_photo">Chọn ảnh</string>
     <string name="clear_search">Xóa tìm kiếm</string>
     <string name="close">Đóng</string>
-    <string name="cold_storage">Lưu trữ lạnh</string>
     <string name="confirm">Xác nhận</string>
     <string name="connect_to_a_node">Kết nối với một nút</string>
     <string name="connected_only_to_this_node">Chỉ kết nối với nút này</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Tin nhắn ảnh, toàn màn hình</string>
     <string name="photos">Ảnh</string>
     <string name="pool_health">Sức khỏe nhóm</string>
-    <string name="portfolio">Danh mục đầu tư</string>
     <string name="promote_pawn_to">Phong cấp tốt thành:</string>
     <string name="qr_code">Mã QR</string>
     <string name="read">Da doc</string>

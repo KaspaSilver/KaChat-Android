@@ -34,7 +34,6 @@
     <string name="choose_photo">Выбрать фото</string>
     <string name="clear_search">Очистить поиск</string>
     <string name="close">Закрыть</string>
-    <string name="cold_storage">Холодное хранилище</string>
     <string name="confirm">Подтвердить</string>
     <string name="connect_to_a_node">Подключиться к узлу</string>
     <string name="connected_only_to_this_node">Подключено только к этому узлу</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Фотосообщение, полный экран</string>
     <string name="photos">Фото</string>
     <string name="pool_health">Состояние пула</string>
-    <string name="portfolio">Портфель</string>
     <string name="promote_pawn_to">Превратить пешку в:</string>
     <string name="qr_code">QR-код</string>
     <string name="read">Прочитано</string>

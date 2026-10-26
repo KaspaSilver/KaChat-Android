@@ -34,7 +34,6 @@
     <string name="choose_photo">ছবি বেছে নিন</string>
     <string name="clear_search">অনুসন্ধান পরিষ্কার করুন</string>
     <string name="close">বন্ধ করুন</string>
-    <string name="cold_storage">কোল্ড স্টোরেজ</string>
     <string name="confirm">নিশ্চিত করুন</string>
     <string name="connect_to_a_node">একটি নোডে সংযোগ করুন</string>
     <string name="connected_only_to_this_node">শুধুমাত্র এই নোডের সাথে সংযুক্ত</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">ছবি বার্তা, পূর্ণ পর্দা</string>
     <string name="photos">ছবি</string>
     <string name="pool_health">পুল স্বাস্থ্য</string>
-    <string name="portfolio">পোর্টফোলিও</string>
     <string name="promote_pawn_to">বোড়েকে উন্নীত করুন:</string>
     <string name="qr_code">QR কোড</string>
     <string name="read">পঠিত</string>

@@ -34,7 +34,6 @@
     <string name="choose_photo">Escolher foto</string>
     <string name="clear_search">Limpar busca</string>
     <string name="close">Fechar</string>
-    <string name="cold_storage">Armazenamento a frio</string>
     <string name="confirm">Confirmar</string>
     <string name="connect_to_a_node">Conectar a um no</string>
     <string name="connected_only_to_this_node">Conectado somente a este no</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Mensagem de foto, tela cheia</string>
     <string name="photos">Fotos</string>
     <string name="pool_health">Saude do pool</string>
-    <string name="portfolio">Portfolio</string>
     <string name="promote_pawn_to">Promover peao para:</string>
     <string name="qr_code">Codigo QR</string>
     <string name="read">Lida</string>

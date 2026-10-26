@@ -47,7 +47,6 @@
     <string name="choose_photo">انتخاب عکس</string>
     <string name="clear_search">پاک کردن جستجو</string>
     <string name="close">بستن</string>
-    <string name="cold_storage">ذخیره سرد</string>
     <string name="confirm">تأیید</string>
     <string name="confirm_selection">تأیید انتخاب</string>
     <string name="connect_to_a_node">اتصال به یک گره</string>
@@ -140,7 +139,6 @@
     <string name="photo_message_full_screen">پیام عکس، تمام صفحه</string>
     <string name="photos">عکس‌ها</string>
     <string name="pool_health">سلامت مجموعه</string>
-    <string name="portfolio">سبد دارایی</string>
     <string name="promote_pawn_to">ارتقای سرباز به:</string>
     <string name="qr_code">کد QR</string>
     <string name="read">خوانده‌شده</string>

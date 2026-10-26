@@ -34,7 +34,6 @@
     <string name="choose_photo">选择照片</string>
     <string name="clear_search">清除搜索</string>
     <string name="close">关闭</string>
-    <string name="cold_storage">冷存储</string>
     <string name="confirm">确认</string>
     <string name="connect_to_a_node">连接到节点</string>
     <string name="connected_only_to_this_node">仅连接到此节点</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">照片消息,全屏</string>
     <string name="photos">照片</string>
     <string name="pool_health">连接池状况</string>
-    <string name="portfolio">投资组合</string>
     <string name="promote_pawn_to">将兵升变为:</string>
     <string name="qr_code">二维码</string>
     <string name="read">已读</string>

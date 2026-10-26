@@ -15,7 +15,6 @@
     <string name="all_discovered_nodes_sorted_by_state">Semua node yang ditemukan diurutkan berdasarkan status dan latensi. Node dide-duplikasi menurut host:port.</string>
     <string name="balance">Saldo</string>
     <string name="cancel">Batal</string>
-    <string name="off">Mati</string>
     <string name="chats">Obrolan</string>
     <string name="chatting_address">Alamat Obrolan</string>
     <string name="chatting_address_2">Alamat obrolan</string>
@@ -26,7 +25,6 @@
     <string name="choose_banner">Pilih Banner</string>
     <string name="choose_photo">Pilih Foto</string>
     <string name="close">Tutup</string>
-    <string name="cold_storage">Penyimpanan Dingin (Cold Storage)</string>
     <string name="confirm">Konfirmasi</string>
     <string name="connect_to_a_node">Hubungkan ke Node</string>
     <string name="connected_only_to_this_node">Hanya terhubung ke node ini</string>
@@ -99,7 +97,6 @@
     <string name="payment">Pembayaran</string>
     <string name="photo">Foto</string>
     <string name="pool_health">Kesehatan Kumpulan</string>
-    <string name="portfolio">Portofolio</string>
     <string name="promote_pawn_to">Promosikan pion ke:</string>
     <string name="read">Dibaca</string>
     <string name="recipient_address">Alamat Penerima</string>

@@ -34,7 +34,6 @@
     <string name="choose_photo">اختيار صورة</string>
     <string name="clear_search">مسح البحث</string>
     <string name="close">إغلاق</string>
-    <string name="cold_storage">التخزين البارد</string>
     <string name="confirm">تأكيد</string>
     <string name="connect_to_a_node">الاتصال بعقدة</string>
     <string name="connected_only_to_this_node">متصل بهذه العقدة فقط</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">رسالة صورة، ملء الشاشة</string>
     <string name="photos">الصور</string>
     <string name="pool_health">صحة المجموعة</string>
-    <string name="portfolio">المحفظة</string>
     <string name="promote_pawn_to">ترقية البيدق إلى:</string>
     <string name="qr_code">رمز QR</string>
     <string name="read">مقروء</string>

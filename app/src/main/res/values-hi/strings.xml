@@ -34,7 +34,6 @@
     <string name="choose_photo">फ़ोटो चुनें</string>
     <string name="clear_search">खोज साफ़ करें</string>
     <string name="close">बंद करें</string>
-    <string name="cold_storage">कोल्ड स्टोरेज</string>
     <string name="confirm">पुष्टि करें</string>
     <string name="connect_to_a_node">एक नोड से कनेक्ट करें</string>
     <string name="connected_only_to_this_node">केवल इस नोड से जुड़ा हुआ</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">फ़ोटो संदेश, पूर्ण स्क्रीन</string>
     <string name="photos">फ़ोटो</string>
     <string name="pool_health">पूल स्वास्थ्य</string>
-    <string name="portfolio">पोर्टफोलियो</string>
     <string name="promote_pawn_to">मोहरे को इसमें बदलें:</string>
     <string name="qr_code">QR कोड</string>
     <string name="read">पढ़ा हुआ</string>

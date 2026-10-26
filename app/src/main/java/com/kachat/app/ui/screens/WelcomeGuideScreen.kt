@@ -1,7 +1,6 @@
 package com.kachat.app.ui.screens
 
 import com.kachat.app.R
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,13 +19,10 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WavingHand
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,7 +39,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,9 +68,7 @@ import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.util.showAddressCopiedToast
 
-private enum class WelcomeGuideStep { WELCOME, USER_TYPE, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
-
-private enum class UserTypeChoice { ADULT, CHILD }
+private enum class WelcomeGuideStep { WELCOME, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
 
 private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 
@@ -90,10 +83,6 @@ private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 fun WelcomeGuideScreen(
     walletViewModel: WalletViewModel,
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
-    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel(),
-    /** Re-presentation after an interrupted first run (app killed before the Adult/Child step
-     *  was answered): jump straight back to the choice instead of replaying from Welcome. */
-    startAtUserType: Boolean = false,
     /**
      * Explicit presentation context, supplied by the presenter and NEVER inferred from persisted
      * markers (matches iOS): true only for auto-presented onboarding runs (create AND import,
@@ -104,23 +93,16 @@ fun WelcomeGuideScreen(
     isOnboardingRun: Boolean = false,
     onFinished: () -> Unit
 ) {
-    var step by remember {
-        mutableStateOf(if (startAtUserType) WelcomeGuideStep.USER_TYPE else WelcomeGuideStep.WELCOME)
-    }
+    var step by remember { mutableStateOf(WelcomeGuideStep.WELCOME) }
     val chattingAddress by walletViewModel.address.collectAsState()
     val justImportedWallet by walletViewModel.justImportedWallet.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
 
     // Skip gating: an onboarding run is unskippable END TO END (top-bar X hidden and system back
-    // swallowed until Finish). Replays additionally stay locked while the Adult/Child choice is
-    // still owed (persisted marker "pending" - see AppSettingsRepository.userTypeChoiceState);
-    // once answered, a replay skips exactly as before.
-    val userTypePendingMarker by walletViewModel.userTypePending.collectAsState()
-    var answeredThisSession by remember { mutableStateOf(false) }
-    val userTypeAnswered = answeredThisSession || userTypePendingMarker == false
-    val canSkip = !isOnboardingRun && userTypeAnswered
+    // swallowed until Finish); a replay skips any time.
+    val canSkip = !isOnboardingRun
     androidx.activity.compose.BackHandler(enabled = !canSkip) {
-        // Swallowed - onboarding runs must reach Finish; replays must answer Adult/Child first.
+        // Swallowed - onboarding runs must reach Finish.
     }
 
     var nodeChoice by remember(trustedNodeAddress) {
@@ -138,16 +120,9 @@ fun WelcomeGuideScreen(
     var nodeValidationError by remember { mutableStateOf<String?>(null) }
     val enterAsHostPortError = stringResource(R.string.enter_as_host_port_or_grpcs_host)
 
-    // One step back. Backing INTO the answered Adult/Child step is not allowed (its choice
-    // applies immediately), so from Language the row returns to Welcome. Null at Welcome so
-    // the shared button row renders Previous disabled there.
+    // One step back. Null at Welcome so the shared button row renders Previous disabled there.
     val goBack: (() -> Unit)? = if (step == WelcomeGuideStep.WELCOME) null else {
-        {
-            step = when (step) {
-                WelcomeGuideStep.USER_TYPE, WelcomeGuideStep.LANGUAGE -> WelcomeGuideStep.WELCOME
-                else -> WelcomeGuideStep.entries[step.ordinal - 1]
-            }
-        }
+        { step = WelcomeGuideStep.entries[step.ordinal - 1] }
     }
 
     Scaffold(
@@ -155,8 +130,8 @@ fun WelcomeGuideScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    // Skip exists only on replays with the Adult/Child step answered — an
-                    // onboarding run has no way out until Finish (back-dismiss swallowed too).
+                    // Skip exists only on replays - an onboarding run has no way out until
+                    // Finish (back-dismiss swallowed too).
                     if (canSkip) {
                         IconButton(onClick = onFinished) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
@@ -179,18 +154,7 @@ fun WelcomeGuideScreen(
                     body = stringResource(R.string.lets_walk_through_the_basics_so),
                     buttonLabel = stringResource(R.string.next),
                     onPrevious = goBack,
-                    onNext = { step = WelcomeGuideStep.USER_TYPE }
-                )
-                WelcomeGuideStep.USER_TYPE -> WelcomeGuideUserTypeStep(
-                    settingsViewModel = settingsViewModel,
-                    onPrevious = goBack,
-                    onAnswered = {
-                        // Persist the marker (so relaunches stop re-presenting the wizard) and
-                        // restore the Skip affordance for the rest of the guide.
-                        settingsViewModel.markUserTypeChosen()
-                        answeredThisSession = true
-                        step = WelcomeGuideStep.LANGUAGE
-                    }
+                    onNext = { step = WelcomeGuideStep.LANGUAGE }
                 )
                 WelcomeGuideStep.LANGUAGE -> WelcomeGuideLanguageStep(
                     walletViewModel = walletViewModel,
@@ -346,155 +310,6 @@ private fun WelcomeGuideButtonRow(
         ) {
             Text(nextLabel, color = Color.Black, fontWeight = FontWeight.Bold)
         }
-    }
-}
-
-/**
- * "Who will use KaChat?" - deliberately placed BEFORE the language step (matches iOS). Adult
- * continues untouched; Child sets a free-form password (stored salted-hashed via
- * [com.kachat.app.services.ChildModeService]) and Child Mode turns ON immediately - persisted
- * right here at the step, not deferred to the end of the guide, so the choice survives no matter
- * what the rest of the wizard writes (or whether it finishes). When the guide is REPLAYED with
- * Child Mode already on, the step is informational only - offering "Adult" there would be a
- * password-free way out.
- */
-@Composable
-private fun WelcomeGuideUserTypeStep(
-    settingsViewModel: com.kachat.app.viewmodels.SettingsViewModel,
-    onPrevious: (() -> Unit)?,
-    onAnswered: () -> Unit
-) {
-    val childModeEnabled by settingsViewModel.childModeEnabled.collectAsState()
-    var choice by remember { mutableStateOf(UserTypeChoice.ADULT) }
-    var password by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf("") }
-    var setupError by remember { mutableStateOf<String?>(null) }
-    val enterPasswordFirst = stringResource(R.string.enter_a_password_first)
-    val passwordsDontMatch = stringResource(R.string.passwords_dont_match)
-    val couldntSavePassword = stringResource(R.string.couldnt_save_the_password)
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Column(
-        modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            // iOS's lock.shield - the step is about a password now, not about who holds the phone.
-            Icons.Default.Security,
-            contentDescription = null,
-            tint = KaspaTeal,
-            modifier = Modifier.size(56.dp)
-        )
-        Spacer(Modifier.height(20.dp))
-        Text(
-            stringResource(R.string.who_will_use_kachat),
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = LocalAppColors.current.textPrimary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(12.dp))
-
-        if (childModeEnabled) {
-            // Replay with Simple Mode already on: purely informational, just continue. Still
-            // counts as answered - Simple Mode being on IS the standing choice.
-            Text(
-                stringResource(R.string.child_mode_is_on_guide_info),
-                color = LocalAppColors.current.textSecondary,
-                textAlign = TextAlign.Center
-            )
-        } else {
-            Text(
-                stringResource(R.string.a_child_gets_a_simpler_safer),
-                color = LocalAppColors.current.textSecondary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(20.dp))
-
-            NodeChoiceRow(
-                selected = choice == UserTypeChoice.ADULT,
-                title = stringResource(R.string.adult),
-                badge = null,
-                subtitle = stringResource(R.string.the_full_app_everything_available),
-                onClick = { choice = UserTypeChoice.ADULT; setupError = null },
-                leadingIcon = Icons.Default.Person
-            )
-            Spacer(Modifier.height(10.dp))
-            NodeChoiceRow(
-                selected = choice == UserTypeChoice.CHILD,
-                title = stringResource(R.string.child),
-                badge = null,
-                subtitle = stringResource(R.string.chats_portfolio_and_cold_storage_only),
-                onClick = { choice = UserTypeChoice.CHILD; setupError = null },
-                leadingIcon = Icons.Default.GridView
-            )
-
-            if (choice == UserTypeChoice.CHILD) {
-                Spacer(Modifier.height(12.dp))
-                RevealableSecureField(
-                    value = password,
-                    onValueChange = { password = it; setupError = null },
-                    label = stringResource(R.string.password)
-                )
-                Spacer(Modifier.height(8.dp))
-                RevealableSecureField(
-                    value = confirm,
-                    onValueChange = { confirm = it; setupError = null },
-                    label = stringResource(R.string.confirm_password)
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.child_mode_password_helper),
-                    color = LocalAppColors.current.textSecondary,
-                    fontSize = 12.sp
-                )
-            }
-
-            setupError?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, color = LocalAppColors.current.danger, fontSize = 12.sp, textAlign = TextAlign.Center)
-            }
-        }
-
-    }
-        Spacer(Modifier.height(16.dp))
-        WelcomeGuideButtonRow(
-            onPrevious = onPrevious,
-            onNext = {
-                when {
-                    // Informational replay - Simple Mode being on is the standing choice.
-                    childModeEnabled -> onAnswered()
-                    choice == UserTypeChoice.ADULT -> onAnswered()
-                    else -> {
-                        // setChildModePassword suspends: PBKDF2 at 120,000 rounds would otherwise
-                        // freeze the wizard's Next button mid-tap.
-                        scope.launch {
-                        when {
-                            password.isEmpty() -> setupError = enterPasswordFirst
-                            password != confirm -> setupError = passwordsDontMatch
-                            !settingsViewModel.setChildModePassword(password) -> setupError = couldntSavePassword
-                            else -> {
-                                // Persisted at this step, not wizard end - Simple Mode is on from
-                                // first launch no matter what happens to the rest of the guide.
-                                settingsViewModel.enableChildMode()
-                                password = ""
-                                confirm = ""
-                                setupError = null
-                                onAnswered()
-                            }
-                        }
-                        }
-                    }
-                }
-            }
-        )
     }
 }
 
@@ -851,9 +666,6 @@ private fun NodeChoiceRow(
     badge: String?,
     subtitle: String,
     onClick: () -> Unit,
-    /** Drawn between the radio and the text, as iOS's `userTypeRow` does. Null for the node rows,
-     *  which have never had one on either platform. */
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
 ) {
     Row(
         modifier = Modifier
@@ -871,15 +683,6 @@ private fun NodeChoiceRow(
             modifier = Modifier.size(20.dp)
         )
         Spacer(Modifier.width(12.dp))
-        if (leadingIcon != null) {
-            Icon(
-                leadingIcon,
-                contentDescription = null,
-                tint = KaspaTeal,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(Modifier.width(12.dp))
-        }
         Column {
             Row {
                 Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)

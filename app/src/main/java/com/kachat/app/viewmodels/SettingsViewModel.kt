@@ -17,7 +17,6 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
     pushState: com.kachat.app.services.PushState,
-    private val childModeService: com.kachat.app.services.ChildModeService,
 ) : ViewModel() {
 
     /** Read-only push diagnostics for Settings > Notifications (see PushState.PushDiagnostics). */
@@ -80,50 +79,4 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setAddressActivityNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setAddressActivityNotificationsEnabled(value) }
-
-    // ------------------------------------------------------------------
-    // Simple Mode (Settings > Security > Simple Mode + the Welcome Guide's
-    // "Who will use KaChat?" step). NEVER biometrics anywhere in these
-    // flows — only the password counts. See ChildModeService.
-    // ------------------------------------------------------------------
-
-    val childModeEnabled = settings.childModeEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    /** Synchronous (EncryptedSharedPreferences-backed) — safe to call from composition. Every
-     *  call below that touches the password itself suspends instead: PBKDF2 is deliberately slow. */
-    fun hasChildModePassword(): Boolean = childModeService.hasPassword()
-
-    suspend fun verifyChildModePassword(password: String): Boolean = childModeService.verifyPassword(password)
-
-    /** Seconds still to wait after too many wrong answers, null while attempts are open. */
-    fun childModeLockoutSeconds(): Int? = childModeService.lockoutRemainingSeconds()
-
-    /** Stores the salted hash. Returns false if storing failed (degenerate empty password / crypto error). */
-    suspend fun setChildModePassword(password: String): Boolean =
-        runCatching { childModeService.setPassword(password) }.isSuccess
-
-    /** Wrong current password → false, nothing changes. */
-    suspend fun changeChildModePassword(current: String, newPassword: String): Boolean =
-        runCatching { childModeService.changePassword(current, newPassword) }.getOrDefault(false)
-
-    /** Turning ON with a password already set needs no password; turning OFF must go through
-     *  [turnOffChildMode] so the flag can never be flipped off without the password verifying. */
-    fun enableChildMode() = viewModelScope.launch { settings.setChildModeEnabled(true) }
-
-    /** Verifies first; only then flips the persisted flag off. Wrong password → false, stays on. */
-    suspend fun turnOffChildMode(password: String): Boolean {
-        if (!childModeService.verifyPassword(password)) return false
-        settings.setChildModeEnabled(false)
-        return true
-    }
-
-    /** Full reset to never-configured: deletes the stored record and turns Simple Mode off.
-     *  Wrong password → false, nothing changes. */
-    suspend fun clearChildModeConfiguration(password: String): Boolean =
-        runCatching { childModeService.clearConfiguration(password) }.getOrDefault(false)
-
-    /** The wizard's Adult/Child step was answered — persist the marker so relaunches stop
-     *  re-presenting the guide. */
-    fun markUserTypeChosen() = viewModelScope.launch { settings.markUserTypeChosen() }
 }

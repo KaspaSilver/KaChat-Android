@@ -34,7 +34,6 @@
     <string name="choose_photo">Fotograf Sec</string>
     <string name="clear_search">Aramayi temizle</string>
     <string name="close">Kapat</string>
-    <string name="cold_storage">Soguk Depolama</string>
     <string name="confirm">Onayla</string>
     <string name="connect_to_a_node">Bir Duguma Baglan</string>
     <string name="connected_only_to_this_node">Yalnizca bu duguma bagli</string>
@@ -115,7 +114,6 @@
     <string name="photo_message_full_screen">Fotograf mesaji, tam ekran</string>
     <string name="photos">Fotograflar</string>
     <string name="pool_health">Havuz Sağlığı</string>
-    <string name="portfolio">Portfoy</string>
     <string name="promote_pawn_to">Piyonu su terfi ettir:</string>
     <string name="qr_code">QR Kodu</string>
     <string name="read">Okundu</string>

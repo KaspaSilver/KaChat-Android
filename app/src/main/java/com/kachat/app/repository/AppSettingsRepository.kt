@@ -114,6 +114,13 @@ class AppSettingsRepository @Inject constructor(
         )
         private val KEY_RETIRED_FEATURES_V2_CLEANED = booleanPreferencesKey("retired_features_cleaned_v2")
 
+        /**
+         * DataStore keys Simple Mode left behind (iOS eb2ccac): its on/off flag and the
+         * "Who will use KaChat?" marker. [removeRetiredFeatureKeys] deletes them once.
+         */
+        private val RETIRED_KEY_PREFIXES_V3 = listOf("child_mode_enabled", "user_type_choice_state")
+        private val KEY_RETIRED_FEATURES_V3_CLEANED = booleanPreferencesKey("retired_features_cleaned_v3")
+
         // KaChat ships pinned to Kaspium's public node out of the box, rather than defaulting
         // to full seed/DNS/peer-gossip discovery - the "Use Default" button in Connection
         // Settings resets back to this same address after a user has typed something else.
@@ -202,25 +209,10 @@ class AppSettingsRepository @Inject constructor(
         // (KasPriceRepository) - lowercase ISO 4217 code, doubling as the literal CoinGecko
         // `vs_currency` value (see CoinGeckoApi). Global, not per-account.
         val KEY_CURRENCY = stringPreferencesKey("currency")
-        // Settings > Security > Child Mode. Global, not per-account (matches iOS's device-level
-        // AppSettings.childModeEnabled). Turning it OFF from any UI flow is only ever done after
-        // the password verifies against ChildModeService's EncryptedSharedPreferences record —
-        // and NOTHING in the app wholesale-clears this DataStore, so a Danger Zone account wipe
-        // never silently drops the flag while that record survives.
-        val KEY_CHILD_MODE_ENABLED = booleanPreferencesKey("child_mode_enabled")
-        // Welcome Guide "Who will use KaChat?" tri-state marker (mirrors iOS's
-        // kachat_user_type_choice_state UserDefaults key):
-        //   null      - legacy install that predates the step (never forced through it)
-        //   "pending" - first-run guide was presented but the choice not yet answered
-        //   "chosen"  - answered (Adult, or Child with password set) - never downgraded
-        val KEY_USER_TYPE_CHOICE_STATE = stringPreferencesKey("user_type_choice_state")
-        const val USER_TYPE_PENDING = "pending"
-        const val USER_TYPE_CHOSEN = "chosen"
         // An onboarding wizard run (auto-presented after create/import) is in progress and hasn't
         // reached Finish yet — killing the app mid-wizard re-presents the FULL guide at next
         // launch. Set when the guide auto-presents, cleared ONLY by its Finish button. Mirrors
-        // iOS's "kachat_onboarding_wizard_pending" marker. Distinct from USER_TYPE_PENDING (which
-        // only re-presents the Adult/Child step for devices that answered it before).
+        // iOS's "kachat_onboarding_wizard_pending" marker.
         val KEY_ONBOARDING_WIZARD_PENDING = booleanPreferencesKey("onboarding_wizard_pending")
     }
 
@@ -414,9 +406,6 @@ class AppSettingsRepository @Inject constructor(
      *  than the wallet's whole seed phrase, but still sensitive enough to gate independently. */
     val biometricSpendingKeyEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_BIOMETRIC_SPENDING_KEY_ENABLED] ?: true }
     /** Settings > Security > Child Mode — see [KEY_CHILD_MODE_ENABLED]. */
-    val childModeEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_CHILD_MODE_ENABLED] ?: false }
-    /** [USER_TYPE_PENDING], [USER_TYPE_CHOSEN], or null (legacy install predating the wizard step). */
-    val userTypeChoiceState: Flow<String?> = dataStore.data.map { it[KEY_USER_TYPE_CHOICE_STATE] }
     /** True while an auto-presented onboarding wizard run hasn't reached Finish — see [KEY_ONBOARDING_WIZARD_PENDING]. */
     val onboardingWizardPending: Flow<Boolean> = dataStore.data.map { it[KEY_ONBOARDING_WIZARD_PENDING] ?: false }
     /** Opt-in per-request HTTP logging, default OFF — see [KEY_VERBOSE_API_LOGGING]. */
@@ -607,6 +596,7 @@ class AppSettingsRepository @Inject constructor(
         for ((marker, prefixes) in listOf(
             KEY_RETIRED_FEATURES_CLEANED to RETIRED_KEY_PREFIXES,
             KEY_RETIRED_FEATURES_V2_CLEANED to RETIRED_KEY_PREFIXES_V2,
+            KEY_RETIRED_FEATURES_V3_CLEANED to RETIRED_KEY_PREFIXES_V3,
         )) {
             if (prefs[marker] == true) continue
             for (key in prefs.asMap().keys.toList()) {
@@ -696,14 +686,9 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setBiometricSeedPhraseEnabled(value: Boolean) = dataStore.edit { it[KEY_BIOMETRIC_SEED_PHRASE_ENABLED] = value }
     suspend fun setBiometricAccountLoginEnabled(value: Boolean) = dataStore.edit { it[KEY_BIOMETRIC_ACCOUNT_LOGIN_ENABLED] = value }
     suspend fun setBiometricSpendingKeyEnabled(value: Boolean) = dataStore.edit { it[KEY_BIOMETRIC_SPENDING_KEY_ENABLED] = value }
-    suspend fun setChildModeEnabled(value: Boolean) = dataStore.edit { it[KEY_CHILD_MODE_ENABLED] = value }
     /** Called right before the first-run guide auto-presents. Never downgrades an already-made
      *  choice (a second account created later re-shows the guide, but the device-level Adult/Child
      *  answer stands and Skip stays available). */
-    suspend fun markUserTypePending() = dataStore.edit {
-        if (it[KEY_USER_TYPE_CHOICE_STATE] != USER_TYPE_CHOSEN) it[KEY_USER_TYPE_CHOICE_STATE] = USER_TYPE_PENDING
-    }
-    suspend fun markUserTypeChosen() = dataStore.edit { it[KEY_USER_TYPE_CHOICE_STATE] = USER_TYPE_CHOSEN }
     /** The onboarding wizard auto-presented — an unfinished run must re-present at next launch. */
     suspend fun markOnboardingWizardPending() = dataStore.edit { it[KEY_ONBOARDING_WIZARD_PENDING] = true }
     /** Only the wizard's Finish button clears this. */
