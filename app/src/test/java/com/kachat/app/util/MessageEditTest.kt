@@ -82,4 +82,12 @@ class MessageEditTest {
         // Any envelope - a reaction here - is never editable.
         assertFalse(MessageEdit.isEditable(MessageReaction.encode("t", "👍", "add")))
     }
+
+    @Test
+    fun `an edit envelope is recognised even when cut off or re-spaced`() {
+        assertTrue(MessageEdit.isEditEnvelope(MessageEdit.encode("abc", "fixed")))
+        assertTrue(MessageEdit.isEditEnvelope("""{"type" : "edit", "targetTxId" : "abc", "te"""))
+        assertFalse(MessageEdit.isEditEnvelope("just a message"))
+        assertFalse(MessageEdit.isEditEnvelope(MessageReaction.encode("abc", "👍", "add")))
+    }
 }

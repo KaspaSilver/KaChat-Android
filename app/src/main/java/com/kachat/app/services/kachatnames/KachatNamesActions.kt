@@ -752,15 +752,12 @@ class KachatNamesActions @Inject constructor(
      * Combines the wallet's coins into one: a plain send of up to
      * [com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest coins to the same
      * address (a tiny network fee), then waits until a node has the combined coin, so the name
-     * transaction can be built from it. Never a coin a scheduled KaPost holds or one carrying a
-     * covenant. A transaction from the wallet's own address is never a payment chat
+     * transaction can be built from it. Never a coin carrying a covenant. A transaction from the wallet's own address is never a payment chat
      * (ChatRepository.processPayment), so it stays out of the chats.
      */
     suspend fun combineCoins(s: Signer): String {
         val utxos = service.utxosByAddresses(listOf(s.address))
-        val reserved = com.kachat.app.services.KaPostsScheduledStore.reservedOutpoints.mapTo(HashSet()) { it.lowercase() }
         val plain = utxos
-            .filter { "${hex(it.outpoint.txid)}:${it.outpoint.index}".lowercase() !in reserved }
             .filter { it.entry.covenantId == null }
             .sortedByDescending { it.entry.amount }
             .take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)

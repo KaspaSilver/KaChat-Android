@@ -18,7 +18,6 @@
     <string name="balance">Saldo</string>
     <string name="before_you_swap">Sebelum Melakukan Swap</string>
     <string name="broadcasting">Menyiarkan...</string>
-    <string name="broadcasts">Siaran</string>
     <string name="cancel">Batal</string>
     <string name="off">Mati</string>
     <string name="change">Ubah</string>
@@ -79,19 +78,13 @@
     <string name="incoming_notifications">Pemberitahuan Masuk</string>
     <string name="inscribe">Inskripsi</string>
     <string name="inscribe_domain">Inskripsi Domain</string>
-    <string name="inscribe_new_domain">Inskripsi Domain Baru</string>
     <string name="it_s_ok_i_already_have">Tidak apa-apa, saya sudah punya domain</string>
-    <string name="join">Gabung</string>
-    <string name="join_or_create_a_channel">Gabung atau Buat Saluran</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Domain KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_needs_to_connect_to_a">KaChat perlu terhubung ke sebuah node. Bagaimana Anda ingin terhubung?</string>
-    <string name="kaspa_address_or_kns_domain">Alamat Kaspa atau Domain KNS</string>
     <string name="kaspa_explorer">Penjelajah Kaspa</string>
     <string name="last_message">Pesan Terakhir</string>
-    <string name="leave">Keluar</string>
-    <string name="leave_delete">Keluar &amp; Hapus</string>
     <string name="let_s_add_more_details_about">Mari tambahkan lebih banyak detail tentang Anda</string>
     <string name="log_out">Keluar</string>
     <string name="manage_addresses">Kelola Alamat</string>
@@ -167,7 +160,6 @@
     <string name="this_removes_the_group_and_its">Ini menghapus grup dan pesannya dari perangkat ini. Ini tidak dapat dibatalkan, dan anggota lain tidak akan diberi tahu.</string>
     <string name="total_balance">Total Saldo</string>
     <string name="total_p_l">Total Laba/Rugi (P&amp;L)</string>
-    <string name="transaction_history">Riwayat Transaksi</string>
     <string name="transactions">Transaksi</string>
     <string name="try_again">Coba Lagi</string>
     <string name="unhide">Tampilkan Kembali</string>
@@ -203,7 +195,6 @@
     <string name="indexer">Pengindeks (Indexer)</string>
     <string name="info">Info</string>
     <string name="kns_profile">Profil KNS</string>
-    <string name="kachat_indexer">Pengindeks KaChat</string>
     <string name="kaspa_explorer_api">API Penjelajah Kaspa</string>
     <string name="kaspa_node">Node Kaspa</string>
     <string name="last_sync">Sinkronisasi Terakhir</string>
@@ -223,8 +214,6 @@
     <string name="retry_send">Coba Kirim Lagi</string>
     <string name="save_your_own_node_addresses_here">Simpan alamat node Anda di sini, lalu ketuk salah satu untuk menyalin dan menempelkannya ke bidang Node Kaspa di atas.</string>
     <string name="send_handshake">Kirim Handshake</string>
-    <string name="send_photo_2">Kirim Foto</string>
-    <string name="setup_guide">Panduan Penyiapan</string>
     <string name="sound_vibration">Suara &amp; Getaran</string>
     <string name="storage">Penyimpanan</string>
     <string name="support_email">Email Dukungan</string>
@@ -262,11 +251,6 @@
     <string name="user_info">Info Pengguna</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">Bagikan</string>
-    <string name="translate">Terjemahkan</string>
-    <string name="show_original">Tampilkan Asli</string>
-    <string name="show_translation">Tampilkan Terjemahan</string>
-    <string name="translation_show_original_subtitle">Kembali ke teks seperti saat dikirim.</string>
-    <string name="translation_show_translation_subtitle">Teks terjemahan lagi.</string>
     <string name="mark_as_unread">Tandai belum Dibaca</string>
     <string name="mark_as_read">Tandai sudah Dibaca</string>
     <string name="copy_link">Salin Tautan</string>
@@ -287,7 +271,6 @@
     <string name="kachat_names_are_coming">Nama .kachat segera hadir</string>
     <string name="kachat_names_coming_body">Nama milik KaChat akan ada di sini: klaim satu, jadikan namamu di obrolan, dan bagikan sebagai tautan profilmu.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
-    <string name="no_domain_found">Domain tidak ditemukan</string>
     <string name="no_tld_domain_found">Domain %1$s tidak ditemukan</string>
     <string name="looking_up_domain">Mencari domain...</string>
     <string name="no_domain">Tidak ada domain</string>
@@ -296,12 +279,9 @@
     <string name="couldnt_check">Tidak dapat memeriksa</string>
     <string name="kaspa_address_or_domain">Alamat Kaspa atau domain</string>
     <!-- Public Chats select (iOS e08c4cc) -->
-    <string name="default_room_delete_subtitle">Mematikan ruang bawaan ini. Nyalakan lagi di pengaturan Obrolan Publik.</string>
-    <string name="default_room_switched_off">#%1$s dimatikan - nyalakan lagi di pengaturan Obrolan Publik</string>
     <!-- Connection Settings tabs (iOS ee01f81) -->
     <string name="connection_tab_indexer">Pengindeks (Indexer)</string>
     <string name="connection_tab_node">Node</string>
-    <string name="connection_tab_translation">Terjemahan</string>
     <string name="connection_tab_domains">Domain</string>
     <string name="connection_tab_explorer">Penjelajah</string>
     <string name="message_indexer">Pengindeks Pesan</string>
@@ -328,48 +308,6 @@
     <string name="km_trustless_detail">Tanpa perantara dan tanpa rekening escrow: aturan Kaspa sendiri yang menjamin setiap penjualan.</string>
     <string name="km_nothing_live">Belum ada yang aktif di sini.</string>
     <string name="km_how_kachat_works">Cara kerja .kachat</string>
-    <string name="ks_title">Statistik KaChat</string>
-    <string name="ks_dock_label">Statistik</string>
-    <string name="ks_what_counts">Apa yang dihitung</string>
-    <string name="ks_range_day">24 Jam</string>
-    <string name="ks_range_week">7 Hari</string>
-    <string name="ks_range_all">Semua Waktu</string>
-    <string name="ks_caption_day">Transaksi KaChat dalam 24 jam terakhir</string>
-    <string name="ks_caption_week">Transaksi KaChat dalam 7 hari terakhir</string>
-    <string name="ks_caption_all">Transaksi KaChat di Kaspa, sepanjang waktu</string>
-    <string name="ks_messages">Pesan Langsung</string>
-    <string name="ks_handshakes">Obrolan Baru</string>
-    <string name="ks_payments">Pembayaran</string>
-    <string name="ks_group_messages">Pesan Grup</string>
-    <string name="ks_group_updates">Perubahan Grup</string>
-    <string name="ks_public_chats">Obrolan Publik</string>
-    <string name="ks_kapost_actions">Aktivitas KaPost</string>
-    <string name="ks_chess_moves">Langkah Catur</string>
-    <string name="ks_chess_games">Permainan Catur</string>
-    <string name="ks_self_stash">Catatan Tersimpan</string>
-    <string name="ks_messages_detail">Teks 1:1, pesan suara, reaksi, dan catur 1:1</string>
-    <string name="ks_handshakes_detail">Handshake yang memulai obrolan 1:1</string>
-    <string name="ks_payments_detail">KAS yang dikirim di obrolan</string>
-    <string name="ks_group_messages_detail">Pesan di obrolan grup</string>
-    <string name="ks_group_updates_detail">Pembuatan grup, undangan, dan perubahan lain</string>
-    <string name="ks_public_chats_detail">Pesan di ruang publik</string>
-    <string name="ks_kaposts_detail">Postingan, balasan, kutipan, dan polling</string>
-    <string name="ks_kapost_actions_detail">Vote, follow, suntingan, dan penghapusan</string>
-    <string name="ks_chess_moves_detail">Langkah yang dimainkan di Chess Online</string>
-    <string name="ks_chess_games_detail">Permainan yang dimulai di Chess Online</string>
-    <string name="ks_self_stash_detail">Kunci obrolan dan catatan kontak yang disimpan ke akunmu sendiri</string>
-    <string name="ks_no_indexer">Belum ada indexer untuk jaringan ini</string>
-    <string name="ks_no_indexer_body">Tambahkan di Pengaturan > Pengaturan Koneksi untuk melihat statistik KaChat.</string>
-    <string name="ks_unavailable">Statistik belum tersedia</string>
-    <string name="ks_unavailable_body">Indexer-mu belum menyediakan statistik KaChat. Statistik akan muncul di sini setelah tersedia.</string>
-    <string name="ks_stale">Gagal memperbarui. Menampilkan angka terakhir.</string>
-    <string name="ks_updated">Diperbarui %1$s</string>
-    <string name="ks_counting_since">Dihitung sejak %1$s</string>
-    <string name="ks_info_header">Setiap tindakan di KaChat adalah transaksi Kaspa tersendiri. Total ini berasal dari indexer KaChat, yang menghitung apa yang dilihatnya di chain - tidak ada yang dibaca dari ponselmu.</string>
-    <string name="ks_info_footer">Pesan 1:1 terenkripsi, jadi pesan suara, reaksi, dan langkah catur 1:1 dihitung sebagai pesan langsung: tidak ada yang bisa membedakannya, termasuk indexer.</string>
-    <string name="ks_all_time_only">Hanya sepanjang waktu</string>
-    <string name="ks_all_time_only_note">Jenis bertanda “Hanya sepanjang waktu” belum termasuk dalam total ini.</string>
-    <string name="ks_try_again">Coba Lagi</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Klaim nama .kachat-mu</string>
     <string name="kg_claim_body">Ini nama yang dilihat orang di seluruh KaChat - di obrolan, di postingan, dan di tautan profilmu. Tanpanya, orang melihat alamatmu.</string>
@@ -474,8 +412,6 @@
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan peralihan ke Testnet.</string>
     <string name="testnet_restart_to_mainnet">Tutup KaChat sepenuhnya lalu buka lagi untuk menyelesaikan kembali ke Mainnet.</string>
-    <string name="kaposts_not_on_testnet">KaPosts belum tersedia di Testnet</string>
-    <string name="kaposts_not_on_testnet_sub">Belum ada indexer KaPost untuk testnet. Matikan Testnet di Pengaturan > Koneksi untuk membaca dan memposting di mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud nonaktif selama Testnet aktif.</string>
     <string name="nextcloud_off_on_testnet_footer">Cadangan, sinkronisasi, media, dan panggilan lewat Nextcloud hanya berjalan di mainnet, jadi testnet tidak akan pernah menimpa cadangan mainnet Anda. Matikan Testnet di Pengaturan > Koneksi dan koneksi Nextcloud Anda kembali seperti semula.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
@@ -530,7 +466,6 @@
     <string name="kn_accept_warning">Nama berpindah ke pembeli dan jumlah penawaran masuk ke Anda, dalam satu transaksi. Ini tidak bisa dibatalkan.</string>
     <string name="kn_buyer">Pembeli</string>
     <string name="kn_price_to_miners">Harga (untuk penambang)</string>
-    <string name="kn_years">Tahun</string>
     <string name="kn_bond_returned">Jaminan (dikembalikan saat dilepas)</string>
     <string name="kn_deposit_returned">Deposit registri (dikembalikan saat dilepas)</string>
     <string name="kn_commit_returned">Komitmen (dikembalikan saat pendaftaran)</string>
@@ -697,11 +632,8 @@
     <string name="chats_new">Baru</string>
     <string name="chats_new_chat">Obrolan Baru</string>
     <string name="chats_new_group_chat">Obrolan Grup Baru</string>
-    <string name="chats_new_public_chat">Obrolan Publik Baru</string>
-    <string name="chats_fund_chatting_address">Isi Alamat Obrolan</string>
     <string name="chats_new_chat_subtitle">Kirim pesan ke seseorang lewat alamat atau namanya.</string>
     <string name="chats_new_group_subtitle">Mulai grup terenkripsi dengan beberapa orang.</string>
-    <string name="chats_new_public_subtitle">Bergabung ke ruang publik, atau buat sendiri.</string>
     <string name="chats_fund_subtitle">Menampilkan kode QR untuk menambah Kaspa guna mengirim pesan.</string>
     <string name="chats_receive_subtitle">Menampilkan alamat baru untuk menerima pembayaran.</string>
     <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di saldo belanja Anda. Gunakan alamat ini untuk semua hal yang tidak terkait obrolan atau domain.</string>
@@ -740,7 +672,6 @@
     <string name="chats_circle_unpin_hint">Kembali ke tempatnya menurut aktivitas terbaru.</string>
     <string name="chats_circle_pin_hint">Tetap pertama di baris atas obrolan Anda.</string>
     <string name="chats_circle_hold_for_options">Tahan untuk opsi</string>
-    <string name="delete_room_title">Hapus ruang?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Alamat ini sudah tidak ada di dompet ini.</string>
     <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
@@ -845,18 +776,7 @@
     <string name="kn_claiming_name">Mengklaim %1$s</string>
     <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
-    <string name="kaposts_tip_title">Tip</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
-    <string name="ks_kachat_registrations">Nama Terdaftar</string>
-    <string name="ks_kachat_renewals">Perpanjangan Nama</string>
-    <string name="ks_kachat_sales">Penjualan Nama</string>
-    <string name="ks_kachat_offers">Penawaran Nama</string>
-    <string name="ks_kachat_activity">Aktivitas Nama</string>
-    <string name="ks_kachat_registrations_detail">Nama .kachat yang diklaim</string>
-    <string name="ks_kachat_renewals_detail">Nama .kachat yang ditambah atau diperpanjang</string>
-    <string name="ks_kachat_sales_detail">Nama .kachat yang dibeli dari listing atau lewat penawaran yang diterima</string>
-    <string name="ks_kachat_offers_detail">Penawaran untuk nama .kachat</string>
-    <string name="ks_kachat_activity_detail">Listing, transfer, pelepasan, klaim ulang, dan penawaran yang dikembalikan</string>
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
     <string name="create_wallet_name_title">Buat nama untuk dompet Anda</string>
     <string name="create_wallet_name_detail">Nama ini hanya disimpan di perangkat ini, untuk membedakan dompet-dompet Anda. Tidak ada orang lain yang akan melihatnya.</string>
@@ -866,7 +786,6 @@
     <string name="write_down_your_seed_phrase">Catat Frasa Pemulihan Anda</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Simpan ini di tempat yang aman. Siapa pun dengan kata-kata ini dapat mengakses akun Anda.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
-    <string name="kaposts_retry">Coba lagi</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">biaya: -------- KAS</string>
     <string name="composer_fee_unknown">biaya: -- KAS</string>
@@ -1043,7 +962,6 @@
     <string name="kn_transfer_placeholder_domain">kaspatest:... atau domain</string>
     <string name="kn_err_enter_address_or_domain">Masukkan alamat atau domain.</string>
     <string name="kn_err_name_address_cant_own">Alamat nama itu tidak bisa memiliki nama .kachat.</string>
-    <string name="kn_err_no_domain_by_name">Tidak ada domain dengan nama itu.</string>
     <string name="kachat_names_resolved_first_footer">Diresolusikan lebih dulu, di mana pun Anda bisa mengetik alamat.</string>
     <string name="other_domains_title">Domain Lain</string>
     <string name="other_domains_settings_footer">Dicari setelah .kachat, dan ditampilkan di Domain lain jika nama yang diketik juga ada di sana.</string>
@@ -1195,29 +1113,12 @@
     <string name="customize_dock_move_to">Pindahkan %1$s ke %2$s</string>
     <string name="customize_dock_add">Tambahkan %1$s ke dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
-    <string name="kaposts_tips">Tip</string>
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
-    <string name="kaposts_likes">Suka</string>
-    <string name="kaposts_dislikes">Tidak suka</string>
-    <string name="kaposts_reposts">Repost</string>
-    <string name="kaposts_quotes">Kutipan</string>
-    <string name="kaposts_no_tips_yet">Belum ada tip.</string>
-    <string name="kaposts_who_tipped">Siapa yang memberi tip pada postingan ini</string>
-    <string name="kaposts_bell_on_note">Anda sekarang akan diberi tahu saat %1$s memposting.</string>
-    <string name="kaposts_bell_off_note">Anda tidak akan lagi diberi tahu tentang postingan %1$s.</string>
-    <string name="kaposts_bell_stop">Matikan notifikasi postingan</string>
-    <string name="kaposts_bell_notify">Beri tahu saat dia memposting</string>
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">Sent you %1$s KAS</string>
     <string name="push_sent_you_payment">Sent you a payment</string>
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
-    <string name="kn_fees">Biaya</string>
-    <string name="ks_kachat_domains">Domain .kachat</string>
-    <string name="ks_kachat_transactions">Transaksi di registri .kachat</string>
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
-    <string name="ks_kachat_fees_detail">Dibayar untuk pendaftaran dan perpanjangan</string>
-    <string name="ks_fees_unavailable">Biaya belum tersedia</string>
-    <string name="ks_fees_unavailable_body">Indexer Anda belum melaporkannya. Akan muncul di sini setelah dilaporkan.</string>
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">Tidak Ada Akun Penyimpanan Dingin</string>
     <string name="cold_storage_empty_body">Pindai atau tempel kpub yang diekspor dari perangkat KasSigner Anda untuk memantau saldonya.</string>
@@ -1252,13 +1153,4 @@
     <string name="non_quantum_addresses">Alamat Non-Kuantum</string>
     <string name="addresses_shown_count">%1$d dari %2$d ditampilkan</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
-    <string name="chess_leaderboard_this_month">Bulan ini</string>
-    <string name="chess_leaderboard_all_time">Sepanjang waktu</string>
-    <string name="chess_leaderboard_period">Periode papan peringkat</string>
-    <string name="chess_leaderboard_resets_monthly">Diatur ulang setiap tanggal 1 (UTC).</string>
-    <string name="chess_leaderboard_counted_from">Dihitung sejak %1$s.</string>
-    <string name="chess_no_finished_duels_this_month">Belum ada game 1v1 yang selesai bulan ini.</string>
-    <string name="chess_no_finished_duels">Belum ada game 1v1 yang selesai.</string>
-    <string name="chess_no_finished_tournaments_this_month">Belum ada turnamen yang selesai bulan ini.</string>
-    <string name="chess_no_finished_tournaments">Belum ada turnamen yang selesai.</string>
 </resources>

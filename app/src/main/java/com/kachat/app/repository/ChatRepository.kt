@@ -2963,8 +2963,6 @@ class ChatRepository @Inject constructor(
                 text = displayText,
                 notificationOverride = ContactNotificationMode.fromName(existingContact?.notificationOverride),
                 dedupeTxId = tx.transactionId,
-                // a KaPosts tip: one notification with its "tipped your post" banner (IDX-030)
-                tipTxId = tx.transactionId.takeIf { MessageProtocol.isTipPayload(payloadBytes) },
             )
         }
         return true

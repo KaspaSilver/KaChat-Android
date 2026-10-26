@@ -19,14 +19,11 @@
     <string name="admin">Yonetici</string>
     <string name="all_discovered_nodes_sorted_by_state">Keşfedilen tüm düğümler duruma ve gecikmeye göre sıralanır. Düğümler host:port\'a göre tekilleştirilir.</string>
     <string name="amount_kas">Tutar (KAS)</string>
-    <string name="anyone_who_joins_the_same_channel">Ayni kanal adina katilan herkes orada mesajlari gorebilir ve gonderebilir. Sahibi veya davetiyesi yoktur.</string>
     <string name="anyone_with_your_seed_phrase_can">Kurtarma ifadenize sahip olan herkes hesabiniza erisebilir. Asla kimseyle paylasmayin. Yalnizca yazili olarak not aldiginizdan emin olun. Asla ekran goruntusu almayin veya cihazinizda saklamayin.</string>
     <string name="back">Geri</string>
     <string name="before_you_swap">Takas Yapmadan Once</string>
     <string name="broadcasting">Yayinlaniyor...</string>
-    <string name="broadcasts">Yayinlar</string>
     <string name="build_unsigned_transaction">Imzasiz Islem Olustur</string>
-    <string name="camera_permission_is_needed_to_scan">Bir QR kodu taramak icin kamera erisimi gerekli</string>
     <string name="cancel">İptal</string>
     <string name="cancel_photo">Fotografi iptal et</string>
     <string name="cancel_recording">Kaydi iptal et</string>
@@ -52,7 +49,6 @@
     <string name="connection_settings">Bağlantı Ayarları</string>
     <string name="connection_status">Bağlantı Durumu</string>
     <string name="contact_has_requested_permission_to_communicate">Kişi iletişim izni istedi</string>
-    <string name="controls_how_much_photos_are_compressed">Fotograflarin gonderilmeden once ne kadar sikistirilacagini kontrol eder. Daha yuksek kalite daha net gorunur ancak daha yuksek ucret gerektirir ve gonderimi uzun surer; daha dusuk kalite daha hizli ve ucuz gonderilir ama daha sikistirilmis gorunur. Bu yalnizca gonderdiginiz fotograflari etkiler, aldiklarinizi degil.</string>
     <string name="copy">Kopyala</string>
     <string name="copy_address">Adresi Kopyala</string>
     <string name="copy_private_key_hex">Özel Anahtar Hex Kopyala</string>
@@ -88,14 +84,11 @@
     <string name="from">Gonderen</string>
     <string name="fund_your_chatting_address">Sohbet Adresinizi Fonlayin</string>
     <string name="generate_account">Hesap Oluştur</string>
-    <string name="grant_permission">Izin Ver</string>
-    <string name="grant_permission_2">Izin ver</string>
     <string name="group_info">Grup Bilgisi</string>
     <string name="group_name_2">Grup adi</string>
     <string name="hidden_addresses">Gizli Adresler</string>
     <string name="hidden_users">Gizli Kullanicilar</string>
     <string name="holdings">Varliklar</string>
-    <string name="how_long_messages_in_this_broadcast">Bu yayindaki mesajlarin bu cihazda ne kadar sure onbellekte kaldigi, en fazla 3 gun.</string>
     <string name="i_agree">Kabul Ediyorum</string>
     <string name="if_the_network_is_busy_a">Ag yogunsa, daha yuksek bir ucret isleminizin daha hizli onaylanmasina yardimci olabilir.</string>
     <string name="import_action">İçe Aktar</string>
@@ -106,38 +99,27 @@
     <string name="incoming_notifications">Gelen Bildirimler</string>
     <string name="inscribe">Kazımak</string>
     <string name="inscribe_domain">Etki Alanını Kaydet</string>
-    <string name="inscribe_new_domain">Yeni Alan Adı Kaydet</string>
     <string name="it_s_ok_i_already_have">Sorun degil, zaten bir alan adim var</string>
-    <string name="join">Katil</string>
-    <string name="join_or_create_a_channel">Kanala Katil veya Olustur</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS Alan Adları</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat Logosu</string>
-    <string name="kachat_can_t_show_notifications_until">Bu uygulama icin izin vermedikce KaChat bildirim gosteremez.</string>
     <string name="kachat_needs_to_connect_to_a">KaChat\'in bir duguma baglanmasi gerekiyor. Nasil baglanmak istersiniz?</string>
     <string name="kaspa">Kaspa</string>
-    <string name="kaspa_address_or_kns_domain">Kaspa Adresi veya KNS Alan Adı</string>
     <string name="kaspa_explorer">Kaspa Kesif Motoru</string>
     <string name="label_optional">Etiket (istege bagli)</string>
     <string name="last_message">Son Mesaj</string>
-    <string name="leave">Ayril</string>
-    <string name="leave_delete">Ayril ve Sil</string>
-    <string name="leaving_this_broadcast_permanently_deletes_every">Bu yayindan ayrilmak, bu cihazda onun icin onbellege alinmis her mesaji kalici olarak siler. Bu geri alinamaz; daha sonra tekrar katilmak gecmis olmadan baslar.</string>
     <string name="let_s_add_more_details_about">Hakkinizda daha fazla detay ekleyelim</string>
     <string name="log_out">Çıkış Yap</string>
-    <string name="longer_retention_means_more_messages_stay">Daha uzun saklama, cihazinizda daha fazla mesajin onbellekte kalmasi anlamina gelir, bu da ozellikle hareketli odalarda uygulamayi zamanla yavaslatabilir.</string>
     <string name="manage_addresses">Adresleri Yonet</string>
     <string name="max">Maks</string>
     <string name="menu">Menu</string>
     <string name="message">Mesaj</string>
-    <string name="message_retention_settings">Mesaj saklama ayarlari</string>
     <string name="more_info">Daha Fazla Bilgi</string>
     <string name="name">Ad</string>
     <string name="name_this_address">Bu Adresi Adlandir</string>
     <string name="next">Ileri</string>
     <string name="no_conversations_yet">Henüz konuşma yok</string>
-    <string name="no_cold_storage_accounts_yet_scan">Henuz soguk depolama hesabi yok. Bakiyesini izlemek ve ondan gondermek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin.</string>
     <string name="no_domains_yet">Henüz alan adı yok.</string>
     <string name="no_hidden_addresses">Gizli adres yok.</string>
     <string name="no_hidden_users_in_this_group">Bu grupta gizli kullanici yok.</string>
@@ -145,11 +127,9 @@
     <string name="no_saved_addresses">Kayitli adres yok</string>
     <string name="no_swaps_yet">Henuz takas yok.</string>
     <string name="no_transactions_yet">Henuz islem yok.</string>
-    <string name="no_transactions_yet_tap_to_add">Henuz islem yok. Ilk alim veya satiminizi eklemek icin + dokunun.</string>
     <string name="not_now">Simdi Degil</string>
     <string name="notes_optional">Notlar (istege bagli)</string>
     <string name="notifications">Bildirimler</string>
-    <string name="notifications_are_off_in_system_settings">Bildirimler sistem ayarlarinda kapali</string>
     <string name="ok">Tamam</string>
     <string name="only_notify_if_i_m_mentioned">Yalnizca bahsedildigimde bildir</string>
     <string name="open_settings">Ayarları Aç</string>
@@ -186,8 +166,6 @@
     <string name="reserved_domain_no_registration_fee_only">Ayrilmis alan adi: kayit ucreti yok, yalnizca ag ucretleri gecerlidir.</string>
     <string name="resign">Pes Et</string>
     <string name="resign_this_game">Bu oyundan cekilinsin mi?</string>
-    <string name="resolving_domain">Alan adi cozumleniyor…</string>
-    <string name="retention">Saklama</string>
     <string name="retry">Tekrar Dene</string>
     <string name="retry_inscription_reveal">Yazit Acilmasini Tekrar Dene</string>
     <string name="save">Kaydet</string>
@@ -217,7 +195,6 @@
     <string name="some_changes_failed_to_save">Bazi degisiklikler kaydedilemedi:</string>
     <string name="start_a_new_chat_by_adding">Bir kişi ekleyerek yeni bir sohbet başlat</string>
     <string name="status">Durum</string>
-    <string name="still_indexing_it_ll_show_up">Hala dizinleniyor. Kisa surede yukarida gorunecek.</string>
     <string name="swap">Takas</string>
     <string name="swaps_are_processed_by_changenow_a">Takaslar ucuncu taraf bir borsa olan ChangeNOW tarafindan islenir. Devam ederek, ChangeNOW\'un kendi Hizmet Sartlarini okudugunuzu ve kabul ettiginizi onaylarsiniz. KaChat yalnizca takas talebinizi gonderir ve durumunu gosterir; KaChat basarisiz, gecikmis veya kaybolmus takaslardan sorumlu degildir. Bir takas gerceklesmezse dogrudan ChangeNOW destegiyle iletisime gecin.</string>
     <string name="tap_an_address_below_to_swap">Bir adresten takas yapmak icin asagida bir adrese dokunun</string>
@@ -231,17 +208,13 @@
     <string name="total_balance">Toplam Bakiye</string>
     <string name="total_invested">Toplam Yatirim</string>
     <string name="total_p_l">Toplam K/Z</string>
-    <string name="transaction_history">Islem Gecmisi</string>
-    <string name="transaction_links_in_message_menus_and">Mesaj menulerindeki ve islem gecmisi sayfalarindaki islem baglantilari bu kesif motorunda acilir.</string>
     <string name="transactions">Islemler</string>
     <string name="try_again">Tekrar Dene</string>
     <string name="unhide">Gizlemeyi Kaldir</string>
     <string name="unread">Okunmadi</string>
     <string name="use_default">Varsayilani Kullan</string>
     <string name="valid_address">Gecerli adres</string>
-    <string name="waiting_for_camera">Kamera bekleniyor...</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
-    <string name="channel_name">kanal-adi</string>
     <string name="host_port_or_grpcs_host">host:port veya grpcs://host</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
@@ -253,8 +226,6 @@
     <string name="photo_saved">Fotograf kaydedildi</string>
     <string name="could_not_save_photo">Fotograf kaydedilemedi</string>
     <string name="withdrawal_failed">Cekim basarisiz</string>
-    <string name="consolidation_failed">Birlestirme basarisiz</string>
-    <string name="nothing_to_consolidate">Birlestirilecek bir sey yok</string>
     <string name="about">Hakkında</string>
     <string name="actions">İşlemler</string>
     <string name="active">Aktif</string>
@@ -274,7 +245,6 @@
     <string name="created">Oluşturuldu</string>
     <string name="customization">Kisisellestirme</string>
     <string name="danger_zone">Tehlikeli Bölge</string>
-    <string name="dark_mode">Karanlik Mod</string>
     <string name="diagnostics">Tanılama</string>
     <string name="discord">Discord</string>
     <string name="discover_addresses">Adresleri Kesfet</string>
@@ -282,7 +252,6 @@
     <string name="email">E-posta</string>
     <string name="explorer">Kesif Motoru</string>
     <string name="export_csv">CSV Disa Aktar</string>
-    <string name="exports_a_plaintext_json_file_of">Bu hesap icin sifresi cozulmus sohbet gecmisinizin duz metin bir JSON dosyasini disa aktarir. Sifrelenmemistir, bu yuzden yalnizca guvendiginiz bir yerde paylasin. Ice aktarma, hicbir seyin uzerine yazmadan mevcut gecmisinizle birlesir.</string>
     <string name="exports_app_device_info_connection_settings">Uygulama/cihaz bilgilerini, baglanti ayarlarini, yerel mesaj sayilarini ve son uygulama gunluklerini destek icin sorun giderme amaciyla zip olarak disa aktarir. Ozel anahtarlar, kurtarma ifadeleri veya cozulmus mesaj icerikleri dahil edilmez.</string>
     <string name="generate_more_addresses">Daha Fazla Adres Olustur</string>
     <string name="generate_new_spending_address">Yeni Harcama Adresi Olustur</string>
@@ -293,7 +262,6 @@
     <string name="indexer">Indeksleyici</string>
     <string name="info">Bilgi</string>
     <string name="kns_profile">KNS Profili</string>
-    <string name="kachat_indexer">KaChat Dizinleyici</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">Kaspa Dugumu</string>
     <string name="last_sync">Son Senkronizasyon</string>
@@ -316,8 +284,6 @@
     <string name="save_your_own_node_addresses_here">Kendi dugum adreslerinizi buraya kaydedin, ardindan kopyalayip yukaridaki Kaspa Dugumu alanina yapistirmak icin birine dokunun.</string>
     <string name="security">Guvenlik</string>
     <string name="send_handshake">Iletisim Istegi Gonder</string>
-    <string name="send_photo_2">Fotograf Gonder</string>
-    <string name="setup_guide">Kurulum Rehberi</string>
     <string name="show_fee_estimate">Ucret Tahminini Goster</string>
     <string name="sound_vibration">Ses ve Titreşim</string>
     <string name="storage">Depolama</string>
@@ -330,7 +296,6 @@
     <string name="total">Toplam</string>
     <string name="verified">Doğrulanmış</string>
     <string name="verifying_new_ownership_on_chain_this">Yeni sahiplik zincir uzerinde dogrulaniyor (bir dakika surebilir)...</string>
-    <string name="verifying_on_chain_this_can_take">Zincir uzerinde dogrulaniyor (bir dakika surebilir)...</string>
     <string name="verifying_on_chain_this_could_take">Zincir uzerinde dogrulaniyor... bu birkac dakika surebilir.</string>
     <string name="version">Sürüm</string>
     <string name="vibration">Titreşim</string>
@@ -367,11 +332,6 @@
     <string name="user_info">Kullanıcı Bilgisi</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">Paylaş</string>
-    <string name="translate">Çevir</string>
-    <string name="show_original">Orijinali Göster</string>
-    <string name="show_translation">Çeviriyi Göster</string>
-    <string name="translation_show_original_subtitle">Gönderildiği hâliyle metne dön.</string>
-    <string name="translation_show_translation_subtitle">Yine çevrilmiş metin.</string>
     <string name="mark_as_unread">Okunmadi Olarak Isaretle</string>
     <string name="mark_as_read">Okundu Olarak Isaretle</string>
     <string name="copy_link">Baglantiyi Kopyala</string>
@@ -392,7 +352,6 @@
     <string name="kachat_names_are_coming">.kachat adları geliyor</string>
     <string name="kachat_names_coming_body">KaChat\'in kendi adları burada olacak: bir tane al, sohbetlerde adın olarak kullan ve profil bağlantın olarak paylaş.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
-    <string name="no_domain_found">Alan adı bulunamadı</string>
     <string name="no_tld_domain_found">%1$s alan adı bulunamadı</string>
     <string name="looking_up_domain">Alan adı aranıyor...</string>
     <string name="no_domain">Alan adı yok</string>
@@ -401,12 +360,9 @@
     <string name="couldnt_check">Kontrol edilemedi</string>
     <string name="kaspa_address_or_domain">Kaspa adresi veya alan adı</string>
     <!-- Public Chats select (iOS e08c4cc) -->
-    <string name="default_room_delete_subtitle">Bu varsayılan odayı kapatır. Herkese açık sohbet ayarlarından yeniden aç.</string>
-    <string name="default_room_switched_off">#%1$s kapalı - herkese açık sohbet ayarlarından yeniden aç</string>
     <!-- Connection Settings tabs (iOS ee01f81) -->
     <string name="connection_tab_indexer">Indeksleyici</string>
     <string name="connection_tab_node">Düğüm</string>
-    <string name="connection_tab_translation">Çeviri</string>
     <string name="connection_tab_domains">Alan Adlari</string>
     <string name="connection_tab_explorer">Kesif Motoru</string>
     <string name="message_indexer">Mesaj dizinleyici</string>
@@ -433,48 +389,6 @@
     <string name="km_trustless_detail">Aracı yok, emanet hesabı yok: her satışı Kaspa\'nın kendi kuralları güvenceye alır.</string>
     <string name="km_nothing_live">Burada henüz hiçbir şey canlı değil.</string>
     <string name="km_how_kachat_works">.kachat nasıl çalışır</string>
-    <string name="ks_title">KaChat İstatistikleri</string>
-    <string name="ks_dock_label">İstatistikler</string>
-    <string name="ks_what_counts">Neler sayılır</string>
-    <string name="ks_range_day">24 Saat</string>
-    <string name="ks_range_week">7 Gün</string>
-    <string name="ks_range_all">Tüm Zamanlar</string>
-    <string name="ks_caption_day">Son 24 saatteki KaChat işlemleri</string>
-    <string name="ks_caption_week">Son 7 gündeki KaChat işlemleri</string>
-    <string name="ks_caption_all">Kaspa\'daki tüm KaChat işlemleri</string>
-    <string name="ks_messages">Doğrudan Mesajlar</string>
-    <string name="ks_handshakes">Yeni Sohbetler</string>
-    <string name="ks_payments">Ödemeler</string>
-    <string name="ks_group_messages">Grup Mesajları</string>
-    <string name="ks_group_updates">Grup Değişiklikleri</string>
-    <string name="ks_public_chats">Herkese Açık Sohbetler</string>
-    <string name="ks_kapost_actions">KaPost Etkinliği</string>
-    <string name="ks_chess_moves">Satranç Hamleleri</string>
-    <string name="ks_chess_games">Satranç Oyunları</string>
-    <string name="ks_self_stash">Kayıtlı Kayıtlar</string>
-    <string name="ks_messages_detail">1:1 mesajlar, sesli notlar, tepkiler ve 1:1 satranç</string>
-    <string name="ks_handshakes_detail">1:1 sohbet başlatan el sıkışmaları</string>
-    <string name="ks_payments_detail">Sohbetlerde gönderilen KAS</string>
-    <string name="ks_group_messages_detail">Grup sohbetlerindeki mesajlar</string>
-    <string name="ks_group_updates_detail">Grup oluşturma, davetler ve diğer değişiklikler</string>
-    <string name="ks_public_chats_detail">Herkese açık odalardaki mesajlar</string>
-    <string name="ks_kaposts_detail">Gönderiler, yanıtlar, alıntılar ve anketler</string>
-    <string name="ks_kapost_actions_detail">Oylar, takipler, düzenlemeler ve silmeler</string>
-    <string name="ks_chess_moves_detail">Chess Online\'da oynanan hamleler</string>
-    <string name="ks_chess_games_detail">Chess Online\'da başlayan oyunlar</string>
-    <string name="ks_self_stash_detail">Kendi hesabına kaydedilen sohbet anahtarları ve kişi notları</string>
-    <string name="ks_no_indexer">Bu ağ için ayarlanmış bir indexer yok</string>
-    <string name="ks_no_indexer_body">KaChat istatistiklerini görmek için Ayarlar > Bağlantı Ayarları\'ndan bir tane ekle.</string>
-    <string name="ks_unavailable">İstatistikler henüz kullanılamıyor</string>
-    <string name="ks_unavailable_body">Indexer\'ın henüz KaChat istatistiklerini bildirmiyor. Bildirdiğinde burada görünecek.</string>
-    <string name="ks_stale">Yenilenemedi. Son rakamlar gösteriliyor.</string>
-    <string name="ks_updated">Güncellendi: %1$s</string>
-    <string name="ks_counting_since">Sayım başlangıcı: %1$s</string>
-    <string name="ks_info_header">KaChat\'teki her işlem ayrı bir Kaspa işlemidir. Bu toplamlar, zincirde gördüklerini sayan KaChat indexer\'ından gelir - telefonundan hiçbir şey okunmaz.</string>
-    <string name="ks_info_footer">1:1 mesajlar şifrelidir; bu yüzden sesli notlar, tepkiler ve 1:1 satranç hamleleri doğrudan mesaj sayılır: indexer dahil hiç kimse bunları ayırt edemez.</string>
-    <string name="ks_all_time_only">Yalnızca tüm zamanlar</string>
-    <string name="ks_all_time_only_note">“Yalnızca tüm zamanlar” olarak işaretli türler henüz bu toplamda yok.</string>
-    <string name="ks_try_again">Tekrar Dene</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">.kachat adını al</string>
     <string name="kg_claim_body">İnsanların seni KaChat\'in her yerinde gördüğü ad: sohbetlerde, gönderilerde ve profil bağlantında. Yoksa adresin görünür.</string>
@@ -579,8 +493,6 @@
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Testnet\'e geçişi tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
     <string name="testnet_restart_to_mainnet">Mainnet\'e dönüşü tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
-    <string name="kaposts_not_on_testnet">KaPosts henüz Testnet\'te kullanılamıyor</string>
-    <string name="kaposts_not_on_testnet_sub">Testnet için bir KaPost dizinleyicisi yok. Mainnet\'te okumak ve paylaşmak için Ayarlar > Bağlantı bölümünden Testnet\'i kapatın.</string>
     <string name="nextcloud_off_on_testnet">Testnet açıkken Nextcloud kapalıdır.</string>
     <string name="nextcloud_off_on_testnet_footer">Nextcloud üzerinden yedekleme, eşitleme, medya ve aramalar yalnızca mainnet\'te çalışır; böylece testnet mainnet yedeğinizin üzerine asla yazamaz. Ayarlar > Bağlantı bölümünden Testnet\'i kapatın, Nextcloud bağlantınız olduğu gibi geri gelir.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
@@ -635,7 +547,6 @@
     <string name="kn_accept_warning">Ad alıcıya, teklif tutarı size tek işlemde geçer. Bu geri alınamaz.</string>
     <string name="kn_buyer">Alıcı</string>
     <string name="kn_price_to_miners">Fiyat (madencilere)</string>
-    <string name="kn_years">Yıl</string>
     <string name="kn_bond_returned">Teminat (bırakınca iade)</string>
     <string name="kn_deposit_returned">Kayıt depozitosu (bırakınca iade)</string>
     <string name="kn_commit_returned">Taahhüt (kayıtta iade)</string>
@@ -815,11 +726,8 @@
     <string name="chats_new">Yeni</string>
     <string name="chats_new_chat">Yeni Sohbet</string>
     <string name="chats_new_group_chat">Yeni Grup Sohbeti</string>
-    <string name="chats_new_public_chat">Yeni Herkese Açık Sohbet</string>
-    <string name="chats_fund_chatting_address">Sohbet Adresini Fonla</string>
     <string name="chats_new_chat_subtitle">Birine adresi veya adıyla mesaj gönder.</string>
     <string name="chats_new_group_subtitle">Birkaç kişiyle şifreli bir grup başlat.</string>
-    <string name="chats_new_public_subtitle">Herkese açık bir odaya katıl veya bir tane oluştur.</string>
     <string name="chats_fund_subtitle">Mesaj göndermek için Kaspa eklemek üzere QR kodunu gösterir.</string>
     <string name="chats_receive_subtitle">Ödeme almak için yeni bir adres gösterir.</string>
     <string name="qr_receive_address_subtitle">Daha önce hiç kullanılmamış yeni bir adres. Buraya gönderilen Kaspa bu hesaba gelir ve harcama bakiyende görünür. Bu adresi sohbet veya alan adlarıyla ilgili olmayan her şey için kullan.</string>
@@ -857,7 +765,6 @@
     <string name="chats_circle_unpin_hint">Son etkinliğe göre yerine döner.</string>
     <string name="chats_circle_pin_hint">Sohbetlerinin üstündeki sırada ilk kalır.</string>
     <string name="chats_circle_hold_for_options">Seçenekler için basılı tut</string>
-    <string name="delete_room_title">Oda silinsin mi?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Bu adres artık bu cüzdanda değil.</string>
     <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
@@ -962,18 +869,7 @@
     <string name="kn_claiming_name">%1$s alınıyor</string>
     <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
-    <string name="kaposts_tip_title">Bahşiş</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
-    <string name="ks_kachat_registrations">Kaydedilen Adlar</string>
-    <string name="ks_kachat_renewals">Ad Yenilemeleri</string>
-    <string name="ks_kachat_sales">Ad Satışları</string>
-    <string name="ks_kachat_offers">Ad Teklifleri</string>
-    <string name="ks_kachat_activity">Ad Etkinliği</string>
-    <string name="ks_kachat_registrations_detail">Talep edilen .kachat adları</string>
-    <string name="ks_kachat_renewals_detail">Uzatılan veya yenilenen .kachat adları</string>
-    <string name="ks_kachat_sales_detail">İlandan veya kabul edilen teklifle satın alınan .kachat adları</string>
-    <string name="ks_kachat_offers_detail">.kachat adlarına verilen teklifler</string>
-    <string name="ks_kachat_activity_detail">İlanlar, aktarımlar, bırakmalar, geri almalar ve iade edilen teklifler</string>
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
     <string name="create_wallet_name_title">Cüzdanınız için bir ad oluşturun</string>
     <string name="create_wallet_name_detail">Bu ad yalnızca bu cihazda saklanır ve cüzdanlarınızı ayırt etmenizi sağlar. Başka hiç kimse onu görmez.</string>
@@ -983,7 +879,6 @@
     <string name="write_down_your_seed_phrase">Seed Phrase\'inizi Yazın</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Bunu güvenli bir yerde saklayın. Bu kelimelere sahip herkes hesabınıza erişebilir.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
-    <string name="kaposts_retry">Tekrar dene</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">ucret: -------- KAS</string>
     <string name="composer_fee_unknown">ucret: -- KAS</string>
@@ -1171,7 +1066,6 @@
     <string name="kn_transfer_placeholder_domain">kaspatest:... veya alan adı</string>
     <string name="kn_err_enter_address_or_domain">Bir adres veya alan adı girin.</string>
     <string name="kn_err_name_address_cant_own">Bu adın adresi bir .kachat adına sahip olamaz.</string>
-    <string name="kn_err_no_domain_by_name">Bu adla bir alan adı bulunamadı.</string>
     <string name="kachat_names_resolved_first_footer">Adres girebildiğiniz her yerde önce çözümlenir.</string>
     <string name="other_domains_title">Diğer Alan Adları</string>
     <string name="other_domains_settings_footer">.kachat\'tan sonra aranır; yazılan ad orada da varsa Diğer alan adları altında listelenir.</string>
@@ -1323,29 +1217,12 @@
     <string name="customize_dock_move_to">%1$s öğesini %2$s içine taşı</string>
     <string name="customize_dock_add">%1$s öğesini dock\'a ekle</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
-    <string name="kaposts_tips">Bahşişler</string>
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
-    <string name="kaposts_likes">Beğeniler</string>
-    <string name="kaposts_dislikes">Beğenmemeler</string>
-    <string name="kaposts_reposts">Yeniden paylaşımlar</string>
-    <string name="kaposts_quotes">Alıntılar</string>
-    <string name="kaposts_no_tips_yet">Henüz bahşiş yok.</string>
-    <string name="kaposts_who_tipped">Bu gönderiye kim bahşiş verdi</string>
-    <string name="kaposts_bell_on_note">Artık %1$s paylaşım yaptığında bildirim alacaksınız.</string>
-    <string name="kaposts_bell_off_note">Artık %1$s kişisinin gönderileri için bildirim almayacaksınız.</string>
-    <string name="kaposts_bell_stop">Gönderi bildirimlerini kapat</string>
-    <string name="kaposts_bell_notify">Paylaşım yapınca bana bildir</string>
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">Size %1$s KAS gönderdi</string>
     <string name="push_sent_you_payment">Size bir ödeme gönderdi</string>
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
-    <string name="kn_fees">Ücretler</string>
-    <string name="ks_kachat_domains">.kachat Alan Adları</string>
-    <string name="ks_kachat_transactions">.kachat kayıt defterindeki işlemler</string>
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
-    <string name="ks_kachat_fees_detail">Kayıtlar ve yenilemeler için ödenen</string>
-    <string name="ks_fees_unavailable">Ücretler henüz mevcut değil</string>
-    <string name="ks_fees_unavailable_body">Dizinleyiciniz bunları henüz bildirmiyor. Bildirdiğinde burada görünecek.</string>
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">Soguk Depolama Hesabi Yok</string>
     <string name="cold_storage_empty_body">Bakiyesini izlemek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin veya yapistirin.</string>
@@ -1380,13 +1257,4 @@
     <string name="non_quantum_addresses">Kuantum Olmayan Adresler</string>
     <string name="addresses_shown_count">%2$d adresten %1$d tanesi gösteriliyor</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
-    <string name="chess_leaderboard_this_month">Bu ay</string>
-    <string name="chess_leaderboard_all_time">Tüm zamanlar</string>
-    <string name="chess_leaderboard_period">Lider tablosu dönemi</string>
-    <string name="chess_leaderboard_resets_monthly">Her ayın 1\'inde sıfırlanır (UTC).</string>
-    <string name="chess_leaderboard_counted_from">%1$s tarihinden beri sayılıyor.</string>
-    <string name="chess_no_finished_duels_this_month">Bu ay henüz biten 1v1 oyunu yok.</string>
-    <string name="chess_no_finished_duels">Henüz biten 1v1 oyunu yok.</string>
-    <string name="chess_no_finished_tournaments_this_month">Bu ay henüz biten turnuva yok.</string>
-    <string name="chess_no_finished_tournaments">Henüz biten turnuva yok.</string>
 </resources>

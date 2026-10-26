@@ -120,14 +120,12 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * Chats tab: one list (iOS a062577). The chats, with every group chat and public room as a circle
- * above them ([ChatCirclesStrip]) under the search bar - swipe sideways for all of them. The
- * three-page Chats / Group Chats / Public Chats pager is gone, and with it the tab badges and the
- * Group Chats page's own long-press sheet.
+ * Chats tab: one list (iOS a062577). The chats, with every group chat and bot chat as a circle
+ * above them ([ChatCirclesStrip]) under the search bar - swipe sideways for all of them.
  *
- * Select mode selects chats and circles together; Select All takes everything visible, and mark
- * read / mark unread / delete act on the whole selection (rooms: removed or switched off, as
- * before). Pull to refresh syncs chats and groups together.
+ * Select mode selects chats and group circles together; Select All takes everything visible, and
+ * mark read / mark unread / delete act on the whole selection. Pull to refresh syncs chats and
+ * groups together.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -136,7 +134,6 @@ fun ChatsScreen(
     walletViewModel: WalletViewModel = hiltViewModel(),
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel(),
-    broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel = hiltViewModel(),
 ) {
     val balance by walletViewModel.fullBalance.collectAsState()
     val dotColorHex by connectionViewModel.dotColorHex.collectAsState()
@@ -159,12 +156,7 @@ fun ChatsScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedContactIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    /** Public rooms picked in Select mode, by channel name (iOS e08c4cc). */
-    var selectedRooms by remember { mutableStateOf<Set<String>>(emptySet()) }
-    val listedRooms by broadcastViewModel.listedChannels.collectAsState()
-    val roomSummaries by broadcastViewModel.roomSummaries.collectAsState()
     var showBulkDeleteConfirmation by remember { mutableStateOf(false) }
-    var showPublicChatsSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val haptic = com.kachat.app.util.rememberHaptics()
@@ -193,16 +185,15 @@ fun ChatsScreen(
         }
     }
 
-    // Group chats and public rooms pinned to the front of the circles row, newest pin first -
-    // saved per wallet (iOS a062577).
+    // Group chats and bot chats pinned to the front of the circles row, newest pin first - saved
+    // per wallet (iOS a062577).
     val circlePins by remember(myAddress) {
         myAddress?.let { chatViewModel.chatCirclePins(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList())
     }.collectAsState(initial = emptyList())
-    /** The circle whose long-press half sheet is up ("g:<groupId>" / "r:<room>", iOS f90a70a). */
+    /** The circle whose long-press half sheet is up ("g:<groupId>" / "b:<address>", iOS f90a70a). */
     var circleActionTarget by remember { mutableStateOf<String?>(null) }
-    /** A group or custom room waiting on its delete confirmation, from that sheet. */
+    /** A group waiting on its delete confirmation, from that sheet. */
     var circleDeleteGroup by remember { mutableStateOf<String?>(null) }
-    var circleDeleteRoom by remember { mutableStateOf<String?>(null) }
     /** A bot chat waiting on its delete confirmation, from its circle's sheet (iOS 5fcf755). */
     var circleDeleteBot by remember { mutableStateOf<com.kachat.app.models.ContactEntity?>(null) }
     /** Pins a circle to the front, or unpins it, with a toast saying which (iOS `toggleCirclePin`). */
@@ -237,32 +228,28 @@ fun ChatsScreen(
 
     // The circles, as the row shows them: pinned first, then by latest activity, filtered by the
     // search. Select All and the action bar read the same list, so they agree on what's visible.
-    val circleItems = remember(groupConversations, listedRooms, roomSummaries, botConversations, searchQuery, circlePins) {
-        chatCircleItems(groupConversations, listedRooms, roomSummaries, botConversations, searchQuery, circlePins) { convo ->
+    val circleItems = remember(groupConversations, botConversations, searchQuery, circlePins) {
+        chatCircleItems(groupConversations, botConversations, searchQuery, circlePins) { convo ->
             botCircleTitle(context, convo)
         }
     }
-    // What Select All and "everything selected" count while searching are iOS's displayedGroups
-    // and displayedRooms - not the circles row, which matches a title alone. A group matches by
-    // its name, a member's name or address, or a message; a room by its name.
+    // What Select All and "everything selected" count while searching is iOS's displayedGroups -
+    // not the circles row, which matches a title alone. A group matches by its name, a member's
+    // name or address, or a message.
     val searchedGroupIds by produceState<Set<String>?>(initialValue = null, groupConversations, searchQuery) {
         value = chatViewModel.groupIdsMatchingSearch(groupConversations.map { it.group }, searchQuery)
     }
     val visibleGroupIds = searchedGroupIds?.toList()
         ?: circleItems.mapNotNull { (it as? ChatCircle.Group)?.convo?.group?.groupId }
-    val visibleRoomNames = searchQuery.trim().let { query ->
-        listedRooms.map { it.channelName }.filter { query.isEmpty() || it.contains(query, ignoreCase = true) }
-    }
-    val selectionCount = selectedContactIds.size + selectedGroupIds.size + selectedRooms.size
+    val selectionCount = selectedContactIds.size + selectedGroupIds.size
     val isEverythingSelected = run {
-        val total = filteredConversations.size + visibleGroupIds.size + visibleRoomNames.size
+        val total = filteredConversations.size + visibleGroupIds.size
         total > 0 && selectionCount >= total
     }
     fun endSelection() {
         isSelectionMode = false
         selectedContactIds = emptySet()
         selectedGroupIds = emptySet()
-        selectedRooms = emptySet()
     }
 
     val pullRefreshState = rememberPullRefreshState(
@@ -309,14 +296,6 @@ fun ChatsScreen(
         }
     }
 
-
-    if (showPublicChatsSettings) {
-        PublicChatsSettingsSheet(
-            onDismiss = { showPublicChatsSettings = false },
-            broadcastViewModel = broadcastViewModel,
-        )
-    }
-
     val dockInset = LocalDockInset.current
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -339,19 +318,7 @@ fun ChatsScreen(
                         onStatusClick = { ConnectionStatusOverlayState.open() },
                         dotColorHex = dotColorHex,
                         showAddButton = false,
-                        showEditButton = conversations.isNotEmpty() || groupConversations.isNotEmpty() || listedRooms.isNotEmpty(),
-                        // Public room settings (which default rooms show), next to Select at all
-                        // times now there is no Public Chats page to carry it (iOS a062577).
-                        trailingContent = if (!isSelectionMode) {
-                            {
-                                // iOS: an outlined "gearshape" in the accent colour, before Select.
-                                ToolbarIconButton(
-                                    Icons.Outlined.Settings,
-                                    "Public Chats settings",
-                                    { showPublicChatsSettings = true },
-                                )
-                            }
-                        } else null,
+                        showEditButton = conversations.isNotEmpty() || groupConversations.isNotEmpty(),
                         isEditing = isSelectionMode,
                         onEditClick = {
                             if (isSelectionMode) endSelection() else isSelectionMode = true
@@ -362,11 +329,9 @@ fun ChatsScreen(
                             if (isEverythingSelected) {
                                 selectedContactIds = emptySet()
                                 selectedGroupIds = emptySet()
-                                selectedRooms = emptySet()
                             } else {
                                 selectedContactIds = filteredConversations.map { it.contact.id }.toSet()
                                 selectedGroupIds = visibleGroupIds.toSet()
-                                selectedRooms = visibleRoomNames.toSet()
                             }
                         }
                     )
@@ -441,8 +406,8 @@ fun ChatsScreen(
             )
         },
         bottomBar = {
-            // Mark read, mark unread and delete, for everything selected: chats, group circles and
-            // room circles alike (iOS a062577 `selectionActionBar`).
+            // Mark read, mark unread and delete, for everything selected: chats and group circles
+            // alike (iOS a062577 `selectionActionBar`).
             if (isSelectionMode) {
                 Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding()) {
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.1f))
@@ -453,7 +418,6 @@ fun ChatsScreen(
                         Button(
                             onClick = {
                                 if (selectedGroupIds.isNotEmpty()) chatViewModel.markGroupsAsRead(selectedGroupIds)
-                                selectedRooms.forEach { broadcastViewModel.markRoomRead(it) }
                                 if (selectedContactIds.isNotEmpty()) chatViewModel.markContactsAsRead(selectedContactIds)
                                 endSelection()
                             },
@@ -467,7 +431,6 @@ fun ChatsScreen(
                             onClick = {
                                 if (selectedContactIds.isNotEmpty()) chatViewModel.markContactsAsUnread(selectedContactIds)
                                 if (selectedGroupIds.isNotEmpty()) chatViewModel.markGroupsAsUnread(selectedGroupIds)
-                                selectedRooms.forEach { broadcastViewModel.markRoomUnread(it) }
                                 endSelection()
                             },
                             enabled = selectionCount > 0,
@@ -510,9 +473,8 @@ fun ChatsScreen(
                 // the selection bar replaces the dock and pads itself).
                 contentPadding = PaddingValues(bottom = if (isSelectionMode) 0.dp else dockInset),
             ) {
-                // Group chats and public rooms, as circles under the search bar - swipe sideways
-                // for all of them. Tap opens, hold opens its half sheet, Select mode selects them
-                // too.
+                // Group chats and bot chats, as circles under the search bar - swipe sideways for
+                // all of them. Tap opens, hold opens its half sheet, Select mode selects them too.
                 item(key = "chat_circles") {
                     ChatCirclesStrip(
                         items = circleItems,
@@ -521,7 +483,6 @@ fun ChatsScreen(
                         isSelected = { item ->
                             when (item) {
                                 is ChatCircle.Group -> item.convo.group.groupId in selectedGroupIds
-                                is ChatCircle.Room -> item.name in selectedRooms
                                 // a bot chat is deleted from its own half sheet, not in Select mode
                                 is ChatCircle.Bot -> false
                             }
@@ -534,14 +495,6 @@ fun ChatsScreen(
                                         selectedGroupIds = if (id in selectedGroupIds) selectedGroupIds - id else selectedGroupIds + id
                                     } else {
                                         navController.navigate("group_chat/$id")
-                                    }
-                                }
-                                is ChatCircle.Room -> {
-                                    val name = item.name
-                                    if (isSelectionMode) {
-                                        selectedRooms = if (name in selectedRooms) selectedRooms - name else selectedRooms + name
-                                    } else {
-                                        navController.navigate("broadcast_channel/$name")
                                     }
                                 }
                                 is ChatCircle.Bot -> {
@@ -572,8 +525,6 @@ fun ChatsScreen(
                     }
                 }
                 if (filteredConversations.isNotEmpty()) {
-                    // 4.0: the Broadcasts entry card is gone - Broadcasts is a dock tab now,
-                    // riding the Chats-slot cycle when the dock is full (matches iOS).
                     items(filteredConversations, key = { it.contact.id }) { convo ->
                         Box {
                             Row(
@@ -790,24 +741,21 @@ fun ChatsScreen(
             )
         }
 
-        // One confirmation for the whole selection - chats, groups and rooms together. Its title
-        // names the one kind when only one is picked (iOS a062577 `bulkDeleteAlertTitle`), and its
+        // One confirmation for the whole selection - chats and groups together. Its title names
+        // the one kind when only one is picked (iOS a062577 `bulkDeleteAlertTitle`), and its
         // message carries a paragraph per kind picked.
         if (showBulkDeleteConfirmation) {
             val chats = selectedContactIds.size
             val groups = selectedGroupIds.size
-            val rooms = selectedRooms.size
-            val roomsBody = stringResource(R.string.public_chats_bulk_delete_body)
             com.kachat.app.ui.theme.IosAlertDialog(
                 onDismissRequest = { showBulkDeleteConfirmation = false },
                 containerColor = LocalAppColors.current.surface,
                 title = {
                     Text(
                         when {
-                            groups == 0 && rooms == 0 -> "Delete $chats Chat${if (chats == 1) "" else "s"}?"
-                            chats == 0 && rooms == 0 -> "Delete $groups Group${if (groups == 1) "" else "s"}?"
-                            chats == 0 && groups == 0 -> "Delete $rooms Public Chat${if (rooms == 1) "" else "s"}?"
-                            else -> "Delete ${chats + groups + rooms} Selected?"
+                            groups == 0 -> "Delete $chats Chat${if (chats == 1) "" else "s"}?"
+                            chats == 0 -> "Delete $groups Group${if (groups == 1) "" else "s"}?"
+                            else -> "Delete ${chats + groups} Selected?"
                         },
                         color = LocalAppColors.current.textPrimary
                     )
@@ -819,7 +767,6 @@ fun ChatsScreen(
                                 .takeIf { chats > 0 },
                             "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
                                 .takeIf { groups > 0 },
-                            roomsBody.takeIf { rooms > 0 },
                         ).joinToString("\n\n"),
                         color = LocalAppColors.current.textSecondary
                     )
@@ -828,7 +775,6 @@ fun ChatsScreen(
                     TextButton(onClick = {
                         if (selectedContactIds.isNotEmpty()) chatViewModel.deleteChats(selectedContactIds)
                         if (selectedGroupIds.isNotEmpty()) chatViewModel.deleteGroupChats(selectedGroupIds)
-                        selectedRooms.forEach { broadcastViewModel.removeFromList(it) }
                         showBulkDeleteConfirmation = false
                         endSelection()
                     }) {
@@ -849,15 +795,11 @@ fun ChatsScreen(
             id = id,
             isPinned = id in circlePins,
             groupConversations = groupConversations,
-            listedRooms = listedRooms,
-            roomSummaries = roomSummaries,
             botConversations = botConversations,
             chatViewModel = chatViewModel,
-            broadcastViewModel = broadcastViewModel,
             onDismiss = { circleActionTarget = null },
             onTogglePin = { toggleCirclePin(id) },
             onDeleteGroup = { circleDeleteGroup = it },
-            onDeleteRoom = { circleDeleteRoom = it },
             onDeleteBot = { circleDeleteBot = it },
         )
     }
@@ -912,48 +854,15 @@ fun ChatsScreen(
             }
         )
     }
-    circleDeleteRoom?.let { name ->
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { circleDeleteRoom = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text(stringResource(R.string.delete_room_title), color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(
-                    "Every message cached for this room on this device is deleted. This cannot be undone - rejoining later starts with no history.",
-                    color = LocalAppColors.current.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    broadcastViewModel.leaveChannel(name)
-                    circleDeleteRoom = null
-                }) {
-                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { circleDeleteRoom = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
-    }
 
     // The New sheet (iOS 5da8ccf -> e6400d6): New Chat / New Group Chat swap it to the create
-    // screen, New Public Chat pushes a room name inside it, and the two QR options close it and
-    // then bring up Profile's white QR page.
+    // screen, and the two QR options close it and then bring up Profile's white QR page.
     if (showNewSheet) {
         ChatsNewSheet(
             chatViewModel = chatViewModel,
-            broadcastViewModel = broadcastViewModel,
             onDismiss = { showNewSheet = false },
             onChatCreated = { address -> navController.navigate("chat/$address") },
             onGroupCreated = { groupId -> navController.navigate("group_chat/$groupId") },
-            onRoomJoined = { name ->
-                // Opened like a tapped circle when the name is safe in a route; otherwise the
-                // joined room waits in the circles row.
-                if (KaChatLink.sanitizeChannelName(name) == name) navController.navigate("broadcast_channel/$name")
-            },
             onShowQr = { newSheetQr = it },
             onSendKaspa = { showSpendingSend = true },
             onRequestPayment = { showPaymentRequest = true },
@@ -996,8 +905,8 @@ fun ChatsScreen(
     }
 }
 
-/** One circle in [ChatCirclesStrip]: a group chat, a public room or a bot chat. [id] is the pin
- *  id - "g:<groupId>" / "r:<room>" / "b:<bot address, lowercased>", as iOS's (a062577, 5fcf755). */
+/** One circle in [ChatCirclesStrip]: a group chat or a bot chat. [id] is the pin id -
+ *  "g:<groupId>" / "b:<bot address, lowercased>", as iOS's (a062577, 5fcf755). */
 private sealed interface ChatCircle {
     val id: String
     val title: String
@@ -1007,11 +916,6 @@ private sealed interface ChatCircle {
         override val id get() = "g:${convo.group.groupId}"
         override val title get() = convo.group.name
         override val unread get() = convo.unreadCount
-    }
-
-    data class Room(val name: String, override val unread: Int) : ChatCircle {
-        override val id get() = "r:$name"
-        override val title get() = "#$name"
     }
 
     /** A bot chat you have written to ([ChatViewModel.botCircleConversations]); [title] is the
@@ -1029,15 +933,13 @@ private fun botCircleTitle(context: android.content.Context, convo: com.kachat.a
         ?: convo.contact.displayName
 
 /**
- * The circles in row order (iOS `ChatCirclesStrip.items`): every group, every listed room and
- * every bot chat you have written to, filtered by the search on its title; the pinned ones first,
- * in pin order, then the rest by latest activity - a group's last message, else when it was
- * created; a room's last message, else when it was joined; a bot chat's last message.
+ * The circles in row order (iOS `ChatCirclesStrip.items`): every group and every bot chat you
+ * have written to, filtered by the search on its title; the pinned ones first, in pin order, then
+ * the rest by latest activity - a group's last message, else when it was created; a bot chat's
+ * last message.
  */
 private fun chatCircleItems(
     groups: List<GroupConversation>,
-    rooms: List<com.kachat.app.models.BroadcastChannelEntity>,
-    summaries: Map<String, com.kachat.app.repository.BroadcastRepository.RoomSummary>,
     bots: List<com.kachat.app.models.Conversation>,
     searchQuery: String,
     pins: List<String>,
@@ -1045,11 +947,6 @@ private fun chatCircleItems(
 ): List<ChatCircle> {
     var dated: List<Pair<ChatCircle, Long>> =
         groups.map { ChatCircle.Group(it) to (it.lastMessage?.blockTimestamp ?: it.group.createdAt) } +
-            rooms.map { room ->
-                val summary = summaries[room.channelName]
-                ChatCircle.Room(room.channelName, summary?.unreadCount ?: 0) to
-                    (summary?.lastMessage?.blockTimestamp ?: room.joinedAt)
-            } +
             bots.map { ChatCircle.Bot(it, botTitle(it)) to (it.lastMessage?.blockTimestamp ?: 0L) }
     val query = searchQuery.trim()
     if (query.isNotEmpty()) dated = dated.filter { it.first.title.contains(query, ignoreCase = true) }
@@ -1060,7 +957,7 @@ private fun chatCircleItems(
 }
 
 /**
- * Group chats and public rooms as a row of circles above the chats list, under the search bar
+ * Group chats and bot chats as a row of circles above the chats list, under the search bar
  * (iOS a062577 `ChatCirclesStrip`). Swipe sideways for all of them. A red count shows messages
  * from others since you last opened it; a pin marks the ones pinned to the front. Tap opens; hold
  * opens its half sheet (read state, pin, notifications, delete - iOS f90a70a); in Select mode a
@@ -1175,8 +1072,8 @@ private fun ChatCirclesStrip(
     }
 }
 
-/** A circle's face: the group's photo, else the groups glyph; a room's "#". On the accent tint,
- *  as iOS's (a062577). */
+/** A circle's face: the group's photo, else the groups glyph; a bot's own icon. On the accent
+ *  tint, as iOS's (a062577). */
 @Composable
 private fun ChatCircleAvatar(item: ChatCircle) {
     when (item) {
@@ -1192,12 +1089,6 @@ private fun ChatCircleAvatar(item: ChatCircle) {
                     Icon(Icons.Default.Groups, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(28.dp))
                 }
             }
-        }
-        is ChatCircle.Room -> Box(
-            modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("#", color = KaspaTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = IosRoundedFontFamily)
         }
         // The bot's own icon, as on its Kaspa Hub card (iOS 5fcf755).
         is ChatCircle.Bot -> Box(
@@ -1215,32 +1106,24 @@ private fun ChatCircleAvatar(item: ChatCircle) {
 }
 
 /**
- * A group or room circle's long-press half sheet - the chat row's options for that kind (iOS
- * f90a70a `circleActionSheet`): read state, pin to the front, notifications, (rooms) the room
- * link, and delete. A group's delete and a custom room's are confirmed first ([onDeleteGroup] /
- * [onDeleteRoom]); a default room is only switched off, as in Public Chats settings. As square
- * tiles, like every long-press menu (iOS cdac6d0).
+ * A group or bot circle's long-press half sheet - the chat row's options for that kind (iOS
+ * f90a70a `circleActionSheet`): read state, pin to the front, notifications and delete, confirmed
+ * first ([onDeleteGroup] / [onDeleteBot]). As square tiles, like every long-press menu (iOS
+ * cdac6d0).
  */
 @Composable
 private fun ChatCircleActionSheet(
     id: String,
     isPinned: Boolean,
     groupConversations: List<GroupConversation>,
-    listedRooms: List<com.kachat.app.models.BroadcastChannelEntity>,
-    roomSummaries: Map<String, com.kachat.app.repository.BroadcastRepository.RoomSummary>,
     botConversations: List<com.kachat.app.models.Conversation>,
     chatViewModel: ChatViewModel,
-    broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel,
     onDismiss: () -> Unit,
     onTogglePin: () -> Unit,
     onDeleteGroup: (String) -> Unit,
-    onDeleteRoom: (String) -> Unit,
     onDeleteBot: (com.kachat.app.models.ContactEntity) -> Unit,
 ) {
-    val context = LocalContext.current
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val silentGroups by chatViewModel.groupSilent.collectAsState()
-    fun toast(text: String) = IosToasts.show(text)
 
     @Composable
     fun PinRow() {
@@ -1258,8 +1141,8 @@ private fun ChatCircleActionSheet(
         val convo = groupConversations.firstOrNull { "g:${it.group.groupId}" == id } ?: return
         val groupId = convo.group.groupId
         val isSilent = groupId in silentGroups
-        // Fixed at two rows of tiles, as iOS sizes a circle's sheet (sheetHeight(tiles: 6)).
-        TileActionSheet(title = convo.group.name, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
+        // Fixed at two rows of tiles, as iOS sizes a circle's sheet (sheetHeight(tiles: 4)).
+        TileActionSheet(title = convo.group.name, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 4)) {
                 if (convo.unreadCount > 0) {
                     ActionSheetRow(
                         icon = Icons.Outlined.MarkEmailRead,
@@ -1311,7 +1194,7 @@ private fun ChatCircleActionSheet(
         val isSilent = com.kachat.app.models.ContactNotificationMode.fromName(contact.notificationOverride) ==
             com.kachat.app.models.ContactNotificationMode.OFF
         val title = com.kachat.app.models.KaChatBot.bot(contact.id)?.let { stringResource(it.nameRes) } ?: contact.displayName
-        TileActionSheet(title = title, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
+        TileActionSheet(title = title, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 4)) {
                 if (convo.unreadCount > 0) {
                     ActionSheetRow(
                         icon = Icons.Outlined.MarkEmailRead,
@@ -1353,89 +1236,10 @@ private fun ChatCircleActionSheet(
                     onDeleteBot(contact)
                 }
         }
-    } else if (id.startsWith("r:")) {
-        val name = id.removePrefix("r:")
-        val channel = listedRooms.firstOrNull { it.channelName == name }
-        val isCurated = name in com.kachat.app.models.FeaturedBroadcastChannels.CURATED_NAMES
-        // the indexer keeps it, so push covers it with the app closed (iOS 21c480d)
-        val trackedRoomsVersion by com.kachat.app.services.IndexerTrackedRooms.changes.collectAsState()
-        val isTracked = remember(name, trackedRoomsVersion) { com.kachat.app.models.FeaturedBroadcastChannels.isIndexerTracked(name) }
-        val notifyOn = channel?.notifyEnabled == true
-        TileActionSheet(title = "#$name", onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 6)) {
-                if ((roomSummaries[name]?.unreadCount ?: 0) > 0) {
-                    ActionSheetRow(
-                        icon = Icons.Outlined.MarkEmailRead,
-                        title = stringResource(R.string.mark_as_read),
-                        subtitle = "Clears the unread badge on this room.",
-                    ) {
-                        onDismiss()
-                        broadcastViewModel.markRoomRead(name)
-                    }
-                } else {
-                    ActionSheetRow(
-                        icon = Icons.Outlined.MarkEmailUnread,
-                        title = stringResource(R.string.mark_as_unread),
-                        subtitle = "Puts the unread badge back so you come across it again.",
-                    ) {
-                        onDismiss()
-                        broadcastViewModel.markRoomUnread(name)
-                    }
-                }
-                PinRow()
-                ActionSheetRow(
-                    icon = if (notifyOn) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
-                    title = if (notifyOn) "Turn Off Notifications" else "Turn On Notifications",
-                    subtitle = when {
-                        notifyOn -> "No notification for new messages in this room."
-                        isTracked -> "Notifies you of new messages, even when the app is closed."
-                        else -> "Notifies you of new messages while the app is open."
-                    },
-                ) {
-                    onDismiss()
-                    broadcastViewModel.setNotifyEnabledEnsuringJoined(name, !notifyOn)
-                    toast(
-                        when {
-                            notifyOn -> "Notifications are off for this public chat"
-                            isTracked -> "You'll get notifications for new messages in this public chat, even when the app is closed"
-                            else -> "You'll get a notification for new messages in this public chat as long as your app remains open"
-                        }
-                    )
-                }
-                ActionSheetRow(
-                    icon = Icons.Default.Link,
-                    title = "Copy Room Link",
-                    subtitle = "A kachat.app link that opens this room.",
-                ) {
-                    onDismiss()
-                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(KaChatLink.broadcastWebUrl(name)))
-                    toast("Room link copied")
-                }
-                if (isCurated) {
-                    ActionSheetRow(
-                        icon = Icons.Outlined.Delete,
-                        title = stringResource(R.string.delete),
-                        subtitle = stringResource(R.string.default_room_delete_subtitle),
-                        tint = LocalAppColors.current.danger,
-                    ) {
-                        onDismiss()
-                        broadcastViewModel.removeFromList(name)
-                    }
-                } else if (channel != null) {
-                    ActionSheetRow(
-                        icon = Icons.Outlined.Delete,
-                        title = stringResource(R.string.delete),
-                        subtitle = "Removes this room and its messages from this device.",
-                        tint = LocalAppColors.current.danger,
-                    ) {
-                        onDismiss()
-                        onDeleteRoom(name)
-                    }
-                }
-        }
     }
 }
 
-/** The red unread count on the group and room circles (iOS `ChatsTabUnreadBadge`) - hidden at 0. */
+/** The red unread count on the group and bot circles (iOS `ChatsTabUnreadBadge`) - hidden at 0. */
 @Composable
 private fun ChatsUnreadBadge(count: Int, modifier: Modifier = Modifier) {
     if (count <= 0) return
@@ -1479,8 +1283,6 @@ private fun messagePreviewText(message: MessageEntity?, contactLabel: String, co
     // A message that is nothing but a link back into KaChat previews as what it OPENS rather than
     // as a raw link - matching the card the bubble itself draws for it (iOS formatPreview).
     when (val link = KaChatLink.parse(body)) {
-        is KaChatLinkRef.KaPost -> return "Shared a KaPosts post"
-        is KaChatLinkRef.BroadcastRoom -> return "Public chat room #${link.channel}"
         is KaChatLinkRef.Profile -> return "Shared a KaChat profile"
         is KaChatLinkRef.PaymentRequest -> return com.kachat.app.util.KaspaUnit.label(
             context.getString(R.string.pr_preview, link.request.amountText)
@@ -1951,19 +1753,17 @@ fun MessageRequestsScreen(
 /** The QR pages the Chats New sheet opens (iOS e6400d6 `ChatsQRScreen`). */
 private enum class ChatsNewQr { FUND_CHATTING, RECEIVE }
 
-/** What the Chats New sheet shows: its menu, the room name pushed inside it, or a create screen
- *  swapped in (iOS be0857a / e6400d6). */
-private enum class ChatsNewPage { MENU, JOIN_ROOM, NEW_CHAT, NEW_GROUP }
+/** What the Chats New sheet shows: its menu, or a create screen swapped in (iOS be0857a /
+ *  e6400d6). */
+private enum class ChatsNewPage { MENU, NEW_CHAT, NEW_GROUP }
 
 /**
  * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6, f81e8d6
  * and c6851d6 - this is where they ended): a half sheet of square tiles - New Chat, New Group
- * Chat, New Public Chat, Send Kaspa, Receive Kaspa, Request Payment and Fund Chatting Address. Everything but the send
- * and the QR codes happens in this one sheet, so there is no close-then-open wait:
+ * Chat, Send Kaspa, Receive Kaspa, Request Payment and Fund Chatting Address. Everything but the
+ * send and the QR codes happens in this one sheet, so there is no close-then-open wait:
  * - New Chat / New Group Chat swap the sheet to the create screen, full height ([CreateChatScreen],
  *   whose Cancel comes back to the menu);
- * - New Public Chat pushes a room-name field inside the sheet, at the menu's height; joining opens
- *   the room, and an invalid name says why in place;
  * - Send Kaspa closes the sheet and then opens Profile's send from the current spending address
  *   ([onSendKaspa]);
  * - Fund Chatting Address / Receive Kaspa close the sheet and then bring up Profile's full white QR
@@ -1973,11 +1773,9 @@ private enum class ChatsNewPage { MENU, JOIN_ROOM, NEW_CHAT, NEW_GROUP }
 @Composable
 private fun ChatsNewSheet(
     chatViewModel: ChatViewModel,
-    broadcastViewModel: com.kachat.app.viewmodels.BroadcastViewModel,
     onDismiss: () -> Unit,
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit,
-    onRoomJoined: (String) -> Unit,
     onShowQr: (ChatsNewQr) -> Unit,
     onSendKaspa: () -> Unit,
     onRequestPayment: () -> Unit,
@@ -1986,11 +1784,6 @@ private fun ChatsNewSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var page by remember { mutableStateOf(ChatsNewPage.MENU) }
-    var roomName by remember { mutableStateOf("") }
-    /** A join this sheet asked for, so a success elsewhere (the rooms page) is not taken for it. */
-    var joining by remember { mutableStateOf<String?>(null) }
-    val joinState by broadcastViewModel.joinChannelState.collectAsState()
-    val haptic = com.kachat.app.util.rememberHaptics()
 
     /** Closes the sheet and runs [then] once it has gone (iOS `closeCreateSheet(then:)`). */
     fun close(then: () -> Unit = {}) {
@@ -2000,24 +1793,11 @@ private fun ChatsNewSheet(
         }
     }
 
-    LaunchedEffect(joinState) {
-        val name = joining ?: return@LaunchedEffect
-        when (joinState.status) {
-            com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.SUCCESS -> {
-                joining = null
-                haptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                close { onRoomJoined(name) }
-            }
-            com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED -> joining = null
-            else -> Unit
-        }
-    }
-
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
-        // On the menu and Join Room the sheet rests on iOS's 498 detent, where iOS 26 floats it;
-        // New Chat / New Group switch to .large, which runs edge to edge.
-        val floating = page == ChatsNewPage.MENU || page == ChatsNewPage.JOIN_ROOM
+        // On the menu the sheet rests on iOS's 380 detent, where iOS 26 floats it; New Chat / New
+        // Group switch to .large, which runs edge to edge.
+        val floating = page == ChatsNewPage.MENU
         ModalBottomSheet(
             scrimColor = com.kachat.app.ui.theme.IosSheetScrim,
             modifier = if (floating) Modifier.iosFloatingSheet() else Modifier,
@@ -2047,26 +1827,9 @@ private fun ChatsNewSheet(
                             chatViewModel = chatViewModel,
                         )
                     }
-                    ChatsNewPage.JOIN_ROOM -> ChatsNewJoinRoom(
-                        name = roomName,
-                        onNameChange = {
-                            roomName = it
-                            if (joinState.status != com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.IDLE) {
-                                broadcastViewModel.resetJoinChannelState()
-                            }
-                        },
-                        error = joinState.message?.takeIf { joinState.status == com.kachat.app.viewmodels.BroadcastViewModel.JoinChannelStatus.FAILED },
-                        onBack = { page = ChatsNewPage.MENU },
-                        onJoin = {
-                            if (roomName.isNotBlank()) {
-                                joining = com.kachat.app.util.MessageProtocol.normalizeChannelName(roomName)
-                                broadcastViewModel.joinChannel(roomName)
-                            }
-                        },
-                    )
-                    // The New options as square tiles, three to a row (iOS f81e8d6): New Chat, New Group
-                    // Chat, New Public Chat / Send Kaspa, Receive Kaspa, Fund Chatting Address. Each keeps
-                    // its old line as the TalkBack hint.
+                    // The New options as square tiles, three to a row (iOS f81e8d6, e2f6732): New Chat,
+                    // New Group Chat, Send Kaspa / Receive Kaspa, Request Payment, Fund Chatting Address.
+                    // Each keeps its old line as the TalkBack hint.
                     ChatsNewPage.MENU -> Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2102,23 +1865,12 @@ private fun ChatsNewSheet(
                                     ) { page = ChatsNewPage.NEW_GROUP }
                                     ChatsNewTile(
                                         size = tileSize,
-                                        icon = Icons.Default.Tag,
-                                        title = stringResource(R.string.chats_new_public_chat),
-                                        hint = stringResource(R.string.chats_new_public_subtitle),
-                                    ) {
-                                        roomName = ""
-                                        joining = null
-                                        broadcastViewModel.resetJoinChannelState()
-                                        page = ChatsNewPage.JOIN_ROOM
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                                    ChatsNewTile(
-                                        size = tileSize,
                                         icon = Icons.Outlined.ArrowCircleUp,
                                         title = stringResource(R.string.chats_send_kaspa),
                                         hint = stringResource(R.string.chats_send_kaspa_hint),
                                     ) { close { onSendKaspa() } }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
                                     ChatsNewTile(
                                         size = tileSize,
                                         icon = Icons.Outlined.ArrowCircleDown,
@@ -2132,8 +1884,6 @@ private fun ChatsNewSheet(
                                         title = stringResource(R.string.pr_request_payment),
                                         hint = stringResource(R.string.pr_request_payment_hint),
                                     ) { close { onRequestPayment() } }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
                                     ChatsNewTile(
                                         size = tileSize,
                                         icon = Icons.Default.QrCode,
@@ -2210,103 +1960,6 @@ private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: 
     }
 }
 
-/** The menu and the room name share one height, so moving between them is a plain push; the
- *  create screens open at full height. Fits the tiles grid, three rows since Request Payment
- *  (iOS c6851d6 `createSheetHeight`, 498 pt). */
-private val ChatsNewSheetHeight = 498.dp
-
-/**
- * Join or create a public room, right in the New sheet (iOS be0857a `createJoinRoom`): the same
- * rules as the rooms page's own join sheet, with the error in place.
- */
-@Composable
-private fun ChatsNewJoinRoom(
-    name: String,
-    onNameChange: (String) -> Unit,
-    error: String?,
-    onBack: () -> Unit,
-    onJoin: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    // A turn later: the field doesn't exist yet on the push that showed it.
-    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(ChatsNewSheetHeight)
-            .padding(bottom = 24.dp),
-    ) {
-        // The pushed page's bar: back to the menu, and its title.
-        Box(Modifier.fillMaxWidth().height(44.dp)) {
-            SheetBarBackButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp))
-            Text(
-                stringResource(R.string.chats_new_public_chat),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 17.sp,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                stringResource(R.string.anyone_who_joins_the_same_channel),
-                color = colors.textSecondary,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.surface)
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("#", color = colors.textSecondary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                TextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    placeholder = { Text(stringResource(R.string.channel_name), color = colors.textTertiary) },
-                    singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.None,
-                        autoCorrect = false,
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Go,
-                    ),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { onJoin() }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary,
-                        cursorColor = KaspaTeal,
-                    ),
-                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                )
-            }
-            if (error != null) {
-                Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
-            }
-            val empty = name.isBlank()
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(KaspaTeal.copy(alpha = if (empty) 0.4f else 1f))
-                    .clickable(enabled = !empty) { onJoin() }
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(R.string.join), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            }
-        }
-    }
-}
+/** Two rows of tiles; the create screens open at full height (iOS e2f6732 `createSheetHeight`,
+ *  380 pt). */
+private val ChatsNewSheetHeight = 380.dp

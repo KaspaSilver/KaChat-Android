@@ -65,12 +65,8 @@ class KaspaWalletEngine @Inject constructor(
         spent.removeAll { key -> (pendingRecordedAtMs[key] ?: 0L) < cutoff }
         change.removeAll { (pendingRecordedAtMs[outpointKey(it.outpoint)] ?: 0L) < cutoff }
         pendingRecordedAtMs.entries.removeAll { it.value < cutoff }
-        // A coin a scheduled post is waiting to spend is not available to anything else, or the
-        // signed transaction would be invalid by the time its moment came (iOS's
-        // KaPostsScheduledStore.filterReserved, applied at the same choke point).
-        val available = KaPostsScheduledStore.filterReserved(freshUtxos)
         val ownScriptHex = try { KaspaAddress.getScriptPublicKey(address) } catch (_: Exception) { null }
-        return reconcilePendingUtxos(available, spent, change, ownScriptHex)
+        return reconcilePendingUtxos(freshUtxos, spent, change, ownScriptHex)
     }
 
     /** Drops these pending change coins of [address] (iOS consumePendingUtxos): a chained coin
@@ -646,90 +642,6 @@ class KaspaWalletEngine @Inject constructor(
         return utxos.filter { u ->
             // An overflowing or negative DAA score (a nonsense node value) is not yet mature (IOS-020).
             !u.utxoEntry.isCoinbase || UtxoMath.isMatureCoinbase(u.utxoEntry.blockDaaScore, COINBASE_MATURITY, virtualDaaScore)
-        }
-    }
-
-    /** A signed transaction that has NOT been submitted: its id, its bytes, and what it spends. */
-    data class SignedPayloadTx(
-        val txId: String,
-        val transaction: RawTransaction,
-        val spentOutpoints: List<String>,
-    )
-
-    /**
-     * Builds and signs a payload-carrying self-send WITHOUT submitting it - what a scheduled post
-     * is: signed now, sent later (KAPOSTS_INDEXER.md section 5.10).
-     *
-     * Confirmed coins only: a transaction that may sit for days must not chain onto an
-     * unconfirmed change output, which could be re-organised away under it. The coins it spends
-     * are the caller's to reserve (see [KaPostsScheduledStore]); nothing is recorded as pending
-     * here, because nothing has been broadcast.
-     */
-    suspend fun buildSignedPayloadSelfSend(
-        payloadBytes: ByteArray,
-        fromAddress: String = walletManager.getAddress(),
-        signingPrivateKey: ByteArray = walletManager.getPrivateKeyBytes(),
-        feeRateOverride: Long? = null,
-    ): Result<SignedPayloadTx> = sendMutex.withLock {
-        try {
-            val api = networkService.kaspaRestApi.value
-                ?: return Result.failure(IllegalStateException("Network service unavailable"))
-            val fetched = nodePoolManager.getUtxosByAddress(fromAddress) ?: api.getUtxos(fromAddress)
-            val confirmed = filterSpendableCoinbase(reconcileUtxos(fromAddress, fetched))
-                .filter { it.utxoEntry.blockDaaScore > 0L }
-            if (confirmed.isEmpty()) {
-                return Result.failure(IllegalStateException("No confirmed coins are available to schedule a post with. Wait for a confirmation and try again."))
-            }
-            val feeRate = feeRateOverride?.coerceAtLeast(KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
-                ?: fetchQuotedFeeRateSompiPerGram()
-            val scriptHex = KaspaAddress.getScriptPublicKey(fromAddress)
-            val selection = selectUtxosAndCalculateFee(
-                utxos = confirmed,
-                amountSompi = 0,
-                feeRateSompiPerGram = feeRate,
-                payloadBytes = payloadBytes,
-                recipientScriptLen = scriptHex.length / 2,
-                changeScriptLen = scriptHex.length / 2,
-            )
-            if (selection.totalSelected < selection.requiredAmount) {
-                return Result.failure(IllegalStateException("Insufficient funds: Needed ${selection.requiredAmount}, have ${selection.totalSelected}"))
-            }
-            if (selection.selectedUtxos.size > KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION) {
-                return Result.failure(IllegalStateException(
-                    "This needs more than ${KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION} inputs. Compound (consolidate) this address's coins first."
-                ))
-            }
-            // A self-send carries its whole value as change: the post is the payload, not a payment.
-            val inputAmounts = selection.selectedUtxos.map { it.utxoEntry.amount }
-            if (selection.changeAmount <= 0 || !KaspaMass.fitsStorageMass(inputAmounts, listOf(selection.changeAmount))) {
-                return Result.failure(IllegalStateException("Insufficient funds to cover the network fee"))
-            }
-            val rawTx = RawTransaction(
-                inputs = selection.selectedUtxos.map { RawInput(previousOutpoint = it.outpoint, signatureScript = "") },
-                outputs = listOf(
-                    RawOutputWithVersion(
-                        amount = selection.changeAmount,
-                        scriptPublicKey = ScriptPublicKeyWithVersion(scriptHex, 0),
-                    )
-                ),
-                gas = 0,
-                payload = payloadBytes.joinToString("") { "%02x".format(it) },
-            )
-            val signedTx = KaspaTransactionSigner.signTransaction(
-                rawTx = rawTx,
-                utxos = selection.selectedUtxos,
-                privateKey = signingPrivateKey,
-            )
-            return Result.success(
-                SignedPayloadTx(
-                    txId = com.kachat.app.util.KaspaTransactionId.compute(signedTx),
-                    transaction = signedTx,
-                    spentOutpoints = signedTx.inputs.map { outpointKey(it.previousOutpoint) },
-                )
-            )
-        } catch (e: Exception) {
-            Log.e("KaspaWalletEngine", "Could not build a scheduled transaction", e)
-            return Result.failure(e)
         }
     }
 

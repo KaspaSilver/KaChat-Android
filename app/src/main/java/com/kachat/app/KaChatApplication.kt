@@ -13,10 +13,8 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kachat.app.repository.GroupRepository
-import com.kachat.app.services.BroadcastScanningService
 import com.kachat.app.services.CrashRecorder
 import com.kachat.app.services.GroupScanningService
-import com.kachat.app.services.KaPostsNotificationPoller
 import com.kachat.app.services.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.Dispatchers
@@ -52,50 +50,28 @@ class KaChatApplication : Application(), Configuration.Provider {
         // [base], not `this`: inside attachBaseContext the Application's own applicationContext
         // is still null, and reading prefs through it crashed every launch.
         com.kachat.app.util.KaspaNetwork.init(base)
-        // The rooms the indexer tracks beyond the curated ones (iOS 21c480d): read by the
-        // scanner's prune and metered gate as soon as they start, so known before Hilt does.
-        com.kachat.app.services.IndexerTrackedRooms.init(base)
     }
 
     // @Singleton instances are otherwise only created lazily the first time something actually
-    // requests them — field-injecting this here forces it to exist from app startup, so its
-    // self-observing "start/stop scanning based on the setting" logic (see its init block) runs
-    // for the app's whole lifetime rather than only after the user happens to open a broadcast
-    // screen.
-    @Inject
-    lateinit var broadcastScanningService: dagger.Lazy<BroadcastScanningService>
-
-    // Same reasoning as broadcastScanningService above - forces GroupScanningService to exist
-    // from app startup so its group-count/pending-invite observers (see its init block) run for
-    // the app's whole lifetime, not just after a group chat screen happens to be opened.
+    // requests them — field-injecting this here forces GroupScanningService to exist from app
+    // startup so its group-count/pending-invite observers (see its init block) run for the app's
+    // whole lifetime, not just after a group chat screen happens to be opened.
     @Inject
     lateinit var groupScanningService: dagger.Lazy<GroupScanningService>
 
     // Same lazy-singleton reasoning again: PushRegistrationManager's init block observes the
-    // active account / contact set / broadcast bells / hidden senders / notifications setting and
+    // active account / contact set / silenced groups / notifications setting and
     // re-registers (or unregisters) the FCM token with the push service whenever any of it
     // changes. Field-injecting it here guarantees those observers run for the app's whole
     // lifetime, not just after the first screen that happens to request it.
     @Inject
     lateinit var pushRegistrationManager: dagger.Lazy<com.kachat.app.services.PushRegistrationManager>
 
-    // A scheduled KaPost holds the coins its signed transaction spends. Those coins must be off
-    // limits from the moment the app starts - not from whenever KaPosts happens to be opened -
-    // or an ordinary send could spend one underneath it and the post would be invalid when its
-    // time came. Field-injected (and loaded in onCreate) for exactly that reason.
-    @Inject
-    lateinit var kaPostsScheduledStore: dagger.Lazy<com.kachat.app.services.KaPostsScheduledStore>
-
     @Inject
     lateinit var nodePoolManager: dagger.Lazy<com.kachat.app.services.NodePoolManager>
 
     @Inject
     lateinit var groupRepository: dagger.Lazy<GroupRepository>
-
-    // Foreground-only KaPosts pings (started/stopped by the process lifecycle observer below) —
-    // while the app is closed, the push service is the only KaPosts notification source.
-    @Inject
-    lateinit var kaPostsNotificationPoller: dagger.Lazy<KaPostsNotificationPoller>
 
     // Address-activity notifications (external receipts on spending/cold addresses): per-wallet
     // baseline + diff engine, foreground poll + on-foreground catch-up. See its class doc.
@@ -122,11 +98,6 @@ class KaChatApplication : Application(), Configuration.Provider {
     // flag current.
     @Inject
     lateinit var notificationHelper: dagger.Lazy<com.kachat.app.services.NotificationHelper>
-
-    // Built at startup purely so its companion accessor is live: KaPost link cards render from
-    // several screens with different view models, and none of them owns this.
-    @Inject
-    lateinit var kaPostLinkPreviewService: dagger.Lazy<com.kachat.app.services.KaPostLinkPreviewService>
 
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
@@ -210,27 +181,28 @@ class KaChatApplication : Application(), Configuration.Provider {
         // The always-on services, built now exactly as field injection used to build them (same
         // order), each on its own so one failing cannot take the others - or the app - down.
         // Every one of them is reached again through its Lazy below, and from screens.
-        startupStep("broadcast scanning") { broadcastScanningService.get() }
         startupStep("group scanning") { groupScanningService.get() }
         startupStep("push registration") { pushRegistrationManager.get() }
-        startupStep("scheduled KaPosts") { kaPostsScheduledStore.get() }
         startupStep("node pool") { nodePoolManager.get() }
         startupStep("groups") { groupRepository.get() }
-        startupStep("KaPosts notifications") { kaPostsNotificationPoller.get() }
         startupStep("address activity") { addressActivityNotifier.get() }
         startupStep("Nextcloud sync") { nextcloudSyncService.get() }
         startupStep("settings") { appSettingsRepository.get() }
         startupStep("notifications") { notificationHelper.get() }
-        startupStep("KaPost link previews") { kaPostLinkPreviewService.get() }
         // The Address Book's companion is what every display name reads, and its own init
         // follows each wallet load - so it is still built here, at launch, only guarded.
         startupStep("Address Book") { addressBookManager.get() }
         startupStep("payment requests") { paymentRequestWallet.get() }
         startupStep("payment notices") { paymentNoticeOutbox.get() }
 
-        // Reserve the coins every still-waiting scheduled post is going to spend, before any
-        // send can pick them (see the field above).
-        startupStep("scheduled KaPosts reload") { kaPostsScheduledStore.get().reloadIfNeeded() }
+        // KaPosts, Public Chats and Chess Online left the app (iOS e2f6732): what they kept on
+        // this phone is deleted once, off the main thread.
+        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO + logOnly) {
+            startupStep("retired feature cleanup") {
+                com.kachat.app.services.RetiredFeatureCleanup.deleteLocalFiles(this@KaChatApplication)
+            }
+            appSettingsRepository.get().removeRetiredFeatureKeys()
+        }
 
         // The .kachat identity caches the display rules read (see the fields above). Every
         // network since iOS d36fc42 (`profilesEnabled`): mainnet has no registry yet, but address
@@ -263,7 +235,7 @@ class KaChatApplication : Application(), Configuration.Provider {
         // Background catch-up for GROUP chat only (see SyncWorker's doc comment): groups have no
         // remote push (the push registration is the LegacyV1 shape with no watched_group_ids), so
         // this 15-minute WorkManager cadence is their sole closed-app notification path. All
-        // push-covered surfaces (1:1 DMs, broadcasts, KaPosts) are delivered by FCM when the app
+        // push-covered surfaces (1:1 DMs) are delivered by FCM when the app
         // is backgrounded or killed. KEEP means re-registering on every app launch doesn't stack
         // duplicate periodic jobs.
         startupStep("group sync worker") {
@@ -290,25 +262,21 @@ class KaChatApplication : Application(), Configuration.Provider {
 
         // Foreground/background transitions. There is deliberately NO mechanism here keeping the
         // process alive while backgrounded: FCM push (see PushRegistrationManager) is the only
-        // delivery path for 1:1 DMs, broadcasts, and KaPosts once the app leaves the foreground,
+        // delivery path for 1:1 DMs once the app leaves the foreground,
         // so a push-delivery problem surfaces as missing notifications instead of being silently
         // masked by a background poller. The in-process pollers normally just freeze with the
         // process and resume on foreground; on battery-exempted devices where the process stays
         // alive, ChatRepository's poll loop and NodePoolManager's probe loop additionally pause
         // themselves while backgrounded with push active (see their gates) so an exempted
-        // process doesn't poll forever. The block-stream scanners gate themselves too: the
-        // group scanner runs only with at least one group, foregrounded, on an unmetered
-        // network (indexer catch-up + the 15-min SyncWorker cover the gaps), and the broadcast
-        // scanner drops to indexer-covered delivery on metered networks (see each service's
-        // class doc) — a full block stream is the app's single biggest data cost.
+        // process doesn't poll forever. The group block-stream scanner gates itself too: it runs
+        // only with at least one group, foregrounded, on an unmetered network (indexer catch-up +
+        // the 15-min SyncWorker cover the gaps; see its class doc) — a full block stream is the
+        // app's single biggest data cost.
         val foregroundObserver = object : DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
                 // Backgrounded: remote push takes over as the notification source for the
                 // push-covered surfaces — the local paths stop posting their own banners.
                 startupStep("notifications: background") { notificationHelper.get().setAppForeground(false) }
-                // In-app KaPosts pings are a foreground concern only — the push service covers
-                // KaPosts while backgrounded/closed.
-                startupStep("KaPosts notifications: stop") { kaPostsNotificationPoller.get().stop() }
                 startupStep("address activity: background") { addressActivityNotifier.get().onAppBackground() }
                 // Backgrounding is the natural "done chatting" moment — run the Nextcloud
                 // automatic sync then: a catch-up when the last upload is an hour old or the
@@ -325,8 +293,6 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // on screen is suppressed); a racing push for the same tx collapses via the
                 // txId dedupe inside NotificationHelper.
                 startupStep("notifications: foreground") { notificationHelper.get().setAppForeground(true) }
-                // KaPosts pings while the app is actually open (60s poll) — iOS parity.
-                startupStep("KaPosts notifications: start") { kaPostsNotificationPoller.get().start() }
                 // Immediate catch-up diff for address activity (external receipts while the app
                 // was closed, first-run silent baseline seeding), then its foreground poll loop.
                 startupStep("address activity: foreground") { addressActivityNotifier.get().onAppForeground() }

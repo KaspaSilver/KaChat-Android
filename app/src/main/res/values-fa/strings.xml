@@ -6,8 +6,6 @@
     <string name="photo_saved">عکس ذخیره شد</string>
     <string name="could_not_save_photo">عکس ذخیره نشد</string>
     <string name="withdrawal_failed">برداشت ناموفق بود</string>
-    <string name="consolidation_failed">ادغام ناموفق بود</string>
-    <string name="nothing_to_consolidate">چیزی برای ادغام وجود ندارد</string>
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">۱۲ کلمه</string>
@@ -31,15 +29,12 @@
     <string name="admin">مدیر</string>
     <string name="all_discovered_nodes_sorted_by_state">همه گره‌های کشف‌شده بر اساس وضعیت و تاخیر مرتب شده‌اند. گره‌های تکراری بر اساس host:port حذف می‌شوند.</string>
     <string name="amount_kas">مبلغ (KAS)</string>
-    <string name="anyone_who_joins_the_same_channel">هر کسی که به همان نام کانال بپیوندد می‌تواند پیام‌ها را آنجا ببیند و ارسال کند. مالک یا دعوتی وجود ندارد.</string>
     <string name="anyone_with_your_seed_phrase_can">هر کسی که عبارت بازیابی شما را داشته باشد می‌تواند به حساب شما دسترسی پیدا کند. هرگز آن را با کسی به اشتراک نگذارید. مطمئن شوید که فقط آن را یادداشت می‌کنید. هرگز از آن اسکرین‌شات نگیرید یا آن را در دستگاه خود ذخیره نکنید.</string>
     <string name="back">بازگشت</string>
     <string name="balance">موجودی</string>
     <string name="before_you_swap">قبل از تبدیل</string>
     <string name="broadcasting">در حال پخش...</string>
-    <string name="broadcasts">پخش‌ها</string>
     <string name="build_unsigned_transaction">ایجاد تراکنش امضانشده</string>
-    <string name="camera_permission_is_needed_to_scan">برای اسکن کد QR به دسترسی دوربین نیاز است</string>
     <string name="cancel">لغو</string>
     <string name="coin_control">کنترل سکه (Coin Control)</string>
     <string name="compound_utxos">ترکیب UTXOها</string>
@@ -71,7 +66,6 @@
     <string name="connection_settings">تنظیمات اتصال</string>
     <string name="connection_status">وضعیت اتصال</string>
     <string name="contact_has_requested_permission_to_communicate">مخاطب درخواست اجازه ارتباط داده است</string>
-    <string name="controls_how_much_photos_are_compressed">میزان فشرده‌سازی عکس‌ها قبل از ارسال را کنترل می‌کند. کیفیت بالاتر واضح‌تر به نظر می‌رسد اما کارمزد بیشتری دارد و ارسال آن طولانی‌تر است؛ کیفیت پایین‌تر سریع‌تر و ارزان‌تر ارسال می‌شود اما فشرده‌تر به نظر می‌رسد. این فقط بر عکس‌هایی که ارسال می‌کنید تأثیر می‌گذارد، نه آن‌هایی که دریافت می‌کنید.</string>
     <string name="copy">کپی</string>
     <string name="copy_address">کپی آدرس</string>
     <string name="copy_private_key_hex">کپی کلید خصوصی (Hex)</string>
@@ -108,14 +102,11 @@
     <string name="from">از</string>
     <string name="fund_your_chatting_address">آدرس گفتگوی خود را شارژ کنید</string>
     <string name="generate_account">تولید حساب</string>
-    <string name="grant_permission">اعطای مجوز</string>
-    <string name="grant_permission_2">اعطای مجوز</string>
     <string name="group_info">اطلاعات گروه</string>
     <string name="group_name_2">نام گروه</string>
     <string name="hidden_addresses">آدرس‌های پنهان</string>
     <string name="hidden_users">کاربران پنهان</string>
     <string name="holdings">دارایی‌ها</string>
-    <string name="how_long_messages_in_this_broadcast">مدت زمانی که پیام‌های این پخش در این دستگاه در حافظه پنهان می‌مانند، حداکثر تا 3 روز.</string>
     <string name="i_agree">موافقم</string>
     <string name="if_the_network_is_busy_a">اگر شبکه شلوغ باشد، کارمزد بالاتر می‌تواند به تأیید سریع‌تر تراکنش شما کمک کند.</string>
     <string name="import_action">وارد کردن</string>
@@ -127,39 +118,28 @@
     <string name="invalid_address_format">فرمت آدرس نامعتبر است</string>
     <string name="inscribe">ثبت کنید</string>
     <string name="inscribe_domain">ثبت دامنه</string>
-    <string name="inscribe_new_domain">دامنه جدید را ثبت کنید</string>
     <string name="it_s_ok_i_already_have">مشکلی نیست، من قبلاً یک دامنه دارم</string>
-    <string name="join">پیوستن</string>
-    <string name="join_or_create_a_channel">پیوستن به کانال یا ایجاد آن</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">دامنه‌های KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">لوگوی KaChat</string>
-    <string name="kachat_can_t_show_notifications_until">KaChat تا زمانی که اعلان‌ها را برای این برنامه مجاز نکنید نمی‌تواند اعلان‌ها را نمایش دهد.</string>
     <string name="kachat_needs_to_connect_to_a">KaChat باید به یک گره متصل شود. چگونه می‌خواهید متصل شوید؟</string>
     <string name="kaspa">کاسپا</string>
-    <string name="kaspa_address_or_kns_domain">آدرس Kaspa یا دامنه KNS</string>
     <string name="kaspa_explorer">کاوشگر کاسپا</string>
     <string name="label_optional">برچسب (اختیاری)</string>
     <string name="last_message">آخرین پیام</string>
-    <string name="leave">ترک کردن</string>
-    <string name="leave_delete">ترک کردن و حذف</string>
-    <string name="leaving_this_broadcast_permanently_deletes_every">ترک این پخش تمام پیام‌های ذخیره‌شده در حافظه پنهان آن روی این دستگاه را برای همیشه حذف می‌کند. این قابل بازگشت نیست؛ پیوستن دوباره بعداً بدون سابقه شروع می‌شود.</string>
     <string name="let_s_add_more_details_about">بیایید جزئیات بیشتری درباره شما اضافه کنیم</string>
     <string name="log_out">خروج</string>
-    <string name="longer_retention_means_more_messages_stay">نگهداری طولانی‌تر یعنی پیام‌های بیشتری در حافظه پنهان دستگاه شما باقی می‌مانند، که می‌تواند با گذشت زمان برنامه را کند کند، به‌خصوص برای اتاق‌های شلوغ.</string>
     <string name="manage_addresses">مدیریت آدرس‌ها</string>
     <string name="max">حداکثر</string>
     <string name="menu">منو</string>
     <string name="message">پیام</string>
-    <string name="message_retention_settings">تنظیمات نگهداری پیام</string>
     <string name="more_info">اطلاعات بیشتر</string>
     <string name="name">نام</string>
     <string name="name_this_address">نام‌گذاری این آدرس</string>
     <string name="network_fee">کارمزد شبکه</string>
     <string name="next">بعدی</string>
     <string name="no_conversations_yet">هنوز گفتگویی وجود ندارد</string>
-    <string name="no_cold_storage_accounts_yet_scan">هنوز هیچ حساب ذخیره سردی وجود ندارد. یک kpub صادرشده از دستگاه KasSigner خود را اسکن کنید تا موجودی آن را زیر نظر بگیرید و از آن ارسال کنید.</string>
     <string name="no_domains_yet">هنوز دامنه‌ای وجود ندارد.</string>
     <string name="send_domain">ارسال دامنه</string>
     <string name="asset_id">شناسه دارایی</string>
@@ -173,12 +153,10 @@
     <string name="no_saved_addresses">هیچ آدرس ذخیره‌شده‌ای وجود ندارد</string>
     <string name="no_swaps_yet">هنوز هیچ تبادلی وجود ندارد.</string>
     <string name="no_transactions_yet">هنوز هیچ تراکنشی وجود ندارد.</string>
-    <string name="no_transactions_yet_tap_to_add">هنوز هیچ تراکنشی وجود ندارد. برای افزودن اولین خرید یا فروش خود، روی + ضربه بزنید.</string>
     <string name="no_utxos">هیچ UTXOای وجود ندارد.</string>
     <string name="not_now">الان نه</string>
     <string name="notes_optional">یادداشت‌ها (اختیاری)</string>
     <string name="notifications">اعلان‌ها</string>
-    <string name="notifications_are_off_in_system_settings">اعلان‌ها در تنظیمات سیستم خاموش هستند</string>
     <string name="ok">تایید</string>
     <string name="only_notify_if_i_m_mentioned">فقط در صورت ذکر نام من مطلع شوم</string>
     <string name="open_settings">باز کردن تنظیمات</string>
@@ -218,8 +196,6 @@
     <string name="reserved_domain_no_registration_fee_only">دامنه رزرو شده: بدون هزینه ثبت، فقط کارمزد شبکه اعمال می‌شود.</string>
     <string name="resign">تسلیم شدن</string>
     <string name="resign_this_game">از این بازی کناره‌گیری شود؟</string>
-    <string name="resolving_domain">در حال تحلیل دامنه…</string>
-    <string name="retention">نگهداری</string>
     <string name="retry">تلاش مجدد</string>
     <string name="retry_inscription_reveal">تلاش مجدد برای رونمایی کتیبه</string>
     <string name="save">ذخیره</string>
@@ -237,7 +213,6 @@
     <string name="select_time">انتخاب زمان</string>
     <string name="select_all">انتخاب همه</string>
     <string name="select_chat">انتخاب گفتگو</string>
-    <string name="selected">انتخاب شد</string>
     <string name="send">ارسال</string>
     <string name="send_from_cold_storage">ارسال از ذخیره سرد</string>
     <string name="send_photo">ارسال عکس</string>
@@ -251,7 +226,6 @@
     <string name="some_changes_failed_to_save">برخی تغییرات ذخیره نشدند:</string>
     <string name="start_a_new_chat_by_adding">با افزودن یک مخاطب گفتگوی جدیدی شروع کنید</string>
     <string name="status">وضعیت</string>
-    <string name="still_indexing_it_ll_show_up">هنوز در حال نمایه‌سازی است. به‌زودی در بالا ظاهر می‌شود.</string>
     <string name="swap">تبدیل</string>
     <string name="swaps_are_processed_by_changenow_a">تبدیل‌ها توسط ChangeNOW، یک سرویس تبادل شخص ثالث، پردازش می‌شوند. با ادامه دادن، تأیید می‌کنید که شرایط خدمات مخصوص ChangeNOW را خوانده و پذیرفته‌اید. KaChat فقط درخواست تبدیل شما را ارسال کرده و وضعیت آن را نمایش می‌دهد؛ KaChat مسئول تبدیل‌های ناموفق، تأخیری یا گم‌شده نیست. اگر تبدیلی انجام نشد، مستقیماً با پشتیبانی ChangeNOW تماس بگیرید.</string>
     <string name="tap_an_address_below_to_swap">برای تبدیل از یک آدرس، روی آن در زیر ضربه بزنید</string>
@@ -265,8 +239,6 @@
     <string name="total_balance">موجودی کل</string>
     <string name="total_invested">مجموع سرمایه‌گذاری‌شده</string>
     <string name="total_p_l">سود و زیان کل</string>
-    <string name="transaction_history">تاریخچه تراکنش</string>
-    <string name="transaction_links_in_message_menus_and">پیوندهای تراکنش در منوهای پیام و صفحات تاریخچه تراکنش در این کاوشگر باز می‌شوند.</string>
     <string name="transactions">تراکنش‌ها</string>
     <string name="try_again">تلاش مجدد</string>
     <string name="unhide">لغو پنهان‌سازی</string>
@@ -275,9 +247,7 @@
     <string name="use_default">استفاده از پیش‌فرض</string>
     <string name="utxos">UTXOها</string>
     <string name="valid_address">آدرس معتبر</string>
-    <string name="waiting_for_camera">در انتظار دوربین...</string>
     <string name="waiting_on_opponent">در انتظار حریف</string>
-    <string name="channel_name">نام-کانال</string>
     <string name="host_port_or_grpcs_host">host:port یا grpcs://host</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
@@ -308,7 +278,6 @@
     <string name="created">ایجاد شده</string>
     <string name="customization">شخصی‌سازی</string>
     <string name="danger_zone">منطقه خطر</string>
-    <string name="dark_mode">حالت تاریک</string>
     <string name="diagnostics">تشخیص‌ها</string>
     <string name="discord">Discord</string>
     <string name="discover_addresses">کشف آدرس‌ها</string>
@@ -316,7 +285,6 @@
     <string name="email">ایمیل</string>
     <string name="explorer">کاوشگر</string>
     <string name="export_csv">صدور CSV</string>
-    <string name="exports_a_plaintext_json_file_of">یک فایل JSON با متن ساده از تاریخچه گفتگوی رمزگشایی‌شده شما برای این حساب صادر می‌کند. رمزگذاری نشده است، بنابراین آن را فقط در جایی که به آن اعتماد دارید به اشتراک بگذارید. وارد کردن با تاریخچه موجود شما ادغام می‌شود بدون اینکه چیزی را بازنویسی کند.</string>
     <string name="exports_app_device_info_connection_settings">اطلاعات برنامه/دستگاه، تنظیمات اتصال، تعداد پیام‌های محلی و گزارش‌های اخیر برنامه را به‌صورت فایل فشرده صادر می‌کند - برای عیب‌یابی با پشتیبانی. هیچ کلید خصوصی، عبارت بازیابی یا محتوای پیام رمزگشایی‌شده‌ای گنجانده نمی‌شود.</string>
     <string name="generate_more_addresses">ایجاد آدرس‌های بیشتر</string>
     <string name="generate_new_spending_address">ایجاد آدرس خرج کردن جدید</string>
@@ -327,7 +295,6 @@
     <string name="indexer">نمایه‌ساز</string>
     <string name="info">اطلاعات</string>
     <string name="kns_profile">نمایه KNS</string>
-    <string name="kachat_indexer">ایندکسر KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">گره کاسپا</string>
     <string name="default_recommended">پیش‌فرض (توصیه‌شده)</string>
@@ -353,8 +320,6 @@
     <string name="save_your_own_node_addresses_here">آدرس‌های گره خود را اینجا ذخیره کنید، سپس روی یکی ضربه بزنید تا آن را کپی کرده و در فیلد گره کاسپا در بالا بچسبانید.</string>
     <string name="security">امنیت</string>
     <string name="send_handshake">ارسال درخواست ارتباط</string>
-    <string name="send_photo_2">ارسال عکس</string>
-    <string name="setup_guide">راهنمای راه‌اندازی</string>
     <string name="show_fee_estimate">نمایش برآورد کارمزد</string>
     <string name="sound_vibration">صدا و لرزش</string>
     <string name="storage">فضای ذخیره‌سازی</string>
@@ -367,7 +332,6 @@
     <string name="total">کل</string>
     <string name="verified">تایید شده</string>
     <string name="verifying_new_ownership_on_chain_this">در حال تأیید مالکیت جدید در زنجیره (ممکن است یک دقیقه طول بکشد)...</string>
-    <string name="verifying_on_chain_this_can_take">در حال تأیید در زنجیره (ممکن است یک دقیقه طول بکشد)...</string>
     <string name="verifying_on_chain_this_could_take">در حال تأیید در زنجیره... این ممکن است چند دقیقه طول بکشد.</string>
     <string name="version">نسخه</string>
     <string name="vibration">لرزش</string>
@@ -404,11 +368,6 @@
     <string name="user_info">اطلاعات کاربر</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">اشتراک‌گذاری</string>
-    <string name="translate">ترجمه</string>
-    <string name="show_original">نمایش متن اصلی</string>
-    <string name="show_translation">نمایش ترجمه</string>
-    <string name="translation_show_original_subtitle">بازگشت به متن همان‌طور که فرستاده شد.</string>
-    <string name="translation_show_translation_subtitle">دوباره متن ترجمه‌شده.</string>
     <string name="mark_as_unread">علامت‌گذاری به‌عنوان خوانده‌نشده</string>
     <string name="mark_as_read">علامت‌گذاری به‌عنوان خوانده‌شده</string>
     <string name="copy_link">کپی پیوند</string>
@@ -429,7 +388,6 @@
     <string name="kachat_names_are_coming">نام‌های .kachat به‌زودی می‌آیند</string>
     <string name="kachat_names_coming_body">نام‌های اختصاصی KaChat اینجا خواهند بود: یکی بگیرید، آن را نام خود در گفتگوها کنید و به‌عنوان پیوند نمایه به اشتراک بگذارید.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
-    <string name="no_domain_found">دامنه‌ای پیدا نشد</string>
     <string name="no_tld_domain_found">دامنه %1$s پیدا نشد</string>
     <string name="looking_up_domain">در حال یافتن دامنه...</string>
     <string name="no_domain">بدون دامنه</string>
@@ -438,12 +396,9 @@
     <string name="couldnt_check">بررسی ممکن نشد</string>
     <string name="kaspa_address_or_domain">آدرس Kaspa یا دامنه</string>
     <!-- Public Chats select (iOS e08c4cc) -->
-    <string name="default_room_delete_subtitle">این اتاق پیش‌فرض را خاموش می‌کند. در تنظیمات گفتگوهای عمومی دوباره روشنش کنید.</string>
-    <string name="default_room_switched_off">#%1$s خاموش است - در تنظیمات گفتگوهای عمومی دوباره روشنش کنید</string>
     <!-- Connection Settings tabs (iOS ee01f81) -->
     <string name="connection_tab_indexer">نمایه‌ساز</string>
     <string name="connection_tab_node">گره</string>
-    <string name="connection_tab_translation">ترجمه</string>
     <string name="connection_tab_domains">دامنه‌ها</string>
     <string name="connection_tab_explorer">کاوشگر</string>
     <string name="message_indexer">نمایه‌ساز پیام</string>
@@ -470,48 +425,6 @@
     <string name="km_trustless_detail">بدون واسطه و بدون حساب امانی: قوانین خود Kaspa هر فروش را تضمین می‌کنند.</string>
     <string name="km_nothing_live">هنوز هیچ‌چیز اینجا فعال نیست.</string>
     <string name="km_how_kachat_works">.kachat چگونه کار می‌کند</string>
-    <string name="ks_title">آمار KaChat</string>
-    <string name="ks_dock_label">آمار</string>
-    <string name="ks_what_counts">چه چیزهایی شمرده می‌شود</string>
-    <string name="ks_range_day">۲۴ ساعت</string>
-    <string name="ks_range_week">۷ روز</string>
-    <string name="ks_range_all">همه زمان‌ها</string>
-    <string name="ks_caption_day">تراکنش‌های KaChat در ۲۴ ساعت گذشته</string>
-    <string name="ks_caption_week">تراکنش‌های KaChat در ۷ روز گذشته</string>
-    <string name="ks_caption_all">تراکنش‌های KaChat روی Kaspa، در همه زمان‌ها</string>
-    <string name="ks_messages">پیام‌های مستقیم</string>
-    <string name="ks_handshakes">گفتگوهای جدید</string>
-    <string name="ks_payments">پرداخت‌ها</string>
-    <string name="ks_group_messages">پیام‌های گروهی</string>
-    <string name="ks_group_updates">تغییرات گروه</string>
-    <string name="ks_public_chats">گفتگوهای عمومی</string>
-    <string name="ks_kapost_actions">فعالیت KaPost</string>
-    <string name="ks_chess_moves">حرکت‌های شطرنج</string>
-    <string name="ks_chess_games">بازی‌های شطرنج</string>
-    <string name="ks_self_stash">سوابق ذخیره‌شده</string>
-    <string name="ks_messages_detail">متن‌های ۱:۱، پیام‌های صوتی، واکنش‌ها و شطرنج ۱:۱</string>
-    <string name="ks_handshakes_detail">دست‌دادن‌هایی که گفتگوی ۱:۱ را شروع می‌کنند</string>
-    <string name="ks_payments_detail">KAS ارسال‌شده در گفتگوها</string>
-    <string name="ks_group_messages_detail">پیام‌ها در گفتگوهای گروهی</string>
-    <string name="ks_group_updates_detail">ساخت گروه، دعوت‌ها و تغییرات دیگر</string>
-    <string name="ks_public_chats_detail">پیام‌ها در اتاق‌های عمومی</string>
-    <string name="ks_kaposts_detail">پست‌ها، پاسخ‌ها، نقل‌قول‌ها و نظرسنجی‌ها</string>
-    <string name="ks_kapost_actions_detail">رأی‌ها، دنبال‌کردن‌ها، ویرایش‌ها و حذف‌ها</string>
-    <string name="ks_chess_moves_detail">حرکت‌های انجام‌شده در Chess Online</string>
-    <string name="ks_chess_games_detail">بازی‌های شروع‌شده در Chess Online</string>
-    <string name="ks_self_stash_detail">کلیدهای گفتگو و یادداشت‌های مخاطب ذخیره‌شده در حساب خودتان</string>
-    <string name="ks_no_indexer">برای این شبکه ایندکسری تنظیم نشده است</string>
-    <string name="ks_no_indexer_body">برای دیدن آمار KaChat یکی را در تنظیمات > تنظیمات اتصال اضافه کنید.</string>
-    <string name="ks_unavailable">آمار هنوز در دسترس نیست</string>
-    <string name="ks_unavailable_body">ایندکسر شما هنوز آمار KaChat را ارائه نمی‌دهد. به محض ارائه، اینجا نمایش داده می‌شود.</string>
-    <string name="ks_stale">به‌روزرسانی ناموفق بود. آخرین اعداد نمایش داده می‌شوند.</string>
-    <string name="ks_updated">به‌روزرسانی %1$s</string>
-    <string name="ks_counting_since">شمارش از %1$s</string>
-    <string name="ks_info_header">هر کار در KaChat یک تراکنش جداگانه Kaspa است. این مجموع‌ها از ایندکسر KaChat می‌آیند که آنچه را روی زنجیره دیده می‌شمارد - هیچ چیزی از گوشی شما خوانده نمی‌شود.</string>
-    <string name="ks_info_footer">پیام‌های ۱:۱ رمزگذاری شده‌اند، پس پیام‌های صوتی، واکنش‌ها و حرکت‌های شطرنج ۱:۱ پیام مستقیم شمرده می‌شوند: هیچ‌کس، حتی ایندکسر، نمی‌تواند آن‌ها را از هم تشخیص دهد.</string>
-    <string name="ks_all_time_only">فقط کل زمان</string>
-    <string name="ks_all_time_only_note">انواعی که «فقط کل زمان» دارند هنوز در این مجموع نیستند.</string>
-    <string name="ks_try_again">تلاش مجدد</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">نام ‎.kachat خود را بگیرید</string>
     <string name="kg_claim_body">این نامی است که دیگران شما را در سراسر KaChat با آن می‌بینند - در گفتگوها، پست‌ها و پیوند نمایه‌تان. بدون آن، نشانی شما دیده می‌شود.</string>
@@ -616,8 +529,6 @@
     <string name="testnet">تست‌نت</string>
     <string name="testnet_restart_to_testnet">برای تکمیل تغییر به تست‌نت، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
     <string name="testnet_restart_to_mainnet">برای تکمیل بازگشت به شبکه اصلی، KaChat را کاملاً ببندید و دوباره باز کنید.</string>
-    <string name="kaposts_not_on_testnet">KaPosts هنوز در شبکه آزمایشی در دسترس نیست</string>
-    <string name="kaposts_not_on_testnet_sub">برای شبکه آزمایشی هیچ ایندکسر KaPost وجود ندارد. برای خواندن و ارسال در شبکه اصلی، شبکه آزمایشی را در تنظیمات > اتصال خاموش کنید.</string>
     <string name="nextcloud_off_on_testnet">تا وقتی شبکه آزمایشی روشن است، Nextcloud خاموش است.</string>
     <string name="nextcloud_off_on_testnet_footer">پشتیبان‌گیری، همگام‌سازی، رسانه و تماس از طریق Nextcloud فقط در شبکه اصلی کار می‌کند، تا شبکه آزمایشی هرگز نسخه پشتیبان شبکه اصلی شما را بازنویسی نکند. شبکه آزمایشی را در تنظیمات > اتصال خاموش کنید تا اتصال Nextcloud شما همان‌طور که بود برگردد.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
@@ -672,7 +583,6 @@
     <string name="kn_accept_warning">نام به خریدار می‌رسد و مبلغ پیشنهاد به شما، در یک تراکنش. این کار برگشت‌پذیر نیست.</string>
     <string name="kn_buyer">خریدار</string>
     <string name="kn_price_to_miners">قیمت (به ماینرها)</string>
-    <string name="kn_years">سال‌ها</string>
     <string name="kn_bond_returned">وثیقه (هنگام رهاسازی برمی‌گردد)</string>
     <string name="kn_deposit_returned">سپردهٔ رجیستری (هنگام رهاسازی برمی‌گردد)</string>
     <string name="kn_commit_returned">کامیت (هنگام ثبت برمی‌گردد)</string>
@@ -852,11 +762,8 @@
     <string name="chats_new">جدید</string>
     <string name="chats_new_chat">گفتگوی جدید</string>
     <string name="chats_new_group_chat">گفتگوی گروهی جدید</string>
-    <string name="chats_new_public_chat">گفتگوی عمومی جدید</string>
-    <string name="chats_fund_chatting_address">شارژ آدرس گفتگو</string>
     <string name="chats_new_chat_subtitle">با آدرس یا نام به کسی پیام دهید.</string>
     <string name="chats_new_group_subtitle">یک گروه رمزگذاری‌شده با چند نفر بسازید.</string>
-    <string name="chats_new_public_subtitle">به یک اتاق عمومی بپیوندید یا یکی بسازید.</string>
     <string name="chats_fund_subtitle">کد QR را برای افزودن Kaspa جهت ارسال پیام نشان می‌دهد.</string>
     <string name="chats_receive_subtitle">یک آدرس تازه برای دریافت پول نشان می‌دهد.</string>
     <string name="qr_receive_address_subtitle">یک آدرس تازه که هرگز استفاده نشده است. Kaspa ارسال‌شده به اینجا وارد این حساب می‌شود و در موجودی قابل خرج شما نمایش داده می‌شود. از این آدرس برای هر چیزی که به گفتگو یا دامنه مربوط نیست استفاده کنید.</string>
@@ -888,7 +795,6 @@
     <string name="chats_circle_unpin_hint">بر اساس آخرین فعالیت به جای خود برمی‌گردد.</string>
     <string name="chats_circle_pin_hint">در ردیف بالای گفتگوهایتان اول می‌ماند.</string>
     <string name="chats_circle_hold_for_options">برای گزینه‌ها نگه دارید</string>
-    <string name="delete_room_title">اتاق حذف شود؟</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">این آدرس دیگر در این کیف پول نیست.</string>
     <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
@@ -993,18 +899,7 @@
     <string name="kn_claiming_name">در حال دریافت %1$s</string>
     <string name="kn_keep_open_claiming">KaChat را باز نگه دارید: نام حدود یک دقیقه پس از تأیید تعهد پنهان ثبت می‌شود. اگر خارج شوید، هنگام بازگشت از همان‌جا ادامه می‌یابد.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
-    <string name="kaposts_tip_title">انعام</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
-    <string name="ks_kachat_registrations">نام‌های ثبت‌شده</string>
-    <string name="ks_kachat_renewals">تمدید نام‌ها</string>
-    <string name="ks_kachat_sales">فروش نام‌ها</string>
-    <string name="ks_kachat_offers">پیشنهادهای نام</string>
-    <string name="ks_kachat_activity">فعالیت نام‌ها</string>
-    <string name="ks_kachat_registrations_detail">نام‌های .kachat ثبت‌شده</string>
-    <string name="ks_kachat_renewals_detail">نام‌های .kachat افزایش‌یافته یا تمدیدشده</string>
-    <string name="ks_kachat_sales_detail">نام‌های .kachat خریده‌شده از آگهی یا با پیشنهاد پذیرفته‌شده</string>
-    <string name="ks_kachat_offers_detail">پیشنهادهای داده‌شده برای نام‌های .kachat</string>
-    <string name="ks_kachat_activity_detail">آگهی‌ها، انتقال‌ها، رهاسازی‌ها، بازپس‌گیری‌ها و پیشنهادهای برگشتی</string>
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
     <string name="create_wallet_name_title">یک نام برای کیف پول خود بسازید</string>
     <string name="create_wallet_name_detail">این نام فقط روی همین دستگاه ذخیره می‌شود تا کیف پول‌هایتان را از هم تشخیص دهید. هیچ‌کس دیگری هرگز آن را نمی‌بیند.</string>
@@ -1014,7 +909,6 @@
     <string name="write_down_your_seed_phrase">عبارت بازیابی خود را یادداشت کنید</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">این را در جای امنی نگهداری کنید. هر کسی با این کلمات می‌تواند به حسابتان دسترسی پیدا کند.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
-    <string name="kaposts_retry">تلاش دوباره</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">کارمزد: -------- KAS</string>
     <string name="composer_fee_unknown">کارمزد: -- KAS</string>
@@ -1202,7 +1096,6 @@
     <string name="kn_transfer_placeholder_domain">kaspatest:... یا دامنه</string>
     <string name="kn_err_enter_address_or_domain">یک نشانی یا دامنه وارد کنید.</string>
     <string name="kn_err_name_address_cant_own">نشانی این نام نمی‌تواند مالک یک نام .kachat باشد.</string>
-    <string name="kn_err_no_domain_by_name">دامنه‌ای با این نام پیدا نشد.</string>
     <string name="kachat_names_resolved_first_footer">هرجا که بتوانید نشانی وارد کنید، ابتدا این‌ها بررسی می‌شوند.</string>
     <string name="other_domains_title">دامنه‌های دیگر</string>
     <string name="other_domains_settings_footer">بعد از .kachat جست‌وجو می‌شوند و اگر نام واردشده آنجا هم باشد، زیر «دامنه‌های دیگر» نمایش داده می‌شوند.</string>
@@ -1354,29 +1247,12 @@
     <string name="customize_dock_move_to">انتقال %1$s به %2$s</string>
     <string name="customize_dock_add">افزودن %1$s به داک</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
-    <string name="kaposts_tips">انعام‌ها</string>
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
-    <string name="kaposts_likes">پسندها</string>
-    <string name="kaposts_dislikes">نپسندیدن‌ها</string>
-    <string name="kaposts_reposts">بازنشرها</string>
-    <string name="kaposts_quotes">نقل‌قول‌ها</string>
-    <string name="kaposts_no_tips_yet">هنوز انعامی نیست.</string>
-    <string name="kaposts_who_tipped">چه کسانی به این پست انعام دادند</string>
-    <string name="kaposts_bell_on_note">از این پس وقتی %1$s پست بگذارد به شما اطلاع داده می‌شود.</string>
-    <string name="kaposts_bell_off_note">دیگر درباره پست‌های %1$s به شما اطلاع داده نمی‌شود.</string>
-    <string name="kaposts_bell_stop">خاموش کردن اعلان پست‌ها</string>
-    <string name="kaposts_bell_notify">وقتی پست گذاشت خبرم کن</string>
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">برای شما %1$s KAS فرستاد</string>
     <string name="push_sent_you_payment">برای شما پرداختی فرستاد</string>
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
-    <string name="kn_fees">کارمزدها</string>
-    <string name="ks_kachat_domains">دامنه‌های ‎.kachat</string>
-    <string name="ks_kachat_transactions">تراکنش‌ها در رجیستری ‎.kachat</string>
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
-    <string name="ks_kachat_fees_detail">پرداخت‌شده برای ثبت‌ها و تمدیدها</string>
-    <string name="ks_fees_unavailable">کارمزدها هنوز در دسترس نیستند</string>
-    <string name="ks_fees_unavailable_body">ایندکسر شما هنوز آن‌ها را گزارش نمی‌کند. وقتی گزارش کند اینجا نمایش داده می‌شوند.</string>
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">هیچ حساب ذخیره سردی وجود ندارد</string>
     <string name="cold_storage_empty_body">یک kpub صادرشده از دستگاه KasSigner خود را اسکن یا بچسبانید تا موجودی آن را زیر نظر بگیرید.</string>
@@ -1411,13 +1287,4 @@
     <string name="non_quantum_addresses">آدرس‌های غیرکوانتومی</string>
     <string name="addresses_shown_count">%1$d از %2$d نمایش داده شده</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
-    <string name="chess_leaderboard_this_month">این ماه</string>
-    <string name="chess_leaderboard_all_time">همه زمان‌ها</string>
-    <string name="chess_leaderboard_period">دوره جدول امتیازات</string>
-    <string name="chess_leaderboard_resets_monthly">اول هر ماه بازنشانی می‌شود (UTC).</string>
-    <string name="chess_leaderboard_counted_from">شمارش از %1$s.</string>
-    <string name="chess_no_finished_duels_this_month">هنوز بازی 1v1 تمام‌شده‌ای در این ماه نیست.</string>
-    <string name="chess_no_finished_duels">هنوز بازی 1v1 تمام‌شده‌ای نیست.</string>
-    <string name="chess_no_finished_tournaments_this_month">هنوز تورنمنت تمام‌شده‌ای در این ماه نیست.</string>
-    <string name="chess_no_finished_tournaments">هنوز تورنمنت تمام‌شده‌ای نیست.</string>
 </resources>

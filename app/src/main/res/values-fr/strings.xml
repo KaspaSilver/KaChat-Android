@@ -19,14 +19,11 @@
     <string name="admin">Administrateur</string>
     <string name="all_discovered_nodes_sorted_by_state">Tous les nœuds découverts et triés par état et latence. Les nœuds sont dé-dupliqués par host:port.</string>
     <string name="amount_kas">Montant (KAS)</string>
-    <string name="anyone_who_joins_the_same_channel">Toute personne qui rejoint le meme nom de canal peut voir et publier des messages ici. Il n\'y a ni proprietaire ni invitation.</string>
     <string name="anyone_with_your_seed_phrase_can">Toute personne disposant de votre phrase de recuperation peut acceder a votre compte. Ne la partagez jamais avec qui que ce soit. Notez-la uniquement par ecrit. Ne prenez jamais de capture d\'ecran et ne la stockez pas sur votre appareil.</string>
     <string name="back">Retour</string>
     <string name="before_you_swap">Avant d\'echanger</string>
     <string name="broadcasting">Diffusion en cours...</string>
-    <string name="broadcasts">Diffusions</string>
     <string name="build_unsigned_transaction">Construire une transaction non signee</string>
-    <string name="camera_permission_is_needed_to_scan">L\'acces a la camera est necessaire pour scanner un code QR</string>
     <string name="cancel">Annuler</string>
     <string name="cancel_photo">Annuler la photo</string>
     <string name="cancel_recording">Annuler l\'enregistrement</string>
@@ -52,7 +49,6 @@
     <string name="connection_settings">Paramètres de connexion</string>
     <string name="connection_status">Etat de la connexion</string>
     <string name="contact_has_requested_permission_to_communicate">Le contact a demandé la permission de communiquer</string>
-    <string name="controls_how_much_photos_are_compressed">Controle la compression des photos avant leur envoi. Une qualite plus elevee est plus nette mais coute des frais plus eleves et met plus de temps a s\'envoyer; une qualite plus basse s\'envoie plus vite et moins cher mais parait plus compressee. Cela n\'affecte que les photos que vous envoyez, pas celles que vous recevez.</string>
     <string name="copy">Copier</string>
     <string name="copy_address">Copier l\'adresse</string>
     <string name="copy_private_key_hex">Copier la clé privée (Hex)</string>
@@ -88,14 +84,11 @@
     <string name="from">De</string>
     <string name="fund_your_chatting_address">Financez votre adresse de discussion</string>
     <string name="generate_account">Générer un compte</string>
-    <string name="grant_permission">Accorder l\'autorisation</string>
-    <string name="grant_permission_2">Accorder l\'autorisation</string>
     <string name="group_info">Infos du groupe</string>
     <string name="group_name_2">Nom du groupe</string>
     <string name="hidden_addresses">Adresses masquees</string>
     <string name="hidden_users">Utilisateurs masques</string>
     <string name="holdings">Avoirs</string>
-    <string name="how_long_messages_in_this_broadcast">Duree pendant laquelle les messages de cette diffusion restent en cache sur cet appareil, jusqu\'a un maximum de 3 jours.</string>
     <string name="i_agree">J\'accepte</string>
     <string name="if_the_network_is_busy_a">Si le reseau est charge, des frais plus eleves peuvent aider votre transaction a se confirmer plus vite.</string>
     <string name="import_action">Importer</string>
@@ -106,38 +99,27 @@
     <string name="incoming_notifications">Notifications</string>
     <string name="inscribe">Inscrire</string>
     <string name="inscribe_domain">Inscrire un domaine</string>
-    <string name="inscribe_new_domain">Inscrire un nouveau domaine</string>
     <string name="it_s_ok_i_already_have">C\'est bon, j\'ai deja un domaine</string>
-    <string name="join">Rejoindre</string>
-    <string name="join_or_create_a_channel">Rejoindre ou creer un canal</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Domaines KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">Logo KaChat</string>
-    <string name="kachat_can_t_show_notifications_until">KaChat ne peut pas afficher de notifications tant que vous ne les avez pas autorisees pour cette application.</string>
     <string name="kachat_needs_to_connect_to_a">KaChat doit se connecter a un nœud. Comment souhaitez-vous vous connecter ?</string>
     <string name="kaspa">Kaspa</string>
-    <string name="kaspa_address_or_kns_domain">Adresse Kaspa ou domaine KNS</string>
     <string name="kaspa_explorer">Explorateur Kaspa</string>
     <string name="label_optional">Etiquette (optionnel)</string>
     <string name="last_message">Dernier message</string>
-    <string name="leave">Quitter</string>
-    <string name="leave_delete">Quitter et supprimer</string>
-    <string name="leaving_this_broadcast_permanently_deletes_every">Quitter cette diffusion supprime definitivement chaque message mis en cache pour elle sur cet appareil. Cela ne peut pas etre annule; la rejoindre plus tard recommence sans historique.</string>
     <string name="let_s_add_more_details_about">Ajoutons plus de details sur vous</string>
     <string name="log_out">Déconnexion</string>
-    <string name="longer_retention_means_more_messages_stay">Une retention plus longue signifie que plus de messages restent en cache sur votre appareil, ce qui peut ralentir l\'application avec le temps, surtout pour les salons tres actifs.</string>
     <string name="manage_addresses">Gerer les adresses</string>
     <string name="max">Max</string>
     <string name="menu">Menu</string>
     <string name="message">Message</string>
-    <string name="message_retention_settings">Parametres de retention des messages</string>
     <string name="more_info">Plus d\'infos</string>
     <string name="name">Nom</string>
     <string name="name_this_address">Nommer cette adresse</string>
     <string name="next">Suivant</string>
     <string name="no_conversations_yet">Aucune conversation pour le moment</string>
-    <string name="no_cold_storage_accounts_yet_scan">Aucun compte de stockage a froid pour l\'instant. Scannez une kpub exportee depuis votre appareil KasSigner pour surveiller son solde et y envoyer des fonds.</string>
     <string name="no_domains_yet">Aucun domaine pour l\'instant.</string>
     <string name="no_hidden_addresses">Aucune adresse masquee.</string>
     <string name="no_hidden_users_in_this_group">Aucun utilisateur masque dans ce groupe.</string>
@@ -145,11 +127,9 @@
     <string name="no_saved_addresses">Aucune adresse enregistree</string>
     <string name="no_swaps_yet">Aucun echange pour l\'instant.</string>
     <string name="no_transactions_yet">Aucune transaction pour l\'instant.</string>
-    <string name="no_transactions_yet_tap_to_add">Aucune transaction pour l\'instant. Touchez + pour ajouter votre premier achat ou vente.</string>
     <string name="not_now">Pas maintenant</string>
     <string name="notes_optional">Notes (optionnel)</string>
     <string name="notifications">Notifications</string>
-    <string name="notifications_are_off_in_system_settings">Les notifications sont desactivees dans les parametres systeme</string>
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">Ne notifier que si je suis mentionne</string>
     <string name="open_settings">Ouvrir les réglages</string>
@@ -186,8 +166,6 @@
     <string name="reserved_domain_no_registration_fee_only">Domaine reserve : aucuns frais d\'enregistrement, seuls les frais de reseau s\'appliquent.</string>
     <string name="resign">Abandonner</string>
     <string name="resign_this_game">Abandonner cette partie ?</string>
-    <string name="resolving_domain">Resolution du domaine…</string>
-    <string name="retention">Retention</string>
     <string name="retry">Reessayer</string>
     <string name="retry_inscription_reveal">Reessayer la revelation de l\'inscription</string>
     <string name="save">Enregistrer</string>
@@ -217,7 +195,6 @@
     <string name="some_changes_failed_to_save">Certaines modifications n\'ont pas pu etre enregistrees :</string>
     <string name="start_a_new_chat_by_adding">Démarrez une nouvelle discussion en ajoutant un contact</string>
     <string name="status">Statut</string>
-    <string name="still_indexing_it_ll_show_up">Indexation en cours. Cela apparaitra ci-dessus sous peu.</string>
     <string name="swap">Echanger</string>
     <string name="swaps_are_processed_by_changenow_a">Les echanges sont traites par ChangeNOW, un service tiers. En continuant, vous confirmez avoir lu et accepte les propres Conditions d\'utilisation de ChangeNOW. KaChat ne fait que soumettre votre demande d\'echange et afficher son statut; KaChat n\'est pas responsable des echanges echoues, retardes ou perdus. Si un echange n\'aboutit pas, contactez directement le support ChangeNOW.</string>
     <string name="tap_an_address_below_to_swap">Touchez une adresse ci-dessous pour echanger depuis celle-ci</string>
@@ -231,17 +208,13 @@
     <string name="total_balance">Solde total</string>
     <string name="total_invested">Total investi</string>
     <string name="total_p_l">P&amp;L total</string>
-    <string name="transaction_history">Historique des transactions</string>
-    <string name="transaction_links_in_message_menus_and">Les liens de transaction dans les menus de messages et les pages d\'historique des transactions s\'ouvrent dans cet explorateur.</string>
     <string name="transactions">Transactions</string>
     <string name="try_again">Reessayer</string>
     <string name="unhide">Ne plus masquer</string>
     <string name="unread">Non lu</string>
     <string name="use_default">Utiliser par defaut</string>
     <string name="valid_address">Adresse valide</string>
-    <string name="waiting_for_camera">En attente de la camera...</string>
     <string name="waiting_on_opponent">En attente de l\'adversaire</string>
-    <string name="channel_name">nom-du-canal</string>
     <string name="host_port_or_grpcs_host">hote:port ou grpcs://hote</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
@@ -253,8 +226,6 @@
     <string name="photo_saved">Photo enregistree</string>
     <string name="could_not_save_photo">Impossible d\'enregistrer la photo</string>
     <string name="withdrawal_failed">Echec du retrait</string>
-    <string name="consolidation_failed">Echec de la consolidation</string>
-    <string name="nothing_to_consolidate">Rien a consolider</string>
     <string name="about">À propos</string>
     <string name="actions">Actions</string>
     <string name="active">Actif</string>
@@ -274,7 +245,6 @@
     <string name="created">Date de création</string>
     <string name="customization">Personnalisation</string>
     <string name="danger_zone">Zone de danger</string>
-    <string name="dark_mode">Mode sombre</string>
     <string name="diagnostics">Diagnostics</string>
     <string name="discord">Discord</string>
     <string name="discover_addresses">Decouvrir des adresses</string>
@@ -282,7 +252,6 @@
     <string name="email">E-mail</string>
     <string name="explorer">Explorateur</string>
     <string name="export_csv">Exporter en CSV</string>
-    <string name="exports_a_plaintext_json_file_of">Exporte un fichier JSON en texte brut de votre historique de discussion dechiffre pour ce compte. Il n\'est pas chiffre, alors ne le partagez que dans un endroit de confiance. L\'importation fusionne avec votre historique existant sans rien ecraser.</string>
     <string name="exports_app_device_info_connection_settings">Exporte les infos de l\'app/appareil, les parametres de connexion, le nombre de messages locaux et les journaux recents de l\'app dans un zip pour le depannage avec le support. Aucune cle privee, phrase de recuperation ou contenu de message dechiffre n\'est inclus.</string>
     <string name="generate_more_addresses">Generer plus d\'adresses</string>
     <string name="generate_new_spending_address">Generer une nouvelle adresse de depense</string>
@@ -293,7 +262,6 @@
     <string name="indexer">Indexeur</string>
     <string name="info">Info</string>
     <string name="kns_profile">Profil KNS</string>
-    <string name="kachat_indexer">Indexeur KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">Nœud Kaspa</string>
     <string name="last_sync">Dernière synchronisation</string>
@@ -316,8 +284,6 @@
     <string name="save_your_own_node_addresses_here">Enregistrez ici vos propres adresses de nœuds, puis touchez-en une pour la copier et la coller dans le champ Nœud Kaspa ci-dessus.</string>
     <string name="security">Securite</string>
     <string name="send_handshake">Envoyer une demande de communication</string>
-    <string name="send_photo_2">Envoyer une photo</string>
-    <string name="setup_guide">Guide de configuration</string>
     <string name="show_fee_estimate">Afficher l\'estimation des frais</string>
     <string name="sound_vibration">Son et vibration</string>
     <string name="storage">Stockage</string>
@@ -330,7 +296,6 @@
     <string name="total">Total</string>
     <string name="verified">Vérifié</string>
     <string name="verifying_new_ownership_on_chain_this">Verification de la nouvelle propriete sur la chaine (cela peut prendre une minute)...</string>
-    <string name="verifying_on_chain_this_can_take">Verification sur la chaine (cela peut prendre une minute)...</string>
     <string name="verifying_on_chain_this_could_take">Verification sur la chaine... cela peut prendre quelques minutes.</string>
     <string name="version">Version</string>
     <string name="vibration">Vibration</string>
@@ -367,11 +332,6 @@
     <string name="user_info">Infos sur l\'utilisateur</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">Partager</string>
-    <string name="translate">Traduire</string>
-    <string name="show_original">Voir l\'original</string>
-    <string name="show_translation">Voir la traduction</string>
-    <string name="translation_show_original_subtitle">Revenir au texte tel qu\'il a été envoyé.</string>
-    <string name="translation_show_translation_subtitle">De nouveau le texte traduit.</string>
     <string name="mark_as_unread">Marquer comme non lu</string>
     <string name="mark_as_read">Marquer comme lu</string>
     <string name="copy_link">Copier le lien</string>
@@ -392,7 +352,6 @@
     <string name="kachat_names_are_coming">Les noms .kachat arrivent bientôt</string>
     <string name="kachat_names_coming_body">Les noms propres à KaChat seront ici : réclamez-en un, utilisez-le comme nom dans les discussions et partagez-le comme lien de profil.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
-    <string name="no_domain_found">Aucun domaine trouvé</string>
     <string name="no_tld_domain_found">Aucun domaine %1$s trouvé</string>
     <string name="looking_up_domain">Recherche du domaine...</string>
     <string name="no_domain">Aucun domaine</string>
@@ -401,12 +360,9 @@
     <string name="couldnt_check">Vérification impossible</string>
     <string name="kaspa_address_or_domain">Adresse Kaspa ou domaine</string>
     <!-- Public Chats select (iOS e08c4cc) -->
-    <string name="default_room_delete_subtitle">Désactive ce salon par défaut. Réactivez-le dans les réglages des discussions publiques.</string>
-    <string name="default_room_switched_off">#%1$s est désactivé - réactivez-le dans les réglages des discussions publiques</string>
     <!-- Connection Settings tabs (iOS ee01f81) -->
     <string name="connection_tab_indexer">Indexeur</string>
     <string name="connection_tab_node">Nœud</string>
-    <string name="connection_tab_translation">Traduction</string>
     <string name="connection_tab_domains">Domaines</string>
     <string name="connection_tab_explorer">Explorateur</string>
     <string name="message_indexer">Indexeur de messages</string>
@@ -433,48 +389,6 @@
     <string name="km_trustless_detail">Ni intermédiaire ni compte séquestre : les règles mêmes de Kaspa garantissent chaque vente.</string>
     <string name="km_nothing_live">Rien n\'est encore en service ici.</string>
     <string name="km_how_kachat_works">Comment fonctionne .kachat</string>
-    <string name="ks_title">Statistiques KaChat</string>
-    <string name="ks_dock_label">Statistiques</string>
-    <string name="ks_what_counts">Ce qui est compté</string>
-    <string name="ks_range_day">24 heures</string>
-    <string name="ks_range_week">7 jours</string>
-    <string name="ks_range_all">Tout</string>
-    <string name="ks_caption_day">Transactions KaChat des dernières 24 heures</string>
-    <string name="ks_caption_week">Transactions KaChat des 7 derniers jours</string>
-    <string name="ks_caption_all">Transactions KaChat sur Kaspa, depuis le début</string>
-    <string name="ks_messages">Messages directs</string>
-    <string name="ks_handshakes">Nouvelles discussions</string>
-    <string name="ks_payments">Paiements</string>
-    <string name="ks_group_messages">Messages de groupe</string>
-    <string name="ks_group_updates">Changements de groupe</string>
-    <string name="ks_public_chats">Discussions publiques</string>
-    <string name="ks_kapost_actions">Activité KaPosts</string>
-    <string name="ks_chess_moves">Coups d\'échecs</string>
-    <string name="ks_chess_games">Parties d\'échecs</string>
-    <string name="ks_self_stash">Données enregistrées</string>
-    <string name="ks_messages_detail">Textes 1:1, messages vocaux, réactions et échecs 1:1</string>
-    <string name="ks_handshakes_detail">Handshakes qui ouvrent une discussion 1:1</string>
-    <string name="ks_payments_detail">KAS envoyés dans les discussions</string>
-    <string name="ks_group_messages_detail">Messages dans les groupes</string>
-    <string name="ks_group_updates_detail">Création de groupes, invitations et autres changements</string>
-    <string name="ks_public_chats_detail">Messages dans les salons publics</string>
-    <string name="ks_kaposts_detail">Publications, réponses, citations et sondages</string>
-    <string name="ks_kapost_actions_detail">Votes, abonnements, modifications et suppressions</string>
-    <string name="ks_chess_moves_detail">Coups joués dans Chess Online</string>
-    <string name="ks_chess_games_detail">Parties lancées dans Chess Online</string>
-    <string name="ks_self_stash_detail">Clés de discussion et notes de contact enregistrées sur votre propre compte</string>
-    <string name="ks_no_indexer">Aucun indexeur n\'est défini pour ce réseau</string>
-    <string name="ks_no_indexer_body">Ajoutez-en un dans Réglages > Paramètres de connexion pour voir les statistiques KaChat.</string>
-    <string name="ks_unavailable">Les statistiques ne sont pas encore disponibles</string>
-    <string name="ks_unavailable_body">Votre indexeur ne fournit pas encore de statistiques KaChat. Elles apparaîtront ici dès que ce sera le cas.</string>
-    <string name="ks_stale">Actualisation impossible. Affichage des derniers chiffres.</string>
-    <string name="ks_updated">Mis à jour %1$s</string>
-    <string name="ks_counting_since">Compté depuis le %1$s</string>
-    <string name="ks_info_header">Chaque action dans KaChat est une transaction Kaspa à part entière. Ces totaux viennent de l\'indexeur de KaChat, qui compte ce qu\'il a vu sur la chaîne : rien n\'est lu sur votre téléphone.</string>
-    <string name="ks_info_footer">Les messages 1:1 sont chiffrés : les messages vocaux, les réactions et les coups d\'échecs 1:1 comptent donc comme messages directs. Personne, pas même l\'indexeur, ne peut les distinguer.</string>
-    <string name="ks_all_time_only">Total seulement</string>
-    <string name="ks_all_time_only_note">Les catégories marquées « Total seulement » ne sont pas encore dans ce total.</string>
-    <string name="ks_try_again">Reessayer</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Réclamez votre nom .kachat</string>
     <string name="kg_claim_body">C\'est le nom sous lequel on vous voit partout dans KaChat : dans les discussions, sur les publications et sur le lien de votre profil. Sans lui, on voit votre adresse.</string>
@@ -579,8 +493,6 @@
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Fermez complètement KaChat puis rouvrez-le pour terminer le passage au Testnet.</string>
     <string name="testnet_restart_to_mainnet">Fermez complètement KaChat puis rouvrez-le pour terminer le retour au Mainnet.</string>
-    <string name="kaposts_not_on_testnet">KaPosts n\'est pas encore disponible sur le Testnet</string>
-    <string name="kaposts_not_on_testnet_sub">Il n\'existe pas d\'indexeur KaPost pour le testnet. Désactivez Testnet dans Réglages > Connexion pour lire et publier sur le mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud est désactivé tant que le Testnet est activé.</string>
     <string name="nextcloud_off_on_testnet_footer">Les sauvegardes, la synchronisation, les médias et les appels via Nextcloud ne fonctionnent que sur le mainnet, pour que le testnet ne puisse jamais écraser votre sauvegarde mainnet. Désactivez Testnet dans Réglages > Connexion et votre connexion Nextcloud revient telle quelle.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
@@ -635,7 +547,6 @@
     <string name="kn_accept_warning">Le nom va à l’acheteur et le montant de l’offre vous revient, en une seule transaction. C’est irréversible.</string>
     <string name="kn_buyer">Acheteur</string>
     <string name="kn_price_to_miners">Prix (aux mineurs)</string>
-    <string name="kn_years">Années</string>
     <string name="kn_bond_returned">Caution (rendue à la libération)</string>
     <string name="kn_deposit_returned">Dépôt du registre (rendu à la libération)</string>
     <string name="kn_commit_returned">Engagement (rendu à l’enregistrement)</string>
@@ -815,11 +726,8 @@
     <string name="chats_new">Nouveau</string>
     <string name="chats_new_chat">Nouvelle discussion</string>
     <string name="chats_new_group_chat">Nouveau groupe</string>
-    <string name="chats_new_public_chat">Nouveau salon public</string>
-    <string name="chats_fund_chatting_address">Approvisionner l\'adresse de chat</string>
     <string name="chats_new_chat_subtitle">Écrivez à quelqu\'un par son adresse ou son nom.</string>
     <string name="chats_new_group_subtitle">Créez un groupe chiffré à plusieurs.</string>
-    <string name="chats_new_public_subtitle">Rejoignez un salon public ou créez-en un.</string>
     <string name="chats_fund_subtitle">Affiche le QR code pour ajouter des Kaspa servant à envoyer des messages.</string>
     <string name="chats_receive_subtitle">Affiche une nouvelle adresse pour être payé.</string>
     <string name="qr_receive_address_subtitle">Une adresse neuve, jamais utilisée. Les Kaspa envoyés ici arrivent sur ce compte et s\'ajoutent à votre solde disponible. Utilisez cette adresse pour tout ce qui ne concerne ni les discussions ni les domaines.</string>
@@ -857,7 +765,6 @@
     <string name="chats_circle_unpin_hint">Reprend sa place selon l\'activité la plus récente.</string>
     <string name="chats_circle_pin_hint">Reste en premier dans la rangée au-dessus de vos discussions.</string>
     <string name="chats_circle_hold_for_options">Maintenir pour les options</string>
-    <string name="delete_room_title">Supprimer le salon ?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">Cette adresse ne fait plus partie de ce portefeuille.</string>
     <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
@@ -962,18 +869,7 @@
     <string name="kn_claiming_name">Réclamation de %1$s</string>
     <string name="kn_keep_open_claiming">Gardez KaChat ouvert : le nom est enregistré environ une minute après la confirmation de l\'engagement masqué. Si vous partez, il reprendra là où il s\'était arrêté à votre retour.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
-    <string name="kaposts_tip_title">Pourboire</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
-    <string name="ks_kachat_registrations">Noms enregistrés</string>
-    <string name="ks_kachat_renewals">Renouvellements de noms</string>
-    <string name="ks_kachat_sales">Ventes de noms</string>
-    <string name="ks_kachat_offers">Offres sur des noms</string>
-    <string name="ks_kachat_activity">Activité des noms</string>
-    <string name="ks_kachat_registrations_detail">Noms .kachat réservés</string>
-    <string name="ks_kachat_renewals_detail">Noms .kachat prolongés ou renouvelés</string>
-    <string name="ks_kachat_sales_detail">Noms .kachat achetés via une annonce ou une offre acceptée</string>
-    <string name="ks_kachat_offers_detail">Offres faites sur des noms .kachat</string>
-    <string name="ks_kachat_activity_detail">Annonces, transferts, libérations, récupérations et offres retournées</string>
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
     <string name="create_wallet_name_title">Créez un nom pour votre portefeuille</string>
     <string name="create_wallet_name_detail">Ce nom est enregistré uniquement sur cet appareil, pour distinguer vos portefeuilles. Personne d\'autre ne le verra jamais.</string>
@@ -983,7 +879,6 @@
     <string name="write_down_your_seed_phrase">Notez votre seed phrase</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Conservez ceci en lieu sûr. Toute personne disposant de ces mots peut accéder à votre compte.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
-    <string name="kaposts_retry">Réessayer</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">frais : -------- KAS</string>
     <string name="composer_fee_unknown">frais : -- KAS</string>
@@ -1171,7 +1066,6 @@
     <string name="kn_transfer_placeholder_domain">kaspatest:... ou domaine</string>
     <string name="kn_err_enter_address_or_domain">Saisissez une adresse ou un domaine.</string>
     <string name="kn_err_name_address_cant_own">L’adresse de ce nom ne peut pas détenir de nom .kachat.</string>
-    <string name="kn_err_no_domain_by_name">Aucun domaine trouvé à ce nom.</string>
     <string name="kachat_names_resolved_first_footer">Résolus en premier, partout où vous pouvez saisir une adresse.</string>
     <string name="other_domains_title">Autres domaines</string>
     <string name="other_domains_settings_footer">Recherchés après .kachat, et listés sous Autres domaines quand un nom saisi y existe aussi.</string>
@@ -1323,29 +1217,12 @@
     <string name="customize_dock_move_to">Déplacer %1$s vers %2$s</string>
     <string name="customize_dock_add">Ajouter %1$s au dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
-    <string name="kaposts_tips">Pourboires</string>
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
-    <string name="kaposts_likes">J\'aime</string>
-    <string name="kaposts_dislikes">Je n\'aime pas</string>
-    <string name="kaposts_reposts">Republications</string>
-    <string name="kaposts_quotes">Citations</string>
-    <string name="kaposts_no_tips_yet">Pas encore de pourboires.</string>
-    <string name="kaposts_who_tipped">Qui a donné un pourboire à ce post</string>
-    <string name="kaposts_bell_on_note">Vous serez désormais averti quand %1$s publiera.</string>
-    <string name="kaposts_bell_off_note">Vous ne serez plus averti des posts de %1$s.</string>
-    <string name="kaposts_bell_stop">Désactiver les alertes de posts</string>
-    <string name="kaposts_bell_notify">M\'avertir de ses posts</string>
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">Vous a envoyé %1$s KAS</string>
     <string name="push_sent_you_payment">Vous a envoyé un paiement</string>
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
-    <string name="kn_fees">Frais</string>
-    <string name="ks_kachat_domains">Domaines .kachat</string>
-    <string name="ks_kachat_transactions">Transactions sur le registre .kachat</string>
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
-    <string name="ks_kachat_fees_detail">Payé pour les enregistrements et les renouvellements</string>
-    <string name="ks_fees_unavailable">Les frais ne sont pas encore disponibles</string>
-    <string name="ks_fees_unavailable_body">Votre indexeur ne les fournit pas encore. Ils apparaîtront ici dès qu\'il le fera.</string>
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">Aucun compte de stockage a froid</string>
     <string name="cold_storage_empty_body">Scannez ou collez une kpub exportee depuis votre appareil KasSigner pour surveiller son solde.</string>
@@ -1380,13 +1257,4 @@
     <string name="non_quantum_addresses">Adresses non quantiques</string>
     <string name="addresses_shown_count">%1$d sur %2$d affichées</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
-    <string name="chess_leaderboard_this_month">Ce mois-ci</string>
-    <string name="chess_leaderboard_all_time">Depuis toujours</string>
-    <string name="chess_leaderboard_period">Période du classement</string>
-    <string name="chess_leaderboard_resets_monthly">Remis à zéro le 1er de chaque mois (UTC).</string>
-    <string name="chess_leaderboard_counted_from">Compté depuis le %1$s.</string>
-    <string name="chess_no_finished_duels_this_month">Aucune partie 1v1 terminée ce mois-ci.</string>
-    <string name="chess_no_finished_duels">Aucune partie 1v1 terminée pour l\'instant.</string>
-    <string name="chess_no_finished_tournaments_this_month">Aucun tournoi terminé ce mois-ci.</string>
-    <string name="chess_no_finished_tournaments">Aucun tournoi terminé pour l\'instant.</string>
 </resources>

@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Forum
@@ -102,10 +101,8 @@ fun KaspaHubScreen(
     val badgeVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
     val notifEntries by badgeVm.store.entries.collectAsState()
     val notifLastSeen by badgeVm.store.lastSeenAt.collectAsState()
-    val kaPostsUnseen by badgeVm.kaPostsUnseen.unseenCount.collectAsState()
     fun badgeCount(screen: Screen): Int = when (screen) {
         Screen.Profile -> notifEntries.count { it.timestampMs > notifLastSeen }
-        Screen.KaPosts -> kaPostsUnseen
         else -> 0
     }
 
@@ -141,8 +138,8 @@ fun KaspaHubScreen(
     // The sections that pad their own end for the dock run on under it too; the rest are laid
     // out above it.
     val runsUnderDock = openSection == null || openSection in setOf(
-        Screen.KaPosts, Screen.Chats, Screen.Portfolio, Screen.KachatStats, Screen.KachatBots,
-        Screen.KachatNames, Screen.AddressBook, Screen.KaspaWebsites, Screen.Chess,
+        Screen.Chats, Screen.Portfolio, Screen.KachatBots,
+        Screen.KachatNames, Screen.AddressBook, Screen.KaspaWebsites,
         Screen.ColdStorage, Screen.Swap,
     )
     androidx.compose.foundation.layout.Box(
@@ -172,16 +169,11 @@ fun KaspaHubScreen(
                 remember(navController) { navController.getBackStackEntry(navController.graph.id) }
             )
         )
-        // Never the one that opens a notification's post: MainShell moves to the KaPosts route
-        // for that, and this copy is what it leaves behind (see handlesDeepLinks).
-        openSection == Screen.KaPosts -> KaPostsScreen(navController, walletViewModel = walletViewModel, handlesDeepLinks = false)
         openSection == Screen.Swap -> SwapScreen(navController = navController)
-        openSection == Screen.Chess -> ChessHomeScreen(navController, onBack = { openSectionRoute = null })
         openSection == Screen.KachatNames -> KachatMarketScreen(
             onBack = { openSectionRoute = null },
             onOpenChat = { address -> navController.navigate("chat/$address") }
         )
-        openSection == Screen.KachatStats -> KaChatStatsScreen(onBack = { openSectionRoute = null })
         openSection == Screen.AddressBook -> AddressBookScreen(
             onBack = { openSectionRoute = null },
             onOpenChat = { address -> navController.navigate("chat/$address") },
@@ -277,10 +269,7 @@ private fun hubTileIcon(screen: Screen): androidx.compose.ui.graphics.vector.Ima
     Screen.Portfolio -> Icons.Outlined.PieChart          // chart.pie
     Screen.ColdStorage -> Icons.Outlined.Shield          // lock.shield
     Screen.Swap -> Icons.Outlined.SwapHoriz              // arrow.left.arrow.right
-    Screen.KaPosts -> Icons.Outlined.EditNote            // square.and.pencil
-    Screen.Broadcasts -> Icons.Outlined.Sensors          // dot.radiowaves.left.and.right
     Screen.KaspaWebsites -> Icons.Outlined.Language      // globe
-    Screen.KachatStats -> Icons.Outlined.BarChart        // chart.bar.xaxis
     Screen.AddressBook -> Icons.Outlined.Book            // book.closed
     Screen.KachatBots -> Icons.Outlined.Memory           // cpu
     else -> null

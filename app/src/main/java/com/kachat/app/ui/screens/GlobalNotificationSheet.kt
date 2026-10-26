@@ -99,21 +99,9 @@ fun GlobalNotificationSheet(
     fun open(entry: GlobalNotificationCenterStore.Entry) {
         val target = entry.targetId.orEmpty()
         when (entry.source) {
-            "kaposts" -> {
-                if (childMode || target.isEmpty()) return
-                dismiss {
-                    KaPostsDeepLink.pendingOpenNotifications.value = false
-                    KaPostsDeepLink.pendingPostTxId.value = target
-                }
-            }
             "group" -> {
                 if (target.isBlank()) return
                 dismiss { navController.navigate("group_chat/$target") }
-            }
-            "broadcast" -> {
-                if (childMode) return
-                val channel = KaChatLink.sanitizeChannelName(target) ?: return
-                dismiss { navController.navigate("broadcast_channel/$channel") }
             }
             // A receipt opens the History of the address that got the Kaspa (chatting, spending
             // or cold storage - MainShell's own-address sheet works out which), as a tapped banner
@@ -243,11 +231,7 @@ private fun GlobalNotificationRow(entry: GlobalNotificationCenterStore.Entry, on
         }
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(entry.title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            // Broadcast rows (an older build's) carry the raw on-chain body, which is a JSON
-            // envelope for anything but plain text.
-            val body = remember(entry.id, entry.body, entry.source) {
-                if (entry.source == "broadcast") broadcastCenterBody(entry.body) else entry.body
-            }
+            val body = entry.body
             if (body.isNotEmpty()) {
                 Text(body, color = colors.textSecondary, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }

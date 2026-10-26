@@ -19,14 +19,11 @@
     <string name="admin">مسؤول</string>
     <string name="all_discovered_nodes_sorted_by_state">جميع العقد المكتشفة مرتبة حسب الحالة وزمن الاستجابة. يتم إزالة العقد المكررة حسب host:port.</string>
     <string name="amount_kas">المبلغ (KAS)</string>
-    <string name="anyone_who_joins_the_same_channel">يمكن لأي شخص ينضم إلى نفس اسم القناة رؤية الرسائل ونشرها هناك. لا يوجد مالك أو دعوة.</string>
     <string name="anyone_with_your_seed_phrase_can">يمكن لأي شخص لديه عبارة الاسترداد الخاصة بك الوصول إلى حسابك. لا تشاركها أبدًا مع أي شخص. تأكد من كتابتها فقط. لا تلتقط لقطة شاشة أبدًا ولا تخزنها على جهازك.</string>
     <string name="back">رجوع</string>
     <string name="before_you_swap">قبل المبادلة</string>
     <string name="broadcasting">جارٍ البث...</string>
-    <string name="broadcasts">البث</string>
     <string name="build_unsigned_transaction">إنشاء معاملة غير موقعة</string>
-    <string name="camera_permission_is_needed_to_scan">يلزم الوصول إلى الكاميرا لمسح رمز QR</string>
     <string name="cancel">إلغاء</string>
     <string name="cancel_photo">إلغاء الصورة</string>
     <string name="cancel_recording">إلغاء التسجيل</string>
@@ -52,7 +49,6 @@
     <string name="connection_settings">إعدادات الاتصال</string>
     <string name="connection_status">حالة الاتصال</string>
     <string name="contact_has_requested_permission_to_communicate">طلبت جهة الاتصال إذن التواصل</string>
-    <string name="controls_how_much_photos_are_compressed">يتحكم في مقدار ضغط الصور قبل إرسالها. الجودة الأعلى تبدو أوضح لكنها تكلف رسومًا أعلى وتستغرق وقتًا أطول للإرسال؛ الجودة الأقل ترسل بشكل أسرع وأرخص لكنها تبدو أكثر ضغطًا. هذا يؤثر فقط على الصور التي ترسلها، وليس التي تستقبلها.</string>
     <string name="copy">نسخ</string>
     <string name="copy_address">نسخ العنوان</string>
     <string name="copy_private_key_hex">نسخ المفتاح الخاص (Hex)</string>
@@ -88,14 +84,11 @@
     <string name="from">من</string>
     <string name="fund_your_chatting_address">موّل عنوان الدردشة الخاص بك</string>
     <string name="generate_account">إنشاء حساب</string>
-    <string name="grant_permission">منح الإذن</string>
-    <string name="grant_permission_2">منح الإذن</string>
     <string name="group_info">معلومات المجموعة</string>
     <string name="group_name_2">اسم المجموعة</string>
     <string name="hidden_addresses">العناوين المخفية</string>
     <string name="hidden_users">المستخدمون المخفيون</string>
     <string name="holdings">الممتلكات</string>
-    <string name="how_long_messages_in_this_broadcast">مدة بقاء الرسائل في هذا البث مخزنة مؤقتًا على هذا الجهاز، بحد أقصى 3 أيام.</string>
     <string name="i_agree">أوافق</string>
     <string name="if_the_network_is_busy_a">إذا كانت الشبكة مزدحمة، يمكن لرسوم أعلى أن تساعد في تأكيد معاملتك بشكل أسرع.</string>
     <string name="import_action">استيراد</string>
@@ -106,38 +99,27 @@
     <string name="incoming_notifications">الإخطارات الواردة</string>
     <string name="inscribe">سجل</string>
     <string name="inscribe_domain">تسجيل المجال</string>
-    <string name="inscribe_new_domain">تسجيل مجال جديد</string>
     <string name="it_s_ok_i_already_have">لا بأس، لدي نطاق بالفعل</string>
-    <string name="join">انضمام</string>
-    <string name="join_or_create_a_channel">الانضمام إلى قناة أو إنشاؤها</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">نطاقات KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">شعار KaChat</string>
-    <string name="kachat_can_t_show_notifications_until">لا يمكن لـ KaChat عرض الإشعارات حتى تسمح بها لهذا التطبيق.</string>
     <string name="kachat_needs_to_connect_to_a">يحتاج KaChat إلى الاتصال بعقدة. كيف تريد الاتصال؟</string>
     <string name="kaspa">كاسبا</string>
-    <string name="kaspa_address_or_kns_domain">عنوان Kaspa أو نطاق KNS</string>
     <string name="kaspa_explorer">مستكشف كاسبا</string>
     <string name="label_optional">التسمية (اختياري)</string>
     <string name="last_message">الرسالة الأخيرة</string>
-    <string name="leave">مغادرة</string>
-    <string name="leave_delete">مغادرة وحذف</string>
-    <string name="leaving_this_broadcast_permanently_deletes_every">مغادرة هذا البث تحذف نهائيًا كل رسالة مخزنة مؤقتًا له على هذا الجهاز. لا يمكن التراجع عن هذا؛ الانضمام مرة أخرى لاحقًا يبدأ بدون سجل.</string>
     <string name="let_s_add_more_details_about">لنضف المزيد من التفاصيل عنك</string>
     <string name="log_out">تسجيل الخروج</string>
-    <string name="longer_retention_means_more_messages_stay">الاحتفاظ لفترة أطول يعني بقاء المزيد من الرسائل مخزنة مؤقتًا على جهازك، مما قد يبطئ التطبيق بمرور الوقت، خاصة للغرف النشطة.</string>
     <string name="manage_addresses">إدارة العناوين</string>
     <string name="max">الحد الأقصى</string>
     <string name="menu">القائمة</string>
     <string name="message">رسالة</string>
-    <string name="message_retention_settings">إعدادات الاحتفاظ بالرسائل</string>
     <string name="more_info">مزيد من المعلومات</string>
     <string name="name">الاسم</string>
     <string name="name_this_address">تسمية هذا العنوان</string>
     <string name="next">التالي</string>
     <string name="no_conversations_yet">مفيش محادثات لسه</string>
-    <string name="no_cold_storage_accounts_yet_scan">لا توجد حسابات تخزين بارد بعد. امسح ضوئيًا kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده والإرسال منه.</string>
     <string name="no_domains_yet">لا توجد مجالات حتى الآن.</string>
     <string name="no_hidden_addresses">لا توجد عناوين مخفية.</string>
     <string name="no_hidden_users_in_this_group">لا يوجد مستخدمون مخفيون في هذه المجموعة.</string>
@@ -145,11 +127,9 @@
     <string name="no_saved_addresses">لا توجد عناوين محفوظة</string>
     <string name="no_swaps_yet">لا توجد عمليات مبادلة بعد.</string>
     <string name="no_transactions_yet">لا توجد معاملات بعد.</string>
-    <string name="no_transactions_yet_tap_to_add">لا توجد معاملات بعد. اضغط + لإضافة أول عملية شراء أو بيع.</string>
     <string name="not_now">ليس الآن</string>
     <string name="notes_optional">ملاحظات (اختياري)</string>
     <string name="notifications">الإشعارات</string>
-    <string name="notifications_are_off_in_system_settings">الإشعارات معطلة في إعدادات النظام</string>
     <string name="ok">موافق</string>
     <string name="only_notify_if_i_m_mentioned">الإخطار فقط إذا تم ذكري</string>
     <string name="open_settings">فتح الإعدادات</string>
@@ -186,8 +166,6 @@
     <string name="reserved_domain_no_registration_fee_only">نطاق محجوز: لا توجد رسوم تسجيل، تُطبق رسوم الشبكة فقط.</string>
     <string name="resign">استسلام</string>
     <string name="resign_this_game">الاستسلام في هذه المباراة؟</string>
-    <string name="resolving_domain">جارٍ تحليل النطاق…</string>
-    <string name="retention">الاحتفاظ</string>
     <string name="retry">اعادة المحاولة</string>
     <string name="retry_inscription_reveal">إعادة محاولة كشف النقش</string>
     <string name="save">حفظ</string>
@@ -217,7 +195,6 @@
     <string name="some_changes_failed_to_save">فشل حفظ بعض التغييرات:</string>
     <string name="start_a_new_chat_by_adding">ابدأ شات جديد بإضافة جهة اتصال</string>
     <string name="status">الحالة</string>
-    <string name="still_indexing_it_ll_show_up">لا يزال قيد الفهرسة. سيظهر أعلاه قريبًا.</string>
     <string name="swap">مبادلة</string>
     <string name="swaps_are_processed_by_changenow_a">تتم معالجة عمليات المبادلة بواسطة ChangeNOW، وهي خدمة تبادل تابعة لجهة خارجية. بالمتابعة، فإنك تؤكد أنك قرأت ووافقت على شروط الخدمة الخاصة بـ ChangeNOW. يقوم KaChat فقط بإرسال طلب المبادلة الخاص بك وعرض حالته؛ KaChat غير مسؤول عن عمليات المبادلة الفاشلة أو المتأخرة أو المفقودة. إذا لم تتم عملية المبادلة، تواصل مباشرة مع دعم ChangeNOW.</string>
     <string name="tap_an_address_below_to_swap">اضغط على عنوان أدناه للمبادلة منه</string>
@@ -231,17 +208,13 @@
     <string name="total_balance">الرصيد الإجمالي</string>
     <string name="total_invested">إجمالي المستثمر</string>
     <string name="total_p_l">إجمالي الأرباح والخسائر</string>
-    <string name="transaction_history">سجل المعاملات</string>
-    <string name="transaction_links_in_message_menus_and">روابط المعاملات في قوائم الرسائل وصفحات سجل المعاملات تفتح في هذا المستكشف.</string>
     <string name="transactions">المعاملات</string>
     <string name="try_again">إعادة المحاولة</string>
     <string name="unhide">إظهار</string>
     <string name="unread">غير مقروء</string>
     <string name="use_default">استخدام الافتراضي</string>
     <string name="valid_address">عنوان صالح</string>
-    <string name="waiting_for_camera">في انتظار الكاميرا...</string>
     <string name="waiting_on_opponent">في انتظار الخصم</string>
-    <string name="channel_name">اسم-القناة</string>
     <string name="host_port_or_grpcs_host">host:port أو grpcs://host</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
@@ -253,8 +226,6 @@
     <string name="photo_saved">تم حفظ الصورة</string>
     <string name="could_not_save_photo">تعذر حفظ الصورة</string>
     <string name="withdrawal_failed">فشل السحب</string>
-    <string name="consolidation_failed">فشل الدمج</string>
-    <string name="nothing_to_consolidate">لا يوجد شيء لدمجه</string>
     <string name="about">حول</string>
     <string name="actions">إجراءات</string>
     <string name="active">نشط</string>
@@ -274,7 +245,6 @@
     <string name="created">تم الإنشاء</string>
     <string name="customization">التخصيص</string>
     <string name="danger_zone">منطقة الخطر</string>
-    <string name="dark_mode">الوضع الداكن</string>
     <string name="diagnostics">التشخيصات</string>
     <string name="discord">Discord</string>
     <string name="discover_addresses">اكتشاف العناوين</string>
@@ -282,7 +252,6 @@
     <string name="email">البريد الإلكتروني</string>
     <string name="explorer">المستكشف</string>
     <string name="export_csv">تصدير CSV</string>
-    <string name="exports_a_plaintext_json_file_of">يصدّر ملف JSON بنص عادي لسجل الدردشة الذي تم فك تشفيره لهذا الحساب. إنه غير مشفر، لذا شاركه فقط في مكان تثق به. الاستيراد يدمج مع سجلك الحالي دون الكتابة فوق أي شيء.</string>
     <string name="exports_app_device_info_connection_settings">يُصدّر معلومات التطبيق/الجهاز وإعدادات الاتصال وعدد الرسائل المحلية وسجلات التطبيق الأخيرة كملف مضغوط لاستكشاف الأخطاء وإصلاحها مع الدعم. لا يتم تضمين أي مفاتيح خاصة أو عبارات استرداد أو محتوى رسائل مفكوك التشفير.</string>
     <string name="generate_more_addresses">إنشاء المزيد من العناوين</string>
     <string name="generate_new_spending_address">إنشاء عنوان إنفاق جديد</string>
@@ -293,7 +262,6 @@
     <string name="indexer">الفهرس</string>
     <string name="info">معلومات</string>
     <string name="kns_profile">KNS الملف الشخصي</string>
-    <string name="kachat_indexer">مفهرس KaChat</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">عقدة كاسبا</string>
     <string name="last_sync">آخر مزامنة</string>
@@ -316,8 +284,6 @@
     <string name="save_your_own_node_addresses_here">احفظ عناوين عقدك الخاصة هنا، ثم اضغط على واحدة لنسخها ولصقها في حقل عقدة كاسبا أعلاه.</string>
     <string name="security">الأمان</string>
     <string name="send_handshake">إرسال طلب تواصل</string>
-    <string name="send_photo_2">إرسال صورة</string>
-    <string name="setup_guide">دليل الإعداد</string>
     <string name="show_fee_estimate">إظهار تقدير الرسوم</string>
     <string name="sound_vibration">الصوت والاهتزاز</string>
     <string name="storage">التخزين</string>
@@ -330,7 +296,6 @@
     <string name="total">الإجمالي</string>
     <string name="verified">موثق</string>
     <string name="verifying_new_ownership_on_chain_this">جارٍ التحقق من الملكية الجديدة على السلسلة (قد يستغرق دقيقة)...</string>
-    <string name="verifying_on_chain_this_can_take">جارٍ التحقق على السلسلة (قد يستغرق دقيقة)...</string>
     <string name="verifying_on_chain_this_could_take">جارٍ التحقق على السلسلة... قد يستغرق هذا بضع دقائق.</string>
     <string name="version">الإصدار</string>
     <string name="vibration">الاهتزاز</string>
@@ -367,11 +332,6 @@
     <string name="user_info">معلومات المستخدم</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">مشاركة</string>
-    <string name="translate">ترجمة</string>
-    <string name="show_original">عرض الأصل</string>
-    <string name="show_translation">عرض الترجمة</string>
-    <string name="translation_show_original_subtitle">الرجوع للنص زي ما اتبعت.</string>
-    <string name="translation_show_translation_subtitle">النص المترجم تاني.</string>
     <string name="mark_as_unread">وضع علامة كغير مقروءة</string>
     <string name="mark_as_read">وضع علامة كمقروءة</string>
     <string name="copy_link">نسخ الرابط</string>
@@ -392,7 +352,6 @@
     <string name="kachat_names_are_coming">أسماء .kachat قادمة قريبًا</string>
     <string name="kachat_names_coming_body">ستكون أسماء KaChat الخاصة هنا: احصل على اسم، واستخدمه اسمًا لك في المحادثات، وشاركه رابطًا لملفك الشخصي.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
-    <string name="no_domain_found">لم يُعثر على نطاق</string>
     <string name="no_tld_domain_found">لم يُعثر على نطاق %1$s</string>
     <string name="looking_up_domain">جارٍ البحث عن النطاق...</string>
     <string name="no_domain">لا يوجد نطاق</string>
@@ -401,12 +360,9 @@
     <string name="couldnt_check">تعذّر التحقق</string>
     <string name="kaspa_address_or_domain">عنوان Kaspa أو نطاق</string>
     <!-- Public Chats select (iOS e08c4cc) -->
-    <string name="default_room_delete_subtitle">يُوقف هذه الغرفة الافتراضية. أعد تشغيلها من إعدادات المحادثات العامة.</string>
-    <string name="default_room_switched_off">#%1$s متوقفة - أعد تشغيلها من إعدادات المحادثات العامة</string>
     <!-- Connection Settings tabs (iOS ee01f81) -->
     <string name="connection_tab_indexer">الفهرس</string>
     <string name="connection_tab_node">العقدة</string>
-    <string name="connection_tab_translation">الترجمة</string>
     <string name="connection_tab_domains">النطاقات</string>
     <string name="connection_tab_explorer">المستكشف</string>
     <string name="message_indexer">مفهرس الرسائل</string>
@@ -433,48 +389,6 @@
     <string name="km_trustless_detail">لا وسيط ولا حساب ضمان: قواعد Kaspa نفسها تضمن كل عملية بيع.</string>
     <string name="km_nothing_live">لا شيء هنا يعمل بعد.</string>
     <string name="km_how_kachat_works">كيف يعمل .kachat</string>
-    <string name="ks_title">إحصاءات KaChat</string>
-    <string name="ks_dock_label">الإحصاءات</string>
-    <string name="ks_what_counts">ما الذي يُحتسب</string>
-    <string name="ks_range_day">24 ساعة</string>
-    <string name="ks_range_week">7 أيام</string>
-    <string name="ks_range_all">كل الأوقات</string>
-    <string name="ks_caption_day">معاملات KaChat في آخر 24 ساعة</string>
-    <string name="ks_caption_week">معاملات KaChat في آخر 7 أيام</string>
-    <string name="ks_caption_all">معاملات KaChat على Kaspa، طوال الوقت</string>
-    <string name="ks_messages">الرسائل المباشرة</string>
-    <string name="ks_handshakes">محادثات جديدة</string>
-    <string name="ks_payments">المدفوعات</string>
-    <string name="ks_group_messages">رسائل المجموعات</string>
-    <string name="ks_group_updates">تغييرات المجموعات</string>
-    <string name="ks_public_chats">المحادثات العامة</string>
-    <string name="ks_kapost_actions">نشاط KaPosts</string>
-    <string name="ks_chess_moves">نقلات الشطرنج</string>
-    <string name="ks_chess_games">مباريات الشطرنج</string>
-    <string name="ks_self_stash">السجلات المحفوظة</string>
-    <string name="ks_messages_detail">نصوص 1:1 والرسائل الصوتية والتفاعلات وشطرنج 1:1</string>
-    <string name="ks_handshakes_detail">مصافحات تبدأ محادثة 1:1</string>
-    <string name="ks_payments_detail">KAS المرسلة في المحادثات</string>
-    <string name="ks_group_messages_detail">الرسائل في محادثات المجموعات</string>
-    <string name="ks_group_updates_detail">إنشاء المجموعات والدعوات وتغييرات أخرى</string>
-    <string name="ks_public_chats_detail">الرسائل في الغرف العامة</string>
-    <string name="ks_kaposts_detail">المنشورات والردود والاقتباسات والاستطلاعات</string>
-    <string name="ks_kapost_actions_detail">التصويتات والمتابعات والتعديلات والحذف</string>
-    <string name="ks_chess_moves_detail">النقلات الملعوبة في Chess Online</string>
-    <string name="ks_chess_games_detail">المباريات التي بدأت في Chess Online</string>
-    <string name="ks_self_stash_detail">مفاتيح المحادثات وملاحظات جهات الاتصال المحفوظة في حسابك</string>
-    <string name="ks_no_indexer">لم يتم تعيين مفهرس لهذه الشبكة</string>
-    <string name="ks_no_indexer_body">أضف واحدًا في الإعدادات > إعدادات الاتصال لرؤية إحصاءات KaChat.</string>
-    <string name="ks_unavailable">الإحصاءات غير متاحة بعد</string>
-    <string name="ks_unavailable_body">المفهرس الخاص بك لا يقدم إحصاءات KaChat بعد. ستظهر هنا عندما يفعل.</string>
-    <string name="ks_stale">تعذّر التحديث. تُعرض آخر الأرقام.</string>
-    <string name="ks_updated">تم التحديث %1$s</string>
-    <string name="ks_counting_since">يُحتسب منذ %1$s</string>
-    <string name="ks_info_header">كل إجراء في KaChat هو معاملة Kaspa مستقلة. تأتي هذه المجاميع من مفهرس KaChat الذي يحصي ما رآه على السلسلة - لا يُقرأ أي شيء من هاتفك.</string>
-    <string name="ks_info_footer">رسائل 1:1 مشفرة، لذا تُحتسب الرسائل الصوتية والتفاعلات ونقلات شطرنج 1:1 رسائل مباشرة: لا يستطيع أحد، بما في ذلك المفهرس، التمييز بينها.</string>
-    <string name="ks_all_time_only">الإجمالي فقط</string>
-    <string name="ks_all_time_only_note">الأنواع المعلّمة «الإجمالي فقط» غير مشمولة في هذا المجموع بعد.</string>
-    <string name="ks_try_again">إعادة المحاولة</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">احصل على اسم ‎.kachat الخاص بك</string>
     <string name="kg_claim_body">هو الاسم الذي يراك به الناس في كل KaChat - في المحادثات وعلى المنشورات وفي رابط ملفك الشخصي. بدونه يرى الناس عنوانك.</string>
@@ -579,8 +493,6 @@
     <string name="testnet">الشبكة التجريبية</string>
     <string name="testnet_restart_to_testnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام التبديل إلى الشبكة التجريبية.</string>
     <string name="testnet_restart_to_mainnet">أغلق KaChat تمامًا ثم افتحه مجددًا لإتمام العودة إلى الشبكة الرئيسية.</string>
-    <string name="kaposts_not_on_testnet">KaPosts لسه مش متاحة على الشبكة التجريبية</string>
-    <string name="kaposts_not_on_testnet_sub">مفيش مفهرس KaPost للشبكة التجريبية. اقفل الشبكة التجريبية من الإعدادات > الاتصال علشان تقرا وتنشر على الشبكة الرئيسية.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud مقفول طول ما الشبكة التجريبية شغالة.</string>
     <string name="nextcloud_off_on_testnet_footer">النسخ الاحتياطي والمزامنة والوسائط والمكالمات عن طريق Nextcloud بتشتغل على الشبكة الرئيسية بس، علشان الشبكة التجريبية متكتبش أبدًا فوق نسختك الاحتياطية. اقفل الشبكة التجريبية من الإعدادات > الاتصال واتصال Nextcloud هيرجع زي ما كان.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
@@ -635,7 +547,6 @@
     <string name="kn_accept_warning">ينتقل الاسم إلى المشتري ويصل إليك مبلغ العرض في معاملة واحدة. لا يمكن التراجع عن ذلك.</string>
     <string name="kn_buyer">المشتري</string>
     <string name="kn_price_to_miners">السعر (للمعدِّنين)</string>
-    <string name="kn_years">السنوات</string>
     <string name="kn_bond_returned">الضمان (يُعاد عند التخلي)</string>
     <string name="kn_deposit_returned">وديعة السجل (تُعاد عند التخلي)</string>
     <string name="kn_commit_returned">الالتزام (يُعاد عند التسجيل)</string>
@@ -815,11 +726,8 @@
     <string name="chats_new">جديد</string>
     <string name="chats_new_chat">شات جديد</string>
     <string name="chats_new_group_chat">جروب جديد</string>
-    <string name="chats_new_public_chat">شات عام جديد</string>
-    <string name="chats_fund_chatting_address">اشحن عنوان الشات</string>
     <string name="chats_new_chat_subtitle">ابعت لحد بعنوانه أو اسمه.</string>
     <string name="chats_new_group_subtitle">ابدأ جروب متشفر مع كذا شخص.</string>
-    <string name="chats_new_public_subtitle">ادخل أوضة عامة أو اعمل واحدة.</string>
     <string name="chats_fund_subtitle">بيوريك كود QR عشان تضيف Kaspa لإرسال الرسايل.</string>
     <string name="chats_receive_subtitle">بيوريك عنوان جديد عشان تستلم فلوس.</string>
     <string name="qr_receive_address_subtitle">عنوان جديد عمره ما اتستخدم. الـKaspa اللي تتبعت هنا بتوصل للحساب ده وبتظهر في رصيد الصرف بتاعك. استخدم العنوان ده لأي حاجة مش ليها علاقة بالشات أو الدومينات.</string>
@@ -857,7 +765,6 @@
     <string name="chats_circle_unpin_hint">بيرجع مكانه حسب آخر نشاط.</string>
     <string name="chats_circle_pin_hint">بيفضل الأول في الصف اللي فوق الشاتات بتاعتك.</string>
     <string name="chats_circle_hold_for_options">اضغط مطوّل للخيارات</string>
-    <string name="delete_room_title">تمسح الأوضة؟</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">العنوان ده مبقاش في المحفظة دي.</string>
     <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
@@ -962,18 +869,7 @@
     <string name="kn_claiming_name">جارٍ المطالبة بـ %1$s</string>
     <string name="kn_keep_open_claiming">أبقِ KaChat مفتوحًا: يُسجَّل الاسم بعد نحو دقيقة من تأكيد الالتزام المخفي. إذا غادرت، فسيكمل من حيث توقف عند عودتك.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
-    <string name="kaposts_tip_title">إكرامية</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
-    <string name="ks_kachat_registrations">الأسماء المسجلة</string>
-    <string name="ks_kachat_renewals">تجديدات الأسماء</string>
-    <string name="ks_kachat_sales">مبيعات الأسماء</string>
-    <string name="ks_kachat_offers">عروض الأسماء</string>
-    <string name="ks_kachat_activity">نشاط الأسماء</string>
-    <string name="ks_kachat_registrations_detail">أسماء .kachat المُطالب بها</string>
-    <string name="ks_kachat_renewals_detail">أسماء .kachat الممدّدة أو المجدّدة</string>
-    <string name="ks_kachat_sales_detail">أسماء .kachat المشتراة من إدراج أو عبر عرض مقبول</string>
-    <string name="ks_kachat_offers_detail">العروض المقدّمة على أسماء .kachat</string>
-    <string name="ks_kachat_activity_detail">الإدراجات والنقل والتحرير والاسترداد والعروض المُعادة</string>
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
     <string name="create_wallet_name_title">أنشئ اسمًا لمحفظتك</string>
     <string name="create_wallet_name_detail">يُحفظ هذا الاسم على هذا الجهاز فقط لتمييز محافظك عن بعضها. لن يراه أي شخص آخر.</string>
@@ -983,7 +879,6 @@
     <string name="write_down_your_seed_phrase">اكتب Seed Phrase الخاصة بك</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">احفظ هذا في مكان آمن. أي شخص يمتلك هذه الكلمات يمكنه الوصول إلى حسابك.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
-    <string name="kaposts_retry">حاول تاني</string>
     <!-- Composer fee pill (iOS feeBubble) -->
     <string name="composer_fee_estimating">الرسوم: -------- KAS</string>
     <string name="composer_fee_unknown">الرسوم: -- KAS</string>
@@ -1171,7 +1066,6 @@
     <string name="kn_transfer_placeholder_domain">kaspatest:... أو نطاق</string>
     <string name="kn_err_enter_address_or_domain">أدخل عنوانًا أو نطاقًا.</string>
     <string name="kn_err_name_address_cant_own">عنوان هذا الاسم لا يمكنه امتلاك اسم .kachat.</string>
-    <string name="kn_err_no_domain_by_name">لم يُعثر على نطاق بهذا الاسم.</string>
     <string name="kachat_names_resolved_first_footer">تُحلّ أولًا في كل مكان يمكنك فيه كتابة عنوان.</string>
     <string name="other_domains_title">نطاقات أخرى</string>
     <string name="other_domains_settings_footer">يُبحث عنها بعد .kachat، وتظهر تحت «نطاقات أخرى» عندما يوجد الاسم المكتوب هناك أيضًا.</string>
@@ -1323,29 +1217,12 @@
     <string name="customize_dock_move_to">نقل %1$s إلى %2$s</string>
     <string name="customize_dock_add">إضافة %1$s إلى الشريط</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
-    <string name="kaposts_tips">الإكراميات</string>
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
-    <string name="kaposts_likes">الإعجابات</string>
-    <string name="kaposts_dislikes">عدم الإعجاب</string>
-    <string name="kaposts_reposts">إعادات النشر</string>
-    <string name="kaposts_quotes">الاقتباسات</string>
-    <string name="kaposts_no_tips_yet">لا توجد إكراميات بعد.</string>
-    <string name="kaposts_who_tipped">من أرسل إكرامية لهذا المنشور</string>
-    <string name="kaposts_bell_on_note">سيصلك إشعار عندما ينشر %1$s.</string>
-    <string name="kaposts_bell_off_note">لن يصلك إشعار بمنشورات %1$s بعد الآن.</string>
-    <string name="kaposts_bell_stop">إيقاف إشعارات المنشورات</string>
-    <string name="kaposts_bell_notify">أعلمني عندما ينشر</string>
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">أرسل لك %1$s KAS</string>
     <string name="push_sent_you_payment">أرسل لك دفعة</string>
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
-    <string name="kn_fees">الرسوم</string>
-    <string name="ks_kachat_domains">نطاقات ‎.kachat</string>
-    <string name="ks_kachat_transactions">المعاملات على سجل ‎.kachat</string>
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
-    <string name="ks_kachat_fees_detail">المدفوع مقابل التسجيلات والتجديدات</string>
-    <string name="ks_fees_unavailable">الرسوم غير متاحة بعد</string>
-    <string name="ks_fees_unavailable_body">المفهرس لديك لا يعرضها بعد. ستظهر هنا عندما يفعل.</string>
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">لا توجد حسابات تخزين بارد</string>
     <string name="cold_storage_empty_body">امسح ضوئيًا أو الصق kpub مُصدَّرًا من جهاز KasSigner الخاص بك لمراقبة رصيده.</string>
@@ -1380,13 +1257,4 @@
     <string name="non_quantum_addresses">العناوين غير المقاومة للكم</string>
     <string name="addresses_shown_count">%1$d من %2$d معروضة</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
-    <string name="chess_leaderboard_this_month">هذا الشهر</string>
-    <string name="chess_leaderboard_all_time">كل الأوقات</string>
-    <string name="chess_leaderboard_period">فترة لوحة المتصدرين</string>
-    <string name="chess_leaderboard_resets_monthly">يُعاد ضبطها في اليوم الأول من كل شهر (UTC).</string>
-    <string name="chess_leaderboard_counted_from">محسوبة منذ %1$s.</string>
-    <string name="chess_no_finished_duels_this_month">لا توجد مباريات 1v1 منتهية هذا الشهر بعد.</string>
-    <string name="chess_no_finished_duels">لا توجد مباريات 1v1 منتهية بعد.</string>
-    <string name="chess_no_finished_tournaments_this_month">لا توجد بطولات منتهية هذا الشهر بعد.</string>
-    <string name="chess_no_finished_tournaments">لا توجد بطولات منتهية بعد.</string>
 </resources>

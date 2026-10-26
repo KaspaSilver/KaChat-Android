@@ -73,7 +73,6 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.kachat.app.models.KaspaExplorer
 import com.kachat.app.services.LinkPreviewData
-import com.kachat.app.services.KaPostLinkPreviewService
 import com.kachat.app.services.LinkPreviewService
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
@@ -85,7 +84,7 @@ private val VIDEO_HOSTS = setOf("youtube.com", "www.youtube.com", "youtu.be", "m
  *  mirrors iMessage. Renders nothing while the fetch is in flight, rather than a placeholder that
  *  could flash or look broken. If no preview data is found (a bare/broken link, or a site with no
  *  Open Graph tags), falls back to [fallbackText] if given, else renders nothing. Used by
- *  [MessageBubble], `GroupMessageBubble`, and broadcast rooms' message rows.
+ *  [MessageBubble] and `GroupMessageBubble`.
  *
  *  [txId] is the owning message's transaction id, for the "View in Explorer" long-press action -
  *  matches every other bubble type's identical action ([MessageBubble]'s
@@ -116,13 +115,13 @@ fun LinkPreviewCard(
      *  was seen. True (the default) fetches on render — for accepted/handshaken 1:1 contacts,
      *  group messages, and the user's own sent messages. False renders a "Tap to load preview"
      *  placeholder instead and only fetches after an explicit tap — for non-accepted 1:1
-     *  senders and ALL broadcast messages (broadcast senders are always strangers). */
+     *  senders. */
     autoFetch: Boolean = true
 ) {
-    // An in-app KaChat link (a shared KaPosts post or broadcast room) is previewed LOCALLY: no
+    // An in-app KaChat link (a shared profile or payment request) is previewed LOCALLY: no
     // metadata fetch, and therefore no stranger tap-to-load gate either. Handled here rather than
-    // only at the call sites so every bubble type that already renders a preview card - 1:1,
-    // group and broadcast alike - picks up the https form of the contract for free.
+    // only at the call sites so every bubble type that already renders a preview card - 1:1 and
+    // group alike - picks up the https form of the contract for free.
     val internalRef = remember(url) { KaChatLink.parse(url) }
     if (internalRef != null) {
         KaChatInternalLinkCard(
@@ -366,7 +365,7 @@ private fun LinkMessageActions(
 
 /**
  * Placeholder shown instead of an auto-fetched preview when [LinkPreviewCard]'s `autoFetch` gate
- * is off (non-accepted 1:1 senders, all broadcast messages): iOS's neutral card - a link glyph,
+ * is off (non-accepted 1:1 senders): iOS's neutral card - a link glyph,
  * "Tap to load preview" and the link's host - fetched only on tap. Until then no request of any
  * kind leaves the device for this URL. The long-press menu still offers Copy Link / View in
  * Explorer / Select, so the message stays fully usable. Mirrors iOS's `tapToLoadCard`.
@@ -688,8 +687,8 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
                         .crossfade(true)
                         .build()
                 }
-                // No loading/error slots, so no subcomposition: this card sits in chat bubbles
-                // and the KaPosts feed, where a subcomposition per row costs on every scroll.
+                // No loading/error slots, so no subcomposition: this card sits in chat bubbles,
+                // where a subcomposition per row costs on every scroll.
                 coil.compose.AsyncImage(
                     model = imageRequest,
                     contentDescription = null,
@@ -764,8 +763,6 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
  * pasted with, and tapping one routes inside the app instead of handing the URL to a browser.
  *
  * Wire forms (identical on iOS):
- *   KaPosts post   kachat://kapost/<txid>       https://kachat.app/post/<txid>
- *   Broadcast room kachat://broadcast/<channel> https://kachat.app/broadcast/<channel>
  *   Profile        kachat://profile/<address>   https://kachat.app/u/<address>
  *   Payment req.   kachat://pay/<address>?...   https://kachat.app/pay/<address>?amount=<KAS>&memo=<text>[&chat=1]&by=<address>&sig=<hex>
  *                  (see [com.kachat.app.models.PaymentRequest], iOS c6851d6 / 7c71a98)
@@ -777,12 +774,10 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
  * Links written before kachat.app used kachat.duckdns.org. Those are still opened; they are
  * never written.
  *
- * `<channel>` is the normalized channel name with NO leading '#'
- * (see [MessageProtocol.normalizeChannelName]).
+ * KaPosts posts (`/post/`) and public chat rooms (`/broadcast/`) left the app on 2026-10-24 (iOS
+ * e2f6732): their links are ordinary web links now.
  */
 sealed class KaChatLinkRef {
-    data class KaPost(val txId: String) : KaChatLinkRef()
-    data class BroadcastRoom(val channel: String) : KaChatLinkRef()
     /** Someone's KaChat profile: opens their User Info, contact or not (iOS 81df734). Always a
      *  full, valid address. */
     data class Profile(val address: String) : KaChatLinkRef()
@@ -797,17 +792,13 @@ data class KaChatLinkMatch(val range: IntRange, val raw: String, val ref: KaChat
 
 object KaChatLink {
     /** The only host the app ever writes into a share. With KaChat installed the link opens
-     *  the app; without it the site shows the post, or the room invite, with download buttons -
-     *  and it unfurls a preview in every chat app, which a bare kachat:// line does nowhere. */
+     *  the app; without it the site shows the profile with download buttons - and it unfurls a
+     *  preview in every chat app, which a bare kachat:// line does nowhere. */
     const val WEB_HOST = "kachat.app"
 
     /** Hosts from before kachat.app: still opened, never written. */
     val LEGACY_WEB_HOSTS = setOf("kachat.duckdns.org")
 
-    fun kaPostUrl(txId: String) = "kachat://kapost/$txId"
-    fun kaPostWebUrl(txId: String) = "https://$WEB_HOST/post/$txId"
-    fun broadcastUrl(channel: String) = "kachat://broadcast/$channel"
-    fun broadcastWebUrl(channel: String) = "https://$WEB_HOST/broadcast/$channel"
     fun profileUrl(address: String) = "kachat://profile/$address"
     /** The one builder both share buttons use - your own Profile and anyone's User Info - so the
      *  two links cannot drift apart: kachat.app/u/<address>, trimmed and lowercased (iOS 44d5fa4). */
@@ -817,7 +808,7 @@ object KaChatLink {
     // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
     // second path component, a query string or a fragment into the app.
     private val LINK_REGEX = Regex(
-        """(?:kachat://(kapost|broadcast|profile)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(post|broadcast|u)/)([^\s/?#]+)""",
+        """(?:kachat://(profile)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(u)/)([^\s/?#]+)""",
         RegexOption.IGNORE_CASE
     )
     // A payment request carries a query, so it has its own pattern: everything up to whitespace
@@ -827,7 +818,6 @@ object KaChatLink {
         RegexOption.IGNORE_CASE
     )
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')
-    private val TX_ID_REGEX = Regex("[0-9a-fA-F]{6,64}")
 
     /** True when [raw] is nothing but one of these links (no surrounding text). */
     fun parse(raw: String): KaChatLinkRef? {
@@ -855,36 +845,15 @@ object KaChatLink {
         return null
     }
 
-    /**
-     * Normalizes an incoming broadcast channel name from an UNTRUSTED source (a pasted link, an
-     * inbound intent), returning null when it is malformed or hostile rather than joining it.
-     *
-     * [MessageProtocol.isValidChannelName] is the protocol gate (non-blank, no whitespace, no
-     * colons, within the length cap); on top of it a link-borne name must also survive being put
-     * in a navigation route and rendered as a room title, so anything that could re-encode as
-     * another URL, split the route, or hide characters in the title is rejected too.
-     */
-    fun sanitizeChannelName(raw: String): String? {
-        val name = MessageProtocol.normalizeChannelName(raw.trim().removePrefix("#"))
-        if (!MessageProtocol.isValidChannelName(name)) return null
-        if (name.any { it in "/?#%&\\" || it.isISOControl() }) return null
-        return name
-    }
-
     private fun refFor(match: MatchResult): KaChatLinkRef? {
         val kind = match.groupValues[1].ifEmpty { match.groupValues[2] }.lowercase()
-        // Percent-decoding only (NOT URLDecoder, which would turn a legal '+' in a channel name
-        // into a space).
+        // Percent-decoding only (NOT URLDecoder, which would turn a legal '+' into a space).
         val segment = try {
             android.net.Uri.decode(match.groupValues[3])
         } catch (e: Exception) {
             null
         } ?: return null
         return when (kind) {
-            "kapost", "post" ->
-                segment.takeIf { TX_ID_REGEX.matches(it) }?.lowercase()?.let(KaChatLinkRef::KaPost)
-            "broadcast" ->
-                sanitizeChannelName(segment)?.let(KaChatLinkRef::BroadcastRoom)
             "profile", "u" -> profileAddress(segment)?.let(KaChatLinkRef::Profile)
             else -> null
         }
@@ -915,17 +884,11 @@ object KaChatLink {
 
 /**
  * Hands an in-app link to the app's own routing instead of the browser. Both paths land in the
- * same deep-link holders a notification tap uses, so Child Mode is enforced in exactly one place
- * (MainShell's deep-link effects) for taps, notifications and system intents alike.
+ * same deep-link holders a notification tap uses (MainShell's deep-link effects), for taps,
+ * notifications and system intents alike.
  */
 fun openKaChatLink(ref: KaChatLinkRef) {
     when (ref) {
-        is KaChatLinkRef.KaPost -> {
-            // Focus first, post id second - the post id is what KaPostsScreen keys on.
-            KaPostsDeepLink.pendingFocusReplyTxId.value = null
-            KaPostsDeepLink.pendingPostTxId.value = ref.txId
-        }
-        is KaChatLinkRef.BroadcastRoom -> BroadcastDeepLink.request(ref.channel)
         is KaChatLinkRef.Profile -> ProfileDeepLink.request(ref.address)
         // Someone else's opens Send Kaspa filled in, your own shows it (MainShell presents both).
         is KaChatLinkRef.PaymentRequest -> PaymentRequestRouter.open(ref.request)
@@ -952,17 +915,14 @@ object ProfileDeepLink {
 
 /**
  * The rich preview for an in-app KaChat link (iOS `KaChatInternalLinkCardView`): the link's own
- * identity (KaPosts post / public chat room / KaChat profile), and for a post the author and text
- * themselves, resolved from the chain by [KaPostLinkPreviewService] - a shared post previews AS
- * the post rather than as a URL.
+ * identity (KaChat profile / payment request).
  *
- * iOS's layout: the author's avatar or the link's glyph in an accent tile, then an accent
- * uppercase eyebrow ABOVE the title, the title, the line under it, and a chevron - on the same
- * glass card as the Send Kaspa pieces, up to 280 wide.
+ * iOS's layout: the link's glyph in an accent tile, then an accent uppercase eyebrow ABOVE the
+ * title, the title, the line under it, and a chevron - on the same glass card as the Send Kaspa
+ * pieces, up to 280 wide.
  *
- * The only request that leaves the device is that one, to Kaspa's own REST API with a transaction
- * id. The link's host is never contacted, so there is no "tap to load" gate: a stranger's KaChat
- * link is as safe to render as your own.
+ * The link's host is never contacted, so there is no "tap to load" gate: a stranger's KaChat link
+ * is as safe to render as your own.
  *
  * Long-press opens iOS's "KaChat Link" message menu: Open in KaChat, Copy Link, View in Explorer,
  * Select.
@@ -981,12 +941,6 @@ fun KaChatInternalLinkCard(
     val colors = LocalAppColors.current
     var showMenu by remember { mutableStateOf(false) }
 
-    val postId = (ref as? KaChatLinkRef.KaPost)?.txId
-    val previews by KaPostLinkPreviewService.previews.collectAsState()
-    val post = postId?.let { previews[it] }
-    // Idempotent - the service drops a repeat call, an in-flight one and a known-bad id.
-    LaunchedEffect(postId) { postId?.let { KaPostLinkPreviewService.load(it) } }
-
     // A profile card names the person the way iOS does - their KNS name, else what you saved
     // them as - and says whether a tap opens your chat or starts one.
     val profileAddress = (ref as? KaChatLinkRef.Profile)?.address
@@ -1000,17 +954,6 @@ fun KaChatInternalLinkCard(
             profileName = resolver.profileFor(profileAddress)?.first
                 ?: contact?.alias?.takeIf { it.isNotBlank() }
         }
-    }
-
-    // A curated room, or one already in your list, just opens; anything else is joined on tap,
-    // so the card says which before you tap (iOS).
-    val roomChannel = (ref as? KaChatLinkRef.BroadcastRoom)?.channel
-    var roomIsKnown by remember(roomChannel) {
-        mutableStateOf(roomChannel != null && roomChannel in com.kachat.app.models.FeaturedBroadcastChannels.CURATED_NAMES)
-    }
-    if (roomChannel != null && !roomIsKnown) {
-        val rooms: KaChatLinkCardViewModel = hiltViewModel()
-        LaunchedEffect(roomChannel) { roomIsKnown = rooms.hasJoinedRoom(roomChannel) }
     }
 
     // A payment request: whether it is yours (worked out off the main thread - the wallet's
@@ -1035,40 +978,18 @@ fun KaChatInternalLinkCard(
     val payAction = stringResource(if (payIsOwn) R.string.pr_your_request_tap_to_view else R.string.pr_tap_to_pay)
 
     val icon = when (ref) {
-        is KaChatLinkRef.KaPost -> Icons.Default.NoteAlt
-        is KaChatLinkRef.BroadcastRoom -> Icons.Default.Sensors
         is KaChatLinkRef.Profile -> Icons.Default.AccountCircle
         is KaChatLinkRef.PaymentRequest -> Icons.Outlined.ArrowCircleUp
     }
     val eyebrow = when (ref) {
-        // A reply or a quote is still a KaPosts post, but saying which one it is explains why
-        // the text may read as half a conversation.
-        is KaChatLinkRef.KaPost -> when (post?.action) {
-            "reply" -> "KaPosts reply"
-            "quote" -> "KaPosts quote"
-            else -> "KaPosts"
-        }
-        is KaChatLinkRef.BroadcastRoom -> "Public Chat Room"
         is KaChatLinkRef.Profile -> "KaChat Profile"
         is KaChatLinkRef.PaymentRequest -> payEyebrow
     }
     val title = when (ref) {
-        is KaChatLinkRef.KaPost -> post?.authorName ?: "KaPosts post"
-        is KaChatLinkRef.BroadcastRoom -> "#${ref.channel}"
         is KaChatLinkRef.Profile -> profileName ?: com.kachat.app.util.KaspaAddress.shortDisplay(ref.address)
         is KaChatLinkRef.PaymentRequest -> "${ref.request.amountText} ${com.kachat.app.util.KaspaUnit.symbol}"
     }
     val subtitle = when (ref) {
-        is KaChatLinkRef.KaPost -> when {
-            post == null -> "Tap to open this post in KaChat."
-            // A quote with no added comment is a repost: there is no text to show, so say what
-            // it is rather than leaving the card looking half-loaded.
-            post.snippet.isBlank() ->
-                if (post.action == "quote") "Reposted a post." else "Tap to open this post in KaChat."
-            else -> post.snippet
-        }
-        is KaChatLinkRef.BroadcastRoom ->
-            if (roomIsKnown) "Tap to open this KaChat public chat room." else "Tap to join this KaChat public chat room."
         is KaChatLinkRef.Profile ->
             if (profileIsContact) "Tap to open your chat." else "Tap to start a chat on KaChat."
         // The memo, the maker as the signature in the link proves - their name, not the payment
@@ -1079,8 +1000,7 @@ fun KaChatInternalLinkCard(
             payAction,
         ).joinToString("\n")
     }
-    // The text of a real post deserves more than the placeholder's three lines.
-    val subtitleMaxLines = if (post?.snippet?.isNotBlank() == true) 6 else 3
+    val subtitleMaxLines = 3
 
     Row(
         modifier = Modifier
@@ -1097,27 +1017,14 @@ fun KaChatInternalLinkCard(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // A resolved post shows its AUTHOR, the same avatar the KaPosts feed draws for them. The
-        // KaPosts glyph is for a post that has not resolved yet, and for room invites, which have
-        // no author at all.
-        val authorAddress = post?.authorAddress?.takeIf { it.isNotEmpty() }
-        if (authorAddress != null) {
-            ContactAvatar(
-                imageUrl = post.authorAvatarUrl,
-                fallbackText = post.authorName ?: "",
-                size = 40.dp,
-                address = authorAddress,
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(KaspaTeal.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
-            }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(KaspaTeal.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1192,12 +1099,3 @@ fun KaChatInternalLinkCard(
     }
 }
 
-/** Whether a public chat room is already in your list - the KaChat link card's "open" or "join". */
-@dagger.hilt.android.lifecycle.HiltViewModel
-class KaChatLinkCardViewModel @javax.inject.Inject constructor(
-    private val broadcastRepository: com.kachat.app.repository.BroadcastRepository,
-) : androidx.lifecycle.ViewModel() {
-    suspend fun hasJoinedRoom(channel: String): Boolean = runCatching {
-        broadcastRepository.getJoinedChannels().first().any { it.channelName == channel }
-    }.getOrDefault(false)
-}

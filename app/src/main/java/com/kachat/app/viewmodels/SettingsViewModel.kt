@@ -70,18 +70,6 @@ class SettingsViewModel @Inject constructor(
 
     val addressActivityNotificationsEnabled = settings.addressActivityNotificationsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    val kaPostsNotifyLikes = settings.kaPostsNotifyLikes
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    val kaPostsNotifyReposts = settings.kaPostsNotifyReposts
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    val kaPostsNotifyFollows = settings.kaPostsNotifyFollows
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    val kaPostsNotifyDislikes = settings.kaPostsNotifyDislikes
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    val kaPostsNotifyComments = settings.kaPostsNotifyComments
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    val kaPostsNotifyMentions = settings.kaPostsNotifyMentions
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     /** Receive notifications for the wallet's own spending addresses - a cold-storage account
      *  has its own switch in its menu (iOS ba352a2). */
@@ -92,18 +80,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settings.setSpendingReceiveNotifications(enabled) }
     }
 
-    /** The amount a tap on Tip sends at once, in sompi; null while it asks every time. */
-    val kaPostsDefaultTipSompi = settings.kaPostsDefaultTipSompi
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
     fun setAddressActivityNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setAddressActivityNotificationsEnabled(value) }
-    fun setKaPostsNotifyLikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyLikes(value) }
-    fun setKaPostsNotifyReposts(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyReposts(value) }
-    fun setKaPostsNotifyFollows(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyFollows(value) }
-    fun setKaPostsNotifyDislikes(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyDislikes(value) }
-    fun setKaPostsNotifyComments(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyComments(value) }
-    fun setKaPostsNotifyMentions(value: Boolean) = viewModelScope.launch { settings.setKaPostsNotifyMentions(value) }
-    fun setKaPostsDefaultTipSompi(value: Long?) = viewModelScope.launch { settings.setKaPostsDefaultTipSompi(value) }
 
     // ------------------------------------------------------------------
     // Simple Mode (Settings > Security > Simple Mode + the Welcome Guide's

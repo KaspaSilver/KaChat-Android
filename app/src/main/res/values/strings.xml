@@ -6,9 +6,7 @@
     <string name="photo_saved">Photo saved</string>
     <string name="could_not_save_photo">Could not save photo</string>
     <string name="withdrawal_failed">Withdrawal failed</string>
-    <string name="consolidation_failed">Consolidation failed</string>
     <string name="swap_failed">Swap failed</string>
-    <string name="nothing_to_consolidate">Nothing to consolidate</string>
     <string name="kas">.kas</string>
     <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 words</string>
@@ -35,16 +33,13 @@
     <string name="admin">Admin</string>
     <string name="all_discovered_nodes_sorted_by_state">All discovered nodes sorted by state and latency. Nodes are deduplicated by host:port.</string>
     <string name="amount_kas">Amount (KAS)</string>
-    <string name="anyone_who_joins_the_same_channel">Anyone who joins the same channel name can see and post messages there. There\'s no owner or invite.</string>
     <string name="anyone_with_your_seed_phrase_can">Anyone with your seed phrase can access your account. Never share it with anyone. Make sure you only write this down. Never take a screenshot or store it on your device.</string>
     <string name="back">Back</string>
     <string name="previous">Previous</string>
     <string name="balance">Balance</string>
     <string name="before_you_swap">Before You Swap</string>
     <string name="broadcasting">Broadcasting...</string>
-    <string name="broadcasts">Public Chats</string>
     <string name="build_unsigned_transaction">Build Unsigned Transaction</string>
-    <string name="camera_permission_is_needed_to_scan">Camera permission is needed to scan a QR code</string>
     <string name="cancel">Cancel</string>
 
     <!-- App-wide settings reachable from the accounts screen's gear (no active account) -->
@@ -90,7 +85,6 @@
     <string name="what_stays_available">What stays available</string>
     <string name="chats_and_group_chats">Chats &amp; Group Chats</string>
     <string name="child_mode_about_footer">While Simple Mode is on, Swaps, KaPosts and Public Chats are removed everywhere - the dock, the Chats-tab cycle, links and notifications. Biometrics never unlock Simple Mode; only the password does.</string>
-    <string name="load_earlier_messages">Load earlier messages</string>
     <string name="delivery_sent">Sent</string>
     <string name="delivery_sending">Sending</string>
     <string name="delivery_failed">Failed</string>
@@ -118,12 +112,7 @@
     <string name="chats">Chats</string>
     <!-- Banner on the Chats list after sharing into KaChat from another app without picking a specific conversation on the share sheet. -->
     <string name="share_pick_chat">Choose a chat to share to</string>
-    <string name="kapost_indexer">KaPost Indexer</string>
-    <string name="broadcast_popular_retention_note">All messages persist for 30 days</string>
     <string name="help">Help</string>
-    <string name="broadcast_indexer">Public Chats Indexer</string>
-    <string name="broadcast_indexer_footer">KaChat public chat history indexer for #kaspa and #kachat-bugs</string>
-    <string name="kapost_indexer_footer">K social network indexer that powers KaPosts feeds</string>
     <string name="coinbase">Coinbase</string>
     <string name="chatting_address">Chatting Address</string>
     <string name="chatting_address_2">Chatting address</string>
@@ -148,7 +137,6 @@
     <string name="connection_settings">Connection Settings</string>
     <string name="connection_status">Connection Status</string>
     <string name="contact_has_requested_permission_to_communicate">Contact has requested permission to communicate</string>
-    <string name="controls_how_much_photos_are_compressed">Controls how much photos are compressed before sending. Higher quality looks clearer but costs a larger fee and takes longer to send; lower quality sends faster and cheaper but looks more compressed. This only affects photos you send, not ones you receive.</string>
     <string name="copy">Copy</string>
     <string name="copy_address">Copy Address</string>
     <string name="copy_private_key_hex">Copy Private Key Hex</string>
@@ -188,14 +176,11 @@
     <string name="from">From</string>
     <string name="fund_your_chatting_address">Fund Your Chatting Address</string>
     <string name="generate_account">Generate Account</string>
-    <string name="grant_permission">Grant Permission</string>
-    <string name="grant_permission_2">Grant permission</string>
     <string name="group_info">Group Info</string>
     <string name="group_name_2">Group name</string>
     <string name="hidden_addresses">Hidden Addresses</string>
     <string name="hidden_users">Hidden Users</string>
     <string name="holdings">Holdings</string>
-    <string name="how_long_messages_in_this_broadcast">How long messages in this public chat stay cached on this device, up to a maximum of 3 days.</string>
     <string name="i_agree">I Agree</string>
     <string name="if_the_network_is_busy_a">If the network is busy, a higher fee can help your transaction confirm faster.</string>
     <string name="import_action">Import</string>
@@ -207,35 +192,24 @@
     <string name="invalid_address_format">Invalid address format</string>
     <string name="inscribe">Inscribe</string>
     <string name="inscribe_domain">Inscribe Domain</string>
-    <string name="inscribe_new_domain">Inscribe New Domain</string>
     <string name="it_s_ok_i_already_have">It\'s ok, I already have a domain</string>
-    <string name="join">Join</string>
-    <string name="join_or_create_a_channel">Join or Create a Channel</string>
     <string name="kas_2">KAS</string>
     <string name="kns_domains">Your Domains</string>
     <!-- Someone ELSE'"'"'s domains, in Chat Info and the contact domains screen. "Your" is wrong there. -->
     <string name="contact_kns_domains">KNS Domains</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat Logo</string>
-    <string name="kachat_can_t_show_notifications_until">KaChat can\'t show notifications until you allow them for this app.</string>
     <string name="kachat_needs_to_connect_to_a">KaChat needs to connect to a node. How would you like to connect?</string>
     <string name="kaspa">Kaspa</string>
-    <string name="kaspa_address_or_kns_domain">Kaspa Address or KNS Domain</string>
     <string name="kaspa_explorer">Kaspa Explorer</string>
     <string name="label_optional">Label (optional)</string>
     <string name="last_message">Last Message</string>
-    <string name="leave">Leave</string>
-    <string name="leave_delete">Leave &amp; Delete</string>
-    <string name="leaving_this_broadcast_permanently_deletes_every">Leaving this public chat permanently deletes every message cached for it on this device. This cannot be undone; rejoining later starts with no history.</string>
     <string name="let_s_add_more_details_about">Let\'s add more details about yourself</string>
-    <string name="local_storage_used">Local storage used</string>
     <string name="log_out">Log Out</string>
-    <string name="longer_retention_means_more_messages_stay">Longer retention means more messages stay cached on your device, which can slow the app down over time, especially for busy rooms.</string>
     <string name="manage_addresses">Manage Addresses</string>
     <string name="max">Max</string>
     <string name="menu">Customize Dock</string>
     <string name="message">Message</string>
-    <string name="message_retention_settings">Message retention settings</string>
     <string name="more_info">More Info</string>
     <string name="name">Name</string>
     <string name="name_this_address">Name This Address</string>
@@ -243,7 +217,6 @@
     <string name="nextcloud">Nextcloud</string>
     <string name="next">Next</string>
     <string name="no_conversations_yet">No Conversations Yet</string>
-    <string name="no_cold_storage_accounts_yet_scan">No cold storage accounts yet. Scan a kpub exported from your KasSigner device to watch its balance and send from it.</string>
     <string name="no_domains_yet">No domains yet.</string>
     <string name="send_domain">Send Domain</string>
     <string name="asset_id">Asset ID</string>
@@ -257,12 +230,10 @@
     <string name="no_saved_addresses">No saved addresses</string>
     <string name="no_swaps_yet">No swaps yet.</string>
     <string name="no_transactions_yet">No transactions yet.</string>
-    <string name="no_transactions_yet_tap_to_add">No transactions yet. Tap + to add your first buy or sell.</string>
     <string name="no_utxos">No UTXOs.</string>
     <string name="not_now">Not Now</string>
     <string name="notes_optional">Notes (optional)</string>
     <string name="notifications">Notifications</string>
-    <string name="notifications_are_off_in_system_settings">Notifications are off in system settings</string>
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">Only Notify if I\'m Mentioned</string>
     <string name="open_settings">Open Settings</string>
@@ -305,8 +276,6 @@
     <string name="resign">Resign</string>
     <string name="chess_cancel_game">Cancel game</string>
     <string name="resign_this_game">Resign this game?</string>
-    <string name="resolving_domain">Resolving domain…</string>
-    <string name="retention">Retention</string>
     <string name="retry">Retry</string>
     <string name="retry_inscription_reveal">Retry Inscription Reveal</string>
     <string name="save">Save</string>
@@ -325,7 +294,6 @@
     <string name="select_time">Select Time</string>
     <string name="select_all">Select All</string>
     <string name="select_chat">Select chat</string>
-    <string name="selected">Selected</string>
     <string name="send">Send</string>
     <string name="send_from_cold_storage">Send from Cold Storage</string>
     <string name="send_photo">Send photo</string>
@@ -339,7 +307,6 @@
     <string name="some_changes_failed_to_save">Some changes failed to save:</string>
     <string name="start_a_new_chat_by_adding">Start a new chat by adding a contact</string>
     <string name="status">Status</string>
-    <string name="still_indexing_it_ll_show_up">Still indexing. It\'ll show up above shortly.</string>
     <string name="swap">Swap</string>
     <string name="swap_history">Swap History</string>
     <string name="swap_started">Swap started</string>
@@ -355,8 +322,6 @@
     <string name="total_balance">Total Balance</string>
     <string name="total_invested">Total Invested</string>
     <string name="total_p_l">Total P&amp;L</string>
-    <string name="transaction_history">Transaction History</string>
-    <string name="transaction_links_in_message_menus_and">Transaction links in message menus and transaction history pages open in this explorer.</string>
     <string name="transactions">Transactions</string>
     <string name="try_again">Try Again</string>
     <string name="unhide">Unhide</string>
@@ -366,10 +331,8 @@
     <string name="utxos">UTXOs</string>
     <string name="valid_address">Valid address</string>
     <string name="view_on_changenow">View on ChangeNOW</string>
-    <string name="waiting_for_camera">Waiting for camera...</string>
     <string name="waiting_on_opponent">Waiting on opponent</string>
     <string name="the_recipient_wont_see_your_messages">The recipient won\'t see your messages until they message you or you ping them with a handshake. Handshakes cost 0.2 KAS and are returned to you if they accept. You lose privacy if you ping them.</string>
-    <string name="channel_name">channel-name</string>
     <string name="host_port_or_grpcs_host">host:port or grpcs://host</string>
     <string name="kpub">kpub</string>
     <string name="kpub_2">kpub...</string>
@@ -400,7 +363,6 @@
     <string name="created">Created</string>
     <string name="customization">Customization</string>
     <string name="danger_zone">Danger Zone</string>
-    <string name="dark_mode">Dark Mode</string>
     <string name="diagnostics">Diagnostics</string>
     <string name="discord">Discord</string>
     <string name="discover_addresses">Discover Addresses</string>
@@ -408,7 +370,6 @@
     <string name="email">Email</string>
     <string name="explorer">Explorer</string>
     <string name="export_csv">Export CSV</string>
-    <string name="exports_a_plaintext_json_file_of">Exports a plaintext JSON file of your decrypted chat history for this account. It is not encrypted, so only share it somewhere you trust. Importing merges into your existing history without overwriting anything.</string>
     <string name="exports_app_device_info_connection_settings">Exports app/device info, connection settings, local message counts, and recent app logs as a zip — for troubleshooting with support. No private keys, seed phrases, or decrypted message content are included.</string>
     <string name="generate_more_addresses">Generate More Addresses</string>
     <string name="generate_new_spending_address">Generate New Spending Address</string>
@@ -419,7 +380,6 @@
     <string name="indexer">Indexer</string>
     <string name="info">Info</string>
     <string name="kns_profile">KNS Profile</string>
-    <string name="kachat_indexer">KaChat Indexer</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">Kaspa Node</string>
     <string name="default_recommended">Default (Recommended)</string>
@@ -447,8 +407,6 @@
     <string name="security">Security</string>
     <string name="send_handshake">Send Handshake</string>
     <string name="handshake_sent">Handshake sent</string>
-    <string name="send_photo_2">Send Photo</string>
-    <string name="setup_guide">Setup Guide</string>
     <string name="show_fee_estimate">Show Fee Estimate</string>
     <string name="sound_vibration">Sound &amp; Vibration</string>
     <string name="storage">Storage</string>
@@ -463,7 +421,6 @@
     <string name="total">Total</string>
     <string name="verified">Verified</string>
     <string name="verifying_new_ownership_on_chain_this">Verifying new ownership on-chain (this can take a minute)...</string>
-    <string name="verifying_on_chain_this_can_take">Verifying on-chain (this can take a minute)...</string>
     <string name="verifying_on_chain_this_could_take">Verifying on-chain... this could take a few minutes.</string>
     <string name="version">Version</string>
     <string name="vibration">Vibration</string>
@@ -537,11 +494,6 @@
     <string name="user_info">User Info</string>
     <string name="share">Share</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
-    <string name="translate">Translate</string>
-    <string name="show_original">Show Original</string>
-    <string name="show_translation">Show Translation</string>
-    <string name="translation_show_original_subtitle">Back to the text as it was sent.</string>
-    <string name="translation_show_translation_subtitle">The translated text again.</string>
     <string name="mark_as_unread">Mark as Unread</string>
     <string name="mark_as_read">Mark as Read</string>
     <string name="copy_link">Copy Link</string>
@@ -562,7 +514,6 @@
     <string name="kachat_names_are_coming">.kachat names are coming</string>
     <string name="kachat_names_coming_body">KaChat\'s own names will live here: claim one, set it as your name in chats, and share it as your profile link.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
-    <string name="no_domain_found">No domain found</string>
     <string name="no_tld_domain_found">No %1$s domain found</string>
     <string name="looking_up_domain">Looking up domain...</string>
     <string name="looking_up">Looking up...</string>
@@ -572,13 +523,9 @@
     <string name="couldnt_check">Couldn\'t check</string>
     <string name="kaspa_address_or_domain">Kaspa Address or Domain</string>
     <!-- Public Chats select (iOS e08c4cc) -->
-    <string name="default_room_delete_subtitle">Switches this default room off. Turn it back on in Public Chats settings.</string>
-    <string name="default_room_switched_off">#%1$s is off - turn it back on in Public Chats settings</string>
-    <string name="public_chats_bulk_delete_body">Rooms you added are removed with their messages. Default rooms are only switched off - turn them back on any time in Public Chats settings (the gear).</string>
     <!-- Connection Settings tabs (iOS ee01f81) -->
     <string name="connection_tab_indexer">Indexer</string>
     <string name="connection_tab_node">Node</string>
-    <string name="connection_tab_translation">Translation</string>
     <string name="connection_tab_domains">Domains</string>
     <string name="connection_tab_explorer">Explorer</string>
     <string name="message_indexer">Message Indexer</string>
@@ -605,49 +552,6 @@
     <string name="km_trustless_detail">No middleman and no escrow account: Kaspa\'s own rules enforce every sale.</string>
     <string name="km_nothing_live">Nothing here is live yet.</string>
     <string name="km_how_kachat_works">How .kachat works</string>
-    <string name="ks_title">KaChat Stats</string>
-    <string name="ks_dock_label">Stats</string>
-    <string name="ks_what_counts">What counts</string>
-    <string name="ks_range_day">24 Hours</string>
-    <string name="ks_range_week">7 Days</string>
-    <string name="ks_range_all">All Time</string>
-    <string name="ks_caption_day">KaChat transactions in the last 24 hours</string>
-    <string name="ks_caption_week">KaChat transactions in the last 7 days</string>
-    <string name="ks_caption_all">KaChat transactions on Kaspa, all time</string>
-    <string name="ks_messages">Direct Messages</string>
-    <string name="ks_handshakes">New Chats</string>
-    <string name="ks_payments">Payments</string>
-    <string name="ks_group_messages">Group Messages</string>
-    <string name="ks_group_updates">Group Updates</string>
-    <string name="ks_public_chats">Public Chats</string>
-    <string name="ks_kaposts">KaPosts</string>
-    <string name="ks_kapost_actions">KaPost Activity</string>
-    <string name="ks_chess_moves">Chess Moves</string>
-    <string name="ks_chess_games">Chess Games</string>
-    <string name="ks_self_stash">Saved Records</string>
-    <string name="ks_messages_detail">1:1 texts, voice notes, reactions and 1:1 chess</string>
-    <string name="ks_handshakes_detail">Handshakes that start a 1:1 chat</string>
-    <string name="ks_payments_detail">KAS sent in chats</string>
-    <string name="ks_group_messages_detail">Messages in group chats</string>
-    <string name="ks_group_updates_detail">Creating groups, invites and other changes</string>
-    <string name="ks_public_chats_detail">Messages in public rooms</string>
-    <string name="ks_kaposts_detail">Posts, replies, quotes and polls</string>
-    <string name="ks_kapost_actions_detail">Votes, follows, edits and deletes</string>
-    <string name="ks_chess_moves_detail">Moves played in Chess Online</string>
-    <string name="ks_chess_games_detail">Games started in Chess Online</string>
-    <string name="ks_self_stash_detail">Chat keys and contact notes saved to your own account</string>
-    <string name="ks_no_indexer">No indexer is set for this network</string>
-    <string name="ks_no_indexer_body">Add one in Settings > Connection Settings to see KaChat stats.</string>
-    <string name="ks_unavailable">Stats aren\'t available yet</string>
-    <string name="ks_unavailable_body">Your indexer doesn\'t report KaChat stats yet. They\'ll show here once it does.</string>
-    <string name="ks_stale">Couldn\'t refresh. Showing the last numbers.</string>
-    <string name="ks_updated">Updated %1$s</string>
-    <string name="ks_counting_since">Counting since %1$s</string>
-    <string name="ks_info_header">Every KaChat action is its own Kaspa transaction. These totals come from KaChat\'s indexer, counting what it has seen on chain - nothing is read from your phone.</string>
-    <string name="ks_info_footer">1:1 messages are encrypted, so voice notes, reactions and 1:1 chess moves count as direct messages: nobody, the indexer included, can tell them apart.</string>
-    <string name="ks_all_time_only">All-time only</string>
-    <string name="ks_all_time_only_note">Kinds marked \"All-time only\" aren\'t in this total yet.</string>
-    <string name="ks_try_again">Try Again</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_claim_title">Claim your .kachat name</string>
     <string name="kg_claim_body">It\'s the name people see you as across KaChat - in chats, on posts and on your profile link. Without one, people see your address.</string>
@@ -753,8 +657,6 @@
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Close KaChat completely and open it again to finish switching to Testnet.</string>
     <string name="testnet_restart_to_mainnet">Close KaChat completely and open it again to finish switching back to Mainnet.</string>
-    <string name="kaposts_not_on_testnet">KaPosts isn\'t available on Testnet yet</string>
-    <string name="kaposts_not_on_testnet_sub">There is no KaPost indexer for testnet. Turn off Testnet in Settings > Connection to read and post on mainnet.</string>
     <string name="nextcloud_off_on_testnet">Nextcloud is off while Testnet is on.</string>
     <string name="nextcloud_off_on_testnet_footer">Backups, sync, media and calls through Nextcloud work on mainnet only, so testnet can never overwrite your mainnet backup. Turn off Testnet in Settings > Connection and your Nextcloud connection comes back as it was.</string>
     <!-- Kaspa Hub > .kachat live on testnet (iOS 5df42b4) -->
@@ -809,7 +711,6 @@
     <string name="kn_accept_warning">The name goes to the buyer and the offer\'s amount comes to you, in one transaction. This can\'t be undone.</string>
     <string name="kn_buyer">Buyer</string>
     <string name="kn_price_to_miners">Price (to miners)</string>
-    <string name="kn_years">Years</string>
     <string name="kn_bond_returned">Bond (returned on release)</string>
     <string name="kn_deposit_returned">Registry deposit (returned on release)</string>
     <string name="kn_commit_returned">Commit (returned at registration)</string>
@@ -988,11 +889,8 @@
     <string name="chats_new">New</string>
     <string name="chats_new_chat">New Chat</string>
     <string name="chats_new_group_chat">New Group Chat</string>
-    <string name="chats_new_public_chat">New Public Chat</string>
-    <string name="chats_fund_chatting_address">Fund Chatting Address</string>
     <string name="chats_new_chat_subtitle">Message someone by their address or name.</string>
     <string name="chats_new_group_subtitle">Start an encrypted group with several people.</string>
-    <string name="chats_new_public_subtitle">Join a public room, or create one.</string>
     <string name="chats_fund_subtitle">Show the QR code to add Kaspa for sending messages.</string>
     <string name="chats_receive_subtitle">Show a fresh address to get paid.</string>
     <string name="qr_receive_address_subtitle">A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting or domains.</string>
@@ -1024,7 +922,6 @@
     <string name="chats_circle_unpin_hint">Goes back to its place by latest activity.</string>
     <string name="chats_circle_pin_hint">Keeps it first in the row above your chats.</string>
     <string name="chats_circle_hold_for_options">Hold for options</string>
-    <string name="delete_room_title">Delete Room?</string>
     <!-- iOS 13046ad: Received notification opens the address's history -->
     <string name="own_address_not_in_wallet">This address isn\'t in this wallet any more.</string>
     <!-- iOS d36fc42: Edit KaChat Profile saves on mainnet -->
@@ -1129,18 +1026,7 @@
     <string name="kn_claiming_name">Claiming %1$s</string>
     <string name="kn_keep_open_claiming">Keep KaChat open: the name is registered about a minute after the hidden commit confirms. If you leave, it picks up where it left off when you come back.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
-    <string name="kaposts_tip_title">Tip</string>
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
-    <string name="ks_kachat_registrations">Names Registered</string>
-    <string name="ks_kachat_renewals">Name Renewals</string>
-    <string name="ks_kachat_sales">Name Sales</string>
-    <string name="ks_kachat_offers">Name Offers</string>
-    <string name="ks_kachat_activity">Name Activity</string>
-    <string name="ks_kachat_registrations_detail">.kachat names claimed</string>
-    <string name="ks_kachat_renewals_detail">.kachat names extended or renewed</string>
-    <string name="ks_kachat_sales_detail">.kachat names bought from a listing or through an accepted offer</string>
-    <string name="ks_kachat_offers_detail">Offers made on .kachat names</string>
-    <string name="ks_kachat_activity_detail">Listings, transfers, releases, reclaims and returned offers</string>
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
     <string name="create_wallet_name_title">Create a name for your wallet</string>
     <string name="create_wallet_name_detail">This name is only stored on this device, to tell your wallets apart. No one else will ever see it.</string>
@@ -1150,7 +1036,6 @@
     <string name="write_down_your_seed_phrase">Write Down Your Seed Phrase</string>
     <string name="store_this_in_a_safe_place_anyone_with_these_words">Store this in a safe place. Anyone with these words can access your account.</string>
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
-    <string name="kaposts_retry">Retry</string>
     <!-- Profile bell sheet (iOS GlobalNotificationListView) -->
     <string name="notification_center_empty_title">No notifications yet</string>
     <string name="notification_center_clear_all">Clear All</string>
@@ -1161,15 +1046,8 @@
     <string name="composer_fee_estimating">fee: -------- KAS</string>
     <string name="composer_fee_unknown">fee: -- KAS</string>
     <!-- KaPosts (iOS KaPostsView) -->
-    <string name="kaposts_delete_post_subtitle">Removes this post everywhere. You have five seconds to undo.</string>
-    <string name="kaposts_tip_didnt_send">Tip didn\'t send: %1$s</string>
     <!-- KaPosts schedule sheet (iOS KaPostComposer) -->
-    <string name="kaposts_schedule_post">Schedule post</string>
-    <string name="kaposts_schedule_post_note">Signed now, posted then - by the indexer, or by this phone if the indexer can\'t be reached.</string>
     <!-- KaPosts scheduled toast (iOS KaPostsView.scheduleDelayedPost) -->
-    <string name="kaposts_scheduled_for_toast">Scheduled for %1$s</string>
-    <string name="kaposts_scheduled_for_on_phone_toast">Scheduled for %1$s - sends from this phone</string>
-    <string name="kaposts_couldnt_schedule_toast">Couldn\'t schedule: %1$s</string>
     <!-- Swap portfolio picker (iOS SwapView showPortfolioConfirm) -->
     <string name="swap_portfolio_pick_note">%1$s %2$s KAS at %3$s%4$s - choose which portfolio to add it to.</string>
     <string name="swap_portfolio_already_holds">Already holds this swap - adding it again double-counts it.</string>
@@ -1371,7 +1249,6 @@
     <string name="kn_transfer_placeholder_domain">kaspatest:... or domain</string>
     <string name="kn_err_enter_address_or_domain">Enter an address or a domain.</string>
     <string name="kn_err_name_address_cant_own">That name\'s address can\'t own a .kachat name.</string>
-    <string name="kn_err_no_domain_by_name">No domain found by that name.</string>
     <string name="kachat_names_resolved_first_footer">Resolved first, everywhere you can type an address.</string>
     <string name="other_domains_title">Other Domains</string>
     <string name="other_domains_settings_footer">Looked up after .kachat, and listed under Other domains when a typed name also exists there.</string>
@@ -1523,29 +1400,12 @@
     <string name="customize_dock_move_to">Move %1$s to %2$s</string>
     <string name="customize_dock_add">Add %1$s to your dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
-    <string name="kaposts_tips">Tips</string>
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
-    <string name="kaposts_likes">Likes</string>
-    <string name="kaposts_dislikes">Dislikes</string>
-    <string name="kaposts_reposts">Reposts</string>
-    <string name="kaposts_quotes">Quotes</string>
-    <string name="kaposts_no_tips_yet">No tips yet.</string>
-    <string name="kaposts_who_tipped">Who tipped this post</string>
-    <string name="kaposts_bell_on_note">You\'ll now be notified when %1$s posts.</string>
-    <string name="kaposts_bell_off_note">You won\'t be notified about %1$s\'s posts anymore.</string>
-    <string name="kaposts_bell_stop">Stop post notifications</string>
-    <string name="kaposts_bell_notify">Notify me when they post</string>
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
     <string name="push_sent_you_kas">Sent you %1$s KAS</string>
     <string name="push_sent_you_payment">Sent you a payment</string>
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
-    <string name="kn_fees">Fees</string>
-    <string name="ks_kachat_domains">.kachat Domains</string>
-    <string name="ks_kachat_transactions">Transactions on the .kachat registry</string>
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
-    <string name="ks_kachat_fees_detail">Paid for registrations and renewals</string>
-    <string name="ks_fees_unavailable">Fees aren\'t available yet</string>
-    <string name="ks_fees_unavailable_body">Your indexer doesn\'t report them yet. They\'ll show here once it does.</string>
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
     <string name="cold_storage_empty_title">No Cold Storage Accounts</string>
     <string name="cold_storage_empty_body">Scan or paste a kpub exported from your KasSigner device to watch its balance.</string>
@@ -1643,13 +1503,4 @@
     <string name="non_quantum_addresses">Non-Quantum Addresses</string>
     <string name="addresses_shown_count">%1$d of %2$d shown</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
-    <string name="chess_leaderboard_this_month">This month</string>
-    <string name="chess_leaderboard_all_time">All time</string>
-    <string name="chess_leaderboard_period">Leaderboard period</string>
-    <string name="chess_leaderboard_resets_monthly">Resets on the 1st of every month (UTC).</string>
-    <string name="chess_leaderboard_counted_from">Counted from %1$s.</string>
-    <string name="chess_no_finished_duels_this_month">No finished 1v1 games this month yet.</string>
-    <string name="chess_no_finished_duels">No finished 1v1 games yet.</string>
-    <string name="chess_no_finished_tournaments_this_month">No finished tournaments this month yet.</string>
-    <string name="chess_no_finished_tournaments">No finished tournaments yet.</string>
 </resources>

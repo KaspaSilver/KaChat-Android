@@ -147,10 +147,8 @@ class DiagnosticsExportService @Inject constructor(
             "talkCallsAvailable" to nextcloudService.talkCallsAvailable.value.toString(),
             "talkAvailabilityReason" to nextcloudService.talkAvailabilityReason.value,
             "backupRetention" to settingsRepository.backupRetention.first().name,
-            "broadcastPopularEnabled" to settingsRepository.broadcastPopularEnabled.first().toString(),
-            "broadcastShowKnsAvatars" to settingsRepository.broadcastShowKnsAvatars.first().toString(),
-            // Push diagnostics — background DM/broadcast/KaPosts delivery is push-only (no
-            // polling fallback), so this is the state to check when notifications don't arrive.
+            // Push diagnostics — background DM delivery is push-only (no polling fallback), so
+            // this is the state to check when notifications don't arrive.
             "pushActive" to pushState.isActive.toString(),
             "pushLastAttemptAtMs" to (pushState.diagnostics.value.lastAttemptAtMs?.toString() ?: "never"),
             "pushLastAction" to (pushState.diagnostics.value.lastAction ?: "none"),

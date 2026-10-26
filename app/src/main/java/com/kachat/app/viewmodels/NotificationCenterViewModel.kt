@@ -9,11 +9,8 @@ import javax.inject.Inject
 @HiltViewModel
 class NotificationCenterViewModel @Inject constructor(
     val store: GlobalNotificationCenterStore,
-    /** KaPosts keeps its own count - see [com.kachat.app.services.KaPostsUnseenStore]. */
-    val kaPostsUnseen: com.kachat.app.services.KaPostsUnseenStore,
 ) : ViewModel() {
     init {
         store.reloadIfNeeded()
-        kaPostsUnseen.reloadIfNeeded()
     }
 }

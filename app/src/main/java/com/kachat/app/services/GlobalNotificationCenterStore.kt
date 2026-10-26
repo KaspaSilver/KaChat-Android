@@ -148,14 +148,6 @@ class GlobalNotificationCenterStore @Inject constructor(
         }
     }
 
-    // MARK: - Broadcasts
-
-    /** Public rooms live in the Chats tab, with their own unread counts and long-press controls,
-     *  so their messages no longer go through the bell (iOS 2010124). Kept as a no-op for the
-     *  call site; rows an older build recorded are dropped on load. */
-    @Suppress("UNUSED_PARAMETER")
-    fun recordBroadcastIfLive(channel: String, senderAddress: String, senderName: String, content: String, txId: String, blockTimeMs: Long) {}
-
     companion object {
         private const val TAG = "GlobalNotifCenter"
 
@@ -166,13 +158,11 @@ class GlobalNotificationCenterStore @Inject constructor(
         fun sourceLabel(source: String): String = when (source) {
             "wallet" -> "Wallet"
             "kachat" -> ".kachat"
-            "kaposts" -> "KaPosts"
             "group" -> "Group"
-            "broadcast" -> "Public Chat"
             else -> source
         }
 
-        /** Same @token rule as the KaPosts mention parser. */
+        /** An @mention token in a message: "@bob" or "@bob.kachat". */
         val MENTION_TOKEN_REGEX = Regex("(^|[\\s(\\[{<\"'])@([a-z0-9-]+(?:\\.[a-z0-9-]+)*)", RegexOption.IGNORE_CASE)
     }
 }

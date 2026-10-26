@@ -185,21 +185,6 @@ class WalletService @Inject constructor(
     }
 
     /**
-     * Builds and signs a payload-carrying self-send without submitting it - a scheduled KaPost
-     * (see [KaspaWalletEngine.buildSignedPayloadSelfSend]). The coins it spends must be reserved
-     * by the caller until it goes out.
-     */
-    suspend fun buildSignedPayloadSelfSend(payloadBytes: ByteArray): Result<KaspaWalletEngine.SignedPayloadTx> =
-        walletEngine.buildSignedPayloadSelfSend(payloadBytes)
-
-    /** Submits a transaction signed earlier - the fallback path for a scheduled post. */
-    suspend fun submitSignedTransaction(transaction: RawTransaction): String {
-        val txId = walletEngine.submitSignedTransaction(transaction)
-        refreshBalance()
-        return txId
-    }
-
-    /**
      * A chat payment whose From is one of the spending addresses (iOS 6333dd3
      * `sendPayment(sourceSpendingIndex:)`) - see [KaspaWalletEngine.sendSpendingPayment]: signed
      * with [sourceSpendingIndex]'s own key, change to a never-used address. A payment from the

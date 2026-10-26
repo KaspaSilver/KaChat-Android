@@ -25,10 +25,7 @@ class GsonPersistedStoresTest {
     fun `connection profile round-trips`() {
         val custom = ConnectionProfile(
             indexerUrl = "https://indexer.example",
-            kapostIndexerUrl = "",
-            broadcastIndexerUrl = null,
             pushIndexerUrl = "https://push.example",
-            translationServiceUrl = "https://tr.example",
             kaspaRestUrl = "https://rest.example",
             trustedNodeAddress = "node.example:16110",
             savedNodeAddresses = "[]",
@@ -48,6 +45,13 @@ class GsonPersistedStoresTest {
         val obfuscated = """{"a":"https://indexer.example","b":"","e":"https://tr.example"}"""
         assertTrue(ConnectionProfile.isForeignRecord(obfuscated))
         assertNull(ConnectionProfile.decode(obfuscated))
+    }
+
+    @Test
+    fun `connection profile saved before the retired indexers left still reads`() {
+        val old = """{"indexerUrl":"https://indexer.example","kapostIndexerUrl":"","broadcastIndexerUrl":null,"translationServiceUrl":"https://tr.example"}"""
+        assertFalse(ConnectionProfile.isForeignRecord(old))
+        assertEquals(ConnectionProfile(indexerUrl = "https://indexer.example"), ConnectionProfile.decode(old))
     }
 
     @Test

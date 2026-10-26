@@ -4,14 +4,11 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.kachat.app.models.BroadcastChannelEntity
-import com.kachat.app.models.BroadcastMessageEntity
 import com.kachat.app.models.ContactEntity
 import com.kachat.app.models.DeletedContactEntity
 import com.kachat.app.models.GroupEntity
 import com.kachat.app.models.GroupMessageEntity
 import com.kachat.app.models.GroupSyncCursorEntity
-import com.kachat.app.models.HiddenBroadcastSenderEntity
 import com.kachat.app.models.MessageEditEntity
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.MessageSyncCursorEntity
@@ -31,9 +28,6 @@ import com.kachat.app.models.SwapTransactionEntity
     entities = [
         MessageEntity::class,
         ContactEntity::class,
-        BroadcastChannelEntity::class,
-        BroadcastMessageEntity::class,
-        HiddenBroadcastSenderEntity::class,
         DeletedContactEntity::class,
         MessageSyncCursorEntity::class,
         PortfolioTransactionEntity::class,
@@ -45,13 +39,12 @@ import com.kachat.app.models.SwapTransactionEntity
         ReactionEntity::class,
         MessageEditEntity::class,
     ],
-    version = 42,
+    version = 43,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun contactDao(): ContactDao
-    abstract fun broadcastDao(): BroadcastDao
     abstract fun portfolioDao(): PortfolioDao
     abstract fun portfolioDefinitionDao(): PortfolioDefinitionDao
     abstract fun swapDao(): SwapDao
@@ -512,6 +505,18 @@ abstract class KaChatDatabase : RoomDatabase() {
                 if (!columnExists(db, "portfolio_transactions", "updatedAtMillis")) {
                     db.execSQL("ALTER TABLE `portfolio_transactions` ADD COLUMN `updatedAtMillis` INTEGER DEFAULT NULL")
                 }
+            }
+        }
+
+        /**
+         * v42 -> v43: Public Chats left the app (iOS e2f6732), so its three tables - the rooms,
+         * their cached messages and the hidden senders - are dropped with everything in them.
+         */
+        val MIGRATION_42_43 = object : Migration(42, 43) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `broadcast_messages`")
+                db.execSQL("DROP TABLE IF EXISTS `broadcast_channels`")
+                db.execSQL("DROP TABLE IF EXISTS `broadcast_hidden_senders`")
             }
         }
 

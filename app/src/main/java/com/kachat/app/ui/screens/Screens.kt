@@ -3705,29 +3705,6 @@ fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}, size: Dp = 40.
 /** "0:07" — the composer's live recording timer. */
 fun formatRecordingElapsed(elapsedMs: Long): String = VoiceMessage.formatDuration(elapsedMs.toInt())
 
-/**
- * One-line body for a broadcast row in the in-app notification center (the Profile bell).
- *
- * The store records the raw on-chain broadcast content and truncates it to 90 characters, so a
- * photo/voice/chess envelope arrives here as a clipped JSON blob that no parser can read back.
- * The full-envelope cases go through the same mapping the shade uses
- * ([NotificationHelper.broadcastNotificationText]); anything still JSON-shaped after that is a
- * truncated envelope, recognized by its surviving type marker instead.
- */
-internal fun broadcastCenterBody(body: String): String {
-    val humanized = com.kachat.app.services.NotificationHelper.broadcastNotificationText(body)
-    if (humanized.trimStart().firstOrNull() != '{') return humanized
-    val compact = humanized.replace(" ", "")
-    return when {
-        compact.contains("\"mimeType\":\"audio") -> "\uD83C\uDFA4 Audio message"
-        compact.contains("\"mimeType\":\"image") -> "\uD83D\uDCF7 Photo"
-        compact.contains("\"mimeType\":\"video") -> "\uD83C\uDFAC Video"
-        compact.contains("\"type\":\"chess") -> "\u265F\uFE0F Chess game"
-        compact.contains("\"type\":\"file") -> "\uD83D\uDCCE File"
-        else -> "New message"
-    }
-}
-
 /** What the Donate row reads: KaChat's .kachat name (iOS e7cc0d5). */
 private const val DONATE_NAME = "kachat.kachat"
 
@@ -9481,8 +9458,8 @@ fun SettingsScreen(
                     SettingsDivider(inset = IosRowTextInset)
                     SettingsNavigationItem(stringResource(R.string.connection), Icons.Outlined.CellTower, onClick = { navController.navigate("settings_section/connection") })
                     SettingsDivider(inset = IosRowTextInset)
-                    // Top-level Notifications hub (4.0, matches iOS): Chats / Wallet / KaPosts
-                    // subpages - sits between Connection and Chats like iOS's settings list.
+                    // Top-level Notifications hub (4.0, matches iOS): Chats / Wallet subpages - sits
+                    // between Connection and Chats like iOS's settings list.
                     SettingsNavigationItem(stringResource(R.string.notifications), Icons.Outlined.NotificationsActive, onClick = { navController.navigate("settings_section/notifications") })
                     SettingsDivider(inset = IosRowTextInset)
                     SettingsNavigationItem(stringResource(R.string.chats), Icons.Outlined.Forum, onClick = { navController.navigate("settings_section/chats") })
@@ -9559,8 +9536,8 @@ fun SettingsScreen(
 
             if (sectionKey == "notifications") {
                 // The master switch, at the top of the page it governs (iOS NotificationsHubPage):
-                // push carries wallet activity, group mentions, broadcasts and KaPosts too, so it
-                // sits above the per-feature pages rather than inside one of them. No header, as
+                // push carries wallet activity and group mentions too, so it sits above the
+                // per-feature pages rather than inside one of them. No header, as
                 // on iOS; the footer says what it does.
                 SettingsFormSection(
                     title = null,
@@ -11688,14 +11665,8 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     val indexerUrl by viewModel.indexerUrl.collectAsState()
     val knsApiUrl by viewModel.knsApiUrl.collectAsState()
     val kaspaRestApiUrl by viewModel.kaspaRestApiUrl.collectAsState()
-    val kapostIndexerUrl by viewModel.kapostIndexerUrl.collectAsState()
-    val translationServiceUrl by viewModel.translationServiceUrl.collectAsState()
-    var editingTranslationUrl by remember { mutableStateOf(false) }
-    var editingKapostIndexerUrl by remember { mutableStateOf(false) }
-    val broadcastIndexerUrl by viewModel.broadcastIndexerUrl.collectAsState()
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
     val scrollState = rememberScrollState()
-    val onMainnetSettings = network.equals("mainnet", ignoreCase = true)
 
     Scaffold(
         containerColor = LocalAppColors.current.background,
@@ -11709,12 +11680,11 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // One tab per kind of connection, so the page stays short as the app talks to more
-            // services: indexers, the Kaspa node, translation, name services, the block explorer
-            // (iOS ee01f81). Every field keeps its value while you switch between them.
+            // services: indexers, the Kaspa node, name services, the block explorer (iOS ee01f81,
+            // e2f6732). Every field keeps its value while you switch between them.
             val connectionTabs = listOf(
                 stringResource(R.string.connection_tab_indexer),
                 stringResource(R.string.connection_tab_node),
-                stringResource(R.string.connection_tab_translation),
                 stringResource(R.string.connection_tab_domains),
                 stringResource(R.string.connection_tab_explorer),
             )
@@ -11738,19 +11708,6 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
                 ConnectionUrlField(label = "Indexer URL", value = indexerUrl)
             }
 
-            SettingsFormSection(title = stringResource(R.string.kapost_indexer), footer = stringResource(R.string.kapost_indexer_footer)) {
-                // Editable, as on iOS: someone running their own K indexer points the app at it.
-                ConnectionUrlField(
-                    label = "KaPost Indexer URL",
-                    value = kapostIndexerUrl,
-                    onClick = { editingKapostIndexerUrl = true }
-                )
-            }
-
-            SettingsFormSection(title = stringResource(R.string.broadcast_indexer), footer = stringResource(R.string.broadcast_indexer_footer)) {
-                ConnectionUrlField(label = "Public Chats Indexer URL", value = broadcastIndexerUrl)
-            }
-
             SettingsFormSection(title = "Push Registration", footer = "Used only for push registration and updates") {
                 ConnectionUrlField(label = "Push Indexer URL", value = pushIndexerUrl)
             }
@@ -11763,20 +11720,6 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             AddressBookSection(viewModel)
             }
             2 -> {
-            SettingsFormSection(title = "Translation Service", footer = "Translates KaPosts written in another language. Runs on the KaPost indexer's " +
-                        "box by default; point this at your own if you host one (see " +
-                        "TRANSLATION_SERVICE.md). Tap to change.") {
-                // Editable, unlike the read-only fields around it: the point of this setting is
-                // that someone can run their own translator and point the app at it.
-                ConnectionUrlField(
-                    label = "Translation Service URL",
-                    value = translationServiceUrl,
-                    onClick = { editingTranslationUrl = true }
-                )
-                // Same words as iOS's footer; TRANSLATION_SERVICE.md lives in the iOS repo.
-            }
-            }
-            3 -> {
             // .kachat first: it is what every address field resolves before anything else (iOS 6ac48a7).
             SettingsFormSection(title = stringResource(R.string.kn_kachat_names), footer = stringResource(R.string.kachat_names_resolved_first_footer)) {
                 val isMainnet = network.equals("mainnet", ignoreCase = true)
@@ -11812,80 +11755,6 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
         }
     }
 
-    if (editingKapostIndexerUrl) {
-        var draft by remember { mutableStateOf(kapostIndexerUrl) }
-        var rejected by remember { mutableStateOf(false) }
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { editingKapostIndexerUrl = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("KaPost Indexer URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = draft,
-                        onValueChange = { draft = it; rejected = false },
-                        singleLine = true,
-                        isError = rejected,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        if (rejected) "The URL must start with https://"
-                        // The network's default: the testnet-10 indexer on testnet (iOS 5463ab7).
-                        else "Leave blank to use ${if (onMainnetSettings) com.kachat.app.repository.AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL else com.kachat.app.repository.AppSettingsRepository.DEFAULT_TESTNET_INDEXER_URL}",
-                        color = if (rejected) Color(0xFFE57373) else LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (viewModel.setKapostIndexerUrl(draft)) editingKapostIndexerUrl = false else rejected = true
-                }) { Text("Save", color = KaspaTeal) }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingKapostIndexerUrl = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
-    }
-
-    if (editingTranslationUrl) {
-        var draft by remember { mutableStateOf(translationServiceUrl) }
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { editingTranslationUrl = false },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Translation Service URL", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    com.kachat.app.ui.theme.IosTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Leave blank to use ${com.kachat.app.repository.AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL}",
-                        color = LocalAppColors.current.textSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.setTranslationServiceUrl(draft)
-                    editingTranslationUrl = false
-                }) { Text("Save", color = KaspaTeal) }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingTranslationUrl = false }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
-    }
 }
 
 /** Read-only for now — editing these let a mistyped URL crash the whole app (fixed at the NetworkService layer too, but not editable at all is safer). */

@@ -7,8 +7,8 @@ import com.google.gson.Gson
  * a new transaction that names the original by [targetTxId] and carries the new [text], and every
  * client shows the newest edit's text in place of the original with a small "edited" mark. Same
  * envelope-in-content pattern as [MessageReactionContent] — embedded in the normal encrypted
- * contextual content (1:1), the group-encrypted message (groups), or the plaintext broadcast row
- * (public chats) — and never rendered as a bubble of its own. Rules, the same on every platform:
+ * contextual content (1:1) or the group-encrypted message (groups) — and never rendered as a
+ * bubble of its own. Rules, the same on every platform:
  * only the original sender's edits count; the newest by block time wins; text only (a payment,
  * voice message, photo, chess move or call line is never editable). Wire format in MESSAGING.md
  * ("Message Edits"); field-for-field identical to iOS's `MessageEditContent`.
@@ -67,6 +67,18 @@ object MessageEdit {
     /** The text a composer starts from when editing [content] — a reply's own text, else the text itself. */
     fun unwrappedText(content: String?): String {
         return MessageReply.parseOrNull(content)?.text ?: (content ?: "")
+    }
+
+    /**
+     * Whether [body] is (probably) an edit envelope - including one a push server cut off or
+     * re-spaced. An edit is never announced: it changes an earlier message in place, so every
+     * push path drops it rather than bannering anything (MESSAGING.md "Message Edits"; iOS
+     * `isEditEnvelope`).
+     */
+    fun isEditEnvelope(body: String): Boolean {
+        val text = body.trim()
+        if (parseOrNull(text) != null) return true
+        return text.startsWith("{") && text.replace(" ", "").contains("\"type\":\"edit\"")
     }
 
     /**

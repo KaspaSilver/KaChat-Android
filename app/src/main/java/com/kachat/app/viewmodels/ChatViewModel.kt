@@ -72,7 +72,6 @@ class ChatViewModel @Inject constructor(
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
-    private val kaPostsService: com.kachat.app.services.KaPostsService,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val nameServices: com.kachat.app.services.NameServicesClient,
     /** Payment notices the empty chatting address could not send yet (iOS 710fdc0, IOS-086). */
@@ -962,40 +961,6 @@ class ChatViewModel @Inject constructor(
      *  payload, so the fee preview below prices it in. Empty outside the sheet. */
     private val _paymentNote = MutableStateFlow("")
 
-    /** The KaPosts tip sheet's tip (iOS 470bfa7, AND-041): its payment carries the larger signed
-     *  `kchat:1:tip:` payload, so the fee preview and Max price that one. Null outside the sheet. */
-    private val _paymentTip = MutableStateFlow<PaymentTipTarget?>(null)
-
-    /** A tip being priced: the post it names, paid to [recipientAddress] (the poster's chatting address). */
-    private data class PaymentTipTarget(val recipientAddress: String, val tip: com.kachat.app.models.KaPostTip)
-
-    /** The tip sheet's tip to [recipientAddress]; null clears it (any other payment). */
-    fun setPaymentTip(recipientAddress: String?, tip: com.kachat.app.models.KaPostTip?) {
-        _paymentTip.value = if (recipientAddress.isNullOrBlank() || tip == null) null else PaymentTipTarget(recipientAddress, tip)
-    }
-
-    /**
-     * The payload a payment will carry, for pricing it (iOS `estimationPayload`, 470bfa7): a chat
-     * payment's `kchat:1:pay:` one, or for a tip the `kchat:1:tip:` one built as [sendPayment]
-     * builds it - the real sealed note and requester pubkey - with a stand-in signature of the
-     * real length (128 hex) instead of asking for one (AND-041).
-     */
-    private fun estimatedPaymentPayloadSize(note: String, amountSompi: Long, tip: PaymentTipTarget?): Int {
-        if (tip == null) return MessageProtocol.estimatedPaymentPayloadSize(note, amountSompi)
-        return runCatching {
-            val sealed = MessageProtocol.sealedPaymentHex(
-                note = note,
-                amountSompi = amountSompi,
-                recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(tip.recipientAddress).second
-            )
-            val pubkey = runCatching { kaPostsService.requesterPubkey() }.getOrNull() ?: "0".repeat(66)
-            com.kachat.app.util.KaPostsProtocol.tipPayload(
-                pubkey = pubkey, signature = "0".repeat(128), postId = tip.tip.postId,
-                authorPubkey = tip.tip.authorPubkey, sealedHex = sealed
-            ).toByteArray(Charsets.UTF_8).size
-        }.getOrElse { MessageProtocol.estimatedPaymentPayloadSize(note, amountSompi) }
-    }
-
     /** The Send KAS sheet's coin control: the payment spends exactly these coins of its source
      *  address; null = automatic (iOS 62c2773). The fee preview prices this set. */
     private val _paymentManualUtxos = MutableStateFlow<List<com.kachat.app.services.UtxoEntry>?>(null)
@@ -1140,7 +1105,7 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Where the open Send KAS sheet (or KaPosts tip) pays from - its From (iOS 6333dd3
+    /** Where the open Send KAS sheet pays from - its From (iOS 6333dd3
      *  `SendSource`): null = the chatting address (the default), else that spending address.
      *  The sheet resets it each time it opens and closes. [refreshSpendingUtxos] reads this
      *  source's UTXOs, so the fee preview and Max price what the send will actually spend.
@@ -1165,9 +1130,9 @@ class ChatViewModel @Inject constructor(
         }
 
     val estimatedFeeSompi: StateFlow<Long?> = combine(
-        combine(paymentAmount, _paymentNote, _paymentTip) { amount, note, tip -> Triple(amount, note, tip) },
+        combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
         previewPayloadSize, utxosForFeeEstimate, _networkFeeRate, _feeRateOverride
-    ) { (amount, paymentNote, paymentTip), textPayloadSize, coins, networkRate, overrideRate ->
+    ) { (amount, paymentNote), textPayloadSize, coins, networkRate, overrideRate ->
         val rate = overrideRate?.toDouble() ?: networkRate
         if (amount.isEmpty() && textPayloadSize == 0) return@combine null
 
@@ -1191,10 +1156,9 @@ class ChatViewModel @Inject constructor(
         if (total < sompiNeeded && isPayment) return@combine null
         
         // A chat payment always carries its sealed `kchat:1:pay:` payload, memo or not (see
-        // sendPayment), so the fee prices it - as iOS estimatePaymentFee(note:) always does; a
-        // tip its larger `kchat:1:tip:` one (iOS estimatePaymentFee(tip:), AND-041).
+        // sendPayment), so the fee prices it - as iOS estimatePaymentFee(note:) always does.
         val payloadSize = if (isPayment) {
-            estimatedPaymentPayloadSize(paymentNote.trim(), sompiNeeded, paymentTip)
+            MessageProtocol.estimatedPaymentPayloadSize(paymentNote.trim(), sompiNeeded)
         } else {
             textPayloadSize
         }
@@ -1231,7 +1195,7 @@ class ChatViewModel @Inject constructor(
      * as a send of everything spends them all (coin control's exact set, or the source's coins -
      * the chatting address or a spending address alike, iOS estimateMaxPaymentAmount). The
      * payment's `kchat:1:pay:` payload (memo or not) is priced in, so a Max payment still covers its
-     * fee - a tip's `kchat:1:tip:` payload when the tip sheet set one (iOS 470bfa7, AND-041).
+     * fee.
      *
      * The extra is worked out here, from the base this prices ([feeMultiplier] - 1 times it, or
      * [customExtraFeeSompi]) - not taken from the sheet, whose extra comes from the fee estimate
@@ -1249,7 +1213,6 @@ class ChatViewModel @Inject constructor(
         val manual = _paymentManualUtxos.value
         val (balance, inputs) = paymentMaxCoins(sourceBalanceSompi, spending, manual)
         val note = _paymentNote.value
-        val tip = _paymentTip.value
         return computePaymentMaxSompi(
             balanceSompi = balance,
             inputCount = inputs,
@@ -1257,11 +1220,10 @@ class ChatViewModel @Inject constructor(
             feeRate = _feeRateOverride.value?.toDouble() ?: _networkFeeRate.value,
             feeMultiplier = feeMultiplier,
             customExtraFeeSompi = customExtraFeeSompi,
-            payloadSize = tip?.let { estimatedPaymentPayloadSize(note.trim(), balance, it) },
             signatureScriptSize = com.kachat.app.services.WalletManager.signatureScriptSize(_paymentSourceIndex.value),
             provisionalShape = { provisional ->
                 paymentFeeInputs(spending, manual, provisional).second to
-                    estimatedPaymentPayloadSize(note.trim(), provisional, tip)
+                    MessageProtocol.estimatedPaymentPayloadSize(note.trim(), provisional)
             },
         )
     }
@@ -3069,9 +3031,8 @@ class ChatViewModel @Inject constructor(
      * as [sendMessage], but with no retry entry point — matches iOS explicitly excluding
      * payment retry, since blindly re-sending a payment risks paying twice.
      */
-    /** [onResult] is (succeeded, errorMessage, txId). The txId is what a sent-confirmation sheet
-     *  links to on the explorer (KaPosts tips; a 1:1 chat payment has none any more - its bubble
-     *  is the confirmation, iOS 80a6aae); it is null on failure.
+    /** [onResult] is (succeeded, errorMessage, txId). A 1:1 chat payment has no sent-confirmation
+     *  sheet - its bubble is the confirmation (iOS 80a6aae); the txId is null on failure.
      *
      *  [note] is the Send KAS sheet's memo (iOS 8d208b2): sealed to the recipient in a
      *  `kchat:1:pay:` payload, so only they can read it back from the chain - which is why the
@@ -3084,11 +3045,7 @@ class ChatViewModel @Inject constructor(
      *  it; else that spending address - signed with its own key, change to a never-used address,
      *  which is revealed in Manage Addresses (no primary moves) - see
      *  [com.kachat.app.services.KaspaWalletEngine.sendSpendingPayment]. Either way it is paid to
-     *  the contact's chatting address.
-     *
-     *  [tip] makes it a KaPosts tip (iOS a6bd60a, KAPOSTS_INDEXER.md 5.11): the same sealed note,
-     *  inside a signed `kchat:1:tip:` payload that names the post - always from the chatting
-     *  address, whatever [sourceSpendingIndex] says. */
+     *  the contact's chatting address. */
     fun sendPayment(
         contactId: String,
         amount: String,
@@ -3098,11 +3055,8 @@ class ChatViewModel @Inject constructor(
          *  control pick (null = automatic) - both paid / spent exactly (iOS 62c2773). */
         extraFeeSompi: Long = 0L,
         manualUtxos: List<com.kachat.app.services.UtxoEntry>? = null,
-        tip: com.kachat.app.models.KaPostTip? = null,
         onResult: ((Boolean, String?, String?) -> Unit)? = null,
     ) {
-        // A tip is always paid from the chatting address (iOS sendPaymentInternal).
-        val sourceSpendingIndex = if (tip == null) sourceSpendingIndex else null
         // Exact (iOS 16b64bc, AND-013): "2.3" pays 230,000,000 sompi - a Double multiply and
         // toLong() paid 229,999,999. Comma or dot, at most 8 decimals, nothing above the supply.
         val sompi = KaspaUnit.sompiFromUserText(amount)?.takeIf { it > 0 }
@@ -3154,15 +3108,7 @@ class ChatViewModel @Inject constructor(
                 // From the chatting address it is a chat payment, which always carries its
                 // `kchat:1:pay:` payload - an empty memo too (iOS buildPaymentTx): that payload is
                 // what opens our chat on the payee's side when they don't know us yet (iOS 1eb4708).
-                val payload = if (!fromChattingAddress) null else if (tip != null) {
-                    // A tip: the same sealed note, inside a signed payload that names the post.
-                    val sealed = MessageProtocol.sealedPaymentHex(
-                        note = memo,
-                        amountSompi = sompi,
-                        recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
-                    )
-                    kaPostsService.tipPayload(postId = tip.postId, authorPubkey = tip.authorPubkey, sealedHex = sealed)
-                } else MessageProtocol.paymentMemoPayload(
+                val payload = if (!fromChattingAddress) null else MessageProtocol.paymentMemoPayload(
                     memo = memo,
                     amountSompi = sompi,
                     recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
@@ -3489,7 +3435,7 @@ class ChatViewModel @Inject constructor(
 
     companion object {
         /**
-         * The balance and input count the Send KAS sheet's (and the KaPosts tip sheet's) Max
+         * The balance and input count the Send KAS sheet's Max
          * prices: coin control's pick, else the source's coins - leaving out coinbase coins, as
          * iOS's estimateMaxPaymentAmount does (its candidates are the non-coinbase coins, and a
          * coin control pick is resolved against them) - and in both cases only the
@@ -3550,7 +3496,7 @@ class ChatViewModel @Inject constructor(
          * [paymentMaxSompi]'s arithmetic: [balanceSompi] over [inputCount] inputs, less the base
          * fee at [feeRate] (rounded up, never under the network minimum - the rate the send pays)
          * with the memo's payload priced in, less the extra. [payloadSize] prices a payload other
-         * than the chat payment's own (a tip's, AND-041).
+         * than the chat payment's own.
          *
          * The extra is the custom one when set. Otherwise a speed above Normal multiplies the
          * base fee of the max send itself, worked out as iOS df4aba6 does: the Normal max first

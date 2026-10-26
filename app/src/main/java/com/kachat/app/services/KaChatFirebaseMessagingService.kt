@@ -18,16 +18,15 @@ import javax.inject.Inject
  *
  * Two shapes arrive from the server (`kasia-indexer` `push.rs`):
  *  - **Public content** (broadcast / KaPosts) is sent WITH a `notification` block, so the OS shows
- *    it even when the app is dead; `onMessageReceived` also runs when the app is alive.
+ *    it even when the app is dead. Both features left the app (iOS e2f6732) and the device
+ *    registers for neither, so one that still arrives here is dropped; a tap on one the OS drew
+ *    lands on the Chats list (MainActivity).
  *  - **Encrypted DM/group content** is sent **data-only** (no `notification` block) so this handler
  *    runs and can DECRYPT the body locally with the wallet key — mirroring iOS's Notification
  *    Service Extension. (Data-only needs the app wake-able; a force-closed app under OEM battery
  *    optimization may not fire — set the app's battery usage to Unrestricted.)
  *
  * Data schema:
- *   broadcast : type, channel, title, subtitle, body, thread_id, tx_id
- *   kaposts   : type, title, subtitle, body, thread_id, tx_id, [post_id | postId | content_id]
- *               (the target content's txid, absent for a follow — see [POST_ID_KEYS])
  *   chat/DM   : type(contextual|payment|handshake|group_message|group_control), sender, title,
  *               body, tx_id, timestamp, daa_score, [amount], [enc_payload], [blinded_group_id]
  */
@@ -66,8 +65,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             try {
                 // Any push about the other network - the service this device left when it moved
                 // between mainnet and testnet still pushing it - stays silent, whatever its type:
-                // DMs, payments and handshakes as before, and now group, public chat, KaPosts and
-                // .kachat name pushes too (iOS d946a65 rule, audit AND-006). Not filed either: the
+                // DMs, payments and handshakes as before, and now group and .kachat name pushes
+                // too (iOS d946a65 rule, audit AND-006). Not filed either: the
                 // same key would decrypt it into the wrong account (iOS df52425).
                 if (com.kachat.app.util.PushNetworkFilter.isOtherNetwork(data, com.kachat.app.util.KaspaNetwork.launch)) {
                     data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
@@ -79,58 +78,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     // renewal reminders, written in the device's language (iOS beeedd4).
                     "name_event" -> handleNameEvent(data)
 
-                    "broadcast" -> {
-                        val channel = data["channel"] ?: return@runBlocking
-                        // An edit changes an earlier message in place - nothing to announce. The
-                        // push service is asked not to send these at all (PUBLIC_CHATS_INDEXER.md);
-                        // this is the backstop for one that arrives anyway.
-                        if (com.kachat.app.util.BroadcastPushPreview.isEditEnvelope(body)) {
-                            Log.i(TAG, "Edit push dropped: an edit is never announced")
-                            data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
-                            return@runBlocking
-                        }
-                        notificationHelper.showBroadcast(
-                            channelName = channel,
-                            title = title.ifEmpty { "#$channel" },
-                            // The server has sent room messages on raw - a reply's JSON, the same
-                            // cut off mid-way, or still base64 - and each read as gibberish.
-                            text = com.kachat.app.util.BroadcastPushPreview.clean(body),
-                            // Collapses with the live block scan's banner when the app is
-                            // foregrounded and both paths see the same message.
-                            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
-                        )
-                    }
-
-                    "kaposts" -> {
-                        val txId = data["tx_id"].orEmpty()
-                        // The id of the content that was acted ON. The published contract calls
-                        // it `postId` (the iOS repo's PUSH_EXTENSIONS.md section 3), this file's own schema
-                        // comment said `post_id`, and the code read `content_id` — accept all
-                        // three rather than let one server-side spelling silently disable the
-                        // deep link. It is deliberately absent for a follow.
-                        //
-                        // No fallback to the ACTION's txid: that is a vote/follow/reply
-                        // transaction, not a post, so opening it as one just produced a "post
-                        // not found" toast. Null lands the tap on the Notifications list.
-                        val postTxId = POST_ID_KEYS.firstNotNullOfOrNull { data[it]?.takeIf { v -> v.isNotBlank() } }
-                        // The five KaPosts switches governed only the local poller; a push
-                        // arrived whatever they said. See shouldNotifyKaPostsPush.
-                        if (!settingsRepository.shouldNotifyKaPostsPush(data["kaposts_kind"], body.ifEmpty { title })) {
-                            Log.i(TAG, "KaPosts push suppressed by notification settings")
-                            return@runBlocking
-                        }
-                        notificationHelper.showKaPosts(
-                            text = body.ifEmpty { title },
-                            actionTxId = txId,
-                            // A reply targets the reply ITSELF, as the foreground poller does:
-                            // the landing rule then opens its parent's thread with the reply
-                            // spliced in and scrolled to - even before the indexer's reply page
-                            // has it. Anything else opens the post that was acted on.
-                            postTxId = txId.takeIf {
-                                it.isNotBlank() && postTxId != null &&
-                                    com.kachat.app.ui.screens.KaPostsDeepLink.isReplyPush(data["kaposts_kind"], body)
-                            } ?: postTxId,
-                        )
+                    // KaPosts and Public Chats left the app (iOS e2f6732): one that races the
+                    // re-registration is never shown.
+                    "broadcast", "kaposts" -> {
+                        data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                        Log.i(TAG, "Dropped a $type push: the feature left the app")
                     }
 
                     "group_message" -> {
@@ -197,7 +149,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                                     dedupeTxId = txId.takeIf { it.isNotBlank() },
                                     // Unresolved: `groupId` here is the per-sender BLINDED id,
                                     // which is not a route argument any thread can be found by.
-                                    // Send the tap to the Group Chats list instead.
+                                    // Send the tap to the Chats list instead.
                                     targetGroupId = resolvedGroup?.groupId,
                                 )
                             }
@@ -222,7 +174,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         // Neither a blinded id nor a tx id is a local group id, so a tap keyed on
                         // one opened `group_chat/<tx id>` — a thread with no group behind it, no
                         // title, no messages and a composer that could not send. Resolve it when
-                        // the blinded id is there; otherwise route to the Group Chats list, where
+                        // the blinded id is there; otherwise route to the Chats list, where
                         // the group appears as soon as the next sync ingests its root.
                         val resolvedGroup = blindedId?.let {
                             try { groupRepository.findGroupByBlindedId(it) } catch (e: Exception) { null }
@@ -251,11 +203,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             // A payment: "<who> - Sent you 1.5 KAS" (iOS dcb329a).
                             text = if (type == "payment") paymentPushBody(data["amount"]) else body.ifEmpty { "New message" },
                             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
-                            // A tip's payment push carries the tip's txid as its collapse key
-                            // (IDX-028): its banner shares a tag with the KaPosts one (IDX-030).
-                            tipTxId = data["tx_id"]?.takeIf {
-                                type == "payment" && it.isNotBlank() && message.collapseKey == it
-                            },
                         )
                     }
 
@@ -299,7 +246,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
         // Nor is an edit: it changes an earlier bubble in place (MESSAGING.md "Message Edits").
-        if (plaintext != null && com.kachat.app.util.BroadcastPushPreview.isEditEnvelope(plaintext)) {
+        if (plaintext != null && com.kachat.app.util.MessageEdit.isEditEnvelope(plaintext)) {
             data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
             return
         }
@@ -525,11 +472,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // Same tag as PushRegistrationManager: `adb logcat -s KaChatPush` shows registrations,
         // token rotations, and every received push in one stream.
         private const val TAG = PushRegistrationManager.TAG
-
-        /** Every spelling the KaPosts push has used for "the content that was acted on".
-         *  Kept in sync with MainActivity.FCM_KEYS_POST_ID, which reads the same payload when
-         *  FCM drew the notification itself. */
-        private val POST_ID_KEYS = listOf("post_id", "postId", "content_id")
 
         /** How long a push may spend on a group catch-up before the generic banner posts. */
         private const val GROUP_SYNC_BUDGET_MS = 8_000L

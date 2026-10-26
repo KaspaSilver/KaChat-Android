@@ -157,13 +157,8 @@ class ConnectionViewModel @Inject constructor(
     val indexerUrl: StateFlow<String> = settings.selectedIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val knsApiUrl: StateFlow<String> = settings.selectedKnsApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val kaspaRestApiUrl: StateFlow<String> = settings.selectedKaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val kapostIndexerUrl: StateFlow<String> = settings.selectedKapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     /** The indexer the running app is connected to, for the connection status screen. */
     val runningIndexerUrl: StateFlow<String> = settings.indexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    /** The KaPosts indexer the running app uses - whether KaPosts can open now. */
-    val runningKapostIndexerUrl: StateFlow<String?> = settings.kapostIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
-    val translationServiceUrl: StateFlow<String> = settings.selectedTranslationServiceUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
-    val broadcastIndexerUrl: StateFlow<String> = settings.selectedBroadcastIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val pushIndexerUrl: StateFlow<String> = settings.selectedPushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val trustedNodeAddress: StateFlow<String> = settings.selectedTrustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     /**
@@ -194,35 +189,6 @@ class ConnectionViewModel @Inject constructor(
     fun switchNetwork(to: com.kachat.app.util.KaspaNetwork.Type) { viewModelScope.launch { settings.switchNetwork(to) } }
     fun setIndexerUrl(value: String) { viewModelScope.launch { settings.setIndexerUrl(value) } }
     fun setKaspaRestApiUrl(value: String) { viewModelScope.launch { settings.setKaspaRestUrl(value) } }
-
-    /**
-     * Blank resets to the default rather than being written through: an empty base URL builds a
-     * request that fails and reads as the server being down.
-     */
-    fun setTranslationServiceUrl(value: String) {
-        viewModelScope.launch {
-            val trimmed = value.trim().trimEnd('/')
-            settings.setTranslationServiceUrl(
-                trimmed.ifBlank { AppSettingsRepository.DEFAULT_TRANSLATION_SERVICE_URL }
-            )
-        }
-    }
-    /**
-     * Editable like iOS's field: blank resets to the default, and only https is accepted (a
-     * plain-http indexer would hand every feed read to the network in the clear). Returns false
-     * when the value was rejected, so the dialog can say so instead of closing.
-     */
-    fun setKapostIndexerUrl(value: String): Boolean {
-        val trimmed = value.trim().trimEnd('/')
-        if (trimmed.isNotEmpty() && !trimmed.startsWith("https://", ignoreCase = true)) return false
-        viewModelScope.launch {
-            // Blank on testnet is the testnet-10 indexer, never the mainnet default (iOS 5463ab7).
-            settings.setKapostIndexerUrl(trimmed.ifBlank { if (onTestnetSettings) "" else AppSettingsRepository.DEFAULT_KAPOST_INDEXER_URL })
-        }
-        return true
-    }
-    private val onTestnetSettings: Boolean
-        get() = com.kachat.app.util.KaspaNetwork.selected.value == com.kachat.app.util.KaspaNetwork.Type.TESTNET
 
     fun setTrustedNodeAddress(value: String) { viewModelScope.launch { settings.setTrustedNodeAddress(value) } }
     fun setDiscoverNewPeers(value: Boolean) { _discoverNewPeers.value = value }

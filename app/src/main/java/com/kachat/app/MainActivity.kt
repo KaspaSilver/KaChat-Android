@@ -41,9 +41,7 @@ import com.kachat.app.services.PendingShare
 import com.kachat.app.services.ShareIntake
 import com.kachat.app.ui.theme.KaChatTheme
 import com.kachat.app.ui.KaChatApp
-import com.kachat.app.ui.screens.BroadcastDeepLink
 import com.kachat.app.ui.screens.KaChatLink
-import com.kachat.app.ui.screens.KaPostsDeepLink
 import com.kachat.app.viewmodels.WalletViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -70,9 +68,9 @@ class MainActivity : AppCompatActivity() {
     private var batteryRationaleDue by mutableStateOf(false)
 
     private var pendingContactId by mutableStateOf<String?>(null)
-    private var pendingChannelName by mutableStateOf<String?>(null)
     private var pendingGroupId by mutableStateOf<String?>(null)
-    // "Open the Group Chats list" — a group notification with no resolvable local group id.
+    // "Open the Chats list" — a group notification with no resolvable local group id, or a stray
+    // KaPosts / public chat one (both left the app, iOS e2f6732).
     private var pendingOpenGroups by mutableStateOf(false)
     // "cold" / "spending" — which wallet screen an address-activity receipt tap opens.
     private var pendingWalletActivityKind by mutableStateOf<String?>(null)
@@ -160,7 +158,6 @@ class MainActivity : AppCompatActivity() {
     private fun handleLaunchIntent(intent: Intent?) {
         if (intent == null) return
         guarded("notification target") { consumeNotificationTarget(intent) }
-        guarded("broadcast link") { handleBroadcastDeepLink(intent) }
         guarded("profile link") { handleProfileDeepLink(intent) }
         guarded("payment request link") { handlePaymentRequestDeepLink(intent) }
         guarded("share") { handleShareIntent(intent) }
@@ -207,8 +204,6 @@ class MainActivity : AppCompatActivity() {
                     KaChatApp(
                         pendingContactId = pendingContactId,
                         onPendingContactHandled = { pendingContactId = null },
-                        pendingChannelName = pendingChannelName,
-                        onPendingChannelHandled = { pendingChannelName = null },
                         pendingGroupId = pendingGroupId,
                         onPendingGroupHandled = { pendingGroupId = null },
                         pendingOpenGroups = pendingOpenGroups,
@@ -429,12 +424,12 @@ class MainActivity : AppCompatActivity() {
      *    by the OS while the app is backgrounded or dead, and `onMessageReceived` never runs for
      *    it in that state: no [NotificationHelper] intent is ever built, and the tap instead
      *    launches this Activity with the push's DATA payload as plain string extras. Those keys
-     *    are the server's (`type`, `channel`, `sender`, the post id), not ours, so without
+     *    are the server's (`type`, `sender`, ...), not ours, so without
      *    [applyFcmNotificationTarget] such a tap just restored the last screen the user was on.
      *    The two in-repo descriptions of the server's choice disagree (this app's
-     *    `KaChatFirebaseMessagingService` header says broadcast/KaPosts ship a `notification`
-     *    block; PUSH_ANDROID_SETUP.md says everything is data-only), so both shapes are handled
-     *    here rather than betting on one.
+     *    `KaChatFirebaseMessagingService` header says some pushes ship a `notification` block;
+     *    PUSH_ANDROID_SETUP.md says everything is data-only), so both shapes are handled here
+     *    rather than betting on one.
      *
      * Stripping matters because a configuration change (Settings > Language recreates the
      * Activity) re-runs `onCreate` against the same Intent: without it, changing the language
@@ -442,7 +437,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun consumeNotificationTarget(intent: Intent) {
         pendingContactId = intent.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
-        pendingChannelName = intent.getStringExtra(NotificationHelper.EXTRA_CHANNEL_NAME)
         pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         pendingOpenGroups = intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_GROUPS, false)
         pendingWalletActivityKind = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND)
@@ -455,8 +449,7 @@ class MainActivity : AppCompatActivity() {
             com.kachat.app.ui.screens.KachatDeepLink.pendingName.value =
                 com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(it.removeSuffix(".kachat"))
         }
-        val ownKaPostTarget = handleKaPostDeepLink(intent)
-        if (!ownKaPostTarget && pendingContactId == null && pendingChannelName == null &&
+        if (pendingContactId == null &&
             pendingGroupId == null && !pendingOpenGroups && pendingWalletActivityKind == null &&
             pendingOwnAddress == null
         ) {
@@ -464,15 +457,11 @@ class MainActivity : AppCompatActivity() {
         }
         listOf(
             NotificationHelper.EXTRA_CONTACT_ID,
-            NotificationHelper.EXTRA_CHANNEL_NAME,
             NotificationHelper.EXTRA_GROUP_ID,
             NotificationHelper.EXTRA_OPEN_GROUPS,
             NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND,
             NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS,
             NotificationHelper.EXTRA_KACHAT_NAME,
-            NotificationHelper.EXTRA_OPEN_KAPOSTS,
-            NotificationHelper.EXTRA_KAPOST_TXID,
-            NotificationHelper.EXTRA_KAPOST_FOCUS_TXID,
             FCM_KEY_TYPE,
         ).forEach(intent::removeExtra)
     }
@@ -486,8 +475,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun applyFcmNotificationTarget(intent: Intent) {
         // The push's own `type` names it; a KaPosts push also carries thread_id "kaposts" (the
-        // same thread the iOS payload uses), which is taken when `type` is missing - otherwise
-        // such a tap reopened whatever screen was last up instead of the post.
+        // same thread the iOS payload uses), which is taken when `type` is missing.
         val type = intent.getStringExtra(FCM_KEY_TYPE)
             ?: intent.getStringExtra("thread_id")?.takeIf { it == "kaposts" }
         when (type) {
@@ -495,52 +483,22 @@ class MainActivity : AppCompatActivity() {
                 com.kachat.app.ui.screens.KachatDeepLink.pendingName.value =
                     com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(it.lowercase().removeSuffix(".kachat"))
             }
-            "broadcast" -> pendingChannelName = intent.getStringExtra("channel")?.takeIf { it.isNotBlank() }
-            "kaposts" -> {
-                // The server's own key for "the content that was acted on" has been spelled
-                // three ways across the iOS/Android/indexer contracts (see the audit note in
-                // KaChatFirebaseMessagingService) — accept all of them rather than silently
-                // deep-linking to nothing.
-                val postId = FCM_KEYS_POST_ID.firstNotNullOfOrNull {
-                    intent.getStringExtra(it)?.takeIf { value -> value.isNotBlank() }
-                }
-                // A reply targets the reply ITSELF - the push's tx_id is the reply's own - and the
-                // landing rule opens its parent's thread with it spliced in and scrolled to, the
-                // same as a tap on the foreground banner. Anything else opens the acted-on post.
-                val actionTxId = intent.getStringExtra("tx_id")?.takeIf { it.isNotBlank() }
-                val replyTxId = actionTxId?.takeIf {
-                    postId != null && KaPostsDeepLink.isReplyPush(
-                        intent.getStringExtra("kaposts_kind"),
-                        intent.getStringExtra("body"),
-                    )
-                }
-                KaPostsDeepLink.pendingFocusReplyTxId.value = null
-                // No post id (a follow, or a payload that omitted it): the Notifications list,
-                // never the action's own txid — that is a vote/follow transaction, not a post,
-                // and opening it as one only produced a "post not found" toast.
-                KaPostsDeepLink.pendingOpenNotifications.value = postId == null
-                KaPostsDeepLink.pendingPostTxId.value = replyTxId ?: postId ?: ""
-            }
             "contextual", "payment", "handshake" ->
                 pendingContactId = intent.getStringExtra("sender")?.takeIf { it.isNotBlank() }
             // Only the blinded per-sender group id travels in a group push, and resolving it to a
             // local group needs the group secrets — not something this Activity can do. The Group
             // Chats list is the honest destination.
             "group_message", "group_control" -> pendingOpenGroups = true
+            // KaPosts and Public Chats left the app (iOS e2f6732): a stray tap on one of their
+            // old notifications lands on the Chats list.
+            "broadcast", "kaposts" -> pendingOpenGroups = true
         }
+        // A KaPosts push names its post under any of these; stripped with the rest.
         FCM_KEYS_POST_ID.forEach(intent::removeExtra)
         // Stripped once read, so a configuration change cannot route the same tap twice.
         listOf("channel", "sender", "thread_id", "tx_id", "kaposts_kind", "body").forEach(intent::removeExtra)
     }
 
-    /**
-     * Broadcast room share links: kachat://broadcast/<channel> (the share-text form) and
-     * https://kachat.app/broadcast/<channel> (universal-link form). The name is untrusted,
-     * so [BroadcastDeepLink.request] runs it through normalizeChannelName/isValidChannelName (plus
-     * the route-safety rules) and drops it outright if it doesn't pass — nothing is joined and no
-     * navigation happens. MainShell picks up a request that does pass, enforces Child Mode, and
-     * opens the room (joining it first when it isn't one of the curated ones).
-     */
     /** The hosts a KaChat link can arrive on: the one the app writes, and the one it used to. */
     private fun isKaChatWebHost(host: String?): Boolean {
         val clean = host?.lowercase()?.removePrefix("www.") ?: return false
@@ -580,20 +538,6 @@ class MainActivity : AppCompatActivity() {
         val ref = com.kachat.app.ui.screens.KaChatLink.parse(uri.toString()) as? com.kachat.app.ui.screens.KaChatLinkRef.PaymentRequest
             ?: return
         com.kachat.app.ui.screens.PaymentRequestRouter.open(ref.request)
-    }
-
-    private fun handleBroadcastDeepLink(intent: Intent) {
-        if (intent.action != Intent.ACTION_VIEW) return
-        val uri = intent.data ?: return
-        val rawChannel = when {
-            uri.scheme.equals("kachat", ignoreCase = true) &&
-                uri.host.equals("broadcast", ignoreCase = true) -> uri.lastPathSegment
-            uri.scheme.equals("https", ignoreCase = true) &&
-                isKaChatWebHost(uri.host) &&
-                uri.pathSegments.firstOrNull() == "broadcast" -> uri.pathSegments.getOrNull(1)
-            else -> null
-        } ?: return
-        BroadcastDeepLink.request(rawChannel)
     }
 
     /**
@@ -679,54 +623,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * KaPosts share links land here: kachat://kapost/<txid> (the share-text form) and
-     * https://kachat.app/post/<txid> (universal-link form). The txid is handed to
-     * [KaPostsDeepLink]; KaChatApp navigates to the KaPosts tab and the screen opens the
-     * post's thread.
-     */
-    private fun handleKaPostDeepLink(intent: Intent): Boolean {
-        // A KaPosts notification tap: deep-open the exact post/comment the notification was
-        // about (EXTRA_KAPOST_TXID); with no post named (a follow) open the Notifications list
-        // instead of dropping the user on the feed with nothing explaining the ping.
-        if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_KAPOSTS, false)) {
-            // Set the focus (the reply's own txid, for scroll-to-comment) and the notifications
-            // flag BEFORE the post id - the post id is what KaPostsScreen's LaunchedEffect keys on.
-            KaPostsDeepLink.pendingFocusReplyTxId.value =
-                intent.getStringExtra(NotificationHelper.EXTRA_KAPOST_FOCUS_TXID)
-            val postTxId = intent.getStringExtra(NotificationHelper.EXTRA_KAPOST_TXID)
-                ?.takeIf { it.isNotBlank() }
-            KaPostsDeepLink.pendingOpenNotifications.value = postTxId == null
-            KaPostsDeepLink.pendingPostTxId.value = postTxId ?: ""
-            return true
-        }
-        if (intent.action != Intent.ACTION_VIEW) return false
-        val uri = intent.data ?: return false
-        // Same forms iOS's KaChatInternalLink.parse accepts: the kachat:// scheme, and the
-        // https/http universal link with or without www.
-        val host = uri.host?.lowercase()?.removePrefix("www.")
-        val txId = when {
-            uri.scheme.equals("kachat", ignoreCase = true) &&
-                uri.host.equals("kapost", ignoreCase = true) -> uri.lastPathSegment
-            (uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true)) &&
-                isKaChatWebHost(host) &&
-                uri.pathSegments.firstOrNull() == "post" -> uri.pathSegments.getOrNull(1)
-            else -> null
-        }
-        // A post is a transaction id: 64 hex characters. Anything else in the link goes nowhere.
-        if (txId != null && TX_ID_PATTERN.matches(txId)) {
-            KaPostsDeepLink.pendingOpenNotifications.value = false
-            KaPostsDeepLink.pendingPostTxId.value = txId.lowercase()
-        }
-        return false
-    }
-
     companion object {
         /** FCM data-payload keys that reach us as Intent extras when the OS drew the
          *  notification itself — see [applyFcmNotificationTarget]. */
         private const val FCM_KEY_TYPE = "type"
         private val FCM_KEYS_POST_ID = listOf("post_id", "postId", "content_id")
-        private val TX_ID_PATTERN = Regex("^[0-9a-fA-F]{64}$")
         private const val MAX_SHARED_IMAGE_BYTES = 50L * 1024 * 1024
     }
 }
