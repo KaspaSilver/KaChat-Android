@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kas">.kas</string>
-    <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 từ</string>
     <string name="a_kns_inscription_s_commit_transaction">Giao dịch cam kết của một bản khắc KNS đã hoàn tất, nhưng phần tiết lộ chưa bao giờ hoàn thành. Hãy thử lại ngay để hoàn tất; số tiền vẫn an toàn cho đến khi bạn làm điều đó.</string>
     <string name="accept">Chấp nhận</string>
@@ -9,8 +8,6 @@
     <string name="active_nodes">Nút đang hoạt động</string>
     <string name="add">Thêm</string>
     <string name="add_contact">Thêm liên hệ</string>
-    <string name="add_transaction">Thêm giao dịch</string>
-    <string name="add_to_portfolio">Thêm vào danh mục đầu tư</string>
     <string name="added">Đã thêm</string>
     <string name="address">Địa chỉ</string>
     <string name="address_actions">Thao tác địa chỉ</string>
@@ -21,15 +18,10 @@
     <string name="amount_kas">Số tiền (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">Bất kỳ ai có cụm từ khôi phục của bạn đều có thể truy cập tài khoản của bạn. Không bao giờ chia sẻ nó với bất kỳ ai. Đảm bảo bạn chỉ ghi nó ra giấy. Không bao giờ chụp ảnh màn hình hoặc lưu trữ nó trên thiết bị của bạn.</string>
     <string name="back">Quay lại</string>
-    <string name="before_you_swap">Trước khi hoán đổi</string>
-    <string name="broadcasting">Đang phát sóng...</string>
-    <string name="build_unsigned_transaction">Tạo giao dịch chưa ký</string>
     <string name="cancel">Hủy</string>
     <string name="cancel_photo">Hủy ảnh</string>
     <string name="cancel_recording">Hủy ghi âm</string>
     <string name="cancel_reply">Hủy trả lời</string>
-    <string name="change">Thay đổi</string>
-    <string name="changenow_exchange_id">ID trao đổi ChangeNOW</string>
     <string name="chats">Trò chuyện</string>
     <string name="chatting_address">Địa chỉ trò chuyện</string>
     <string name="chatting_address_2">Địa chỉ trò chuyện</string>
@@ -52,13 +44,11 @@
     <string name="copy">Sao chép</string>
     <string name="copy_address">Sao chép địa chỉ</string>
     <string name="copy_private_key_hex">Sao chép khóa riêng (hex)</string>
-    <string name="copy_kpub">Sao chép kpub</string>
     <string name="couldn_t_rename_group">Không thể đổi tên nhóm</string>
     <string name="create">Tạo</string>
     <string name="create_account">Tạo tài khoản</string>
     <string name="create_kns_profile">Tạo hồ sơ KNS</string>
     <string name="create_new_account">Tạo tài khoản mới</string>
-    <string name="current_value">Giá trị hiện tại</string>
     <string name="current_balance">Số dư hiện tại</string>
     <string name="decline">Từ chối</string>
     <string name="default_option">Mặc định</string>
@@ -66,20 +56,15 @@
     <string name="delete">Xóa</string>
     <string name="delete_account">Xóa tài khoản</string>
     <string name="delete_group">Xóa nhóm</string>
-    <string name="delete_swap_history_message">Thao tác này chỉ xóa khỏi lịch sử cục bộ của bạn - không ảnh hưởng đến giao dịch trao đổi thực tế.</string>
-    <string name="delete_this_swap">Xóa giao dịch hoán đổi này?</string>
-    <string name="delete_transaction">Xóa giao dịch</string>
     <string name="domain_name">Tên miền</string>
     <string name="done">Xong</string>
     <string name="each_transaction_temporarily_uses_2_kas">Mỗi giao dịch tạm thời sử dụng ~2 KAS; ~1 KAS quay lại ngay lập tức dưới dạng tiền thối, vì vậy chỉ có phí mạng nhỏ mới là chi phí thực sự.</string>
     <string name="edit_kns_profile">Chỉnh sửa hồ sơ KNS</string>
     <string name="edit_account">Chỉnh sửa tài khoản</string>
-    <string name="enter_kpub">Nhập kpub</string>
     <string name="error">Lỗi</string>
     <string name="every_member_will_see_the_new">Mọi thành viên sẽ thấy tên mới.</string>
     <string name="failed_to_send">Gửi không thành công</string>
     <string name="fee_kas">Phí (KAS)</string>
-    <string name="fee_usd_optional">Phí (USD, tùy chọn)</string>
     <string name="first_let_s_create_your_identity">Trước tiên hãy tạo danh tính của bạn với một tên miền</string>
     <string name="from">Từ</string>
     <string name="fund_your_chatting_address">Nạp tiền cho địa chỉ trò chuyện của bạn</string>
@@ -88,24 +73,18 @@
     <string name="group_name_2">Tên nhóm</string>
     <string name="hidden_addresses">Địa chỉ đã ẩn</string>
     <string name="hidden_users">Người dùng đã ẩn</string>
-    <string name="holdings">Tài sản nắm giữ</string>
-    <string name="i_agree">Tôi đồng ý</string>
     <string name="if_the_network_is_busy_a">Nếu mạng bận, phí cao hơn có thể giúp giao dịch của bạn xác nhận nhanh hơn.</string>
-    <string name="import_action">Nhập</string>
     <string name="import_account">Nhập tài khoản</string>
-    <string name="import_cold_storage_account">Nhập tài khoản lưu trữ lạnh</string>
     <string name="import_existing_account">Nhập tài khoản hiện có</string>
     <string name="important">Quan trọng</string>
     <string name="incoming_notifications">Thông báo đến</string>
     <string name="inscribe">ghi tên</string>
     <string name="inscribe_domain">Ghi tên miền</string>
     <string name="it_s_ok_i_already_have">Không sao, tôi đã có tên miền rồi</string>
-    <string name="kas_2">KAS</string>
     <string name="kns_domains">Tên miền KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">Logo KaChat</string>
     <string name="kachat_needs_to_connect_to_a">KaChat cần kết nối với một nút. Bạn muốn kết nối như thế nào?</string>
-    <string name="kaspa">Kaspa</string>
     <string name="kaspa_explorer">Trình khám phá Kaspa</string>
     <string name="label_optional">Nhãn (tùy chọn)</string>
     <string name="last_message">Tin nhắn cuối cùng</string>
@@ -113,11 +92,9 @@
     <string name="log_out">Đăng xuất</string>
     <string name="manage_addresses">Quản lý địa chỉ</string>
     <string name="max">Tối đa</string>
-    <string name="menu">Menu</string>
     <string name="message">Tin nhắn</string>
     <string name="more_info">Thêm thông tin</string>
     <string name="name">Tên</string>
-    <string name="name_this_address">Đặt tên cho địa chỉ này</string>
     <string name="next">Tiếp theo</string>
     <string name="no_conversations_yet">Chưa có cuộc trò chuyện nào</string>
     <string name="no_domains_yet">Chưa có tên miền nào.</string>
@@ -125,43 +102,28 @@
     <string name="no_hidden_users_in_this_group">Không có người dùng ẩn trong nhóm này.</string>
     <string name="no_messages_yet">Chưa có tin nhắn</string>
     <string name="no_saved_addresses">Không có địa chỉ đã lưu</string>
-    <string name="no_swaps_yet">Chưa có hoán đổi nào.</string>
     <string name="no_transactions_yet">Chưa có giao dịch nào.</string>
     <string name="not_now">Không phải bây giờ</string>
-    <string name="notes_optional">Ghi chú (tùy chọn)</string>
     <string name="notifications">Thông báo</string>
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">Chỉ thông báo nếu tôi được nhắc đến</string>
     <string name="open_settings">Mở Cài đặt</string>
     <string name="other_nodes">Nút khác</string>
-    <string name="paste_from_clipboard">Dán từ bộ nhớ tạm</string>
-    <string name="paste_kpub">Dán kpub</string>
-    <string name="paste_the_kpub_exported_from_your">Dán kpub được xuất từ thiết bị KasSigner của bạn. Điều này không chứa dữ liệu khóa riêng tư.</string>
     <string name="payment">Thanh toán</string>
     <string name="photo">Ảnh</string>
     <string name="photo_message">Tin nhắn ảnh</string>
     <string name="photo_message_full_screen">Tin nhắn ảnh, toàn màn hình</string>
     <string name="photos">Ảnh</string>
-    <string name="polygon_network">Mạng Polygon</string>
     <string name="pool_health">Sức khỏe nhóm</string>
     <string name="portfolio">Danh mục đầu tư</string>
-    <string name="powered_by_changenow">Được cung cấp bởi ChangeNOW</string>
-    <string name="price_per_coin">Giá mỗi đồng</string>
     <string name="promote_pawn_to">Phong cấp tốt thành:</string>
     <string name="qr_code">Mã QR</string>
-    <string name="qr_code_2">Mã QR</string>
-    <string name="quantity">Số lượng</string>
-    <string name="rate">Tỷ giá</string>
     <string name="read">Da doc</string>
-    <string name="receiving_kas_at">Đang nhận KAS tại</string>
     <string name="recipient_address">Địa chỉ người nhận</string>
-    <string name="refresh_status">Làm mới trạng thái</string>
     <string name="remove">Xóa</string>
-    <string name="remove_cold_storage_account">Xóa tài khoản lưu trữ lạnh</string>
     <string name="rename">Đổi tên</string>
     <string name="rename_account">Đổi tên tài khoản</string>
     <string name="rename_address">Đổi tên địa chỉ</string>
-    <string name="rename_cold_storage_account">Đổi tên tài khoản lưu trữ lạnh</string>
     <string name="rename_group">Đổi tên nhóm</string>
     <string name="reserved_domain_no_registration_fee_only">Tên miền đã đăng ký trước: không có phí đăng ký, chỉ áp dụng phí mạng.</string>
     <string name="resign">Đầu hàng</string>
@@ -170,24 +132,17 @@
     <string name="retry_inscription_reveal">Thử lại tiết lộ bản khắc</string>
     <string name="save">Lưu</string>
     <string name="saved_accounts">Tài khoản đã lưu</string>
-    <string name="scan">Quét</string>
     <string name="scan_qr_code">Quét mã QR</string>
-    <string name="scan_signed_transaction">Quét giao dịch đã ký</string>
-    <string name="scan_kpub_from_kassigner">Quét kpub từ KasSigner</string>
-    <string name="scan_this_with_your_kassigner_device">Quét mã này bằng thiết bị KasSigner của bạn, xem lại ở đó, rồi ký.</string>
     <string name="scroll_to_latest">Cuộn đến tin nhắn mới nhất</string>
     <string name="search_chats">Tìm kiếm cuộc trò chuyện</string>
     <string name="secure_messaging_on_kaspa_blockdag">Nhắn tin bảo mật trên Kaspa BlockDAG</string>
     <string name="security_warning">Cảnh báo bảo mật</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="select_time">Chọn giờ</string>
     <string name="select_chat">Chọn trò chuyện</string>
     <string name="send">Gửi</string>
-    <string name="send_from_cold_storage">Gửi từ lưu trữ lạnh</string>
     <string name="send_photo">Gửi ảnh</string>
     <string name="sending">Đang gửi</string>
     <string name="sent">Đã gửi</string>
-    <string name="settings">Cài đặt</string>
     <string name="show_more">Hiện thêm</string>
     <string name="show_photo">Hiện ảnh</string>
     <string name="show_qr_code">Hiện mã QR</string>
@@ -195,20 +150,14 @@
     <string name="some_changes_failed_to_save">Một số thay đổi không thể lưu:</string>
     <string name="start_a_new_chat_by_adding">Bắt đầu cuộc trò chuyện mới bằng cách thêm liên hệ</string>
     <string name="status">Trạng thái</string>
-    <string name="swap">Hoán đổi</string>
-    <string name="swaps_are_processed_by_changenow_a">Các giao dịch hoán đổi được xử lý bởi ChangeNOW, một sàn giao dịch bên thứ ba. Khi tiếp tục, bạn xác nhận đã đọc và đồng ý với Điều khoản dịch vụ riêng của ChangeNOW. KaChat chỉ gửi yêu cầu hoán đổi của bạn và hiển thị trạng thái của nó; KaChat không chịu trách nhiệm về các giao dịch hoán đổi thất bại, bị trễ hoặc bị mất. Nếu một giao dịch hoán đổi không thành công, hãy liên hệ trực tiếp với bộ phận hỗ trợ ChangeNOW.</string>
     <string name="tap_an_address_below_to_swap">Chạm vào một địa chỉ bên dưới để hoán đổi từ đó</string>
     <string name="tap_an_address_below_to_use">Chạm vào một địa chỉ bên dưới để sử dụng nó</string>
     <string name="tap_to_reveal_seed_phrase">Nhấn để hiện seed phrase</string>
     <string name="this_could_take_a_few_minutes">Quá trình này có thể mất vài phút trong khi xác nhận trên chuỗi.</string>
-    <string name="this_only_removes_it_from_kachat">Điều này chỉ xóa nó khỏi danh sách theo dõi của KaChat. Nó không ảnh hưởng đến thiết bị KasSigner hoặc bất kỳ khoản tiền nào nó nắm giữ.</string>
     <string name="this_permanently_deletes_every_message_with">Điều này xóa vĩnh viễn mọi tin nhắn với họ trên thiết bị này. Không thể hoàn tác; nhắn tin lại cho họ sẽ bắt đầu một cuộc trò chuyện hoàn toàn mới.</string>
     <string name="this_removes_the_group_and_its">Điều này xóa nhóm và tin nhắn của nhóm khỏi thiết bị này. Điều này không thể hoàn tác, và các thành viên khác sẽ không được thông báo.</string>
     <string name="to">Đến</string>
     <string name="total_balance">Tổng số dư</string>
-    <string name="total_invested">Tổng đầu tư</string>
-    <string name="total_p_l">Tổng lãi/lỗ</string>
-    <string name="transactions">Giao dịch</string>
     <string name="try_again">Thử lại</string>
     <string name="unhide">Bỏ ẩn</string>
     <string name="unread">Chua doc</string>
@@ -216,8 +165,6 @@
     <string name="valid_address">Địa chỉ hợp lệ</string>
     <string name="waiting_on_opponent">Dang cho doi thu</string>
     <string name="host_port_or_grpcs_host">host:port hoặc grpcs://host</string>
-    <string name="kpub">kpub</string>
-    <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
     <string name="str_3">👋</string>
@@ -251,14 +198,11 @@
     <string name="donate">Quyên góp</string>
     <string name="email">Email</string>
     <string name="explorer">Trình khám phá</string>
-    <string name="export_csv">Xuất CSV</string>
     <string name="exports_app_device_info_connection_settings">Xuất thông tin ứng dụng/thiết bị, cài đặt kết nối, số lượng tin nhắn cục bộ và nhật ký ứng dụng gần đây dưới dạng zip để khắc phục sự cố với bộ phận hỗ trợ. Không bao gồm khóa riêng tư, cụm từ khôi phục hoặc nội dung tin nhắn đã giải mã.</string>
-    <string name="generate_more_addresses">Tạo thêm địa chỉ</string>
     <string name="generate_new_spending_address">Tạo địa chỉ chi tiêu mới</string>
     <string name="github">GitHub</string>
     <string name="hide_user">Ẩn người dùng</string>
     <string name="ip_address_book">Sổ địa chỉ IP</string>
-    <string name="import_csv">Nhập CSV</string>
     <string name="indexer">Trình lập chỉ mục</string>
     <string name="info">Thông tin</string>
     <string name="kns_profile">KNS Hồ sơ</string>
@@ -349,8 +293,6 @@
     <string name="get_domain_at">Nhận tên miền %1$s tại %2$s</string>
     <string name="could_not_reach_service">Không thể kết nối %1$s. Kéo xuống để thử lại.</string>
     <string name="no_names_yet">Chưa có tên %1$s.</string>
-    <string name="kachat_names_are_coming">Tên .kachat sắp ra mắt</string>
-    <string name="kachat_names_coming_body">Tên riêng của KaChat sẽ ở đây: nhận một tên, dùng làm tên của bạn trong trò chuyện và chia sẻ làm liên kết hồ sơ.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">Không tìm thấy tên miền %1$s</string>
     <string name="looking_up_domain">Đang tìm tên miền...</string>
@@ -369,69 +311,16 @@
     <string name="coming_soon">Sắp ra mắt</string>
     <string name="not_available_on_this_network">Không khả dụng trên mạng này</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_find_a_name">Tìm tên</string>
-    <string name="km_registration_not_open">Chưa mở đăng ký.</string>
-    <string name="km_claim">Nhận</string>
-    <string name="km_marketplace">Chợ</string>
     <string name="km_activity">Hoạt động</string>
-    <string name="km_list_a_name">Rao bán tên</string>
-    <string name="km_listings_appear">Tin rao sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
     <string name="km_no_names">Chưa có tên .kachat</string>
-    <string name="km_recent_activity">Hoạt động gần đây</string>
-    <string name="km_activity_appears">Hoạt động sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
-    <string name="km_how_it_works">Cách hoạt động</string>
-    <string name="km_list">Rao bán</string>
-    <string name="km_buy">Mua</string>
-    <string name="km_trustless">Không cần tin cậy</string>
-    <string name="km_claim_detail">Chọn một tên còn trống và đăng ký trên Kaspa. Nó là của bạn: tên trong trò chuyện, hồ sơ, liên kết của bạn.</string>
-    <string name="km_list_detail">Đặt giá. Tên chờ trong một covenant trên chuỗi - không nằm ở KaChat hay ai khác - cho đến khi có người mua hoặc bạn rút lại.</string>
-    <string name="km_buy_detail">Trả giá niêm yết. Khoản thanh toán đến người bán và tên đến bạn trong cùng một giao dịch - hoặc cả hai xảy ra, hoặc không gì cả.</string>
-    <string name="km_trustless_detail">Không trung gian, không tài khoản ký quỹ: chính quy tắc của Kaspa bảo đảm mọi giao dịch.</string>
-    <string name="km_nothing_live">Chưa có gì hoạt động ở đây.</string>
-    <string name="km_how_kachat_works">Cách .kachat hoạt động</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
-    <string name="kg_claim_title">Nhận tên .kachat của bạn</string>
-    <string name="kg_claim_body">Đây là tên mọi người thấy bạn trên khắp KaChat - trong trò chuyện, trên bài đăng và qua liên kết hồ sơ. Nếu không có, mọi người thấy địa chỉ của bạn.</string>
     <string name="kg_welcome_body">Hướng dẫn đầy đủ khi bắt đầu: ví, trò chuyện, thanh toán và hơn thế.</string>
     <string name="kg_previous">Trước</string>
-    <string name="kg_setup_guide">Hướng dẫn thiết lập</string>
-    <string name="kg_close">Đóng</string>
-    <string name="kg_next">Tiếp theo</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
-    <string name="kl_offers">Đề nghị</string>
-    <string name="kl_offer">Đề nghị</string>
-    <string name="kl_offer_detail">Tự đặt giá. KAS của bạn chờ trên chuỗi cho đến khi người bán chấp nhận, bạn rút đề nghị hoặc đề nghị hết hạn - và bạn có thể nhắn tin cho người bán trước.</string>
-    <string name="kl_listing">Tin rao</string>
-    <string name="kl_price">Giá</string>
-    <string name="kl_buy_now">Mua ngay</string>
-    <string name="kl_make_offer">Gửi đề nghị</string>
-    <string name="kl_seller">Người bán</string>
-    <string name="kl_seller_detail">Hỏi về tên hoặc thỏa thuận giá trước khi đề nghị.</string>
-    <string name="kl_offers_on_name">Các đề nghị đang mở cho tên này, cao nhất trước. Người bán có thể chấp nhận bất kỳ đề nghị nào.</string>
-    <string name="kl_history">Lịch sử</string>
-    <string name="kl_note_buy">Mua sẽ trả tiền cho người bán và chuyển tên cho bạn trong một giao dịch.</string>
-    <string name="kl_note_offer">Đề nghị khóa KAS của bạn trên chuỗi cho đến khi người bán chấp nhận, bạn rút lại hoặc hết hạn.</string>
-    <string name="kl_note_message">Tin nhắn đến người bán như mọi cuộc trò chuyện KaChat.</string>
     <string name="kl_network_fee">Phí mạng</string>
-    <string name="kl_confirm_purchase">Xác nhận mua</string>
-    <string name="kl_buying_opens">Mua sẽ mở khi tên .kachat ra mắt.</string>
-    <string name="kl_buy_name">Mua tên</string>
-    <string name="kl_1d">1 ngày</string>
-    <string name="kl_3d">3 ngày</string>
-    <string name="kl_7d">7 ngày</string>
-    <string name="kl_listed_at">Giá rao</string>
-    <string name="kl_your_offer">Đề nghị của bạn</string>
-    <string name="kl_expires_after">Hết hạn sau</string>
-    <string name="kl_send_offer">Gửi đề nghị</string>
-    <string name="kl_offers_open">Đề nghị sẽ mở khi tên .kachat ra mắt.</string>
-    <string name="kl_name">Tên</string>
-    <string name="kl_total">Tổng</string>
-    <string name="kl_message">Tin nhắn</string>
     <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
     <string name="pnc_import">Nhập từ Nextcloud</string>
-    <string name="pnc_import_sub">Chọn một tệp CSV từ Nextcloud của bạn.</string>
     <string name="pnc_export">Xuất sang Nextcloud</string>
-    <string name="pnc_export_sub">Lưu tệp CSV vào thư mục KaChat trên Nextcloud của bạn.</string>
     <string name="pnc_saved_to">Đã lưu vào %1$s trên Nextcloud.</string>
     <string name="pnc_export_failed">Xuất sang Nextcloud thất bại: %1$s</string>
     <string name="pnc_import_failed">Nhập từ Nextcloud thất bại: %1$s</string>
@@ -442,31 +331,9 @@
     <string name="chat_day_yesterday">Hôm qua</string>
     <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
     <string name="address_tab_history">Lịch sử</string>
-    <string name="kachat_no_names_on_address">Không có tên .kachat trên địa chỉ này</string>
-    <string name="kachat_names_on_address_hint">Các tên mà địa chỉ này nhận hoặc mua sẽ hiện ở đây khi tên .kachat ra mắt.</string>
     <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
-    <string name="portfolio_type_transfer">Chuyển khoản</string>
-    <string name="portfolio_value_at_the_time">Giá trị tại thời điểm đó</string>
-    <string name="portfolio_transfer_footer">KAS được chuyển giữa các địa chỉ của chính bạn - gửi đi rồi lấy lại, hoặc từ ví này sang ví khác. Không thay đổi số lượng nắm giữ, giá vốn hay lợi nhuận.</string>
     <!-- Move a portfolio transaction (iOS b438f2d) -->
-    <string name="portfolio_move_title">Chuyển sang danh mục</string>
-    <string name="portfolio_move_need_another">Hãy tạo thêm một danh mục trước, rồi bạn có thể chuyển giao dịch vào đó.</string>
-    <string name="portfolio_move_already_has">Đã có giao dịch này.</string>
-    <string name="portfolio_move_here">Chuyển giao dịch này vào đây.</string>
-    <string name="portfolio_moved_to">Đã chuyển sang %1$s.</string>
     <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
-    <string name="portfolio_add_chatting_address">Thêm địa chỉ trò chuyện</string>
-    <string name="portfolio_add_chatting_address_sub">Các lần mua, bán của địa chỉ trò chuyện và mọi phí mạng nó đã trả.</string>
-    <string name="portfolio_fees_counted">. Phí mạng đã tính: %1$d</string>
-    <string name="portfolio_no_sells_this_year">Chưa có lần bán nào trong năm nay.</string>
-    <string name="portfolio_sells_fifo">Lần bán: %1$d. Lần mua cũ nhất trước (FIFO).</string>
-    <string name="portfolio_sold_uncovered">%1$s đã bán mà không có lần mua được ghi, tính với giá vốn bằng 0.</string>
-    <string name="portfolio_prices_loading">Một số giá vẫn đang tải.</string>
-    <string name="portfolio_realized_pl_year">Lãi/lỗ đã thực hiện %1$s</string>
-    <string name="portfolio_fees_spent">Phí đã trả</string>
-    <string name="portfolio_fees_empty_hint">Thêm địa chỉ trò chuyện bằng + để tính các phí mạng nó đã trả.</string>
-    <string name="portfolio_fees_count_loading">Giao dịch: %1$d. Một số giá vẫn đang tải.</string>
-    <string name="portfolio_fees_count_priced">Giao dịch: %1$d, theo giá từng ngày.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_other_names_count">Tên .k và .kaspa (%1$d)</string>
@@ -511,76 +378,8 @@
     <string name="kn_invalid_chars">Chỉ dùng a-z, 0-9 và dấu gạch ngang.</string>
     <string name="kn_invalid_hyphen">Tên không được bắt đầu hoặc kết thúc bằng dấu gạch ngang.</string>
     <string name="kn_status_expired">Đã hết hạn</string>
-    <string name="kn_yours">Của bạn</string>
-    <string name="kn_available_per_year">Còn trống · %1$s mỗi năm</string>
-    <string name="kn_not_valid_name">Tên không hợp lệ.</string>
-    <string name="kn_taken_for_sale">Đã có chủ · đang bán với giá %1$s</string>
-    <string name="kn_taken">Đã có chủ</string>
-    <string name="kn_search_grace">Đã hết hạn - chủ sở hữu vẫn có thể gia hạn</string>
-    <string name="kn_seconds_to_go">Còn khoảng %1$d giây</string>
-    <string name="kn_cancel_commit_title">Hủy cam kết?</string>
-    <string name="kn_cancel_commit">Hủy cam kết</string>
-    <string name="kn_keep">Giữ lại</string>
-    <string name="kn_cancel_commit_body">Việc đăng ký dừng lại và 0.2 KAS của cam kết trở về bạn, trừ phí mạng.</string>
-    <string name="kn_stage_committing">Đang gửi cam kết ẩn...</string>
-    <string name="kn_stage_waiting_confirm">Đang chờ cam kết được xác nhận...</string>
-    <string name="kn_stage_waiting">Cam kết cần chờ khoảng một phút trước khi tên có thể được đăng ký. Hãy để KaChat mở - ứng dụng tự đăng ký, và tiếp tục từ chỗ dừng nếu bạn rời đi.</string>
-    <string name="kn_stage_registering">Đang đăng ký...</string>
-    <string name="kn_stage_registered">Đã đăng ký. Tên này là của bạn.</string>
-    <string name="kn_stage_taken">Đã có người đăng ký tên này trước. Hủy cam kết để lấy lại 0.2 KAS.</string>
-    <string name="kn_stage_failed">Việc đăng ký đã dừng.</string>
-    <string name="kn_stage_cancelling">Đang hủy cam kết...</string>
-    <string name="kn_stage_cancelled">Đã hủy.</string>
     <string name="kn_auth_reason">Xác nhận giao dịch .kachat này</string>
-    <string name="kn_for_sale">Đang bán</string>
-    <string name="kn_no_listings">Hiện chưa có tên nào được rao bán.</string>
-    <string name="kn_my_offers">Đề nghị của tôi</string>
-    <string name="kn_no_open_offers">Không có đề nghị đang mở.</string>
-    <string name="kn_offers_need_indexer">Đề nghị từ người khác sẽ hiện khi có kết nối trình lập chỉ mục tên.</string>
-    <string name="kn_nothing_yet">Chưa có gì.</string>
-    <string name="kn_withdraw_offer">Rút đề nghị</string>
-    <string name="kn_withdraw">Rút</string>
-    <string name="kn_refund_offer">Hoàn đề nghị</string>
-    <string name="kn_refund">Hoàn</string>
-    <string name="kn_accept_offer">Chấp nhận đề nghị</string>
-    <string name="kn_accept_and_transfer">Chấp nhận và chuyển</string>
-    <string name="kn_accept_warning">Tên chuyển cho người mua và số tiền đề nghị về bạn, trong một giao dịch. Không thể hoàn tác.</string>
-    <string name="kn_buyer">Người mua</string>
-    <string name="kn_price_to_miners">Giá (trả cho thợ đào)</string>
-    <string name="kn_bond_returned">Tiền bảo đảm (hoàn khi nhả)</string>
-    <string name="kn_deposit_returned">Ký quỹ sổ đăng ký (hoàn khi nhả)</string>
-    <string name="kn_commit_returned">Cam kết (hoàn khi đăng ký)</string>
-    <string name="kn_network_fees">Phí mạng</string>
-    <string name="kn_not_enough">Địa chỉ trò chuyện của bạn không đủ KAS cho tên này.</string>
-    <string name="kn_claim_footer">Giá trả cho thợ đào - KaChat không lấy gì. Tiền bảo đảm và ký quỹ trả lại khi bạn nhả tên.</string>
-    <string name="kn_claim_step1">Một cam kết ẩn được đưa lên chuỗi trước. Không ai thấy nó dành cho tên nào.</string>
-    <string name="kn_claim_step2">Khoảng một phút sau KaChat tự đăng ký tên. Hãy để ứng dụng mở; nếu bạn rời đi, lần sau sẽ tiếp tục.</string>
-    <string name="kn_how_claiming_works">Cách nhận tên hoạt động</string>
-    <string name="kn_claim_name_button">Nhận %1$s.kachat</string>
-    <string name="kn_claim_name_title">Nhận tên</string>
-    <string name="kn_name_gone">Tên này đã được nhả hoặc thu hồi. Có thể nhận lại.</string>
-    <string name="kn_not_for_sale">Không bán</string>
     <string name="kn_expires_on">Hết hạn %1$s</string>
-    <string name="kn_renew">Gia hạn</string>
-    <string name="kn_change_price">Đổi giá</string>
-    <string name="kn_list_for_sale">Rao bán</string>
-    <string name="kn_delist">Gỡ bán</string>
-    <string name="kn_release_name">Nhả tên</string>
-    <string name="kn_owner">Chủ sở hữu</string>
-    <string name="kn_you">Bạn</string>
-    <string name="kn_no_history">Chưa có lịch sử.</string>
-    <string name="kn_release">Nhả</string>
-    <string name="kn_release_warning">Nhả tên là từ bỏ vĩnh viễn: ai cũng có thể đăng ký, và thời gian bạn đã trả sẽ mất. Bạn nhận lại tiền bảo đảm và ký quỹ sổ đăng ký.</string>
-    <string name="kn_buy_footer">Khoản thanh toán đến người bán và tên đến bạn trong cùng một giao dịch - cả hai cùng xảy ra, hoặc không gì cả.</string>
-    <string name="kn_price_to_seller">Giá (trả cho người bán)</string>
-    <string name="kn_refundable_after">Có thể hoàn sau</string>
-    <string name="kn_price_per_year">Giá mỗi năm</string>
-    <string name="kn_new_expiry">Hạn mới</string>
-    <string name="kn_list_footer">Ai cũng có thể mua với giá này: tiền đến bạn và tên đến người mua trong một giao dịch. Gỡ bán bất cứ lúc nào.</string>
-    <string name="kn_transfer_warning">Không thể hoàn tác việc chuyển. Chủ mới nhận tên với hạn hiện tại; hồ sơ của bạn vẫn ở địa chỉ của bạn.</string>
-    <string name="kn_new_owner">Chủ mới</string>
-    <string name="kn_err_address_key">Khóa của địa chỉ đó không hợp lệ.</string>
-    <string name="kn_err_lookup">Không tra cứu được tên đó.</string>
     <string name="kn_profile_belongs">Hồ sơ thuộc về địa chỉ của bạn, không thuộc về tên: vẫn giữ nguyên khi bạn mua, bán hay bỏ một tên.</string>
     <string name="kn_links">Liên kết</string>
     <string name="kn_primary_name">Tên chính</string>
@@ -588,7 +387,6 @@
     <string name="kn_primary_footer">KaChat hiển thị bạn bằng tên chính khi bạn còn sở hữu và tên còn hiệu lực; nếu không thì bằng tên còn hiệu lực lâu nhất, hoặc địa chỉ của bạn.</string>
     <string name="kn_save_profile">Lưu hồ sơ</string>
     <string name="kn_save_footer">Lưu sẽ ghi hồ sơ của bạn lên chuỗi bằng giao dịch từ địa chỉ của bạn về chính nó, với phí mạng. Hồ sơ là công khai.</string>
-    <string name="kn_n_years">%1$d năm</string>
     <string name="kn_err_key_mismatch">Khóa của ví này không khớp với địa chỉ.</string>
     <string name="kn_err_invalid_key">%1$s không phải khóa hợp lệ (không nằm trên đường cong secp256k1).</string>
     <string name="kn_err_no_salt">Thiết bị này không có mã bí mật của lần đăng ký này.</string>
@@ -602,8 +400,6 @@
     <string name="kn_ev_registered">Đã đăng ký</string>
     <string name="kn_ev_listed">Đã niêm yết</string>
     <string name="kn_available">Có sẵn</string>
-    <string name="kn_expires">Hết hạn</string>
-    <string name="kn_one_year">1 năm</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
     <string name="kn_linktree_footer">Thêm Linktree của bạn để dẫn mọi người đến các tài khoản và trang web khác của bạn.</string>
     <string name="kn_social_looking">Đang tìm hồ sơ...</string>
@@ -625,20 +421,10 @@
     <string name="kn_balance_after">Số dư sau đó</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Đã gửi giao dịch</string>
-    <string name="kn_view_transaction">Xem giao dịch</string>
-    <string name="kn_done_released">Đã giải phóng tên</string>
-    <string name="kn_done_bought">Đã mua tên</string>
-    <string name="kn_done_offer_sent">Đã gửi đề nghị</string>
-    <string name="kn_done_price_changed">Đã đổi giá</string>
-    <string name="kn_done_listed">Đã đăng bán</string>
-    <string name="kn_done_transferred">Đã chuyển tên</string>
     <string name="kn_done_profile_saved">Đã lưu hồ sơ</string>
     <string name="kn_clear_profile">Xóa hồ sơ</string>
     <string name="kn_done_profile_cleared">Đã xóa hồ sơ</string>
     <string name="kn_clear_footer">Xóa sẽ ghi một hồ sơ trống lên chuỗi từ địa chỉ của bạn đến chính nó, với phí mạng, và KaChat sẽ không hiển thị gì cho địa chỉ của bạn nữa.</string>
-    <string name="kn_done_primary_set">Đã đặt tên chính</string>
-    <string name="kn_done_registered">Đã đăng ký tên</string>
-    <string name="kn_done_commit_cancelled">Đã hủy cam kết</string>
     <!-- .kachat: the profile save review (iOS 7e238e5) -->
     <string name="kn_your_profile">Hồ sơ của bạn</string>
     <string name="kn_linktree">Linktree</string>
@@ -646,32 +432,12 @@
     <string name="kn_profiles_public_note">Hồ sơ là công khai và nằm trên chuỗi: ai cũng có thể đọc, và các phiên bản trước vẫn đọc được sau khi bạn thay đổi.</string>
     <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
     <string name="kn_ev_extended">Đã kéo dài</string>
-    <string name="kn_extend">Kéo dài</string>
-    <string name="kn_extend_to_years">Kéo dài đến %1$d năm</string>
     <string name="kn_renewal_opens_on">Mở gia hạn vào %1$s</string>
-    <string name="kn_paid_from_to">Đã trả từ %1$s đến %2$s</string>
-    <string name="kn_new_period">Kỳ mới</string>
-    <string name="kn_extend_footer">Kéo dài thêm năm vào kỳ đã trả hiện tại, mỗi kỳ tối đa 2 năm. Giá trả cho thợ đào.</string>
     <string name="kn_err_period_unknown">Bộ chỉ mục tên không gửi kỳ đã trả của tên này. Kéo xuống để làm mới rồi thử lại.</string>
-    <string name="kn_claim_step3_cap">Tên là của bạn trong số năm đã trả, tối đa trước 2 năm. Tên 1 năm có thể kéo dài thành 2 năm; từ 10 ngày trước khi hết hạn bạn có thể gia hạn.</string>
     <string name="kn_setting_up">Đang thiết lập</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Tên .kachat</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
-    <string name="kn_push_new_offer">Đề nghị mới cho %1$s</string>
-    <string name="kn_push_offered">Có người đề nghị %1$s cho tên này.</string>
-    <string name="kn_push_offer_no_amount">Có người đã gửi đề nghị cho tên này.</string>
-    <string name="kn_push_sold">%1$s đã bán</string>
-    <string name="kn_push_paid">Bạn đã nhận %1$s.</string>
-    <string name="kn_push_listing_bought">Tên bạn đăng bán đã được mua.</string>
-    <string name="kn_push_offer_accepted">Đề nghị đã được chấp nhận</string>
-    <string name="kn_push_yours_now">%1$s giờ là của bạn.</string>
-    <string name="kn_push_renew">Gia hạn %1$s</string>
-    <string name="kn_push_renewal_open">Đã mở gia hạn: gia hạn ngay để giữ tên.</string>
-    <string name="kn_push_expires_soon">%1$s sắp hết hạn</string>
-    <string name="kn_push_days_left">Còn %1$d ngày để gia hạn.</string>
-    <string name="kn_push_one_day_left">Còn 1 ngày để gia hạn.</string>
-    <string name="kn_push_expired">%1$s đã hết hạn</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">Tin nhắn thoại</string>
@@ -718,11 +484,7 @@
     <string name="transaction_id_copied">Đã sao chép ID giao dịch</string>
     <string name="payment_not_on_chain_yet">Khoản thanh toán này chưa lên chuỗi.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
-    <string name="kn_opens_marketplace">Mở chợ .kachat</string>
     <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
-    <string name="kachat_names_this_address_owns">Các tên mà địa chỉ này sở hữu hiển thị ở đây.</string>
-    <string name="kn_your_spending_address">Địa chỉ chi tiêu của bạn #%1$d</string>
-    <string name="kn_your_kassigner_address">Địa chỉ KasSigner của bạn (%1$s #%2$d)</string>
     <string name="chats_new">Mới</string>
     <string name="chats_new_chat">Cuộc trò chuyện mới</string>
     <string name="chats_new_group_chat">Nhóm trò chuyện mới</string>
@@ -744,7 +506,6 @@
     <string name="send_fee_tier_footer">Nếu mạng bận, tùy chọn Nhanh hoặc Ưu tiên sẽ trả phí cao hơn để giúp xác nhận nhanh hơn. Chạm vào số tiền phí để đặt phí tùy chỉnh.</string>
     <string name="paste">Dán</string>
     <string name="scan_qr">Quét QR</string>
-    <string name="available">Có sẵn</string>
     <string name="network_fee">Phí mạng</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">Trượt để gửi</string>
@@ -778,51 +539,22 @@
     <string name="faucet_claim_subtitle">Sao chép địa chỉ trò chuyện và mở vòi TN10: dán vào, vượt qua bước kiểm tra và nhận mức tối đa.</string>
     <string name="faucet_address_copied_notice">Đã sao chép địa chỉ trò chuyện TN10. Hãy dán vào ô địa chỉ của vòi.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
-    <string name="kn_copies_the_address">Sao chép địa chỉ</string>
     <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
-    <string name="kn_manage_name">Quản lý tên</string>
-    <string name="kn_manage_extend_hint">Trả thêm năm ngay bây giờ, tối đa giới hạn 2 năm.</string>
-    <string name="kn_manage_renew_hint">Bắt đầu kỳ trả phí mới từ ngày hết hạn.</string>
-    <string name="kn_manage_change_price_hint">Thay đổi giá bán.</string>
-    <string name="kn_manage_delist_hint">Gỡ tên khỏi chợ.</string>
-    <string name="kn_manage_list_hint">Rao bán tên với giá của bạn.</string>
-    <string name="kn_manage_transfer_hint">Gửi tên đến địa chỉ khác.</string>
-    <string name="kn_manage_primary_hint">Hiển thị bạn bằng tên này trên toàn KaChat.</string>
-    <string name="kn_manage_release_hint">Từ bỏ tên và hoàn lại tiền đặt cọc.</string>
     <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
-    <string name="kn_offer_expires_in">Hết hạn sau %1$s</string>
-    <string name="kn_offer_expired_returning_to_you">Đã hết hạn - đang hoàn lại cho bạn</string>
-    <string name="kn_offer_expired_returning_to_buyer">Đã hết hạn - đang hoàn lại cho người mua</string>
-    <string name="kn_offer_expired_refundable">Đã hết hạn - có thể hoàn lại ngay</string>
     <string name="kn_err_offer_expired">Đề nghị này đã hết hạn. Đang hoàn lại cho người mua.</string>
-    <string name="kn_my_offers_detail">Các đề nghị bạn đã gửi. Rút bất cứ lúc nào; khi hết hạn sẽ tự hoàn lại cho bạn.</string>
-    <string name="kn_offer_declined_returning_to_you">Bị từ chối - tên đã đổi chủ, đang hoàn lại cho bạn</string>
-    <string name="kn_offer_declined_earlier_owner">Bị từ chối - gửi cho chủ cũ</string>
     <string name="kn_err_offer_declined">Đề nghị này được gửi trước khi tên đổi chủ, nên đã bị từ chối và đang hoàn lại cho người mua.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Tên này đã được trả đến kỳ dài nhất. Mở gia hạn vào %1$s.</string>
     <string name="kn_err_offer_own_name">Bạn không thể đưa đề nghị cho tên của chính mình.</string>
     <string name="kn_err_offer_max_days">Một đề nghị có thể kéo dài tối đa 7 ngày.</string>
-    <string name="kn_price_per_period">Giá mỗi %1$s</string>
-    <string name="kn_available_per_period">Còn trống · %1$s mỗi %2$s</string>
-    <string name="kn_extend_to_period">Kéo dài đến %1$s</string>
-    <string name="kn_manage_extend_hint_time">Trả thêm thời gian ngay bây giờ, tối đa %1$s.</string>
-    <string name="kn_extend_footer_time">Kéo dài sẽ thêm thời gian vào kỳ đã trả hiện tại, tối đa %1$s. Khoản phí được trả cho thợ đào.</string>
-    <string name="kn_claim_step3_time">Tên là của bạn trong thời gian bạn đã trả, tối đa %1$s về sau. Từ %2$s trước khi hết hạn, bạn có thể gia hạn.</string>
-    <string name="kn_decline_offer">Từ chối đề nghị</string>
     <string name="kn_ev_offer_declined">Đã từ chối đề nghị</string>
-    <string name="kn_decline_footer">Đề nghị được trả lại cho người mua. Phí mạng được trừ vào đề nghị, nên từ chối không tốn gì của bạn.</string>
-    <string name="kn_offer_locked_decline">KAS của bạn bị khóa trên chuỗi cho đến khi chủ chấp nhận hoặc từ chối, bạn rút đề nghị, hoặc đề nghị hết hạn - sau đó ai cũng có thể trả lại cho bạn.</string>
-    <string name="kn_offer_below_listing_buy">Tên này đang được bán với giá thấp hơn đề nghị của bạn. Hãy cân nhắc mua luôn.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Giá đã đổi thành %1$s kể từ khi bạn xác nhận. Chưa có gì được gửi. Hãy xem giá mới và xác nhận lại.</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
-    <string name="kn_renew_from_expiry_footer">Gia hạn bắt đầu kỳ tiếp theo tại ngày hết hạn hiện tại, không phải từ hôm nay, nên tên đã hết hạn một thời gian sẽ có ít thời gian hơn. Khoản phí được trả cho thợ đào.</string>
     <string name="kn_err_renew_expired_too_long">Tên này đã hết hạn quá lâu để gia hạn. Chỉ có thể thu hồi và đăng ký lại.</string>
     <string name="kn_err_offer_name_not_active">Chỉ có thể đưa đề nghị cho tên đang hoạt động.</string>
     <string name="kn_err_accept_name_expired">Tên này đã hết hạn. Chỉ có thể chấp nhận đề nghị khi tên còn hoạt động. Hãy gia hạn trước.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
-    <string name="kn_buy_soon_left">Còn chưa đến %1$s là tên này hết hạn. Bạn sẽ phải gia hạn sớm.</string>
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">Đây là địa chỉ Testnet. KaChat đang ở Mainnet.</string>
     <string name="address_other_network_mainnet">Đây là địa chỉ Mainnet. KaChat đang ở Testnet.</string>
@@ -841,33 +573,10 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Hiện chưa thể kiểm tra một số liên kết từ điện thoại này. Chúng được lưu đúng như đã nhập và ứng dụng của người khác sẽ tải khi có thể.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="kn_bell_renew_title">Gia hạn %1$s</string>
-    <string name="kn_bell_renewal_open">Đã mở gia hạn: gia hạn trước %1$s để giữ tên.</string>
-    <string name="kn_bell_expired_title">%1$s đã hết hạn</string>
-    <string name="kn_bell_expired_body">Gia hạn trước %1$s nếu không ai cũng có thể lấy.</string>
-    <string name="kn_bell_sold_title">%1$s đã bán</string>
-    <string name="kn_bell_paid">Bạn đã nhận %1$s KAS.</string>
-    <string name="kn_bell_listing_bought">Tên bạn rao bán đã được mua.</string>
-    <string name="kn_bell_accepted_offer">Bạn đã chấp nhận một đề nghị cho tên này.</string>
-    <string name="kn_bell_new_offer_title">Đề nghị mới cho %1$s</string>
-    <string name="kn_bell_offered">Có người đề nghị %1$s KAS cho tên này.</string>
-    <string name="kn_bell_yours_now">%1$s giờ là của bạn.</string>
-    <string name="kn_bell_declined_title">Đề nghị cho %1$s bị từ chối</string>
-    <string name="kn_bell_declined_body">Chủ đã từ chối. KAS đã trở về với bạn.</string>
-    <string name="kn_bell_offer_expired_title">Đề nghị cho %1$s đã hết hạn</string>
-    <string name="kn_bell_offer_expired_body">Không ai chấp nhận kịp. KAS đã trở về với bạn.</string>
-    <string name="kn_bell_returned_title">Đề nghị cho %1$s đã được trả lại</string>
-    <string name="kn_bell_returned_body">Không thể chấp nhận nữa. KAS đã trở về với bạn.</string>
     <string name="notification_center_empty">Kaspa đến ví của bạn và tin tức về tên .kachat của bạn hiển thị ở đây.</string>
-    <string name="kn_push_renew_soon">Hãy sớm gia hạn để giữ tên.</string>
-    <string name="kn_push_grace_soon">Hãy sớm gia hạn nếu không ai cũng có thể lấy.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="kn_activity_all_detail">Mọi lần đăng ký, gia hạn, rao bán, bán, đề nghị, chuyển nhượng và thu hồi trong sổ đăng ký.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
-    <string name="kn_free_to_claim">Có thể đăng ký</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
-    <string name="kn_claiming_name">Đang nhận %1$s</string>
-    <string name="kn_keep_open_claiming">Hãy giữ KaChat mở: tên được đăng ký khoảng một phút sau khi cam kết ẩn được xác nhận. Nếu bạn rời đi, quá trình sẽ tiếp tục từ chỗ dừng khi bạn quay lại.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
@@ -887,10 +596,7 @@
     <string name="qr_camera_access_required">Cần quyền truy cập camera</string>
     <string name="qr_enable_camera_access">Vui lòng bật quyền truy cập camera trong Cài đặt để quét mã QR.</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
-    <string name="qr_enable_camera_access_signed">Bật quyền truy cập máy ảnh trong Cài đặt để quét giao dịch đã ký.</string>
-    <string name="qr_point_camera_kassigner">Hướng máy ảnh vào màn hình KasSigner</string>
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
-    <string name="swap_details">Chi tiết hoán đổi</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s đã sao chép vào bảng nhớ tạm.</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
@@ -905,30 +611,11 @@
     <string name="clear">Xóa</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
-    <string name="choose_coin">Chon dong tien</string>
-    <string name="couldn_t_read_this_swap_s">Không thể đọc số tiền của giao dịch hoán đổi này</string>
-    <string name="deposit_address">Địa chỉ nạp tiền</string>
-    <string name="exchange_id_copied">Đã sao chép ID trao đổi</string>
     <string name="original_message_not_available">Tin nhắn gốc không có sẵn</string>
-    <string name="search_coins">Tim kiem dong tien</string>
-    <string name="swap_history">Lịch sử hoán đổi</string>
-    <string name="swap_started">Hoán đổi đã bắt đầu</string>
-    <string name="view_on_changenow">Xem trên ChangeNOW</string>
-    <string name="swap_failed">Hoán đổi không thành công</string>
     <!-- .kachat sale tile: expiry flag -->
-    <string name="kn_expires_soon">Sắp hết hạn</string>
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">Đang giải phóng %1$s cho bạn...</string>
-    <string name="kn_name_expired_free">Tên này đã hết hạn và không được gia hạn, nên ai cũng có thể nhận với giá thông thường. Tiền đặt cọc của chủ cũ được trả lại cho họ.</string>
-    <string name="kn_no_expired_names">Hiện không có tên nào hết hạn.</string>
-    <string name="km_expired_appear">Các tên hết hạn sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
-    <string name="kn_bell_freed_title">%1$s đã được giải phóng</string>
-    <string name="kn_bell_freed_body">Tên đã hết hạn và được xóa khỏi sổ đăng ký. Tiền đặt cọc đã trở lại với bạn.</string>
-    <string name="kn_bell_no_longer_yours_title">%1$s không còn là của bạn</string>
-    <string name="kn_bell_lapsed_available_body">Tên đã hết hạn và không được gia hạn, nên giờ ai cũng có thể nhận trong chợ. Tiền đặt cọc sẽ trở lại với bạn khi có người nhận tên.</string>
     <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
-    <string name="kn_claiming_title">Đang nhận</string>
-    <string name="kn_names_being_claimed">Các tên đang được nhận</string>
     <string name="kn_commit_waiting_busy">Mạng đang bận. Cam kết của bạn đang chờ một khối.</string>
     <string name="kn_commit_sent_again">Mạng đang bận nên cam kết đã được gửi lại.</string>
     <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
@@ -954,17 +641,9 @@
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Tiếp tục</string>
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
-    <string name="kn_how_long">Trong bao lâu?</string>
-    <string name="kn_renew_starts_at_expiry">Gia hạn bắt đầu kỳ tiếp theo từ lúc hết hạn hiện tại, không phải từ hôm nay.</string>
     <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
-    <string name="kn_released_in">Mở lại sau</string>
-    <string name="kn_no_names_in_grace">Hiện không có tên nào trong thời gian ân hạn.</string>
-    <string name="km_grace_appear">Các tên trong thời gian ân hạn sẽ xuất hiện ở đây khi tên .kachat ra mắt.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
-    <string name="kn_grace_period_ends">Thời gian ân hạn kết thúc %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_detail_grace_resolves">Đã hết hạn. Tên vẫn trỏ đến chủ sở hữu cho đến khi hết thời gian ân hạn, và chủ sở hữu vẫn có thể gia hạn.</string>
-    <string name="kn_detail_grace_mine_resolves">Đã hết hạn - hãy gia hạn để giữ. Cho đến khi hết thời gian ân hạn, tên vẫn trỏ đến bạn và không ai khác có thể lấy.</string>
     <!-- Address Book (iOS 00767a4) -->
     <string name="ab_address_book">Sổ địa chỉ</string>
     <string name="ab_add_to_address_book">Thêm vào sổ địa chỉ</string>
@@ -1024,12 +703,6 @@
     <string name="ab_err_not_an_export">Tệp đó không phải bản xuất sổ địa chỉ KaChat.</string>
     <string name="ab_err_export_empty">Bản xuất đó không có địa chỉ nào.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
-    <string name="kn_busy_title">Mạng đang bận</string>
-    <string name="kn_busy_body">Với Bình thường có thể phải chờ. Nhanh hoặc Ưu tiên trả nhiều hơn một chút để vào khối sớm hơn.</string>
-    <string name="kn_balance_after_value">Số dư sau: %1$s</string>
-    <string name="kn_balance_change_value">Thay đổi số dư: %1$s</string>
-    <string name="kn_available_value">Khả dụng: %1$s</string>
-    <string name="kn_claim_fee_note">Nhận tên gửi hai giao dịch: cam kết ngay bây giờ, đăng ký khoảng một phút sau. Cả hai dùng tốc độ này.</string>
     <string name="kn_step_sent">Đã gửi lên mạng</string>
     <string name="kn_step_in_block">Trong một khối</string>
     <string name="kn_step_updated">Đã cập nhật trong KaChat</string>
@@ -1039,10 +712,6 @@
     <string name="kn_tx_stage_dropped">Mạng chưa nhận giao dịch. Nếu nó không bao giờ vào, không có gì bị tiêu - hãy thử lại với phí nhanh hơn.</string>
     <string name="kn_tap_tx_explorer">Chạm vào giao dịch để mở trong trình khám phá.</string>
     <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
-    <string name="kn_offer_expires_in_label">Hết hạn sau</string>
-    <string name="kn_offer_cant_accept">Không thể chấp nhận đề nghị này nữa.</string>
-    <string name="kn_offer_only_owner">Chỉ chủ sở hữu tên mới có thể chấp nhận hoặc từ chối đề nghị này.</string>
-    <string name="kn_offers_tap_to_accept_decline">Chạm vào một đề nghị để chấp nhận hoặc từ chối. Đề nghị hết hạn sẽ trả lại người mua.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">Phí mạng đã tăng lên %1$s kể từ khi bạn xác nhận. Chưa có gì được gửi. Hãy xem phí mới và xác nhận lại.</string>
     <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
@@ -1051,7 +720,6 @@
     <string name="ab_import_skipped_other_network">Đã bỏ qua %1$d địa chỉ của mạng khác.</string>
     <!-- .kachat registry v5 migration (iOS dd836cb) -->
     <string name="kn_registration_not_open">Các tên đang được chuyển sang sổ đăng ký mới. Bạn có thể nhận tên mới từ %1$s.</string>
-    <string name="kn_registration_not_open_note">Trước tiên, mọi tên từ sổ đăng ký cũ được chuyển sang với cùng chủ sở hữu và hạn dùng.</string>
     <string name="kn_ev_imported">Đã chuyển sang sổ đăng ký mới</string>
     <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
     <string name="enter_kaspa_address_or_domain_kachat_first">Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền (vd. alice.kachat). Tên .kachat được tra trước.</string>
@@ -1061,21 +729,12 @@
     <string name="their_profile_kachat_name_address">Hồ sơ, tên .kachat và địa chỉ của họ.</string>
     <string name="finds_addresses_balance_or_domain">Tìm các địa chỉ có số dư hoặc tên miền.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền. Tên .kachat được tra trước.</string>
-    <string name="portfolio_add_address_footer_kachat">Nhập địa chỉ Kaspa hoặc tên miền như name.kachat (tên .kachat được tra trước). Mỗi giao dịch nhận vào địa chỉ này là một lần mua, mỗi giao dịch gửi đi là một lần bán, theo giá KAS lịch sử của ngày đó. Thêm lại cùng địa chỉ sau này chỉ nhập các giao dịch kể từ lần nhập trước.</string>
-    <string name="kn_transfer_footer_domain">Địa chỉ hoặc tên miền - tên .kachat được tra trước và được chuyển thành địa chỉ hiển thị.</string>
-    <string name="kn_transfer_placeholder_domain">kaspatest:... hoặc tên miền</string>
-    <string name="kn_err_enter_address_or_domain">Nhập địa chỉ hoặc tên miền.</string>
-    <string name="kn_err_name_address_cant_own">Địa chỉ của tên đó không thể sở hữu tên .kachat.</string>
     <string name="kachat_names_resolved_first_footer">Được phân giải trước, ở mọi nơi bạn có thể nhập địa chỉ.</string>
     <string name="other_domains_title">Tên miền khác</string>
     <string name="other_domains_settings_footer">Được tra sau .kachat, và hiển thị trong Tên miền khác khi tên đã nhập cũng có ở đó.</string>
     <string name="chatting_picker_intro_any_name_kachat">Nếu cụm seed này đã giữ danh tính của bạn ở một địa chỉ khác - một tên miền (.kachat, .kas, .k hoặc .kaspa) hoặc số dư chat đã nạp - hãy chọn ở đây. Chỉ hiển thị địa chỉ có số dư hoặc tên miền.</string>
     <string name="chatting_picker_kachat_names_count">Tên .kachat (%1$d)</string>
     <string name="chatting_picker_kas_names_count">Tên .kas (%1$d)</string>
-    <string name="kachat_expired_one_title">Một tên miền .kachat của bạn đã hết hạn</string>
-    <string name="kachat_expired_many_title">%1$d tên miền .kachat của bạn đã hết hạn</string>
-    <string name="kachat_expired_one_body">Gia hạn %1$s trước khi thời gian ân hạn kết thúc vào %2$s để giữ nó.</string>
-    <string name="kachat_expired_many_body">Gia hạn chúng trước khi thời gian ân hạn kết thúc để giữ chúng.</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Tên .kachat chưa hoạt động trên mạng này</string>
     <!-- Nextcloud sync carries portfolios -->
@@ -1085,19 +744,13 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">Sổ đăng ký .kachat đang được nâng cấp. Tên sẽ mở lại ở đây khi sổ đăng ký mới hoạt động.</string>
     <string name="kn_err_no_wallet_open">Chưa mở ví nào.</string>
-    <string name="kn_err_not_network_address">Không phải địa chỉ Schnorr trên mạng này.</string>
-    <string name="kn_how_live_footer_mainnet">Đang chạy trên Mainnet: tên, giá và thanh toán ở đây là KAS thật.</string>
-    <string name="kn_how_live_footer_testnet">Đang chạy trên Testnet: tên, giá và thanh toán ở đây dùng TKAS trên testnet-10. Tên Mainnet đang chạy trên Mainnet.</string>
     <string name="kn_live_on_mainnet">Đang chạy trên Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Đề nghị phải hoàn lại được trước khi tên hết hạn.</string>
-    <string name="kn_offer_refundable_from_expiry">Tên này hết hạn sớm hơn, nên đề nghị của bạn hoàn lại được từ %1$s.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
     <string name="kn_combining_coins">KAS của bạn nằm rải rác trong nhiều đồng nhỏ. Đang gộp chúng thành một trước...</string>
-    <string name="kn_combines_coins_note">KAS của bạn nằm rải rác trong nhiều đồng nhỏ. KaChat gộp chúng thành một trước khi đăng ký, với một khoản phí mạng nhỏ thêm.</string>
     <string name="kn_not_enough_to_combine">Địa chỉ chat của bạn không đủ KAS để làm việc này.</string>
     <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
-    <string name="bots_title">Bot KaChat</string>
     <string name="bot_block_rewards_name">Theo dõi phần thưởng khối</string>
     <string name="bot_block_rewards_summary">Một tin nhắn cho mỗi phần thưởng khối trả về địa chỉ đào của bạn.</string>
     <string name="bot_wallet_name">Theo dõi ví</string>
@@ -1108,9 +761,6 @@
     <string name="bot_kaspa_answers_summary">Hỏi bất cứ điều gì về Kaspa.</string>
     <string name="bots_coming_soon">Sắp ra mắt.</string>
     <string name="bots_mainnet_only">Bot chỉ chạy trên mainnet.</string>
-    <string name="bots_opens_chat_hint">Mở cuộc trò chuyện với bot này.</string>
-    <string name="bots_fee_note">Tin nhắn gửi bot là tin nhắn KaChat mã hóa thông thường, nên mỗi tin tốn phí mạng thông thường.</string>
-    <string name="bots_unread_count">%1$d chưa đọc</string>
     <string name="bot_sheet_clears_unread">Xóa huy hiệu chưa đọc của cuộc trò chuyện này.</string>
     <string name="bot_sheet_notifications_resume">Thông báo từ bot này hoạt động lại.</string>
     <string name="bot_sheet_no_notification">Không có thông báo từ bot này.</string>
@@ -1142,13 +792,7 @@
     <string name="delete_chat_q">Delete Chat?</string>
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
     <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
-    <string name="kn_combines_coins_on_slide">KAS của bạn nằm trong nhiều đồng nhỏ. Khi bạn trượt, KaChat sẽ gộp chúng thành một trước (một giao dịch riêng với phí nhỏ), rồi gửi giao dịch này.</string>
     <!-- An address's Domains tab: one card per name service (iOS fe52376) -->
-    <string name="address_tab_domains">Tên miền</string>
-    <string name="address_domains_none">Địa chỉ này không có tên %1$s.</string>
-    <string name="address_domains_one">1 tên miền</string>
-    <string name="address_domains_count">%1$d tên miền</string>
-    <string name="address_domains_couldnt_load">Không thể tải</string>
     <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
     <string name="pr_fresh_address">Địa chỉ mới</string>
     <string name="pr_choose_an_address">Chọn địa chỉ</string>
@@ -1170,36 +814,12 @@
     <string name="welcome_everything_else">Mọi thứ khác</string>
     <string name="welcome_everything_else_caption">Để bảo vệ quyền riêng tư, hãy dùng các địa chỉ khác của bạn cho mọi hoạt động khác trên mạng Kaspa. Nhận Kaspa cho bạn một địa chỉ mới, và Quản lý địa chỉ liệt kê tất cả.</string>
     <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
-    <string name="kg_claim_hint">Tìm tên bạn muốn trong Kaspa Hub &gt; .kachat, rồi nhận nó.</string>
-    <string name="kg_how_title">Tên hoạt động thế nào</string>
-    <string name="kg_how_body">Tên của bạn nằm trên mạng Kaspa, do địa chỉ trò chuyện của bạn nắm giữ. Khi còn là của bạn, không ai có thể lấy hay đổi nó.</string>
-    <string name="kg_how_commit">Nhận tên cần hai giao dịch nhanh: giao dịch đầu giữ bí mật lựa chọn, giao dịch thứ hai đăng ký.</string>
-    <string name="kg_how_period">Bạn trả cho từng kỳ một. Tên càng ngắn càng đắt.</string>
-    <string name="kg_how_miners">Khoản phí trả cho thợ đào của mạng, không phải cho KaChat.</string>
-    <string name="kg_use_title">Biến nó thành tên của bạn</string>
-    <string name="kg_use_body">Đặt làm tên chính và bạn sẽ hiện với tên đó ở mọi nơi trong KaChat.</string>
-    <string name="kg_use_find">Mọi người có thể tìm và nhắn tin cho bạn bằng cách gõ tên bạn.</string>
-    <string name="kg_use_pay">Họ có thể gửi Kaspa tới tenban.kachat thay vì một địa chỉ dài.</string>
-    <string name="kg_use_link">Liên kết hồ sơ của bạn hiển thị tên bạn.</string>
-    <string name="kg_keep_title">Giữ lấy</string>
-    <string name="kg_keep_body">Các tên của bạn nằm ở Hồ sơ &gt; Tên miền của bạn &gt; .kachat.</string>
-    <string name="kg_keep_renew">Gia hạn trước khi hết hạn. Mỗi tên đều hiện ngày.</string>
-    <string name="kg_keep_grace">Sau khi hết hạn có một thời gian ân hạn để gia hạn trước khi người khác có thể nhận.</string>
-    <string name="kg_keep_transfer">Bạn có thể chuyển nhượng, rao bán hoặc chấp nhận một lời đề nghị.</string>
-    <string name="kg_finished_title">Đã xong</string>
-    <string name="kg_finished_body">Nhận tên của bạn trong Kaspa Hub &gt; .kachat khi bạn sẵn sàng.</string>
-    <string name="kg_names_help_title">Hướng dẫn tên .kachat</string>
-    <string name="kg_names_help_body">Nhận một tên .kachat, biến nó thành tên của bạn và giữ lấy.</string>
-    <string name="kg_names_setup_footer">Từng bước nhận tên .kachat và biến nó thành của bạn.</string>
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
-    <string name="kn_locked_claim_note">%1$s bị khóa cùng tên của bạn trong khi bạn giữ nó (tiền ký quỹ + tiền gửi sổ đăng ký). Bạn nhận lại khi trả tên.</string>
-    <string name="kn_locked_receipt_note">%1$s đang bị khóa cùng tên này. Số tiền trở lại với bạn khi bạn trả tên.</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">Đã nhận thanh toán</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">Bạn không đủ tiền. Vui lòng gửi ít nhất 1 KAS đến địa chỉ trò chuyện của bạn.</string>
     <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
-    <string name="kn_from_value">Từ: %1$s</string>
     <string name="kn_fund">Nạp tiền</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Địa chỉ của chính bạn: %1$s</string>
@@ -1209,13 +829,6 @@
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">Địa chỉ trò chuyện của bạn không có KAS để báo cho %1$s về khoản thanh toán này, nên họ sẽ thấy đây là khoản thanh toán từ một địa chỉ lạ, không có ghi chú. KaChat sẽ báo cho họ khi địa chỉ trò chuyện của bạn có KAS.</string>
     <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
-    <string name="customize_dock_your_dock">Dock của bạn</string>
-    <string name="customize_dock_always_in_dock">Luôn có trong dock</string>
-    <string name="customize_dock_always_stay">%1$s, %2$s và %3$s luôn ở trong dock của bạn.</string>
-    <string name="customize_dock_full">Dock của bạn đã đầy. Hãy bỏ một mục ra để thêm một trong những mục này.</string>
-    <string name="customize_dock_hub_order">Theo thứ tự %1$s hiển thị.</string>
-    <string name="customize_dock_move_to">Chuyển %1$s vào %2$s</string>
-    <string name="customize_dock_add">Thêm %1$s vào dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
@@ -1224,11 +837,7 @@
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
-    <string name="cold_storage_empty_title">Không có tài khoản lưu trữ lạnh</string>
-    <string name="cold_storage_empty_body">Quét hoặc dán một kpub được xuất từ thiết bị KasSigner của bạn để theo dõi số dư của nó.</string>
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
-    <string name="portfolio_no_transactions_title">Chưa có giao dịch nào</string>
-    <string name="portfolio_no_transactions_sub">Thêm một giao dịch mua hoặc bán để bắt đầu theo dõi danh mục đầu tư của bạn</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Thêm tùy chọn</string>
     <!-- Settings subpages (from iOS) -->

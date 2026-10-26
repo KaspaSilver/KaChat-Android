@@ -36,8 +36,8 @@ data class KaChatBot(
         /** A bot chat's circle when the bot has no icon of its own (iOS "cpu"). */
         val fallbackIcon: ImageVector get() = Icons.Outlined.Memory
 
-        /** The bots Kaspa Hub > KaChat Bots lists, in this order (iOS 82ab31d, 7dd508a; the
-         *  mainnet addresses from 64ce0c7). */
+        /** Every bot, in the order the circles row on Chats shows them (iOS 82ab31d, 7dd508a;
+         *  the mainnet addresses from 64ce0c7). */
         val all: List<KaChatBot> = listOf(
             KaChatBot(
                 id = "block-rewards",
@@ -76,9 +76,11 @@ data class KaChatBot(
             return all.firstOrNull { it.address.lowercase() == key }
         }
 
-        /** True for a bot's address. Bot chats never sit in the chat list: they are circles in
-         *  the row above it (with groups and rooms), once you have written to the bot (iOS
-         *  d576941, 5fcf755). */
+        /** True for a bot's address. Bot chats never sit in the chat list: every bot is always a
+         *  circle in the row above it, beside the group chats (iOS d54ea87). */
         fun isBot(address: String): Boolean = address.lowercase() in addresses
+
+        /** The bots the circles row shows: the ones that can be messaged on this network. */
+        val available: List<KaChatBot> get() = all.filter { it.unavailableReasonRes == null }
     }
 }

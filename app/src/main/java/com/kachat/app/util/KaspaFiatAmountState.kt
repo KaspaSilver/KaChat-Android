@@ -1,11 +1,11 @@
 package com.kachat.app.util
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import java.util.Locale
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
  * Bridges a single Kaspa-amount text field to an optional live fiat mirror. The value handed to
@@ -15,7 +15,7 @@ import java.util.Locale
  * their own state.
  *
  * [priceInCurrency] (1 KAS's price in the caller's selected fiat currency, from
- * `PortfolioViewModel.currentPriceUsd` - misleadingly named, it's actually priced in whatever
+ * `KasPriceViewModel.currentPriceUsd` - misleadingly named, it's actually priced in whatever
  * currency is selected) and [currencyCode] are passed into each call fresh rather than captured
  * once, since both can change live while this field is on screen (a price refresh landing async,
  * a currency switched in Settings).

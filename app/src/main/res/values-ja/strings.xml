@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kas">.kas</string>
-    <string name="n_0_00">0.00</string>
     <string name="n_12_words">12語</string>
     <string name="a_kns_inscription_s_commit_transaction">KNSインスクリプションのコミット取引は完了しましたが、リビールは完了しませんでした。今すぐ再試行して完了してください。完了するまで資金は安全に確保されています。</string>
     <string name="accept">承認</string>
@@ -9,8 +8,6 @@
     <string name="active_nodes">アクティブノード</string>
     <string name="add">追加</string>
     <string name="add_contact">連絡先を追加</string>
-    <string name="add_transaction">取引を追加</string>
-    <string name="add_to_portfolio">ポートフォリオに追加</string>
     <string name="added">追加した</string>
     <string name="address">アドレス</string>
     <string name="address_actions">アドレス操作</string>
@@ -21,15 +18,10 @@
     <string name="amount_kas">金額 (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">シードフレーズを持っている人は誰でもあなたのアカウントにアクセスできます。誰とも絶対に共有しないでください。必ず書き留めるだけにしてください。スクリーンショットを撮ったり、デバイスに保存したりしないでください。</string>
     <string name="back">戻る</string>
-    <string name="before_you_swap">スワップする前に</string>
-    <string name="broadcasting">ブロードキャスト中...</string>
-    <string name="build_unsigned_transaction">未署名トランザクションを作成</string>
     <string name="cancel">キャンセル</string>
     <string name="cancel_photo">写真をキャンセル</string>
     <string name="cancel_recording">録音をキャンセル</string>
     <string name="cancel_reply">返信をキャンセル</string>
-    <string name="change">変更</string>
-    <string name="changenow_exchange_id">ChangeNOW交換ID</string>
     <string name="chats">チャット</string>
     <string name="chatting_address">チャットアドレス</string>
     <string name="chatting_address_2">チャットアドレス</string>
@@ -52,13 +44,11 @@
     <string name="copy">コピー</string>
     <string name="copy_address">アドレスをコピー</string>
     <string name="copy_private_key_hex">秘密鍵Hexをコピー</string>
-    <string name="copy_kpub">kpubをコピー</string>
     <string name="couldn_t_rename_group">グループの名前を変更できませんでした</string>
     <string name="create">作成</string>
     <string name="create_account">アカウントを作成</string>
     <string name="create_kns_profile">KNSプロフィールを作成</string>
     <string name="create_new_account">新しいアカウントを作成</string>
-    <string name="current_value">現在の値</string>
     <string name="current_balance">現在の残高</string>
     <string name="decline">拒否</string>
     <string name="default_option">デフォルト</string>
@@ -66,20 +56,15 @@
     <string name="delete">削除</string>
     <string name="delete_account">アカウントを削除</string>
     <string name="delete_group">グループを削除</string>
-    <string name="delete_swap_history_message">これはローカルの履歴からのみ削除されます。実際の取引には影響しません。</string>
-    <string name="delete_this_swap">このスワップを削除しますか？</string>
-    <string name="delete_transaction">取引を削除</string>
     <string name="domain_name">ドメイン名</string>
     <string name="done">完了</string>
     <string name="each_transaction_temporarily_uses_2_kas">各取引は一時的に約2 KASを使用します。約1 KASはすぐにお釣りとして戻るため、実際のコストは小さなネットワーク手数料だけです。</string>
     <string name="edit_kns_profile">KNS プロフィールを編集</string>
     <string name="edit_account">アカウントを編集</string>
-    <string name="enter_kpub">kpubを入力</string>
     <string name="error">エラー</string>
     <string name="every_member_will_see_the_new">すべてのメンバーが新しい名前を見ることになります。</string>
     <string name="failed_to_send">送信に失敗しました</string>
     <string name="fee_kas">手数料 (KAS)</string>
-    <string name="fee_usd_optional">手数料 (USD、任意)</string>
     <string name="first_let_s_create_your_identity">まずドメイン名であなたのアイデンティティを作成しましょう</string>
     <string name="from">送信元</string>
     <string name="fund_your_chatting_address">チャットアドレスに資金を入れる</string>
@@ -88,24 +73,18 @@
     <string name="group_name_2">グループ名</string>
     <string name="hidden_addresses">非表示のアドレス</string>
     <string name="hidden_users">非表示のユーザー</string>
-    <string name="holdings">保有資産</string>
-    <string name="i_agree">同意します</string>
     <string name="if_the_network_is_busy_a">ネットワークが混雑している場合、より高い手数料が取引の承認を早めるのに役立つことがあります。</string>
-    <string name="import_action">インポート</string>
     <string name="import_account">アカウントをインポート</string>
-    <string name="import_cold_storage_account">コールドストレージアカウントをインポート</string>
     <string name="import_existing_account">既存のアカウントをインポート</string>
     <string name="important">重要</string>
     <string name="incoming_notifications">受信通知</string>
     <string name="inscribe">刻む</string>
     <string name="inscribe_domain">ドメインの登録</string>
     <string name="it_s_ok_i_already_have">大丈夫、すでにドメインを持っています</string>
-    <string name="kas_2">KAS</string>
     <string name="kns_domains">KNSドメイン</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChatロゴ</string>
     <string name="kachat_needs_to_connect_to_a">KaChatはノードに接続する必要があります。どのように接続しますか?</string>
-    <string name="kaspa">Kaspa</string>
     <string name="kaspa_explorer">Kaspaエクスプローラー</string>
     <string name="label_optional">ラベル (任意)</string>
     <string name="last_message">最後のメッセージ</string>
@@ -113,11 +92,9 @@
     <string name="log_out">ログアウト</string>
     <string name="manage_addresses">アドレスを管理</string>
     <string name="max">最大</string>
-    <string name="menu">メニュー</string>
     <string name="message">メッセージ</string>
     <string name="more_info">詳細情報</string>
     <string name="name">名前</string>
-    <string name="name_this_address">このアドレスに名前を付ける</string>
     <string name="next">次へ</string>
     <string name="no_conversations_yet">まだ会話がありません</string>
     <string name="no_domains_yet">まだドメインがありません。</string>
@@ -125,43 +102,28 @@
     <string name="no_hidden_users_in_this_group">このグループに非表示のユーザーはいません。</string>
     <string name="no_messages_yet">メッセージはまだありません</string>
     <string name="no_saved_addresses">保存されたアドレスがありません</string>
-    <string name="no_swaps_yet">まだスワップがありません。</string>
     <string name="no_transactions_yet">まだ取引がありません。</string>
     <string name="not_now">今はしない</string>
-    <string name="notes_optional">メモ (任意)</string>
     <string name="notifications">通知</string>
     <string name="ok">OK</string>
     <string name="only_notify_if_i_m_mentioned">自分がメンションされた場合のみ通知</string>
     <string name="open_settings">設定を開く</string>
     <string name="other_nodes">その他のノード</string>
-    <string name="paste_from_clipboard">クリップボードから貼り付け</string>
-    <string name="paste_kpub">kpubを貼り付け</string>
-    <string name="paste_the_kpub_exported_from_your">KasSignerデバイスからエクスポートされたkpubを貼り付けてください。これには秘密鍵の情報は含まれていません。</string>
     <string name="payment">支払い</string>
     <string name="photo">写真</string>
     <string name="photo_message">写真メッセージ</string>
     <string name="photo_message_full_screen">写真メッセージ、全画面</string>
     <string name="photos">写真</string>
-    <string name="polygon_network">Polygonネットワーク</string>
     <string name="pool_health">プールの状態</string>
     <string name="portfolio">ポートフォリオ</string>
-    <string name="powered_by_changenow">ChangeNOW提供</string>
-    <string name="price_per_coin">コインあたりの価格</string>
     <string name="promote_pawn_to">ポーンを次に昇格:</string>
     <string name="qr_code">QRコード</string>
-    <string name="qr_code_2">QRコード</string>
-    <string name="quantity">数量</string>
-    <string name="rate">レート</string>
     <string name="read">既読</string>
-    <string name="receiving_kas_at">KASの受信先</string>
     <string name="recipient_address">受取人アドレス</string>
-    <string name="refresh_status">ステータスを更新</string>
     <string name="remove">削除</string>
-    <string name="remove_cold_storage_account">コールドストレージアカウントを削除</string>
     <string name="rename">名前を変更</string>
     <string name="rename_account">アカウント名を変更</string>
     <string name="rename_address">アドレス名を変更</string>
-    <string name="rename_cold_storage_account">コールドストレージアカウント名を変更</string>
     <string name="rename_group">グループ名を変更</string>
     <string name="reserved_domain_no_registration_fee_only">予約済みドメイン: 登録料なし、ネットワーク手数料のみ適用されます。</string>
     <string name="resign">投了</string>
@@ -170,24 +132,17 @@
     <string name="retry_inscription_reveal">インスクリプションのリビールを再試行</string>
     <string name="save">保存</string>
     <string name="saved_accounts">保存済みアカウント</string>
-    <string name="scan">スキャン</string>
     <string name="scan_qr_code">QRコードをスキャン</string>
-    <string name="scan_signed_transaction">署名済み取引をスキャン</string>
-    <string name="scan_kpub_from_kassigner">KasSignerからkpubをスキャン</string>
-    <string name="scan_this_with_your_kassigner_device">KasSignerデバイスでこれをスキャンし、そこで確認してから署名してください。</string>
     <string name="scroll_to_latest">最新までスクロール</string>
     <string name="search_chats">チャットを検索</string>
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG上の安全なメッセージング</string>
     <string name="security_warning">セキュリティ警告</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="select_time">時刻を選択</string>
     <string name="select_chat">チャットを選択</string>
     <string name="send">送信</string>
-    <string name="send_from_cold_storage">コールドストレージから送信</string>
     <string name="send_photo">写真を送信</string>
     <string name="sending">送信中</string>
     <string name="sent">送信済み</string>
-    <string name="settings">設定</string>
     <string name="show_more">もっと見る</string>
     <string name="show_photo">写真を表示</string>
     <string name="show_qr_code">QRコードを表示</string>
@@ -195,20 +150,14 @@
     <string name="some_changes_failed_to_save">一部の変更を保存できませんでした:</string>
     <string name="start_a_new_chat_by_adding">連絡先を追加して新しいチャットを始めましょう</string>
     <string name="status">ステータス</string>
-    <string name="swap">スワップ</string>
-    <string name="swaps_are_processed_by_changenow_a">スワップはサードパーティの取引所であるChangeNOWによって処理されます。続行すると、ChangeNOW独自の利用規約を読み、同意したことを確認したことになります。KaChatはスワップリクエストを送信しステータスを表示するだけです。KaChatは失敗、遅延、または紛失したスワップについて責任を負いません。スワップが完了しない場合は、直接ChangeNOWサポートにお問い合わせください。</string>
     <string name="tap_an_address_below_to_swap">下のアドレスをタップしてそこからスワップします</string>
     <string name="tap_an_address_below_to_use">下のアドレスをタップして使用します</string>
     <string name="tap_to_reveal_seed_phrase">タップしてseed phraseを表示</string>
     <string name="this_could_take_a_few_minutes">チェーン上で確認されるまで数分かかる場合があります。</string>
-    <string name="this_only_removes_it_from_kachat">これはKaChatのウォッチリストから削除するだけです。KasSignerデバイスや保有する資金には影響しません。</string>
     <string name="this_permanently_deletes_every_message_with">これはこのデバイス上の彼らとのすべてのメッセージを完全に削除します。これは元に戻せません。再度メッセージを送ると、まったく新しい会話が始まります。</string>
     <string name="this_removes_the_group_and_its">これはこのデバイスからグループとそのメッセージを削除します。これは元に戻せず、他のメンバーには通知されません。</string>
     <string name="to">送信先</string>
     <string name="total_balance">合計残高</string>
-    <string name="total_invested">総投資額</string>
-    <string name="total_p_l">合計損益</string>
-    <string name="transactions">取引</string>
     <string name="try_again">再試行</string>
     <string name="unhide">表示に戻す</string>
     <string name="unread">未読</string>
@@ -216,8 +165,6 @@
     <string name="valid_address">有効なアドレス</string>
     <string name="waiting_on_opponent">相手を待っています</string>
     <string name="host_port_or_grpcs_host">host:port または grpcs://host</string>
-    <string name="kpub">kpub</string>
-    <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
     <string name="str_3">👋</string>
@@ -251,14 +198,11 @@
     <string name="donate">寄付</string>
     <string name="email">メール</string>
     <string name="explorer">エクスプローラー</string>
-    <string name="export_csv">CSVをエクスポート</string>
     <string name="exports_app_device_info_connection_settings">アプリ/デバイス情報、接続設定、ローカルメッセージ数、最近のアプリログをzipとしてエクスポートします - サポートとのトラブルシューティング用です。秘密鍵、シードフレーズ、復号されたメッセージ内容は含まれません。</string>
-    <string name="generate_more_addresses">アドレスをさらに生成</string>
     <string name="generate_new_spending_address">新しい使用アドレスを生成</string>
     <string name="github">GitHub</string>
     <string name="hide_user">ユーザーを非表示にする</string>
     <string name="ip_address_book">IPアドレス帳</string>
-    <string name="import_csv">CSVをインポート</string>
     <string name="indexer">インデクサー</string>
     <string name="info">情報</string>
     <string name="kns_profile">KNS プロフィール</string>
@@ -349,8 +293,6 @@
     <string name="get_domain_at">%2$s で %1$s ドメインを取得</string>
     <string name="could_not_reach_service">%1$s に接続できません。下に引いて再試行してください。</string>
     <string name="no_names_yet">%1$s の名前はまだありません。</string>
-    <string name="kachat_names_are_coming">.kachat 名はまもなく登場</string>
-    <string name="kachat_names_coming_body">KaChat 独自の名前はここに表示されます。取得してチャットでの名前に使い、プロフィールリンクとして共有できます。</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">%1$s ドメインが見つかりません</string>
     <string name="looking_up_domain">ドメインを検索中...</string>
@@ -369,69 +311,16 @@
     <string name="coming_soon">近日公開</string>
     <string name="not_available_on_this_network">このネットワークでは利用できません</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_find_a_name">名前を検索</string>
-    <string name="km_registration_not_open">登録はまだ始まっていません。</string>
-    <string name="km_claim">取得</string>
-    <string name="km_marketplace">マーケット</string>
     <string name="km_activity">アクティビティ</string>
-    <string name="km_list_a_name">名前を出品</string>
-    <string name="km_listings_appear">.kachat 名が始まると、ここに出品が表示されます。</string>
     <string name="km_no_names">.kachat 名はまだありません</string>
-    <string name="km_recent_activity">最近のアクティビティ</string>
-    <string name="km_activity_appears">.kachat 名が始まると、ここにアクティビティが表示されます。</string>
-    <string name="km_how_it_works">仕組み</string>
-    <string name="km_list">出品</string>
-    <string name="km_buy">購入</string>
-    <string name="km_trustless">トラストレス</string>
-    <string name="km_claim_detail">空いている名前を選んで Kaspa に登録します。それはあなたのもの：チャットでの名前、プロフィール、リンクです。</string>
-    <string name="km_list_detail">価格を設定します。名前は KaChat や他の誰でもなくオンチェーンのコベナントで待機し、誰かが購入するかあなたが取り下げるまでそこにあります。</string>
-    <string name="km_buy_detail">表示価格を支払います。支払いは売り手に、名前はあなたに同じトランザクションで届きます。両方が起きるか、どちらも起きないかです。</string>
-    <string name="km_trustless_detail">仲介者もエスクロー口座もありません。すべての売買は Kaspa 自体のルールで保証されます。</string>
-    <string name="km_nothing_live">ここではまだ何も稼働していません。</string>
-    <string name="km_how_kachat_works">.kachat の仕組み</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
-    <string name="kg_claim_title">.kachat 名を取得</string>
-    <string name="kg_claim_body">KaChat のあらゆる場所で表示される名前です。チャット、投稿、プロフィールリンクで使われます。名前がない場合はアドレスが表示されます。</string>
     <string name="kg_welcome_body">はじめてのツアー：ウォレット、チャット、支払いなど。</string>
     <string name="kg_previous">戻る</string>
-    <string name="kg_setup_guide">セットアップガイド</string>
-    <string name="kg_close">閉じる</string>
-    <string name="kg_next">次へ</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
-    <string name="kl_offers">オファー</string>
-    <string name="kl_offer">オファー</string>
-    <string name="kl_offer_detail">希望の価格を提示できます。KAS は売り手が承諾するか、取り下げるか、期限が切れるまでオンチェーンで待機します。事前に売り手にメッセージも送れます。</string>
-    <string name="kl_listing">出品</string>
-    <string name="kl_price">価格</string>
-    <string name="kl_buy_now">今すぐ購入</string>
-    <string name="kl_make_offer">オファーする</string>
-    <string name="kl_seller">売り手</string>
-    <string name="kl_seller_detail">オファーの前に名前について質問したり、価格を相談したりできます。</string>
-    <string name="kl_offers_on_name">この名前へのオファー（高い順）。売り手はどれでも承諾できます。</string>
-    <string name="kl_history">履歴</string>
-    <string name="kl_note_buy">購入すると、1つのトランザクションで売り手への支払いとあなたへの名前の移転が行われます。</string>
-    <string name="kl_note_offer">オファーは、売り手が承諾するか、取り下げるか、期限が切れるまで KAS をオンチェーンでロックします。</string>
-    <string name="kl_note_message">メッセージは通常の KaChat チャットと同じように売り手に届きます。</string>
     <string name="kl_network_fee">ネットワーク手数料</string>
-    <string name="kl_confirm_purchase">購入を確定</string>
-    <string name="kl_buying_opens">.kachat 名が始まると購入できるようになります。</string>
-    <string name="kl_buy_name">名前を購入</string>
-    <string name="kl_1d">1日</string>
-    <string name="kl_3d">3日</string>
-    <string name="kl_7d">7日間</string>
-    <string name="kl_listed_at">出品価格</string>
-    <string name="kl_your_offer">あなたのオファー</string>
-    <string name="kl_expires_after">期限</string>
-    <string name="kl_send_offer">オファーを送信</string>
-    <string name="kl_offers_open">.kachat 名が始まるとオファーできるようになります。</string>
-    <string name="kl_name">名前</string>
-    <string name="kl_total">合計</string>
-    <string name="kl_message">メッセージ</string>
     <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
     <string name="pnc_import">Nextcloud から読み込む</string>
-    <string name="pnc_import_sub">Nextcloud から CSV ファイルを選びます。</string>
     <string name="pnc_export">Nextcloud に書き出す</string>
-    <string name="pnc_export_sub">CSV を Nextcloud の KaChat フォルダに保存します。</string>
     <string name="pnc_saved_to">Nextcloud の %1$s に保存しました。</string>
     <string name="pnc_export_failed">Nextcloud への書き出しに失敗しました：%1$s</string>
     <string name="pnc_import_failed">Nextcloud からの読み込みに失敗しました：%1$s</string>
@@ -442,31 +331,9 @@
     <string name="chat_day_yesterday">昨日</string>
     <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
     <string name="address_tab_history">履歴</string>
-    <string name="kachat_no_names_on_address">このアドレスには .kachat 名がありません</string>
-    <string name="kachat_names_on_address_hint">このアドレスで取得・購入した名前は、.kachat 名の開始後にここに表示されます。</string>
     <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
-    <string name="portfolio_type_transfer">移行</string>
-    <string name="portfolio_value_at_the_time">当時の価値</string>
-    <string name="portfolio_transfer_footer">自分のアドレス間で移動した KAS（送ってから戻した、またはウォレット間の移動）。保有量・取得原価・損益は変わりません。</string>
     <!-- Move a portfolio transaction (iOS b438f2d) -->
-    <string name="portfolio_move_title">ポートフォリオへ移動</string>
-    <string name="portfolio_move_need_another">先に別のポートフォリオを作成すると、取引をそこへ移動できます。</string>
-    <string name="portfolio_move_already_has">この取引はすでにあります。</string>
-    <string name="portfolio_move_here">この取引をここへ移動します。</string>
-    <string name="portfolio_moved_to">%1$s に移動しました。</string>
     <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
-    <string name="portfolio_add_chatting_address">チャットアドレスを追加</string>
-    <string name="portfolio_add_chatting_address_sub">チャットアドレスの購入・売却と、支払ったすべてのネットワーク手数料。</string>
-    <string name="portfolio_fees_counted">。集計したネットワーク手数料：%1$d</string>
-    <string name="portfolio_no_sells_this_year">今年はまだ売却がありません。</string>
-    <string name="portfolio_sells_fifo">売却：%1$d 件。古い購入から順に（FIFO）。</string>
-    <string name="portfolio_sold_uncovered">購入記録のない %1$s が売却され、取得原価ゼロとして計算しました。</string>
-    <string name="portfolio_prices_loading">一部の価格はまだ読み込み中です。</string>
-    <string name="portfolio_realized_pl_year">実現損益 %1$s</string>
-    <string name="portfolio_fees_spent">支払った手数料</string>
-    <string name="portfolio_fees_empty_hint">+ からチャットアドレスを追加すると、支払ったネットワーク手数料を集計できます。</string>
-    <string name="portfolio_fees_count_loading">取引：%1$d 件。一部の価格はまだ読み込み中です。</string>
-    <string name="portfolio_fees_count_priced">取引：%1$d 件、各日の価格で計算。</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_other_names_count">.k と .kaspa の名前（%1$d）</string>
@@ -511,76 +378,8 @@
     <string name="kn_invalid_chars">a-z、0-9、ハイフンのみ使えます。</string>
     <string name="kn_invalid_hyphen">名前の先頭と末尾にハイフンは使えません。</string>
     <string name="kn_status_expired">期限切れ</string>
-    <string name="kn_yours">あなたの名前</string>
-    <string name="kn_available_per_year">取得可能 · 年 %1$s</string>
-    <string name="kn_not_valid_name">有効な名前ではありません。</string>
-    <string name="kn_taken_for_sale">取得済み · %1$s で販売中</string>
-    <string name="kn_taken">取得済み</string>
-    <string name="kn_search_grace">期限切れ - 所有者はまだ更新できます</string>
-    <string name="kn_seconds_to_go">残り約 %1$d 秒</string>
-    <string name="kn_cancel_commit_title">コミットを取り消しますか？</string>
-    <string name="kn_cancel_commit">コミットを取り消す</string>
-    <string name="kn_keep">そのまま</string>
-    <string name="kn_cancel_commit_body">登録は中止され、コミットの 0.2 KAS がネットワーク手数料を引いて戻ってきます。</string>
-    <string name="kn_stage_committing">非公開のコミットを送信中...</string>
-    <string name="kn_stage_waiting_confirm">コミットの承認を待っています...</string>
-    <string name="kn_stage_waiting">名前を登録できるまで、コミットは約 1 分寝かせる必要があります。KaChat を開いたままにしてください。自動で登録し、離れても続きから再開します。</string>
-    <string name="kn_stage_registering">登録中...</string>
-    <string name="kn_stage_registered">登録完了。あなたの名前です。</string>
-    <string name="kn_stage_taken">この名前は先に他の人が登録しました。コミットを取り消すと 0.2 KAS が戻ります。</string>
-    <string name="kn_stage_failed">登録が止まりました。</string>
-    <string name="kn_stage_cancelling">コミットを取り消しています...</string>
-    <string name="kn_stage_cancelled">取り消しました。</string>
     <string name="kn_auth_reason">この .kachat 取引を確認</string>
-    <string name="kn_for_sale">販売中</string>
-    <string name="kn_no_listings">現在出品中の名前はありません。</string>
-    <string name="kn_my_offers">自分のオファー</string>
-    <string name="kn_no_open_offers">進行中のオファーはありません。</string>
-    <string name="kn_offers_need_indexer">他の人からのオファーは、名前インデクサーに接続すると表示されます。</string>
-    <string name="kn_nothing_yet">まだ何もありません。</string>
-    <string name="kn_withdraw_offer">オファーを取り下げ</string>
-    <string name="kn_withdraw">取り下げ</string>
-    <string name="kn_refund_offer">オファーを返金</string>
-    <string name="kn_refund">返金</string>
-    <string name="kn_accept_offer">オファーを承諾</string>
-    <string name="kn_accept_and_transfer">承諾して譲渡</string>
-    <string name="kn_accept_warning">1 回の取引で名前は購入者に、オファー額はあなたに移ります。元に戻せません。</string>
-    <string name="kn_buyer">購入者</string>
-    <string name="kn_price_to_miners">価格（マイナーへ）</string>
-    <string name="kn_bond_returned">保証金（解放時に返却）</string>
-    <string name="kn_deposit_returned">レジストリ預託金（解放時に返却）</string>
-    <string name="kn_commit_returned">コミット（登録時に返却）</string>
-    <string name="kn_network_fees">ネットワーク手数料</string>
-    <string name="kn_not_enough">この名前にはチャットアドレスの KAS が足りません。</string>
-    <string name="kn_claim_footer">価格はマイナーに渡り、KaChat は何も受け取りません。保証金と預託金は名前を解放すると戻ります。</string>
-    <string name="kn_claim_step1">まず非公開のコミットがチェーンに送られます。どの名前のものかは誰にもわかりません。</string>
-    <string name="kn_claim_step2">約 1 分後、KaChat が自動で名前を登録します。アプリを開いたままにしてください。離れても次回続きから進みます。</string>
-    <string name="kn_how_claiming_works">取得のしくみ</string>
-    <string name="kn_claim_name_button">%1$s.kachat を取得</string>
-    <string name="kn_claim_name_title">名前を取得</string>
-    <string name="kn_name_gone">この名前は解放または回収されました。再び取得できます。</string>
-    <string name="kn_not_for_sale">非売品</string>
     <string name="kn_expires_on">有効期限 %1$s</string>
-    <string name="kn_renew">更新</string>
-    <string name="kn_change_price">価格を変更</string>
-    <string name="kn_list_for_sale">出品する</string>
-    <string name="kn_delist">出品取り下げ</string>
-    <string name="kn_release_name">名前を解放</string>
-    <string name="kn_owner">所有者</string>
-    <string name="kn_you">あなた</string>
-    <string name="kn_no_history">まだ履歴はありません。</string>
-    <string name="kn_release">解放</string>
-    <string name="kn_release_warning">解放すると名前を完全に手放します。誰でも登録できるようになり、支払った期間は失われます。保証金とレジストリ預託金は戻ります。</string>
-    <string name="kn_buy_footer">支払いは売り手に、名前はあなたに同じ取引で届きます。両方が成立するか、どちらも成立しないかです。</string>
-    <string name="kn_price_to_seller">価格（売り手へ）</string>
-    <string name="kn_refundable_after">返金可能になるまで</string>
-    <string name="kn_price_per_year">1 年あたりの価格</string>
-    <string name="kn_new_expiry">新しい有効期限</string>
-    <string name="kn_list_footer">誰でもこの価格で購入できます。1 回の取引で支払いはあなたに、名前は購入者に届きます。いつでも取り下げ可能です。</string>
-    <string name="kn_transfer_warning">譲渡は取り消せません。新しい所有者は現在の期限のまま名前を受け取り、あなたのプロフィールはあなたのアドレスに残ります。</string>
-    <string name="kn_new_owner">新しい所有者</string>
-    <string name="kn_err_address_key">そのアドレスの鍵は無効です。</string>
-    <string name="kn_err_lookup">その名前を検索できませんでした。</string>
     <string name="kn_profile_belongs">プロフィールは名前ではなくアドレスに属します。名前を買っても、売っても、手放しても変わりません。</string>
     <string name="kn_links">リンク</string>
     <string name="kn_primary_name">メインの名前</string>
@@ -588,7 +387,6 @@
     <string name="kn_primary_footer">KaChat は、メインの名前を所有していて有効な間はその名前で表示します。そうでなければ最も古い有効な名前、またはアドレスで表示します。</string>
     <string name="kn_save_profile">プロフィールを保存</string>
     <string name="kn_save_footer">保存すると、ネットワーク手数料でアドレスから自分宛ての取引としてプロフィールがチェーンに書き込まれます。プロフィールは公開です。</string>
-    <string name="kn_n_years">%1$d 年</string>
     <string name="kn_err_key_mismatch">このウォレットの鍵がアドレスと一致しません。</string>
     <string name="kn_err_invalid_key">%1$s は有効な鍵ではありません（secp256k1 曲線上にありません）。</string>
     <string name="kn_err_no_salt">この登録のシークレットがこのデバイスにありません。</string>
@@ -602,8 +400,6 @@
     <string name="kn_ev_registered">登録済み</string>
     <string name="kn_ev_listed">上場</string>
     <string name="kn_available">利用可能</string>
-    <string name="kn_expires">期限</string>
-    <string name="kn_one_year">1年</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
     <string name="kn_linktree_footer">Linktree を追加して、ほかのアカウントやウェブサイトへ案内しましょう。</string>
     <string name="kn_social_looking">プロフィールを検索中...</string>
@@ -625,20 +421,10 @@
     <string name="kn_balance_after">送信後の残高</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">トランザクションを送信しました</string>
-    <string name="kn_view_transaction">トランザクションを表示</string>
-    <string name="kn_done_released">名前を手放しました</string>
-    <string name="kn_done_bought">名前を購入しました</string>
-    <string name="kn_done_offer_sent">オファーを送信しました</string>
-    <string name="kn_done_price_changed">価格を変更しました</string>
-    <string name="kn_done_listed">出品しました</string>
-    <string name="kn_done_transferred">名前を譲渡しました</string>
     <string name="kn_done_profile_saved">プロフィールを保存しました</string>
     <string name="kn_clear_profile">プロフィールをクリア</string>
     <string name="kn_done_profile_cleared">プロフィールをクリアしました</string>
     <string name="kn_clear_footer">クリアすると、あなたのアドレスから自分自身へ空のプロフィールがチェーンに書き込まれます（ネットワーク手数料のみ）。以後、KaChat はあなたのアドレスに何も表示しません。</string>
-    <string name="kn_done_primary_set">メインの名前を設定しました</string>
-    <string name="kn_done_registered">名前を登録しました</string>
-    <string name="kn_done_commit_cancelled">コミットを取り消しました</string>
     <!-- .kachat: the profile save review (iOS 7e238e5) -->
     <string name="kn_your_profile">あなたのプロフィール</string>
     <string name="kn_linktree">Linktree</string>
@@ -646,32 +432,12 @@
     <string name="kn_profiles_public_note">プロフィールは公開され、オンチェーンに保存されます。誰でも読むことができ、変更後も以前のバージョンは読める状態で残ります。</string>
     <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
     <string name="kn_ev_extended">延長しました</string>
-    <string name="kn_extend">延長</string>
-    <string name="kn_extend_to_years">%1$d 年に延長</string>
     <string name="kn_renewal_opens_on">更新は %1$s から可能</string>
-    <string name="kn_paid_from_to">%1$s から %2$s まで支払い済み</string>
-    <string name="kn_new_period">新しい期間</string>
-    <string name="kn_extend_footer">延長すると現在の支払い済み期間に年数が加わります。期間は最長 2 年です。価格はマイナーに渡ります。</string>
     <string name="kn_err_period_unknown">名前インデクサーがこの名前の支払い済み期間を返しませんでした。引っ張って更新し、もう一度お試しください。</string>
-    <string name="kn_claim_step3_cap">名前は支払った年数の間あなたのものです（最長 2 年先まで）。1 年の名前は 2 年に延長でき、期限の 10 日前から更新できます。</string>
     <string name="kn_setting_up">準備中</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat ネーム</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
-    <string name="kn_push_new_offer">%1$s に新しいオファー</string>
-    <string name="kn_push_offered">%1$s のオファーがありました。</string>
-    <string name="kn_push_offer_no_amount">誰かがオファーを出しました。</string>
-    <string name="kn_push_sold">%1$s が売れました</string>
-    <string name="kn_push_paid">%1$s が支払われました。</string>
-    <string name="kn_push_listing_bought">出品していた名前が購入されました。</string>
-    <string name="kn_push_offer_accepted">オファーが承諾されました</string>
-    <string name="kn_push_yours_now">%1$s はあなたのものになりました。</string>
-    <string name="kn_push_renew">%1$s を更新</string>
-    <string name="kn_push_renewal_open">更新できるようになりました。保持するには今すぐ更新してください。</string>
-    <string name="kn_push_expires_soon">%1$s の期限が近づいています</string>
-    <string name="kn_push_days_left">更新まであと %1$d 日です。</string>
-    <string name="kn_push_one_day_left">更新まであと 1 日です。</string>
-    <string name="kn_push_expired">%1$s の期限が切れました</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">ボイスメッセージ</string>
@@ -718,11 +484,7 @@
     <string name="transaction_id_copied">トランザクションIDをコピーしました</string>
     <string name="payment_not_on_chain_yet">この支払いはまだオンチェーンにありません。</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
-    <string name="kn_opens_marketplace">.kachatマーケットプレイスを開きます</string>
     <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
-    <string name="kachat_names_this_address_owns">このアドレスが所有する名前がここに表示されます。</string>
-    <string name="kn_your_spending_address">あなたの支払い用アドレス #%1$d</string>
-    <string name="kn_your_kassigner_address">あなたのKasSignerアドレス（%1$s #%2$d）</string>
     <string name="chats_new">新規</string>
     <string name="chats_new_chat">新しいチャット</string>
     <string name="chats_new_group_chat">新しいグループチャット</string>
@@ -744,7 +506,6 @@
     <string name="send_fee_tier_footer">ネットワークが混雑している場合、速いまたは優先はより高い手数料を支払い、より早く承認されるのを助けます。カスタム手数料を設定するには手数料額をタップしてください。</string>
     <string name="paste">貼り付け</string>
     <string name="scan_qr">QRスキャン</string>
-    <string name="available">利用可能</string>
     <string name="network_fee">ネットワーク手数料</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">スライドして送信</string>
@@ -778,51 +539,22 @@
     <string name="faucet_claim_subtitle">チャット用アドレスをコピーしてTN10フォーセットを開きます。貼り付けて確認を通過し、最大額を受け取ってください。</string>
     <string name="faucet_address_copied_notice">TN10のチャット用アドレスをコピーしました。フォーセットのアドレス欄に貼り付けてください。</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
-    <string name="kn_copies_the_address">アドレスをコピーします</string>
     <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
-    <string name="kn_manage_name">名前を管理</string>
-    <string name="kn_manage_extend_hint">上限の2年まで、今のうちに追加の年数を支払います。</string>
-    <string name="kn_manage_renew_hint">有効期限の日から新しい支払い期間を始めます。</string>
-    <string name="kn_manage_change_price_hint">希望価格を変更します。</string>
-    <string name="kn_manage_delist_hint">名前を出品から取り下げます。</string>
-    <string name="kn_manage_list_hint">あなたの価格で名前を出品します。</string>
-    <string name="kn_manage_transfer_hint">名前を別のアドレスに送ります。</string>
-    <string name="kn_manage_primary_hint">KaChat全体でこの名前であなたを表示します。</string>
-    <string name="kn_manage_release_hint">名前を手放し、預け金を返します。</string>
     <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
-    <string name="kn_offer_expires_in">あと%1$sで期限切れ</string>
-    <string name="kn_offer_expired_returning_to_you">期限切れ - あなたに返却中</string>
-    <string name="kn_offer_expired_returning_to_buyer">期限切れ - 購入者に返却中</string>
-    <string name="kn_offer_expired_refundable">期限切れ - 今すぐ返金可能</string>
     <string name="kn_err_offer_expired">このオファーは期限切れです。購入者に返却されます。</string>
-    <string name="kn_my_offers_detail">あなたが出したオファーです。いつでも取り下げできます。期限が切れると自動で戻ってきます。</string>
-    <string name="kn_offer_declined_returning_to_you">辞退 - 名前の所有者が変わったため、あなたに返却中</string>
-    <string name="kn_offer_declined_earlier_owner">辞退 - 以前の所有者へのオファー</string>
     <string name="kn_err_offer_declined">このオファーは名前の所有者が変わる前に出されたため、辞退扱いとなり購入者に返却されます。</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">この名前はすでに最長の期間まで支払い済みです。更新は %1$s から可能です。</string>
     <string name="kn_err_offer_own_name">自分の名前にオファーすることはできません。</string>
     <string name="kn_err_offer_max_days">オファーの期間は最長 7 日です。</string>
-    <string name="kn_price_per_period">%1$s あたりの価格</string>
-    <string name="kn_available_per_period">利用可能 · %2$s あたり %1$s</string>
-    <string name="kn_extend_to_period">%1$s に延長</string>
-    <string name="kn_manage_extend_hint_time">今、さらに期間分を支払います（上限 %1$s）。</string>
-    <string name="kn_extend_footer_time">延長すると現在の支払い期間に時間が追加されます。期間は最長 %1$s です。代金はマイナーに支払われます。</string>
-    <string name="kn_claim_step3_time">支払った期間中、名前はあなたのものです（最長 %1$s 先まで）。期限の %2$s 前から更新できます。</string>
-    <string name="kn_decline_offer">オファーを辞退</string>
     <string name="kn_ev_offer_declined">オファー辞退済み</string>
-    <string name="kn_decline_footer">オファーは購入者に返されます。ネットワーク手数料はオファーから差し引かれるため、辞退に費用はかかりません。</string>
-    <string name="kn_offer_locked_decline">KAS は所有者が承諾または辞退するか、あなたが取り下げるか、期限が来るまでチェーン上にロックされます。その後は誰でもあなたに返せます。</string>
-    <string name="kn_offer_below_listing_buy">この名前はあなたのオファーより安く出品されています。代わりに購入することを検討してください。</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">確認後に価格が %1$s に変わりました。何も送信されていません。新しい価格を確認して、もう一度確定してください。</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
-    <string name="kn_renew_from_expiry_footer">更新は次の期間を今日からではなく現在の期限から開始します。そのため、しばらく前に期限切れになった名前は期間が短くなります。代金はマイナーに支払われます。</string>
     <string name="kn_err_renew_expired_too_long">この名前は期限切れから時間が経ちすぎているため更新できません。回収して再登録するしかありません。</string>
     <string name="kn_err_offer_name_not_active">オファーはアクティブな名前にのみ行えます。</string>
     <string name="kn_err_accept_name_expired">この名前は期限切れです。オファーは名前がアクティブな間しか承諾できません。先に更新してください。</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
-    <string name="kn_buy_soon_left">この名前の期限まで %1$s を切っています。すぐに更新が必要です。</string>
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">これは Testnet のアドレスです。KaChat は Mainnet で動作中です。</string>
     <string name="address_other_network_mainnet">これは Mainnet のアドレスです。KaChat は Testnet で動作中です。</string>
@@ -841,33 +573,10 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">いくつかのリンクを今このスマートフォンから確認できませんでした。入力どおりに保存され、ほかの人のアプリが読み込めるときに読み込みます。</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="kn_bell_renew_title">%1$s を更新</string>
-    <string name="kn_bell_renewal_open">更新できます: 保持するには %1$s までに更新してください。</string>
-    <string name="kn_bell_expired_title">%1$s の期限が切れました</string>
-    <string name="kn_bell_expired_body">%1$s までに更新しないと誰でも取得できるようになります。</string>
-    <string name="kn_bell_sold_title">%1$s が売れました</string>
-    <string name="kn_bell_paid">%1$s KAS が支払われました。</string>
-    <string name="kn_bell_listing_bought">出品した名前が購入されました。</string>
-    <string name="kn_bell_accepted_offer">この名前へのオファーを承諾しました。</string>
-    <string name="kn_bell_new_offer_title">%1$s に新しいオファー</string>
-    <string name="kn_bell_offered">%1$s KAS のオファーがありました。</string>
-    <string name="kn_bell_yours_now">%1$s があなたのものになりました。</string>
-    <string name="kn_bell_declined_title">%1$s へのオファーが辞退されました</string>
-    <string name="kn_bell_declined_body">所有者が辞退しました。KAS は返金されました。</string>
-    <string name="kn_bell_offer_expired_title">%1$s へのオファーが期限切れ</string>
-    <string name="kn_bell_offer_expired_body">期限内に承諾されませんでした。KAS は返金されました。</string>
-    <string name="kn_bell_returned_title">%1$s へのオファーが返却されました</string>
-    <string name="kn_bell_returned_body">もう承諾できません。KAS は返金されました。</string>
     <string name="notification_center_empty">ウォレットに届いた Kaspa と .kachat 名のお知らせがここに表示されます。</string>
-    <string name="kn_push_renew_soon">保持するには早めに更新してください。</string>
-    <string name="kn_push_grace_soon">早めに更新しないと誰でも取得できるようになります。</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="kn_activity_all_detail">レジストリでのすべての登録、更新、出品、販売、オファー、譲渡、回収。</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
-    <string name="kn_free_to_claim">取得可能</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
-    <string name="kn_claiming_name">%1$s を取得中</string>
-    <string name="kn_keep_open_claiming">KaChat を開いたままにしてください。非公開のコミットが承認されてから約1分後に名前が登録されます。アプリを離れても、戻ったときに続きから再開します。</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
@@ -887,10 +596,7 @@
     <string name="qr_camera_access_required">カメラへのアクセスが必要です</string>
     <string name="qr_enable_camera_access">QRコードをスキャンするには、設定でカメラへのアクセスを有効にしてください。</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
-    <string name="qr_enable_camera_access_signed">署名済みの取引をスキャンするには、設定でカメラアクセスを有効にしてください。</string>
-    <string name="qr_point_camera_kassigner">カメラをKasSignerの画面に向けてください</string>
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
-    <string name="swap_details">スワップの詳細</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s がクリップボードにコピーされました。</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
@@ -905,30 +611,11 @@
     <string name="clear">クリア</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
-    <string name="choose_coin">コインを選択</string>
-    <string name="couldn_t_read_this_swap_s">このスワップの金額を読み取れませんでした</string>
-    <string name="deposit_address">入金アドレス</string>
-    <string name="exchange_id_copied">交換IDをコピーしました</string>
     <string name="original_message_not_available">元のメッセージは利用できません</string>
-    <string name="search_coins">コインを検索</string>
-    <string name="swap_history">スワップ履歴</string>
-    <string name="swap_started">スワップを開始しました</string>
-    <string name="view_on_changenow">ChangeNOWで表示</string>
-    <string name="swap_failed">スワップに失敗しました</string>
     <!-- .kachat sale tile: expiry flag -->
-    <string name="kn_expires_soon">まもなく期限切れ</string>
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">%1$s を解放しています...</string>
-    <string name="kn_name_expired_free">この名前は期限切れで更新されなかったため、誰でも通常価格で取得できます。以前の所有者の保証金は本人に返却されます。</string>
-    <string name="kn_no_expired_names">現在、期限切れの名前はありません。</string>
-    <string name="km_expired_appear">.kachat の名前が開始されると、期限切れの名前がここに表示されます。</string>
-    <string name="kn_bell_freed_title">%1$s が解放されました</string>
-    <string name="kn_bell_freed_body">期限が切れてレジストリから削除されました。保証金はあなたに返却されました。</string>
-    <string name="kn_bell_no_longer_yours_title">%1$s はあなたのものではなくなりました</string>
-    <string name="kn_bell_lapsed_available_body">期限切れで更新されなかったため、マーケットプレイスで誰でも取得できるようになりました。誰かが取得すると保証金があなたに返却されます。</string>
     <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
-    <string name="kn_claiming_title">取得中</string>
-    <string name="kn_names_being_claimed">取得中の名前</string>
     <string name="kn_commit_waiting_busy">ネットワークが混雑しています。コミットはブロックを待っています。</string>
     <string name="kn_commit_sent_again">ネットワークが混雑しているため、コミットを再送しました。</string>
     <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
@@ -954,17 +641,9 @@
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">続ける</string>
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
-    <string name="kn_how_long">期間は?</string>
-    <string name="kn_renew_starts_at_expiry">更新は次の期間を今日からではなく、現在の有効期限から開始します。</string>
     <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
-    <string name="kn_released_in">解放まで</string>
-    <string name="kn_no_names_in_grace">現在、猶予期間中の名前はありません。</string>
-    <string name="km_grace_appear">.kachat の名前が開始されると、猶予期間中の名前がここに表示されます。</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
-    <string name="kn_grace_period_ends">猶予期間の終了: %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_detail_grace_resolves">期限切れです。猶予期間が終わるまでは引き続き所有者のアドレスに解決され、所有者はまだ更新できます。</string>
-    <string name="kn_detail_grace_mine_resolves">期限切れです - 保持するには更新してください。猶予期間が終わるまでは引き続きあなたのアドレスに解決され、他の人は取得できません。</string>
     <!-- Address Book (iOS 00767a4) -->
     <string name="ab_address_book">アドレス帳</string>
     <string name="ab_add_to_address_book">アドレス帳に追加</string>
@@ -1024,12 +703,6 @@
     <string name="ab_err_not_an_export">そのファイルは KaChat アドレス帳のエクスポートではありません。</string>
     <string name="ab_err_export_empty">そのエクスポートにはアドレスがありません。</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
-    <string name="kn_busy_title">ネットワークが混雑しています</string>
-    <string name="kn_busy_body">通常では時間がかかる場合があります。高速または優先は少し多く払い、早くブロックに入ります。</string>
-    <string name="kn_balance_after_value">送信後の残高: %1$s</string>
-    <string name="kn_balance_change_value">残高の変化: %1$s</string>
-    <string name="kn_available_value">利用可能: %1$s</string>
-    <string name="kn_claim_fee_note">取得では2つのトランザクションを送ります。今コミット、約1分後に登録。どちらもこの速度です。</string>
     <string name="kn_step_sent">ネットワークに送信</string>
     <string name="kn_step_in_block">ブロックに入りました</string>
     <string name="kn_step_updated">KaChat に反映</string>
@@ -1039,10 +712,6 @@
     <string name="kn_tx_stage_dropped">まだネットワークに取り込まれていません。届かなければ何も使われません。より速い手数料でもう一度お試しください。</string>
     <string name="kn_tap_tx_explorer">トランザクションをタップするとエクスプローラーで開きます。</string>
     <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
-    <string name="kn_offer_expires_in_label">期限まで</string>
-    <string name="kn_offer_cant_accept">このオファーはもう承諾できません。</string>
-    <string name="kn_offer_only_owner">このオファーを承諾・辞退できるのは名前の所有者だけです。</string>
-    <string name="kn_offers_tap_to_accept_decline">オファーをタップして承諾または辞退します。期限切れのオファーは買い手に戻ります。</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">確認後にネットワーク手数料が%1$sに上がりました。何も送信されていません。新しい手数料を確認して、もう一度確定してください。</string>
     <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
@@ -1051,7 +720,6 @@
     <string name="ab_import_skipped_other_network">別のネットワークの%1$d件をスキップしました。</string>
     <!-- .kachat registry v5 migration (iOS dd836cb) -->
     <string name="kn_registration_not_open">名前を新しいレジストリに移行しています。新しい名前は%1$sから取得できます。</string>
-    <string name="kn_registration_not_open_note">まず、古いレジストリのすべての名前が同じ所有者と有効期限のまま移ります。</string>
     <string name="kn_ev_imported">新しいレジストリに移行済み</string>
     <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
     <string name="enter_kaspa_address_or_domain_kachat_first">Kaspaアドレス(kaspa:...)またはドメイン(例: alice.kachat)を入力してください。.kachatの名前が最初に検索されます。</string>
@@ -1061,21 +729,12 @@
     <string name="their_profile_kachat_name_address">プロフィール、.kachatの名前、アドレス。</string>
     <string name="finds_addresses_balance_or_domain">残高またはドメインを持つアドレスを探します。</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Kaspaアドレス(kaspa:...)またはドメインを入力してください。.kachatの名前が最初に検索されます。</string>
-    <string name="portfolio_add_address_footer_kachat">Kaspaアドレス、またはname.kachatのようなドメインを入力してください(.kachatの名前が最初に検索されます)。このアドレスへの受信は購入、送信は売却として、その日の過去のKAS価格で記録されます。同じアドレスを後で再追加すると、前回のインポート以降の取引のみ取り込まれます。</string>
-    <string name="kn_transfer_footer_domain">アドレスまたはドメイン。.kachatの名前が最初に検索され、表示されたアドレスに解決されます。</string>
-    <string name="kn_transfer_placeholder_domain">kaspatest:... またはドメイン</string>
-    <string name="kn_err_enter_address_or_domain">アドレスまたはドメインを入力してください。</string>
-    <string name="kn_err_name_address_cant_own">その名前のアドレスは.kachatの名前を所有できません。</string>
     <string name="kachat_names_resolved_first_footer">アドレスを入力できるすべての場所で最初に解決されます。</string>
     <string name="other_domains_title">その他のドメイン</string>
     <string name="other_domains_settings_footer">.kachatの次に検索され、入力した名前がそこにもある場合は「その他のドメイン」に表示されます。</string>
     <string name="chatting_picker_intro_any_name_kachat">このシードがすでに別のアドレスであなたのIDを持っている場合(.kachat、.kas、.k、.kaspaのドメイン、または入金済みのチャット残高)、ここで選択してください。残高かドメインがあるアドレスのみ表示されます。</string>
     <string name="chatting_picker_kachat_names_count">.kachatの名前 (%1$d)</string>
     <string name="chatting_picker_kas_names_count">.kasの名前 (%1$d)</string>
-    <string name="kachat_expired_one_title">.kachatドメインの1つが期限切れになりました</string>
-    <string name="kachat_expired_many_title">.kachatドメインのうち%1$d件が期限切れになりました</string>
-    <string name="kachat_expired_one_body">%1$sを保持するには、猶予期間が終わる%2$sまでに更新してください。</string>
-    <string name="kachat_expired_many_body">保持するには、猶予期間が終わる前に更新してください。</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">このネットワークでは.kachatの名前はまだ利用できません</string>
     <!-- Nextcloud sync carries portfolios -->
@@ -1085,19 +744,13 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">.kachatレジストリを更新しています。新しいレジストリが稼働すると、ここで名前が再び利用できます。</string>
     <string name="kn_err_no_wallet_open">ウォレットが開かれていません。</string>
-    <string name="kn_err_not_network_address">このネットワークのSchnorrアドレスではありません。</string>
-    <string name="kn_how_live_footer_mainnet">Mainnetで稼働中: ここでの名前・価格・支払いは実際のKASです。</string>
-    <string name="kn_how_live_footer_testnet">Testnetで稼働中: ここでの名前・価格・支払いはtestnet-10のTKASを使います。Mainnetの名前はMainnetで稼働中です。</string>
     <string name="kn_live_on_mainnet">Mainnetで稼働中</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">オファーは名前の有効期限より前に返金可能である必要があります。</string>
-    <string name="kn_offer_refundable_from_expiry">この名前はそれより早く期限切れになるため、オファーは%1$sから返金可能です。</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
     <string name="kn_combining_coins">KASが多数の小さなコインに分かれています。まず1つにまとめています...</string>
-    <string name="kn_combines_coins_note">KASが多数の小さなコインに分かれています。登録の前にKaChatが1つにまとめます(ごくわずかな追加ネットワーク手数料がかかります)。</string>
     <string name="kn_not_enough_to_combine">チャット用アドレスにこれを行うのに十分なKASがありません。</string>
     <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
-    <string name="bots_title">KaChat ボット</string>
     <string name="bot_block_rewards_name">ブロック報酬トラッカー</string>
     <string name="bot_block_rewards_summary">マイニングアドレスに支払われたブロック報酬ごとにメッセージを送ります。</string>
     <string name="bot_wallet_name">ウォレットトラッカー</string>
@@ -1108,9 +761,6 @@
     <string name="bot_kaspa_answers_summary">Kaspa について何でも聞いてください。</string>
     <string name="bots_coming_soon">近日公開。</string>
     <string name="bots_mainnet_only">ボットはメインネットでのみ動作します。</string>
-    <string name="bots_opens_chat_hint">このボットとのチャットを開きます。</string>
-    <string name="bots_fee_note">ボットへのメッセージは通常の暗号化された KaChat メッセージなので、毎回通常のネットワーク手数料がかかります。</string>
-    <string name="bots_unread_count">未読 %1$d 件</string>
     <string name="bot_sheet_clears_unread">このチャットの未読バッジを消します。</string>
     <string name="bot_sheet_notifications_resume">このボットからの通知を再開します。</string>
     <string name="bot_sheet_no_notification">このボットからの通知はありません。</string>
@@ -1142,13 +792,7 @@
     <string name="delete_chat_q">Delete Chat?</string>
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
     <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
-    <string name="kn_combines_coins_on_slide">KAS が多数の小さなコインに分かれています。スライドすると、KaChat はまずそれらを 1 つにまとめ（少額の手数料がかかる別のトランザクション）、その後これを送信します。</string>
     <!-- An address's Domains tab: one card per name service (iOS fe52376) -->
-    <string name="address_tab_domains">ドメイン</string>
-    <string name="address_domains_none">このアドレスに %1$s の名前はありません。</string>
-    <string name="address_domains_one">1 件のドメイン</string>
-    <string name="address_domains_count">%1$d 件のドメイン</string>
-    <string name="address_domains_couldnt_load">読み込めませんでした</string>
     <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
     <string name="pr_fresh_address">新しいアドレス</string>
     <string name="pr_choose_an_address">アドレスを選ぶ</string>
@@ -1170,36 +814,12 @@
     <string name="welcome_everything_else">それ以外のすべて</string>
     <string name="welcome_everything_else_caption">プライバシーを守るため、Kaspa ネットワークでのその他の活動にはほかのアドレスを使いましょう。「Kaspa を受け取る」で新しいアドレスが得られ、「アドレス管理」ですべて確認できます。</string>
     <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
-    <string name="kg_claim_hint">Kaspa ハブ &gt; .kachat で欲しい名前を検索して取得します。</string>
-    <string name="kg_how_title">名前のしくみ</string>
-    <string name="kg_how_body">名前は Kaspa ネットワーク上にあり、あなたのチャットアドレスが保有します。あなたのものである間、誰も奪ったり変えたりできません。</string>
-    <string name="kg_how_commit">取得には 2 つの短いトランザクションが必要です。1 つ目で選んだ名前を秘密にし、2 つ目で登録します。</string>
-    <string name="kg_how_period">1 期間ずつ支払います。短い名前ほど高くなります。</string>
-    <string name="kg_how_miners">料金はネットワークのマイナーに支払われ、KaChat には入りません。</string>
-    <string name="kg_use_title">あなたの名前にする</string>
-    <string name="kg_use_body">メインの名前に設定すると、KaChat のどこでもその名前で表示されます。</string>
-    <string name="kg_use_find">名前を入力するだけで、あなたを見つけてメッセージを送れます。</string>
-    <string name="kg_use_pay">長いアドレスの代わりに yourname.kachat へ Kaspa を送れます。</string>
-    <string name="kg_use_link">プロフィールリンクにも名前が表示されます。</string>
-    <string name="kg_keep_title">維持する</string>
-    <string name="kg_keep_body">名前はプロフィール &gt; あなたのドメイン &gt; .kachat にあります。</string>
-    <string name="kg_keep_renew">期限が切れる前に更新しましょう。各名前に期限が表示されます。</string>
-    <string name="kg_keep_grace">期限切れ後も、ほかの人が取得できるようになる前に更新できる猶予期間があります。</string>
-    <string name="kg_keep_transfer">移転、販売への出品、オファーの受け入れができます。</string>
-    <string name="kg_finished_title">準備完了</string>
-    <string name="kg_finished_body">準備ができたら Kaspa ハブ &gt; .kachat で名前を取得しましょう。</string>
-    <string name="kg_names_help_title">.kachat 名ガイド</string>
-    <string name="kg_names_help_body">.kachat 名を取得して自分の名前にし、維持しましょう。</string>
-    <string name="kg_names_setup_footer">.kachat 名の取得と自分の名前にする手順を確認します。</string>
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
-    <string name="kn_locked_claim_note">名前を保有している間、%1$s が名前とともにロックされます（保証金 + レジストリ預託金）。名前を手放すと戻ってきます。</string>
-    <string name="kn_locked_receipt_note">%1$s がこの名前とともにロックされています。名前を手放すとあなたに戻ります。</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">支払いを受け取りました</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">残高が足りません。チャットアドレスに 1 KAS 以上を送ってください。</string>
     <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
-    <string name="kn_from_value">送信元: %1$s</string>
     <string name="kn_fund">入金</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">あなた自身のアドレス: %1$s</string>
@@ -1209,13 +829,6 @@
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">チャットアドレスに KAS がないため、この支払いを %1$s に知らせられません。相手には不明なアドレスからのメモなしの支払いとして表示されます。チャットアドレスに KAS が入ると KaChat が知らせます。</string>
     <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
-    <string name="customize_dock_your_dock">あなたのドック</string>
-    <string name="customize_dock_always_in_dock">常にドックに表示</string>
-    <string name="customize_dock_always_stay">%1$s、%2$s、%3$s は常にドックにあります。</string>
-    <string name="customize_dock_full">ドックがいっぱいです。これらを追加するには、ドックから1つ外してください。</string>
-    <string name="customize_dock_hub_order">%1$s に表示される順番です。</string>
-    <string name="customize_dock_move_to">%1$s を %2$s に移動</string>
-    <string name="customize_dock_add">%1$s をドックに追加</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
@@ -1224,11 +837,7 @@
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
-    <string name="cold_storage_empty_title">コールドストレージアカウントがありません</string>
-    <string name="cold_storage_empty_body">残高を監視するには、KasSignerデバイスからエクスポートされたkpubをスキャンまたは貼り付けてください。</string>
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
-    <string name="portfolio_no_transactions_title">まだ取引がありません</string>
-    <string name="portfolio_no_transactions_sub">ポートフォリオの追跡を開始するには購入または売却を追加してください</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">その他のオプション</string>
     <!-- Settings subpages (from iOS) -->

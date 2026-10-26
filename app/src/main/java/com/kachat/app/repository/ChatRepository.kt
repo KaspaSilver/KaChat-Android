@@ -85,9 +85,6 @@ class ChatRepository @Inject constructor(
     private val chatRequestStore: ChatRequestStore,
     /** 1:1 messages a push told us about, until they are stored (iOS 60c9fd0). */
     private val pushedMessageQueue: com.kachat.app.services.PushedMessageQueue,
-    /** Cold Storage (KasSigner) watch accounts - their addresses are ours to a payment_notice
-     *  (IOS-083, [ownAddressesForNotices]). */
-    private val coldStorageManager: com.kachat.app.services.ColdStorageManager,
     /** Txids of the payment bubbles received payment_notices filed - only the notice's own chain
      *  check may confirm, move or remove them (IOS-083 run 11, [fileNoticeBubble]). */
     private val noticeBubbleStore: com.kachat.app.services.NoticeBubbleStore,
@@ -2390,12 +2387,10 @@ class ChatRepository @Inject constructor(
 
     /**
      * Every address this phone knows as the person's own, lowercased (iOS
-     * `ownAddressesForNotices`): the chatting address, every revealed spending address, every
-     * saved account's chatting address and every Cold Storage receive address (0..maxDerivedIndex
-     * of each of this wallet's accounts). A transfer from any of them is the person moving their
-     * own money, which no contact's notice may ever claim (IOS-083). Off the main thread: a
-     * spending index not derived yet costs a seed derivation, and each cold address a key
-     * derivation.
+     * `ownAddressesForNotices`): the chatting address, every revealed spending address and every
+     * saved account's chatting address. A transfer from any of them is the person moving their own
+     * money, which no contact's notice may ever claim (IOS-083). Off the main thread: a spending
+     * index not derived yet costs a seed derivation.
      */
     private suspend fun ownAddressesForNotices(myAddress: String): Set<String> =
         kotlinx.coroutines.withContext(Dispatchers.Default) {
@@ -2409,17 +2404,6 @@ class ChatRepository @Inject constructor(
             // included (run 10: B's Address #2 topping up A's chatting address is ours too; iOS 566b4ef)
             runCatching { walletManager.allCachedSpendingAddresses() }.getOrDefault(emptyList())
                 .forEach { own.add(it.trim().lowercase()) }
-            val coldAccounts = runCatching { coldStorageManager.getAccounts() }.getOrDefault(emptyList())
-            for (account in coldAccounts) {
-                val rootKey = com.kachat.app.util.KaspaExtendedPublicKey.parse(account.kpub).getOrNull()
-                    ?.let { runCatching { com.kachat.app.util.KaspaExtendedPublicKey.toDeterministicKey(it) }.getOrNull() }
-                    ?: continue
-                for (index in 0..maxOf(account.maxDerivedIndex, 0)) {
-                    runCatching {
-                        com.kachat.app.util.KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index)
-                    }.getOrNull()?.let { own.add(it.trim().lowercase()) }
-                }
-            }
             own.remove("")
             own
         }

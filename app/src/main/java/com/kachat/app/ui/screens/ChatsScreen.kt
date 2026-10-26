@@ -1,7 +1,6 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.material3.IconButton
-import androidx.compose.material.icons.filled.Settings
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,7 +15,6 @@ import androidx.compose.foundation.border
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.ArrowCircleUp
-import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.MarkEmailRead
@@ -30,7 +28,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.filled.MoveToInbox
@@ -38,21 +35,17 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.RssFeed
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.FontWeight
@@ -66,43 +59,27 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
 import com.kachat.app.R
-import com.kachat.app.ui.theme.IosRoundedFontFamily
-import com.kachat.app.ui.theme.KaspaBlue
 import com.kachat.app.ui.theme.LocalAppColors
-import com.kachat.app.ui.theme.KaspaSubtext
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.ChatViewModel
 import com.kachat.app.models.avatarFallbackText
 import com.kachat.app.models.displayName
-import com.kachat.app.models.liveNameFor
 import com.kachat.app.models.Conversation
-import com.kachat.app.models.GroupMember
 import com.kachat.app.models.MessageEntity
-import com.kachat.app.util.ImageMessage
 import com.kachat.app.util.MessageReply
-import com.kachat.app.util.VoiceMessage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Forum
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.animation.core.animate
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -115,9 +92,7 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import com.kachat.app.repository.GroupConversation
-import com.kachat.app.repository.GroupMessage
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
  * Chats tab: one list (iOS a062577). The chats, with every group chat and bot chat as a circle
@@ -140,13 +115,12 @@ fun ChatsScreen(
     // The chat list leaves out Message Requests and blocked chats - requests sit behind their own
     // row, and neither counts toward the unread badge (iOS f7ca401, 84e3402).
     val chatListConversations by chatViewModel.chatListConversations.collectAsState()
-    // Bot chats are never rows in the chat list (or its search): Kaspa Hub > KaChat Bots is the
-    // way in, and once you have written to a bot its chat is a circle above the list (iOS
-    // d576941, 5fcf755).
+    // Bot chats are never rows in the chat list (or its search): every bot is always a circle in
+    // the row above it (iOS d54ea87).
     val conversations = remember(chatListConversations) {
         chatListConversations.filterNot { com.kachat.app.models.KaChatBot.isBot(it.contact.id) }
     }
-    val botConversations by chatViewModel.botCircleConversations.collectAsState()
+    val botCircles by chatViewModel.botCircles.collectAsState()
     val messageRequests by chatViewModel.messageRequests.collectAsState()
     val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
@@ -228,9 +202,9 @@ fun ChatsScreen(
 
     // The circles, as the row shows them: pinned first, then by latest activity, filtered by the
     // search. Select All and the action bar read the same list, so they agree on what's visible.
-    val circleItems = remember(groupConversations, botConversations, searchQuery, circlePins) {
-        chatCircleItems(groupConversations, botConversations, searchQuery, circlePins) { convo ->
-            botCircleTitle(context, convo)
+    val circleItems = remember(groupConversations, botCircles, searchQuery, circlePins) {
+        chatCircleItems(groupConversations, botCircles, searchQuery, circlePins) { bot ->
+            context.getString(bot.nameRes)
         }
     }
     // What Select All and "everything selected" count while searching is iOS's displayedGroups -
@@ -497,8 +471,13 @@ fun ChatsScreen(
                                         navController.navigate("group_chat/$id")
                                     }
                                 }
+                                // Opens the bot's chat, starting it the first time (iOS d54ea87).
                                 is ChatCircle.Bot -> {
-                                    if (!isSelectionMode) navController.navigate("chat/${item.convo.contact.id}")
+                                    if (!isSelectionMode) {
+                                        chatViewModel.openBotChat(item.circle.bot, item.title) { address ->
+                                            navController.navigate("chat/$address")
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -795,7 +774,7 @@ fun ChatsScreen(
             id = id,
             isPinned = id in circlePins,
             groupConversations = groupConversations,
-            botConversations = botConversations,
+            botCircles = botCircles,
             chatViewModel = chatViewModel,
             onDismiss = { circleActionTarget = null },
             onTogglePin = { toggleCirclePin(id) },
@@ -918,36 +897,29 @@ private sealed interface ChatCircle {
         override val unread get() = convo.unreadCount
     }
 
-    /** A bot chat you have written to ([ChatViewModel.botCircleConversations]); [title] is the
-     *  bot's name, else the contact's. */
-    data class Bot(val convo: com.kachat.app.models.Conversation, override val title: String) : ChatCircle {
-        override val id get() = "b:${convo.contact.id.lowercase()}"
-        override val unread get() = convo.unreadCount
+    /** A bot, with its chat when there is one ([ChatViewModel.botCircles]); [title] is the
+     *  bot's name. */
+    data class Bot(val circle: ChatViewModel.BotCircle, override val title: String) : ChatCircle {
+        override val id get() = "b:${circle.bot.address.lowercase()}"
+        override val unread get() = circle.conversation?.unreadCount ?: 0
     }
 }
 
-/** A bot chat circle's name: the bot's own, else what the contact is called (iOS 5fcf755). */
-private fun botCircleTitle(context: android.content.Context, convo: com.kachat.app.models.Conversation): String =
-    com.kachat.app.models.KaChatBot.bot(convo.contact.id)?.let { context.getString(it.nameRes) }
-        ?: convo.contact.alias?.takeIf { it.isNotBlank() }
-        ?: convo.contact.displayName
-
 /**
- * The circles in row order (iOS `ChatCirclesStrip.items`): every group and every bot chat you
- * have written to, filtered by the search on its title; the pinned ones first, in pin order, then
- * the rest by latest activity - a group's last message, else when it was created; a bot chat's
- * last message.
+ * The circles in row order (iOS `ChatCirclesStrip.items`): every group and every bot, filtered by
+ * the search on its title; the pinned ones first, in pin order, then the rest by latest activity -
+ * a group's last message, else when it was created; a bot's last message, else never.
  */
 private fun chatCircleItems(
     groups: List<GroupConversation>,
-    bots: List<com.kachat.app.models.Conversation>,
+    bots: List<ChatViewModel.BotCircle>,
     searchQuery: String,
     pins: List<String>,
-    botTitle: (com.kachat.app.models.Conversation) -> String,
+    botTitle: (com.kachat.app.models.KaChatBot) -> String,
 ): List<ChatCircle> {
     var dated: List<Pair<ChatCircle, Long>> =
         groups.map { ChatCircle.Group(it) to (it.lastMessage?.blockTimestamp ?: it.group.createdAt) } +
-            bots.map { ChatCircle.Bot(it, botTitle(it)) to (it.lastMessage?.blockTimestamp ?: 0L) }
+            bots.map { ChatCircle.Bot(it, botTitle(it.bot)) to (it.conversation?.lastMessage?.blockTimestamp ?: 0L) }
     val query = searchQuery.trim()
     if (query.isNotEmpty()) dated = dated.filter { it.first.title.contains(query, ignoreCase = true) }
     val byId = dated.associate { it.first.id to it.first }
@@ -1090,13 +1062,13 @@ private fun ChatCircleAvatar(item: ChatCircle) {
                 }
             }
         }
-        // The bot's own icon, as on its Kaspa Hub card (iOS 5fcf755).
+        // The bot's own icon (iOS 5fcf755).
         is ChatCircle.Bot -> Box(
             modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                com.kachat.app.models.KaChatBot.bot(item.convo.contact.id)?.icon ?: com.kachat.app.models.KaChatBot.fallbackIcon,
+                item.circle.bot.icon,
                 contentDescription = null,
                 tint = KaspaTeal,
                 modifier = Modifier.size(26.dp),
@@ -1116,7 +1088,7 @@ private fun ChatCircleActionSheet(
     id: String,
     isPinned: Boolean,
     groupConversations: List<GroupConversation>,
-    botConversations: List<com.kachat.app.models.Conversation>,
+    botCircles: List<ChatViewModel.BotCircle>,
     chatViewModel: ChatViewModel,
     onDismiss: () -> Unit,
     onTogglePin: () -> Unit,
@@ -1186,15 +1158,20 @@ private fun ChatCircleActionSheet(
                 }
         }
     } else if (id.startsWith("b:")) {
-        // A bot chat's circle (iOS 5fcf755, localized in 4a43e33): read state, pin to the front,
-        // Silence, and Delete - confirmed, and the circle stays gone until you write to the bot
-        // again.
-        val convo = botConversations.firstOrNull { "b:${it.contact.id.lowercase()}" == id } ?: return
-        val contact = convo.contact
-        val isSilent = com.kachat.app.models.ContactNotificationMode.fromName(contact.notificationOverride) ==
+        // A bot's circle (iOS 5fcf755, d54ea87): read state, pin to the front, Silence, and
+        // Delete - confirmed; the bot stays in the row. A bot never written to has only its pin.
+        val circle = botCircles.firstOrNull { "b:${it.bot.address.lowercase()}" == id } ?: return
+        val convo = circle.conversation
+        val contact = convo?.contact
+        val isSilent = contact != null &&
+            com.kachat.app.models.ContactNotificationMode.fromName(contact.notificationOverride) ==
             com.kachat.app.models.ContactNotificationMode.OFF
-        val title = com.kachat.app.models.KaChatBot.bot(contact.id)?.let { stringResource(it.nameRes) } ?: contact.displayName
+        val title = stringResource(circle.bot.nameRes)
         TileActionSheet(title = title, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 4)) {
+                if (convo == null || contact == null) {
+                    PinRow()
+                    return@TileActionSheet
+                }
                 if (convo.unreadCount > 0) {
                     ActionSheetRow(
                         icon = Icons.Outlined.MarkEmailRead,
@@ -1229,7 +1206,7 @@ private fun ChatCircleActionSheet(
                 ActionSheetRow(
                     icon = Icons.Outlined.Delete,
                     title = stringResource(R.string.delete),
-                    subtitle = stringResource(R.string.bot_sheet_delete_subtitle),
+                    subtitle = stringResource(R.string.bot_sheet_delete_keeps_circle),
                     tint = LocalAppColors.current.danger,
                 ) {
                     onDismiss()

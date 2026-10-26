@@ -10,7 +10,7 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.kachat.app.services.NetworkService
 import com.kachat.app.services.WalletManager
-import com.kachat.app.ui.screens.ColdFeeTier
+import com.kachat.app.ui.screens.FeeTier
 import com.kachat.app.services.kachatnames.KachatNames.Codec
 import com.kachat.app.services.kachatnames.KachatNames.hex
 import com.kachat.app.services.kachatnames.KachatNames.unhex
@@ -73,7 +73,7 @@ data class PendingRegistration(
     /** The price the person confirmed for the whole registration (sompi). The registration never
      *  pays more (registry v4's prices are fixed, so it never has to; iOS 4f5d95e, c8f1086). */
     val maxPrice: Long? = null,
-    /** The fee speed chosen when claiming (`ColdFeeTier.label`, iOS `WithdrawFeeTier` raw value),
+    /** The fee speed chosen when claiming (`FeeTier.label`, iOS `WithdrawFeeTier` raw value),
      *  applied to the commit and, at the current network rate, to the register. Null (claims from
      *  before): Priority (iOS e426432). */
     val feeTier: String? = null
@@ -123,9 +123,6 @@ class KachatNamesActions @Inject constructor(
     /** The plain self-send that combines many small coins into one before a name transaction
      *  ([combineCoins], iOS f1c16ec). */
     private val walletEngine: com.kachat.app.services.KaspaWalletEngine,
-    /** KasSigner (watch-only) accounts, to tell which of this wallet's addresses holds a name
-     *  ([ownAddress], iOS 881ada6). Read only: their keys never live here. */
-    private val coldStorageManager: com.kachat.app.services.ColdStorageManager,
     /** Whether a spending address was ever used ([ownNameKeys], iOS d1026de: ChatService's
      *  `spendingAddressUsedState`). Lazy: only read when the registry is asked about them. */
     private val walletService: dagger.Lazy<com.kachat.app.services.WalletService>
@@ -282,15 +279,12 @@ class KachatNamesActions @Inject constructor(
         object Chatting : OwnAddress()
         /** A spending address: the app derives its key, so owner actions sign with it. */
         data class Spending(val index: Int, val address: String) : OwnAddress()
-        /** A KasSigner (watch-only) address: owner actions need the device to sign. */
-        data class KasSigner(val account: String, val index: Int, val address: String) : OwnAddress()
     }
 
     /**
      * Whether [owner] (an x-only key) is one of this wallet's addresses, and which: the chatting
-     * address, a revealed spending address, or a KasSigner account address. Null = someone else.
-     * Derives addresses (the spending chain from the seed, the KasSigner ones from their kpubs),
-     * so it runs off the main thread (iOS 881ada6 `ownAddress(of:)`).
+     * address or a revealed spending address. Null = someone else. Derives the spending chain
+     * from the seed, so it runs off the main thread (iOS 881ada6 `ownAddress(of:)`).
      */
     suspend fun ownAddress(owner: ByteArray): OwnAddress? = withContext(Dispatchers.IO) {
         if (myKey?.contentEquals(owner) == true) return@withContext OwnAddress.Chatting
@@ -301,18 +295,6 @@ class KachatNamesActions @Inject constructor(
             for ((index, address) in spending.entries.sortedBy { it.key }) {
                 if (KachatNamesRegistry.keyOf(address)?.contentEquals(owner) == true) {
                     return@withContext OwnAddress.Spending(index, address)
-                }
-            }
-        }
-        val cold = runCatching { coldStorageManager.getAccounts() }.getOrNull().orEmpty()
-        for (c in cold) {
-            val root = com.kachat.app.util.KaspaExtendedPublicKey.parse(c.kpub).getOrNull()
-                ?.let { com.kachat.app.util.KaspaExtendedPublicKey.toDeterministicKey(it) } ?: continue
-            for (index in 0..maxOf(0, c.maxDerivedIndex)) {
-                val address = runCatching { com.kachat.app.util.KaspaExtendedPublicKey.deriveChildAddress(root, chain = 0, index = index) }.getOrNull()
-                    ?: continue
-                if (KachatNamesRegistry.keyOf(address)?.contentEquals(owner) == true) {
-                    return@withContext OwnAddress.KasSigner(c.name, index, address)
                 }
             }
         }
@@ -569,7 +551,7 @@ class KachatNamesActions @Inject constructor(
     /** The fee a name transaction pays: a speed (the Send screens' Normal / Fast / Priority, as
      *  multiples of the network's Normal rate), or a total the person typed. */
     sealed class FeeChoice {
-        data class Tier(val tier: ColdFeeTier) : FeeChoice()
+        data class Tier(val tier: FeeTier) : FeeChoice()
         /** the whole network fee, sompi */
         data class CustomTotal(val sompi: Long) : FeeChoice()
     }
@@ -625,7 +607,7 @@ class KachatNamesActions @Inject constructor(
 
     /** The rate a speed pays: the network's Normal rate (never under the relay floor) times the
      *  speed's multiplier, the same 1x / 2x / 5x the Send screens use. */
-    suspend fun feerate(tier: ColdFeeTier): Double {
+    suspend fun feerate(tier: FeeTier): Double {
         val estimate = refreshFeeEstimate()
         val base = estimate?.let { maxOf(KachatNames.MIN_FEERATE, it.normal) } ?: UNKNOWN_FEERATE
         return KachatNames.safeFeerate(base * tier.multiplier.toDouble())
@@ -893,13 +875,6 @@ class KachatNamesActions @Inject constructor(
         val s = signer(op)
         val rate = if (exactFeerate != null) KachatNames.safeFeerate(exactFeerate) else feerate(fee, op, s)
         val (txId, plan) = submit(op, s, maxPrice, rate, maxNetworkFee)
-        // An offer you withdrew or refunded yourself isn't news in the Profile bell; the ones this
-        // app returns on its own (expired, made to an earlier owner) are (iOS 86471dd).
-        when (op) {
-            is Operation.Withdraw -> if (op.offer.id !in _withdrawingOffers.value) KachatNamesNotifier.selfClosedOffers.add(op.offer.id)
-            is Operation.Refund -> if (op.offer.id !in _returningOffers.value) KachatNamesNotifier.selfClosedOffers.add(op.offer.id)
-            else -> Unit
-        }
         when (op) {
             // A name that leaves this owner takes no offers with it: the ones made to this owner
             // can never be accepted any more, so they go straight back to their buyers (iOS 49c0baa).
@@ -1190,7 +1165,7 @@ class KachatNamesActions @Inject constructor(
 
     /** The cost of registering [name] for [years], estimated by building both transactions
      *  (nothing is signed or sent); the price from the manifest's fixed tables (registry v4, iOS c8f1086). */
-    suspend fun quote(name: String, years: Long, gap: GapInfo, feeTier: ColdFeeTier = ColdFeeTier.NORMAL): Quote = withContext(Dispatchers.IO) {
+    suspend fun quote(name: String, years: Long, gap: GapInfo, feeTier: FeeTier = FeeTier.NORMAL): Quote = withContext(Dispatchers.IO) {
         val s = buyerSigner()
         val m = registry.prepare()
         requireRegistrationOpen(m)
@@ -1250,7 +1225,7 @@ class KachatNamesActions @Inject constructor(
         raw: String,
         years: Long,
         maxPrice: Long,
-        feeTier: ColdFeeTier = ColdFeeTier.NORMAL
+        feeTier: FeeTier = FeeTier.NORMAL
     ): String = withContext(Dispatchers.IO) {
         // paid by, and belonging to, the marketplace's address (iOS eb9b027)
         val s = buyerSigner()
@@ -1429,8 +1404,8 @@ class KachatNamesActions @Inject constructor(
     }
 
     /** The speed [p] was claimed at (null for claims from before it was kept). */
-    private fun feeTierOf(p: PendingRegistration): ColdFeeTier? =
-        p.feeTier?.let { raw -> ColdFeeTier.entries.firstOrNull { it.label == raw } }
+    private fun feeTierOf(p: PendingRegistration): FeeTier? =
+        p.feeTier?.let { raw -> FeeTier.entries.firstOrNull { it.label == raw } }
 
     /** The rate the registration's chosen speed pays now (its claim-time choice), else Priority.
      *  The register goes out by itself a minute after the claim: the chosen speed, but never above

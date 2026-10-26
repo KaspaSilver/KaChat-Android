@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Groups
@@ -34,8 +33,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,15 +44,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.kachat.app.R
 import com.kachat.app.services.GlobalNotificationCenterStore
-import com.kachat.app.ui.Screen
-import com.kachat.app.ui.resolveDock
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.getValue
 
 /**
  * The Profile bell's sheet (iOS `GlobalNotificationListView`): a full-height sheet with Done on the
@@ -67,9 +62,8 @@ import kotlinx.coroutines.launch
  * Every row opens what it is about, the same way the matching notification's tap does: a wallet
  * receipt the History of the address that got the Kaspa (the own-address sheet a tapped banner
  * opens - iOS 95e2cba `.openOwnAddress`), or, for a receipt saved before rows carried their
- * address, the wallet screen (Portfolio when it is in the dock, otherwise Profile - iOS
- * `.openPortfolio` / `routeToWalletTab(.portfolio)`); a .kachat row the name. Rows of the sources an older build recorded (KaPosts, group mentions, public
- * chats) are dropped on load, but keep their routes as iOS does.
+ * address, Profile, where the bell already is (iOS d54ea87 `.openProfile`). Rows of the sources an
+ * older build recorded (KaPosts, group mentions, public chats, .kachat news) are dropped on load.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,9 +74,6 @@ fun GlobalNotificationSheet(
     onDismiss: () -> Unit,
 ) {
     val entries by store.entries.collectAsState()
-    val dockRoutes by walletViewModel.dockTabs.collectAsState()
-    val hiddenTabs by walletViewModel.hiddenTabs.collectAsState()
-    val childMode by walletViewModel.childModeEnabled.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -103,34 +94,12 @@ fun GlobalNotificationSheet(
                 if (target.isBlank()) return
                 dismiss { navController.navigate("group_chat/$target") }
             }
-            // A receipt opens the History of the address that got the Kaspa (chatting, spending
-            // or cold storage - MainShell's own-address sheet works out which), as a tapped banner
-            // does (iOS 95e2cba). Entries recorded before receipts carried their address fall back
-            // to the wallet screen.
+            // A receipt opens the History of the address that got the Kaspa (chatting or spending -
+            // MainShell's own-address sheet works out which), as a tapped banner does (iOS
+            // 95e2cba). Entries recorded before receipts carried their address just close the
+            // sheet: Profile, where the bell is, shows the wallet's addresses (iOS d54ea87).
             "wallet" -> dismiss {
-                if (target.isNotEmpty()) {
-                    com.kachat.app.ui.OwnAddressRoute.pending.value = target
-                    return@dismiss
-                }
-                val inDock = resolveDock(dockRoutes, hiddenTabs, childMode).any { it == Screen.Portfolio }
-                if (inDock) {
-                    val popped = navController.popBackStack(route = Screen.Portfolio.route, inclusive = false, saveState = true)
-                    if (!popped) {
-                        navController.navigate(Screen.Portfolio.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
-                // Otherwise Profile, which is where the bell already is.
-            }
-            // The name, the same way a tapped .kachat push opens it.
-            com.kachat.app.services.kachatnames.KachatNamesNotifier.SOURCE -> {
-                if (target.isBlank()) return
-                dismiss {
-                    KachatDeepLink.pendingName.value = com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(target)
-                }
+                if (target.isNotEmpty()) com.kachat.app.ui.OwnAddressRoute.pending.value = target
             }
         }
     }
@@ -188,7 +157,7 @@ fun GlobalNotificationSheet(
                                 fontSize = 17.sp,
                             )
                             Text(
-                                stringResource(R.string.notification_center_empty),
+                                stringResource(R.string.notification_center_wallet_empty),
                                 color = colors.textSecondary,
                                 fontSize = 15.sp,
                                 textAlign = TextAlign.Center,
@@ -248,12 +217,11 @@ private fun GlobalNotificationRow(entry: GlobalNotificationCenterStore.Entry, on
 }
 
 /**
- * A row's icon (iOS `Entry.Source.icon`): arrow.down.circle for a wallet receipt, "at" for .kachat;
- * megaphone, person.3 and dot.radiowaves.left.and.right for the sources older builds recorded.
+ * A row's icon (iOS `Entry.Source.icon`): arrow.down.circle for a wallet receipt; megaphone,
+ * person.3 and dot.radiowaves.left.and.right for the sources older builds recorded.
  */
 private fun sourceIcon(source: String): ImageVector = when (source) {
     "wallet" -> Icons.Outlined.ArrowCircleDown
-    com.kachat.app.services.kachatnames.KachatNamesNotifier.SOURCE -> Icons.Default.AlternateEmail
     "kaposts" -> Icons.Outlined.Campaign
     "group" -> Icons.Outlined.Groups
     else -> Icons.Outlined.Sensors

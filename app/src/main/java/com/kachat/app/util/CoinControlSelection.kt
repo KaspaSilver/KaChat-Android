@@ -6,9 +6,8 @@ import com.kachat.app.services.UtxoEntry
 /**
  * Coin control's selection rules, kept out of the screen so they can be tested.
  *
- * A pick can never hold more coins than one transaction may spend: the hot wallet refuses more
- * than [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] inputs, and KasSigner signs at most
- * [KsptCodec.MAX_INPUTS]. A bigger pick used to be accepted here and only refused at send, after
+ * A pick can never hold more coins than one transaction may spend: the wallet refuses more than
+ * [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] inputs. A bigger pick used to be accepted here and only refused at send, after
  * the amount and fee had been filled in (audit AND-012 follow-up). So adding a coin past the cap
  * is refused, and Select All takes the largest coins up to it.
  */

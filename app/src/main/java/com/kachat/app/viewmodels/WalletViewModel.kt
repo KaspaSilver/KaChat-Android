@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.kachat.app.models.PendingKnsCommit
 import com.kachat.app.models.WalletSourceFamily
 import com.kachat.app.repository.AppSettingsRepository
-import com.kachat.app.services.ColdStorageAddressDiscovery
+import com.kachat.app.services.AddressHistoryService
 import com.kachat.app.services.KaspaWalletEngine
 import com.kachat.app.services.KnsInscriptionEngine
 import com.kachat.app.services.KnsProfileFields
@@ -50,7 +50,7 @@ class WalletViewModel @Inject constructor(
     /** Reused purely for its address-string-keyed REST fetchers (`getTransactionHistory`/
      *  `getUtxos`) - it has no Cold-Storage-account/kpub state, so it's just as valid a data
      *  source here as it is for Cold Storage's own tx-history screen. */
-    private val coldStorageAddressDiscovery: ColdStorageAddressDiscovery,
+    private val addressHistoryService: AddressHistoryService,
     private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val chatRepository: com.kachat.app.repository.ChatRepository,
@@ -61,7 +61,6 @@ class WalletViewModel @Inject constructor(
      *  where the registry is launched, so mainnet never builds it (iOS 7227d69). */
     private val kachatRegistry: dagger.Lazy<com.kachat.app.services.kachatnames.KachatNamesRegistry>,
     /** A deleted account's .kachat local reminders go with it (iOS 6128f1e, IOS-088). */
-    private val kachatNameReminders: com.kachat.app.services.kachatnames.KachatNameReminders,
 ) : ViewModel() {
 
     /** Refreshes what the active account owns on .k and .kaspa. */
@@ -74,7 +73,6 @@ class WalletViewModel @Inject constructor(
         val address = walletManager.activeAddressFlow.value ?: return
         nameServices.refresh(address)
     }
-
 
     /**
      * The send screens' sends ([onSendClicked], [withdrawFromSpendingAddress]), each kept to the
@@ -111,7 +109,6 @@ class WalletViewModel @Inject constructor(
 
     private val _mnemonic = MutableStateFlow<List<String>?>(null)
     val mnemonic: StateFlow<List<String>?> = _mnemonic
-
 
     // Armed whenever an account is added — both the create-a-new-wallet flow
     // (`CreateAccountSeedScreen.onNext`) and the import flow (`ImportWalletScreen`'s `onImported`)
@@ -791,7 +788,7 @@ class WalletViewModel @Inject constructor(
     }
 
     /** Coin control's data source for a spending address - see `SpendingAddressSendFlow`. Never
-     *  [coldStorageAddressDiscovery]/[spendingAddressUtxos] - those return a display-only DTO
+     *  [addressHistoryService]/[spendingAddressUtxos] - those return a display-only DTO
      *  with no scriptPublicKey, which signing needs. */
     /** Throws when the coins could not be fetched, so coin control can say so. */
     suspend fun fetchUtxosForCoinControl(address: String): List<UtxoEntry> = walletEngine.fetchUtxosOrThrow(address)
@@ -942,8 +939,8 @@ class WalletViewModel @Inject constructor(
         return maxAmount to chunk
     }
 
-    private val _spendingAddressTxHistory = MutableStateFlow<List<ColdStorageAddressDiscovery.AddressTransaction>>(emptyList())
-    val spendingAddressTxHistory: StateFlow<List<ColdStorageAddressDiscovery.AddressTransaction>> = _spendingAddressTxHistory.asStateFlow()
+    private val _spendingAddressTxHistory = MutableStateFlow<List<AddressHistoryService.AddressTransaction>>(emptyList())
+    val spendingAddressTxHistory: StateFlow<List<AddressHistoryService.AddressTransaction>> = _spendingAddressTxHistory.asStateFlow()
     /** The last history fetch gave up. Kept separate from an empty list because the two mean
      *  opposite things and used to render identically. */
     private val _spendingAddressTxHistoryFailed = MutableStateFlow(false)
@@ -951,8 +948,8 @@ class WalletViewModel @Inject constructor(
     private val _loadingSpendingAddressTxHistory = MutableStateFlow(false)
     val loadingSpendingAddressTxHistory: StateFlow<Boolean> = _loadingSpendingAddressTxHistory.asStateFlow()
 
-    private val _spendingAddressUtxos = MutableStateFlow<List<ColdStorageAddressDiscovery.AddressUtxo>>(emptyList())
-    val spendingAddressUtxos: StateFlow<List<ColdStorageAddressDiscovery.AddressUtxo>> = _spendingAddressUtxos.asStateFlow()
+    private val _spendingAddressUtxos = MutableStateFlow<List<AddressHistoryService.AddressUtxo>>(emptyList())
+    val spendingAddressUtxos: StateFlow<List<AddressHistoryService.AddressUtxo>> = _spendingAddressUtxos.asStateFlow()
     private val _loadingSpendingAddressUtxos = MutableStateFlow(false)
     val loadingSpendingAddressUtxos: StateFlow<Boolean> = _loadingSpendingAddressUtxos.asStateFlow()
     /** Why the last UTXO fetch could not ask the node - iOS's utxoLoadError, shown as the
@@ -961,12 +958,11 @@ class WalletViewModel @Inject constructor(
     val spendingAddressUtxosError: StateFlow<String?> = _spendingAddressUtxosError.asStateFlow()
 
     /** Transaction history for a single spending address - see `SpendingAddressTxHistoryScreen`.
-     *  Reuses [ColdStorageAddressDiscovery]'s address-string-keyed REST fetch (no Cold Storage
-     *  account state involved) rather than duplicating the same logic. */
+     *  Uses [AddressHistoryService]'s address-string-keyed REST fetch. */
     fun loadSpendingAddressTxHistory(address: String) {
         viewModelScope.launch {
             _loadingSpendingAddressTxHistory.value = true
-            val result = coldStorageAddressDiscovery.getTransactionHistoryResult(address, limit = ColdStorageAddressDiscovery.HISTORY_PAGE_SIZE)
+            val result = addressHistoryService.getTransactionHistoryResult(address, limit = AddressHistoryService.HISTORY_PAGE_SIZE)
             _spendingAddressTxHistory.value = result.transactions
             _spendingAddressTxHistoryFailed.value = !result.complete
             _loadingSpendingAddressTxHistory.value = false
@@ -979,7 +975,7 @@ class WalletViewModel @Inject constructor(
             _loadingSpendingAddressUtxos.value = true
             _spendingAddressUtxosError.value = null
             try {
-                _spendingAddressUtxos.value = coldStorageAddressDiscovery.getUtxosOrThrow(address)
+                _spendingAddressUtxos.value = addressHistoryService.getUtxosOrThrow(address)
                 _spendingAddressUtxosError.value = null
             } catch (e: Exception) {
                 // The list keeps what it had; an outage is not an empty address.
@@ -1114,29 +1110,8 @@ class WalletViewModel @Inject constructor(
     }
 
     init {
-        // One-time 4.0 dock seeding (existing users: KaPosts/Broadcasts/+More enabled, dock
-        // preserved via the cap/cycle; fresh installs: minimal Chats/Profile/+More dock).
-        // Sentinel-guarded no-op on every later launch.
-        viewModelScope.launch { settings.applyKaPostsTabDefaultsIfNeeded() }
-        // Placement migration, derived from what this user could already SEE rather than reset to
-        // the default, so an arrangement they built survives. Runs after the 4.0 seeding so it
-        // reads the settled hidden set.
-        viewModelScope.launch {
-            settings.applyPlacementDefaultsIfNeeded(
-                resolveVisible = { order, hidden ->
-                    @Suppress("DEPRECATION")
-                    com.kachat.app.ui.resolveTabOrder(order, hidden).map { it.route }
-                },
-                pinned = com.kachat.app.ui.PINNED_DOCK_ROUTES,
-                assignable = com.kachat.app.ui.ASSIGNABLE_TAB_ROUTES,
-                maxDock = com.kachat.app.ui.MAX_DOCK_ITEMS,
-            )
-        }
-        // (KaPosts social-ping polling is started/stopped by KaChatApplication's process
-        // lifecycle observer now — foreground-only, since push covers KaPosts when closed.)
-        // Mirror the active account's address into DataStore so the per-account dock keys
-        // (AppSettingsRepository.tabOrder/hiddenTabs) always resolve against the right account,
-        // including immediately after an account switch.
+        // Mirror the active account's address into DataStore so the per-account keys always
+        // resolve against the right account, including immediately after an account switch.
         viewModelScope.launch {
             // Sentinel distinct from any real address (including null = logged out), so the very
             // first emission after process start never counts as an account CHANGE — resetting
@@ -1345,9 +1320,6 @@ class WalletViewModel @Inject constructor(
             for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
                 runCatching { chatRepository.wipeAllLocalDataForAddress(variant) }
                     .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
-                // its .kachat reminders would keep firing for names this phone no longer holds
-                runCatching { kachatNameReminders.removeAll(variant) }
-                    .onFailure { android.util.Log.w("WalletViewModel", ".kachat reminder removal failed for a deleted account", it) }
             }
         }
         walletManager.deleteAccount(address)
@@ -1634,7 +1606,6 @@ class WalletViewModel @Inject constructor(
             }
         }
     }
-
 
     fun getActiveMnemonic(): String? = walletManager.getActiveMnemonic()
     fun getActivePassphrase(): String? = walletManager.getActivePassphrase()
@@ -2207,37 +2178,8 @@ class WalletViewModel @Inject constructor(
     val pendingKnsCommit: StateFlow<PendingKnsCommit?> = settings.pendingKnsCommit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
-    /** Route strings, in the user's chosen bottom-tab order — see AppSettingsRepository.tabOrder. */
-    val tabOrder: StateFlow<List<String>> = settings.tabOrder
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), AppSettingsRepository.DEFAULT_TAB_ORDER)
-
     val kaspaExplorer: StateFlow<com.kachat.app.models.KaspaExplorer> = settings.kaspaExplorer
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kachat.app.models.KaspaExplorer.default)
-
-    fun setTabOrder(routes: List<String>) {
-        viewModelScope.launch { settings.setTabOrder(routes) }
-    }
-
-    /** Bottom-tab routes the user has hidden from the nav bar via Settings > Customization > Menu. */
-    /** Routes in the dock, in order — the user's placement (see AppSettingsRepository.dockTabs). */
-    val dockTabs: StateFlow<List<String>> = settings.dockTabs
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettingsRepository.DEFAULT_DOCK_TABS)
-
-    /** Routes in Kaspa Hub, in the order its grid shows them. */
-    val hubTabs: StateFlow<List<String>> = settings.hubTabs
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettingsRepository.DEFAULT_HUB_TABS)
-
-    /** Both lists are written together so a tab can never be in both or neither. */
-    fun setPlacement(dock: List<String>, hub: List<String>) {
-        viewModelScope.launch { settings.setPlacement(dock, hub) }
-    }
-
-    val hiddenTabs: StateFlow<Set<String>> = settings.hiddenTabs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
-
-    fun setTabHidden(route: String, hidden: Boolean) {
-        viewModelScope.launch { settings.setTabHidden(route, hidden) }
-    }
 
     /** Settings > Customization > Appearance (iOS AppAppearance) - System by default. */
     val appearance: StateFlow<com.kachat.app.models.AppAppearance> = settings.appearance
@@ -2280,9 +2222,7 @@ class WalletViewModel @Inject constructor(
         viewModelScope.launch { settings.setBiometricSpendingKeyEnabled(enabled) }
     }
 
-    /** Settings > Security > Child Mode — the dock/deep-link/notification gates all derive from
-     *  this at render time (see resolveTabOrder); the masked state is never written into the
-     *  stored per-account dock prefs. */
+    /** Settings > Security > Child Mode. */
     val childModeEnabled: StateFlow<Boolean> = settings.childModeEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 

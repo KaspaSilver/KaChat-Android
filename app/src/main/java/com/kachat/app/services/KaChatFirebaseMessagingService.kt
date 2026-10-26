@@ -74,9 +74,12 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     return@runBlocking
                 }
                 when (type) {
-                    // .kachat name events (KACHAT_NAMES_INDEXER.md Part E): offers, sales,
-                    // renewal reminders, written in the device's language (iOS beeedd4).
-                    "name_event" -> handleNameEvent(data)
+                    // .kachat name events left with the .kachat market (iOS d54ea87): one that
+                    // still arrives is never shown; KaChat Wallet carries them.
+                    "name_event" -> {
+                        data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                        Log.i(TAG, "Dropped a name_event push: names live in KaChat Wallet")
+                    }
 
                     // KaPosts and Public Chats left the app (iOS e2f6732): one that races the
                     // re-registration is never shown.
@@ -319,57 +322,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             // paths see the same message.
             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
         )
-    }
-
-    /**
-     * What a 1:1 push from [sender] does under Message Requests (iOS NotificationService
-     * `messageRequestDecision`). True when the push was handled here - silent, or the one "New
-     * message request" - and the caller must not post its own notification.
-     *
-     * Blocked or a pending request -> silent. A contact the app already has as an ordinary chat
-     * -> the normal notification. Anyone else -> "New message request", once; the app then looks
-     * the sender up in the inbox so the request is there when the user opens it.
-     */
-    /**
-     * A `.kachat` name event, written in the device's language (iOS NotificationService
-     * handleNameEvent). Payload (indexer Part E): `event` (name_offer, name_sold,
-     * name_offer_accepted, name_renewal_open, name_expiring, name_grace; name_lapsed,
-     * name_offer_declined and name_offer_refunded for when the indexer sends them, iOS 86471dd),
-     * `name` (without
-     * .kachat), optional `amount` (sompi) and `days`. An event this build doesn't know keeps the
-     * server's own text. Tapping it opens the name.
-     */
-    private suspend fun handleNameEvent(data: Map<String, String>) {
-        val rawName = data["name"]?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return
-        val bare = rawName.removeSuffix(".kachat")
-        val name = "$bare.kachat"
-        val amount = data["amount"]?.trim()?.toLongOrNull()?.let { sompi ->
-            kasText(sompi) + " " + com.kachat.app.util.KaspaUnit.symbol
-        }
-        val days = data["days"]?.trim()?.toIntOrNull()
-        val (title, body) = when (data["event"]) {
-            "name_offer" -> getString(com.kachat.app.R.string.kn_push_new_offer, name) to
-                (amount?.let { getString(com.kachat.app.R.string.kn_push_offered, it) } ?: getString(com.kachat.app.R.string.kn_push_offer_no_amount))
-            "name_sold" -> getString(com.kachat.app.R.string.kn_push_sold, name) to
-                (amount?.let { getString(com.kachat.app.R.string.kn_push_paid, it) } ?: getString(com.kachat.app.R.string.kn_push_listing_bought))
-            "name_offer_accepted" -> getString(com.kachat.app.R.string.kn_push_offer_accepted) to getString(com.kachat.app.R.string.kn_push_yours_now, name)
-            "name_renewal_open" -> getString(com.kachat.app.R.string.kn_push_renew, name) to getString(com.kachat.app.R.string.kn_push_renewal_open)
-            // days on mainnet's yearly clock; testnet's periods are minutes long (days = 0)
-            "name_expiring" -> getString(com.kachat.app.R.string.kn_push_expires_soon, name) to when {
-                days != null && days > 1 -> getString(com.kachat.app.R.string.kn_push_days_left, days)
-                days == 1 -> getString(com.kachat.app.R.string.kn_push_one_day_left)
-                else -> getString(com.kachat.app.R.string.kn_push_renew_soon)
-            }
-            "name_grace" -> getString(com.kachat.app.R.string.kn_push_expired, name) to getString(com.kachat.app.R.string.kn_push_grace_soon)
-            "name_lapsed" -> getString(com.kachat.app.R.string.kn_bell_no_longer_yours_title, name) to getString(com.kachat.app.R.string.kn_bell_lapsed_available_body)
-            "name_offer_declined" -> getString(com.kachat.app.R.string.kn_bell_declined_title, name) to
-                com.kachat.app.util.KaspaUnit.label(getString(com.kachat.app.R.string.kn_bell_declined_body))
-            "name_offer_refunded" -> getString(com.kachat.app.R.string.kn_bell_offer_expired_title, name) to
-                com.kachat.app.util.KaspaUnit.label(getString(com.kachat.app.R.string.kn_bell_offer_expired_body))
-            else -> data["title"].orEmpty().ifEmpty { name } to data["body"].orEmpty()
-        }
-        val dedupeKey = data["tx_id"]?.takeIf { it.isNotBlank() } ?: "${data["event"]}:$bare:${data["amount"]}:${data["days"]}"
-        notificationHelper.showKachatName(title = title, text = body, name = bare, dedupeKey = dedupeKey)
     }
 
     /** Sompi as KAS text: up to 8 decimals, trailing zeros dropped (iOS kasText). */

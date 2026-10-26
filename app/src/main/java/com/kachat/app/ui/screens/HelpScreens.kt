@@ -5,8 +5,6 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,40 +18,16 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.SmartDisplay
-import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material.icons.outlined.Hardware
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.Leaderboard
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.MonitorHeart
-import androidx.compose.material.icons.outlined.Newspaper
-import androidx.compose.material.icons.outlined.Science
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.outlined.SportsEsports
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.border
-import com.kachat.app.ui.hubTitle
-import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.width
@@ -68,148 +42,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
-
-/**
- * One bubble in the Kaspa Websites grid - curated Kaspa sites opened in the in-app browser.
- * [name] is iOS's display name ("Kaspa Stream", not the domain); [icon] its SF Symbol's closest
- * Material glyph, unless [usesKaspaLogo] draws the Kaspa mark instead.
- */
-data class KaspaApp(
-    val name: String,
-    val url: String,
-    val icon: ImageVector = Icons.Outlined.Language,
-    val usesKaspaLogo: Boolean = false,
-)
-
-/** Same curated list, names, icons and order as iOS's ProfileAppsView. */
-val KASPA_APPS = listOf(
-    KaspaApp("Kaspa.org", "https://kaspa.org", usesKaspaLogo = true),
-    KaspaApp("Kaspa Stream", "https://kaspa.stream", Icons.Outlined.MonitorHeart),          // waveform.path.ecg
-    KaspaApp("Kaspa Explorer", "https://explorer.kaspa.org", Icons.Outlined.Search),        // magnifyingglass
-    KaspaApp("KasMap", "https://kasmap.org", Icons.Outlined.Map),                           // map
-    KaspaApp("KasShi", "https://kasshi.io", Icons.Filled.SmartDisplay),                     // play.rectangle.fill
-    KaspaApp("Kaspa News", "https://kaspa.news", Icons.Outlined.Newspaper),                 // newspaper
-    KaspaApp("KasPlay", "https://kasplay.fun", Icons.Outlined.SportsEsports),               // gamecontroller
-    KaspaApp("KasMart", "https://kasmart.org", Icons.Outlined.ShoppingCart),                // cart
-    KaspaApp("KasMedia", "https://kasmedia.com", Icons.Outlined.Article),                   // doc.text.image
-    KaspaApp("Kaspalytics", "https://www.kaspalytics.com", Icons.Outlined.Leaderboard),     // chart.bar
-    KaspaApp("Kas-Smiths", "https://kas-smiths.org", Icons.Outlined.Hardware),              // hammer
-    KaspaApp("Kaspa Core R&D", "https://t.me/kasparnd", Icons.Outlined.Science),            // atom
-    // Free testnet-10 KAS for the app's testnet mode (Settings > Connection > Testnet uses TN10).
-    KaspaApp("TN10 Faucet", "https://faucet-tn10.kaspanet.io", Icons.Filled.WaterDrop),     // drop.fill
-)
-
-/** The Kaspa Websites page - Kaspa Hub's tile and Profile > Apps open it (iOS ProfileAppsView). */
-@androidx.compose.material3.ExperimentalMaterial3Api
-@Composable
-fun KaspaAppsScreen(onBack: () -> Unit, onOpen: (KaspaApp) -> Unit) {
-    val colors = LocalAppColors.current
-    androidx.compose.material3.Scaffold(
-        containerColor = colors.background,
-        // Runs on under the dock, as iOS's content runs on under its tab bar.
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
-        topBar = {
-            // iOS: `.navigationTitle(AppTab.apps.ecosystemTitle)`, a large title and nothing under it.
-            MainPageHeader(title = com.kachat.app.ui.Screen.KaspaWebsites.hubTitle, onBack = onBack)
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .padding(bottom = LocalDockInset.current),
-        ) {
-            KaspaAppsGrid(onOpen = onOpen)
-        }
-    }
-}
-
-/**
- * The bubble grid, laid out as iOS's `LazyVGrid(columns: [GridItem(.adaptive(minimum: 96),
- * spacing: 20)], spacing: 24)`: as many 96-wide columns as fit 20 apart (three on a phone), the
- * rows 24 apart, each bubble centred in its column.
- */
-@Composable
-fun KaspaAppsGrid(onOpen: (KaspaApp) -> Unit) {
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val perRow = maxOf(1, ((maxWidth + 20.dp) / (96.dp + 20.dp)).toInt())
-        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            KASPA_APPS.chunked(perRow).forEach { rowApps ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                ) {
-                    rowApps.forEach { app ->
-                        Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
-                            KaspaAppBubble(app, onClick = { onOpen(app) })
-                        }
-                    }
-                    // A short last row keeps its columns where the full rows have them.
-                    repeat(perRow - rowApps.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-        }
-    }
-}
-
-/**
- * One site: iOS's 68pt `.regularMaterial` circle with a 0.8 white hairline at 18% and a soft
- * shadow (black at 12%, radius 8, 4 down), the 28pt semibold symbol in the accent colour (the
- * Kaspa mark 34 square), and the name 8 below in caption semibold on one line.
- */
-@Composable
-private fun KaspaAppBubble(app: KaspaApp, onClick: () -> Unit) {
-    val colors = LocalAppColors.current
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        // The column's full width, so the name gets the whole grid column as on iOS (it was held
-        // to the 68 bubble and cut "Kaspa Explorer" short).
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(68.dp)
-                .iosShadow(34.dp, Color.Black.copy(alpha = 0.12f), 8.dp, 4.dp)
-                .clip(CircleShape)
-                .background(colors.surface)
-                .border(0.8.dp, Color.White.copy(alpha = 0.18f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (app.usesKaspaLogo) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(R.drawable.ic_kaspa_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(34.dp),
-                )
-            } else {
-                // A Material glyph is inset in its box; 32 draws it the size of a 28pt symbol.
-                Icon(app.icon, null, tint = KaspaTeal, modifier = Modifier.size(32.dp))
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            app.name,
-            color = colors.textPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            softWrap = false,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-        )
-    }
-}
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
  * Full-screen in-app browser for the Apps bubbles - the only way out is the X top-left,
@@ -276,15 +115,13 @@ fun InAppBrowserScreen(url: String, title: String, notice: String? = null, onClo
 }
 
 /**
- * Help hub - Profile > Help, matching iOS's ProfileHelpView: one place holding the Welcome
- * Guide, the KNS Profile Setup Guide, and the Dock Guide (the 4.0 wizard, replayable here).
+ * Help hub - Profile > Help, matching iOS's ProfileHelpView: the Welcome Guide, replayable here.
  */
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
 fun HelpScreen(
     onBack: () -> Unit,
     onWelcomeGuide: () -> Unit,
-    onKnsGuide: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     androidx.compose.material3.Scaffold(
@@ -313,14 +150,6 @@ fun HelpScreen(
                         "Welcome Guide",
                         androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_welcome_body),
                         onWelcomeGuide,
-                    )
-                    androidx.compose.material3.HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 52.dp))
-                    // .kachat's guide since 5.2 (iOS b000310).
-                    HelpRow(
-                        androidx.compose.material.icons.Icons.Default.Badge,
-                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_names_help_title),
-                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_names_help_body),
-                        onKnsGuide,
                     )
                 }
             }

@@ -69,16 +69,6 @@ val keystoreProperties = Properties().apply {
     }
 }
 
-// Third-party API keys — same gitignored-local-file pattern as keystore.properties above, but in
-// local.properties (already gitignored for the SDK path) rather than a dedicated file, since this
-// is a single dev-convenience key rather than a release-signing secret.
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
-    }
-}
-
 android {
     namespace = "com.kachat.app"
     compileSdk = 36
@@ -109,12 +99,6 @@ android {
         // Store is the release and reports plain "5.1", while a handed-out GitHub build is a beta
         // and reports "5.1 (23)". One flag for both meant remembering to flip it at submission and
         // flip it back afterwards, and a forgotten flip ships a store build labelled like a beta.
-
-        buildConfigField(
-            "String",
-            "CHANGENOW_API_KEY",
-            "\"${localProperties.getProperty("changenow.api.key", "")}\""
-        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

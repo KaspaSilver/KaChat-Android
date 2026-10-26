@@ -15,16 +15,11 @@
 # has isMinifyEnabled = false so this never reproduced there).
 -keepclassmembers class com.kachat.app.util.** { *; }
 
-# Two more Gson-persisted payloads that live outside services/models/util, so nothing above
-# covered them: R8 was free to rename their fields, which makes the persisted JSON readable only
-# by the exact build that wrote it — every later release silently reads back null/0 fields (the
-# cold-storage snapshot's `address` is declared non-null, so a stale payload could hand the UI a
-# null String). Keeping the field names makes both payloads version-stable like every other
-# Gson store in the app.
--keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredPriceHistory { *; }
--keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredPricePoint { *; }
--keepclassmembers class com.kachat.app.repository.PortfolioRepository$StoredCurrentPrice { *; }
--keepclassmembers class com.kachat.app.viewmodels.ColdStorageViewModel$AddressRow { *; }
+# A Gson-persisted payload outside services/models/util, so nothing above covers it: R8 was free
+# to rename its fields, which makes the persisted JSON readable only by the exact build that
+# wrote it. The Send screens' KAS price (it reads the key Portfolio's price cache wrote, with the
+# same field names).
+-keepclassmembers class com.kachat.app.repository.KasPriceRepository$StoredCurrentPrice { *; }
 
 # And two more in repository (audit AND-001): the per-network connection settings the Testnet
 # switch sets aside, and one wallet's Message Requests state. Release builds before this rule

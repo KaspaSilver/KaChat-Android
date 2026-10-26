@@ -2,10 +2,7 @@ package com.kachat.app.viewmodels
 
 import kotlinx.coroutines.flow.flowOn
 import com.kachat.app.util.UserFacingError
-import android.app.Activity
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -46,7 +43,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 import javax.inject.Inject
 import com.kachat.app.repository.isExpiredSystemMessage
 import kotlinx.coroutines.flow.flow
@@ -189,8 +185,6 @@ class ChatViewModel @Inject constructor(
     fun refreshChattingBalance() {
         viewModelScope.launch { walletService.refreshBalance() }
     }
-
-
 
     val kaspaExplorer: StateFlow<com.kachat.app.models.KaspaExplorer> = settings.kaspaExplorer
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), com.kachat.app.models.KaspaExplorer.default)
@@ -572,20 +566,26 @@ class ChatViewModel @Inject constructor(
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
-     * Bot chats you have written to (iOS 5fcf755 `botCircles`): circles in the row above the chat
-     * list, with groups and public chats - never rows in it. Opening a bot from Kaspa Hub >
-     * KaChat Bots without writing leaves no circle; deleting the chat takes its messages, and so
-     * the circle, away until you write to the bot again.
+     * Every bot that can be messaged on this network, always, as a circle in the row above the
+     * chat list beside the group chats - with its chat when there is one (iOS d54ea87
+     * `botCircles`). There is no Kaspa Hub page for them any more; bot chats are never rows in
+     * the list itself.
      */
-    val botCircleConversations: StateFlow<List<Conversation>> = combine(
-        conversations, chatRepository.getContactMessageStats(),
-    ) { all, stats ->
-        val written = stats.filter { it.anySent > 0 }.map { it.contactId.lowercase() }.toSet()
-        all.filter { com.kachat.app.models.KaChatBot.isBot(it.contact.id) && it.contact.id.lowercase() in written }
-    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val botCircles: StateFlow<List<BotCircle>> = conversations.map { all ->
+        com.kachat.app.models.KaChatBot.available.map { bot ->
+            val key = bot.address.lowercase()
+            BotCircle(bot, all.firstOrNull { it.contact.id.lowercase() == key })
+        }
+    }.flowOn(Dispatchers.Default).stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        com.kachat.app.models.KaChatBot.available.map { BotCircle(it, null) },
+    )
+
+    /** One bot in the Chats circles row, with its chat when there is one (iOS `BotCircle`). */
+    data class BotCircle(val bot: com.kachat.app.models.KaChatBot, val conversation: Conversation?)
 
     /** Opens (or starts) the chat with [bot] - accepted, named [name] - then [onReady] with its
-     *  address, for the caller to navigate to (iOS `KaChatBotCard.open`). */
+     *  address, for the caller to navigate to (iOS `KaChatBot.startChat`). */
     fun openBotChat(bot: com.kachat.app.models.KaChatBot, name: String, onReady: (String) -> Unit) {
         if (bot.unavailableReasonRes != null) return
         viewModelScope.launch {

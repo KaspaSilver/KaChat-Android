@@ -1,7 +1,6 @@
 package com.kachat.app.services.kachatnames
 
 import com.kachat.app.services.kachatnames.KachatNames.Codec
-import com.kachat.app.ui.screens.KachatManageMenu
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -54,24 +53,6 @@ class KachatNamesReclaimTest {
         assertTrue(merged.hi.contentEquals(hi))
         assertEquals(below.outpoint, merged.outpoint)
         assertTrue(merged.contains(key))
-    }
-
-    @Test
-    fun aLiveNamesManageSheetKeepsItsActions() {
-        assertEquals(
-            listOf(KachatManageMenu.Action.LIST, KachatManageMenu.Action.TRANSFER, KachatManageMenu.Action.PRIMARY, KachatManageMenu.Action.RELEASE),
-            KachatManageMenu.actions(active, Status.ACTIVE, null, mine = true)
-        )
-        // listed, on a spending address: no Set as Primary
-        assertEquals(
-            listOf(KachatManageMenu.Action.CHANGE_PRICE, KachatManageMenu.Action.DELIST, KachatManageMenu.Action.TRANSFER, KachatManageMenu.Action.RELEASE),
-            KachatManageMenu.actions(name(now + 1, price = 5), Status.ACTIVE, null, mine = false)
-        )
-        // in grace: still the owner's to manage
-        assertEquals(
-            listOf(KachatManageMenu.Action.LIST, KachatManageMenu.Action.TRANSFER, KachatManageMenu.Action.PRIMARY, KachatManageMenu.Action.RELEASE),
-            KachatManageMenu.actions(inGrace, Status.GRACE, null, mine = true)
-        )
     }
 
     @Test

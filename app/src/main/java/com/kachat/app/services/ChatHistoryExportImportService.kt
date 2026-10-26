@@ -2,10 +2,7 @@ package com.kachat.app.services
 
 import android.content.Context
 import android.util.Log
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Base64
 import androidx.core.content.FileProvider
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -62,9 +59,6 @@ class ChatHistoryExportImportService @Inject constructor(
     private val groupRepository: GroupRepository,
     private val walletManager: WalletManager,
     private val addressBookManager: AddressBookManager,
-    private val portfolioLedgerStore: PortfolioLedgerStore,
-    // Lazy: only a restore that changed the portfolios reaches it (the price backfill).
-    private val portfolioRepository: dagger.Lazy<com.kachat.app.repository.PortfolioRepository>
 ) {
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
@@ -127,9 +121,6 @@ class ChatHistoryExportImportService @Inject constructor(
                 )
             }
 
-        // Portfolios ride along (iOS 11f1548): everything but an untouched seed "Portfolio 1".
-        val portfolioArrays = portfolioLedgerStore.syncState(myAddress).forArchive().toArchiveArrays()
-
         // Groups ARE backed up again — now including decrypted message history (not just keys),
         // so message history survives even if the indexer has pruned old messages.
         return ChatHistoryArchive(
@@ -140,10 +131,6 @@ class ChatHistoryExportImportService @Inject constructor(
             deletedContactAddresses = deletedIds.sorted().takeIf { it.isNotEmpty() },
             addressBook = addressBookManager.archiveEntries().takeIf { it.isNotEmpty() },
             addressBookDeleted = addressBookManager.archiveTombstones().takeIf { it.isNotEmpty() },
-            portfolios = portfolioArrays.portfolios.takeIf { it.size() > 0 },
-            portfolioTransactions = portfolioArrays.transactions.takeIf { it.size() > 0 },
-            portfolioFees = portfolioArrays.fees.takeIf { it.size() > 0 },
-            portfolioDeleted = portfolioArrays.deleted.takeIf { it.size() > 0 }
         )
     }
 
@@ -268,16 +255,6 @@ class ChatHistoryExportImportService @Inject constructor(
                 entries = archive.addressBook.orEmpty(),
                 tombstones = archive.addressBookDeleted.orEmpty()
             )
-            // so are the portfolios (iOS 11f1548)
-            val portfoliosChanged = portfolioLedgerStore.importFromArchive(
-                currentWallet,
-                PortfolioSync.fromArchive(
-                    archive.portfolios, archive.portfolioTransactions, archive.portfolioFees, archive.portfolioDeleted
-                )
-            )
-            // Rows (and fees) that arrived still waiting for a price get priced now, as iOS's
-            // reload after a restore restarts its backfill (PortfolioViewModel.reloadFromStore).
-            if (portfoliosChanged) portfolioRepository.get().startPriceBackfillIfNeeded(currentWallet)
         }
         if (archive.conversations.all { it.messages.isEmpty() }) {
             throw UnreadableBackupException("This file has no chat history to import")
@@ -811,16 +788,6 @@ class ChatHistoryExportImportService @Inject constructor(
             return book to deleted
         }
 
-        /**
-         * The two sides' portfolio keys, merged ([PortfolioSync.merge]) and re-encoded in the
-         * archive's own shape (iOS `mergeArchivePortfolios`). A side's unreadable element is left
-         * out; a missing key counts as empty.
-         */
-        internal fun mergeArchivePortfolios(local: JsonObject, remote: JsonObject): PortfolioSync.ArchiveArrays =
-            PortfolioSync.merge(listOf(PortfolioSync.fromArchive(local), PortfolioSync.fromArchive(remote)))
-                .forArchive()
-                .toArchiveArrays()
-
         internal fun mergeArchives(remote: JsonObject, local: JsonObject): JsonObject {
             val remoteIsNewer = exportedAtMs(remote) > exportedAtMs(local)
             val merged = LinkedHashMap<String, ConversationMerge>()
@@ -935,16 +902,8 @@ class ChatHistoryExportImportService @Inject constructor(
             if (book.size() > 0) result.add("addressBook", book) else result.remove("addressBook")
             if (bookDeleted.size() > 0) result.add("addressBookDeleted", bookDeleted) else result.remove("addressBookDeleted")
 
-            // Portfolios: per item the newest edit or deletion wins (PortfolioSync.merge).
-            val portfolios = mergeArchivePortfolios(local, remote)
-            for ((key, values) in listOf(
-                PortfolioSync.KEY_PORTFOLIOS to portfolios.portfolios,
-                PortfolioSync.KEY_TRANSACTIONS to portfolios.transactions,
-                PortfolioSync.KEY_FEES to portfolios.fees,
-                PortfolioSync.KEY_DELETED to portfolios.deleted,
-            )) {
-                if (values.size() > 0) result.add(key, values) else result.remove(key)
-            }
+            // Portfolios are the wallet app's now (iOS d54ea87): the server copy's keys stay as
+            // they are - `result` started from it.
             if (tombstones.isNotEmpty()) {
                 val tombstoneArray = JsonArray()
                 tombstones.forEach { tombstoneArray.add(it) }

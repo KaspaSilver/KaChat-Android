@@ -103,6 +103,17 @@ class AppSettingsRepository @Inject constructor(
         )
         private val KEY_RETIRED_FEATURES_CLEANED = booleanPreferencesKey("retired_features_cleaned_v1")
 
+        /**
+         * DataStore keys the second cut retired (iOS d54ea87): the dock and Kaspa Hub layouts,
+         * per account and global, with their one-time migrations, and Portfolio's and Swap's own
+         * settings. [removeRetiredFeatureKeys] deletes them once.
+         */
+        private val RETIRED_KEY_PREFIXES_V2 = listOf(
+            "tab_order", "dock_tabs", "hub_tabs", "hidden_tabs", "dock_placement_applied",
+            "tab_defaults_40", "portfolio_", "swap_",
+        )
+        private val KEY_RETIRED_FEATURES_V2_CLEANED = booleanPreferencesKey("retired_features_cleaned_v2")
+
         // KaChat ships pinned to Kaspium's public node out of the box, rather than defaulting
         // to full seed/DNS/peer-gossip discovery - the "Use Default" button in Connection
         // Settings resets back to this same address after a user has typed something else.
@@ -146,18 +157,9 @@ class AppSettingsRepository @Inject constructor(
         // cold storage addresses receives Kaspa from an external source — see
         // AddressActivityNotifier. Default ON, mirrors iOS's addressActivityNotificationsEnabled.
         val KEY_ADDRESS_ACTIVITY_NOTIFICATIONS = booleanPreferencesKey("address_activity_notifications_enabled")
-        /** Receive notifications for the wallet's own spending addresses (Manage Addresses) -
-         *  the counterpart of a cold account's `notifyOnReceive`. Default on (iOS ba352a2). */
+        /** Receive notifications for the wallet's own spending addresses (Manage Addresses).
+         *  Default on (iOS ba352a2). */
         val KEY_SPENDING_RECEIVE_NOTIFICATIONS = booleanPreferencesKey("spending_receive_notifications_enabled")
-        /** Which pair the portfolio charts flip to on a tap of the price: bitcoin, VOO, gold,
-         *  silver - or "" for none. Absent means bitcoin, the default (iOS 39adefe). */
-        val KEY_CHART_PAIR = stringPreferencesKey("portfolio_chart_pair")
-
-        /** Portfolio's eye button: every amount on that screen reads as dots. */
-        val KEY_PORTFOLIO_VALUES_HIDDEN = booleanPreferencesKey("portfolio_values_hidden")
-
-        // System contacts sync — matches iOS's "Sync system contacts"/"Autocreate system contacts".
-
         val KEY_SHOW_FEE_ESTIMATE = booleanPreferencesKey("show_fee_estimate")
         // Settings > Chats > Require approval for photos from new contacts (iOS
         // AppSettings.requirePhotoApprovalForNewContacts). On by default: photos from a contact
@@ -179,42 +181,6 @@ class AppSettingsRepository @Inject constructor(
         // Device-level message retention (Forever / 30 / 90 days / 1 year) - see BackupRetention.
         val KEY_BACKUP_RETENTION = stringPreferencesKey("backup_retention")
 
-        // User's custom bottom-tab order (press-and-hold to drag/reorder), comma-joined route
-        // strings e.g. "portfolio,chats,swap,profile" — a stringSetPreferencesKey can't
-        // be used here since Set has no defined iteration order, and order is the entire point.
-        val KEY_TAB_ORDER = stringPreferencesKey("tab_order")
-        // Kept in sync with KaChatApp.kt's bottomNavItems default order. "settings" is deliberately
-        // absent - it isn't a tab (matches iOS), it's reached one tap in from Profile's gear icon.
-        val DEFAULT_TAB_ORDER = listOf("kaspa_hub", "portfolio", "chats", "profile", "cold_storage", "address_book", "kachat_names", "kachat_bots", "swap", "kaspa_websites")
-        // Placement, not visibility: every tab is in the dock or in Kaspa Hub, always exactly one
-        // of them. Replaces the old on/off + "first five of an order" rule, under which a tab
-        // could be pushed past the cap and simply vanish with nothing saying so.
-        val KEY_DOCK_TABS = stringPreferencesKey("dock_tabs")
-        val KEY_HUB_TABS = stringPreferencesKey("hub_tabs")
-        // What a fresh install starts with (owner's order, iOS 7b39caf defaultDock). Everything
-        // else starts in Kaspa Hub. A saved arrangement is the person's and is never reset to this.
-        val DEFAULT_DOCK_TABS = listOf("kaspa_hub", "portfolio", "chats", "profile")
-        // .kachat and KaChat Stats first on a fresh install (iOS b064468, f38cac2); existing
-        // users get them appended (kaspaHubSections adds any eligible tab the list lacks).
-        // Address Book first on a fresh install (iOS 00767a4 defaultHub); existing users get it
-        // appended like any tab their stored list lacks.
-        // KaChat Bots after KaChat Stats (iOS 82ab31d defaultHub).
-        // Cold Storage first, KaPosts moved to the dock (iOS 7b39caf defaultHub).
-        val DEFAULT_HUB_TABS = listOf("cold_storage", "address_book", "kachat_names", "kachat_bots", "swap")
-        // One-time derivation of a placement from what an existing user could already SEE.
-        val KEY_PLACEMENT_APPLIED = booleanPreferencesKey("dock_placement_applied")
-        // Which bottom-tab routes the user has hidden from the nav bar (Settings > Customization >
-        // Menu) — "chats"/"profile" are never allowed in here, only "portfolio"/"cold_storage"/
-        // "swap". A route absent from this set is visible.
-        val KEY_HIDDEN_TABS = stringSetPreferencesKey("hidden_tabs")
-        // One-time 4.0 seeding marker for KEY_HIDDEN_TABS - see applyKaPostsTabDefaultsIfNeeded.
-        val KEY_TAB_DEFAULTS_40_APPLIED = booleanPreferencesKey("tab_defaults_40_applied")
-        // v3 (final 4.0 rules): existing users get KaPosts/Broadcasts/+More force-ENABLED - a
-        // full dock sends KaPosts/Broadcasts to the Chats-slot cycle, a free slot gets "+More";
-        // brand-new installs get a Chats/Profile/+More dock with everything else off until
-        // enabled through Customize Menu. Also scrubs v1's kaposts-hide.
-        val KEY_TAB_DEFAULTS_40_V3_APPLIED = booleanPreferencesKey("tab_defaults_40_v3_applied")
-        // The 4.0 dock wizard has been dismissed (shown once per install).
         // Settings > Customization > Dark Mode. True (dark) is the default so existing installs'
         // appearance is unchanged — every screen was designed dark-only until this toggle existed.
         val KEY_DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
@@ -227,16 +193,14 @@ class AppSettingsRepository @Inject constructor(
         val KEY_BIOMETRIC_SEED_PHRASE_ENABLED = booleanPreferencesKey("biometric_seed_phrase_enabled")
         val KEY_BIOMETRIC_ACCOUNT_LOGIN_ENABLED = booleanPreferencesKey("biometric_account_login_enabled")
         val KEY_BIOMETRIC_SPENDING_KEY_ENABLED = booleanPreferencesKey("biometric_spending_key_enabled")
-        // One-time ChangeNOW terms/liability disclaimer shown the first time Swap is opened.
-        val KEY_SWAP_DISCLAIMER_AGREED = booleanPreferencesKey("swap_disclaimer_agreed")
         // Settings > Connection Settings > Diagnostics. Default OFF: at the 2s sync-loop cadence,
         // per-request success logging is pure logcat noise, so only failures and slow requests are
         // logged unconditionally (see AppModule.provideOkHttpClient). This opt-in turns the full
         // per-request HttpLoggingInterceptor back on for debugging. Matches the iOS toggle.
         val KEY_VERBOSE_API_LOGGING = booleanPreferencesKey("verbose_api_logging")
-        // Settings > Customization > Currency. Fiat currency for Portfolio's live KAS price/value
-        // display - lowercase ISO 4217 code, doubling as the literal CoinGecko `vs_currency` value
-        // (see CoinGeckoApi). Global, not per-account, matching darkModeEnabled/hiddenTabs.
+        // Settings > Customization > Currency. Fiat currency for the Send screens' KAS price
+        // (KasPriceRepository) - lowercase ISO 4217 code, doubling as the literal CoinGecko
+        // `vs_currency` value (see CoinGeckoApi). Global, not per-account.
         val KEY_CURRENCY = stringPreferencesKey("currency")
         // Settings > Security > Child Mode. Global, not per-account (matches iOS's device-level
         // AppSettings.childModeEnabled). Turning it OFF from any UI flow is only ever done after
@@ -408,7 +372,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setChatCirclePins(walletAddress: String, pins: List<String>) =
         dataStore.edit { it[chatCirclePinsKey(walletAddress)] = pins.joinToString("\n") }
 
-
     // Last-known-good automatic-discovery nodes — see KEY_KNOWN_GOOD_NODES.
     val knownGoodNodeAddresses: Flow<List<String>> = dataStore.data.map { prefs ->
         prefs[knownGoodNodesKey]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
@@ -422,50 +385,12 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_ACTIVE_ADDRESS]
     }
 
-
     val kaspaExplorer: Flow<com.kachat.app.models.KaspaExplorer> = dataStore.data.map {
         com.kachat.app.models.KaspaExplorer.fromName(it[KEY_KASPA_EXPLORER])
     }
 
     val revealedPhotoTxIds: Flow<Set<String>> = dataStore.data.map {
         it[KEY_REVEALED_PHOTO_TX_IDS] ?: emptySet()
-    }
-
-    // The dock is PER ACCOUNT: each account gets its own order/visibility keys once it diverges;
-    // until then it inherits the legacy global keys (which the 4.0 seeding below also targets),
-    // so the account that existed before this feature keeps its arrangement and new accounts
-    // start from a sensible base. KEY_ACTIVE_ADDRESS is mirrored from WalletManager's active
-    // account by WalletViewModel, so these transactional reads always see the right account.
-    private fun tabOrderKeyFor(address: String) = stringPreferencesKey("tab_order_$address")
-    private fun hiddenTabsKeyFor(address: String) = stringSetPreferencesKey("hidden_tabs_$address")
-
-    /** Route strings, in display order — per-account, falling back to the legacy global key, then the app's default tab order. */
-    val tabOrder: Flow<List<String>> = dataStore.data.map { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val raw = address?.let { prefs[tabOrderKeyFor(it)] } ?: prefs[KEY_TAB_ORDER]
-        raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_TAB_ORDER
-    }
-
-    private fun dockTabsKeyFor(address: String) = stringPreferencesKey("dock_tabs_$address")
-    private fun hubTabsKeyFor(address: String) = stringPreferencesKey("hub_tabs_$address")
-
-    /** Routes in the dock, in order — per-account, falling back to the global key, then defaults. */
-    val dockTabs: Flow<List<String>> = dataStore.data.map { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val raw = address?.let { prefs[dockTabsKeyFor(it)] } ?: prefs[KEY_DOCK_TABS]
-        raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_DOCK_TABS
-    }
-
-    /** Routes in Kaspa Hub, in the order its grid shows them. */
-    val hubTabs: Flow<List<String>> = dataStore.data.map { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val raw = address?.let { prefs[hubTabsKeyFor(it)] } ?: prefs[KEY_HUB_TABS]
-        raw?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_HUB_TABS
-    }
-
-    val hiddenTabs: Flow<Set<String>> = dataStore.data.map { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        (address?.let { prefs[hiddenTabsKeyFor(it)] }) ?: prefs[KEY_HIDDEN_TABS] ?: emptySet()
     }
 
     /** See KEY_APPEARANCE: the stored choice, else the old Dark Mode switch's, else System. */
@@ -494,7 +419,6 @@ class AppSettingsRepository @Inject constructor(
     val userTypeChoiceState: Flow<String?> = dataStore.data.map { it[KEY_USER_TYPE_CHOICE_STATE] }
     /** True while an auto-presented onboarding wizard run hasn't reached Finish — see [KEY_ONBOARDING_WIZARD_PENDING]. */
     val onboardingWizardPending: Flow<Boolean> = dataStore.data.map { it[KEY_ONBOARDING_WIZARD_PENDING] ?: false }
-    val swapDisclaimerAgreed: Flow<Boolean> = dataStore.data.map { it[KEY_SWAP_DISCLAIMER_AGREED] ?: false }
     /** Opt-in per-request HTTP logging, default OFF — see [KEY_VERBOSE_API_LOGGING]. */
     val verboseApiLogging: Flow<Boolean> = dataStore.data.map { it[KEY_VERBOSE_API_LOGGING] ?: false }
 
@@ -518,15 +442,6 @@ class AppSettingsRepository @Inject constructor(
     val spendingReceiveNotifications: Flow<Boolean> = dataStore.data.map {
         it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] ?: true
     }
-
-    /** See [KEY_CHART_PAIR]: null means no comparison, absent means bitcoin. */
-    val chartPair: Flow<com.kachat.app.services.ChartPair?> = dataStore.data.map { prefs ->
-        val raw = prefs[KEY_CHART_PAIR] ?: return@map com.kachat.app.services.ChartPair.BITCOIN
-        com.kachat.app.services.ChartPair.fromId(raw)
-    }
-
-    /** See [KEY_PORTFOLIO_VALUES_HIDDEN]. */
-    val portfolioValuesHidden: Flow<Boolean> = dataStore.data.map { it[KEY_PORTFOLIO_VALUES_HIDDEN] ?: false }
 
     val showFeeEstimate: Flow<Boolean> = dataStore.data.map {
         it[KEY_SHOW_FEE_ESTIMATE] ?: true
@@ -684,16 +599,21 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setPushIndexerUrl(value: String) = dataStore.edit { it[KEY_PUSH_INDEXER_URL] = value }
 
     /**
-     * KaPosts, Public Chats and the post translator left the app on 2026-10-24 (iOS e2f6732
-     * `RetiredFeatureCleanup`): every DataStore key they wrote is deleted, once, so nothing of
-     * them lingers on the phone.
+     * KaPosts, Public Chats and the post translator (iOS e2f6732), then the dock layouts,
+     * Portfolio and Swap (iOS d54ea87) left the app on 2026-10-24 (iOS `RetiredFeatureCleanup`):
+     * every DataStore key they wrote is deleted, once, so nothing of them lingers on the phone.
      */
     suspend fun removeRetiredFeatureKeys() = dataStore.edit { prefs ->
-        if (prefs[KEY_RETIRED_FEATURES_CLEANED] == true) return@edit
-        for (key in prefs.asMap().keys.toList()) {
-            if (RETIRED_KEY_PREFIXES.any { key.name.startsWith(it) }) prefs.remove(key)
+        for ((marker, prefixes) in listOf(
+            KEY_RETIRED_FEATURES_CLEANED to RETIRED_KEY_PREFIXES,
+            KEY_RETIRED_FEATURES_V2_CLEANED to RETIRED_KEY_PREFIXES_V2,
+        )) {
+            if (prefs[marker] == true) continue
+            for (key in prefs.asMap().keys.toList()) {
+                if (prefixes.any { key.name.startsWith(it) }) prefs.remove(key)
+            }
+            prefs[marker] = true
         }
-        prefs[KEY_RETIRED_FEATURES_CLEANED] = true
     }
     suspend fun setTrustedNodeAddress(value: String) = dataStore.edit { it[KEY_TRUSTED_NODE_ADDRESS] = value }
     suspend fun setKnownGoodNodeAddresses(addresses: List<String>) = dataStore.edit {
@@ -771,99 +691,6 @@ class AppSettingsRepository @Inject constructor(
         it[KEY_REVEALED_PHOTO_TX_IDS] = (it[KEY_REVEALED_PHOTO_TX_IDS] ?: emptySet()) + txId
     }
     suspend fun setVerboseApiLogging(value: Boolean) = dataStore.edit { it[KEY_VERBOSE_API_LOGGING] = value }
-    suspend fun setTabOrder(routes: List<String>) = dataStore.edit { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val encoded = routes.joinToString(",")
-        if (address != null) prefs[tabOrderKeyFor(address)] = encoded else prefs[KEY_TAB_ORDER] = encoded
-    }
-    /**
-     * Written together, always: a tab must never be missing from both lists or present in both.
-     */
-    suspend fun setPlacement(dock: List<String>, hub: List<String>) = dataStore.edit { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val encodedDock = dock.joinToString(",")
-        val encodedHub = hub.joinToString(",")
-        if (address != null) {
-            prefs[dockTabsKeyFor(address)] = encodedDock
-            prefs[hubTabsKeyFor(address)] = encodedHub
-        } else {
-            prefs[KEY_DOCK_TABS] = encodedDock
-            prefs[KEY_HUB_TABS] = encodedHub
-        }
-    }
-
-    /**
-     * One-time placement migration: derives a dock from what the user could already SEE rather
-     * than resetting them to the default, so an arrangement they built survives - with the pinned
-     * tabs guaranteed their slots.
-     */
-    suspend fun applyPlacementDefaultsIfNeeded(
-        resolveVisible: (List<String>, Set<String>) -> List<String>,
-        pinned: List<String>,
-        assignable: List<String>,
-        maxDock: Int,
-    ) = dataStore.edit { prefs ->
-        if (prefs[KEY_PLACEMENT_APPLIED] == true) return@edit
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val order = (address?.let { prefs[tabOrderKeyFor(it)] } ?: prefs[KEY_TAB_ORDER])
-            ?.split(",")?.filter { it.isNotBlank() } ?: DEFAULT_TAB_ORDER
-        val hidden = (address?.let { prefs[hiddenTabsKeyFor(it)] } ?: prefs[KEY_HIDDEN_TABS]) ?: emptySet()
-
-        val dock = resolveVisible(order, hidden).toMutableList()
-        for (route in pinned) {
-            if (route !in dock) {
-                val position = DEFAULT_DOCK_TABS.indexOf(route).takeIf { it >= 0 } ?: dock.size
-                dock.add(minOf(position, dock.size), route)
-            }
-        }
-        val placedDock = dock.take(maxDock)
-        val placedHub = DEFAULT_TAB_ORDER.filter { it in assignable && it !in placedDock }
-
-        if (address != null) {
-            prefs[dockTabsKeyFor(address)] = placedDock.joinToString(",")
-            prefs[hubTabsKeyFor(address)] = placedHub.joinToString(",")
-        } else {
-            prefs[KEY_DOCK_TABS] = placedDock.joinToString(",")
-            prefs[KEY_HUB_TABS] = placedHub.joinToString(",")
-        }
-        prefs[KEY_PLACEMENT_APPLIED] = true
-    }
-
-    suspend fun setTabHidden(route: String, hidden: Boolean) = dataStore.edit { prefs ->
-        val address = prefs[KEY_ACTIVE_ADDRESS]
-        val readKey = if (address != null) hiddenTabsKeyFor(address) else KEY_HIDDEN_TABS
-        // First divergence for an account starts from what it currently inherits (legacy global).
-        val current = prefs[readKey] ?: prefs[KEY_HIDDEN_TABS] ?: emptySet()
-        prefs[readKey] = if (hidden) current + route else current - route
-    }
-
-    /**
-     * One-time 4.0 dock seeding, run at app start (WalletViewModel init).
-     * - EXISTING users (has_wallet set): force-enable the tabs new in 4.0 ("kaposts"/
-     *   "broadcasts") but otherwise leave their explicit hide/show choices untouched.
-     * - FRESH installs (no wallet yet): EVERYTHING enabled - all tabs default to ON (the old
-     *   minimal Chats/Profile/"+ More" seed is gone; hidden_tabs polarity means "leave the set
-     *   empty" = all on). The 5-item dock cap then shows Portfolio/Storage/Chats/Swap/Profile,
-     *   with KaPosts/Broadcasts riding the Chats-slot cycle (matches iOS).
-     * The sentinel guarantees this never re-runs, so later user choices are never overwritten.
-     */
-    suspend fun applyKaPostsTabDefaultsIfNeeded() = dataStore.edit { prefs ->
-        if (prefs[KEY_TAB_DEFAULTS_40_V3_APPLIED] == true) return@edit
-        val hasWallet = prefs[KEY_HAS_WALLET] ?: false
-        val current = prefs[KEY_HIDDEN_TABS] ?: emptySet()
-        prefs[KEY_HIDDEN_TABS] = if (hasWallet) {
-            // EXISTING users: the 4.0-new tabs get ENABLED; anything the user explicitly hid
-            // before (portfolio/cold_storage/swap) stays hidden. "more" is scrubbed too - the
-            // "+ More" pseudo-tab no longer exists.
-            current - "kaposts" - "broadcasts" - "more"
-        } else {
-            // BRAND-NEW installs: all tabs ON. Scrub every known route so no stale v1/v2
-            // seeding survives - an empty set means everything visible.
-            current - "portfolio" - "cold_storage" - "swap" - "kaposts" - "broadcasts" - "more"
-        }
-        prefs[KEY_TAB_DEFAULTS_40_V3_APPLIED] = true
-        prefs[KEY_TAB_DEFAULTS_40_APPLIED] = true
-    }
     suspend fun setAppearance(value: com.kachat.app.models.AppAppearance) = dataStore.edit { it[KEY_APPEARANCE] = value.name }
     suspend fun setCurrency(value: String) = dataStore.edit { it[KEY_CURRENCY] = value }
     suspend fun setBiometricSeedPhraseEnabled(value: Boolean) = dataStore.edit { it[KEY_BIOMETRIC_SEED_PHRASE_ENABLED] = value }
@@ -881,7 +708,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun markOnboardingWizardPending() = dataStore.edit { it[KEY_ONBOARDING_WIZARD_PENDING] = true }
     /** Only the wizard's Finish button clears this. */
     suspend fun clearOnboardingWizardPending() = dataStore.edit { it[KEY_ONBOARDING_WIZARD_PENDING] = false }
-    suspend fun setSwapDisclaimerAgreed(value: Boolean) = dataStore.edit { it[KEY_SWAP_DISCLAIMER_AGREED] = value }
     suspend fun setNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = value }
     suspend fun setShowFeeEstimate(value: Boolean) = dataStore.edit { it[KEY_SHOW_FEE_ESTIMATE] = value }
     suspend fun setRequirePhotoApprovalForNewContacts(value: Boolean) = dataStore.edit { it[KEY_REQUIRE_PHOTO_APPROVAL] = value }
@@ -891,11 +717,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setNotificationVibrationEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_VIBRATION] = value }
     suspend fun setAddressActivityNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_ADDRESS_ACTIVITY_NOTIFICATIONS] = value }
     suspend fun setSpendingReceiveNotifications(value: Boolean) = dataStore.edit { it[KEY_SPENDING_RECEIVE_NOTIFICATIONS] = value }
-    suspend fun setChartPair(value: com.kachat.app.services.ChartPair?) = dataStore.edit {
-        it[KEY_CHART_PAIR] = value?.id ?: ""
-    }
-
-    suspend fun setPortfolioValuesHidden(value: Boolean) = dataStore.edit { it[KEY_PORTFOLIO_VALUES_HIDDEN] = value }
 
     suspend fun setBackupRetention(value: com.kachat.app.models.BackupRetention) = dataStore.edit { it[KEY_BACKUP_RETENTION] = value.name }
     suspend fun setPendingKnsCommit(commit: PendingKnsCommit) = dataStore.edit { it[KEY_PENDING_KNS_COMMIT] = Gson().toJson(commit) }

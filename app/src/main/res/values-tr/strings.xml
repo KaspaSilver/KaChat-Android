@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kas">.kas</string>
-    <string name="n_0_00">0.00</string>
     <string name="n_12_words">12 kelime</string>
     <string name="a_kns_inscription_s_commit_transaction">Bir KNS yazitinin taahhut islemi gerceklesti, ancak acilma hicbir zaman tamamlanmadi. Tamamlamak icin simdi tekrar deneyin; bunu yapana kadar fonlar guvenle baglidir.</string>
     <string name="accept">Kabul Et</string>
@@ -9,8 +8,6 @@
     <string name="active_nodes">Aktif Düğümler</string>
     <string name="add">Ekle</string>
     <string name="add_contact">Kişi Ekle</string>
-    <string name="add_transaction">Islem Ekle</string>
-    <string name="add_to_portfolio">Portfoye Ekle</string>
     <string name="added">Eklendi</string>
     <string name="address">Adres</string>
     <string name="address_actions">Adres Islemleri</string>
@@ -21,15 +18,10 @@
     <string name="amount_kas">Tutar (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">Kurtarma ifadenize sahip olan herkes hesabiniza erisebilir. Asla kimseyle paylasmayin. Yalnizca yazili olarak not aldiginizdan emin olun. Asla ekran goruntusu almayin veya cihazinizda saklamayin.</string>
     <string name="back">Geri</string>
-    <string name="before_you_swap">Takas Yapmadan Once</string>
-    <string name="broadcasting">Yayinlaniyor...</string>
-    <string name="build_unsigned_transaction">Imzasiz Islem Olustur</string>
     <string name="cancel">İptal</string>
     <string name="cancel_photo">Fotografi iptal et</string>
     <string name="cancel_recording">Kaydi iptal et</string>
     <string name="cancel_reply">Yaniti iptal et</string>
-    <string name="change">Degistir</string>
-    <string name="changenow_exchange_id">ChangeNOW Takas Kimligi</string>
     <string name="chats">Sohbetler</string>
     <string name="chatting_address">Sohbet Adresi</string>
     <string name="chatting_address_2">Sohbet adresi</string>
@@ -52,13 +44,11 @@
     <string name="copy">Kopyala</string>
     <string name="copy_address">Adresi Kopyala</string>
     <string name="copy_private_key_hex">Özel Anahtar Hex Kopyala</string>
-    <string name="copy_kpub">kpub Kopyala</string>
     <string name="couldn_t_rename_group">Grup Yeniden Adlandirilamadi</string>
     <string name="create">Olustur</string>
     <string name="create_account">Hesap Oluştur</string>
     <string name="create_kns_profile">KNS Profili Olustur</string>
     <string name="create_new_account">Yeni Hesap Oluştur</string>
-    <string name="current_value">Guncel Deger</string>
     <string name="current_balance">Guncel bakiye</string>
     <string name="decline">Reddet</string>
     <string name="default_option">Varsayilan</string>
@@ -66,20 +56,15 @@
     <string name="delete">Sil</string>
     <string name="delete_account">Hesabı Sil</string>
     <string name="delete_group">Grubu Sil</string>
-    <string name="delete_swap_history_message">Bu yalnızca yerel geçmişinizden kaldırır - gerçek takası etkilemez.</string>
-    <string name="delete_this_swap">Bu takas silinsin mi?</string>
-    <string name="delete_transaction">Islemi Sil</string>
     <string name="domain_name">Alan adi</string>
     <string name="done">Tamam</string>
     <string name="each_transaction_temporarily_uses_2_kas">Her islem gecici olarak ~2 KAS kullanir; ~1 KAS hemen para ustu olarak geri doner, bu yuzden gercek maliyet yalnizca kucuk ag ucretidir.</string>
     <string name="edit_kns_profile">KNS Profilini Düzenle</string>
     <string name="edit_account">Hesabi duzenle</string>
-    <string name="enter_kpub">kpub Gir</string>
     <string name="error">Hata</string>
     <string name="every_member_will_see_the_new">Her uye yeni ismi gorecek.</string>
     <string name="failed_to_send">Gonderilemedi</string>
     <string name="fee_kas">Ucret (KAS)</string>
-    <string name="fee_usd_optional">Ucret (USD, istege bagli)</string>
     <string name="first_let_s_create_your_identity">Once bir alan adiyla kimliginizi olusturalim</string>
     <string name="from">Gonderen</string>
     <string name="fund_your_chatting_address">Sohbet Adresinizi Fonlayin</string>
@@ -88,24 +73,18 @@
     <string name="group_name_2">Grup adi</string>
     <string name="hidden_addresses">Gizli Adresler</string>
     <string name="hidden_users">Gizli Kullanicilar</string>
-    <string name="holdings">Varliklar</string>
-    <string name="i_agree">Kabul Ediyorum</string>
     <string name="if_the_network_is_busy_a">Ag yogunsa, daha yuksek bir ucret isleminizin daha hizli onaylanmasina yardimci olabilir.</string>
-    <string name="import_action">İçe Aktar</string>
     <string name="import_account">Hesabı İçe Aktar</string>
-    <string name="import_cold_storage_account">Soguk Depolama Hesabi Ice Aktar</string>
     <string name="import_existing_account">Mevcut Hesabı İçe Aktar</string>
     <string name="important">Önemli</string>
     <string name="incoming_notifications">Gelen Bildirimler</string>
     <string name="inscribe">Kazımak</string>
     <string name="inscribe_domain">Etki Alanını Kaydet</string>
     <string name="it_s_ok_i_already_have">Sorun degil, zaten bir alan adim var</string>
-    <string name="kas_2">KAS</string>
     <string name="kns_domains">KNS Alan Adları</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat Logosu</string>
     <string name="kachat_needs_to_connect_to_a">KaChat\'in bir duguma baglanmasi gerekiyor. Nasil baglanmak istersiniz?</string>
-    <string name="kaspa">Kaspa</string>
     <string name="kaspa_explorer">Kaspa Kesif Motoru</string>
     <string name="label_optional">Etiket (istege bagli)</string>
     <string name="last_message">Son Mesaj</string>
@@ -113,11 +92,9 @@
     <string name="log_out">Çıkış Yap</string>
     <string name="manage_addresses">Adresleri Yonet</string>
     <string name="max">Maks</string>
-    <string name="menu">Menu</string>
     <string name="message">Mesaj</string>
     <string name="more_info">Daha Fazla Bilgi</string>
     <string name="name">Ad</string>
-    <string name="name_this_address">Bu Adresi Adlandir</string>
     <string name="next">Ileri</string>
     <string name="no_conversations_yet">Henüz konuşma yok</string>
     <string name="no_domains_yet">Henüz alan adı yok.</string>
@@ -125,43 +102,28 @@
     <string name="no_hidden_users_in_this_group">Bu grupta gizli kullanici yok.</string>
     <string name="no_messages_yet">Henüz mesaj yok</string>
     <string name="no_saved_addresses">Kayitli adres yok</string>
-    <string name="no_swaps_yet">Henuz takas yok.</string>
     <string name="no_transactions_yet">Henuz islem yok.</string>
     <string name="not_now">Simdi Degil</string>
-    <string name="notes_optional">Notlar (istege bagli)</string>
     <string name="notifications">Bildirimler</string>
     <string name="ok">Tamam</string>
     <string name="only_notify_if_i_m_mentioned">Yalnizca bahsedildigimde bildir</string>
     <string name="open_settings">Ayarları Aç</string>
     <string name="other_nodes">Diğer Düğümler</string>
-    <string name="paste_from_clipboard">Panodan Yapıştır</string>
-    <string name="paste_kpub">kpub Yapistir</string>
-    <string name="paste_the_kpub_exported_from_your">KasSigner cihazinizdan disa aktarilan kpub\'i yapistirin. Bu, ozel anahtar materyali icermez.</string>
     <string name="payment">Ödeme</string>
     <string name="photo">Fotoğraf</string>
     <string name="photo_message">Fotograf mesaji</string>
     <string name="photo_message_full_screen">Fotograf mesaji, tam ekran</string>
     <string name="photos">Fotograflar</string>
-    <string name="polygon_network">Polygon agi</string>
     <string name="pool_health">Havuz Sağlığı</string>
     <string name="portfolio">Portfoy</string>
-    <string name="powered_by_changenow">ChangeNOW tarafindan desteklenmektedir</string>
-    <string name="price_per_coin">Coin Basina Fiyat</string>
     <string name="promote_pawn_to">Piyonu su terfi ettir:</string>
     <string name="qr_code">QR Kodu</string>
-    <string name="qr_code_2">QR kodu</string>
-    <string name="quantity">Miktar</string>
-    <string name="rate">Kur</string>
     <string name="read">Okundu</string>
-    <string name="receiving_kas_at">KAS Alma Adresi</string>
     <string name="recipient_address">Alici adresi</string>
-    <string name="refresh_status">Durumu Yenile</string>
     <string name="remove">Kaldir</string>
-    <string name="remove_cold_storage_account">Soguk Depolama Hesabini Kaldir</string>
     <string name="rename">Yeniden Adlandir</string>
     <string name="rename_account">Hesabi Yeniden Adlandir</string>
     <string name="rename_address">Adresi Yeniden Adlandir</string>
-    <string name="rename_cold_storage_account">Soguk Depolama Hesabini Yeniden Adlandir</string>
     <string name="rename_group">Grubu Yeniden Adlandir</string>
     <string name="reserved_domain_no_registration_fee_only">Ayrilmis alan adi: kayit ucreti yok, yalnizca ag ucretleri gecerlidir.</string>
     <string name="resign">Pes Et</string>
@@ -170,24 +132,17 @@
     <string name="retry_inscription_reveal">Yazit Acilmasini Tekrar Dene</string>
     <string name="save">Kaydet</string>
     <string name="saved_accounts">Kaydedilen Hesaplar</string>
-    <string name="scan">Tara</string>
     <string name="scan_qr_code">QR Kod Tara</string>
-    <string name="scan_signed_transaction">Imzali Islemi Tara</string>
-    <string name="scan_kpub_from_kassigner">KasSigner\'dan kpub tara</string>
-    <string name="scan_this_with_your_kassigner_device">Bunu KasSigner cihazinizla tarayin, orada inceleyin, sonra imzalayin.</string>
     <string name="scroll_to_latest">En sona kaydir</string>
     <string name="search_chats">Sohbet ara</string>
     <string name="secure_messaging_on_kaspa_blockdag">Kaspa BlockDAG üzerinde güvenli mesajlaşma</string>
     <string name="security_warning">Güvenlik Uyarısı</string>
     <string name="seed_phrase">Seed Phrase</string>
-    <string name="select_time">Saat Sec</string>
     <string name="select_chat">Sohbet sec</string>
     <string name="send">Gonder</string>
-    <string name="send_from_cold_storage">Soguk Depolamadan Gonder</string>
     <string name="send_photo">Fotograf gonder</string>
     <string name="sending">Gonderiliyor</string>
     <string name="sent">Gönderilmiş</string>
-    <string name="settings">Ayarlar</string>
     <string name="show_more">Daha Fazla Goster</string>
     <string name="show_photo">Fotografi Goster</string>
     <string name="show_qr_code">QR Kodu Goster</string>
@@ -195,20 +150,14 @@
     <string name="some_changes_failed_to_save">Bazi degisiklikler kaydedilemedi:</string>
     <string name="start_a_new_chat_by_adding">Bir kişi ekleyerek yeni bir sohbet başlat</string>
     <string name="status">Durum</string>
-    <string name="swap">Takas</string>
-    <string name="swaps_are_processed_by_changenow_a">Takaslar ucuncu taraf bir borsa olan ChangeNOW tarafindan islenir. Devam ederek, ChangeNOW\'un kendi Hizmet Sartlarini okudugunuzu ve kabul ettiginizi onaylarsiniz. KaChat yalnizca takas talebinizi gonderir ve durumunu gosterir; KaChat basarisiz, gecikmis veya kaybolmus takaslardan sorumlu degildir. Bir takas gerceklesmezse dogrudan ChangeNOW destegiyle iletisime gecin.</string>
     <string name="tap_an_address_below_to_swap">Bir adresten takas yapmak icin asagida bir adrese dokunun</string>
     <string name="tap_an_address_below_to_use">Kullanmak icin asagida bir adrese dokunun</string>
     <string name="tap_to_reveal_seed_phrase">Seed phrase\'i görmek için dokun</string>
     <string name="this_could_take_a_few_minutes">Zincir uzerinde onaylanirken birkac dakika surebilir.</string>
-    <string name="this_only_removes_it_from_kachat">Bu, yalnizca KaChat\'in izleme listesinden kaldirir. KasSigner cihazi veya tuttugu fonlar uzerinde hicbir etkisi yoktur.</string>
     <string name="this_permanently_deletes_every_message_with">Bu, bu cihazda onlarla olan her mesaji kalici olarak siler. Bu geri alinamaz; onlara tekrar mesaj yazmak tamamen yeni bir konusma baslatir.</string>
     <string name="this_removes_the_group_and_its">Bu, grubu ve mesajlarini bu cihazdan kaldirir. Bu geri alinamaz ve diger uyelere bildirim gitmez.</string>
     <string name="to">Alici</string>
     <string name="total_balance">Toplam Bakiye</string>
-    <string name="total_invested">Toplam Yatirim</string>
-    <string name="total_p_l">Toplam K/Z</string>
-    <string name="transactions">Islemler</string>
     <string name="try_again">Tekrar Dene</string>
     <string name="unhide">Gizlemeyi Kaldir</string>
     <string name="unread">Okunmadi</string>
@@ -216,8 +165,6 @@
     <string name="valid_address">Gecerli adres</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
     <string name="host_port_or_grpcs_host">host:port veya grpcs://host</string>
-    <string name="kpub">kpub</string>
-    <string name="kpub_2">kpub...</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
     <string name="str_3">👋</string>
@@ -251,14 +198,11 @@
     <string name="donate">Bagis Yap</string>
     <string name="email">E-posta</string>
     <string name="explorer">Kesif Motoru</string>
-    <string name="export_csv">CSV Disa Aktar</string>
     <string name="exports_app_device_info_connection_settings">Uygulama/cihaz bilgilerini, baglanti ayarlarini, yerel mesaj sayilarini ve son uygulama gunluklerini destek icin sorun giderme amaciyla zip olarak disa aktarir. Ozel anahtarlar, kurtarma ifadeleri veya cozulmus mesaj icerikleri dahil edilmez.</string>
-    <string name="generate_more_addresses">Daha Fazla Adres Olustur</string>
     <string name="generate_new_spending_address">Yeni Harcama Adresi Olustur</string>
     <string name="github">GitHub</string>
     <string name="hide_user">Kullaniciyi Gizle</string>
     <string name="ip_address_book">IP Adres Defteri</string>
-    <string name="import_csv">CSV Ice Aktar</string>
     <string name="indexer">Indeksleyici</string>
     <string name="info">Bilgi</string>
     <string name="kns_profile">KNS Profili</string>
@@ -349,8 +293,6 @@
     <string name="get_domain_at">%2$s üzerinden bir %1$s alan adı al</string>
     <string name="could_not_reach_service">%1$s ile bağlantı kurulamadı. Tekrar denemek için aşağı çek.</string>
     <string name="no_names_yet">Henüz %1$s adı yok.</string>
-    <string name="kachat_names_are_coming">.kachat adları geliyor</string>
-    <string name="kachat_names_coming_body">KaChat\'in kendi adları burada olacak: bir tane al, sohbetlerde adın olarak kullan ve profil bağlantın olarak paylaş.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">%1$s alan adı bulunamadı</string>
     <string name="looking_up_domain">Alan adı aranıyor...</string>
@@ -369,69 +311,16 @@
     <string name="coming_soon">Yakında</string>
     <string name="not_available_on_this_network">Bu ağda kullanılamıyor</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_find_a_name">Ad bul</string>
-    <string name="km_registration_not_open">Kayıt henüz açık değil.</string>
-    <string name="km_claim">Al</string>
-    <string name="km_marketplace">Pazar yeri</string>
     <string name="km_activity">Etkinlik</string>
-    <string name="km_list_a_name">Bir adı satışa çıkar</string>
-    <string name="km_listings_appear">İlanlar .kachat adları başladığında burada görünür.</string>
     <string name="km_no_names">Henüz .kachat adın yok</string>
-    <string name="km_recent_activity">Son etkinlik</string>
-    <string name="km_activity_appears">Etkinlik .kachat adları başladığında burada görünür.</string>
-    <string name="km_how_it_works">Nasıl çalışır</string>
-    <string name="km_list">Satışa çıkar</string>
-    <string name="km_buy">Al</string>
-    <string name="km_trustless">Güvene gerek yok</string>
-    <string name="km_claim_detail">Boş bir ad seç ve Kaspa\'da kaydet. Senin olur: sohbetlerdeki adın, profilin, bağlantın.</string>
-    <string name="km_list_detail">Bir fiyat belirle. Ad, biri satın alana ya da sen geri alana kadar KaChat\'te veya başkasında değil, zincir üstü bir covenant\'ta bekler.</string>
-    <string name="km_buy_detail">İlan fiyatını öde. Ödeme satıcıya, ad sana aynı işlemde ulaşır - ya ikisi de olur ya hiçbiri.</string>
-    <string name="km_trustless_detail">Aracı yok, emanet hesabı yok: her satışı Kaspa\'nın kendi kuralları güvenceye alır.</string>
-    <string name="km_nothing_live">Burada henüz hiçbir şey canlı değil.</string>
-    <string name="km_how_kachat_works">.kachat nasıl çalışır</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
-    <string name="kg_claim_title">.kachat adını al</string>
-    <string name="kg_claim_body">İnsanların seni KaChat\'in her yerinde gördüğü ad: sohbetlerde, gönderilerde ve profil bağlantında. Yoksa adresin görünür.</string>
     <string name="kg_welcome_body">Tam başlangıç turu: cüzdan, sohbetler, ödemeler ve daha fazlası.</string>
     <string name="kg_previous">Geri</string>
-    <string name="kg_setup_guide">Kurulum Rehberi</string>
-    <string name="kg_close">Kapat</string>
-    <string name="kg_next">Ileri</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
-    <string name="kl_offers">Teklifler</string>
-    <string name="kl_offer">Teklif</string>
-    <string name="kl_offer_detail">Kendi fiyatını belirle. KAS\'ın satıcı kabul edene, teklifi geri çekene ya da süresi dolana kadar zincirde bekler - önce satıcıya mesaj da atabilirsin.</string>
-    <string name="kl_listing">İlan</string>
-    <string name="kl_price">Fiyat</string>
-    <string name="kl_buy_now">Hemen Al</string>
-    <string name="kl_make_offer">Teklif Ver</string>
-    <string name="kl_seller">Satıcı</string>
-    <string name="kl_seller_detail">Teklif vermeden önce adı sor ya da fiyatta anlaş.</string>
-    <string name="kl_offers_on_name">Bu ada açık teklifler, en yükseği önce. Satıcı herhangi birini kabul edebilir.</string>
-    <string name="kl_history">Geçmiş</string>
-    <string name="kl_note_buy">Satın alma, satıcıya ödemeyi ve adın sana geçişini tek işlemde yapar.</string>
-    <string name="kl_note_offer">Teklif, satıcı kabul edene, sen geri çekene ya da süresi dolana kadar KAS\'ını zincirde kilitler.</string>
-    <string name="kl_note_message">Mesajlar satıcıya her KaChat sohbeti gibi gider.</string>
     <string name="kl_network_fee">Ağ ücreti</string>
-    <string name="kl_confirm_purchase">Satın Almayı Onayla</string>
-    <string name="kl_buying_opens">Satın alma .kachat adları başlayınca açılacak.</string>
-    <string name="kl_buy_name">Adı Satın Al</string>
-    <string name="kl_1d">1 Gün</string>
-    <string name="kl_3d">3 Gün</string>
-    <string name="kl_7d">7 Gün</string>
-    <string name="kl_listed_at">İlan fiyatı</string>
-    <string name="kl_your_offer">Teklifin</string>
-    <string name="kl_expires_after">Süre sonu</string>
-    <string name="kl_send_offer">Teklifi Gönder</string>
-    <string name="kl_offers_open">Teklifler .kachat adları başlayınca açılacak.</string>
-    <string name="kl_name">Ad</string>
-    <string name="kl_total">Toplam</string>
-    <string name="kl_message">Mesaj</string>
     <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
     <string name="pnc_import">Nextcloud\'dan İçe Aktar</string>
-    <string name="pnc_import_sub">Nextcloud\'undan bir CSV dosyası seç.</string>
     <string name="pnc_export">Nextcloud\'a Dışa Aktar</string>
-    <string name="pnc_export_sub">CSV\'yi Nextcloud\'undaki KaChat klasörüne kaydeder.</string>
     <string name="pnc_saved_to">Nextcloud\'da %1$s konumuna kaydedildi.</string>
     <string name="pnc_export_failed">Nextcloud\'a dışa aktarma başarısız: %1$s</string>
     <string name="pnc_import_failed">Nextcloud\'dan içe aktarma başarısız: %1$s</string>
@@ -442,31 +331,9 @@
     <string name="chat_day_yesterday">Dün</string>
     <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
     <string name="address_tab_history">Geçmiş</string>
-    <string name="kachat_no_names_on_address">Bu adreste .kachat adı yok</string>
-    <string name="kachat_names_on_address_hint">Bu adresin aldığı ya da satın aldığı adlar .kachat adları başladığında burada görünür.</string>
     <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
-    <string name="portfolio_type_transfer">Aktarım</string>
-    <string name="portfolio_value_at_the_time">O Andaki Değeri</string>
-    <string name="portfolio_transfer_footer">Kendi adreslerin arasında taşınan KAS - gönderilip geri alınan ya da cüzdandan cüzdana. Varlıklarını, maliyetini veya kârını değiştirmez.</string>
     <!-- Move a portfolio transaction (iOS b438f2d) -->
-    <string name="portfolio_move_title">Portföye Taşı</string>
-    <string name="portfolio_move_need_another">Önce başka bir portföy oluştur, sonra işlemleri oraya taşıyabilirsin.</string>
-    <string name="portfolio_move_already_has">Bu işlem zaten var.</string>
-    <string name="portfolio_move_here">Bu işlemi buraya taşı.</string>
-    <string name="portfolio_moved_to">%1$s portföyüne taşındı.</string>
     <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
-    <string name="portfolio_add_chatting_address">Sohbet Adresini Ekle</string>
-    <string name="portfolio_add_chatting_address_sub">Sohbet adresinin alımları, satımları ve ödediği tüm ağ ücretleri.</string>
-    <string name="portfolio_fees_counted">. Sayılan ağ ücretleri: %1$d</string>
-    <string name="portfolio_no_sells_this_year">Bu yıl henüz satış yok.</string>
-    <string name="portfolio_sells_fifo">Satışlar: %1$d. Önce en eski alımlar (FIFO).</string>
-    <string name="portfolio_sold_uncovered">%1$s kayıtlı alımı olmadan satıldı, sıfır maliyetle sayıldı.</string>
-    <string name="portfolio_prices_loading">Bazı fiyatlar hâlâ yükleniyor.</string>
-    <string name="portfolio_realized_pl_year">Gerçekleşen K/Z %1$s</string>
-    <string name="portfolio_fees_spent">Ödenen Ücretler</string>
-    <string name="portfolio_fees_empty_hint">Ödediği ağ ücretlerini saymak için sohbet adresini + ile ekle.</string>
-    <string name="portfolio_fees_count_loading">İşlemler: %1$d. Bazı fiyatlar hâlâ yükleniyor.</string>
-    <string name="portfolio_fees_count_priced">İşlemler: %1$d, her günün fiyatıyla.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_other_names_count">.k ve .kaspa Adları (%1$d)</string>
@@ -511,76 +378,8 @@
     <string name="kn_invalid_chars">Yalnızca a-z, 0-9 ve tire kullanın.</string>
     <string name="kn_invalid_hyphen">Ad tire ile başlayamaz veya bitemez.</string>
     <string name="kn_status_expired">Süresi doldu</string>
-    <string name="kn_yours">Sizin</string>
-    <string name="kn_available_per_year">Müsait · yılda %1$s</string>
-    <string name="kn_not_valid_name">Geçerli bir ad değil.</string>
-    <string name="kn_taken_for_sale">Alınmış · %1$s fiyatla satışta</string>
-    <string name="kn_taken">Alınmış</string>
-    <string name="kn_search_grace">Süresi doldu - sahibi hâlâ yenileyebilir</string>
-    <string name="kn_seconds_to_go">Yaklaşık %1$d sn kaldı</string>
-    <string name="kn_cancel_commit_title">Taahhüt iptal edilsin mi?</string>
-    <string name="kn_cancel_commit">Taahhüdü İptal Et</string>
-    <string name="kn_keep">Tut</string>
-    <string name="kn_cancel_commit_body">Kayıt durur ve taahhüdün 0.2 KAS\'ı ağ ücreti düşülerek size geri döner.</string>
-    <string name="kn_stage_committing">Gizli taahhüt gönderiliyor...</string>
-    <string name="kn_stage_waiting_confirm">Taahhüdün onaylanması bekleniyor...</string>
-    <string name="kn_stage_waiting">Adın kaydedilebilmesi için taahhüdün yaklaşık bir dakika beklemesi gerekir. KaChat\'i açık tutun - kendiliğinden kaydeder ve çıkarsanız kaldığı yerden devam eder.</string>
-    <string name="kn_stage_registering">Kaydediliyor...</string>
-    <string name="kn_stage_registered">Kaydedildi. Artık sizin.</string>
-    <string name="kn_stage_taken">Bu adı önce başkası kaydetti. 0.2 KAS\'ı geri almak için taahhüdü iptal edin.</string>
-    <string name="kn_stage_failed">Kayıt durdu.</string>
-    <string name="kn_stage_cancelling">Taahhüt iptal ediliyor...</string>
-    <string name="kn_stage_cancelled">İptal edildi.</string>
     <string name="kn_auth_reason">.kachat işlemini onaylayın</string>
-    <string name="kn_for_sale">Satılık</string>
-    <string name="kn_no_listings">Şu anda satışta ad yok.</string>
-    <string name="kn_my_offers">Tekliflerim</string>
-    <string name="kn_no_open_offers">Açık teklif yok.</string>
-    <string name="kn_offers_need_indexer">Başkalarının teklifleri bir ad dizinleyicisi bağlandığında görünür.</string>
-    <string name="kn_nothing_yet">Henüz bir şey yok.</string>
-    <string name="kn_withdraw_offer">Teklifi Geri Çek</string>
-    <string name="kn_withdraw">Geri çek</string>
-    <string name="kn_refund_offer">Teklifi İade Et</string>
-    <string name="kn_refund">İade et</string>
-    <string name="kn_accept_offer">Teklifi Kabul Et</string>
-    <string name="kn_accept_and_transfer">Kabul Et ve Devret</string>
-    <string name="kn_accept_warning">Ad alıcıya, teklif tutarı size tek işlemde geçer. Bu geri alınamaz.</string>
-    <string name="kn_buyer">Alıcı</string>
-    <string name="kn_price_to_miners">Fiyat (madencilere)</string>
-    <string name="kn_bond_returned">Teminat (bırakınca iade)</string>
-    <string name="kn_deposit_returned">Kayıt depozitosu (bırakınca iade)</string>
-    <string name="kn_commit_returned">Taahhüt (kayıtta iade)</string>
-    <string name="kn_network_fees">Ağ ücretleri</string>
-    <string name="kn_not_enough">Sohbet adresinizde bu ad için yeterli KAS yok.</string>
-    <string name="kn_claim_footer">Fiyat madencilere gider - KaChat hiçbir şey almaz. Teminat ve depozito, adı bıraktığınızda geri gelir.</string>
-    <string name="kn_claim_step1">Önce zincire gizli bir taahhüt gider. Hangi ad için olduğunu kimse göremez.</string>
-    <string name="kn_claim_step2">Yaklaşık bir dakika sonra KaChat adı kendisi kaydeder. Uygulamayı açık tutun; çıkarsanız bir dahaki sefere devam eder.</string>
-    <string name="kn_how_claiming_works">Ad alma nasıl işler</string>
-    <string name="kn_claim_name_button">%1$s.kachat adını al</string>
-    <string name="kn_claim_name_title">Ad Al</string>
-    <string name="kn_name_gone">Bu ad bırakıldı veya geri alındı. Yeniden alınabilir.</string>
-    <string name="kn_not_for_sale">Satılık değil</string>
     <string name="kn_expires_on">%1$s tarihinde sona erer</string>
-    <string name="kn_renew">Yenile</string>
-    <string name="kn_change_price">Fiyatı Değiştir</string>
-    <string name="kn_list_for_sale">Satışa Koy</string>
-    <string name="kn_delist">Satıştan Kaldır</string>
-    <string name="kn_release_name">Adı Bırak</string>
-    <string name="kn_owner">Sahip</string>
-    <string name="kn_you">Siz</string>
-    <string name="kn_no_history">Henüz geçmiş yok.</string>
-    <string name="kn_release">Bırak</string>
-    <string name="kn_release_warning">Bırakmak adı kalıcı olarak vermek demektir: herkes kaydedebilir ve ödediğiniz süre boşa gider. Teminat ve kayıt depozitosu size geri döner.</string>
-    <string name="kn_buy_footer">Ödeme satıcıya, ad size aynı işlemde ulaşır - ya ikisi de olur ya hiçbiri.</string>
-    <string name="kn_price_to_seller">Fiyat (satıcıya)</string>
-    <string name="kn_refundable_after">Şu süreden sonra iade edilebilir</string>
-    <string name="kn_price_per_year">Yıllık fiyat</string>
-    <string name="kn_new_expiry">Yeni bitiş tarihi</string>
-    <string name="kn_list_footer">Herkes bu fiyattan satın alabilir: ödeme size, ad alıcıya tek işlemde ulaşır. İstediğiniz zaman satıştan kaldırın.</string>
-    <string name="kn_transfer_warning">Devir geri alınamaz. Yeni sahip adı mevcut bitiş tarihiyle alır; profiliniz adresinizde kalır.</string>
-    <string name="kn_new_owner">Yeni sahip</string>
-    <string name="kn_err_address_key">Bu adresin anahtarı geçerli değil.</string>
-    <string name="kn_err_lookup">Bu ad aranamadı.</string>
     <string name="kn_profile_belongs">Profiliniz bir ada değil adresinize aittir: bir ad alsanız, satsanız veya bıraksanız da aynı kalır.</string>
     <string name="kn_links">Bağlantılar</string>
     <string name="kn_primary_name">Ana ad</string>
@@ -588,7 +387,6 @@
     <string name="kn_primary_footer">KaChat, ana adınız size ait ve etkin olduğu sürece sizi onunla gösterir; yoksa en eski etkin adınızla veya adresinizle.</string>
     <string name="kn_save_profile">Profili Kaydet</string>
     <string name="kn_save_footer">Kaydetmek profilinizi bir ağ ücretiyle adresinizden kendisine bir işlemle zincire yazar. Profiller herkese açıktır.</string>
-    <string name="kn_n_years">%1$d yıl</string>
     <string name="kn_err_key_mismatch">Bu cüzdanın anahtarı adresiyle eşleşmiyor.</string>
     <string name="kn_err_invalid_key">%1$s geçerli bir anahtar değil (secp256k1 eğrisinde değil).</string>
     <string name="kn_err_no_salt">Bu kaydın gizli bilgisi bu cihazda yok.</string>
@@ -602,8 +400,6 @@
     <string name="kn_ev_registered">Kayıtlı</string>
     <string name="kn_ev_listed">Listelendi</string>
     <string name="kn_available">Musait</string>
-    <string name="kn_expires">Süre</string>
-    <string name="kn_one_year">1 yıl</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
     <string name="kn_linktree_footer">İnsanları diğer hesaplarınıza ve web sitelerinize yönlendirmek için Linktree\'nizi ekleyin.</string>
     <string name="kn_social_looking">Profil aranıyor...</string>
@@ -625,20 +421,10 @@
     <string name="kn_balance_after">Sonraki bakiye</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">İşlem gönderildi</string>
-    <string name="kn_view_transaction">İşlemi görüntüle</string>
-    <string name="kn_done_released">Ad bırakıldı</string>
-    <string name="kn_done_bought">Ad satın alındı</string>
-    <string name="kn_done_offer_sent">Teklif gönderildi</string>
-    <string name="kn_done_price_changed">Fiyat değiştirildi</string>
-    <string name="kn_done_listed">Satışa çıkarıldı</string>
-    <string name="kn_done_transferred">Ad aktarıldı</string>
     <string name="kn_done_profile_saved">Profil kaydedildi</string>
     <string name="kn_clear_profile">Profili Temizle</string>
     <string name="kn_done_profile_cleared">Profil temizlendi</string>
     <string name="kn_clear_footer">Temizleme, adresinizden kendisine zincire boş bir profil yazar (yalnızca ağ ücreti) ve KaChat artık adresiniz için hiçbir şey göstermez.</string>
-    <string name="kn_done_primary_set">Ana ad ayarlandı</string>
-    <string name="kn_done_registered">Ad kaydedildi</string>
-    <string name="kn_done_commit_cancelled">Taahhüt iptal edildi</string>
     <!-- .kachat: the profile save review (iOS 7e238e5) -->
     <string name="kn_your_profile">Profiliniz</string>
     <string name="kn_linktree">Linktree</string>
@@ -646,32 +432,12 @@
     <string name="kn_profiles_public_note">Profiller herkese açıktır ve zincir üzerindedir: herkes okuyabilir ve değiştirdikten sonra önceki sürümler okunabilir kalır.</string>
     <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
     <string name="kn_ev_extended">Uzatıldı</string>
-    <string name="kn_extend">Uzat</string>
-    <string name="kn_extend_to_years">%1$d yıla uzat</string>
     <string name="kn_renewal_opens_on">Yenileme %1$s tarihinde açılır</string>
-    <string name="kn_paid_from_to">%1$s - %2$s arası ödendi</string>
-    <string name="kn_new_period">Yeni dönem</string>
-    <string name="kn_extend_footer">Uzatma, en fazla 2 yıl kapsayan mevcut ödenmiş döneme yıl ekler. Fiyat madencilere gider.</string>
     <string name="kn_err_period_unknown">Ad dizinleyicisi bu adın ödenmiş dönemini göndermedi. Yenilemek için aşağı çekip tekrar deneyin.</string>
-    <string name="kn_claim_step3_cap">Ad, ödediğiniz yıllar boyunca sizindir, en fazla 2 yıl ileriye. 1 yıllık bir ad 2 yıla uzatılabilir; bitişinden 10 gün önceden itibaren yenileyebilirsiniz.</string>
     <string name="kn_setting_up">Hazırlanıyor</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">.kachat Adları</string>
     <!-- .kachat name notifications (iOS beeedd4) -->
-    <string name="kn_push_new_offer">%1$s için yeni teklif</string>
-    <string name="kn_push_offered">Bunun için %1$s teklif edildi.</string>
-    <string name="kn_push_offer_no_amount">Biri bunun için teklif verdi.</string>
-    <string name="kn_push_sold">%1$s satıldı</string>
-    <string name="kn_push_paid">Size %1$s ödendi.</string>
-    <string name="kn_push_listing_bought">Satıştaki adınız satın alındı.</string>
-    <string name="kn_push_offer_accepted">Teklif kabul edildi</string>
-    <string name="kn_push_yours_now">%1$s artık sizin.</string>
-    <string name="kn_push_renew">%1$s adını yenileyin</string>
-    <string name="kn_push_renewal_open">Yenileme açık: korumak için şimdi yenileyin.</string>
-    <string name="kn_push_expires_soon">%1$s yakında sona eriyor</string>
-    <string name="kn_push_days_left">Yenilemek için %1$d gün kaldı.</string>
-    <string name="kn_push_one_day_left">Yenilemek için 1 gün kaldı.</string>
-    <string name="kn_push_expired">%1$s sona erdi</string>
     <!-- .kachat name from a notification (iOS beeedd4) -->
     <!-- Chat + sheet: camera, photo, voice on chain or via Nextcloud (iOS 8b13460) -->
     <string name="composer_voice_message">Sesli Mesaj</string>
@@ -718,11 +484,7 @@
     <string name="transaction_id_copied">İşlem kimliği kopyalandı</string>
     <string name="payment_not_on_chain_yet">Bu ödeme henüz zincirde değil.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
-    <string name="kn_opens_marketplace">.kachat pazar yerini açar</string>
     <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
-    <string name="kachat_names_this_address_owns">Bu adresin sahip olduğu adlar burada görünür.</string>
-    <string name="kn_your_spending_address">Harcama adresin #%1$d</string>
-    <string name="kn_your_kassigner_address">KasSigner adresin (%1$s #%2$d)</string>
     <string name="chats_new">Yeni</string>
     <string name="chats_new_chat">Yeni Sohbet</string>
     <string name="chats_new_group_chat">Yeni Grup Sohbeti</string>
@@ -744,7 +506,6 @@
     <string name="send_fee_tier_footer">Ag yogunsa, Hizli veya Oncelikli daha yuksek bir ucret oder ve daha hizli onaylanmasina yardimci olur. Ozel bir ucret belirlemek icin ucret tutarina dokunun.</string>
     <string name="paste">Yapıştır</string>
     <string name="scan_qr">QR Tara</string>
-    <string name="available">Musait</string>
     <string name="network_fee">Ag Ucreti</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">Göndermek için kaydır</string>
@@ -778,51 +539,22 @@
     <string name="faucet_claim_subtitle">Sohbet adresini kopyalar ve TN10 musluğunu açar: yapıştır, doğrulamayı geç ve sunulan en yüksek miktarı al.</string>
     <string name="faucet_address_copied_notice">TN10 sohbet adresin kopyalandı. Musluğun adres alanına yapıştır.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
-    <string name="kn_copies_the_address">Adresi kopyalar</string>
     <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
-    <string name="kn_manage_name">Adı yönet</string>
-    <string name="kn_manage_extend_hint">Şimdi ek yılları öder, 2 yıllık sınıra kadar.</string>
-    <string name="kn_manage_renew_hint">Bitiş tarihinden itibaren yeni bir ödenmiş dönem başlatır.</string>
-    <string name="kn_manage_change_price_hint">Satış fiyatını değiştirir.</string>
-    <string name="kn_manage_delist_hint">Adı piyasadan çeker.</string>
-    <string name="kn_manage_list_hint">Adı senin fiyatından satışa çıkarır.</string>
-    <string name="kn_manage_transfer_hint">Adı başka bir adrese gönderir.</string>
-    <string name="kn_manage_primary_hint">Seni KaChat\'in her yerinde bu adla gösterir.</string>
-    <string name="kn_manage_release_hint">Adı bırakır ve depozitosunu iade eder.</string>
     <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
-    <string name="kn_offer_expires_in">%1$s içinde sona eriyor</string>
-    <string name="kn_offer_expired_returning_to_you">Süresi doldu - sana dönüyor</string>
-    <string name="kn_offer_expired_returning_to_buyer">Süresi doldu - alıcıya dönüyor</string>
-    <string name="kn_offer_expired_refundable">Süresi doldu - şimdi iade edilebilir</string>
     <string name="kn_err_offer_expired">Bu teklifin süresi doldu. Alıcıya geri dönüyor.</string>
-    <string name="kn_my_offers_detail">Yaptığın teklifler. İstediğin zaman geri çek; süresi dolunca kendiliğinden sana döner.</string>
-    <string name="kn_offer_declined_returning_to_you">Reddedildi - adın sahibi değişti, sana dönüyor</string>
-    <string name="kn_offer_declined_earlier_owner">Reddedildi - önceki sahibine yapılmış</string>
     <string name="kn_err_offer_declined">Bu teklif ad el değiştirmeden önce yapıldığı için reddedildi ve alıcıya geri dönüyor.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Bu ad zaten en uzun dönemine kadar ödenmiş. Yenileme %1$s tarihinde açılır.</string>
     <string name="kn_err_offer_own_name">Kendi adınıza teklif veremezsiniz.</string>
     <string name="kn_err_offer_max_days">Bir teklif en fazla 7 gün sürebilir.</string>
-    <string name="kn_price_per_period">%1$s başına fiyat</string>
-    <string name="kn_available_per_period">Müsait · %2$s başına %1$s</string>
-    <string name="kn_extend_to_period">%1$s süresine uzat</string>
-    <string name="kn_manage_extend_hint_time">Şimdi daha fazla süre için öder, %1$s sınırına kadar.</string>
-    <string name="kn_extend_footer_time">Uzatma, mevcut ödenmiş döneme süre ekler; dönem en fazla %1$s olabilir. Ücret madencilere gider.</string>
-    <string name="kn_claim_step3_time">Ad, ödediğiniz süre boyunca sizindir, en fazla %1$s ilerisine kadar. Süresi dolmadan %2$s önce yenileyebilirsiniz.</string>
-    <string name="kn_decline_offer">Teklifi Reddet</string>
     <string name="kn_ev_offer_declined">Teklif reddedildi</string>
-    <string name="kn_decline_footer">Teklif alıcıya geri döner. Ağ ücreti tekliften karşılanır, yani reddetmek size hiçbir şeye mal olmaz.</string>
-    <string name="kn_offer_locked_decline">KAS\'ınız sahibi kabul edene veya reddedene, teklifi geri çekene veya süresi dolana kadar zincirde kilitli kalır - sonra herkes size geri gönderebilir.</string>
-    <string name="kn_offer_below_listing_buy">Bu ad teklifinizden daha düşük bir fiyata listelenmiş. Bunun yerine satın almayı düşünün.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Onayladığınızdan beri fiyat %1$s oldu. Hiçbir şey gönderilmedi. Yeni fiyatı kontrol edip tekrar onaylayın.</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
-    <string name="kn_renew_from_expiry_footer">Yenileme bir sonraki dönemi bugünden değil, mevcut bitiş tarihinden başlatır; bu yüzden bir süre önce süresi dolan bir ad daha az süre alır. Ücret madencilere gider.</string>
     <string name="kn_err_renew_expired_too_long">Bu adın süresi yenilenemeyecek kadar uzun zaman önce doldu. Yalnızca geri alınıp yeniden kaydedilebilir.</string>
     <string name="kn_err_offer_name_not_active">Yalnızca etkin adlara teklif verilebilir.</string>
     <string name="kn_err_accept_name_expired">Bu adın süresi doldu. Teklifler yalnızca ad etkinken kabul edilebilir. Önce yenileyin.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
-    <string name="kn_buy_soon_left">Bu adın süresinin dolmasına %1$s süreden az kaldı. Yakında yenilemeniz gerekir.</string>
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">Bu bir Testnet adresi. KaChat Mainnet\'te.</string>
     <string name="address_other_network_mainnet">Bu bir Mainnet adresi. KaChat Testnet\'te.</string>
@@ -841,33 +573,10 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Bazı bağlantılar şu anda bu telefondan kontrol edilemedi. Girildiği gibi kaydedilir ve başkalarının uygulamaları yükleyebildiğinde yükler.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="kn_bell_renew_title">%1$s adını yenile</string>
-    <string name="kn_bell_renewal_open">Yenileme açık: korumak için %1$s tarihinden önce yenileyin.</string>
-    <string name="kn_bell_expired_title">%1$s süresi doldu</string>
-    <string name="kn_bell_expired_body">%1$s tarihinden önce yenileyin, yoksa herkes alabilir.</string>
-    <string name="kn_bell_sold_title">%1$s satıldı</string>
-    <string name="kn_bell_paid">Size %1$s KAS ödendi.</string>
-    <string name="kn_bell_listing_bought">İlanınız satın alındı.</string>
-    <string name="kn_bell_accepted_offer">Bunun için bir teklifi kabul ettiniz.</string>
-    <string name="kn_bell_new_offer_title">%1$s için yeni teklif</string>
-    <string name="kn_bell_offered">Bunun için %1$s KAS teklif edildi.</string>
-    <string name="kn_bell_yours_now">%1$s artık sizin.</string>
-    <string name="kn_bell_declined_title">%1$s için teklif reddedildi</string>
-    <string name="kn_bell_declined_body">Sahibi reddetti. KAS size geri döndü.</string>
-    <string name="kn_bell_offer_expired_title">%1$s için teklifin süresi doldu</string>
-    <string name="kn_bell_offer_expired_body">Kimse zamanında kabul etmedi. KAS size geri döndü.</string>
-    <string name="kn_bell_returned_title">%1$s için teklif iade edildi</string>
-    <string name="kn_bell_returned_body">Artık kabul edilemez. KAS size geri döndü.</string>
     <string name="notification_center_empty">Cüzdanlarınıza gelen Kaspa ve .kachat adlarınızla ilgili haberler burada görünür.</string>
-    <string name="kn_push_renew_soon">Korumak için yakında yenileyin.</string>
-    <string name="kn_push_grace_soon">Yakında yenileyin, yoksa herkes alabilir.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="kn_activity_all_detail">Kayıttaki her talep, yenileme, ilan, satış, teklif, aktarım ve geri alma.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
-    <string name="kn_free_to_claim">Talep edilebilir</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
-    <string name="kn_claiming_name">%1$s alınıyor</string>
-    <string name="kn_keep_open_claiming">KaChat\'i açık tutun: ad, gizli taahhüt onaylandıktan yaklaşık bir dakika sonra kaydedilir. Uygulamadan çıkarsanız, döndüğünüzde kaldığı yerden devam eder.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
@@ -887,10 +596,7 @@
     <string name="qr_camera_access_required">Kamera Erişimi Gerekli</string>
     <string name="qr_enable_camera_access">QR kodları taramak için Ayarlar\'da kamera erişimini etkinleştirin.</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
-    <string name="qr_enable_camera_access_signed">Imzali islemi taramak icin Ayarlar\'da kamera erisimini etkinlestirin.</string>
-    <string name="qr_point_camera_kassigner">Kamerayi KasSigner ekranina dogrultun</string>
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
-    <string name="swap_details">Takas Detaylari</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s panoya kopyalandı.</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
@@ -905,30 +611,11 @@
     <string name="clear">Temizle</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
-    <string name="choose_coin">Coin Sec</string>
-    <string name="couldn_t_read_this_swap_s">Bu takasin tutarlari okunamadi</string>
-    <string name="deposit_address">Yatirma Adresi</string>
-    <string name="exchange_id_copied">Takas Kimligi kopyalandi</string>
     <string name="original_message_not_available">Orijinal mesaj kullanilamiyor</string>
-    <string name="search_coins">Coin ara</string>
-    <string name="swap_history">Takas Gecmisi</string>
-    <string name="swap_started">Takas basladi</string>
-    <string name="view_on_changenow">ChangeNOW\'da goruntule</string>
-    <string name="swap_failed">Takas basarisiz</string>
     <!-- .kachat sale tile: expiry flag -->
-    <string name="kn_expires_soon">Yakında sona eriyor</string>
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">%1$s sizin için serbest bırakılıyor...</string>
-    <string name="kn_name_expired_free">Bu adın süresi doldu ve yenilenmedi, bu yüzden herkes onu normal fiyattan alabilir. Önceki sahibin teminatı kendisine geri döner.</string>
-    <string name="kn_no_expired_names">Şu anda süresi dolmuş ad yok.</string>
-    <string name="km_expired_appear">.kachat adları başlatıldığında süresi dolmuş adlar burada görünecek.</string>
-    <string name="kn_bell_freed_title">%1$s serbest bırakıldı</string>
-    <string name="kn_bell_freed_body">Süresi doldu ve kayıttan kaldırıldı. Teminatınız size geri döndü.</string>
-    <string name="kn_bell_no_longer_yours_title">%1$s artık sizin değil</string>
-    <string name="kn_bell_lapsed_available_body">Süresi doldu ve yenilenmedi, bu yüzden artık pazar yerinde herkese açık. Biri onu aldığında teminatınız size geri döner.</string>
     <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
-    <string name="kn_claiming_title">Alınıyor</string>
-    <string name="kn_names_being_claimed">Alınmakta olan adlar</string>
     <string name="kn_commit_waiting_busy">Ağ yoğun. Taahhüdünüz bir blok bekliyor.</string>
     <string name="kn_commit_sent_again">Ağ yoğun, bu yüzden taahhüt yeniden gönderildi.</string>
     <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
@@ -954,17 +641,9 @@
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Devam</string>
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
-    <string name="kn_how_long">Ne kadar süre?</string>
-    <string name="kn_renew_starts_at_expiry">Yenileme, sonraki dönemi bugünden değil, mevcut bitiş tarihinden başlatır.</string>
     <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
-    <string name="kn_released_in">Serbest kalmasına</string>
-    <string name="kn_no_names_in_grace">Şu anda ek süredeki ad yok.</string>
-    <string name="km_grace_appear">.kachat adları başlatıldığında ek süredeki adlar burada görünecek.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
-    <string name="kn_grace_period_ends">Ek süre %1$s tarihinde bitiyor</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_detail_grace_resolves">Süresi doldu. Ek süre bitene kadar hâlâ sahibine çözümlenir ve sahibi hâlâ yenileyebilir.</string>
-    <string name="kn_detail_grace_mine_resolves">Süresi doldu - korumak için yenileyin. Ek süre bitene kadar hâlâ size çözümlenir ve başka kimse alamaz.</string>
     <!-- Address Book (iOS 00767a4) -->
     <string name="ab_address_book">Adres Defteri</string>
     <string name="ab_add_to_address_book">Adres Defterine Ekle</string>
@@ -1024,12 +703,6 @@
     <string name="ab_err_not_an_export">Bu dosya bir KaChat Adres Defteri dışa aktarımı değil.</string>
     <string name="ab_err_export_empty">Bu dışa aktarımda adres yok.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
-    <string name="kn_busy_title">Ağ yoğun</string>
-    <string name="kn_busy_body">Normal ile biraz sürebilir. Hızlı veya Öncelikli biraz daha ödeyip bloğa daha erken girer.</string>
-    <string name="kn_balance_after_value">Sonraki bakiye: %1$s</string>
-    <string name="kn_balance_change_value">Bakiye değişimi: %1$s</string>
-    <string name="kn_available_value">Kullanılabilir: %1$s</string>
-    <string name="kn_claim_fee_note">Talep etmek iki işlem gönderir: şimdi taahhüt, yaklaşık bir dakika sonra kayıt. İkisi de bu hızla.</string>
     <string name="kn_step_sent">Ağa gönderildi</string>
     <string name="kn_step_in_block">Bir blokta</string>
     <string name="kn_step_updated">KaChat\'te güncellendi</string>
@@ -1039,10 +712,6 @@
     <string name="kn_tx_stage_dropped">Ağ henüz almadı. Hiç girmezse hiçbir şey harcanmaz - daha hızlı bir ücretle yeniden dene.</string>
     <string name="kn_tap_tx_explorer">Gezginde açmak için işleme dokun.</string>
     <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
-    <string name="kn_offer_expires_in_label">Bitimine</string>
-    <string name="kn_offer_cant_accept">Bu teklif artık kabul edilemez.</string>
-    <string name="kn_offer_only_owner">Bu teklifi yalnızca adın sahibi kabul edebilir veya reddedebilir.</string>
-    <string name="kn_offers_tap_to_accept_decline">Kabul etmek veya reddetmek için bir teklife dokun. Süresi dolan teklifler alıcılarına geri döner.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">Onayladığınızdan beri ağ ücreti %1$s değerine çıktı. Hiçbir şey gönderilmedi. Yeni ücreti kontrol edip tekrar onaylayın.</string>
     <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
@@ -1051,7 +720,6 @@
     <string name="ab_import_skipped_other_network">Diğer ağdan %1$d adres atlandı.</string>
     <!-- .kachat registry v5 migration (iOS dd836cb) -->
     <string name="kn_registration_not_open">İsimler yeni kayıt defterine taşınıyor. Yeni isimler %1$s tarihinden itibaren alınabilir.</string>
-    <string name="kn_registration_not_open_note">Önce eski kayıt defterindeki her isim aynı sahip ve aynı bitiş tarihiyle taşınır.</string>
     <string name="kn_ev_imported">Yeni kayıt defterine taşındı</string>
     <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
     <string name="enter_kaspa_address_or_domain_kachat_first">Bir Kaspa adresi (kaspa:...) veya alan adı girin (ör. alice.kachat). Önce .kachat adları aranır.</string>
@@ -1061,21 +729,12 @@
     <string name="their_profile_kachat_name_address">Profili, .kachat adı ve adresi.</string>
     <string name="finds_addresses_balance_or_domain">Bakiyesi veya alan adı olan adresleri bulur.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Bir Kaspa adresi (kaspa:...) veya alan adı girin. Önce .kachat adları aranır.</string>
-    <string name="portfolio_add_address_footer_kachat">Bir Kaspa adresi veya name.kachat gibi bir alan adı girin (önce .kachat adları aranır). Bu adrese gelen her işlem alış, gönderilen her işlem satış sayılır ve o günün geçmiş KAS fiyatıyla değerlenir. Aynı adresi daha sonra yeniden eklerseniz yalnızca son içe aktarmadan beri bulunan işlemler içe aktarılır.</string>
-    <string name="kn_transfer_footer_domain">Bir adres veya alan adı; önce .kachat adları aranır ve gösterilen adrese çözümlenir.</string>
-    <string name="kn_transfer_placeholder_domain">kaspatest:... veya alan adı</string>
-    <string name="kn_err_enter_address_or_domain">Bir adres veya alan adı girin.</string>
-    <string name="kn_err_name_address_cant_own">Bu adın adresi bir .kachat adına sahip olamaz.</string>
     <string name="kachat_names_resolved_first_footer">Adres girebildiğiniz her yerde önce çözümlenir.</string>
     <string name="other_domains_title">Diğer Alan Adları</string>
     <string name="other_domains_settings_footer">.kachat\'tan sonra aranır; yazılan ad orada da varsa Diğer alan adları altında listelenir.</string>
     <string name="chatting_picker_intro_any_name_kachat">Bu seed kimliğinizi zaten başka bir adreste tutuyorsa (bir alan adı .kachat, .kas, .k veya .kaspa ya da bakiyeli bir sohbet adresi), burada seçin. Yalnızca bakiyesi veya alan adı olan adresler gösterilir.</string>
     <string name="chatting_picker_kachat_names_count">.kachat Adları (%1$d)</string>
     <string name="chatting_picker_kas_names_count">.kas Adları (%1$d)</string>
-    <string name="kachat_expired_one_title">.kachat alan adlarınızdan birinin süresi doldu</string>
-    <string name="kachat_expired_many_title">.kachat alan adlarınızdan %1$d tanesinin süresi doldu</string>
-    <string name="kachat_expired_one_body">%1$s adını korumak için ek süresi %2$s tarihinde bitmeden yenileyin.</string>
-    <string name="kachat_expired_many_body">Korumak için ek süreleri bitmeden yenileyin.</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">.kachat adları bu ağda henüz etkin değil</string>
     <!-- Nextcloud sync carries portfolios -->
@@ -1085,19 +744,13 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">.kachat kayıt defteri yükseltiliyor. Yeni kayıt defteri devreye girince isimler burada yeniden açılır.</string>
     <string name="kn_err_no_wallet_open">Açık bir cüzdan yok.</string>
-    <string name="kn_err_not_network_address">Bu ağda bir Schnorr adresi değil.</string>
-    <string name="kn_how_live_footer_mainnet">Mainnet\'te canlı: buradaki isimler, fiyatlar ve ödemeler gerçek KAS\'tır.</string>
-    <string name="kn_how_live_footer_testnet">Testnet\'te canlı: buradaki isimler, fiyatlar ve ödemeler testnet-10\'da TKAS kullanır. Mainnet isimleri Mainnet\'te canlı.</string>
     <string name="kn_live_on_mainnet">Mainnet\'te canlı</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Teklif, isim süresi dolmadan iade edilebilir olmalıdır.</string>
-    <string name="kn_offer_refundable_from_expiry">Bu ismin süresi daha erken doluyor, bu yüzden teklifiniz %1$s tarihinden itibaren iade edilebilir.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
     <string name="kn_combining_coins">KAS\'ınız birçok küçük coine dağılmış. Önce tek bir coinde birleştiriliyor...</string>
-    <string name="kn_combines_coins_note">KAS\'ınız birçok küçük coine dağılmış. KaChat kayıttan önce bunları çok küçük ek bir ağ ücretiyle tek bir coinde birleştirir.</string>
     <string name="kn_not_enough_to_combine">Sohbet adresinizde bunun için yeterli KAS yok.</string>
     <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
-    <string name="bots_title">KaChat Botları</string>
     <string name="bot_block_rewards_name">Blok Ödülü Takipçisi</string>
     <string name="bot_block_rewards_summary">Madencilik adresinize ödenen her blok ödülü için bir mesaj.</string>
     <string name="bot_wallet_name">Cüzdan Takipçisi</string>
@@ -1108,9 +761,6 @@
     <string name="bot_kaspa_answers_summary">Kaspa ile ilgili her şeyi sorun.</string>
     <string name="bots_coming_soon">Çok yakında.</string>
     <string name="bots_mainnet_only">Botlar yalnızca ana ağda çalışır.</string>
-    <string name="bots_opens_chat_hint">Bu botla bir sohbet açar.</string>
-    <string name="bots_fee_note">Bir bota giden mesajlar sıradan şifreli KaChat mesajlarıdır, bu yüzden her biri olağan ağ ücretine mal olur.</string>
-    <string name="bots_unread_count">%1$d okunmamış</string>
     <string name="bot_sheet_clears_unread">Bu sohbetteki okunmamış rozetini kaldırır.</string>
     <string name="bot_sheet_notifications_resume">Bu bottan bildirimler yeniden gelir.</string>
     <string name="bot_sheet_no_notification">Bu bottan bildirim gelmez.</string>
@@ -1142,13 +792,7 @@
     <string name="delete_chat_q">Delete Chat?</string>
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
     <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
-    <string name="kn_combines_coins_on_slide">KAS\'ınız çok sayıda küçük koinde. Kaydırdığınızda KaChat önce onları tek koinde birleştirir (kendi küçük ücreti olan ayrı bir işlem), sonra bunu gönderir.</string>
     <!-- An address's Domains tab: one card per name service (iOS fe52376) -->
-    <string name="address_tab_domains">Alan Adlari</string>
-    <string name="address_domains_none">Bu adreste %1$s adı yok.</string>
-    <string name="address_domains_one">1 alan adı</string>
-    <string name="address_domains_count">%1$d alan adı</string>
-    <string name="address_domains_couldnt_load">Yüklenemedi</string>
     <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
     <string name="pr_fresh_address">Yeni Adres</string>
     <string name="pr_choose_an_address">Bir Adres Seç</string>
@@ -1170,36 +814,12 @@
     <string name="welcome_everything_else">Diğer Her Şey</string>
     <string name="welcome_everything_else_caption">Gizliliğinizi korumak için Kaspa ağındaki diğer tüm işlemlerde diğer adreslerinizi kullanın. Kaspa Al size yeni bir adres verir, Adresleri Yönet hepsini listeler.</string>
     <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
-    <string name="kg_claim_hint">İstediğiniz adı Kaspa Hub &gt; .kachat\'te arayıp alın.</string>
-    <string name="kg_how_title">Bir ad nasıl çalışır</string>
-    <string name="kg_how_body">Adınız Kaspa ağında yaşar ve sohbet adresiniz tarafından tutulur. Sizin olduğu sürece kimse onu alamaz veya değiştiremez.</string>
-    <string name="kg_how_commit">Almak iki hızlı işlem gerektirir: ilki seçiminizi gizli tutar, ikincisi kaydeder.</string>
-    <string name="kg_how_period">Her seferinde bir dönem için ödersiniz. Kısa adlar daha pahalıdır.</string>
-    <string name="kg_how_miners">Ücret KaChat\'e değil, ağın madencilerine gider.</string>
-    <string name="kg_use_title">Adınız yapın</string>
-    <string name="kg_use_body">Birincil adınız yapın; KaChat\'in her yerinde bu adla görünürsünüz.</string>
-    <string name="kg_use_find">İnsanlar adınızı yazarak sizi bulup mesaj atabilir.</string>
-    <string name="kg_use_pay">Uzun bir adres yerine adiniz.kachat\'e Kaspa gönderebilirler.</string>
-    <string name="kg_use_link">Profil bağlantınız adınızı gösterir.</string>
-    <string name="kg_keep_title">Koruyun</string>
-    <string name="kg_keep_body">Adlarınız Profil &gt; Alan Adlarınız &gt; .kachat\'te.</string>
-    <string name="kg_keep_renew">Süresi dolmadan yenileyin. Her adın üzerinde tarihi görünür.</string>
-    <string name="kg_keep_grace">Süre dolduktan sonra, başkası alabilmeden önce yenilemek için bir ek süre vardır.</string>
-    <string name="kg_keep_transfer">Onu aktarabilir, satışa çıkarabilir veya bir teklifi kabul edebilirsiniz.</string>
-    <string name="kg_finished_title">Hazırsınız</string>
-    <string name="kg_finished_body">Hazır olduğunuzda adınızı Kaspa Hub &gt; .kachat\'te alın.</string>
-    <string name="kg_names_help_title">.kachat Adları Rehberi</string>
-    <string name="kg_names_help_body">Bir .kachat adı alın, adınız yapın ve koruyun.</string>
-    <string name="kg_names_setup_footer">Adım adım .kachat adınızı alıp sizin yapın.</string>
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
-    <string name="kn_locked_claim_note">Adınız sizde kaldıkça %1$s onunla birlikte kilitli kalır (teminat + kayıt depozitosu). Adı bıraktığınızda geri alırsınız.</string>
-    <string name="kn_locked_receipt_note">%1$s bu adla birlikte kilitli. Adı bıraktığınızda size geri döner.</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">Ödeme alındı</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">Yeterli bakiyeniz yok. Lütfen sohbet adresinize en az 1 KAS gönderin.</string>
     <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
-    <string name="kn_from_value">Gönderen: %1$s</string>
     <string name="kn_fund">Bakiye yükle</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Kendi adresiniz: %1$s</string>
@@ -1209,13 +829,6 @@
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">Sohbet adresinizde %1$s kişisine bu ödemeyi bildirecek KAS yok, bu yüzden ödemeyi bilinmeyen bir adresten, not olmadan gelmiş olarak görür. Sohbet adresinize KAS gelince KaChat onlara bildirir.</string>
     <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
-    <string name="customize_dock_your_dock">Dock\'unuz</string>
-    <string name="customize_dock_always_in_dock">Her zaman dock\'unuzda</string>
-    <string name="customize_dock_always_stay">%1$s, %2$s ve %3$s her zaman dock\'unuzda kalır.</string>
-    <string name="customize_dock_full">Dock\'unuz dolu. Bunlardan birini eklemek için dock\'tan birini çıkarın.</string>
-    <string name="customize_dock_hub_order">%1$s içinde göründükleri sırayla.</string>
-    <string name="customize_dock_move_to">%1$s öğesini %2$s içine taşı</string>
-    <string name="customize_dock_add">%1$s öğesini dock\'a ekle</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
@@ -1224,11 +837,7 @@
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
-    <string name="cold_storage_empty_title">Soguk Depolama Hesabi Yok</string>
-    <string name="cold_storage_empty_body">Bakiyesini izlemek icin KasSigner cihazinizdan disa aktarilan bir kpub\'i tarayin veya yapistirin.</string>
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
-    <string name="portfolio_no_transactions_title">Henuz Islem Yok</string>
-    <string name="portfolio_no_transactions_sub">Portfoyunuzu takip etmeye baslamak icin bir alim veya satim ekleyin</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Daha Fazla Secenek</string>
     <!-- Settings subpages (from iOS) -->

@@ -18,16 +18,13 @@ import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,6 +46,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
  * Single Activity — all navigation is handled in Compose via NavHost.
@@ -444,11 +443,9 @@ class MainActivity : AppCompatActivity() {
         // the kind is then only the fallback (iOS 13046ad).
         pendingOwnAddress = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS)?.takeIf { it.isNotEmpty() }
         if (pendingOwnAddress != null) pendingWalletActivityKind = null
-        // A .kachat name notification: open that name (iOS beeedd4).
-        intent.getStringExtra(NotificationHelper.EXTRA_KACHAT_NAME)?.takeIf { it.isNotBlank() }?.let {
-            com.kachat.app.ui.screens.KachatDeepLink.pendingName.value =
-                com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(it.removeSuffix(".kachat"))
-        }
+        // A .kachat name notification an older build posted: the market left the app (iOS
+        // d54ea87), so its tap lands on Chats.
+        if (!intent.getStringExtra(NotificationHelper.EXTRA_KACHAT_NAME).isNullOrBlank()) pendingOpenGroups = true
         if (pendingContactId == null &&
             pendingGroupId == null && !pendingOpenGroups && pendingWalletActivityKind == null &&
             pendingOwnAddress == null
@@ -479,19 +476,15 @@ class MainActivity : AppCompatActivity() {
         val type = intent.getStringExtra(FCM_KEY_TYPE)
             ?: intent.getStringExtra("thread_id")?.takeIf { it == "kaposts" }
         when (type) {
-            "name_event" -> intent.getStringExtra("name")?.takeIf { it.isNotBlank() }?.let {
-                com.kachat.app.ui.screens.KachatDeepLink.pendingName.value =
-                    com.kachat.app.services.kachatnames.KachatNames.Codec.normalize(it.lowercase().removeSuffix(".kachat"))
-            }
             "contextual", "payment", "handshake" ->
                 pendingContactId = intent.getStringExtra("sender")?.takeIf { it.isNotBlank() }
             // Only the blinded per-sender group id travels in a group push, and resolving it to a
             // local group needs the group secrets — not something this Activity can do. The Group
             // Chats list is the honest destination.
             "group_message", "group_control" -> pendingOpenGroups = true
-            // KaPosts and Public Chats left the app (iOS e2f6732): a stray tap on one of their
-            // old notifications lands on the Chats list.
-            "broadcast", "kaposts" -> pendingOpenGroups = true
+            // KaPosts, Public Chats and the .kachat market left the app (iOS e2f6732, d54ea87): a
+            // stray tap on one of their notifications lands on the Chats list.
+            "broadcast", "kaposts", "name_event" -> pendingOpenGroups = true
         }
         // A KaPosts push names its post under any of these; stripped with the rest.
         FCM_KEYS_POST_ID.forEach(intent::removeExtra)

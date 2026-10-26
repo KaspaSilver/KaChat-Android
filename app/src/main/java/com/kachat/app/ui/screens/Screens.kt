@@ -10,7 +10,6 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.net.Uri
-import android.view.Gravity
 import android.view.WindowManager
 import android.os.Build
 import android.provider.Settings
@@ -20,8 +19,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -30,7 +27,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import coil.compose.SubcomposeAsyncImage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -41,15 +37,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.iosGlass
 import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -58,7 +51,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -75,7 +67,6 @@ import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Forum
-import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MonitorHeart
@@ -85,31 +76,21 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.layout
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.PhoneEnabled
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.PhoneDisabled
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.FamilyRestroom
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.CallMerge
-import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -130,36 +111,28 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.graphicsLayer
@@ -172,17 +145,14 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.kachat.app.R
 import com.kachat.app.models.avatarFallbackText
 import com.kachat.app.models.displayName
-import com.kachat.app.models.Conversation
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.ReactionEntity
 import com.kachat.app.repository.ChatRepository
-import com.kachat.app.services.ColdStorageAddressDiscovery
+import com.kachat.app.services.AddressHistoryService
 import com.kachat.app.services.KnsInscriptionEngine
 import com.kachat.app.services.KnsService
 import com.kachat.app.services.VoiceRecorderService
 import com.kachat.app.services.UtxoEntry
-import com.kachat.app.ui.theme.KaspaBlue
-import com.kachat.app.ui.theme.KaspaSubtext
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.ChatTimeFormat
@@ -206,7 +176,6 @@ import com.kachat.app.viewmodels.NodeInfo
 import com.kachat.app.viewmodels.SettingsViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -224,7 +193,7 @@ fun ChatThreadScreen(
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
     walletViewModel: WalletViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    priceViewModel: com.kachat.app.viewmodels.KasPriceViewModel = hiltViewModel(),
     startInPaymentMode: Boolean = false
 ) {
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
@@ -301,8 +270,8 @@ fun ChatThreadScreen(
         FailedToSendAlert(reason) { chatViewModel.clearSendFailure(contactId) }
     }
     val paymentAmount by chatViewModel.paymentAmount.collectAsState()
-    val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
-    val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
+    val fiatPriceInCurrency by priceViewModel.currentPriceUsd.collectAsState()
+    val fiatCurrencyCode by priceViewModel.currency.collectAsState()
     val estimatedFee by chatViewModel.estimatedFeeSompi.collectAsState()
     val isEstimatingFee by chatViewModel.isEstimatingFee.collectAsState()
     // The composer's text, kept as the State itself and read in only three kinds of place, so a
@@ -360,14 +329,14 @@ fun ChatThreadScreen(
     /** Fee speed and a custom fee, and coin control - the same controls as every Send Kaspa
      *  screen (SendFeeControls). The extra over the base fee and the picked coins go to
      *  sendPayment (iOS 62c2773). */
-    var paymentFeeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var paymentFeeTier by remember { mutableStateOf(FeeTier.NORMAL) }
     var paymentCustomExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
     var isEditingPaymentFee by remember { mutableStateOf(false) }
     var paymentCustomFeeText by remember { mutableStateOf("") }
     var paymentManualUtxos by remember { mutableStateOf<List<com.kachat.app.services.UtxoEntry>?>(null) }
     var showPaymentCoinControl by remember { mutableStateOf(false) }
     val resetPaymentFeeAndCoins: () -> Unit = {
-        paymentFeeTier = ColdFeeTier.NORMAL
+        paymentFeeTier = FeeTier.NORMAL
         paymentCustomExtraFeeSompi = null
         isEditingPaymentFee = false
         paymentManualUtxos = null
@@ -465,7 +434,7 @@ fun ChatThreadScreen(
             onDismissed = { showPaymentRequestSheet = false },
             recipientContactId = contactId,
             chatViewModel = chatViewModel,
-            portfolioViewModel = portfolioViewModel,
+            priceViewModel = priceViewModel,
         )
     }
     // "Send from Nextcloud" — only offered when a Nextcloud account is connected (Settings >
@@ -2901,7 +2870,6 @@ fun MessageBubble(
                 }
             }
 
-
             if (reactions.isNotEmpty()) {
                 ReactionPill(
                     reactions = reactions,
@@ -3724,7 +3692,7 @@ fun ProfileScreen(
     navController: NavController,
     connectionViewModel: ConnectionViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel(),
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
+    priceViewModel: com.kachat.app.viewmodels.KasPriceViewModel = hiltViewModel()
 ) {
     val address by viewModel.address.collectAsState()
     val accountName by viewModel.accountName.collectAsState()
@@ -3865,7 +3833,7 @@ fun ProfileScreen(
                 balanceSompi = identityBalanceSompi,
                 title = "Send Kaspa",
                 viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
+                priceViewModel = priceViewModel,
                 onDone = close,
                 presentedAsSheet = true,
                 prefillAddress = donationAddress,
@@ -4011,8 +3979,6 @@ fun ProfileScreen(
             // iOS's VStack(spacing: 16).
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // one of your .kachat names expired and is in grace: renew it in time (iOS 6ac48a7)
-            KachatExpiredNamesBanner(walletAddress = address)
             // 4.0 Profile redesign (matches iOS): inline-editable account name up top, then a
             // KaPosts-style hero (KNS banner, overlapping avatar, display name, bio), then the
             // KNS profile editing entry - the old boxed Account section is gone.
@@ -4291,15 +4257,6 @@ fun ProfileScreen(
                 onClick = { navController.navigate("kns_domains") },
             )
 
-            // Settings as a card in the list rather than a glyph in the chrome - it belongs with
-            // the other destinations you tap into from here, and it is the entry point to
-            // everything the app can be configured to do.
-            ProfileLinkRow(
-                label = stringResource(R.string.settings),
-                icon = Icons.Outlined.Settings,
-                onClick = { navController.navigate("settings") },
-            )
-
             ProfileLinkRow(
                 label = stringResource(R.string.help),
                 icon = Icons.AutoMirrored.Filled.HelpOutline,
@@ -4458,27 +4415,12 @@ fun ProfileScreen(
 @Composable
 fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
     val ownedDomainAssets by viewModel.ownedDomainAssets.collectAsState()
-    // Testnet: a .kachat name opened from the .kachat tab - its live detail (iOS 5df42b4).
-    var selectedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
-    // Inscribe: the .kachat marketplace over Your Domains, whether or not .kachat is in the dock
-    // or Kaspa Hub; the list refreshes when it closes (iOS e4da63d).
-    var showKachatMarket by remember { mutableStateOf(false) }
-    var kachatRefreshRequested by remember { mutableStateOf(false) }
-    // The name service whose card was tapped (iOS debd6fd), null on the cards themselves. Held
-    // above the marketplace's early return, so closing the marketplace lands back on .kachat.
+    // The name service whose card was tapped (iOS debd6fd), null on the cards themselves.
     var openedService by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
     val walletAddress by viewModel.address.collectAsState()
     // The cards' counts (iOS 2ee667c), kept while a card's screen is open.
     val ownedServiceNames by viewModel.nameServices.owned.collectAsState()
     val kachatCount = rememberKachatHeldCount(walletAddress ?: "")
-    if (showKachatMarket) {
-        androidx.activity.compose.BackHandler { showKachatMarket = false; kachatRefreshRequested = true }
-        KachatMarketScreen(
-            onBack = { showKachatMarket = false; kachatRefreshRequested = true },
-            onOpenChat = onOpenChat,
-        )
-        return
-    }
     val primaryDomainName by viewModel.primaryDomainName.collectAsState()
     val setPrimaryState by viewModel.setPrimaryState.collectAsState()
     var selectedDomain by remember { mutableStateOf<com.kachat.app.services.KnsAsset?>(null) }
@@ -4490,11 +4432,6 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
     }
     LaunchedEffect(Unit) {
         viewModel.refreshServiceNamesAndAwait()
-    }
-
-    selectedKachat?.let { info ->
-        AboveDock { KachatLiveNameDetailScreen(info, onBack = { selectedKachat = null }, onOpenChat = onOpenChat) }
-        return
     }
 
     // A .kas domain's own profile, edited on its own (iOS 09e0403): .kas profiles are no longer
@@ -4572,20 +4509,10 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
                     )
                     com.kachat.app.services.NameServiceTLD.K, com.kachat.app.services.NameServiceTLD.KASPA ->
                         ServiceNameListTab(tld = tld, viewModel = viewModel)
-                    // Live on both networks (testnet-10, and mainnet since iOS ef6b21e). The
-                    // "coming" note stays, unreachable.
+                    // Your names and when they expire, read-only: buying, renewing, selling and
+                    // transferring them happens in KaChat Wallet (iOS d63b29d).
                     com.kachat.app.services.NameServiceTLD.KACHAT ->
-                        if (com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) {
-                            KachatLiveDomainsTab(
-                                walletAddress = walletAddress ?: "",
-                                onOpen = { selectedKachat = it },
-                                onInscribe = { showKachatMarket = true },
-                                refreshRequested = kachatRefreshRequested,
-                                onRefreshHandled = { kachatRefreshRequested = false },
-                            )
-                        } else {
-                            KachatNamesComingSoon()
-                        }
+                        KachatOwnedNamesList(walletAddress = walletAddress ?: "")
                 }
             }
         }
@@ -4607,7 +4534,8 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
         },
     ) { padding ->
         // One square card per name ending, KaChat's own first: .kachat, KNS (.kas), dotk (.k),
-        // Kaspa Names (.kaspa) - the same tile look as Kaspa Hub, two across (iOS debd6fd).
+        // Kaspa Names (.kaspa), two across (iOS debd6fd). The .kachat one lists your names;
+        // buying, renewing and selling them happens in KaChat Wallet (iOS d63b29d).
         androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
             columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -4825,28 +4753,6 @@ private fun ServiceNameListTab(tld: com.kachat.app.services.NameServiceTLD, view
     }
 }
 
-@Composable
-private fun KachatNamesComingSoon() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 40.dp)
-            .padding(bottom = LocalDockInset.current),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(44.dp))
-        Text(stringResource(R.string.kachat_names_are_coming), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-        Text(
-            stringResource(R.string.kachat_names_coming_body),
-            color = LocalAppColors.current.textSecondary,
-            textAlign = TextAlign.Center,
-            fontSize = 15.sp,
-        )
-    }
-}
-
 /** Teal card matching the app's KNS domain branding - used both as the row style in [KnsDomainsScreen] and as the header of [KnsDomainDetailScreen]. */
 @Composable
 fun KnsDomainCard(domain: com.kachat.app.services.KnsAsset, isPrimary: Boolean = false, modifier: Modifier = Modifier) {
@@ -5039,7 +4945,7 @@ fun KnsDomainSendScreen(
     val uriHandler = LocalUriHandler.current
 
     var recipientInput by remember { mutableStateOf("") }
-    var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var feeTier by remember { mutableStateOf(FeeTier.NORMAL) }
     var customFeeSompi by remember { mutableStateOf<Long?>(null) }
     var isEditingFee by remember { mutableStateOf(false) }
     var customFeeText by remember { mutableStateOf("") }
@@ -5225,7 +5131,7 @@ fun KnsDomainSendScreen(
                             .clip(RoundedCornerShape(10.dp))
                             .background(LocalAppColors.current.surface)
                     ) {
-                        ColdFeeTier.entries.forEach { tier ->
+                        FeeTier.entries.forEach { tier ->
                             val selected = feeTier == tier && customFeeSompi == null
                             Text(
                                 tier.label,
@@ -6222,13 +6128,13 @@ fun SpendingAddressSendFlow(
     /** Pays a chatting-address request as a chat payment (the memo encrypted to them inside it);
      *  null takes the app's own (the activity's), as every iOS send screen has ChatService. */
     chatViewModel: com.kachat.app.viewmodels.ChatViewModel? = null,
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel()
+    priceViewModel: com.kachat.app.viewmodels.KasPriceViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val kaspaExplorer by viewModel.kaspaExplorer.collectAsState()
-    val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
-    val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
+    val fiatPriceInCurrency by priceViewModel.currentPriceUsd.collectAsState()
+    val fiatCurrencyCode by priceViewModel.currency.collectAsState()
     var recipientInput by remember(fromAddress) { mutableStateOf(prefillAddress.orEmpty()) }
     var amountInput by remember(fromAddress) { mutableStateOf("") }
     val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(resetKey = fromAddress, onKasTextChange = { amountInput = it })
@@ -6236,7 +6142,7 @@ fun SpendingAddressSendFlow(
     var manualUtxos by remember { mutableStateOf<List<UtxoEntry>?>(null) }
     var showCoinControl by remember { mutableStateOf(false) }
     var isEstimatingMax by remember { mutableStateOf(false) }
-    var feeTier by remember { mutableStateOf(ColdFeeTier.NORMAL) }
+    var feeTier by remember { mutableStateOf(FeeTier.NORMAL) }
     var customExtraFeeSompi by remember { mutableStateOf<Long?>(null) }
     // Custom fee, edited in place on the fee row (SendFeeControls), as on iOS.
     var isEditingFee by remember { mutableStateOf(false) }
@@ -6320,7 +6226,7 @@ fun SpendingAddressSendFlow(
     var isPreviewingFee by remember { mutableStateOf(false) }
     // The amount Max last wrote, and the fee choice it left room for: changing the fee while the
     // field still holds that amount works Max out again (see setMaxAmount).
-    var maxFill by remember { mutableStateOf<Triple<String, ColdFeeTier, Long?>?>(null) }
+    var maxFill by remember { mutableStateOf<Triple<String, FeeTier, Long?>?>(null) }
     // The one exact parser for typed KAS (iOS 16b64bc): comma or dot, at most 8 decimals.
     val previewAmountSompi = KaspaUnit.sompiFromUserText(amountInput)
     // Base fee on the real inputs: coin control's exact set, else the automatic-selection preview,
@@ -6769,7 +6675,7 @@ fun SpendingAddressTxHistoryScreen(
     // KaspaFiatAmountState.toggleMode silently no-ops until a price has arrived - gets a head
     // start of however long the user spends on this screen before ever tapping Send, instead of
     // starting from zero the instant the send flow itself first composes.
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    priceViewModel: com.kachat.app.viewmodels.KasPriceViewModel = hiltViewModel(),
     /** Message on a .kachat name's owner, from its detail. */
     onOpenChat: (String) -> Unit = {},
     /** The row resolved by the History sheet a tapped "Received" notification opens (iOS
@@ -6799,10 +6705,7 @@ fun SpendingAddressTxHistoryScreen(
     val biometricSpendingKeyEnabled by viewModel.biometricSpendingKeyEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
     // The tapped transaction, while its action chooser is up.
-    var transactionActionTarget by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
-    // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
-    var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
-    var addedPortfolioName by remember { mutableStateOf<String?>(null) }
+    var transactionActionTarget by remember { mutableStateOf<AddressHistoryService.AddressTransaction?>(null) }
     val context = LocalContext.current
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -6813,10 +6716,6 @@ fun SpendingAddressTxHistoryScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
-    // The .kachat name opened from the Domains tab's .kachat screen (iOS 881ada6).
-    var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
-    // The name service opened from the Domains tab (iOS fe52376).
-    var openedDomainService by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
 
     LaunchedEffect(address) {
         if (address.isNotEmpty()) {
@@ -6829,24 +6728,6 @@ fun SpendingAddressTxHistoryScreen(
     // In-place full-screen swap - not a nav route, not an overlay dialog - mirroring
     // ColdStorageTxHistoryScreen's own `if (showSendFlow) { ...; return }` idiom exactly, so Send
     // takes over the whole screen the same way on both the spending and Cold Storage paths.
-    // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
-    // your addresses holds it (iOS 881ada6).
-    openedKachat?.let { info ->
-        AboveDock { KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat) }
-        return
-    }
-    // A name service opened from this address's Domains tab: its names (iOS fe52376).
-    openedDomainService?.let { tld ->
-        AboveDock {
-            AddressDomainServiceScreen(
-                address = address,
-                tld = tld,
-                onBack = { openedDomainService = null },
-                onOpenKachat = { openedKachat = it },
-            )
-        }
-        return
-    }
 
     // Send and Compound are sheets over this screen that only Cancel closes, as iOS presents
     // them (.interactiveDismissDisabled()). Send is the Send Kaspa every send is (iOS 6333dd3):
@@ -6868,7 +6749,7 @@ fun SpendingAddressTxHistoryScreen(
                 balanceSompi = sendChattingBalance,
                 title = "Send Kaspa",
                 viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
+                priceViewModel = priceViewModel,
                 onDone = close,
                 presentedAsSheet = true,
                 // Send from this address's own page: it is the From, with no other to pick.
@@ -6892,7 +6773,7 @@ fun SpendingAddressTxHistoryScreen(
                 title = "Send from ${entry.displayTitle}",
                 spendingIndex = entry.index,
                 viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
+                priceViewModel = priceViewModel,
                 isCompoundMode = true,
                 onDone = close,
                 presentedAsSheet = true,
@@ -6954,10 +6835,10 @@ fun SpendingAddressTxHistoryScreen(
         val barInset = padding.calculateBottomPadding()
         Column(modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             AddressPageBalanceHeader(entry?.balanceSompi ?: 0L)
-            // The app's tab look (Chats / Group Chats / Public Chats), not a segmented control;
-            // plain names - History, UTXOs, Domains (iOS b96d727/718b88c, fe52376).
+            // The app's tab look, not a segmented control; plain names - History, UTXOs (iOS
+            // b96d727/718b88c; the Domains tab went with the .kachat market, iOS d54ea87).
             UnderlineTabBar(
-                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), stringResource(R.string.address_tab_domains)),
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos)),
                 selectedIndex = selectedTab,
                 onSelect = { selectedTab = it },
                 modifier = Modifier.padding(top = 4.dp),
@@ -6971,7 +6852,6 @@ fun SpendingAddressTxHistoryScreen(
                     onTransactionClick = { transactionActionTarget = it },
                     bottomPadding = barInset,
                 )
-                2 -> AddressDomainsTab(address, onOpenService = { openedDomainService = it }, bottomPadding = barInset)
                 else -> AddressUtxoList(
                     utxos = utxos,
                     isLoading = isLoadingUtxos,
@@ -7043,26 +6923,10 @@ fun SpendingAddressTxHistoryScreen(
                 transactionActionTarget = null
                 uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
             },
-            onAddToPortfolio = {
-                transactionActionTarget = null
-                portfolioCandidate = tapped
-            },
             onDismiss = { transactionActionTarget = null },
         )
     }
 
-    portfolioCandidate?.let { candidate ->
-        AddToPortfolioSheet(
-            tx = candidate,
-            address = address,
-            viewModel = portfolioViewModel,
-            onDismiss = { portfolioCandidate = null },
-            onAdded = { addedPortfolioName = it },
-        )
-    }
-    addedPortfolioName?.let { name ->
-        PortfolioAddedSnackbar(name) { addedPortfolioName = null }
-    }
 }
 
 /**
@@ -7080,7 +6944,7 @@ fun SpendingAddressTxHistoryScreen(
 fun IdentityAddressDetailScreen(
     onBack: () -> Unit,
     viewModel: WalletViewModel,
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    priceViewModel: com.kachat.app.viewmodels.KasPriceViewModel = hiltViewModel(),
     /** Message on a .kachat name's owner, from its detail. */
     onOpenChat: (String) -> Unit = {},
     /** Opened as the root of the "Received" History sheet (iOS 13046ad `OwnAddressHistorySheet`):
@@ -7104,10 +6968,7 @@ fun IdentityAddressDetailScreen(
     val biometricSeedPhraseEnabled by viewModel.biometricSeedPhraseEnabled.collectAsState()
     val uriHandler = LocalUriHandler.current
     // The tapped transaction, while its action chooser is up.
-    var transactionActionTarget by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
-    // The transaction being filed into a portfolio, if any - see [AddToPortfolioSheet].
-    var portfolioCandidate by remember { mutableStateOf<ColdStorageAddressDiscovery.AddressTransaction?>(null) }
-    var addedPortfolioName by remember { mutableStateOf<String?>(null) }
+    var transactionActionTarget by remember { mutableStateOf<AddressHistoryService.AddressTransaction?>(null) }
     val context = LocalContext.current
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -7121,10 +6982,6 @@ fun IdentityAddressDetailScreen(
     var utxoLabels by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var labelingUtxoKey by remember { mutableStateOf<String?>(null) }
     var labelInput by remember { mutableStateOf("") }
-    // The .kachat name opened from the Domains tab's .kachat screen (iOS 881ada6).
-    var openedKachat by remember { mutableStateOf<com.kachat.app.services.kachatnames.NameInfo?>(null) }
-    // The name service opened from the Domains tab (iOS fe52376).
-    var openedDomainService by remember { mutableStateOf<com.kachat.app.services.NameServiceTLD?>(null) }
 
     LaunchedEffect(address) {
         val addr = address
@@ -7133,25 +6990,6 @@ fun IdentityAddressDetailScreen(
             viewModel.loadSpendingAddressUtxos(addr)
             utxoLabels = viewModel.getSpendingUtxoLabels(addr)
         }
-    }
-
-    // A .kachat name opened from this address's .kachat tab: its live detail, which knows which of
-    // your addresses holds it (iOS 881ada6).
-    openedKachat?.let { info ->
-        AboveDock { KachatLiveNameDetailScreen(info, onBack = { openedKachat = null }, onOpenChat = onOpenChat) }
-        return
-    }
-    // A name service opened from this address's Domains tab: its names (iOS fe52376).
-    openedDomainService?.let { tld ->
-        AboveDock {
-            AddressDomainServiceScreen(
-                address = address.orEmpty(),
-                tld = tld,
-                onBack = { openedDomainService = null },
-                onOpenKachat = { openedKachat = it },
-            )
-        }
-        return
     }
 
     val flowAddress = address
@@ -7171,7 +7009,7 @@ fun IdentityAddressDetailScreen(
                 balanceSompi = balanceSompi,
                 title = "Send Kaspa",
                 viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
+                priceViewModel = priceViewModel,
                 onDone = close,
                 presentedAsSheet = true,
                 lockedSource = SendSource.Chatting,
@@ -7193,7 +7031,7 @@ fun IdentityAddressDetailScreen(
                 balanceSompi = balanceSompi,
                 title = "Send Kaspa",
                 viewModel = viewModel,
-                portfolioViewModel = portfolioViewModel,
+                priceViewModel = priceViewModel,
                 isCompoundMode = true,
                 onDone = close,
                 presentedAsSheet = true,
@@ -7252,7 +7090,7 @@ fun IdentityAddressDetailScreen(
             // Right above what it switches, the way Chats has it: History, UTXOs, Domains
             // (iOS b96d727/718b88c).
             UnderlineTabBar(
-                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos), stringResource(R.string.address_tab_domains)),
+                titles = listOf(stringResource(R.string.address_tab_history), stringResource(R.string.utxos)),
                 selectedIndex = selectedTab,
                 onSelect = { selectedTab = it },
             )
@@ -7265,7 +7103,6 @@ fun IdentityAddressDetailScreen(
                     onTransactionClick = { transactionActionTarget = it },
                     bottomPadding = barInset,
                 )
-                2 -> AddressDomainsTab(address.orEmpty(), onOpenService = { openedDomainService = it }, bottomPadding = barInset)
                 else -> AddressUtxoList(
                     utxos = utxos,
                     isLoading = isLoadingUtxos,
@@ -7378,26 +7215,10 @@ fun IdentityAddressDetailScreen(
                 transactionActionTarget = null
                 uriHandler.openUri(kaspaExplorer.txUrl(tapped.txId))
             },
-            onAddToPortfolio = {
-                transactionActionTarget = null
-                portfolioCandidate = tapped
-            },
             onDismiss = { transactionActionTarget = null },
         )
     }
 
-    portfolioCandidate?.let { candidate ->
-        AddToPortfolioSheet(
-            tx = candidate,
-            address = address.orEmpty(),
-            viewModel = portfolioViewModel,
-            onDismiss = { portfolioCandidate = null },
-            onAdded = { addedPortfolioName = it },
-        )
-    }
-    addedPortfolioName?.let { name ->
-        PortfolioAddedSnackbar(name) { addedPortfolioName = null }
-    }
 }
 
 /**
@@ -7695,7 +7516,7 @@ private fun SpendingAddressPrivateKeyOverlay(privateKeyHex: String, onDismiss: (
 
 @Composable
 private fun SpendingAddressTxHistoryRow(
-    tx: ColdStorageAddressDiscovery.AddressTransaction,
+    tx: AddressHistoryService.AddressTransaction,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -7766,7 +7587,7 @@ private fun SpendingAddressTxHistoryRow(
 
 @Composable
 private fun SpendingAddressUtxoRow(
-    utxo: ColdStorageAddressDiscovery.AddressUtxo,
+    utxo: AddressHistoryService.AddressUtxo,
     label: String? = null,
     onRenameClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -7921,11 +7742,11 @@ private fun AddressPageBalanceHeader(balanceSompi: Long) {
  */
 @Composable
 private fun AddressHistoryList(
-    txHistory: List<ColdStorageAddressDiscovery.AddressTransaction>,
+    txHistory: List<AddressHistoryService.AddressTransaction>,
     isLoading: Boolean,
     failed: Boolean,
     onRetry: () -> Unit,
-    onTransactionClick: (ColdStorageAddressDiscovery.AddressTransaction) -> Unit,
+    onTransactionClick: (AddressHistoryService.AddressTransaction) -> Unit,
     /** Extra room at the list's end for what floats over the page's foot (Receive / Send, the dock). */
     bottomPadding: Dp = 0.dp,
 ) {
@@ -7979,7 +7800,7 @@ private fun AddressHistoryList(
  */
 @Composable
 private fun AddressUtxoList(
-    utxos: List<ColdStorageAddressDiscovery.AddressUtxo>,
+    utxos: List<AddressHistoryService.AddressUtxo>,
     isLoading: Boolean,
     loadError: String?,
     labels: Map<String, String>,
@@ -8638,8 +8459,6 @@ fun ReactionPill(reactions: List<ReactionEntity>, modifier: Modifier = Modifier,
 @Composable
 fun KachatProfileEditorScreen(
     onBack: () -> Unit,
-    showSetupGuides: Boolean = true,
-    onSetupGuide: () -> Unit = {},
 ) {
     // The live editor on every network since iOS 7227d69, and it saves there too since d36fc42.
     // The placeholder below is kept, unreachable, as the switch-back.
@@ -8679,14 +8498,6 @@ fun KachatProfileEditorScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Spacer(Modifier.height(4.dp))
-            // The setup guide lives here since 5.2 (iOS b000310) - .kachat is the name KaChat sets
-            // up for you; .kas profiles are edited field by field in Your Domains.
-            if (showSetupGuides) {
-                SettingsSection(title = null) {
-                    SettingsNavigationItem(stringResource(R.string.kg_setup_guide), null, showIcon = false, onClick = onSetupGuide)
-                }
-                SettingsFooter(stringResource(R.string.kg_names_setup_footer))
-            }
             SettingsSection(title = null) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
                     Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
@@ -9402,8 +9213,8 @@ fun SettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             } else {
-            // iOS's Settings sheet toolbar: the connection dot and Done in glass, the balance
-            // between them - no title.
+            // iOS's Settings tab toolbar: the connection dot in glass and the balance - no title,
+            // and no Done since Settings became a tab (iOS d54ea87).
             Row(
                 modifier = Modifier
                     .background(LocalAppColors.current.background)
@@ -9424,7 +9235,8 @@ fun SettingsScreen(
                     Box(Modifier.size(12.dp).background(Color(dotColorHex), CircleShape))
                 }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { BalanceLabelRow(balance, copyOnTap = true) }
-                SheetBarButton(stringResource(R.string.done), onClick = { navController.popBackStack() })
+                // Balances the dot, so the balance stays centred.
+                Spacer(Modifier.size(44.dp))
             }
             }
         }
@@ -9489,24 +9301,13 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "customization") {
-                // iOS customizationPage: one section - the three pickers, Customize Dock, Show Fee
-                // Estimate.
+                // iOS customizationPage: one section - the three pickers and Show Fee Estimate.
                 SettingsFormSection(title = stringResource(R.string.customization)) {
                     // Appearance / Language / Currency are shared with the accounts screen's App
-                    // Settings (iOS AppWideCustomizationPickers); the dock and the fee estimate
-                    // belong to this account's Settings only.
+                    // Settings (iOS AppWideCustomizationPickers); the fee estimate belongs to this
+                    // account's Settings only.
                     AppWideCustomizationPickers(walletViewModel)
                     SettingsDivider()
-                    // The sheet above the dock (MainShell), never a page in here: the dock updates
-                    // live as it is arranged (iOS 476ea20). iOS draws this Label in the primary
-                    // colour, its symbol included.
-                    SettingsNavigationItem(
-                        stringResource(R.string.menu),
-                        Icons.AutoMirrored.Filled.FormatListBulleted,
-                        iconTint = LocalAppColors.current.textPrimary,
-                        onClick = { CustomizeDock.open() },
-                    )
-                    SettingsDivider(inset = IosRowTextInset)
                     // Moved here from Chats: it decides whether a number is drawn on the composer,
                     // which is a display preference, not a chat behaviour.
                     SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
@@ -9839,7 +9640,8 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // The hub is a tab: its list runs on under the dock and ends clear of it.
+            Spacer(modifier = Modifier.height(24.dp + if (sectionKey == null) LocalDockInset.current else 0.dp))
         }
     }
 
@@ -11197,7 +10999,6 @@ fun ConnectionStatusScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = 
                 )
             }
 
-
             Spacer(modifier = Modifier.height(100.dp))
         }
     }
@@ -11948,78 +11749,6 @@ fun rememberQrBitmapPainter(
         }
     }
     return BitmapPainter(bitmap)
-}
-
-/**
- * Cycles through [frames] at a fixed interval — the display half of KasSigner's animated multi-
- * frame QR protocol (see [com.kachat.app.util.QrFrameChunker]). A single-frame list just renders
- * a static code with no play/pause controls or frame counter.
- */
-@Composable
-fun AnimatedQrDisplay(frames: List<ByteArray>, modifier: Modifier = Modifier, frameDelayMs: Long = 2500L) {
-    var frameIndex by remember(frames) { mutableStateOf(0) }
-    // Matches KasSee's own 2.5s auto-advance (kassee/web/js/app.js's displayKsptQr) — a scanning
-    // camera needs real time to lock onto and decode each frame; a faster cycle (this used to
-    // default to 200ms) skips past frames before the scanner ever catches them.
-    var isPlaying by remember(frames) { mutableStateOf(true) }
-
-    LaunchedEffect(frames, isPlaying) {
-        if (frames.size <= 1 || !isPlaying) return@LaunchedEffect
-        while (true) {
-            delay(frameDelayMs)
-            frameIndex = (frameIndex + 1) % frames.size
-        }
-    }
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
-        val painter = rememberQrBitmapPainter(bytes = frames[frameIndex.coerceIn(frames.indices)])
-        Box(
-            modifier = Modifier
-                .size(280.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color.White)
-                .border(2.dp, KaspaTeal, RoundedCornerShape(20.dp))
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(painter = painter, contentDescription = stringResource(R.string.qr_code_2), modifier = Modifier.fillMaxSize())
-        }
-        if (frames.size > 1) {
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                frames.indices.forEach { i ->
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            // Fixed, not theme-based — this always sits on a forced-white card
-                            // (see ColdSendFlow), so the inactive dot needs to read against white
-                            // specifically rather than whatever the app's own surfaceVariant is.
-                            .background(if (i == frameIndex) KaspaTeal else Color(0xFFD0D0D5))
-                    )
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Manual stepping works whether playing or paused — tapping prev/next doesn't
-                // require pausing first, matching KasSee's own frame-nav buttons.
-                IconButton(onClick = { frameIndex = (frameIndex - 1 + frames.size) % frames.size }) {
-                    Icon(Icons.Default.SkipPrevious, "Previous frame", tint = KaspaTeal)
-                }
-                IconButton(onClick = { isPlaying = !isPlaying }) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        if (isPlaying) "Pause" else "Play",
-                        tint = KaspaTeal
-                    )
-                }
-                IconButton(onClick = { frameIndex = (frameIndex + 1) % frames.size }) {
-                    Icon(Icons.Default.SkipNext, "Next frame", tint = KaspaTeal)
-                }
-                Text("Frame ${frameIndex + 1} / ${frames.size}", color = Color(0xFF6B6B70), style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
 }
 
 /** How an [AddressQrPage] is closed - iOS puts a different control in its bar for each way it
@@ -14403,7 +14132,6 @@ fun InfoStatItem(label: String, value: String) {
         Text(label, color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
     }
 }
-
 
 /**
  * The contact's KNS domains, primary first, on their own screen.

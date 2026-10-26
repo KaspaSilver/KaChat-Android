@@ -54,13 +54,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -101,7 +99,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.collectAsState
 import com.kachat.app.viewmodels.WalletViewModel
@@ -116,6 +113,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 // The pieces every Send Kaspa screen is built from, so they look and behave the same: the 1:1
 // chat's Send KAS sheet, Send Kaspa (Chats > + > Send Kaspa, Donate, the Address Book, an
@@ -589,11 +588,11 @@ private object GroupedAmountTransformation : VisualTransformation {
 
 /** The localized label for a fee speed (iOS shows `WithdrawFeeTier.rawValue` localized). */
 @Composable
-fun feeTierLabel(tier: ColdFeeTier): String = stringResource(
+fun feeTierLabel(tier: FeeTier): String = stringResource(
     when (tier) {
-        ColdFeeTier.NORMAL -> R.string.fee_tier_normal
-        ColdFeeTier.FAST -> R.string.fee_tier_fast
-        ColdFeeTier.PRIORITY -> R.string.fee_tier_priority
+        FeeTier.NORMAL -> R.string.fee_tier_normal
+        FeeTier.FAST -> R.string.fee_tier_fast
+        FeeTier.PRIORITY -> R.string.fee_tier_priority
     }
 )
 
@@ -603,8 +602,8 @@ fun feeTierLabel(tier: ColdFeeTier): String = stringResource(
  */
 @Composable
 fun SendFeeControls(
-    feeTier: ColdFeeTier,
-    onFeeTierChange: (ColdFeeTier) -> Unit,
+    feeTier: FeeTier,
+    onFeeTierChange: (FeeTier) -> Unit,
     isEditingFee: Boolean,
     customFeeText: String,
     onCustomFeeTextChange: (String) -> Unit,
@@ -704,7 +703,7 @@ fun SendFeeControls(
 /** Normal / Fast / Priority as iOS's segmented Picker draws it: a tinted track with the chosen
  *  segment on a raised thumb. */
 @Composable
-private fun SendFeeTierPicker(selected: ColdFeeTier, onSelect: (ColdFeeTier) -> Unit) {
+private fun SendFeeTierPicker(selected: FeeTier, onSelect: (FeeTier) -> Unit) {
     val colors = LocalAppColors.current
     val thumb = if (colors.isDark) Color(0xFF636366) else Color.White
     Row(
@@ -714,7 +713,7 @@ private fun SendFeeTierPicker(selected: ColdFeeTier, onSelect: (ColdFeeTier) -> 
             .background(colors.textPrimary.copy(alpha = 0.08f))
             .padding(2.dp)
     ) {
-        ColdFeeTier.entries.forEach { tier ->
+        FeeTier.entries.forEach { tier ->
             val isSelected = tier == selected
             Box(
                 contentAlignment = Alignment.Center,

@@ -22,22 +22,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.IosShare
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,14 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
 import com.kachat.app.R
 import com.kachat.app.models.PaymentRequest
 import com.kachat.app.ui.theme.IosRoundedFontFamily
@@ -80,6 +68,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 // MARK: - Opening one
 
@@ -307,7 +297,7 @@ fun CreatePaymentRequestSheet(
     onDismissed: () -> Unit,
     recipientContactId: String? = null,
     chatViewModel: ChatViewModel? = null,
-    portfolioViewModel: com.kachat.app.viewmodels.PortfolioViewModel = hiltViewModel(),
+    priceViewModel: com.kachat.app.viewmodels.KasPriceViewModel = hiltViewModel(),
 ) {
     IosFullSheet(onDismissed = onDismissed, swipeToDismiss = true) { close ->
         BackHandler(onBack = close)
@@ -316,8 +306,8 @@ fun CreatePaymentRequestSheet(
         val clipboard = LocalClipboardManager.current
         val scope = androidx.compose.runtime.rememberCoroutineScope()
         val haptic = com.kachat.app.util.rememberHaptics()
-        val fiatPriceInCurrency by portfolioViewModel.currentPriceUsd.collectAsState()
-        val fiatCurrencyCode by portfolioViewModel.currency.collectAsState()
+        val fiatPriceInCurrency by priceViewModel.currentPriceUsd.collectAsState()
+        val fiatCurrencyCode by priceViewModel.currency.collectAsState()
         val chattingAddress by walletViewModel.address.collectAsState()
 
         var destination by remember { mutableStateOf(PaymentRequestDestination.FRESH) }

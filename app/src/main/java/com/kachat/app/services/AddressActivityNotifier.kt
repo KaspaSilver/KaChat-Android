@@ -6,7 +6,6 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.kachat.app.repository.AppSettingsRepository
-import com.kachat.app.util.KaspaExtendedPublicKey
 import com.kachat.app.util.KaspaUnit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -37,12 +36,12 @@ import javax.inject.Singleton
  * - Per-wallet balance baselines persist across launches; the very first run for a wallet seeds
  *   them silently (no dredging up history as "new" receipts).
  * - A balance increase is attributed to recent transactions for that address; a tx whose inputs
- *   include ANY of our own addresses (chatting, spending, or cold) is a self-transfer and is
+ *   include ANY of our own addresses (chatting or spending) is a self-transfer and is
  *   suppressed. Unresolvable transactions notify anyway - missing real funds is worse than a
  *   rare duplicate. One notification per tx, outputs to our addresses summed.
  * - Handled txIds are persisted per wallet (cap 500) so live/catch-up passes never double-notify.
  * - [utxoActivityEvents] ALWAYS emits when watched balances change - a UI-refresh signal
- *   (payment composer's Available pill, Manage Addresses, Cold Storage) deliberately separate
+ *   (payment composer's Available pill, Manage Addresses) deliberately separate
  *   from the notification decision and NOT gated by the Address Activity setting.
  * - The notification itself is gated by Settings > Notifications > Wallet > "Address Activity"
  *   (default ON) plus the global notifications toggle.
@@ -57,7 +56,6 @@ import javax.inject.Singleton
 class AddressActivityNotifier @Inject constructor(
     @ApplicationContext context: Context,
     private val walletManager: WalletManager,
-    private val coldStorageManager: ColdStorageManager,
     private val networkService: NetworkService,
     private val settingsRepository: AppSettingsRepository,
     private val notificationHelper: NotificationHelper,
@@ -116,34 +114,6 @@ class AddressActivityNotifier @Inject constructor(
 
     private fun walletAddressOrNull(): String? = try { walletManager.getAddress() } catch (e: Exception) { null }
 
-    /** Cold-storage addresses whose account has receive notifications switched off. Still ours
-     *  for the self-send check, and still watched for the UI refresh; never notified. */
-    @Volatile
-    private var coldMutedAddresses: Set<String> = emptySet()
-
-    /** address -> cold account label, for every derived cold address of the active wallet. Also
-     *  records which of them belong to an account that has been switched off. */
-    private fun coldLabelByAddress(): Map<String, String> {
-        val result = mutableMapOf<String, String>()
-        val muted = mutableSetOf<String>()
-        val accounts = try { coldStorageManager.getAccounts() } catch (e: Exception) { return result }
-        for (account in accounts) {
-            val parsed = KaspaExtendedPublicKey.parse(account.kpub).getOrNull() ?: continue
-            val rootKey = try { KaspaExtendedPublicKey.toDeterministicKey(parsed) } catch (e: Exception) { continue }
-            for (index in 0..account.maxDerivedIndex) {
-                val address = try {
-                    KaspaExtendedPublicKey.deriveChildAddress(rootKey, chain = 0, index = index)
-                } catch (e: Exception) {
-                    continue
-                }
-                result[address] = account.name
-                if (!account.notifyOnReceive) muted.add(address)
-            }
-        }
-        coldMutedAddresses = muted
-        return result
-    }
-
     // --- Core diff pass ---------------------------------------------------------------
 
     private suspend fun runDiffPass() = runMutex.withLock {
@@ -151,17 +121,16 @@ class AddressActivityNotifier @Inject constructor(
         val api = networkService.kaspaRestApi.value ?: return@withLock
 
         val spending = walletManager.allSpendingAddresses().toSet()
-        val coldLabels = coldLabelByAddress()
         // The chatting address is watched like the others (iOS 56b75c8), for plain transfers only.
-        val watched = spending + coldLabels.keys + walletAddress
+        // Cold Storage left the app on 2026-10-24 (iOS d54ea87): there are no cold addresses.
+        val watched = spending + walletAddress
 
         // NOTIFIABLE = watched, the chatting address included (only its plain transfers count -
         // see attributeAndMaybeNotifyIncrease).
-        // Per account: each cold-storage account has its own switch, and the spending chain has
-        // one of its own. An account switched off is still ours - still watched, still counted
-        // for the self-send test - just quiet (iOS ba352a2).
+        // The spending chain has a switch of its own. Switched off it is still ours - still
+        // watched, still counted for the self-send test - just quiet (iOS ba352a2).
         val spendingMuted = if (settingsRepository.spendingReceiveNotifications.first()) emptySet() else spending
-        val notifiable = watched - coldMutedAddresses - spendingMuted
+        val notifiable = watched - spendingMuted
         // "Ours" for the self-send input test includes the chatting address too.
         val ownAll = watched
 
@@ -183,8 +152,8 @@ class AddressActivityNotifier @Inject constructor(
         for ((address, balance) in currentBalances) {
             val previous = baselines[address]
             if (previous == null) {
-                // First sighting of this address (feature install, newly revealed slot, fresh
-                // cold import) - seed silently.
+                // First sighting of this address (feature install, newly revealed slot) - seed
+                // silently.
                 baselines[address] = balance
                 if (address == walletAddress) {
                     // the chatting address's receives count from now on
@@ -195,7 +164,7 @@ class AddressActivityNotifier @Inject constructor(
             }
             if (balance != previous) {
                 changed = true
-                // The UI refresh signal stays about spending and cold-storage addresses, as before:
+                // The UI refresh signal stays about the spending addresses, as before:
                 // the chatting address's balance moves with every message sent.
                 if (address != walletAddress) changedAddresses.add(address)
             }
@@ -205,7 +174,6 @@ class AddressActivityNotifier @Inject constructor(
                     delta = balance - previous,
                     walletAddress = walletAddress,
                     ownAll = ownAll,
-                    coldLabels = coldLabels,
                     featureOn = featureOn,
                     api = api
                 )
@@ -233,7 +201,6 @@ class AddressActivityNotifier @Inject constructor(
         delta: Long,
         walletAddress: String,
         ownAll: Set<String>,
-        coldLabels: Map<String, String>,
         featureOn: Boolean,
         api: KaspaRestApi
     ) {
@@ -256,7 +223,7 @@ class AddressActivityNotifier @Inject constructor(
         if (transactions.isEmpty()) {
             // Resolution failed entirely - still surface the funds, neutral wording (not for the
             // chatting address, whose balance moves with every chat payment too).
-            if (featureOn && !isChatting) postBalanceIncreased(address, delta, coldLabels)
+            if (featureOn && !isChatting) postBalanceIncreased(address, delta)
             return
         }
         var attributedAny = false
@@ -277,69 +244,63 @@ class AddressActivityNotifier @Inject constructor(
                 continue
             }
             if (featureOn) {
-                postReceive(totalSompi = toAddress, address = address, coldLabels = coldLabels, dedupeKey = tx.transactionId)
+                postReceive(totalSompi = toAddress, address = address, dedupeKey = tx.transactionId)
             }
         }
         if (!attributedAny && featureOn && !isChatting) {
             // Balance grew but none of the fetched recent txs pays this address (deep history
             // page or indexer lag) - neutral fallback rather than staying silent.
-            postBalanceIncreased(address, delta, coldLabels)
+            postBalanceIncreased(address, delta)
         }
     }
 
     // --- Notifications ----------------------------------------------------------------
 
-    private suspend fun postReceive(totalSompi: Long, address: String, coldLabels: Map<String, String>, dedupeKey: String) {
+    private suspend fun postReceive(totalSompi: Long, address: String, dedupeKey: String) {
         if (totalSompi <= 0) return
         // The chatting address: the payment sync may have bannered this payment already.
         if (address == walletAddressOrNull() && !notificationHelper.claimForBanner(dedupeKey)) return
         notificationHelper.showAddressActivity(
             title = "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}",
-            text = describe(address, coldLabels),
+            text = describe(address),
             dedupeKey = dedupeKey,
-            kind = kindOf(address, coldLabels),
+            kind = kindOf(address),
             // One address per notification here (each receipt is posted per address), so the
             // tap always opens that address's History (iOS 13046ad).
             address = address
         )
         // Also list it in the Profile notifications bell; the row opens the same address's
         // History (iOS 95e2cba).
-        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), address)
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Received ${formatKas(totalSompi)} ${KaspaUnit.symbol}", describe(address), System.currentTimeMillis(), address)
         Log.i(TAG, "Notified external receive $dedupeKey")
     }
 
-    private suspend fun postBalanceIncreased(address: String, delta: Long, coldLabels: Map<String, String>) {
+    private suspend fun postBalanceIncreased(address: String, delta: Long) {
         if (delta <= 0) return
         val dedupeKey = "bal-${address.takeLast(12)}-${System.currentTimeMillis()}"
         notificationHelper.showAddressActivity(
             title = "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}",
-            text = describe(address, coldLabels),
+            text = describe(address),
             dedupeKey = dedupeKey,
-            kind = kindOf(address, coldLabels),
+            kind = kindOf(address),
             // One address per notification here (each receipt is posted per address), so the
             // tap always opens that address's History (iOS 13046ad).
             address = address
         )
         // the bell's row opens the same address's History (iOS 95e2cba)
-        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}", describe(address, coldLabels), System.currentTimeMillis(), address)
+        notificationCenter.record("wallet-$dedupeKey", "wallet", "Balance increased by ${formatKas(delta)} ${KaspaUnit.symbol}", describe(address), System.currentTimeMillis(), address)
     }
 
     /** Which wallet screen the notification's tap should open - mirrors iOS's `kindKey(for:)`,
      *  which puts the same string in the notification's `userInfo["kind"]`. */
-    private fun kindOf(address: String, coldLabels: Map<String, String>): String = when {
+    private fun kindOf(address: String): String = when {
         address == walletAddressOrNull() -> NotificationHelper.KIND_CHATTING
-        coldLabels[address] != null -> NotificationHelper.KIND_COLD
         else -> NotificationHelper.KIND_SPENDING
     }
 
-    private fun describe(address: String, coldLabels: Map<String, String>): String {
+    private fun describe(address: String): String {
         if (address == walletAddressOrNull()) return "Chatting address ${shortAddress(address)}"
-        val label = coldLabels[address]
-        return if (label != null) {
-            "Cold storage ($label) ${shortAddress(address)}"
-        } else {
-            "Spending address ${shortAddress(address)}"
-        }
+        return "Spending address ${shortAddress(address)}"
     }
 
     // --- Persistence (per wallet) -----------------------------------------------------

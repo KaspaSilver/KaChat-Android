@@ -32,9 +32,9 @@ import javax.inject.Inject
  * the Keystore behind EncryptedSharedPreferences can throw. So every service below is injected
  * as [dagger.Lazy] - Hilt's field injection (inside super.onCreate) creates none of them - and
  * onCreate then builds each one as its own [startupStep], in the same order as before: one that
- * throws is logged and the app opens without it. (The portfolio is built just after, off the main
- * thread.) The lifecycle callbacks below are guarded the same way. [hiltWorkerFactory] is the one
- * plain field (WorkManager's configuration needs it, and it is built from the graph alone).
+ * throws is logged and the app opens without it. The lifecycle callbacks below are guarded the
+ * same way. [hiltWorkerFactory] is the one plain field (WorkManager's configuration needs it, and
+ * it is built from the graph alone).
  */
 @HiltAndroidApp
 class KaChatApplication : Application(), Configuration.Provider {
@@ -135,13 +135,6 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var paymentNoticeOutbox: dagger.Lazy<com.kachat.app.services.PaymentNoticeOutbox>
 
-    // Portfolio rows still waiting for a price resume pricing whenever a wallet loads (iOS
-    // PortfolioViewModel.setCurrentWallet, run by WalletManager on every wallet load) - built at
-    // startup so its active-wallet observer runs from launch, not first when a screen with
-    // portfolio numbers opens.
-    @Inject
-    lateinit var portfolioRepository: dagger.Lazy<com.kachat.app.repository.PortfolioRepository>
-
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory()).build()
 
@@ -195,8 +188,9 @@ class KaChatApplication : Application(), Configuration.Provider {
         startupStep("payment requests") { paymentRequestWallet.get() }
         startupStep("payment notices") { paymentNoticeOutbox.get() }
 
-        // KaPosts, Public Chats and Chess Online left the app (iOS e2f6732): what they kept on
-        // this phone is deleted once, off the main thread.
+        // KaPosts, Public Chats, Chess Online, Portfolio, Cold Storage, Swap, the dock layouts and
+        // .kachat name reminders left the app (iOS e2f6732, d54ea87): what they kept on this phone
+        // is deleted once, off the main thread.
         ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO + logOnly) {
             startupStep("retired feature cleanup") {
                 com.kachat.app.services.RetiredFeatureCleanup.deleteLocalFiles(this@KaChatApplication)
@@ -223,13 +217,6 @@ class KaChatApplication : Application(), Configuration.Provider {
                     )
                 }
             }
-        }
-
-        // The portfolio's wallet-load price backfill (see the field above): built just after
-        // launch, off the main thread, so its active-wallet observer still runs from the start -
-        // but a portfolio store the Keystore will not open can never keep the app from opening.
-        ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.Default + logOnly) {
-            startupStep("portfolio price backfill") { portfolioRepository.get() }
         }
 
         // Background catch-up for GROUP chat only (see SyncWorker's doc comment): groups have no

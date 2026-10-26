@@ -7,8 +7,6 @@
     <string name="active_nodes">Node Aktif</string>
     <string name="add">Tambah</string>
     <string name="add_contact">Tambah Kontak</string>
-    <string name="add_transaction">Tambah Transaksi</string>
-    <string name="add_to_portfolio">Tambah ke Portofolio</string>
     <string name="added">Ditambahkan</string>
     <string name="address">Alamat</string>
     <string name="address_actions">Tindakan Alamat</string>
@@ -16,12 +14,8 @@
     <string name="admin">Admin</string>
     <string name="all_discovered_nodes_sorted_by_state">Semua node yang ditemukan diurutkan berdasarkan status dan latensi. Node dide-duplikasi menurut host:port.</string>
     <string name="balance">Saldo</string>
-    <string name="before_you_swap">Sebelum Melakukan Swap</string>
-    <string name="broadcasting">Menyiarkan...</string>
     <string name="cancel">Batal</string>
     <string name="off">Mati</string>
-    <string name="change">Ubah</string>
-    <string name="changenow_exchange_id">ID Pertukaran ChangeNOW</string>
     <string name="chats">Obrolan</string>
     <string name="chatting_address">Alamat Obrolan</string>
     <string name="chatting_address_2">Alamat obrolan</string>
@@ -41,7 +35,6 @@
     <string name="contact_has_requested_permission_to_communicate">Kontak telah meminta izin untuk berkomunikasi</string>
     <string name="copy_address">Salin Alamat</string>
     <string name="copy_private_key_hex">Salin Hex Kunci Privat</string>
-    <string name="copy_kpub">Salin kpub</string>
     <string name="couldn_t_rename_group">Gagal Mengubah Nama Grup</string>
     <string name="create_account">Buat Akun</string>
     <string name="create_kns_profile">Buat Profil KNS</string>
@@ -53,10 +46,8 @@
     <string name="delete">Hapus</string>
     <string name="delete_account">Hapus Akun</string>
     <string name="delete_group">Hapus Grup</string>
-    <string name="delete_transaction">Hapus Transaksi</string>
     <string name="done">Selesai</string>
     <string name="edit_kns_profile">Edit Profil KNS</string>
-    <string name="enter_kpub">Masukkan kpub</string>
     <string name="error">Kesalahan</string>
     <string name="every_member_will_see_the_new">Setiap anggota akan melihat nama baru.</string>
     <string name="failed_to_send">Gagal Mengirim</string>
@@ -68,18 +59,14 @@
     <string name="group_name_2">Nama Grup</string>
     <string name="hidden_addresses">Alamat Tersembunyi</string>
     <string name="hidden_users">Pengguna Tersembunyi</string>
-    <string name="i_agree">Saya Setuju</string>
     <string name="if_the_network_is_busy_a">Jika jaringan sedang sibuk, biaya lebih tinggi dapat membantu transaksi Anda terkonfirmasi lebih cepat.</string>
-    <string name="import_action">Impor</string>
     <string name="import_account">Impor Akun</string>
-    <string name="import_cold_storage_account">Impor Akun Penyimpanan Dingin</string>
     <string name="import_existing_account">Impor Akun yang Ada</string>
     <string name="important">Penting</string>
     <string name="incoming_notifications">Pemberitahuan Masuk</string>
     <string name="inscribe">Inskripsi</string>
     <string name="inscribe_domain">Inskripsi Domain</string>
     <string name="it_s_ok_i_already_have">Tidak apa-apa, saya sudah punya domain</string>
-    <string name="kas_2">KAS</string>
     <string name="kns_domains">Domain KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_needs_to_connect_to_a">KaChat perlu terhubung ke sebuah node. Bagaimana Anda ingin terhubung?</string>
@@ -103,69 +90,49 @@
     <string name="no_hidden_users_in_this_group">Tidak ada pengguna tersembunyi di grup ini.</string>
     <string name="no_messages_yet">Belum ada pesan</string>
     <string name="no_saved_addresses">Tidak ada alamat tersimpan</string>
-    <string name="no_swaps_yet">Belum ada swap.</string>
     <string name="no_transactions_yet">Belum ada transaksi.</string>
     <string name="not_now">Nanti Saja</string>
     <string name="notifications">Pemberitahuan</string>
     <string name="ok">OK</string>
     <string name="open_settings">Buka Pengaturan</string>
     <string name="other_nodes">Node Lainnya</string>
-    <string name="paste_from_clipboard">Tempel dari Papan Klip</string>
-    <string name="paste_kpub">Tempel kpub</string>
-    <string name="paste_the_kpub_exported_from_your">Tempel kpub yang diekspor dari perangkat KasSigner Anda. Ini tidak berisi materi kunci privat apa pun.</string>
     <string name="payment">Pembayaran</string>
     <string name="photo">Foto</string>
     <string name="pool_health">Kesehatan Kumpulan</string>
     <string name="portfolio">Portofolio</string>
-    <string name="price_per_coin">Harga Per Koin</string>
     <string name="promote_pawn_to">Promosikan pion ke:</string>
-    <string name="quantity">Kuantitas</string>
-    <string name="rate">Nilai Tukar</string>
     <string name="read">Dibaca</string>
     <string name="recipient_address">Alamat Penerima</string>
-    <string name="refresh_status">Segarkan Status</string>
     <string name="remove">Hapus</string>
-    <string name="remove_cold_storage_account">Hapus Akun Penyimpanan Dingin</string>
     <string name="rename">Ubah Nama</string>
     <string name="rename_account">Ubah Nama Akun</string>
     <string name="rename_address">Ubah Nama Alamat</string>
-    <string name="rename_cold_storage_account">Ubah Nama Akun Penyimpanan Dingin</string>
     <string name="rename_group">Ubah Nama Grup</string>
     <string name="resign">Menyerah</string>
     <string name="save">Simpan</string>
     <string name="saved_accounts">Akun Tersimpan</string>
-    <string name="scan">Pindai</string>
     <string name="scan_qr_code">Pindai Kode QR</string>
-    <string name="scan_signed_transaction">Pindai Transaksi Tertanda</string>
     <string name="search_chats">Cari obrolan</string>
     <string name="secure_messaging_on_kaspa_blockdag">Perpesanan aman di Kaspa BlockDAG</string>
     <string name="security_warning">Peringatan Keamanan</string>
     <string name="seed_phrase">Frasa Pemulihan</string>
     <string name="send">Kirim</string>
-    <string name="send_from_cold_storage">Kirim dari Penyimpanan Dingin</string>
     <string name="send_photo">Kirim Foto</string>
     <string name="sent">Terkirim</string>
-    <string name="settings">Pengaturan</string>
     <string name="show_more">Tampilkan Lebih Banyak</string>
     <string name="show_photo">Tampilkan Foto</string>
     <string name="show_qr_code">Tampilkan Kode QR</string>
     <string name="skip">Lewati</string>
     <string name="start_a_new_chat_by_adding">Mulai obrolan baru dengan menambahkan kontak</string>
     <string name="status">Status</string>
-    <string name="swap">Swap</string>
-    <string name="swaps_are_processed_by_changenow_a">Swap diproses oleh ChangeNOW, bursa pihak ketiga. Dengan melanjutkan, Anda menyetujui Ketentuan Layanan ChangeNOW. KaChat hanya mengirimkan permintaan swap dan menampilkan statusnya; KaChat tidak bertanggung jawab atas kegagalan, keterlambatan, atau kehilangan swap. Hubungi dukungan ChangeNOW secara langsung jika terjadi masalah.</string>
     <string name="tap_to_reveal_seed_phrase">Ketuk untuk menampilkan frasa pemulihan</string>
     <string name="this_could_take_a_few_minutes">Ini dapat memakan waktu beberapa menit saat konfirmasi di on-chain.</string>
-    <string name="this_only_removes_it_from_kachat">Ini hanya menghapusnya dari daftar pantau KaChat. Tidak berpengaruh pada perangkat KasSigner atau dana yang dimilikinya.</string>
     <string name="this_removes_the_group_and_its">Ini menghapus grup dan pesannya dari perangkat ini. Ini tidak dapat dibatalkan, dan anggota lain tidak akan diberi tahu.</string>
     <string name="total_balance">Total Saldo</string>
-    <string name="total_p_l">Total Laba/Rugi (P&amp;L)</string>
-    <string name="transactions">Transaksi</string>
     <string name="try_again">Coba Lagi</string>
     <string name="unhide">Tampilkan Kembali</string>
     <string name="unread">Belum Dibaca</string>
     <string name="use_default">Gunakan Default</string>
-    <string name="kpub">kpub</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
     <string name="about">Tentang</string>
@@ -186,12 +153,9 @@
     <string name="discover_addresses">Temukan Alamat</string>
     <string name="donate">Donasi</string>
     <string name="explorer">Penjelajah</string>
-    <string name="export_csv">Ekspor CSV</string>
-    <string name="generate_more_addresses">Buat Lebih Banyak Alamat</string>
     <string name="generate_new_spending_address">Buat Alamat Pengeluaran Baru</string>
     <string name="hide_user">Sembunyikan Pengguna</string>
     <string name="ip_address_book">Buku Alamat IP</string>
-    <string name="import_csv">Impor CSV</string>
     <string name="indexer">Pengindeks (Indexer)</string>
     <string name="info">Info</string>
     <string name="kns_profile">Profil KNS</string>
@@ -268,8 +232,6 @@
     <string name="get_domain_at">Dapatkan domain %1$s di %2$s</string>
     <string name="could_not_reach_service">Tidak dapat menjangkau %1$s. Tarik ke bawah untuk mencoba lagi.</string>
     <string name="no_names_yet">Belum ada nama %1$s.</string>
-    <string name="kachat_names_are_coming">Nama .kachat segera hadir</string>
-    <string name="kachat_names_coming_body">Nama milik KaChat akan ada di sini: klaim satu, jadikan namamu di obrolan, dan bagikan sebagai tautan profilmu.</string>
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">Domain %1$s tidak ditemukan</string>
     <string name="looking_up_domain">Mencari domain...</string>
@@ -288,69 +250,16 @@
     <string name="coming_soon">Segera hadir</string>
     <string name="not_available_on_this_network">Tidak tersedia di jaringan ini</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
-    <string name="km_find_a_name">Cari nama</string>
-    <string name="km_registration_not_open">Pendaftaran belum dibuka.</string>
-    <string name="km_claim">Klaim</string>
-    <string name="km_marketplace">Pasar</string>
     <string name="km_activity">Aktivitas</string>
-    <string name="km_list_a_name">Jual Nama</string>
-    <string name="km_listings_appear">Daftar jualan muncul di sini setelah nama .kachat diluncurkan.</string>
     <string name="km_no_names">Belum ada nama .kachat</string>
-    <string name="km_recent_activity">Aktivitas terbaru</string>
-    <string name="km_activity_appears">Aktivitas muncul di sini setelah nama .kachat diluncurkan.</string>
-    <string name="km_how_it_works">Cara kerjanya</string>
-    <string name="km_list">Jual</string>
-    <string name="km_buy">Beli</string>
-    <string name="km_trustless">Tanpa perantara</string>
-    <string name="km_claim_detail">Pilih nama yang tersedia dan daftarkan di Kaspa. Itu milikmu: namamu di obrolan, profilmu, tautanmu.</string>
-    <string name="km_list_detail">Tentukan harga. Nama menunggu di covenant on-chain - bukan di KaChat atau siapa pun - sampai ada yang membelinya atau kamu menariknya kembali.</string>
-    <string name="km_buy_detail">Bayar harga yang tertera. Pembayaran sampai ke penjual dan nama sampai kepadamu dalam transaksi yang sama - keduanya terjadi, atau tidak sama sekali.</string>
-    <string name="km_trustless_detail">Tanpa perantara dan tanpa rekening escrow: aturan Kaspa sendiri yang menjamin setiap penjualan.</string>
-    <string name="km_nothing_live">Belum ada yang aktif di sini.</string>
-    <string name="km_how_kachat_works">Cara kerja .kachat</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
-    <string name="kg_claim_title">Klaim nama .kachat-mu</string>
-    <string name="kg_claim_body">Ini nama yang dilihat orang di seluruh KaChat - di obrolan, di postingan, dan di tautan profilmu. Tanpanya, orang melihat alamatmu.</string>
     <string name="kg_welcome_body">Tur awal lengkap: dompet, obrolan, pembayaran, dan lainnya.</string>
     <string name="kg_previous">Sebelumnya</string>
-    <string name="kg_setup_guide">Panduan Penyiapan</string>
-    <string name="kg_close">Tutup</string>
-    <string name="kg_next">Berikutnya</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
-    <string name="kl_offers">Penawaran</string>
-    <string name="kl_offer">Penawaran</string>
-    <string name="kl_offer_detail">Tentukan hargamu sendiri. KAS-mu menunggu di chain sampai penjual menerima, kamu menarik penawaran, atau penawaran kedaluwarsa - dan kamu bisa mengirim pesan ke penjual dulu.</string>
-    <string name="kl_listing">Daftar Jual</string>
-    <string name="kl_price">Harga</string>
-    <string name="kl_buy_now">Beli Sekarang</string>
-    <string name="kl_make_offer">Buat Penawaran</string>
-    <string name="kl_seller">Penjual</string>
-    <string name="kl_seller_detail">Tanyakan soal nama ini atau sepakati harga sebelum menawar.</string>
-    <string name="kl_offers_on_name">Penawaran terbuka untuk nama ini, yang tertinggi lebih dulu. Penjual bisa menerima yang mana saja.</string>
-    <string name="kl_history">Riwayat</string>
-    <string name="kl_note_buy">Membeli membayar penjual dan memindahkan nama kepadamu dalam satu transaksi.</string>
-    <string name="kl_note_offer">Penawaran mengunci KAS-mu di chain sampai penjual menerimanya, kamu menariknya, atau kedaluwarsa.</string>
-    <string name="kl_note_message">Pesan sampai ke penjual seperti obrolan KaChat biasa.</string>
     <string name="kl_network_fee">Biaya jaringan</string>
-    <string name="kl_confirm_purchase">Konfirmasi Pembelian</string>
-    <string name="kl_buying_opens">Pembelian dibuka saat nama .kachat diluncurkan.</string>
-    <string name="kl_buy_name">Beli Nama</string>
-    <string name="kl_1d">1 Hari</string>
-    <string name="kl_3d">3 Hari</string>
-    <string name="kl_7d">7 Hari</string>
-    <string name="kl_listed_at">Harga jual</string>
-    <string name="kl_your_offer">Penawaranmu</string>
-    <string name="kl_expires_after">Kedaluwarsa setelah</string>
-    <string name="kl_send_offer">Kirim Penawaran</string>
-    <string name="kl_offers_open">Penawaran dibuka saat nama .kachat diluncurkan.</string>
-    <string name="kl_name">Nama</string>
-    <string name="kl_total">Total</string>
-    <string name="kl_message">Pesan</string>
     <!-- Portfolio Nextcloud export/import (iOS aa5d783, 8715685) -->
     <string name="pnc_import">Impor dari Nextcloud</string>
-    <string name="pnc_import_sub">Pilih file CSV dari Nextcloud-mu.</string>
     <string name="pnc_export">Ekspor ke Nextcloud</string>
-    <string name="pnc_export_sub">Simpan CSV ke folder KaChat di Nextcloud-mu.</string>
     <string name="pnc_saved_to">Tersimpan di %1$s di Nextcloud.</string>
     <string name="pnc_export_failed">Ekspor ke Nextcloud gagal: %1$s</string>
     <string name="pnc_import_failed">Impor dari Nextcloud gagal: %1$s</string>
@@ -361,31 +270,9 @@
     <string name="chat_day_yesterday">Kemarin</string>
     <!-- Address screens' .kachat tab (iOS b96d727/718b88c) -->
     <string name="address_tab_history">Riwayat</string>
-    <string name="kachat_no_names_on_address">Tidak ada nama .kachat di alamat ini</string>
-    <string name="kachat_names_on_address_hint">Nama yang diklaim atau dibeli alamat ini muncul di sini setelah nama .kachat diluncurkan.</string>
     <!-- Portfolio transfers (iOS 7423330/1c76cc1) -->
-    <string name="portfolio_type_transfer">Transfer</string>
-    <string name="portfolio_value_at_the_time">Nilai Saat Itu</string>
-    <string name="portfolio_transfer_footer">KAS yang dipindahkan antar-alamatmu sendiri - dikirim lalu dikembalikan, atau dari dompet ke dompet. Tidak mengubah kepemilikan, biaya, atau keuntunganmu.</string>
     <!-- Move a portfolio transaction (iOS b438f2d) -->
-    <string name="portfolio_move_title">Pindahkan ke Portofolio</string>
-    <string name="portfolio_move_need_another">Buat portofolio lain dulu, lalu kamu bisa memindahkan transaksi ke sana.</string>
-    <string name="portfolio_move_already_has">Sudah memiliki transaksi ini.</string>
-    <string name="portfolio_move_here">Pindahkan transaksi ini ke sini.</string>
-    <string name="portfolio_moved_to">Dipindahkan ke %1$s.</string>
     <!-- Realized P&L, fees spent, Add Chatting Address (iOS 61eff0f/5e75c89) -->
-    <string name="portfolio_add_chatting_address">Tambah Alamat Obrolan</string>
-    <string name="portfolio_add_chatting_address_sub">Pembelian dan penjualan alamat obrolanmu, serta setiap biaya jaringan yang telah dibayarnya.</string>
-    <string name="portfolio_fees_counted">. Biaya jaringan dihitung: %1$d</string>
-    <string name="portfolio_no_sells_this_year">Belum ada penjualan tahun ini.</string>
-    <string name="portfolio_sells_fifo">Penjualan: %1$d. Pembelian tertua lebih dulu (FIFO).</string>
-    <string name="portfolio_sold_uncovered">%1$s terjual tanpa catatan pembelian, dihitung dengan biaya nol.</string>
-    <string name="portfolio_prices_loading">Beberapa harga masih dimuat.</string>
-    <string name="portfolio_realized_pl_year">L/R terealisasi %1$s</string>
-    <string name="portfolio_fees_spent">Biaya Dibayar</string>
-    <string name="portfolio_fees_empty_hint">Tambahkan alamat obrolanmu dengan + untuk menghitung biaya jaringan yang telah dibayarnya.</string>
-    <string name="portfolio_fees_count_loading">Transaksi: %1$d. Beberapa harga masih dimuat.</string>
-    <string name="portfolio_fees_count_priced">Transaksi: %1$d, dengan harga tiap hari.</string>
     <!-- Receive / chatting address QR text (iOS 8bcae2f) -->
     <!-- Account discovery finds .k and .kaspa names (iOS 7a5b157) -->
     <string name="chatting_picker_other_names_count">Nama .k dan .kaspa (%1$d)</string>
@@ -430,76 +317,8 @@
     <string name="kn_invalid_chars">Gunakan hanya a-z, 0-9, dan tanda hubung.</string>
     <string name="kn_invalid_hyphen">Nama tidak boleh diawali atau diakhiri tanda hubung.</string>
     <string name="kn_status_expired">Kedaluwarsa</string>
-    <string name="kn_yours">Milik Anda</string>
-    <string name="kn_available_per_year">Tersedia · %1$s per tahun</string>
-    <string name="kn_not_valid_name">Bukan nama yang valid.</string>
-    <string name="kn_taken_for_sale">Sudah dipakai · dijual seharga %1$s</string>
-    <string name="kn_taken">Sudah dipakai</string>
-    <string name="kn_search_grace">Kedaluwarsa - pemilik masih bisa memperpanjang</string>
-    <string name="kn_seconds_to_go">Sekitar %1$d dtk lagi</string>
-    <string name="kn_cancel_commit_title">Batalkan komitmen?</string>
-    <string name="kn_cancel_commit">Batalkan Komitmen</string>
-    <string name="kn_keep">Simpan</string>
-    <string name="kn_cancel_commit_body">Pendaftaran berhenti dan 0.2 KAS dari komitmen kembali kepada Anda, dikurangi biaya jaringan.</string>
-    <string name="kn_stage_committing">Mengirim komitmen tersembunyi...</string>
-    <string name="kn_stage_waiting_confirm">Menunggu komitmen terkonfirmasi...</string>
-    <string name="kn_stage_waiting">Komitmen harus berumur sekitar satu menit sebelum nama bisa didaftarkan. Biarkan KaChat terbuka - ia mendaftar sendiri, dan melanjutkan dari titik terakhir jika Anda keluar.</string>
-    <string name="kn_stage_registering">Mendaftarkan...</string>
-    <string name="kn_stage_registered">Terdaftar. Sekarang milik Anda.</string>
-    <string name="kn_stage_taken">Seseorang mendaftarkan nama ini lebih dulu. Batalkan komitmen untuk mendapatkan kembali 0.2 KAS.</string>
-    <string name="kn_stage_failed">Pendaftaran terhenti.</string>
-    <string name="kn_stage_cancelling">Membatalkan komitmen...</string>
-    <string name="kn_stage_cancelled">Dibatalkan.</string>
     <string name="kn_auth_reason">Konfirmasi transaksi .kachat ini</string>
-    <string name="kn_for_sale">Dijual</string>
-    <string name="kn_no_listings">Belum ada nama yang dijual saat ini.</string>
-    <string name="kn_my_offers">Penawaran Saya</string>
-    <string name="kn_no_open_offers">Tidak ada penawaran terbuka.</string>
-    <string name="kn_offers_need_indexer">Penawaran dari orang lain muncul setelah indexer nama terhubung.</string>
-    <string name="kn_nothing_yet">Belum ada.</string>
-    <string name="kn_withdraw_offer">Tarik Penawaran</string>
-    <string name="kn_withdraw">Tarik</string>
-    <string name="kn_refund_offer">Kembalikan Penawaran</string>
-    <string name="kn_refund">Kembalikan</string>
-    <string name="kn_accept_offer">Terima Penawaran</string>
-    <string name="kn_accept_and_transfer">Terima dan Pindahkan</string>
-    <string name="kn_accept_warning">Nama berpindah ke pembeli dan jumlah penawaran masuk ke Anda, dalam satu transaksi. Ini tidak bisa dibatalkan.</string>
-    <string name="kn_buyer">Pembeli</string>
-    <string name="kn_price_to_miners">Harga (untuk penambang)</string>
-    <string name="kn_bond_returned">Jaminan (dikembalikan saat dilepas)</string>
-    <string name="kn_deposit_returned">Deposit registri (dikembalikan saat dilepas)</string>
-    <string name="kn_commit_returned">Komitmen (dikembalikan saat pendaftaran)</string>
-    <string name="kn_network_fees">Biaya jaringan</string>
-    <string name="kn_not_enough">KAS di alamat obrolan Anda tidak cukup untuk nama ini.</string>
-    <string name="kn_claim_footer">Harga diberikan ke penambang - KaChat tidak mengambil apa pun. Jaminan dan deposit kembali saat Anda melepas nama.</string>
-    <string name="kn_claim_step1">Komitmen tersembunyi dikirim ke chain terlebih dahulu. Tidak ada yang bisa melihat untuk nama apa.</string>
-    <string name="kn_claim_step2">Sekitar satu menit kemudian KaChat mendaftarkan nama sendiri. Biarkan aplikasi terbuka; jika Anda keluar, prosesnya berlanjut lain kali.</string>
-    <string name="kn_how_claiming_works">Cara kerja klaim</string>
-    <string name="kn_claim_name_button">Klaim %1$s.kachat</string>
-    <string name="kn_claim_name_title">Klaim Nama</string>
-    <string name="kn_name_gone">Nama ini telah dilepas atau diklaim ulang. Bisa diklaim lagi.</string>
-    <string name="kn_not_for_sale">Tidak dijual</string>
     <string name="kn_expires_on">Kedaluwarsa %1$s</string>
-    <string name="kn_renew">Perpanjang</string>
-    <string name="kn_change_price">Ubah Harga</string>
-    <string name="kn_list_for_sale">Jual</string>
-    <string name="kn_delist">Tarik dari penjualan</string>
-    <string name="kn_release_name">Lepas Nama</string>
-    <string name="kn_owner">Pemilik</string>
-    <string name="kn_you">Anda</string>
-    <string name="kn_no_history">Belum ada riwayat.</string>
-    <string name="kn_release">Lepas</string>
-    <string name="kn_release_warning">Melepas berarti menyerahkan nama untuk selamanya: siapa pun bisa mendaftarkannya, dan waktu yang sudah Anda bayar hilang. Jaminan dan deposit registri dikembalikan kepada Anda.</string>
-    <string name="kn_buy_footer">Pembayaran sampai ke penjual dan nama sampai ke Anda dalam transaksi yang sama - keduanya terjadi, atau tidak sama sekali.</string>
-    <string name="kn_price_to_seller">Harga (untuk penjual)</string>
-    <string name="kn_refundable_after">Bisa dikembalikan setelah</string>
-    <string name="kn_price_per_year">Harga per tahun</string>
-    <string name="kn_new_expiry">Kedaluwarsa baru</string>
-    <string name="kn_list_footer">Siapa pun bisa membelinya dengan harga ini: pembayaran sampai ke Anda dan nama ke pembeli dalam satu transaksi. Tarik kapan saja.</string>
-    <string name="kn_transfer_warning">Pemindahan tidak bisa dibatalkan. Pemilik baru mendapat nama dengan masa berlakunya saat ini; profil Anda tetap di alamat Anda.</string>
-    <string name="kn_new_owner">Pemilik baru</string>
-    <string name="kn_err_address_key">Kunci alamat itu tidak valid.</string>
-    <string name="kn_err_lookup">Tidak dapat mencari nama itu.</string>
     <string name="kn_profile_belongs">Profil Anda milik alamat Anda, bukan nama: tetap sama saat Anda membeli, menjual, atau melepas nama.</string>
     <string name="kn_links">Tautan</string>
     <string name="kn_primary_name">Nama utama</string>
@@ -507,7 +326,6 @@
     <string name="kn_primary_footer">KaChat menampilkan Anda dengan nama utama selama Anda memilikinya dan masih aktif; jika tidak, dengan nama aktif tertua Anda, atau alamat Anda.</string>
     <string name="kn_save_profile">Simpan Profil</string>
     <string name="kn_save_footer">Menyimpan akan menulis profil Anda ke chain dari alamat Anda ke dirinya sendiri, dengan biaya jaringan. Profil bersifat publik.</string>
-    <string name="kn_n_years">%1$d tahun</string>
     <string name="kn_err_key_mismatch">Kunci dompet ini tidak cocok dengan alamatnya.</string>
     <string name="kn_err_invalid_key">%1$s bukan kunci yang valid (tidak pada kurva secp256k1).</string>
     <string name="kn_err_no_salt">Rahasia untuk pendaftaran ini tidak ada di perangkat ini.</string>
@@ -521,8 +339,6 @@
     <string name="kn_ev_registered">Terdaftar</string>
     <string name="kn_ev_listed">Terdaftar</string>
     <string name="kn_available">Tersedia</string>
-    <string name="kn_expires">Kedaluwarsa</string>
-    <string name="kn_one_year">1 tahun</string>
     <!-- .kachat profile: social link and Linktree (iOS ad32798, 1322216, 169f6a0) -->
     <string name="kn_linktree_footer">Tambahkan Linktree Anda untuk mengarahkan orang ke akun dan situs web Anda yang lain.</string>
     <string name="kn_social_looking">Mencari profil...</string>
@@ -546,20 +362,10 @@
     <string name="kn_balance_after">Saldo setelahnya</string>
     <!-- .kachat: the finished-transaction half sheet (iOS 0870fcc) -->
     <string name="kn_done_tx_sent">Transaksi terkirim</string>
-    <string name="kn_view_transaction">Lihat transaksi</string>
-    <string name="kn_done_released">Nama dilepas</string>
-    <string name="kn_done_bought">Nama dibeli</string>
-    <string name="kn_done_offer_sent">Penawaran terkirim</string>
-    <string name="kn_done_price_changed">Harga diubah</string>
-    <string name="kn_done_listed">Dijual</string>
-    <string name="kn_done_transferred">Nama dipindahkan</string>
     <string name="kn_done_profile_saved">Profil disimpan</string>
     <string name="kn_clear_profile">Hapus Profil</string>
     <string name="kn_done_profile_cleared">Profil dihapus</string>
     <string name="kn_clear_footer">Menghapus menulis profil kosong ke chain dari alamat Anda ke dirinya sendiri, dengan biaya jaringan, sehingga KaChat tidak menampilkan apa pun lagi untuk alamat Anda.</string>
-    <string name="kn_done_primary_set">Nama utama diatur</string>
-    <string name="kn_done_registered">Nama terdaftar</string>
-    <string name="kn_done_commit_cancelled">Komitmen dibatalkan</string>
     <!-- .kachat: the profile save review (iOS 7e238e5) -->
     <string name="kn_your_profile">Profil Anda</string>
     <string name="kn_linktree">Linktree</string>
@@ -567,14 +373,8 @@
     <string name="kn_profiles_public_note">Profil bersifat publik dan on-chain: siapa pun bisa membacanya, dan versi sebelumnya tetap terbaca setelah Anda mengubahnya.</string>
     <!-- .kachat registry v2: extend, the renewal window, setting up (iOS bd2c54a, d2e0673) -->
     <string name="kn_ev_extended">Masa ditambah</string>
-    <string name="kn_extend">Tambah masa</string>
-    <string name="kn_extend_to_years">Tambah hingga %1$d tahun</string>
     <string name="kn_renewal_opens_on">Perpanjangan dibuka %1$s</string>
-    <string name="kn_paid_from_to">Dibayar dari %1$s sampai %2$s</string>
-    <string name="kn_new_period">Periode baru</string>
-    <string name="kn_extend_footer">Menambah masa memberi tahun tambahan pada periode berbayar saat ini, yang paling lama 2 tahun. Harga diberikan ke penambang.</string>
     <string name="kn_err_period_unknown">Pengindeks nama tidak mengirim periode berbayar nama ini. Tarik untuk menyegarkan dan coba lagi.</string>
-    <string name="kn_claim_step3_cap">Nama ini milik Anda selama tahun yang dibayar, paling lama 2 tahun ke depan. Nama 1 tahun bisa ditambah menjadi 2 tahun; mulai 10 hari sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
     <string name="kn_setting_up">Sedang disiapkan</string>
     <!-- Testnet: identity is .kachat everywhere (iOS e52357d) -->
     <string name="kn_kachat_names">Nama .kachat</string>
@@ -624,11 +424,7 @@
     <string name="transaction_id_copied">ID transaksi disalin</string>
     <string name="payment_not_on_chain_yet">Pembayaran ini belum on-chain.</string>
     <!-- Your Domains > .kachat Inscribe (iOS e4da63d) -->
-    <string name="kn_opens_marketplace">Membuka marketplace .kachat</string>
     <!-- iOS 881ada6, 5da8ccf, 492aa53, 7227d69: per-address .kachat, the Chats New sheet, QR captions, mainnet .kachat UI -->
-    <string name="kachat_names_this_address_owns">Nama milik alamat ini muncul di sini.</string>
-    <string name="kn_your_spending_address">Alamat pengeluaran Anda #%1$d</string>
-    <string name="kn_your_kassigner_address">Alamat KasSigner Anda (%1$s #%2$d)</string>
     <string name="chats_new">Baru</string>
     <string name="chats_new_chat">Obrolan Baru</string>
     <string name="chats_new_group_chat">Obrolan Grup Baru</string>
@@ -644,7 +440,6 @@
     <string name="consolidating_this_address">Menggabungkan alamat ini</string>
     <string name="valid_address">Alamat valid</string>
     <string name="invalid_address_format">Format alamat tidak valid</string>
-    <string name="build_unsigned_transaction">Buat transaksi tanpa tanda tangan</string>
     <string name="fee_tier_normal">Normal</string>
     <string name="fee_tier_fast">Cepat</string>
     <string name="fee_tier_priority">Prioritas</string>
@@ -652,7 +447,6 @@
     <string name="send_fee_tier_footer">Jika jaringan sedang sibuk, Cepat atau Prioritas membayar biaya lebih tinggi agar konfirmasi lebih cepat. Ketuk jumlah biaya untuk mengatur biaya kustom.</string>
     <string name="paste">Tempel</string>
     <string name="scan_qr">Pindai QR</string>
-    <string name="available">Tersedia</string>
     <string name="to">Kepada</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <string name="slide_to_send">Geser untuk mengirim</string>
@@ -685,51 +479,22 @@
     <string name="faucet_claim_subtitle">Menyalin alamat obrolan Anda dan membuka faucet TN10: tempelkan, lewati pemeriksaan, lalu klaim jumlah maksimum.</string>
     <string name="faucet_address_copied_notice">Alamat obrolan TN10 Anda sudah disalin. Tempelkan ke kolom alamat faucet.</string>
     <!-- .kachat name detail Owner card (iOS 71448d8) -->
-    <string name="kn_copies_the_address">Menyalin alamat</string>
     <!-- .kachat name detail Manage Name sheet (iOS f61b978) -->
-    <string name="kn_manage_name">Kelola Nama</string>
-    <string name="kn_manage_extend_hint">Membayar tahun tambahan sekarang, hingga batas 2 tahun.</string>
-    <string name="kn_manage_renew_hint">Memulai periode berbayar baru dari tanggal kedaluwarsa.</string>
-    <string name="kn_manage_change_price_hint">Mengubah harga jual.</string>
-    <string name="kn_manage_delist_hint">Menarik nama dari pasar.</string>
-    <string name="kn_manage_list_hint">Menjual nama dengan harga Anda.</string>
-    <string name="kn_manage_transfer_hint">Mengirim nama ke alamat lain.</string>
-    <string name="kn_manage_primary_hint">Menampilkan Anda dengan nama ini di seluruh KaChat.</string>
-    <string name="kn_manage_release_hint">Melepas nama dan mengembalikan depositnya.</string>
     <!-- .kachat offers: expiry, expired and declined offers (iOS ba07975) -->
-    <string name="kn_offer_expires_in">Berakhir dalam %1$s</string>
-    <string name="kn_offer_expired_returning_to_you">Kedaluwarsa - kembali ke Anda</string>
-    <string name="kn_offer_expired_returning_to_buyer">Kedaluwarsa - kembali ke pembeli</string>
-    <string name="kn_offer_expired_refundable">Kedaluwarsa - bisa dikembalikan sekarang</string>
     <string name="kn_err_offer_expired">Penawaran ini sudah kedaluwarsa. Dananya kembali ke pembeli.</string>
-    <string name="kn_my_offers_detail">Penawaran Anda. Tarik kapan saja; setelah kedaluwarsa, dana kembali ke Anda dengan sendirinya.</string>
-    <string name="kn_offer_declined_returning_to_you">Ditolak - pemilik nama berganti, dana kembali ke Anda</string>
-    <string name="kn_offer_declined_earlier_owner">Ditolak - diajukan ke pemilik sebelumnya</string>
     <string name="kn_err_offer_declined">Penawaran ini diajukan sebelum nama berganti pemilik, jadi ditolak dan dananya kembali ke pembeli.</string>
     <!-- .kachat registry v3: prices from the price record, the period clock, declining offers (iOS 49c0baa) -->
     <string name="kn_err_period_full_longest">Nama ini sudah dibayar hingga periode terpanjangnya. Perpanjangan dibuka %1$s.</string>
     <string name="kn_err_offer_own_name">Anda tidak bisa mengajukan penawaran untuk nama Anda sendiri.</string>
     <string name="kn_err_offer_max_days">Penawaran bisa berlaku hingga 7 hari.</string>
-    <string name="kn_price_per_period">Harga per %1$s</string>
-    <string name="kn_available_per_period">Tersedia · %1$s per %2$s</string>
-    <string name="kn_extend_to_period">Tambah hingga %1$s</string>
-    <string name="kn_manage_extend_hint_time">Membayar lebih banyak waktu sekarang, hingga batas %1$s.</string>
-    <string name="kn_extend_footer_time">Menambah waktu ke periode berbayar saat ini, yang menampung paling lama %1$s. Harganya diberikan ke penambang.</string>
-    <string name="kn_claim_step3_time">Nama ini milik Anda selama waktu yang Anda bayar, paling lama %1$s ke depan. Mulai %2$s sebelum kedaluwarsa Anda bisa memperpanjangnya.</string>
-    <string name="kn_decline_offer">Tolak Penawaran</string>
     <string name="kn_ev_offer_declined">Penawaran ditolak</string>
-    <string name="kn_decline_footer">Penawaran kembali ke pembeli. Biaya jaringannya diambil dari penawaran, jadi menolak tidak memakan biaya apa pun bagi Anda.</string>
-    <string name="kn_offer_locked_decline">KAS Anda tetap terkunci di chain sampai pemilik menerima atau menolak, Anda menarik penawaran, atau penawaran kedaluwarsa - lalu siapa pun bisa mengembalikannya kepada Anda.</string>
-    <string name="kn_offer_below_listing_buy">Nama ini dijual lebih murah dari penawaran Anda. Pertimbangkan untuk membelinya saja.</string>
     <!-- .kachat: never pay more than the confirmed price (iOS 4f5d95e, IOS-054) -->
     <string name="kn_err_price_changed">Harga berubah menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa harga baru dan konfirmasi lagi.</string>
     <!-- .kachat: no offers on expired names, no renewals that stay expired (iOS 71128c4, IOS-055, IOS-056) -->
-    <string name="kn_renew_from_expiry_footer">Perpanjangan memulai periode berikutnya pada tanggal kedaluwarsa saat ini, bukan dari hari ini, jadi nama yang sudah lama kedaluwarsa mendapat waktu lebih sedikit. Harganya diberikan ke penambang.</string>
     <string name="kn_err_renew_expired_too_long">Nama ini sudah terlalu lama kedaluwarsa untuk diperpanjang. Nama ini hanya bisa diklaim ulang lalu didaftarkan lagi.</string>
     <string name="kn_err_offer_name_not_active">Penawaran hanya bisa diajukan untuk nama yang aktif.</string>
     <string name="kn_err_accept_name_expired">Nama ini sudah kedaluwarsa. Penawaran hanya bisa diterima selama nama masih aktif. Perpanjang dulu.</string>
     <!-- .kachat: expires-soon follows the period clock (iOS 24d673a, IOS-060) -->
-    <string name="kn_buy_soon_left">Tersisa kurang dari %1$s sebelum nama ini kedaluwarsa. Anda perlu segera memperpanjangnya.</string>
     <!-- Addresses of the other network are refused (iOS ce20e87, IOS-003) -->
     <string name="address_other_network_testnet">Ini alamat Testnet. KaChat sedang di Mainnet.</string>
     <string name="address_other_network_mainnet">Ini alamat Mainnet. KaChat sedang di Testnet.</string>
@@ -748,33 +513,10 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Beberapa tautan belum bisa diperiksa dari ponsel ini sekarang. Tautan disimpan sesuai yang dimasukkan, dan aplikasi orang lain akan memuatnya saat bisa.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="kn_bell_renew_title">Perpanjang %1$s</string>
-    <string name="kn_bell_renewal_open">Perpanjangan dibuka: perpanjang sebelum %1$s untuk mempertahankannya.</string>
-    <string name="kn_bell_expired_title">%1$s sudah kedaluwarsa</string>
-    <string name="kn_bell_expired_body">Perpanjang sebelum %1$s atau siapa pun bisa mengklaimnya.</string>
-    <string name="kn_bell_sold_title">%1$s terjual</string>
-    <string name="kn_bell_paid">%1$s KAS dibayarkan kepada Anda.</string>
-    <string name="kn_bell_listing_bought">Listing Anda dibeli.</string>
-    <string name="kn_bell_accepted_offer">Anda menerima penawaran untuknya.</string>
-    <string name="kn_bell_new_offer_title">Penawaran baru untuk %1$s</string>
-    <string name="kn_bell_offered">%1$s KAS ditawarkan untuknya.</string>
-    <string name="kn_bell_yours_now">%1$s sekarang milik Anda.</string>
-    <string name="kn_bell_declined_title">Penawaran untuk %1$s ditolak</string>
-    <string name="kn_bell_declined_body">Pemilik menolaknya. KAS sudah kembali kepada Anda.</string>
-    <string name="kn_bell_offer_expired_title">Penawaran untuk %1$s kedaluwarsa</string>
-    <string name="kn_bell_offer_expired_body">Tidak ada yang menerima tepat waktu. KAS sudah kembali kepada Anda.</string>
-    <string name="kn_bell_returned_title">Penawaran untuk %1$s dikembalikan</string>
-    <string name="kn_bell_returned_body">Penawaran tidak bisa diterima lagi. KAS sudah kembali kepada Anda.</string>
     <string name="notification_center_empty">Kaspa yang masuk ke dompet Anda dan kabar nama .kachat Anda muncul di sini.</string>
-    <string name="kn_push_renew_soon">Perpanjang segera untuk mempertahankannya.</string>
-    <string name="kn_push_grace_soon">Perpanjang segera atau siapa pun bisa mengklaimnya.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
-    <string name="kn_activity_all_detail">Setiap klaim, perpanjangan, listing, penjualan, penawaran, transfer, dan klaim ulang di registri.</string>
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
-    <string name="kn_free_to_claim">Bebas untuk diklaim</string>
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
-    <string name="kn_claiming_name">Mengklaim %1$s</string>
-    <string name="kn_keep_open_claiming">Biarkan KaChat tetap terbuka: nama didaftarkan sekitar satu menit setelah komitmen tersembunyi dikonfirmasi. Jika Anda keluar, proses berlanjut dari titik terakhir saat Anda kembali.</string>
     <!-- KaPosts tip sheet (Send Kaspa layout, iOS 0e08006) -->
     <!-- KaChat Stats: .kachat names (iOS b2d108b) -->
     <!-- Create Account: name and seed length steps (iOS acd879b, c6bd716) -->
@@ -794,10 +536,7 @@
     <string name="qr_camera_access_required">Akses Kamera Diperlukan</string>
     <string name="qr_enable_camera_access">Silakan aktifkan akses kamera di Pengaturan untuk memindai kode QR.</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
-    <string name="qr_enable_camera_access_signed">Silakan aktifkan akses kamera di Pengaturan untuk memindai transaksi yang telah ditandatangani.</string>
-    <string name="qr_point_camera_kassigner">Arahkan kamera ke layar KasSigner</string>
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
-    <string name="swap_details">Detail Swap</string>
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s disalin ke papan klip.</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
@@ -812,19 +551,9 @@
     <string name="clear">Hapus</string>
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- .kachat sale tile: expiry flag -->
-    <string name="kn_expires_soon">Segera kedaluwarsa</string>
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">Membebaskan %1$s untuk Anda...</string>
-    <string name="kn_name_expired_free">Nama ini kedaluwarsa dan tidak diperpanjang, jadi siapa pun dapat mengklaimnya dengan harga normal. Jaminan pemilik sebelumnya kembali kepadanya.</string>
-    <string name="kn_no_expired_names">Belum ada nama kedaluwarsa saat ini.</string>
-    <string name="km_expired_appear">Nama kedaluwarsa akan muncul di sini setelah nama .kachat diluncurkan.</string>
-    <string name="kn_bell_freed_title">%1$s telah dibebaskan</string>
-    <string name="kn_bell_freed_body">Nama ini kedaluwarsa dan dihapus dari registri. Jaminan Anda sudah kembali.</string>
-    <string name="kn_bell_no_longer_yours_title">%1$s bukan milik Anda lagi</string>
-    <string name="kn_bell_lapsed_available_body">Nama ini kedaluwarsa dan tidak diperpanjang, jadi sekarang tersedia untuk siapa pun di marketplace. Jaminan Anda kembali saat seseorang mengklaimnya.</string>
     <!-- .kachat: claims in progress button and busy-network notes (iOS b219bb0) -->
-    <string name="kn_claiming_title">Mengklaim</string>
-    <string name="kn_names_being_claimed">Nama yang sedang diklaim</string>
     <string name="kn_commit_waiting_busy">Jaringan sedang sibuk. Komitmen Anda menunggu blok.</string>
     <string name="kn_commit_sent_again">Jaringan sedang sibuk, jadi komitmen dikirim ulang.</string>
     <!-- Onboarding: import length step and the seed phrase explainer (iOS dd0aab1) -->
@@ -850,17 +579,9 @@
     <!-- Import Account, the words screen (iOS ImportWalletView) -->
     <string name="import_words_continue">Lanjutkan</string>
     <!-- .kachat Renew: choose the period first (iOS 26bd5dc) -->
-    <string name="kn_how_long">Berapa lama?</string>
-    <string name="kn_renew_starts_at_expiry">Perpanjangan memulai periode berikutnya pada masa berakhir saat ini, bukan dari hari ini.</string>
     <!-- .kachat marketplace: the Expired tab (iOS cb3c27d) -->
-    <string name="kn_released_in">Dilepas dalam</string>
-    <string name="kn_no_names_in_grace">Belum ada nama dalam masa tenggang saat ini.</string>
-    <string name="km_grace_appear">Nama dalam masa tenggang akan muncul di sini setelah nama .kachat diluncurkan.</string>
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
-    <string name="kn_grace_period_ends">Masa tenggang berakhir %1$s</string>
     <!-- .kachat: names in grace keep resolving to their owner -->
-    <string name="kn_detail_grace_resolves">Kedaluwarsa. Nama ini masih mengarah ke pemiliknya sampai masa tenggang berakhir, dan pemilik masih bisa memperpanjangnya.</string>
-    <string name="kn_detail_grace_mine_resolves">Kedaluwarsa - perpanjang untuk mempertahankannya. Sampai masa tenggang berakhir, nama ini masih mengarah ke Anda dan tidak ada orang lain yang bisa mengambilnya.</string>
     <!-- Address Book (iOS 00767a4) -->
     <string name="ab_address_book">Buku Alamat</string>
     <string name="ab_add_to_address_book">Tambahkan ke Buku Alamat</string>
@@ -920,12 +641,6 @@
     <string name="ab_err_not_an_export">File itu bukan ekspor Buku Alamat KaChat.</string>
     <string name="ab_err_export_empty">Ekspor itu tidak berisi alamat.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
-    <string name="kn_busy_title">Jaringan sedang sibuk</string>
-    <string name="kn_busy_body">Dengan Normal bisa agak lama. Cepat atau Prioritas membayar sedikit lebih untuk masuk blok lebih cepat.</string>
-    <string name="kn_balance_after_value">Saldo setelahnya: %1$s</string>
-    <string name="kn_balance_change_value">Perubahan saldo: %1$s</string>
-    <string name="kn_available_value">Tersedia: %1$s</string>
-    <string name="kn_claim_fee_note">Klaim mengirim dua transaksi: commit sekarang, pendaftaran sekitar satu menit kemudian. Keduanya memakai kecepatan ini.</string>
     <string name="kn_step_sent">Dikirim ke jaringan</string>
     <string name="kn_step_in_block">Di dalam blok</string>
     <string name="kn_step_updated">Diperbarui di KaChat</string>
@@ -935,10 +650,6 @@
     <string name="kn_tx_stage_dropped">Jaringan belum menerimanya. Jika tidak pernah masuk, tidak ada yang terpakai - coba lagi dengan biaya lebih cepat.</string>
     <string name="kn_tap_tx_explorer">Ketuk transaksi untuk membukanya di explorer.</string>
     <!-- .kachat offers: tiles and half sheet (iOS 7f50e84) -->
-    <string name="kn_offer_expires_in_label">Berakhir dalam</string>
-    <string name="kn_offer_cant_accept">Penawaran ini tidak bisa diterima lagi.</string>
-    <string name="kn_offer_only_owner">Hanya pemilik nama yang bisa menerima atau menolak penawaran ini.</string>
-    <string name="kn_offers_tap_to_accept_decline">Ketuk penawaran untuk menerima atau menolaknya. Penawaran yang kedaluwarsa kembali ke pembelinya.</string>
     <!-- .kachat fee re-check (iOS 7e2b6cd, IOS-061) -->
     <string name="kn_err_fee_changed">Biaya jaringan naik menjadi %1$s sejak Anda mengonfirmasi. Tidak ada yang dikirim. Periksa biaya baru dan konfirmasi lagi.</string>
     <!-- Address Book: the active network only (iOS 218dc42, IOS-063) -->
@@ -947,7 +658,6 @@
     <string name="ab_import_skipped_other_network">%1$d dari jaringan lain dilewati.</string>
     <!-- .kachat registry v5 migration (iOS dd836cb) -->
     <string name="kn_registration_not_open">Nama sedang dipindahkan ke registri baru. Nama baru bisa diklaim mulai %1$s.</string>
-    <string name="kn_registration_not_open_note">Setiap nama dari registri lama dipindahkan lebih dulu dengan pemilik dan masa berlaku yang sama.</string>
     <string name="kn_ev_imported">Dipindahkan ke registri baru</string>
     <!-- .kachat first: domains in every address field, Other domains, expired-name banner (iOS 6ac48a7) -->
     <string name="enter_kaspa_address_or_domain_kachat_first">Masukkan alamat Kaspa (kaspa:...) atau domain (mis. alice.kachat). Nama .kachat dicari lebih dulu.</string>
@@ -957,21 +667,12 @@
     <string name="their_profile_kachat_name_address">Profil, nama .kachat, dan alamatnya.</string>
     <string name="finds_addresses_balance_or_domain">Menemukan alamat yang punya saldo atau domain.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Masukkan alamat Kaspa (kaspa:...) atau domain. Nama .kachat dicari lebih dulu.</string>
-    <string name="portfolio_add_address_footer_kachat">Masukkan alamat Kaspa atau domain seperti name.kachat (nama .kachat dicari lebih dulu). Setiap transaksi masuk ke alamat ini menjadi pembelian dan setiap transaksi keluar menjadi penjualan, dengan harga historis KAS hari itu. Menambahkan alamat yang sama lagi nanti hanya mengimpor transaksi sejak impor terakhir.</string>
-    <string name="kn_transfer_footer_domain">Alamat atau domain - nama .kachat dicari lebih dulu, lalu diubah menjadi alamat yang ditampilkan.</string>
-    <string name="kn_transfer_placeholder_domain">kaspatest:... atau domain</string>
-    <string name="kn_err_enter_address_or_domain">Masukkan alamat atau domain.</string>
-    <string name="kn_err_name_address_cant_own">Alamat nama itu tidak bisa memiliki nama .kachat.</string>
     <string name="kachat_names_resolved_first_footer">Diresolusikan lebih dulu, di mana pun Anda bisa mengetik alamat.</string>
     <string name="other_domains_title">Domain Lain</string>
     <string name="other_domains_settings_footer">Dicari setelah .kachat, dan ditampilkan di Domain lain jika nama yang diketik juga ada di sana.</string>
     <string name="chatting_picker_intro_any_name_kachat">Jika seed ini sudah menyimpan identitas Anda di alamat lain - domain (.kachat, .kas, .k, atau .kaspa) atau saldo chat yang terisi - pilih di sini. Hanya alamat dengan saldo atau domain yang ditampilkan.</string>
     <string name="chatting_picker_kachat_names_count">Nama .kachat (%1$d)</string>
     <string name="chatting_picker_kas_names_count">Nama .kas (%1$d)</string>
-    <string name="kachat_expired_one_title">Salah satu domain .kachat Anda kedaluwarsa</string>
-    <string name="kachat_expired_many_title">%1$d domain .kachat Anda kedaluwarsa</string>
-    <string name="kachat_expired_one_body">Perpanjang %1$s sebelum masa tenggangnya berakhir pada %2$s agar tetap milik Anda.</string>
-    <string name="kachat_expired_many_body">Perpanjang sebelum masa tenggangnya berakhir agar tetap milik Anda.</string>
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Nama .kachat belum aktif di jaringan ini</string>
     <!-- Nextcloud sync carries portfolios -->
@@ -981,19 +682,13 @@
     <!-- .kachat on mainnet (iOS ef6b21e) -->
     <string name="kn_registry_being_upgraded">Registri .kachat sedang ditingkatkan. Nama akan terbuka lagi di sini setelah registri baru aktif.</string>
     <string name="kn_err_no_wallet_open">Tidak ada dompet yang terbuka.</string>
-    <string name="kn_err_not_network_address">Bukan alamat Schnorr di jaringan ini.</string>
-    <string name="kn_how_live_footer_mainnet">Aktif di Mainnet: nama, harga, dan pembayaran di sini memakai KAS sungguhan.</string>
-    <string name="kn_how_live_footer_testnet">Aktif di Testnet: nama, harga, dan pembayaran di sini memakai TKAS di testnet-10. Nama Mainnet aktif di Mainnet.</string>
     <string name="kn_live_on_mainnet">Aktif di Mainnet</string>
     <!-- .kachat offers: refundable before the name expires (MAINNET.md C1, iOS 0312a3f) -->
     <string name="kn_err_offer_past_expiry">Tawaran harus bisa dikembalikan sebelum nama kedaluwarsa.</string>
-    <string name="kn_offer_refundable_from_expiry">Nama ini kedaluwarsa lebih cepat, jadi tawaran Anda bisa dikembalikan mulai %1$s.</string>
     <!-- .kachat: combining many small coins before a name transaction (iOS f1c16ec) -->
     <string name="kn_combining_coins">KAS Anda tersebar di banyak koin kecil. Koin-koin itu digabung jadi satu dulu...</string>
-    <string name="kn_combines_coins_note">KAS Anda tersebar di banyak koin kecil. KaChat menggabungkannya jadi satu sebelum mendaftar, dengan biaya jaringan tambahan yang sangat kecil.</string>
     <string name="kn_not_enough_to_combine">KAS di alamat chat Anda tidak cukup untuk ini.</string>
     <!-- KaChat Bots (iOS 82ab31d, 7dd508a, d576941, 4a43e33) -->
-    <string name="bots_title">Bot KaChat</string>
     <string name="bot_block_rewards_name">Pelacak Hadiah Blok</string>
     <string name="bot_block_rewards_summary">Pesan untuk setiap hadiah blok yang dibayar ke alamat penambangan Anda.</string>
     <string name="bot_wallet_name">Pelacak Dompet</string>
@@ -1004,9 +699,6 @@
     <string name="bot_kaspa_answers_summary">Tanyakan apa saja tentang Kaspa.</string>
     <string name="bots_coming_soon">Segera hadir.</string>
     <string name="bots_mainnet_only">Bot hanya berjalan di mainnet.</string>
-    <string name="bots_opens_chat_hint">Membuka obrolan dengan bot ini.</string>
-    <string name="bots_fee_note">Pesan ke bot adalah pesan KaChat terenkripsi biasa, jadi setiap pesan dikenai biaya jaringan biasa.</string>
-    <string name="bots_unread_count">%1$d belum dibaca</string>
     <string name="bot_sheet_clears_unread">Menghapus lencana belum dibaca di obrolan ini.</string>
     <string name="bot_sheet_notifications_resume">Notifikasi dari bot ini kembali aktif.</string>
     <string name="bot_sheet_no_notification">Tidak ada notifikasi dari bot ini.</string>
@@ -1038,13 +730,7 @@
     <string name="delete_chat_q">Delete Chat?</string>
     <string name="delete_chat_alert_message">This permanently deletes every message in this chat from this device. This cannot be undone.</string>
     <!-- .kachat transaction sheet: coins are combined only after the slide (iOS 778a8fc, IOS-075) -->
-    <string name="kn_combines_coins_on_slide">KAS Anda tersebar di banyak koin kecil. Saat Anda menggeser, KaChat lebih dulu menggabungkannya menjadi satu (transaksi terpisah dengan biaya kecilnya sendiri), lalu mengirim ini.</string>
     <!-- An address's Domains tab: one card per name service (iOS fe52376) -->
-    <string name="address_tab_domains">Domain</string>
-    <string name="address_domains_none">Tidak ada nama %1$s di alamat ini.</string>
-    <string name="address_domains_one">1 domain</string>
-    <string name="address_domains_count">%1$d domain</string>
-    <string name="address_domains_couldnt_load">Tidak bisa dimuat</string>
     <!-- Request Payment: Fresh Address / Choose an Address, Used / Unused (iOS 86dfd2d, 6dee531, 338d9f5) -->
     <string name="pr_fresh_address">Alamat Baru</string>
     <string name="pr_choose_an_address">Pilih Alamat</string>
@@ -1066,36 +752,12 @@
     <string name="welcome_everything_else">Selain Itu</string>
     <string name="welcome_everything_else_caption">Untuk menjaga privasi, gunakan alamat Anda yang lain untuk semua aktivitas lain di jaringan Kaspa. Terima Kaspa memberi Anda alamat baru, dan Kelola Alamat menampilkan semuanya.</string>
     <!-- .kachat Names guide (claim, how it works, make it yours, keep it) -->
-    <string name="kg_claim_hint">Cari nama yang Anda mau di Kaspa Hub &gt; .kachat, lalu klaim.</string>
-    <string name="kg_how_title">Cara kerja nama</string>
-    <string name="kg_how_body">Nama Anda ada di jaringan Kaspa, dipegang oleh alamat obrolan Anda. Selama milik Anda, tak ada yang bisa mengambil atau mengubahnya.</string>
-    <string name="kg_how_commit">Klaim butuh dua transaksi cepat: yang pertama merahasiakan pilihan Anda, yang kedua mendaftarkannya.</string>
-    <string name="kg_how_period">Anda membayar satu periode setiap kali. Nama yang lebih pendek lebih mahal.</string>
-    <string name="kg_how_miners">Harganya untuk penambang jaringan, bukan untuk KaChat.</string>
-    <string name="kg_use_title">Jadikan nama Anda</string>
-    <string name="kg_use_body">Jadikan nama utama, dan begitulah Anda tampil di seluruh KaChat.</string>
-    <string name="kg_use_find">Orang bisa menemukan dan mengirim pesan kepada Anda dengan mengetik nama Anda.</string>
-    <string name="kg_use_pay">Mereka bisa mengirim Kaspa ke namaanda.kachat alih-alih alamat yang panjang.</string>
-    <string name="kg_use_link">Tautan profil Anda menampilkan nama Anda.</string>
-    <string name="kg_keep_title">Pertahankan</string>
-    <string name="kg_keep_body">Nama Anda ada di Profil &gt; Domain Anda &gt; .kachat.</string>
-    <string name="kg_keep_renew">Perpanjang sebelum kedaluwarsa. Tanggalnya tampil di setiap nama.</string>
-    <string name="kg_keep_grace">Setelah kedaluwarsa ada masa tenggang untuk memperpanjang sebelum orang lain bisa mengklaimnya.</string>
-    <string name="kg_keep_transfer">Anda bisa mentransfer, menjualnya, atau menerima tawaran.</string>
-    <string name="kg_finished_title">Semua siap</string>
-    <string name="kg_finished_body">Klaim nama Anda di Kaspa Hub &gt; .kachat kapan saja.</string>
-    <string name="kg_names_help_title">Panduan Nama .kachat</string>
-    <string name="kg_names_help_body">Klaim nama .kachat, jadikan nama Anda, dan pertahankan.</string>
-    <string name="kg_names_setup_footer">Langkah demi langkah mengklaim nama .kachat dan menjadikannya milik Anda.</string>
     <!-- .kachat: the bond + registry deposit locked with a name (claim screen, receipt) (iOS b3b62f5) -->
-    <string name="kn_locked_claim_note">%1$s tetap terkunci bersama nama Anda selama Anda memilikinya (jaminan + deposit registri). Anda mendapatkannya kembali saat melepas nama itu.</string>
-    <string name="kn_locked_receipt_note">%1$s terkunci bersama nama ini. Kembali kepada Anda saat Anda melepasnya.</string>
     <!-- Payment notice push (iOS 927322b) -->
     <string name="dm_notif_received_payment">Menerima pembayaran</string>
     <!-- Profile save: not enough funds popup (iOS 2b45d6e) -->
     <string name="kn_not_enough_funds_send_1_kas">Dana Anda tidak cukup. Kirim setidaknya 1 KAS ke alamat chat Anda.</string>
     <!-- .kachat marketplace: Buy From (iOS eb9b027) -->
-    <string name="kn_from_value">Dari: %1$s</string>
     <string name="kn_fund">Danai</string>
     <!-- Address card: one of this wallet's own addresses (iOS 56f004f) -->
     <string name="your_own_address_value">Alamat Anda sendiri: %1$s</string>
@@ -1105,13 +767,6 @@
     <!-- Chat payment From a spending address while the chatting address is empty (%1$s = contact name) - iOS 710fdc0 -->
     <string name="payment_notice_chatting_empty">Alamat chat Anda tidak punya KAS untuk memberi tahu %1$s tentang pembayaran ini, jadi mereka melihatnya sebagai pembayaran dari alamat tak dikenal, tanpa catatan. KaChat akan memberi tahu mereka setelah alamat chat Anda punya KAS.</string>
     <!-- Customize Dock: dock list (red minus) and Kaspa Hub list (green plus) -->
-    <string name="customize_dock_your_dock">Dock Anda</string>
-    <string name="customize_dock_always_in_dock">Selalu di dock Anda</string>
-    <string name="customize_dock_always_stay">%1$s, %2$s, dan %3$s selalu ada di dock Anda.</string>
-    <string name="customize_dock_full">Dock Anda penuh. Hapus satu darinya untuk menambahkan salah satu dari ini.</string>
-    <string name="customize_dock_hub_order">Sesuai urutan yang ditampilkan %1$s.</string>
-    <string name="customize_dock_move_to">Pindahkan %1$s ke %2$s</string>
-    <string name="customize_dock_add">Tambahkan %1$s ke dock</string>
     <!-- KaPosts: tip counter / tippers list, and the bell for a person's new posts (iOS a6bd60a) -->
     <!-- KaPosts: Post Activity cards (iOS 8ffa130) -->
     <!-- Push body for an incoming chat payment, title = who sent it (iOS dcb329a) -->
@@ -1120,11 +775,7 @@
     <!-- .kachat: Fees card on the market's Activity page, .kachat Domains card on KaChat Stats (iOS f5d34f4) -->
     <!-- KaChat Stats: Fees tab (.kachat Domains fees) (iOS 4924787) -->
     <!-- Cold Storage empty state (iOS ColdStorageView.emptyState) -->
-    <string name="cold_storage_empty_title">Tidak Ada Akun Penyimpanan Dingin</string>
-    <string name="cold_storage_empty_body">Pindai atau tempel kpub yang diekspor dari perangkat KasSigner Anda untuk memantau saldonya.</string>
     <!-- Portfolio: empty Transactions section (iOS emptyState) -->
-    <string name="portfolio_no_transactions_title">Belum Ada Transaksi</string>
-    <string name="portfolio_no_transactions_sub">Tambahkan pembelian atau penjualan untuk mulai memantau portofolio Anda</string>
     <!-- Chat composer + button (iOS ChatDetailView composerPlusMenu) -->
     <string name="composer_more_options">Opsi lainnya</string>
     <!-- Settings subpages (from iOS) -->

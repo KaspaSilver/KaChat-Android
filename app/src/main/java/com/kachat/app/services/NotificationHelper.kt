@@ -253,48 +253,13 @@ class NotificationHelper @Inject constructor(
         }
     }
 
-    /**
-     * A `.kachat` name event (an offer, a sale, an accepted offer, a renewal reminder - iOS
-     * thread "kachat-names"): tapping it opens that name (iOS beeedd4).
-     */
-    suspend fun showKachatName(title: String, text: String, name: String, dedupeKey: String) {
-        if (!settings.notificationsEnabled.first()) return
-        if (!claimTxId("kachat_name_$dedupeKey")) return
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_KACHAT_NAME, name)
-        }
-        val notificationId = "kachat_name_$dedupeKey".hashCode()
-        val pendingIntent = PendingIntent.getActivity(
-            context, notificationId, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val soundEnabled = settings.notificationSoundEnabled.first()
-        val vibrationEnabled = settings.notificationVibrationEnabled.first()
-        val notification = NotificationCompat.Builder(context, channelFor(soundEnabled, vibrationEnabled))
-            .setSmallIcon(R.drawable.ic_kachat_logo)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled && !vibrationEnabled)
-            .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
-            .apply { if (!soundEnabled) setSound(null) }
-            .build()
-        try {
-            NotificationManagerCompat.from(context).notify(notificationId, notification)
-        } catch (_: SecurityException) {}
-    }
-
-    /** Wallet address-activity notification ("Received X KAS" on a spending/cold address) — see
-     *  [AddressActivityNotifier]. Gated only by the global notifications toggle here; the
-     *  Address Activity setting itself is checked by the notifier before calling.
+    /** Wallet address-activity notification ("Received X KAS" on a spending or the chatting
+     *  address) — see [AddressActivityNotifier]. Gated only by the global notifications toggle
+     *  here; the Address Activity setting itself is checked by the notifier before calling.
      *
-     *  [kind] is [KIND_COLD] or [KIND_SPENDING] (iOS sends the same string in the notification's
-     *  `userInfo["kind"]`): the tap opens Storage or Manage Addresses respectively, so the
-     *  receipt lands on a screen that actually shows the address it was about. Without it the
-     *  tap only re-opened whatever screen the app was last on.
+     *  [kind] is [KIND_SPENDING] or [KIND_CHATTING] (iOS sends the same string in the
+     *  notification's `userInfo["kind"]`): a tap with no one address opens Profile, which shows
+     *  the wallet's addresses (iOS d54ea87).
      *
      *  [address] names the one address the Kaspa landed on (iOS 13046ad, `userInfo["address"]`):
      *  the tap then opens that address's own History, in a sheet over the current tab, and
@@ -401,7 +366,8 @@ class NotificationHelper @Inject constructor(
         const val CHANNEL_ID = "kachat_messages_sound_vibrate"
         const val EXTRA_CONTACT_ID = "contact_id"
         const val EXTRA_GROUP_ID = "group_id"
-        /** A `.kachat` name notification: the name (without `.kachat`) a tap opens (iOS beeedd4). */
+        /** A `.kachat` name notification an older build posted: its tap lands on Chats now (the
+         *  .kachat market left the app, iOS d54ea87). */
         const val EXTRA_KACHAT_NAME = "kachat_name"
 
         /** Set instead of [EXTRA_GROUP_ID] when the notification has no resolvable local group —
@@ -409,9 +375,8 @@ class NotificationHelper @Inject constructor(
          *  to nothing. See [showGroup]'s `targetGroupId`. */
         const val EXTRA_OPEN_GROUPS = "open_groups"
 
-        /** [KIND_COLD] / [KIND_SPENDING] — which wallet screen an address-activity tap opens. */
+        /** [KIND_SPENDING] / [KIND_CHATTING] — what an address-activity notification is about. */
         const val EXTRA_WALLET_ACTIVITY_KIND = "wallet_activity_kind"
-        const val KIND_COLD = "cold"
         const val KIND_SPENDING = "spending"
         /** The chatting address (iOS 56b75c8): its receipt always names the address, so the tap
          *  opens its History; as a fallback it lands where a spending receipt does. */

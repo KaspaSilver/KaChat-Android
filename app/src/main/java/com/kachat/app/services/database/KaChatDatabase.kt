@@ -12,10 +12,7 @@ import com.kachat.app.models.GroupSyncCursorEntity
 import com.kachat.app.models.MessageEditEntity
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.MessageSyncCursorEntity
-import com.kachat.app.models.PortfolioEntity
-import com.kachat.app.models.PortfolioTransactionEntity
 import com.kachat.app.models.ReactionEntity
-import com.kachat.app.models.SwapTransactionEntity
 
 /**
  * Room database — local persistence layer.
@@ -30,24 +27,18 @@ import com.kachat.app.models.SwapTransactionEntity
         ContactEntity::class,
         DeletedContactEntity::class,
         MessageSyncCursorEntity::class,
-        PortfolioTransactionEntity::class,
-        PortfolioEntity::class,
-        SwapTransactionEntity::class,
         GroupEntity::class,
         GroupMessageEntity::class,
         GroupSyncCursorEntity::class,
         ReactionEntity::class,
         MessageEditEntity::class,
     ],
-    version = 43,
+    version = 44,
     exportSchema = true
 )
 abstract class KaChatDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun contactDao(): ContactDao
-    abstract fun portfolioDao(): PortfolioDao
-    abstract fun portfolioDefinitionDao(): PortfolioDefinitionDao
-    abstract fun swapDao(): SwapDao
     abstract fun groupDao(): GroupDao
     abstract fun reactionDao(): ReactionDao
     abstract fun messageEditDao(): MessageEditDao
@@ -517,6 +508,19 @@ abstract class KaChatDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE IF EXISTS `broadcast_messages`")
                 db.execSQL("DROP TABLE IF EXISTS `broadcast_channels`")
                 db.execSQL("DROP TABLE IF EXISTS `broadcast_hidden_senders`")
+            }
+        }
+
+        /**
+         * v43 -> v44: Portfolio and Swap left the app (iOS d54ea87; they live in the KaChat wallet
+         * app), so their tables - the portfolios, their ledger rows and the swap history - are
+         * dropped with everything in them.
+         */
+        val MIGRATION_43_44 = object : Migration(43, 44) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `portfolio_transactions`")
+                db.execSQL("DROP TABLE IF EXISTS `portfolios`")
+                db.execSQL("DROP TABLE IF EXISTS `swap_transactions`")
             }
         }
 

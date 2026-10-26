@@ -24,15 +24,9 @@ data class ChatHistoryArchive(
     // deleted ones so a merge or restore never brings them back. NEXTCLOUD_SYNC.md §5, iOS 00767a4.
     val addressBook: List<com.kachat.app.services.ArchiveAddressBookEntry>? = null,
     val addressBookDeleted: List<com.kachat.app.services.ArchiveAddressBookTombstone>? = null,
-    // Portfolios (optional; older archives omit them): this wallet's portfolio list, ledger rows,
-    // recorded fees and deletions - per item the newest edit or deletion wins
-    // (com.kachat.app.services.PortfolioSync). NEXTCLOUD_SYNC.md section 5, iOS 11f1548. Kept as
-    // raw JSON and read one element at a time, so one element this build can't read never takes
-    // the whole archive down.
-    val portfolios: com.google.gson.JsonElement? = null,
-    val portfolioTransactions: com.google.gson.JsonElement? = null,
-    val portfolioFees: com.google.gson.JsonElement? = null,
-    val portfolioDeleted: com.google.gson.JsonElement? = null
+    // Portfolios (`portfolios`, `portfolioTransactions`, `portfolioFees`, `portfolioDeleted`;
+    // NEXTCLOUD_SYNC.md section 5) are the KaChat wallet app's since 2026-10-24 (iOS d54ea87):
+    // this app neither writes nor reads them, and a Nextcloud merge keeps the server copy's.
 ) {
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1

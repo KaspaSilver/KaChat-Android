@@ -22,8 +22,6 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.TextUnit
@@ -54,12 +52,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -82,7 +78,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
-import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -97,10 +92,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.HorizontalDivider
 import com.kachat.app.services.AddressActivityNotifier
-import com.kachat.app.services.ColdStorageAddressDiscovery
+import com.kachat.app.services.AddressHistoryService
 import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import androidx.compose.material.icons.filled.Public
@@ -109,6 +103,8 @@ import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Repeat
 import com.kachat.app.util.KaspaUnit
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
  * The frame every "..." menu in the app now uses: a half sheet with a title, a line of context,
@@ -831,16 +827,15 @@ fun ColumnScope.ActionSheetRenameFields(
 }
 
 /**
- * What to do with a transaction you tapped in an address history: look at it, or record it.
+ * What to do with a transaction you tapped in an address history: look at it on the explorer.
  *
- * Shared by cold storage history, the spending-address history and the chatting address, all
- * three of which used to raise their own identical popup menu.
+ * Shared by the spending-address history and the chatting address, both of which used to raise
+ * their own identical popup menu.
  */
 @Composable
 fun TransactionActionsSheet(
-    tx: ColdStorageAddressDiscovery.AddressTransaction,
+    tx: AddressHistoryService.AddressTransaction,
     onOpenExplorer: () -> Unit,
-    onAddToPortfolio: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ActionSheetContainer(
@@ -855,17 +850,11 @@ fun TransactionActionsSheet(
             subtitle = "Opens this transaction on the block explorer.",
             onClick = onOpenExplorer,
         )
-        ActionSheetRow(
-            icon = Icons.Default.PieChart,
-            title = "Add to Portfolio",
-            subtitle = "Records it as a buy or a sell in a portfolio of your choosing.",
-            onClick = onAddToPortfolio,
-        )
     }
 }
 
 /** "Sent 12.5 KAS on Sep 3, 2026, 2:02 PM" - what is about to be acted on, in one line. */
-private fun summary(tx: ColdStorageAddressDiscovery.AddressTransaction, is24Hour: Boolean): String {
+private fun summary(tx: AddressHistoryService.AddressTransaction, is24Hour: Boolean): String {
     val direction = if (tx.sent) "Sent" else "Received"
     val amount = AddressActivityNotifier.formatKas(tx.amountSompi)
     val time = tx.blockTimeMillis?.let {
@@ -1001,7 +990,6 @@ fun ChatReactionsSheet(
         }
     }
 }
-
 
 /**
  * What to do with a link someone sent: the half-sheet form of the old alert dialog.
@@ -1501,4 +1489,3 @@ fun UnderlineTabBar(
     // 75%) rather than being cut - "Translation" stays whole - and its underline and hairline.
     HubUnderlineTabBar(titles = titles, selectedIndex = selectedIndex, onSelect = onSelect, modifier = modifier)
 }
-

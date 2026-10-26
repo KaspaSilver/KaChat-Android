@@ -1,6 +1,5 @@
 package com.kachat.app.services
 
-import com.kachat.app.util.redactedForLog
 import android.util.Log
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -135,8 +134,7 @@ class SpendingAddressDiscovery @Inject constructor(
             }
         }
 
-    /** Where a scan currently is, so the UI can count up instead of showing an unmoving spinner.
-     *  Mirrors [ColdStorageAddressDiscovery.DiscoveryProgress]. */
+    /** Where a scan currently is, so the UI can count up instead of showing an unmoving spinner. */
     data class DiscoveryProgress(val checkingIndex: Int, val foundCount: Int)
 
     companion object {
@@ -416,7 +414,7 @@ class SpendingAddressDiscovery @Inject constructor(
 
     /**
      * Balances for a whole batch in one request, falling back to a paced per-address sweep when
-     * the endpoint is unavailable. Mirrors [ColdStorageAddressDiscovery.fetchBalances]. Null
+     * the endpoint is unavailable. Null
      * means "could not be read", which is not the same as "all empty" and must never be treated
      * as such.
      */

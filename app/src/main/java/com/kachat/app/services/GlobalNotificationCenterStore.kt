@@ -1,7 +1,6 @@
 package com.kachat.app.services
 
 import android.content.Context
-import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -12,14 +11,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The bell on the Profile screen holds two things (iOS 86471dd, 4500ebc):
- * - Kaspa arriving in one of your own wallets - the chatting wallet, a spending address, cold
- *   storage (fed by [AddressActivityNotifier]);
- * - your .kachat names: offers, sales, renewal and expiry, what happened to your offers
- *   ([com.kachat.app.services.kachatnames.KachatNamesNotifier]).
- * Never KaPosts (it has its own bell), and not group chats or public rooms (they keep their own
- * unread counts in the Chats tab; iOS cda2715, 2010124). Entries are account-scoped, persisted,
- * deduped by id and capped; opening the list marks everything seen.
+ * The bell on the Profile screen holds Kaspa arriving in one of your own addresses - the chatting
+ * address or a spending address (fed by [AddressActivityNotifier]; iOS 86471dd). .kachat name news
+ * left with the .kachat market on 2026-10-24 (iOS d54ea87), and group chats keep their own unread
+ * counts in the Chats tab (iOS cda2715). Entries are account-scoped, persisted, deduped by id and
+ * capped; opening the list marks everything seen.
  */
 @Singleton
 class GlobalNotificationCenterStore @Inject constructor(
@@ -29,8 +25,8 @@ class GlobalNotificationCenterStore @Inject constructor(
 ) {
     data class Entry(
         val id: String,
-        /** "wallet" or "kachat" ([IN_BELL]) - older builds also stored "kaposts", "group" and
-         *  "broadcast" rows. */
+        /** "wallet" ([IN_BELL]) - older builds also stored "kaposts", "group", "broadcast" and
+         *  "kachat" rows. */
         val source: String,
         val title: String,
         val body: String,
@@ -73,9 +69,9 @@ class GlobalNotificationCenterStore @Inject constructor(
         val loaded = try {
             gson.fromJson(prefs.getString(entriesKey(wallet), null) ?: "[]", listType) ?: emptyList()
         } catch (_: Exception) { emptyList<Entry>() }
-        // Wallet and .kachat rows only. KaPosts rows live in KaPosts' own bell, group mentions and
-        // public rooms carry their own unread counts in the Chats tab; anything an older build
-        // saved for those is dropped here so the bell never double-counts.
+        // Wallet rows only. Group mentions carry their own unread counts in the Chats tab, and
+        // KaPosts, Public Chats and the .kachat market are gone; anything an older build saved for
+        // those is dropped here.
         val kept = loaded.filter { it.source in IN_BELL }
         _entries.value = kept
         _lastSeenAt.value = prefs.getLong(seenKey(wallet), 0L)
@@ -89,8 +85,8 @@ class GlobalNotificationCenterStore @Inject constructor(
 
     @Synchronized
     fun record(id: String, source: String, title: String, body: String, timestampMs: Long, targetId: String?) {
-        // Wallet and .kachat news only. Refused here rather than merely left uncalled, so a future
-        // caller cannot quietly put KaPosts, group or room activity back in the bell.
+        // Wallet news only. Refused here rather than merely left uncalled, so a future caller
+        // cannot quietly put anything else back in the bell.
         if (source !in IN_BELL) return
         reloadIfNeeded()
         if (loadedWallet == null) return
@@ -152,7 +148,7 @@ class GlobalNotificationCenterStore @Inject constructor(
         private const val TAG = "GlobalNotifCenter"
 
         /** What the Profile bell lists (iOS `Entry.Source.inBell`, 4500ebc). */
-        val IN_BELL = setOf("wallet", "kachat")
+        val IN_BELL = setOf("wallet")
 
         /** The source tag a row shows (iOS `Entry.Source.label`). */
         fun sourceLabel(source: String): String = when (source) {

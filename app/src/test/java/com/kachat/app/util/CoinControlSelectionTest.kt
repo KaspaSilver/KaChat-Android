@@ -69,10 +69,4 @@ class CoinControlSelectionTest {
         assertFalse(CoinControlSelection.isAtCap(cap - 1, 150, cap))
         assertFalse(CoinControlSelection.isAtCap(cap, cap, cap))
     }
-
-    @Test
-    fun `cold storage uses KasSigner's own input cap`() {
-        val picked = CoinControlSelection.selectAll(many, KsptCodec.MAX_INPUTS)
-        assertEquals(KsptCodec.MAX_INPUTS, picked.size)
-    }
 }
