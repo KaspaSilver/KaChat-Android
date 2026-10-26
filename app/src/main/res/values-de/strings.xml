@@ -681,8 +681,7 @@
     <string name="ab_members_intro">Füge Personen zur Gruppe hinzu. Als Gruppenadmin bestimmst du die Mitgliedschaft.</string>
     <string name="ab_members_empty">Noch keine Mitglieder. Füge unten Personen aus deinem Adressbuch oder per Adresse hinzu.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">Importieren oder exportieren</string>
-    <string name="ab_import_or_export">Importieren oder Exportieren</string>
+    <string name="ab_add_address_sub">Speichere eine Kaspa-Adresse unter einem Namen, den du wiedererkennst.</string>
     <string name="ab_import_file">Datei importieren</string>
     <string name="ab_export_file">Datei exportieren</string>
     <string name="ab_import_file_sub">Adressen aus einem Adressbuch-Export hinzufügen.</string>

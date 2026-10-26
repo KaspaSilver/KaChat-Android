@@ -684,8 +684,7 @@
     <string name="ab_members_intro">그룹에 사람을 추가하세요. 그룹 관리자로서 멤버를 관리합니다.</string>
     <string name="ab_members_empty">아직 멤버가 없습니다. 아래에서 주소록이나 주소로 추가하세요.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">가져오기 또는 내보내기</string>
-    <string name="ab_import_or_export">가져오기 또는 내보내기</string>
+    <string name="ab_add_address_sub">알아보기 쉬운 이름으로 Kaspa 주소를 저장하세요.</string>
     <string name="ab_import_file">파일 가져오기</string>
     <string name="ab_export_file">파일로 내보내기</string>
     <string name="ab_import_file_sub">주소록 내보내기 파일에서 주소를 추가합니다.</string>

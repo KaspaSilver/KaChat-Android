@@ -684,8 +684,7 @@
     <string name="ab_members_intro">向群组添加成员。作为群组管理员，由你管理成员。</string>
     <string name="ab_members_empty">还没有成员。请在下方从地址簿或通过地址添加。</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">导入或导出</string>
-    <string name="ab_import_or_export">导入或导出</string>
+    <string name="ab_add_address_sub">用你认得出的名字保存一个 Kaspa 地址。</string>
     <string name="ab_import_file">导入文件</string>
     <string name="ab_export_file">导出到文件</string>
     <string name="ab_import_file_sub">从地址簿导出文件中添加地址。</string>

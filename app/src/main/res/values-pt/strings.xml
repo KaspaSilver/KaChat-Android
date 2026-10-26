@@ -684,8 +684,7 @@
     <string name="ab_members_intro">Adicione pessoas ao grupo. Como administrador, você controla quem participa.</string>
     <string name="ab_members_empty">Nenhum membro ainda. Adicione pessoas do livro de endereços ou por endereço abaixo.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">Importar ou exportar</string>
-    <string name="ab_import_or_export">Importar ou exportar</string>
+    <string name="ab_add_address_sub">Salve um endereço Kaspa com um nome que você reconheça.</string>
     <string name="ab_import_file">Importar arquivo</string>
     <string name="ab_export_file">Exportar arquivo</string>
     <string name="ab_import_file_sub">Adicione endereços de uma exportação do livro de endereços.</string>

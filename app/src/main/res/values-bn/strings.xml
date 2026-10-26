@@ -684,8 +684,7 @@
     <string name="ab_members_intro">গ্রুপে লোক যোগ করুন। গ্রুপ অ্যাডমিন হিসেবে সদস্যপদ আপনার নিয়ন্ত্রণে।</string>
     <string name="ab_members_empty">এখনো কোনো সদস্য যোগ হয়নি। নিচে ঠিকানা বই থেকে বা ঠিকানা দিয়ে লোক যোগ করুন।</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">ইমপোর্ট বা এক্সপোর্ট</string>
-    <string name="ab_import_or_export">ইমপোর্ট বা এক্সপোর্ট</string>
+    <string name="ab_add_address_sub">চেনা নাম দিয়ে একটি ক্যাসপা ঠিকানা সংরক্ষণ করুন।</string>
     <string name="ab_import_file">ফাইল ইমপোর্ট</string>
     <string name="ab_export_file">ফাইল এক্সপোর্ট</string>
     <string name="ab_import_file_sub">ঠিকানা বইয়ের এক্সপোর্ট থেকে ঠিকানা যোগ করুন।</string>

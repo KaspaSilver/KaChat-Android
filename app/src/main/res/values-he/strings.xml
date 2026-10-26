@@ -684,8 +684,7 @@
     <string name="ab_members_intro">הוסיפו אנשים לקבוצה. כמנהלי הקבוצה, אתם שולטים בחברות.</string>
     <string name="ab_members_empty">עדיין לא נוספו חברים. הוסיפו אנשים מפנקס הכתובות או לפי כתובת למטה.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">ייבוא או ייצוא</string>
-    <string name="ab_import_or_export">ייבוא או ייצוא</string>
+    <string name="ab_add_address_sub">שמרו כתובת Kaspa עם שם שתזהו.</string>
     <string name="ab_import_file">ייבוא קובץ</string>
     <string name="ab_export_file">ייצוא קובץ</string>
     <string name="ab_import_file_sub">הוספת כתובות מייצוא של פנקס הכתובות.</string>

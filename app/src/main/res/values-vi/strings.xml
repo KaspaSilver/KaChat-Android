@@ -684,8 +684,7 @@
     <string name="ab_members_intro">Thêm người vào nhóm. Là quản trị viên, bạn quản lý thành viên.</string>
     <string name="ab_members_empty">Chưa có thành viên. Thêm người từ sổ địa chỉ hoặc bằng địa chỉ bên dưới.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">Nhập hoặc xuất</string>
-    <string name="ab_import_or_export">Nhập hoặc xuất</string>
+    <string name="ab_add_address_sub">Lưu một địa chỉ Kaspa với tên bạn dễ nhận ra.</string>
     <string name="ab_import_file">Nhập tệp</string>
     <string name="ab_export_file">Xuất tệp</string>
     <string name="ab_import_file_sub">Thêm địa chỉ từ một bản xuất sổ địa chỉ.</string>

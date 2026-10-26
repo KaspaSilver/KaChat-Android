@@ -621,8 +621,8 @@
     <string name="ab_members_intro">Tambahkan orang ke grup. Sebagai admin grup, Anda yang mengatur keanggotaan.</string>
     <string name="ab_members_empty">Belum ada anggota. Tambahkan orang dari Buku Alamat atau lewat alamat di bawah.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">Impor atau ekspor</string>
-    <string name="ab_import_or_export">Impor atau Ekspor</string>
+    <string name="ab_add_address_sub">Simpan alamat Kaspa dengan nama yang Anda kenali.</string>
+    <string name="addresses">Alamat</string>
     <string name="ab_import_file">Impor File</string>
     <string name="ab_export_file">Ekspor File</string>
     <string name="ab_import_file_sub">Tambahkan alamat dari ekspor Buku Alamat.</string>

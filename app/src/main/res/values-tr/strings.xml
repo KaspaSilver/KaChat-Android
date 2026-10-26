@@ -684,8 +684,7 @@
     <string name="ab_members_intro">Gruba kişi ekle. Grup yöneticisi olarak üyeliği sen yönetirsin.</string>
     <string name="ab_members_empty">Henüz üye yok. Aşağıdan adres defterinden veya adresle kişi ekle.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">İçe veya dışa aktar</string>
-    <string name="ab_import_or_export">İçe veya Dışa Aktar</string>
+    <string name="ab_add_address_sub">Bir Kaspa adresini tanıyacağınız bir adla kaydedin.</string>
     <string name="ab_import_file">Dosya İçe Aktar</string>
     <string name="ab_export_file">Dosya Dışa Aktar</string>
     <string name="ab_import_file_sub">Bir Adres Defteri dışa aktarımından adres ekle.</string>

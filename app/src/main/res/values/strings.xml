@@ -818,8 +818,8 @@
     <string name="ab_members_intro">Add people to the group. You control the membership as the group admin.</string>
     <string name="ab_members_empty">No members added yet. Add people from your Address Book or by address below.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">Import or export</string>
-    <string name="ab_import_or_export">Import or Export</string>
+    <string name="ab_actions_a11y">Add, import or export</string>
+    <string name="ab_add_address_sub">Save a Kaspa address with a name you\'ll recognize.</string>
     <string name="ab_import_file">Import File</string>
     <string name="ab_export_file">Export File</string>
     <string name="ab_import_file_sub">Add addresses from an Address Book export.</string>

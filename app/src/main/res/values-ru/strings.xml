@@ -684,8 +684,7 @@
     <string name="ab_members_intro">Добавьте людей в группу. Как администратор группы, вы управляете составом.</string>
     <string name="ab_members_empty">Участников пока нет. Добавьте людей из адресной книги или по адресу ниже.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">Импорт или экспорт</string>
-    <string name="ab_import_or_export">Импорт или экспорт</string>
+    <string name="ab_add_address_sub">Сохраните адрес Kaspa под понятным вам именем.</string>
     <string name="ab_import_file">Импорт из файла</string>
     <string name="ab_export_file">Экспорт в файл</string>
     <string name="ab_import_file_sub">Добавить адреса из экспорта адресной книги.</string>

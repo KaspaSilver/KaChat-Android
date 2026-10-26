@@ -684,8 +684,7 @@
     <string name="ab_members_intro">グループに人を追加します。グループ管理者としてメンバーを管理できます。</string>
     <string name="ab_members_empty">まだメンバーがいません。下のアドレス帳かアドレスで追加してください。</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">インポートまたはエクスポート</string>
-    <string name="ab_import_or_export">インポートまたはエクスポート</string>
+    <string name="ab_add_address_sub">Kaspaアドレスをわかりやすい名前で保存します。</string>
     <string name="ab_import_file">ファイルをインポート</string>
     <string name="ab_export_file">ファイルにエクスポート</string>
     <string name="ab_import_file_sub">アドレス帳のエクスポートからアドレスを追加します。</string>

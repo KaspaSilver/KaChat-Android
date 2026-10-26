@@ -235,7 +235,7 @@ fun SendRecipientCard(
                 if (addressBook.isNotEmpty()) {
                     Icon(
                         Icons.Outlined.Book,
-                        contentDescription = stringResource(R.string.ab_address_book),
+                        contentDescription = stringResource(R.string.addresses),
                         tint = KaspaTeal,
                         modifier = Modifier
                             .size(22.dp)

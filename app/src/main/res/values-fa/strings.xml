@@ -711,8 +711,7 @@
     <string name="ab_members_intro">افرادی را به گروه اضافه کنید. شما به‌عنوان مدیر گروه عضویت را کنترل می‌کنید.</string>
     <string name="ab_members_empty">هنوز عضوی اضافه نشده. در پایین افراد را از دفترچه نشانی یا با نشانی اضافه کنید.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
-    <string name="ab_import_export_a11y">وارد یا صادر کردن</string>
-    <string name="ab_import_or_export">وارد یا صادر کردن</string>
+    <string name="ab_add_address_sub">یک آدرس کسپا را با نامی که می‌شناسید ذخیره کنید.</string>
     <string name="ab_import_file">وارد کردن فایل</string>
     <string name="ab_export_file">صادر کردن فایل</string>
     <string name="ab_import_file_sub">نشانی‌ها را از یک فایل صادرشده دفترچه نشانی اضافه کنید.</string>
