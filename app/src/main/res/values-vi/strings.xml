@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">Hồ sơ, tên .kachat và địa chỉ của họ.</string>
     <string name="finds_addresses_balance_or_domain">Tìm các địa chỉ có số dư hoặc tên miền.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Nhập địa chỉ Kaspa (kaspa:...) hoặc tên miền. Tên .kachat được tra trước.</string>
-    <string name="kachat_names_resolved_first_footer">Được phân giải trước, ở mọi nơi bạn có thể nhập địa chỉ.</string>
     <string name="other_domains_title">Tên miền khác</string>
     <string name="other_domains_settings_footer">Được tra sau .kachat, và hiển thị trong Tên miền khác khi tên đã nhập cũng có ở đó.</string>
     <string name="chatting_picker_intro_any_name_kachat">Nếu cụm seed này đã giữ danh tính của bạn ở một địa chỉ khác - một tên miền (.kachat, .kas, .k hoặc .kaspa) hoặc số dư chat đã nạp - hãy chọn ở đây. Chỉ hiển thị địa chỉ có số dư hoặc tên miền.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">Chưa có trò chuyện nhóm nào</string>
     <string name="groups_empty_body">Bắt đầu một nhóm mới từ nút thêm trò chuyện</string>
     <string name="select_group">Chọn nhóm</string>
+    <string name="kachat_names_indexer_footer">Tên và hồ sơ .kachat được đọc từ đây. Hãy trỏ đến trình lập chỉ mục của riêng bạn nếu bạn tự chạy. Nếu nó không cung cấp được tên, tên sẽ được đọc trực tiếp từ chuỗi. Được phân giải trước tiên, ở mọi nơi bạn có thể nhập địa chỉ.</string>
 </resources>

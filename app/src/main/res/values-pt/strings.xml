@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">O perfil, o nome .kachat e o endereço.</string>
     <string name="finds_addresses_balance_or_domain">Encontra endereços com saldo ou um domínio.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Digite um endereço Kaspa (kaspa:...) ou um domínio. Nomes .kachat são procurados primeiro.</string>
-    <string name="kachat_names_resolved_first_footer">Resolvidos primeiro, em todo lugar onde você pode digitar um endereço.</string>
     <string name="other_domains_title">Outros domínios</string>
     <string name="other_domains_settings_footer">Procurados depois de .kachat e listados em Outros domínios quando um nome digitado também existe lá.</string>
     <string name="chatting_picker_intro_any_name_kachat">Se esta seed já guarda sua identidade em outro endereço (um domínio .kachat, .kas, .k ou .kaspa, ou um saldo de chat com fundos), escolha-o aqui. Só aparecem endereços com saldo ou domínios.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">Ainda nenhum chat em grupo</string>
     <string name="groups_empty_body">Inicie um novo grupo pelo botao de adicionar chat</string>
     <string name="select_group">Selecionar grupo</string>
+    <string name="kachat_names_indexer_footer">É daqui que os nomes e perfis .kachat são lidos. Aponte para o seu próprio indexador se tiver um. Se ele não puder fornecer nomes, eles são lidos diretamente da chain. Resolvido primeiro, em qualquer lugar onde você possa digitar um endereço.</string>
 </resources>

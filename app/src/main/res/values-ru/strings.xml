@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">Профиль, имя .kachat и адрес.</string>
     <string name="finds_addresses_balance_or_domain">Находит адреса с балансом или доменом.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Введите адрес Kaspa (kaspa:...) или домен. Сначала ищутся имена .kachat.</string>
-    <string name="kachat_names_resolved_first_footer">Ищутся первыми — везде, где можно ввести адрес.</string>
     <string name="other_domains_title">Другие домены</string>
     <string name="other_domains_settings_footer">Ищутся после .kachat и показываются в разделе «Другие домены», если введённое имя есть и там.</string>
     <string name="chatting_picker_intro_any_name_kachat">Если эта сид-фраза уже хранит вашу личность на другом адресе — домен (.kachat, .kas, .k или .kaspa) или пополненный баланс для чата, — выберите его здесь. Показаны только адреса с балансом или доменами.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">Пока нет групповых чатов</string>
     <string name="groups_empty_body">Начните новую группу с помощью кнопки добавления чата</string>
     <string name="select_group">Выбрать группу</string>
+    <string name="kachat_names_indexer_footer">Отсюда читаются имена и профили .kachat. Укажите свой индексатор, если он у вас есть. Если он не может отдавать имена, они читаются прямо из блокчейна. Разрешается первым везде, где можно ввести адрес.</string>
 </resources>

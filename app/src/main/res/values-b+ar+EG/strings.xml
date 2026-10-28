@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">ملفه الشخصي واسم .kachat والعنوان.</string>
     <string name="finds_addresses_balance_or_domain">يعثر على العناوين التي تحمل رصيدًا أو نطاقًا.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">أدخل عنوان Kaspa (kaspa:...) أو نطاقًا. يُبحث عن أسماء .kachat أولًا.</string>
-    <string name="kachat_names_resolved_first_footer">تُحلّ أولًا في كل مكان يمكنك فيه كتابة عنوان.</string>
     <string name="other_domains_title">نطاقات أخرى</string>
     <string name="other_domains_settings_footer">يُبحث عنها بعد .kachat، وتظهر تحت «نطاقات أخرى» عندما يوجد الاسم المكتوب هناك أيضًا.</string>
     <string name="chatting_picker_intro_any_name_kachat">إذا كانت هذه العبارة تحمل هويتك على عنوان آخر - نطاق (.kachat أو .kas أو .k أو .kaspa) أو رصيد دردشة ممول - فاختره هنا. تظهر فقط العناوين التي لها رصيد أو نطاقات.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">لا توجد دردشات جماعية بعد</string>
     <string name="groups_empty_body">ابدأ مجموعة جديدة من زر إضافة دردشة</string>
     <string name="select_group">اختيار المجموعة</string>
+    <string name="kachat_names_indexer_footer">من هنا بتتقري أسماء .kachat وبروفايلاتها. وجّهه للمفهرس بتاعك لو بتشغّل واحد. لو مقدرش يقدّم الأسماء، بتتقري على طول من السلسلة. بيتحل الأول في أي مكان تقدر تكتب فيه عنوان.</string>
 </resources>

@@ -751,7 +751,6 @@
     <string name="their_profile_kachat_name_address">نمایه، نام .kachat و نشانی او.</string>
     <string name="finds_addresses_balance_or_domain">نشانی‌هایی را که موجودی یا دامنه دارند پیدا می‌کند.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">یک نشانی Kaspa (kaspa:...) یا دامنه وارد کنید. ابتدا نام‌های .kachat جست‌وجو می‌شوند.</string>
-    <string name="kachat_names_resolved_first_footer">هرجا که بتوانید نشانی وارد کنید، ابتدا این‌ها بررسی می‌شوند.</string>
     <string name="other_domains_title">دامنه‌های دیگر</string>
     <string name="other_domains_settings_footer">بعد از .kachat جست‌وجو می‌شوند و اگر نام واردشده آنجا هم باشد، زیر «دامنه‌های دیگر» نمایش داده می‌شوند.</string>
     <string name="chatting_picker_intro_any_name_kachat">اگر این عبارت بازیابی هویت شما را در نشانی دیگری دارد - یک دامنه (.kachat، .kas، .k یا .kaspa) یا موجودی گفت‌وگوی شارژشده - آن را اینجا انتخاب کنید. فقط نشانی‌های دارای موجودی یا دامنه نشان داده می‌شوند.</string>
@@ -894,4 +893,5 @@
     <string name="no_group_chats_yet">هنوز هیچ گفتگوی گروهی وجود ندارد</string>
     <string name="groups_empty_body">یک گروه جدید از دکمه افزودن گفتگو شروع کنید</string>
     <string name="select_group">انتخاب گروه</string>
+    <string name="kachat_names_indexer_footer">نام‌ها و نمایه‌های .kachat از اینجا خوانده می‌شوند. اگر نمایه‌ساز خودتان را اجرا می‌کنید، آن را اینجا وارد کنید. اگر نتواند نام‌ها را ارائه دهد، مستقیماً از زنجیره خوانده می‌شوند. هر جا بتوانید نشانی وارد کنید، اول این بررسی می‌شود.</string>
 </resources>

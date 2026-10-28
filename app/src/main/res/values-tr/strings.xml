@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">Profili, .kachat adı ve adresi.</string>
     <string name="finds_addresses_balance_or_domain">Bakiyesi veya alan adı olan adresleri bulur.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Bir Kaspa adresi (kaspa:...) veya alan adı girin. Önce .kachat adları aranır.</string>
-    <string name="kachat_names_resolved_first_footer">Adres girebildiğiniz her yerde önce çözümlenir.</string>
     <string name="other_domains_title">Diğer Alan Adları</string>
     <string name="other_domains_settings_footer">.kachat\'tan sonra aranır; yazılan ad orada da varsa Diğer alan adları altında listelenir.</string>
     <string name="chatting_picker_intro_any_name_kachat">Bu seed kimliğinizi zaten başka bir adreste tutuyorsa (bir alan adı .kachat, .kas, .k veya .kaspa ya da bakiyeli bir sohbet adresi), burada seçin. Yalnızca bakiyesi veya alan adı olan adresler gösterilir.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">Henuz Grup Sohbeti Yok</string>
     <string name="groups_empty_body">Sohbet ekle dugmesinden yeni bir grup baslatin</string>
     <string name="select_group">Grup sec</string>
+    <string name="kachat_names_indexer_footer">.kachat adları ve profilleri buradan okunur. Kendi dizinleyicini çalıştırıyorsan buraya gir. Ad sunamazsa adlar doğrudan zincirden okunur. Adres yazabileceğin her yerde ilk olarak çözümlenir.</string>
 </resources>

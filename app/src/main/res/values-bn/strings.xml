@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">তাদের প্রোফাইল, .kachat নাম ও ঠিকানা।</string>
     <string name="finds_addresses_balance_or_domain">ব্যালেন্স বা ডোমেইন থাকা ঠিকানা খুঁজে বের করে।</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">একটি Kaspa ঠিকানা (kaspa:...) বা ডোমেইন লিখুন। আগে .kachat নাম খোঁজা হয়।</string>
-    <string name="kachat_names_resolved_first_footer">যেখানেই ঠিকানা লেখা যায়, সেখানে আগে খোঁজা হয়।</string>
     <string name="other_domains_title">অন্যান্য ডোমেইন</string>
     <string name="other_domains_settings_footer">.kachat-এর পরে খোঁজা হয়, আর লেখা নামটি সেখানেও থাকলে অন্যান্য ডোমেইনের নিচে দেখানো হয়।</string>
     <string name="chatting_picker_intro_any_name_kachat">এই সিড যদি আগে থেকেই অন্য ঠিকানায় আপনার পরিচয় রাখে - একটি ডোমেইন (.kachat, .kas, .k বা .kaspa) বা অর্থ জমা থাকা চ্যাট ব্যালেন্স - এখানে সেটি বেছে নিন। শুধু ব্যালেন্স বা ডোমেইন থাকা ঠিকানা দেখানো হয়।</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">এখনও কোনো গ্রুপ চ্যাট নেই</string>
     <string name="groups_empty_body">চ্যাট যোগ করুন বোতাম থেকে একটি নতুন গ্রুপ শুরু করুন</string>
     <string name="select_group">গ্রুপ নির্বাচন করুন</string>
+    <string name="kachat_names_indexer_footer">.kachat নাম ও প্রোফাইল এখান থেকে পড়া হয়। নিজের ইনডেক্সার চালালে এখানে সেটি দিন। এটি নাম দিতে না পারলে সেগুলো সরাসরি চেইন থেকে পড়া হয়। যেখানেই ঠিকানা লিখতে পারেন, সবার আগে এটি সমাধান হয়।</string>
 </resources>

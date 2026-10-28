@@ -47,6 +47,11 @@ class AppSettingsRepository @Inject constructor(
         // Push-registration host (FCM device registration; mirrors iOS's pushIndexerURL). Same
         // domain by default, but configurable so push can point at a different indexer.
         val KEY_PUSH_INDEXER_URL = stringPreferencesKey("push_indexer_url")
+        // Where .kachat names and profiles are read (Connection Settings > Domains; iOS
+        // `kachatNamesIndexerURL`, 7abc06e). Its own field, apart from the message indexer, so a
+        // names indexer can be run on its own. Unset = the message indexer, where names were read
+        // before the field existed.
+        val KEY_KACHAT_NAMES_INDEXER_URL = stringPreferencesKey("kachat_names_indexer_url")
         // A user-pinned "host:port" gRPC node - when non-blank, NodePoolManager stops
         // discovery (seeds/DNS/peer-gossip) entirely and only ever connects to this address,
         // Kaspium-style. Empty string = disabled (normal pool discovery).
@@ -243,6 +248,7 @@ class AppSettingsRepository @Inject constructor(
     private fun liveKeysProfile(prefs: Preferences) = ConnectionProfile(
         indexerUrl = prefs[KEY_INDEXER_URL],
         pushIndexerUrl = prefs[KEY_PUSH_INDEXER_URL],
+        kachatNamesIndexerUrl = prefs[KEY_KACHAT_NAMES_INDEXER_URL],
         kaspaRestUrl = prefs[KEY_KASPA_REST_URL],
         trustedNodeAddress = prefs[KEY_TRUSTED_NODE_ADDRESS],
         savedNodeAddresses = prefs[KEY_SAVED_NODE_ADDRESSES],
@@ -290,6 +296,14 @@ class AppSettingsRepository @Inject constructor(
         return if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
     }
 
+    /** The .kachat names indexer: its own field when set, else the message indexer (iOS 7abc06e).
+     *  It started as a copy of the message indexer, so it can hold the same superseded defaults,
+     *  which move the same way (neither of those hosts serves names). */
+    private fun resolveKachatNamesIndexerUrl(profile: ConnectionProfile, network: KaspaNetwork.Type): String {
+        val stored = profile.kachatNamesIndexerUrl?.takeIf { it.isNotBlank() } ?: return resolveIndexerUrl(profile, network)
+        return if (stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
+    }
+
     /**
      * Always the shipped endpoint. Deliberately NOT overridable: it is display-only in Connection
      * Settings, has no setter, and any value already in the DataStore is ignored.
@@ -329,6 +343,7 @@ class AppSettingsRepository @Inject constructor(
 
     // The running network's endpoints - every live client.
     val indexerUrl: Flow<String> = runningConnection.resolve(::resolveIndexerUrl)
+    val kachatNamesIndexerUrl: Flow<String> = runningConnection.resolve(::resolveKachatNamesIndexerUrl)
     val knsApiUrl: Flow<String> = flow { emit(knsApiUrlFor(KaspaNetwork.launch)) }
     val kaspaRestUrl: Flow<String> = runningConnection.resolve(::resolveKaspaRestUrl)
     val pushIndexerUrl: Flow<String> = runningConnection.resolve { p, n -> indexerOrDefault(p.pushIndexerUrl, DEFAULT_PUSH_INDEXER_URL, n) }
@@ -339,6 +354,7 @@ class AppSettingsRepository @Inject constructor(
     // The Testnet switch's network's values, for Connection Settings: after a switch they are the
     // chosen network's, which the app connects with from the next launch.
     val selectedIndexerUrl: Flow<String> = selectedConnection.resolve(::resolveIndexerUrl)
+    val selectedKachatNamesIndexerUrl: Flow<String> = selectedConnection.resolve(::resolveKachatNamesIndexerUrl)
     val selectedKnsApiUrl: Flow<String> = KaspaNetwork.selected.map { knsApiUrlFor(it) }
     val selectedKaspaRestUrl: Flow<String> = selectedConnection.resolve(::resolveKaspaRestUrl)
     val selectedPushIndexerUrl: Flow<String> = selectedConnection.resolve { p, n -> indexerOrDefault(p.pushIndexerUrl, DEFAULT_PUSH_INDEXER_URL, n) }
@@ -660,6 +676,7 @@ class AppSettingsRepository @Inject constructor(
                 }
                 put(KEY_INDEXER_URL, next.indexerUrl)
                 put(KEY_PUSH_INDEXER_URL, next.pushIndexerUrl)
+                put(KEY_KACHAT_NAMES_INDEXER_URL, next.kachatNamesIndexerUrl)
                 put(KEY_KASPA_REST_URL, next.kaspaRestUrl)
                 put(KEY_TRUSTED_NODE_ADDRESS, next.trustedNodeAddress)
                 put(KEY_SAVED_NODE_ADDRESSES, next.savedNodeAddresses)
@@ -768,6 +785,8 @@ class AppSettingsRepository @Inject constructor(
 data class ConnectionProfile(
     val indexerUrl: String? = null,
     val pushIndexerUrl: String? = null,
+    /** Where .kachat names are read (iOS 7abc06e); null = the message indexer. */
+    val kachatNamesIndexerUrl: String? = null,
     val kaspaRestUrl: String? = null,
     val trustedNodeAddress: String? = null,
     /** Gson list of SavedNodeAddress, as stored under KEY_SAVED_NODE_ADDRESSES. */
@@ -777,7 +796,8 @@ data class ConnectionProfile(
         /** Every field name above, as Gson writes them. app/proguard-rules.pro keeps these names
          *  in release builds; ConnectionProfileStoreTest checks the set against the class. */
         internal val FIELDS = setOf(
-            "indexerUrl", "pushIndexerUrl", "kaspaRestUrl", "trustedNodeAddress", "savedNodeAddresses",
+            "indexerUrl", "pushIndexerUrl", "kachatNamesIndexerUrl", "kaspaRestUrl", "trustedNodeAddress",
+            "savedNodeAddresses",
         )
 
         /** Fields a record written before 2026-10-24 still carries - the KaPosts, Public Chats and

@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">其个人资料、.kachat 名称和地址。</string>
     <string name="finds_addresses_balance_or_domain">查找有余额或域名的地址。</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">输入 Kaspa 地址(kaspa:...)或域名。会先查找 .kachat 名称。</string>
-    <string name="kachat_names_resolved_first_footer">在所有可以输入地址的地方优先解析。</string>
     <string name="other_domains_title">其他域名</string>
     <string name="other_domains_settings_footer">在 .kachat 之后查找;如果输入的名称在那里也存在,会列在“其他域名”下。</string>
     <string name="chatting_picker_intro_any_name_kachat">如果此助记词已在其他地址上保存了你的身份(.kachat、.kas、.k 或 .kaspa 域名,或有余额的聊天地址),请在此选择。只显示有余额或域名的地址。</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">暂无群聊</string>
     <string name="groups_empty_body">通过添加聊天按钮开始一个新群组</string>
     <string name="select_group">选择群组</string>
+    <string name="kachat_names_indexer_footer">.kachat 名称和资料从这里读取。如果你自己运行索引器，可以填在这里。如果它无法提供名称，则直接从链上读取。在所有可以输入地址的地方都会优先解析。</string>
 </resources>

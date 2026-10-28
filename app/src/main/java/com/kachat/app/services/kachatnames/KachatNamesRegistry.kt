@@ -247,7 +247,7 @@ class KachatNamesRegistry @Inject constructor(
     }
 
     private suspend fun indexerBase(): String? {
-        val raw = settings.indexerUrl.first().trim()
+        val raw = settings.kachatNamesIndexerUrl.first().trim()
         if (raw.isEmpty()) return null
         return raw.removeSuffix("/")
     }

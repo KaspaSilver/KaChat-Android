@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">プロフィール、.kachatの名前、アドレス。</string>
     <string name="finds_addresses_balance_or_domain">残高またはドメインを持つアドレスを探します。</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Kaspaアドレス(kaspa:...)またはドメインを入力してください。.kachatの名前が最初に検索されます。</string>
-    <string name="kachat_names_resolved_first_footer">アドレスを入力できるすべての場所で最初に解決されます。</string>
     <string name="other_domains_title">その他のドメイン</string>
     <string name="other_domains_settings_footer">.kachatの次に検索され、入力した名前がそこにもある場合は「その他のドメイン」に表示されます。</string>
     <string name="chatting_picker_intro_any_name_kachat">このシードがすでに別のアドレスであなたのIDを持っている場合(.kachat、.kas、.k、.kaspaのドメイン、または入金済みのチャット残高)、ここで選択してください。残高かドメインがあるアドレスのみ表示されます。</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">まだグループチャットがありません</string>
     <string name="groups_empty_body">チャット追加ボタンから新しいグループを開始</string>
     <string name="select_group">グループを選択</string>
+    <string name="kachat_names_indexer_footer">.kachat の名前とプロフィールはここから読み込まれます。自分でインデクサーを運用している場合はここに指定してください。名前を提供できない場合は、チェーンから直接読み込まれます。アドレスを入力できるすべての場所で最初に解決されます。</string>
 </resources>

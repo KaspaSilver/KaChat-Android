@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">הפרופיל, שם ה-.kachat והכתובת.</string>
     <string name="finds_addresses_balance_or_domain">מוצא כתובות שיש בהן יתרה או דומיין.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">הזן כתובת Kaspa (kaspa:...) או דומיין. שמות .kachat נבדקים קודם.</string>
-    <string name="kachat_names_resolved_first_footer">נפתרים ראשונים, בכל מקום שבו אפשר להזין כתובת.</string>
     <string name="other_domains_title">דומיינים אחרים</string>
     <string name="other_domains_settings_footer">נבדקים אחרי .kachat, ומופיעים תחת דומיינים אחרים כשהשם שהוזן קיים גם שם.</string>
     <string name="chatting_picker_intro_any_name_kachat">אם הסיד הזה כבר מחזיק את הזהות שלך בכתובת אחרת - דומיין (.kachat, .kas, .k או .kaspa) או יתרת צ׳אט ממומנת - בחר אותה כאן. מוצגות רק כתובות עם יתרה או דומיינים.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">אין עדיין צ\'אטים קבוצתיים</string>
     <string name="groups_empty_body">התחל קבוצה חדשה מכפתור הוספת צ\'אט</string>
     <string name="select_group">בחר קבוצה</string>
+    <string name="kachat_names_indexer_footer">מכאן נקראים שמות ופרופילים של ‎.kachat. הפנה אותו למאנדקס משלך אם אתה מריץ אחד. אם הוא לא יכול לספק שמות, הם נקראים ישירות מהשרשרת. נפתר ראשון, בכל מקום שבו אפשר להקליד כתובת.</string>
 </resources>

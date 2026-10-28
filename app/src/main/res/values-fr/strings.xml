@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">Son profil, son nom .kachat et son adresse.</string>
     <string name="finds_addresses_balance_or_domain">Trouve les adresses qui détiennent un solde ou un domaine.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Saisissez une adresse Kaspa (kaspa:...) ou un domaine. Les noms .kachat sont recherchés en premier.</string>
-    <string name="kachat_names_resolved_first_footer">Résolus en premier, partout où vous pouvez saisir une adresse.</string>
     <string name="other_domains_title">Autres domaines</string>
     <string name="other_domains_settings_footer">Recherchés après .kachat, et listés sous Autres domaines quand un nom saisi y existe aussi.</string>
     <string name="chatting_picker_intro_any_name_kachat">Si cette phrase de récupération détient déjà votre identité à une autre adresse (un domaine .kachat, .kas, .k ou .kaspa, ou un solde de discussion approvisionné), choisissez-la ici. Seules les adresses avec un solde ou des domaines sont affichées.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">Aucune discussion de groupe pour l\'instant</string>
     <string name="groups_empty_body">Demarrez un nouveau groupe depuis le bouton d\'ajout de discussion</string>
     <string name="select_group">Selectionner le groupe</string>
+    <string name="kachat_names_indexer_footer">C\'est ici que sont lus les noms et profils .kachat. Indiquez votre propre indexeur si vous en exécutez un. S\'il ne peut pas fournir les noms, ils sont lus directement sur la chaîne. Résolu en premier, partout où vous pouvez saisir une adresse.</string>
 </resources>

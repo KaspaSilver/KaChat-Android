@@ -724,7 +724,6 @@
     <string name="their_profile_kachat_name_address">프로필, .kachat 이름, 주소.</string>
     <string name="finds_addresses_balance_or_domain">잔액이나 도메인이 있는 주소를 찾습니다.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Kaspa 주소(kaspa:...) 또는 도메인을 입력하세요. .kachat 이름을 먼저 찾습니다.</string>
-    <string name="kachat_names_resolved_first_footer">주소를 입력할 수 있는 모든 곳에서 가장 먼저 확인됩니다.</string>
     <string name="other_domains_title">다른 도메인</string>
     <string name="other_domains_settings_footer">.kachat 다음에 찾으며, 입력한 이름이 그곳에도 있으면 다른 도메인 아래에 표시됩니다.</string>
     <string name="chatting_picker_intro_any_name_kachat">이 시드가 이미 다른 주소에 신원을 갖고 있다면(.kachat, .kas, .k, .kaspa 도메인 또는 입금된 채팅 잔액) 여기에서 선택하세요. 잔액이나 도메인이 있는 주소만 표시됩니다.</string>
@@ -867,4 +866,5 @@
     <string name="no_group_chats_yet">아직 그룹 채팅 없음</string>
     <string name="groups_empty_body">채팅 추가 버튼으로 새 그룹을 시작하세요</string>
     <string name="select_group">그룹 선택</string>
+    <string name="kachat_names_indexer_footer">.kachat 이름과 프로필을 여기서 읽습니다. 직접 인덱서를 운영한다면 여기에 지정하세요. 이름을 제공하지 못하면 체인에서 직접 읽습니다. 주소를 입력할 수 있는 모든 곳에서 가장 먼저 확인됩니다.</string>
 </resources>

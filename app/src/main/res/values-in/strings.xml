@@ -662,7 +662,6 @@
     <string name="their_profile_kachat_name_address">Profil, nama .kachat, dan alamatnya.</string>
     <string name="finds_addresses_balance_or_domain">Menemukan alamat yang punya saldo atau domain.</string>
     <string name="enter_kaspa_address_or_domain_short_kachat_first">Masukkan alamat Kaspa (kaspa:...) atau domain. Nama .kachat dicari lebih dulu.</string>
-    <string name="kachat_names_resolved_first_footer">Diresolusikan lebih dulu, di mana pun Anda bisa mengetik alamat.</string>
     <string name="other_domains_title">Domain Lain</string>
     <string name="other_domains_settings_footer">Dicari setelah .kachat, dan ditampilkan di Domain lain jika nama yang diketik juga ada di sana.</string>
     <string name="chatting_picker_intro_any_name_kachat">Jika seed ini sudah menyimpan identitas Anda di alamat lain - domain (.kachat, .kas, .k, atau .kaspa) atau saldo chat yang terisi - pilih di sini. Hanya alamat dengan saldo atau domain yang ditampilkan.</string>
@@ -804,4 +803,5 @@
     <string name="groups_pinned">Disematkan</string>
     <string name="no_group_chats_yet">Belum Ada Obrolan Grup</string>
     <string name="groups_empty_body">Mulai grup baru dari tombol tambah obrolan</string>
+    <string name="kachat_names_indexer_footer">Nama dan profil .kachat dibaca dari sini. Arahkan ke pengindeks Anda sendiri jika Anda menjalankannya. Jika tidak bisa menyajikan nama, nama dibaca langsung dari chain. Diselesaikan pertama, di mana pun Anda bisa mengetik alamat.</string>
 </resources>

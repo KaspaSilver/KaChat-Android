@@ -204,7 +204,7 @@ class KachatNamesService @Inject constructor(
     private suspend fun manifestData(): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
         val bundled = runCatching { context.assets.open(Manifest.assetName(networkName)).use { it.readBytes() } }.getOrNull()
         if (bundled != null) return@withContext bundled to "bundle"
-        val base = settings.indexerUrl.first().trim()
+        val base = settings.kachatNamesIndexerUrl.first().trim()
         if (base.isEmpty()) throw ServiceError.NoManifest("none in the app and no indexer is configured")
         val url = base.removeSuffix("/") + "/names/manifest"
         val request = runCatching { Request.Builder().url(url).build() }.getOrNull()

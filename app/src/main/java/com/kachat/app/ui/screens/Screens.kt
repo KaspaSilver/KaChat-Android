@@ -5194,12 +5194,18 @@ fun ManageAddressesScreen(
     var discoverySummary by remember { mutableStateOf<String?>(null) }
     val pullRefreshState = rememberPullToRefreshState()
 
-    // The spending addresses in number order, #0 first, under the chatting address (iOS 245a5d2).
     val domainOwningAddresses by viewModel.domainOwningAddresses.collectAsState()
     // Quantum-safe rows whose key a spend has put on chain (their shield is off for good).
     val quantumSpentAddresses by viewModel.quantumSpentAddresses.collectAsState()
+    // The spending addresses under the chatting address: unused ones first, newest first - so a
+    // freshly generated address lands right under the chatting address - then the used ones in
+    // number order (iOS 7abc06e, from KaChat Wallet). One still being checked counts as unused
+    // until its check says otherwise.
     val visibleAddresses = remember(addresses) {
-        addresses.filterNot { it.hidden }.sortedBy { it.index }
+        addresses.filterNot { it.hidden }.sortedWith(
+            compareBy<com.kachat.app.services.WalletService.SpendingAddressEntry> { it.everUsed || it.balanceSompi > 0 }
+                .thenBy { if (it.everUsed || it.balanceSompi > 0) it.index else -it.index }
+        )
     }
     val hiddenAddresses = remember(addresses) { addresses.filter { it.hidden } }
 
@@ -11435,6 +11441,7 @@ private fun AddressBookSection(viewModel: ConnectionViewModel) {
 fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel = hiltViewModel()) {
     val network by viewModel.network.collectAsState()
     val indexerUrl by viewModel.indexerUrl.collectAsState()
+    val kachatNamesIndexerUrl by viewModel.kachatNamesIndexerUrl.collectAsState()
     val knsApiUrl by viewModel.knsApiUrl.collectAsState()
     val kaspaRestApiUrl by viewModel.kaspaRestApiUrl.collectAsState()
     val pushIndexerUrl by viewModel.pushIndexerUrl.collectAsState()
@@ -11493,11 +11500,12 @@ fun ConnectionSettingsScreen(onBack: () -> Unit, viewModel: ConnectionViewModel 
             }
             2 -> {
             // .kachat first: it is what every address field resolves before anything else (iOS 6ac48a7).
-            SettingsFormSection(title = stringResource(R.string.kn_kachat_names), footer = stringResource(R.string.kachat_names_resolved_first_footer)) {
-                // Read through the message indexer (the Indexer tab) when it serves this network's
-                // names, else straight from the chain (KachatNamesRegistry, iOS 5df42b4, ef6b21e).
-                // Its address, as the registry uses it, in the .kas rows' style (iOS 955220b).
-                ConnectionUrlField(label = "KaChat Names (.kachat)", value = indexerUrl.trim().trimEnd('/'))
+            SettingsFormSection(title = stringResource(R.string.kn_kachat_names), footer = stringResource(R.string.kachat_names_indexer_footer)) {
+                // Its own field, apart from the message indexer (iOS 7abc06e). Names come from
+                // here when it serves this network's registry and is caught up, else straight
+                // from the chain (KachatNamesRegistry). Shown as the other indexer URLs here are:
+                // read-only, in the .kas rows' style (iOS 955220b).
+                ConnectionUrlField(label = "KaChat Names Indexer URL", value = kachatNamesIndexerUrl.trim().trimEnd('/'))
             }
             // The other name services this app reads (see NameServicesClient). Shown, not
             // editable; the .kas URL follows the selected network.

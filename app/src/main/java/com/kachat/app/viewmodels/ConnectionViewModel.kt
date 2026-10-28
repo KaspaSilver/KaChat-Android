@@ -155,6 +155,7 @@ class ConnectionViewModel @Inject constructor(
     // the chosen network's, which the app connects with from the next launch (iOS e6f664f). The
     // running app keeps using its own network's until then (AppSettingsRepository).
     val indexerUrl: StateFlow<String> = settings.selectedIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    val kachatNamesIndexerUrl: StateFlow<String> = settings.selectedKachatNamesIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val knsApiUrl: StateFlow<String> = settings.selectedKnsApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val kaspaRestApiUrl: StateFlow<String> = settings.selectedKaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     /** The indexer the running app is connected to, for the connection status screen. */
