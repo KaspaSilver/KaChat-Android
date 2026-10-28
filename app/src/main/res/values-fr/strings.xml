@@ -11,7 +11,6 @@
     <string name="added">Ajouté</string>
     <string name="address">Adresse</string>
     <string name="address_actions">Actions sur l\'adresse</string>
-    <string name="addresses">Adresses</string>
     <string name="adjust_network_fee">Ajuster les frais de reseau</string>
     <string name="admin">Administrateur</string>
     <string name="all_discovered_nodes_sorted_by_state">Tous les nœuds découverts et triés par état et latence. Les nœuds sont dé-dupliqués par host:port.</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">Carnet d\'adresses</string>
-    <string name="ab_add_to_address_book">Ajouter au carnet d\'adresses</string>
+    <string name="ab_address_book">Contacts</string>
+    <string name="ab_add_to_address_book">Ajouter aux contacts</string>
     <string name="ab_search_prompt">Rechercher des noms et des adresses</string>
-    <string name="ab_empty_body">Enregistrez les adresses Kaspa que vous utilisez sous un nom que vous reconnaîtrez. Elles restent dans KaChat, pour ce portefeuille uniquement, et ne vont jamais dans les contacts de votre téléphone.</string>
-    <string name="ab_add_address">Ajouter une adresse</string>
+    <string name="ab_empty_body">Enregistrez les adresses Kaspa que vous utilisez avec un nom que vous reconnaîtrez. Elles restent dans KaChat, pour ce portefeuille uniquement, et ne vont jamais dans l\'app Contacts de votre téléphone.</string>
+    <string name="ab_add_address">Ajouter un contact</string>
     <string name="ab_copied">Copié</string>
     <string name="ab_share_address">Partager l\'adresse</string>
     <string name="ab_edit">Modifier</string>
-    <string name="ab_delete_from">Supprimer du carnet d\'adresses</string>
-    <string name="ab_delete_confirm">Supprimer %1$s de votre carnet d\'adresses ?</string>
-    <string name="ab_not_in_book">Absent de votre carnet d\'adresses</string>
+    <string name="ab_delete_from">Supprimer le contact</string>
+    <string name="ab_delete_confirm">Supprimer %s de vos contacts ?</string>
+    <string name="ab_not_in_book">Pas dans vos contacts</string>
     <string name="ab_note_optional">Note (facultatif)</string>
-    <string name="ab_editor_footer">Enregistré dans KaChat pour ce portefeuille uniquement. Jamais ajouté aux contacts de votre téléphone.</string>
-    <string name="ab_remove_from">Retirer du carnet d\'adresses</string>
-    <string name="ab_edit_address">Modifier l\'adresse</string>
-    <string name="ab_picker_empty_body">Ajoutez des adresses dans Kaspa Hub &gt; Carnet d\'adresses.</string>
+    <string name="ab_editor_footer">Enregistré dans KaChat pour ce portefeuille uniquement. Jamais ajouté à l\'app Contacts de votre téléphone.</string>
+    <string name="ab_remove_from">Retirer des contacts</string>
+    <string name="ab_edit_address">Modifier le contact</string>
+    <string name="ab_picker_empty_body">Ajoutez-les dans Contacts.</string>
     <string name="ab_err_no_wallet">Ouvrez d\'abord un portefeuille.</string>
     <string name="ab_err_empty_name">Saisissez un nom.</string>
     <string name="ab_err_invalid_address">Saisissez une adresse Kaspa valide.</string>
-    <string name="ab_saved_toast">Enregistré dans le carnet d\'adresses.</string>
-    <string name="ab_removed_toast">Retiré du carnet d\'adresses.</string>
+    <string name="ab_saved_toast">Enregistré dans les contacts.</string>
+    <string name="ab_removed_toast">Retiré des contacts.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">Changer la photo</string>
     <string name="ab_remove_photo">Retirer la photo</string>
     <string name="ab_photo_failed">Impossible d\'utiliser cette photo.</string>
     <string name="ab_photo_footer">Sans photo de votre choix, on voit ici l\'avatar défini sur son profil.</string>
-    <string name="ab_photos_title">Photos du carnet d\'adresses</string>
-    <string name="ab_photos_remove">Retirer les photos du carnet d\'adresses</string>
-    <string name="ab_photos_remove_question">Retirer les photos du carnet d\'adresses ?</string>
+    <string name="ab_photos_title">Photos des contacts</string>
+    <string name="ab_photos_remove">Supprimer les photos des contacts</string>
+    <string name="ab_photos_remove_question">Supprimer les photos des contacts ?</string>
     <string name="ab_photos_footer">Les photos que vous avez attribuées aux adresses enregistrées, pour tous les portefeuilles de cet appareil. Elles restent jusqu\'à ce que vous les retiriez et sont incluses dans votre sauvegarde des discussions.</string>
     <string name="ab_photos_frees">Libère %1$s. Les adresses enregistrées gardent leur nom et affichent à la place l\'avatar choisi par leur propriétaire.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">Ajouter (%1$d)</string>
     <string name="ab_add_members">Ajouter des membres</string>
-    <string name="ab_members_footer">Choisissez des personnes dans votre carnet d\'adresses, ou ajoutez n\'importe qui par adresse Kaspa ou domaine.</string>
+    <string name="ab_members_footer">Choisissez des personnes dans vos contacts, ou ajoutez n\'importe qui par adresse Kaspa ou domaine.</string>
     <string name="ab_members_intro">Ajoutez des personnes au groupe. En tant qu\'administrateur, vous gérez les membres.</string>
-    <string name="ab_members_empty">Aucun membre pour l\'instant. Ajoutez des personnes depuis votre carnet d\'adresses ou par adresse ci-dessous.</string>
+    <string name="ab_members_empty">Aucun membre pour l\'instant. Ajoutez des personnes depuis vos contacts ou par adresse ci-dessous.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">Enregistrez une adresse Kaspa sous un nom que vous reconnaîtrez.</string>
     <string name="ab_import_file">Importer un fichier</string>
     <string name="ab_export_file">Exporter un fichier</string>
-    <string name="ab_import_file_sub">Ajoutez des adresses depuis un export du carnet d\'adresses.</string>
-    <string name="ab_export_file_sub">Enregistrez ce carnet d\'adresses, avec ses photos, dans un fichier.</string>
-    <string name="ab_nc_import_sub">Choisissez un export du carnet d\'adresses dans votre Nextcloud.</string>
+    <string name="ab_import_file_sub">Ajouter des contacts depuis un export de contacts.</string>
+    <string name="ab_export_file_sub">Enregistrer vos contacts, avec leurs photos, dans un fichier.</string>
+    <string name="ab_nc_import_sub">Choisissez un export de contacts dans votre Nextcloud.</string>
     <string name="ab_nc_export_sub">Enregistrez-le dans le dossier KaChat de votre Nextcloud pour l\'importer sur n\'importe quel appareil.</string>
     <string name="ab_nc_connect_hint">Connectez Nextcloud dans Réglages &gt; Stockage pour l\'y enregistrer aussi et l\'importer sur un autre appareil.</string>
     <string name="ab_couldnt_read_file">Impossible de lire ce fichier.</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">Échec de l\'export. Impossible d\'écrire le fichier.</string>
     <string name="ab_already_up_to_date">Déjà à jour. Toutes les adresses du fichier sont enregistrées.</string>
     <string name="ab_imported_counts">Importé : %1$d ajoutées, %2$d mises à jour.</string>
-    <string name="ab_err_not_an_export">Ce fichier n\'est pas un export du carnet d\'adresses KaChat.</string>
-    <string name="ab_err_export_empty">Cet export ne contient aucune adresse.</string>
+    <string name="ab_err_not_an_export">Ce fichier n\'est pas un export de contacts KaChat.</string>
+    <string name="ab_err_export_empty">Cet export de contacts ne contient aucun contact.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">Envoyée au réseau</string>
     <string name="kn_step_in_block">Dans un bloc</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">Le paiement arrive dans votre discussion avec la personne qui paie, avec la note.</string>
     <string name="pr_memo_placeholder">Pour quoi (facultatif)</string>
     <string name="pr_copy">Copier la demande de paiement</string>
-    <string name="pr_anyone_note">Quiconque l’ouvre ou la colle dans KaChat obtient Envoyer des Kaspa déjà rempli, et voit qu’elle vient de votre adresse de discussion (signée avec sa clé).</string>
+    <string name="pr_anyone_note">Quiconque l\'ouvre dans KaPay ou KaChat obtient Envoyer des Kaspa pré-rempli, et voit qu\'elle a été créée par votre adresse de chat (signée avec sa clé).</string>
     <string name="pr_requested">Demandé</string>
     <string name="pr_paid_as_chat_payment">Payé comme paiement de discussion : il apparaît dans votre discussion avec la personne.</string>
     <string name="pr_paid_to_their_spending">Payé à son adresse de dépense.</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">Continuez à balayer</string>
     <string name="swipe_failed">Échec</string>
     <string name="swipe_tap_tx_hint">Touchez la transaction pour l\'ouvrir dans l\'explorateur.</string>
+    <string name="contacts">Contacts</string>
+    <string name="review">Vérifier</string>
+    <string name="send_step_who_to">À qui envoyez-vous ?</string>
+    <string name="send_youre_sending">Vous envoyez</string>
+    <string name="send_consolidating">Consolidation</string>
+    <string name="send_this_address_consolidating">Cette adresse (consolidation)</string>
+    <string name="send_this_address">Cette adresse</string>
+    <string name="send_exceeds_balance">C\'est plus que ce que contient l\'adresse d\'envoi.</string>
+    <string name="send_set_fee">Définissez vos frais de réseau</string>
+    <string name="send_fee_minimum">Le réseau demande au moins %s KAS. Des frais inférieurs sont relevés à ce montant.</string>
+    <string name="send_fee_much_more">C\'est bien plus que ce dont le réseau a besoin.</string>
+    <string name="keypad_decimal_point">Séparateur décimal</string>
+    <string name="send_fee_tier_footer_edit">Si le réseau est chargé, Rapide ou Prioritaire paient des frais plus élevés pour une confirmation plus rapide. Modifier vous permet de fixer vos propres frais.</string>
+    <string name="send_available">Disponible : %s KAS</string>
+    <string name="send_step_where_from">D\'où envoyez-vous ?</string>
+    <string name="send_step_pick_from">Choisissez de laquelle de vos adresses partent les Kaspa.</string>
+    <string name="pr_step_where_paid">Où voulez-vous être payé ?</string>
+    <string name="pr_step_how_much">Combien ?</string>
+    <string name="pr_youre_requesting">Vous demandez</string>
+    <string name="pr_fresh_footer">Une toute nouvelle adresse à vous, jamais utilisée ni communiquée.</string>
+    <string name="pr_paid_to">Payé à</string>
+    <string name="nextcloud_sync_address_book">Vos contacts sont dans la même sauvegarde et se synchronisent de la même façon entre vos appareils.</string>
+    <string name="ab_empty_title">Aucun contact pour l\'instant</string>
 </resources>

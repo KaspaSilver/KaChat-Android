@@ -11,7 +11,6 @@
     <string name="added">추가됨</string>
     <string name="address">주소</string>
     <string name="address_actions">주소 작업</string>
-    <string name="addresses">주소</string>
     <string name="adjust_network_fee">네트워크 수수료 조정</string>
     <string name="admin">관리자</string>
     <string name="all_discovered_nodes_sorted_by_state">검색된 모든 노드를 상태와 지연 시간으로 정렬합니다. 노드는 host:port로 중복 제거됩니다.</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">주소록</string>
-    <string name="ab_add_to_address_book">주소록에 추가</string>
+    <string name="ab_address_book">연락처</string>
+    <string name="ab_add_to_address_book">연락처에 추가</string>
     <string name="ab_search_prompt">이름과 주소 검색</string>
-    <string name="ab_empty_body">자주 쓰는 Kaspa 주소를 알아보기 쉬운 이름으로 저장하세요. KaChat 안에만, 이 지갑 전용으로 저장되며 휴대폰 연락처에는 절대 들어가지 않습니다.</string>
-    <string name="ab_add_address">주소 추가</string>
+    <string name="ab_empty_body">사용하는 Kaspa 주소를 알아보기 쉬운 이름으로 저장하세요. 이 지갑 전용으로 KaChat에만 저장되고 휴대폰의 연락처 앱에는 들어가지 않습니다.</string>
+    <string name="ab_add_address">연락처 추가</string>
     <string name="ab_copied">복사됨</string>
     <string name="ab_share_address">주소 공유</string>
     <string name="ab_edit">편집</string>
-    <string name="ab_delete_from">주소록에서 삭제</string>
-    <string name="ab_delete_confirm">주소록에서 %1$s 님을 삭제할까요?</string>
-    <string name="ab_not_in_book">주소록에 없음</string>
+    <string name="ab_delete_from">연락처 삭제</string>
+    <string name="ab_delete_confirm">%s님을 연락처에서 삭제할까요?</string>
+    <string name="ab_not_in_book">연락처에 없음</string>
     <string name="ab_note_optional">메모 (선택)</string>
-    <string name="ab_editor_footer">이 지갑 전용으로 KaChat에 저장됩니다. 휴대폰 연락처에는 추가되지 않습니다.</string>
-    <string name="ab_remove_from">주소록에서 제거</string>
-    <string name="ab_edit_address">주소 편집</string>
-    <string name="ab_picker_empty_body">Kaspa Hub &gt; 주소록에서 주소를 추가하세요.</string>
+    <string name="ab_editor_footer">이 지갑 전용으로 KaChat에 저장됩니다. 휴대폰의 연락처 앱에는 추가되지 않습니다.</string>
+    <string name="ab_remove_from">연락처에서 제거</string>
+    <string name="ab_edit_address">연락처 편집</string>
+    <string name="ab_picker_empty_body">연락처에서 추가하세요.</string>
     <string name="ab_err_no_wallet">먼저 지갑을 여세요.</string>
     <string name="ab_err_empty_name">이름을 입력하세요.</string>
     <string name="ab_err_invalid_address">올바른 Kaspa 주소를 입력하세요.</string>
-    <string name="ab_saved_toast">주소록에 저장했습니다.</string>
-    <string name="ab_removed_toast">주소록에서 제거했습니다.</string>
+    <string name="ab_saved_toast">연락처에 저장했습니다.</string>
+    <string name="ab_removed_toast">연락처에서 삭제했습니다.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">사진 변경</string>
     <string name="ab_remove_photo">사진 제거</string>
     <string name="ab_photo_failed">그 사진을 사용할 수 없습니다.</string>
     <string name="ab_photo_footer">직접 지정한 사진이 없으면 그 사람이 프로필에 설정한 아바타가 표시됩니다.</string>
-    <string name="ab_photos_title">주소록 사진</string>
-    <string name="ab_photos_remove">주소록 사진 제거</string>
-    <string name="ab_photos_remove_question">주소록 사진을 제거할까요?</string>
+    <string name="ab_photos_title">연락처 사진</string>
+    <string name="ab_photos_remove">연락처 사진 삭제</string>
+    <string name="ab_photos_remove_question">연락처 사진을 삭제할까요?</string>
     <string name="ab_photos_footer">저장한 주소에 지정한 사진으로, 이 기기의 모든 지갑에 해당합니다. 직접 제거할 때까지 유지되며 채팅 백업에 포함됩니다.</string>
     <string name="ab_photos_frees">%1$s 확보됩니다. 저장한 주소의 이름은 유지되고, 대신 주인이 설정한 아바타가 표시됩니다.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">추가 (%1$d)</string>
     <string name="ab_add_members">멤버 추가</string>
-    <string name="ab_members_footer">주소록에서 사람을 고르거나, Kaspa 주소나 도메인으로 누구든 추가하세요.</string>
+    <string name="ab_members_footer">연락처에서 사람을 고르거나 Kaspa 주소나 도메인으로 누구든 추가하세요.</string>
     <string name="ab_members_intro">그룹에 사람을 추가하세요. 그룹 관리자로서 멤버를 관리합니다.</string>
-    <string name="ab_members_empty">아직 멤버가 없습니다. 아래에서 주소록이나 주소로 추가하세요.</string>
+    <string name="ab_members_empty">아직 멤버가 없습니다. 연락처에서 또는 아래 주소로 추가하세요.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">알아보기 쉬운 이름으로 Kaspa 주소를 저장하세요.</string>
     <string name="ab_import_file">파일 가져오기</string>
     <string name="ab_export_file">파일로 내보내기</string>
-    <string name="ab_import_file_sub">주소록 내보내기 파일에서 주소를 추가합니다.</string>
-    <string name="ab_export_file_sub">이 주소록을 사진과 함께 파일로 저장합니다.</string>
-    <string name="ab_nc_import_sub">Nextcloud에서 주소록 내보내기 파일을 고르세요.</string>
+    <string name="ab_import_file_sub">연락처 내보내기 파일에서 연락처를 추가합니다.</string>
+    <string name="ab_export_file_sub">연락처를 사진과 함께 파일로 저장합니다.</string>
+    <string name="ab_nc_import_sub">Nextcloud에서 연락처 내보내기 파일을 고르세요.</string>
     <string name="ab_nc_export_sub">Nextcloud의 KaChat 폴더에 저장해 어느 기기에서든 가져올 수 있습니다.</string>
     <string name="ab_nc_connect_hint">설정 &gt; 저장 공간에서 Nextcloud를 연결하면 그곳에도 저장하고 다른 기기에서 가져올 수 있습니다.</string>
     <string name="ab_couldnt_read_file">그 파일을 읽을 수 없습니다.</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">내보내기에 실패했습니다. 파일을 쓸 수 없습니다.</string>
     <string name="ab_already_up_to_date">이미 최신입니다. 파일의 모든 주소가 저장되어 있습니다.</string>
     <string name="ab_imported_counts">가져옴: %1$d개 추가, %2$d개 업데이트.</string>
-    <string name="ab_err_not_an_export">그 파일은 KaChat 주소록 내보내기 파일이 아닙니다.</string>
-    <string name="ab_err_export_empty">그 내보내기 파일에 주소가 없습니다.</string>
+    <string name="ab_err_not_an_export">그 파일은 KaChat 연락처 내보내기 파일이 아닙니다.</string>
+    <string name="ab_err_export_empty">그 연락처 내보내기 파일에는 연락처가 없습니다.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">네트워크로 보냄</string>
     <string name="kn_step_in_block">블록에 포함됨</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">결제는 메모와 함께 결제한 사람과의 채팅에 도착합니다.</string>
     <string name="pr_memo_placeholder">용도 (선택)</string>
     <string name="pr_copy">결제 요청 복사</string>
-    <string name="pr_anyone_note">KaChat에서 열거나 붙여 넣으면 내용이 채워진 Kaspa 보내기 화면이 열리고, 내 채팅 주소가 만든 요청(그 키로 서명됨)임을 확인할 수 있습니다.</string>
+    <string name="pr_anyone_note">KaPay나 KaChat에서 열면 이 내용이 채워진 Kaspa 보내기 화면이 열리고, 내 채팅 주소가 만든 요청(그 키로 서명됨)임을 확인할 수 있습니다.</string>
     <string name="pr_requested">요청 금액</string>
     <string name="pr_paid_as_chat_payment">채팅 결제로 보내져 그 사람과의 채팅에 표시됩니다.</string>
     <string name="pr_paid_to_their_spending">상대의 지출 주소로 보냅니다.</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">계속 밀기</string>
     <string name="swipe_failed">실패</string>
     <string name="swipe_tap_tx_hint">트랜잭션을 탭하면 익스플로러에서 열립니다.</string>
+    <string name="contacts">연락처</string>
+    <string name="review">검토</string>
+    <string name="send_step_who_to">누구에게 보내나요?</string>
+    <string name="send_youre_sending">보내는 금액</string>
+    <string name="send_consolidating">통합 중</string>
+    <string name="send_this_address_consolidating">이 주소(통합)</string>
+    <string name="send_this_address">이 주소</string>
+    <string name="send_exceeds_balance">보내는 주소의 잔액보다 많습니다.</string>
+    <string name="send_set_fee">네트워크 수수료 설정</string>
+    <string name="send_fee_minimum">네트워크에는 최소 %s KAS가 필요합니다. 더 낮은 수수료는 이 금액으로 올라갑니다.</string>
+    <string name="send_fee_much_more">네트워크에 필요한 금액보다 훨씬 많습니다.</string>
+    <string name="keypad_decimal_point">소수점</string>
+    <string name="send_fee_tier_footer_edit">네트워크가 혼잡하면 빠름 또는 우선이 더 높은 수수료를 내서 더 빨리 확인됩니다. 편집으로 직접 수수료를 정할 수 있습니다.</string>
+    <string name="send_available">사용 가능: %s KAS</string>
+    <string name="send_step_where_from">어디에서 보내나요?</string>
+    <string name="send_step_pick_from">Kaspa를 보낼 내 주소를 고르세요.</string>
+    <string name="pr_step_where_paid">어디로 받을까요?</string>
+    <string name="pr_step_how_much">얼마인가요?</string>
+    <string name="pr_youre_requesting">요청 금액</string>
+    <string name="pr_fresh_footer">한 번도 사용하거나 공유한 적 없는 새 주소입니다.</string>
+    <string name="pr_paid_to">받는 주소</string>
+    <string name="nextcloud_sync_address_book">연락처는 같은 백업에 들어 있고 기기 간에 같은 방식으로 동기화됩니다.</string>
+    <string name="ab_empty_title">아직 연락처가 없습니다</string>
 </resources>

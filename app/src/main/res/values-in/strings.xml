@@ -573,35 +573,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">Buku Alamat</string>
-    <string name="ab_add_to_address_book">Tambahkan ke Buku Alamat</string>
+    <string name="ab_address_book">Kontak</string>
+    <string name="ab_add_to_address_book">Tambahkan ke Kontak</string>
     <string name="ab_search_prompt">Cari nama dan alamat</string>
-    <string name="ab_empty_body">Simpan alamat Kaspa yang Anda pakai dengan nama yang mudah dikenali. Alamat itu tetap di KaChat, hanya untuk dompet ini, dan tidak pernah masuk ke Kontak ponsel Anda.</string>
-    <string name="ab_add_address">Tambah Alamat</string>
+    <string name="ab_empty_body">Simpan alamat Kaspa yang kamu pakai dengan nama yang mudah dikenali. Alamat tetap di KaChat, hanya untuk dompet ini, dan tidak pernah masuk ke app Kontak di ponselmu.</string>
+    <string name="ab_add_address">Tambah Kontak</string>
     <string name="ab_copied">Disalin</string>
     <string name="ab_share_address">Bagikan Alamat</string>
     <string name="ab_edit">Edit</string>
-    <string name="ab_delete_from">Hapus dari Buku Alamat</string>
-    <string name="ab_delete_confirm">Hapus %1$s dari Buku Alamat Anda?</string>
-    <string name="ab_not_in_book">Tidak ada di Buku Alamat Anda</string>
+    <string name="ab_delete_from">Hapus Kontak</string>
+    <string name="ab_delete_confirm">Hapus %s dari kontakmu?</string>
+    <string name="ab_not_in_book">Tidak ada di kontakmu</string>
     <string name="ab_note_optional">Catatan (opsional)</string>
-    <string name="ab_editor_footer">Disimpan di KaChat hanya untuk dompet ini. Tidak pernah ditambahkan ke Kontak ponsel Anda.</string>
-    <string name="ab_remove_from">Hapus dari Buku Alamat</string>
-    <string name="ab_edit_address">Edit Alamat</string>
-    <string name="ab_picker_empty_body">Tambahkan alamat di Kaspa Hub &gt; Buku Alamat.</string>
+    <string name="ab_editor_footer">Disimpan di KaChat hanya untuk dompet ini. Tidak pernah ditambahkan ke app Kontak di ponselmu.</string>
+    <string name="ab_remove_from">Hapus dari Kontak</string>
+    <string name="ab_edit_address">Edit Kontak</string>
+    <string name="ab_picker_empty_body">Tambahkan di Kontak.</string>
     <string name="ab_err_no_wallet">Buka dompet terlebih dahulu.</string>
     <string name="ab_err_empty_name">Masukkan nama.</string>
     <string name="ab_err_invalid_address">Masukkan alamat Kaspa yang valid.</string>
-    <string name="ab_saved_toast">Disimpan ke Buku Alamat.</string>
-    <string name="ab_removed_toast">Dihapus dari Buku Alamat.</string>
+    <string name="ab_saved_toast">Disimpan ke Kontak.</string>
+    <string name="ab_removed_toast">Dihapus dari Kontak.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">Ganti Foto</string>
     <string name="ab_remove_photo">Hapus Foto</string>
     <string name="ab_photo_failed">Foto itu tidak bisa digunakan.</string>
     <string name="ab_photo_footer">Tanpa foto pilihan Anda, di sini tampil avatar yang mereka pasang di profilnya.</string>
-    <string name="ab_photos_title">Foto Buku Alamat</string>
-    <string name="ab_photos_remove">Hapus Foto Buku Alamat</string>
-    <string name="ab_photos_remove_question">Hapus foto Buku Alamat?</string>
+    <string name="ab_photos_title">Foto kontak</string>
+    <string name="ab_photos_remove">Hapus Foto Kontak</string>
+    <string name="ab_photos_remove_question">Hapus foto kontak?</string>
     <string name="ab_photos_footer">Foto yang Anda tetapkan untuk alamat tersimpan, untuk semua dompet di perangkat ini. Foto tetap ada sampai Anda menghapusnya, dan disertakan dalam cadangan obrolan.</string>
     <string name="ab_photos_frees">Membebaskan %1$s. Alamat tersimpan tetap memakai namanya dan menampilkan avatar yang dipasang pemiliknya.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -610,17 +610,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">Tambah (%1$d)</string>
     <string name="ab_add_members">Tambah Anggota</string>
-    <string name="ab_members_footer">Pilih orang dari Buku Alamat, atau tambahkan siapa saja lewat alamat Kaspa atau domain.</string>
+    <string name="ab_members_footer">Pilih orang dari kontakmu, atau tambahkan siapa saja lewat alamat Kaspa atau domain.</string>
     <string name="ab_members_intro">Tambahkan orang ke grup. Sebagai admin grup, Anda yang mengatur keanggotaan.</string>
-    <string name="ab_members_empty">Belum ada anggota. Tambahkan orang dari Buku Alamat atau lewat alamat di bawah.</string>
+    <string name="ab_members_empty">Belum ada anggota. Tambahkan orang dari kontakmu atau lewat alamat di bawah.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">Simpan alamat Kaspa dengan nama yang Anda kenali.</string>
-    <string name="addresses">Alamat</string>
     <string name="ab_import_file">Impor File</string>
     <string name="ab_export_file">Ekspor File</string>
-    <string name="ab_import_file_sub">Tambahkan alamat dari ekspor Buku Alamat.</string>
-    <string name="ab_export_file_sub">Simpan Buku Alamat ini, beserta fotonya, ke file.</string>
-    <string name="ab_nc_import_sub">Pilih ekspor Buku Alamat dari Nextcloud Anda.</string>
+    <string name="ab_import_file_sub">Tambahkan kontak dari ekspor kontak.</string>
+    <string name="ab_export_file_sub">Simpan kontakmu, beserta fotonya, ke sebuah file.</string>
+    <string name="ab_nc_import_sub">Pilih ekspor kontak dari Nextcloud-mu.</string>
     <string name="ab_nc_export_sub">Simpan ke folder KaChat di Nextcloud Anda, untuk diimpor di perangkat mana pun.</string>
     <string name="ab_nc_connect_hint">Hubungkan Nextcloud di Pengaturan &gt; Penyimpanan agar bisa disimpan di sana dan diimpor di perangkat lain.</string>
     <string name="ab_couldnt_read_file">File itu tidak bisa dibaca.</string>
@@ -628,8 +627,8 @@
     <string name="ab_export_failed">Ekspor gagal. File tidak bisa ditulis.</string>
     <string name="ab_already_up_to_date">Sudah terbaru. Semua alamat di file sudah tersimpan.</string>
     <string name="ab_imported_counts">Diimpor: %1$d ditambahkan, %2$d diperbarui.</string>
-    <string name="ab_err_not_an_export">File itu bukan ekspor Buku Alamat KaChat.</string>
-    <string name="ab_err_export_empty">Ekspor itu tidak berisi alamat.</string>
+    <string name="ab_err_not_an_export">File itu bukan ekspor kontak KaChat.</string>
+    <string name="ab_err_export_empty">Ekspor kontak itu tidak berisi kontak.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">Dikirim ke jaringan</string>
     <string name="kn_step_in_block">Di dalam blok</string>
@@ -695,7 +694,7 @@
     <string name="pr_chatting_footer">Pembayaran masuk ke obrolan Anda dengan pembayar, beserta catatannya.</string>
     <string name="pr_memo_placeholder">Untuk apa (opsional)</string>
     <string name="pr_copy">Salin Permintaan Pembayaran</string>
-    <string name="pr_anyone_note">Siapa pun yang membuka atau menempelkannya di KaChat mendapat Kirim Kaspa yang sudah terisi, dan melihat bahwa itu dibuat dari alamat obrolan Anda (ditandatangani dengan kuncinya).</string>
+    <string name="pr_anyone_note">Siapa pun yang membukanya di KaPay atau KaChat mendapat Kirim Kaspa yang sudah terisi, dan melihat bahwa ini dibuat oleh alamat chat-mu (ditandatangani dengan kuncinya).</string>
     <string name="pr_requested">Diminta</string>
     <string name="pr_paid_as_chat_payment">Dibayar sebagai pembayaran obrolan: muncul di obrolan Anda dengan mereka.</string>
     <string name="pr_paid_to_their_spending">Dibayar ke alamat belanja mereka.</string>
@@ -816,4 +815,27 @@
     <string name="swipe_keep_swiping">Terus geser</string>
     <string name="swipe_failed">Gagal</string>
     <string name="swipe_tap_tx_hint">Ketuk transaksi untuk membukanya di explorer.</string>
+    <string name="contacts">Kontak</string>
+    <string name="review">Tinjau</string>
+    <string name="send_step_who_to">Kamu mengirim ke siapa?</string>
+    <string name="send_youre_sending">Kamu mengirim</string>
+    <string name="send_consolidating">Menggabungkan</string>
+    <string name="send_this_address_consolidating">Alamat ini (menggabungkan)</string>
+    <string name="send_this_address">Alamat ini</string>
+    <string name="send_exceeds_balance">Ini lebih dari isi alamat pengirim.</string>
+    <string name="send_set_fee">Atur biaya jaringan</string>
+    <string name="send_fee_minimum">Jaringan memerlukan setidaknya %s KAS. Biaya yang lebih rendah dinaikkan ke jumlah itu.</string>
+    <string name="send_fee_much_more">Ini jauh lebih banyak dari yang dibutuhkan jaringan.</string>
+    <string name="keypad_decimal_point">Pemisah desimal</string>
+    <string name="send_fee_tier_footer_edit">Jika jaringan sibuk, Cepat atau Prioritas membayar biaya lebih tinggi agar lebih cepat terkonfirmasi. Edit menetapkan biaya sendiri.</string>
+    <string name="send_available">Tersedia: %s KAS</string>
+    <string name="send_step_where_from">Kamu mengirim dari mana?</string>
+    <string name="send_step_pick_from">Pilih dari alamat mana Kaspa dikirim.</string>
+    <string name="pr_step_where_paid">Kamu ingin dibayar ke mana?</string>
+    <string name="pr_step_how_much">Berapa?</string>
+    <string name="pr_youre_requesting">Kamu meminta</string>
+    <string name="pr_fresh_footer">Alamat baru milikmu yang belum pernah dipakai atau dibagikan.</string>
+    <string name="pr_paid_to">Dibayar ke</string>
+    <string name="nextcloud_sync_address_book">Kontakmu ada di cadangan yang sama dan disinkronkan antarperangkat dengan cara yang sama.</string>
+    <string name="ab_empty_title">Belum ada kontak</string>
 </resources>

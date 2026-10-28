@@ -11,7 +11,6 @@
     <string name="added">追加した</string>
     <string name="address">アドレス</string>
     <string name="address_actions">アドレス操作</string>
-    <string name="addresses">アドレス</string>
     <string name="adjust_network_fee">ネットワーク手数料を調整</string>
     <string name="admin">管理者</string>
     <string name="all_discovered_nodes_sorted_by_state">検出されたすべてのノードを状態とレイテンシーで並べ替え。ノードはhost:portで重複排除されます。</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">アドレス帳</string>
-    <string name="ab_add_to_address_book">アドレス帳に追加</string>
+    <string name="ab_address_book">連絡先</string>
+    <string name="ab_add_to_address_book">連絡先に追加</string>
     <string name="ab_search_prompt">名前とアドレスを検索</string>
-    <string name="ab_empty_body">よく使うKaspaアドレスを、分かりやすい名前で保存できます。KaChatの中だけに、このウォレット専用で保存され、電話の連絡先には一切入りません。</string>
-    <string name="ab_add_address">アドレスを追加</string>
+    <string name="ab_empty_body">使う Kaspa アドレスを、わかりやすい名前で保存できます。KaChat 内のこのウォレット専用で、スマートフォンの連絡先アプリには入りません。</string>
+    <string name="ab_add_address">連絡先を追加</string>
     <string name="ab_copied">コピーしました</string>
     <string name="ab_share_address">アドレスを共有</string>
     <string name="ab_edit">編集</string>
-    <string name="ab_delete_from">アドレス帳から削除</string>
-    <string name="ab_delete_confirm">%1$sをアドレス帳から削除しますか？</string>
-    <string name="ab_not_in_book">アドレス帳にありません</string>
+    <string name="ab_delete_from">連絡先を削除</string>
+    <string name="ab_delete_confirm">%s を連絡先から削除しますか？</string>
+    <string name="ab_not_in_book">連絡先にありません</string>
     <string name="ab_note_optional">メモ（任意）</string>
-    <string name="ab_editor_footer">このウォレット専用にKaChatに保存されます。電話の連絡先には追加されません。</string>
-    <string name="ab_remove_from">アドレス帳から削除</string>
-    <string name="ab_edit_address">アドレスを編集</string>
-    <string name="ab_picker_empty_body">Kaspa Hub &gt; アドレス帳でアドレスを追加できます。</string>
+    <string name="ab_editor_footer">このウォレット専用で KaChat に保存されます。スマートフォンの連絡先アプリには追加されません。</string>
+    <string name="ab_remove_from">連絡先から削除</string>
+    <string name="ab_edit_address">連絡先を編集</string>
+    <string name="ab_picker_empty_body">「連絡先」で追加してください。</string>
     <string name="ab_err_no_wallet">先にウォレットを開いてください。</string>
     <string name="ab_err_empty_name">名前を入力してください。</string>
     <string name="ab_err_invalid_address">有効なKaspaアドレスを入力してください。</string>
-    <string name="ab_saved_toast">アドレス帳に保存しました。</string>
-    <string name="ab_removed_toast">アドレス帳から削除しました。</string>
+    <string name="ab_saved_toast">連絡先に保存しました。</string>
+    <string name="ab_removed_toast">連絡先から削除しました。</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">写真を変更</string>
     <string name="ab_remove_photo">写真を削除</string>
     <string name="ab_photo_failed">その写真は使えませんでした。</string>
     <string name="ab_photo_footer">自分で写真を設定しない場合、相手がプロフィールに設定したアバターが表示されます。</string>
-    <string name="ab_photos_title">アドレス帳の写真</string>
-    <string name="ab_photos_remove">アドレス帳の写真を削除</string>
-    <string name="ab_photos_remove_question">アドレス帳の写真を削除しますか？</string>
+    <string name="ab_photos_title">連絡先の写真</string>
+    <string name="ab_photos_remove">連絡先の写真を削除</string>
+    <string name="ab_photos_remove_question">連絡先の写真を削除しますか？</string>
     <string name="ab_photos_footer">保存したアドレスに設定した写真です（このデバイスのすべてのウォレット分）。削除するまで残り、チャットのバックアップにも含まれます。</string>
     <string name="ab_photos_frees">%1$s が空きます。保存したアドレスの名前はそのままで、代わりに持ち主が設定したアバターが表示されます。</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">追加（%1$d）</string>
     <string name="ab_add_members">メンバーを追加</string>
-    <string name="ab_members_footer">アドレス帳から選ぶか、Kaspaアドレスやドメインで誰でも追加できます。</string>
+    <string name="ab_members_footer">連絡先から選ぶか、Kaspa アドレスやドメインで誰でも追加できます。</string>
     <string name="ab_members_intro">グループに人を追加します。グループ管理者としてメンバーを管理できます。</string>
-    <string name="ab_members_empty">まだメンバーがいません。下のアドレス帳かアドレスで追加してください。</string>
+    <string name="ab_members_empty">まだメンバーがいません。連絡先から、または下のアドレスで追加してください。</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">Kaspaアドレスをわかりやすい名前で保存します。</string>
     <string name="ab_import_file">ファイルをインポート</string>
     <string name="ab_export_file">ファイルにエクスポート</string>
-    <string name="ab_import_file_sub">アドレス帳のエクスポートからアドレスを追加します。</string>
-    <string name="ab_export_file_sub">このアドレス帳を写真ごとファイルに保存します。</string>
-    <string name="ab_nc_import_sub">Nextcloud からアドレス帳のエクスポートを選びます。</string>
+    <string name="ab_import_file_sub">連絡先のエクスポートから連絡先を追加します。</string>
+    <string name="ab_export_file_sub">連絡先を写真ごとファイルに保存します。</string>
+    <string name="ab_nc_import_sub">Nextcloud から連絡先のエクスポートを選んでください。</string>
     <string name="ab_nc_export_sub">Nextcloud の KaChat フォルダに保存し、どのデバイスでもインポートできます。</string>
     <string name="ab_nc_connect_hint">設定 &gt; ストレージで Nextcloud を接続すると、そこにも保存して別のデバイスでインポートできます。</string>
     <string name="ab_couldnt_read_file">そのファイルを読み込めませんでした。</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">エクスポートに失敗しました。ファイルを書き込めませんでした。</string>
     <string name="ab_already_up_to_date">すでに最新です。ファイルのアドレスはすべて保存済みです。</string>
     <string name="ab_imported_counts">インポート完了：追加 %1$d 件、更新 %2$d 件。</string>
-    <string name="ab_err_not_an_export">そのファイルは KaChat アドレス帳のエクスポートではありません。</string>
-    <string name="ab_err_export_empty">そのエクスポートにはアドレスがありません。</string>
+    <string name="ab_err_not_an_export">そのファイルは KaChat の連絡先エクスポートではありません。</string>
+    <string name="ab_err_export_empty">その連絡先エクスポートには連絡先がありません。</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">ネットワークに送信</string>
     <string name="kn_step_in_block">ブロックに入りました</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">支払いはメモ付きで、支払った人とのチャットに届きます。</string>
     <string name="pr_memo_placeholder">用途（任意）</string>
     <string name="pr_copy">支払いリクエストをコピー</string>
-    <string name="pr_anyone_note">KaChat で開くか貼り付けると、入力済みの Kaspa 送金画面が開き、あなたのチャットアドレスが作成したこと（そのキーで署名済み）が分かります。</string>
+    <string name="pr_anyone_note">KaPay か KaChat で開くと、この内容が入力された Kaspa 送金画面が開き、あなたのチャットアドレスが作成したもの（その鍵で署名済み）であることがわかります。</string>
     <string name="pr_requested">リクエスト額</string>
     <string name="pr_paid_as_chat_payment">チャット支払いとして支払われ、相手とのチャットに表示されます。</string>
     <string name="pr_paid_to_their_spending">相手の支出アドレスに支払われます。</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">そのままスワイプ</string>
     <string name="swipe_failed">失敗</string>
     <string name="swipe_tap_tx_hint">トランザクションをタップするとエクスプローラーで開きます。</string>
+    <string name="contacts">連絡先</string>
+    <string name="review">確認</string>
+    <string name="send_step_who_to">誰に送りますか？</string>
+    <string name="send_youre_sending">送金額</string>
+    <string name="send_consolidating">統合中</string>
+    <string name="send_this_address_consolidating">このアドレス（統合）</string>
+    <string name="send_this_address">このアドレス</string>
+    <string name="send_exceeds_balance">送金元アドレスの残高を超えています。</string>
+    <string name="send_set_fee">ネットワーク手数料を設定</string>
+    <string name="send_fee_minimum">ネットワークには最低 %s KAS が必要です。これより低い手数料はこの額に引き上げられます。</string>
+    <string name="send_fee_much_more">ネットワークに必要な額よりかなり多くなっています。</string>
+    <string name="keypad_decimal_point">小数点</string>
+    <string name="send_fee_tier_footer_edit">ネットワークが混雑しているときは、高速または優先で手数料を多く払うと早く承認されます。編集で手数料を自分で設定できます。</string>
+    <string name="send_available">利用可能: %s KAS</string>
+    <string name="send_step_where_from">どこから送りますか？</string>
+    <string name="send_step_pick_from">Kaspa を送り出すアドレスを選んでください。</string>
+    <string name="pr_step_where_paid">どこで受け取りますか？</string>
+    <string name="pr_step_how_much">いくら？</string>
+    <string name="pr_youre_requesting">請求額</string>
+    <string name="pr_fresh_footer">まだ一度も使われたり共有されたりしていない、あなたの新しいアドレスです。</string>
+    <string name="pr_paid_to">支払先</string>
+    <string name="nextcloud_sync_address_book">連絡先は同じバックアップに含まれ、同じようにデバイス間で同期されます。</string>
+    <string name="ab_empty_title">連絡先はまだありません</string>
 </resources>

@@ -11,7 +11,6 @@
     <string name="added">Eklendi</string>
     <string name="address">Adres</string>
     <string name="address_actions">Adres Islemleri</string>
-    <string name="addresses">Adresler</string>
     <string name="adjust_network_fee">Ag Ucretini Ayarla</string>
     <string name="admin">Yonetici</string>
     <string name="all_discovered_nodes_sorted_by_state">Keşfedilen tüm düğümler duruma ve gecikmeye göre sıralanır. Düğümler host:port\'a göre tekilleştirilir.</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">Adres Defteri</string>
-    <string name="ab_add_to_address_book">Adres Defterine Ekle</string>
+    <string name="ab_address_book">Kişiler</string>
+    <string name="ab_add_to_address_book">Kişilere Ekle</string>
     <string name="ab_search_prompt">Ad ve adres ara</string>
-    <string name="ab_empty_body">Kullandığın Kaspa adreslerini tanıyacağın bir adla kaydet. KaChat\'te, yalnızca bu cüzdan için kalırlar ve telefonunun Kişiler\'ine asla girmezler.</string>
-    <string name="ab_add_address">Adres Ekle</string>
+    <string name="ab_empty_body">Kullandığın Kaspa adreslerini tanıyacağın bir adla kaydet. KaChat\'te, yalnızca bu cüzdan için kalırlar ve telefonunun Kişiler uygulamasına asla girmezler.</string>
+    <string name="ab_add_address">Kişi Ekle</string>
     <string name="ab_copied">Kopyalandı</string>
     <string name="ab_share_address">Adresi Paylaş</string>
     <string name="ab_edit">Düzenle</string>
-    <string name="ab_delete_from">Adres Defterinden Sil</string>
-    <string name="ab_delete_confirm">%1$s adres defterinden silinsin mi?</string>
-    <string name="ab_not_in_book">Adres defterinde yok</string>
+    <string name="ab_delete_from">Kişiyi Sil</string>
+    <string name="ab_delete_confirm">%s kişilerinden silinsin mi?</string>
+    <string name="ab_not_in_book">Kişilerinde yok</string>
     <string name="ab_note_optional">Not (isteğe bağlı)</string>
-    <string name="ab_editor_footer">Yalnızca bu cüzdan için KaChat\'te kaydedilir. Telefonunun Kişiler\'ine asla eklenmez.</string>
-    <string name="ab_remove_from">Adres Defterinden Kaldır</string>
-    <string name="ab_edit_address">Adresi Düzenle</string>
-    <string name="ab_picker_empty_body">Adresleri Kaspa Hub &gt; Adres Defteri\'nden ekle.</string>
+    <string name="ab_editor_footer">Yalnızca bu cüzdan için KaChat\'te kaydedilir. Telefonunun Kişiler uygulamasına asla eklenmez.</string>
+    <string name="ab_remove_from">Kişilerden Kaldır</string>
+    <string name="ab_edit_address">Kişiyi Düzenle</string>
+    <string name="ab_picker_empty_body">Onları Kişiler\'e ekle.</string>
     <string name="ab_err_no_wallet">Önce bir cüzdan aç.</string>
     <string name="ab_err_empty_name">Bir ad gir.</string>
     <string name="ab_err_invalid_address">Geçerli bir Kaspa adresi gir.</string>
-    <string name="ab_saved_toast">Adres defterine kaydedildi.</string>
-    <string name="ab_removed_toast">Adres defterinden kaldırıldı.</string>
+    <string name="ab_saved_toast">Kişilere kaydedildi.</string>
+    <string name="ab_removed_toast">Kişilerden kaldırıldı.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">Fotoğrafı Değiştir</string>
     <string name="ab_remove_photo">Fotoğrafı Kaldır</string>
     <string name="ab_photo_failed">Bu fotoğraf kullanılamadı.</string>
     <string name="ab_photo_footer">Kendi fotoğrafın yoksa burada kişinin profilinde ayarladığı avatar görünür.</string>
-    <string name="ab_photos_title">Adres Defteri Fotoğrafları</string>
-    <string name="ab_photos_remove">Adres Defteri Fotoğraflarını Kaldır</string>
-    <string name="ab_photos_remove_question">Adres defteri fotoğrafları kaldırılsın mı?</string>
+    <string name="ab_photos_title">Kişi fotoğrafları</string>
+    <string name="ab_photos_remove">Kişi Fotoğraflarını Kaldır</string>
+    <string name="ab_photos_remove_question">Kişi fotoğrafları kaldırılsın mı?</string>
     <string name="ab_photos_footer">Kayıtlı adreslere atadığın fotoğraflar, bu cihazdaki tüm cüzdanlar için. Sen kaldırana kadar kalırlar ve sohbet yedeğine dahildirler.</string>
     <string name="ab_photos_frees">%1$s boşaltır. Kayıtlı adresler adlarını korur ve onun yerine sahibinin ayarladığı avatarı gösterir.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">Ekle (%1$d)</string>
     <string name="ab_add_members">Üye Ekle</string>
-    <string name="ab_members_footer">Adres defterinden kişi seç ya da herkesi Kaspa adresi veya alan adıyla ekle.</string>
+    <string name="ab_members_footer">Kişilerinden birini seç ya da herkesi Kaspa adresi veya alan adıyla ekle.</string>
     <string name="ab_members_intro">Gruba kişi ekle. Grup yöneticisi olarak üyeliği sen yönetirsin.</string>
-    <string name="ab_members_empty">Henüz üye yok. Aşağıdan adres defterinden veya adresle kişi ekle.</string>
+    <string name="ab_members_empty">Henüz üye yok. Kişilerinden ya da aşağıdan adresle kişi ekle.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">Bir Kaspa adresini tanıyacağınız bir adla kaydedin.</string>
     <string name="ab_import_file">Dosya İçe Aktar</string>
     <string name="ab_export_file">Dosya Dışa Aktar</string>
-    <string name="ab_import_file_sub">Bir Adres Defteri dışa aktarımından adres ekle.</string>
-    <string name="ab_export_file_sub">Bu Adres Defterini fotoğraflarıyla bir dosyaya kaydet.</string>
-    <string name="ab_nc_import_sub">Nextcloud\'undan bir Adres Defteri dışa aktarımı seç.</string>
+    <string name="ab_import_file_sub">Bir kişiler dışa aktarımından kişi ekle.</string>
+    <string name="ab_export_file_sub">Kişilerini fotoğraflarıyla birlikte bir dosyaya kaydet.</string>
+    <string name="ab_nc_import_sub">Nextcloud\'undan bir kişiler dışa aktarımı seç.</string>
     <string name="ab_nc_export_sub">Herhangi bir cihazda içe aktarmak için Nextcloud\'undaki KaChat klasörüne kaydet.</string>
     <string name="ab_nc_connect_hint">Oraya da kaydedip başka bir cihazda içe aktarmak için Ayarlar &gt; Depolama\'da Nextcloud\'u bağla.</string>
     <string name="ab_couldnt_read_file">Bu dosya okunamadı.</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">Dışa aktarma başarısız. Dosya yazılamadı.</string>
     <string name="ab_already_up_to_date">Zaten güncel. Dosyadaki tüm adresler kayıtlı.</string>
     <string name="ab_imported_counts">İçe aktarıldı: %1$d eklendi, %2$d güncellendi.</string>
-    <string name="ab_err_not_an_export">Bu dosya bir KaChat Adres Defteri dışa aktarımı değil.</string>
-    <string name="ab_err_export_empty">Bu dışa aktarımda adres yok.</string>
+    <string name="ab_err_not_an_export">Bu dosya bir KaChat kişiler dışa aktarımı değil.</string>
+    <string name="ab_err_export_empty">Bu kişiler dışa aktarımında kişi yok.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">Ağa gönderildi</string>
     <string name="kn_step_in_block">Bir blokta</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">Ödeme, notla birlikte ödeyen kişiyle sohbetinize düşer.</string>
     <string name="pr_memo_placeholder">Ne için (isteğe bağlı)</string>
     <string name="pr_copy">Ödeme İsteğini Kopyala</string>
-    <string name="pr_anyone_note">KaChat\'te açan veya yapıştıran herkes dolu Kaspa Gönder ekranını görür ve isteğin sohbet adresinizden oluşturulduğunu (onun anahtarıyla imzalı) görür.</string>
+    <string name="pr_anyone_note">KaPay veya KaChat\'te açan herkes bu bilgilerle doldurulmuş Kaspa Gönder ekranını görür ve isteğin sohbet adresin tarafından yapıldığını (onun anahtarıyla imzalı) görür.</string>
     <string name="pr_requested">İstenen</string>
     <string name="pr_paid_as_chat_payment">Sohbet ödemesi olarak ödenir: onunla sohbetinizde görünür.</string>
     <string name="pr_paid_to_their_spending">Harcama adresine ödenir.</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">Kaydırmaya devam et</string>
     <string name="swipe_failed">Başarısız</string>
     <string name="swipe_tap_tx_hint">Gezginde açmak için işleme dokun.</string>
+    <string name="contacts">Kişiler</string>
+    <string name="review">Gözden Geçir</string>
+    <string name="send_step_who_to">Kime gönderiyorsun?</string>
+    <string name="send_youre_sending">Gönderiyorsun</string>
+    <string name="send_consolidating">Birleştiriliyor</string>
+    <string name="send_this_address_consolidating">Bu adres (birleştirme)</string>
+    <string name="send_this_address">Bu adres</string>
+    <string name="send_exceeds_balance">Bu, gönderdiğin adresteki tutardan fazla.</string>
+    <string name="send_set_fee">Ağ ücretini belirle</string>
+    <string name="send_fee_minimum">Ağ en az %s KAS istiyor. Daha düşük bir ücret bu tutara yükseltilir.</string>
+    <string name="send_fee_much_more">Bu, ağın ihtiyacından çok daha fazla.</string>
+    <string name="keypad_decimal_point">Ondalık ayırıcı</string>
+    <string name="send_fee_tier_footer_edit">Ağ yoğunsa Hızlı veya Öncelikli, daha erken onaylanması için daha yüksek ücret öder. Düzenle ile kendi ücretini belirlersin.</string>
+    <string name="send_available">Kullanılabilir: %s KAS</string>
+    <string name="send_step_where_from">Nereden gönderiyorsun?</string>
+    <string name="send_step_pick_from">Kaspa\'nın hangi adresinden çıkacağını seç.</string>
+    <string name="pr_step_where_paid">Ödemeyi nereye almak istiyorsun?</string>
+    <string name="pr_step_how_much">Ne kadar?</string>
+    <string name="pr_youre_requesting">İstediğin tutar</string>
+    <string name="pr_fresh_footer">Hiç kullanılmamış ve kimseye verilmemiş yepyeni bir adresin.</string>
+    <string name="pr_paid_to">Ödenecek adres</string>
+    <string name="nextcloud_sync_address_book">Kişilerin aynı yedekte ve cihazların arasında aynı şekilde eşitlenir.</string>
+    <string name="ab_empty_title">Henüz kişi yok</string>
 </resources>

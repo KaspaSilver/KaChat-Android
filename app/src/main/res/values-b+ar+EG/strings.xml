@@ -11,7 +11,6 @@
     <string name="added">تمت الإضافة</string>
     <string name="address">العنوان</string>
     <string name="address_actions">إجراءات العنوان</string>
-    <string name="addresses">العناوين</string>
     <string name="adjust_network_fee">ضبط رسوم الشبكة</string>
     <string name="admin">مسؤول</string>
     <string name="all_discovered_nodes_sorted_by_state">جميع العقد المكتشفة مرتبة حسب الحالة وزمن الاستجابة. يتم إزالة العقد المكررة حسب host:port.</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">دفتر العناوين</string>
-    <string name="ab_add_to_address_book">إضافة إلى دفتر العناوين</string>
+    <string name="ab_address_book">جهات الاتصال</string>
+    <string name="ab_add_to_address_book">إضافة إلى جهات الاتصال</string>
     <string name="ab_search_prompt">ابحث في الأسماء والعناوين</string>
-    <string name="ab_empty_body">احفظ عناوين Kaspa التي تستخدمها باسم تتعرف عليه. تبقى في KaChat، لهذه المحفظة فقط، ولا تُضاف أبدًا إلى جهات اتصال هاتفك.</string>
-    <string name="ab_add_address">إضافة عنوان</string>
+    <string name="ab_empty_body">احفظ عناوين كاسبا التي تستخدمها باسم تعرفه. تبقى في KaChat لهذه المحفظة فقط، ولا تدخل أبدًا تطبيق جهات الاتصال في هاتفك.</string>
+    <string name="ab_add_address">إضافة جهة اتصال</string>
     <string name="ab_copied">تم النسخ</string>
     <string name="ab_share_address">مشاركة العنوان</string>
     <string name="ab_edit">تعديل</string>
-    <string name="ab_delete_from">حذف من دفتر العناوين</string>
-    <string name="ab_delete_confirm">حذف %1$s من دفتر العناوين؟</string>
-    <string name="ab_not_in_book">ليس في دفتر العناوين</string>
+    <string name="ab_delete_from">حذف جهة الاتصال</string>
+    <string name="ab_delete_confirm">حذف %s من جهات اتصالك؟</string>
+    <string name="ab_not_in_book">ليس في جهات اتصالك</string>
     <string name="ab_note_optional">ملاحظة (اختياري)</string>
-    <string name="ab_editor_footer">محفوظ في KaChat لهذه المحفظة فقط. لا يُضاف أبدًا إلى جهات اتصال هاتفك.</string>
-    <string name="ab_remove_from">إزالة من دفتر العناوين</string>
-    <string name="ab_edit_address">تعديل العنوان</string>
-    <string name="ab_picker_empty_body">أضف العناوين من Kaspa Hub &gt; دفتر العناوين.</string>
+    <string name="ab_editor_footer">محفوظ في KaChat لهذه المحفظة فقط. لا يُضاف أبدًا إلى تطبيق جهات الاتصال في هاتفك.</string>
+    <string name="ab_remove_from">إزالة من جهات الاتصال</string>
+    <string name="ab_edit_address">تعديل جهة الاتصال</string>
+    <string name="ab_picker_empty_body">أضفهم في جهات الاتصال.</string>
     <string name="ab_err_no_wallet">افتح محفظة أولًا.</string>
     <string name="ab_err_empty_name">أدخل اسمًا.</string>
     <string name="ab_err_invalid_address">أدخل عنوان Kaspa صالحًا.</string>
-    <string name="ab_saved_toast">تم الحفظ في دفتر العناوين.</string>
-    <string name="ab_removed_toast">تمت الإزالة من دفتر العناوين.</string>
+    <string name="ab_saved_toast">تم الحفظ في جهات الاتصال.</string>
+    <string name="ab_removed_toast">تمت الإزالة من جهات الاتصال.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">تغيير الصورة</string>
     <string name="ab_remove_photo">إزالة الصورة</string>
     <string name="ab_photo_failed">تعذّر استخدام هذه الصورة.</string>
     <string name="ab_photo_footer">بدون صورة تختارها، يظهر هنا الرمز الذي وضعه صاحب العنوان في ملفه الشخصي.</string>
-    <string name="ab_photos_title">صور دفتر العناوين</string>
-    <string name="ab_photos_remove">إزالة صور دفتر العناوين</string>
-    <string name="ab_photos_remove_question">إزالة صور دفتر العناوين؟</string>
+    <string name="ab_photos_title">صور جهات الاتصال</string>
+    <string name="ab_photos_remove">إزالة صور جهات الاتصال</string>
+    <string name="ab_photos_remove_question">إزالة صور جهات الاتصال؟</string>
     <string name="ab_photos_footer">الصور التي خصصتها للعناوين المحفوظة، لكل المحافظ على هذا الجهاز. تبقى حتى تزيلها، وهي مضمّنة في النسخة الاحتياطية للمحادثات.</string>
     <string name="ab_photos_frees">يحرّر %1$s. تحتفظ العناوين المحفوظة بأسمائها، وتعرض بدلًا من ذلك الصورة التي وضعها أصحابها.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">إضافة (%1$d)</string>
     <string name="ab_add_members">إضافة أعضاء</string>
-    <string name="ab_members_footer">اختر أشخاصًا من دفتر العناوين، أو أضف أي شخص بعنوان Kaspa أو نطاق.</string>
+    <string name="ab_members_footer">اختر أشخاصًا من جهات اتصالك، أو أضف أي شخص بعنوان كاسبا أو نطاق.</string>
     <string name="ab_members_intro">أضف أشخاصًا إلى المجموعة. أنت تتحكم في العضوية بصفتك مشرف المجموعة.</string>
-    <string name="ab_members_empty">لم تتم إضافة أعضاء بعد. أضف أشخاصًا من دفتر العناوين أو بالعنوان أدناه.</string>
+    <string name="ab_members_empty">لا أعضاء بعد. أضف أشخاصًا من جهات اتصالك أو بعنوان أدناه.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">احفظ عنوان كاسبا باسم تعرفه.</string>
     <string name="ab_import_file">استيراد ملف</string>
     <string name="ab_export_file">تصدير ملف</string>
-    <string name="ab_import_file_sub">أضف عناوين من ملف تصدير دفتر العناوين.</string>
-    <string name="ab_export_file_sub">احفظ دفتر العناوين هذا مع صوره في ملف.</string>
-    <string name="ab_nc_import_sub">اختر ملف تصدير دفتر العناوين من Nextcloud.</string>
+    <string name="ab_import_file_sub">أضف جهات اتصال من ملف تصدير جهات اتصال.</string>
+    <string name="ab_export_file_sub">احفظ جهات اتصالك مع صورها في ملف.</string>
+    <string name="ab_nc_import_sub">اختر ملف تصدير جهات اتصال من Nextcloud.</string>
     <string name="ab_nc_export_sub">احفظه في مجلد KaChat على Nextcloud لاستيراده على أي جهاز.</string>
     <string name="ab_nc_connect_hint">اربط Nextcloud من الإعدادات &gt; التخزين لحفظه هناك أيضًا واستيراده على جهاز آخر.</string>
     <string name="ab_couldnt_read_file">تعذّرت قراءة هذا الملف.</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">فشل التصدير. تعذّرت كتابة الملف.</string>
     <string name="ab_already_up_to_date">محدّث بالفعل. كل العناوين في الملف محفوظة.</string>
     <string name="ab_imported_counts">تم الاستيراد: أُضيف %1$d، وحُدّث %2$d.</string>
-    <string name="ab_err_not_an_export">هذا الملف ليس تصديرًا لدفتر عناوين KaChat.</string>
-    <string name="ab_err_export_empty">لا يحتوي ملف التصدير هذا على أي عناوين.</string>
+    <string name="ab_err_not_an_export">هذا الملف ليس تصدير جهات اتصال من KaChat.</string>
+    <string name="ab_err_export_empty">لا يحتوي ملف التصدير هذا على جهات اتصال.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">أُرسلت إلى الشبكة</string>
     <string name="kn_step_in_block">في كتلة</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">تصل الدفعة إلى محادثتك مع من يدفع، مع الملاحظة.</string>
     <string name="pr_memo_placeholder">مقابل ماذا (اختياري)</string>
     <string name="pr_copy">نسخ طلب الدفع</string>
-    <string name="pr_anyone_note">كل من يفتحه أو يلصقه في KaChat يحصل على شاشة إرسال Kaspa معبأة، ويرى أنه صادر من عنوان الدردشة الخاص بك (موقّع بمفتاحه).</string>
+    <string name="pr_anyone_note">من يفتحه في KaPay أو KaChat يحصل على إرسال كاسبا معبأً بهذه البيانات، ويرى أنه صادر عن عنوان الدردشة الخاص بك (موقّع بمفتاحه).</string>
     <string name="pr_requested">المطلوب</string>
     <string name="pr_paid_as_chat_payment">تُدفع كدفعة في المحادثة: تظهر في محادثتك معه.</string>
     <string name="pr_paid_to_their_spending">تُدفع إلى عنوان الإنفاق الخاص به.</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">كمّل سحب</string>
     <string name="swipe_failed">فشل</string>
     <string name="swipe_tap_tx_hint">اضغط المعاملة لفتحها في المستكشف.</string>
+    <string name="contacts">جهات الاتصال</string>
+    <string name="review">مراجعة</string>
+    <string name="send_step_who_to">إلى من ترسل؟</string>
+    <string name="send_youre_sending">أنت ترسل</string>
+    <string name="send_consolidating">جارٍ الدمج</string>
+    <string name="send_this_address_consolidating">هذا العنوان (دمج)</string>
+    <string name="send_this_address">هذا العنوان</string>
+    <string name="send_exceeds_balance">هذا أكثر مما يحمله العنوان الذي ترسل منه.</string>
+    <string name="send_set_fee">حدّد رسوم الشبكة</string>
+    <string name="send_fee_minimum">تحتاج الشبكة إلى %s KAS على الأقل. تُرفع الرسوم الأقل إلى هذا المبلغ.</string>
+    <string name="send_fee_much_more">هذا أكثر بكثير مما تحتاجه الشبكة.</string>
+    <string name="keypad_decimal_point">الفاصلة العشرية</string>
+    <string name="send_fee_tier_footer_edit">إذا كانت الشبكة مزدحمة، يدفع السريع أو الأولوية رسومًا أعلى ليتم التأكيد أسرع. تعديل يحدّد رسومًا من اختيارك.</string>
+    <string name="send_available">المتاح: %s KAS</string>
+    <string name="send_step_where_from">من أين ترسل؟</string>
+    <string name="send_step_pick_from">اختر العنوان الذي يخرج منه الكاسبا.</string>
+    <string name="pr_step_where_paid">أين تريد أن تستلم الدفعة؟</string>
+    <string name="pr_step_how_much">كم؟</string>
+    <string name="pr_youre_requesting">أنت تطلب</string>
+    <string name="pr_fresh_footer">عنوان جديد تمامًا لك لم يُستخدم أو يُشارك من قبل.</string>
+    <string name="pr_paid_to">يُدفع إلى</string>
+    <string name="nextcloud_sync_address_book">جهات اتصالك في النسخة الاحتياطية نفسها وتتزامن بين أجهزتك بالطريقة نفسها.</string>
+    <string name="ab_empty_title">لا جهات اتصال بعد</string>
 </resources>

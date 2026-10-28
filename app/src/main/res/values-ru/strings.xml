@@ -11,7 +11,6 @@
     <string name="added">Добавлен</string>
     <string name="address">Адрес</string>
     <string name="address_actions">Действия с адресом</string>
-    <string name="addresses">Адреса</string>
     <string name="adjust_network_fee">Настроить комиссию сети</string>
     <string name="admin">Администратор</string>
     <string name="all_discovered_nodes_sorted_by_state">Все обнаруженные узлы, отсортированные по состоянию и задержке. Узлы дедуплицируются по host:port.</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">Адресная книга</string>
-    <string name="ab_add_to_address_book">Добавить в адресную книгу</string>
+    <string name="ab_address_book">Контакты</string>
+    <string name="ab_add_to_address_book">Добавить в контакты</string>
     <string name="ab_search_prompt">Поиск по именам и адресам</string>
-    <string name="ab_empty_body">Сохраняйте адреса Kaspa, которыми пользуетесь, под понятными именами. Они хранятся в KaChat, только для этого кошелька, и никогда не попадают в контакты телефона.</string>
-    <string name="ab_add_address">Добавить адрес</string>
+    <string name="ab_empty_body">Сохраняйте адреса Kaspa, которыми пользуетесь, под понятными именами. Они остаются в KaChat, только для этого кошелька, и никогда не попадают в приложение «Контакты» на телефоне.</string>
+    <string name="ab_add_address">Добавить контакт</string>
     <string name="ab_copied">Скопировано</string>
     <string name="ab_share_address">Поделиться адресом</string>
     <string name="ab_edit">Изменить</string>
-    <string name="ab_delete_from">Удалить из адресной книги</string>
-    <string name="ab_delete_confirm">Удалить %1$s из адресной книги?</string>
-    <string name="ab_not_in_book">Нет в вашей адресной книге</string>
+    <string name="ab_delete_from">Удалить контакт</string>
+    <string name="ab_delete_confirm">Удалить %s из контактов?</string>
+    <string name="ab_not_in_book">Нет в ваших контактах</string>
     <string name="ab_note_optional">Заметка (необязательно)</string>
-    <string name="ab_editor_footer">Хранится в KaChat только для этого кошелька. Никогда не добавляется в контакты телефона.</string>
-    <string name="ab_remove_from">Убрать из адресной книги</string>
-    <string name="ab_edit_address">Изменить адрес</string>
-    <string name="ab_picker_empty_body">Добавляйте адреса в Kaspa Hub &gt; Адресная книга.</string>
+    <string name="ab_editor_footer">Сохранено в KaChat только для этого кошелька. Никогда не добавляется в приложение «Контакты» на телефоне.</string>
+    <string name="ab_remove_from">Удалить из контактов</string>
+    <string name="ab_edit_address">Изменить контакт</string>
+    <string name="ab_picker_empty_body">Добавьте их в разделе «Контакты».</string>
     <string name="ab_err_no_wallet">Сначала откройте кошелёк.</string>
     <string name="ab_err_empty_name">Введите имя.</string>
     <string name="ab_err_invalid_address">Введите правильный адрес Kaspa.</string>
-    <string name="ab_saved_toast">Сохранено в адресной книге.</string>
-    <string name="ab_removed_toast">Удалено из адресной книги.</string>
+    <string name="ab_saved_toast">Сохранено в контактах.</string>
+    <string name="ab_removed_toast">Удалено из контактов.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">Изменить фото</string>
     <string name="ab_remove_photo">Убрать фото</string>
     <string name="ab_photo_failed">Не удалось использовать это фото.</string>
     <string name="ab_photo_footer">Без вашего фото здесь показывается аватар, который владелец указал в своём профиле.</string>
-    <string name="ab_photos_title">Фото адресной книги</string>
-    <string name="ab_photos_remove">Убрать фото адресной книги</string>
-    <string name="ab_photos_remove_question">Убрать фото адресной книги?</string>
+    <string name="ab_photos_title">Фото контактов</string>
+    <string name="ab_photos_remove">Удалить фото контактов</string>
+    <string name="ab_photos_remove_question">Удалить фото контактов?</string>
     <string name="ab_photos_footer">Фото, которые вы назначили сохранённым адресам, для всех кошельков на этом устройстве. Они хранятся, пока вы их не уберёте, и входят в резервную копию чатов.</string>
     <string name="ab_photos_frees">Освободит %1$s. Сохранённые адреса сохранят имена и будут показывать аватар, указанный владельцем.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">Добавить (%1$d)</string>
     <string name="ab_add_members">Добавить участников</string>
-    <string name="ab_members_footer">Выберите людей из адресной книги или добавьте любого по адресу Kaspa или домену.</string>
+    <string name="ab_members_footer">Выберите людей из контактов или добавьте кого угодно по адресу Kaspa или домену.</string>
     <string name="ab_members_intro">Добавьте людей в группу. Как администратор группы, вы управляете составом.</string>
-    <string name="ab_members_empty">Участников пока нет. Добавьте людей из адресной книги или по адресу ниже.</string>
+    <string name="ab_members_empty">Участников пока нет. Добавьте людей из контактов или по адресу ниже.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">Сохраните адрес Kaspa под понятным вам именем.</string>
     <string name="ab_import_file">Импорт из файла</string>
     <string name="ab_export_file">Экспорт в файл</string>
-    <string name="ab_import_file_sub">Добавить адреса из экспорта адресной книги.</string>
-    <string name="ab_export_file_sub">Сохранить эту адресную книгу вместе с фото в файл.</string>
-    <string name="ab_nc_import_sub">Выберите экспорт адресной книги в своём Nextcloud.</string>
+    <string name="ab_import_file_sub">Добавить контакты из экспорта контактов.</string>
+    <string name="ab_export_file_sub">Сохранить контакты с их фото в файл.</string>
+    <string name="ab_nc_import_sub">Выберите экспорт контактов в вашем Nextcloud.</string>
     <string name="ab_nc_export_sub">Сохранить в папку KaChat в Nextcloud, чтобы импортировать на любом устройстве.</string>
     <string name="ab_nc_connect_hint">Подключите Nextcloud в Настройки &gt; Хранилище, чтобы сохранять туда и импортировать на другом устройстве.</string>
     <string name="ab_couldnt_read_file">Не удалось прочитать этот файл.</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">Экспорт не удался. Не получилось записать файл.</string>
     <string name="ab_already_up_to_date">Уже актуально. Все адреса из файла сохранены.</string>
     <string name="ab_imported_counts">Импортировано: добавлено %1$d, обновлено %2$d.</string>
-    <string name="ab_err_not_an_export">Это не экспорт адресной книги KaChat.</string>
-    <string name="ab_err_export_empty">В этом экспорте нет адресов.</string>
+    <string name="ab_err_not_an_export">Этот файл не является экспортом контактов KaChat.</string>
+    <string name="ab_err_export_empty">В этом экспорте контактов нет контактов.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">Отправлено в сеть</string>
     <string name="kn_step_in_block">В блоке</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">Платёж с заметкой придёт в ваш чат с плательщиком.</string>
     <string name="pr_memo_placeholder">За что (необязательно)</string>
     <string name="pr_copy">Скопировать запрос на оплату</string>
-    <string name="pr_anyone_note">Любой, кто откроет или вставит её в KaChat, увидит заполненный экран «Отправить Kaspa» и что запрос создан вашим адресом для чатов (подписан его ключом).</string>
+    <string name="pr_anyone_note">Любой, кто откроет его в KaPay или KaChat, получит заполненный экран «Отправить Kaspa» и увидит, что запрос создан вашим адресом для чатов (подписан его ключом).</string>
     <string name="pr_requested">Запрошено</string>
     <string name="pr_paid_as_chat_payment">Оплачивается как платёж в чате: появится в вашем чате с ним.</string>
     <string name="pr_paid_to_their_spending">Оплачивается на его адрес для расходов.</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">Продолжайте смахивать</string>
     <string name="swipe_failed">Ошибка</string>
     <string name="swipe_tap_tx_hint">Нажмите на транзакцию, чтобы открыть её в обозревателе.</string>
+    <string name="contacts">Контакты</string>
+    <string name="review">Проверка</string>
+    <string name="send_step_who_to">Кому вы отправляете?</string>
+    <string name="send_youre_sending">Вы отправляете</string>
+    <string name="send_consolidating">Объединение</string>
+    <string name="send_this_address_consolidating">Этот адрес (объединение)</string>
+    <string name="send_this_address">Этот адрес</string>
+    <string name="send_exceeds_balance">Это больше, чем есть на адресе отправителя.</string>
+    <string name="send_set_fee">Укажите комиссию сети</string>
+    <string name="send_fee_minimum">Сети нужно не меньше %s KAS. Меньшая комиссия будет поднята до этой суммы.</string>
+    <string name="send_fee_much_more">Это намного больше, чем нужно сети.</string>
+    <string name="keypad_decimal_point">Десятичный разделитель</string>
+    <string name="send_fee_tier_footer_edit">Если сеть загружена, «Быстро» или «Приоритет» платят большую комиссию, чтобы перевод подтвердился быстрее. «Изменить» задаёт свою комиссию.</string>
+    <string name="send_available">Доступно: %s KAS</string>
+    <string name="send_step_where_from">Откуда вы отправляете?</string>
+    <string name="send_step_pick_from">Выберите, с какого из ваших адресов уйдут Kaspa.</string>
+    <string name="pr_step_where_paid">Куда вам заплатить?</string>
+    <string name="pr_step_how_much">Сколько?</string>
+    <string name="pr_youre_requesting">Вы запрашиваете</string>
+    <string name="pr_fresh_footer">Совершенно новый ваш адрес, который ещё нигде не использовался и никому не передавался.</string>
+    <string name="pr_paid_to">Оплата на</string>
+    <string name="nextcloud_sync_address_book">Ваши контакты хранятся в той же резервной копии и так же синхронизируются между устройствами.</string>
+    <string name="ab_empty_title">Контактов пока нет</string>
 </resources>

@@ -78,6 +78,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -151,8 +152,8 @@ fun AddressBookScreen(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             // iOS's bar, with or without entries: the connection dot and the balance centred, and
-            // "Addresses" large under it, as the other tabs show their titles (iOS wallet 1314382).
-            MainPageHeader(title = stringResource(R.string.addresses), onBack = onBack)
+            // "Contacts" large under it, as the other tabs show their titles (iOS wallet 1314382).
+            MainPageHeader(title = stringResource(R.string.contacts), onBack = onBack)
         },
         // Add and Import / Export live behind one floating glass + (like Chats'), not in the bar
         // (iOS wallet 06b5e8a).
@@ -230,7 +231,7 @@ interface AddressBookDeps {
 /**
  * What the Addresses + offers, as a half sheet (iOS wallet AddressBookView, 06b5e8a): Add
  * Address, Import File, Export File, and - with Nextcloud connected - Import from Nextcloud /
- * Export to Nextcloud (else a line saying where to connect it). The file is plain JSON, "KaChat Address Book
+ * Export to Nextcloud (else a line saying where to connect it). The file is plain JSON, "KaChat Contacts
  * <time>.json" ([AddressBookManager.exportData]), so it moves both ways between iOS and Android.
  */
 @Composable
@@ -349,7 +350,7 @@ private fun AddressBookActions(show: Boolean, onAdd: () -> Unit, onDismiss: () -
 
     if (show) {
         ActionSheetContainer(
-            title = stringResource(R.string.addresses),
+            title = stringResource(R.string.contacts),
             subtitle = null,
             onDismiss = onDismiss,
         ) {
@@ -487,8 +488,8 @@ private fun AddressBookEmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
     ) {
-        Icon(Icons.Outlined.Book, contentDescription = null, tint = iconTint, modifier = Modifier.size(iconSize * 1.25f))
-        Text(stringResource(R.string.no_saved_addresses), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+        Icon(ContactsIcon, contentDescription = null, tint = iconTint, modifier = Modifier.size(iconSize * 1.25f))
+        Text(stringResource(R.string.ab_empty_title), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
         Text(body, color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
         action?.invoke()
     }
@@ -1089,7 +1090,7 @@ fun AddressBookPickerSheet(
         BackHandler(onBack = close)
         Column(Modifier.fillMaxSize()) {
             SheetNavBar(
-                title = stringResource(R.string.addresses),
+                title = stringResource(R.string.contacts),
                 leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
                 trailing = {
                     if (isMultiple) {
@@ -1166,4 +1167,109 @@ fun AddressBookPickerSheet(
             }
         }
     }
+}
+
+/**
+ * Contacts' icon (the dock tab, the recipient field's pill, Add to Contacts): iOS's SF Symbol
+ * "person.text.rectangle" drawn to its proportions - a rounded card with a person on the left and
+ * two lines of text on the right (iOS bc3e1ff3; it was "book.closed").
+ */
+val ContactsIcon: androidx.compose.ui.graphics.vector.ImageVector by lazy {
+    val ink = androidx.compose.ui.graphics.SolidColor(Color.Black)
+    androidx.compose.ui.graphics.vector.ImageVector.Builder(
+        name = "ContactsPersonTextRectangle",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        // the card
+        path(
+            stroke = ink,
+            strokeLineWidth = 1.7f,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round,
+        ) {
+            moveTo(5.2f, 4.6f)
+            lineTo(18.8f, 4.6f)
+            arcTo(2.6f, 2.6f, 0f, false, true, 21.4f, 7.2f)
+            lineTo(21.4f, 16.8f)
+            arcTo(2.6f, 2.6f, 0f, false, true, 18.8f, 19.4f)
+            lineTo(5.2f, 19.4f)
+            arcTo(2.6f, 2.6f, 0f, false, true, 2.6f, 16.8f)
+            lineTo(2.6f, 7.2f)
+            arcTo(2.6f, 2.6f, 0f, false, true, 5.2f, 4.6f)
+            close()
+        }
+        // the person: a head and shoulders
+        path(fill = ink) {
+            moveTo(8.6f, 7.9f)
+            arcTo(1.9f, 1.9f, 0f, true, true, 8.6f, 11.7f)
+            arcTo(1.9f, 1.9f, 0f, true, true, 8.6f, 7.9f)
+            close()
+            moveTo(5.3f, 15.9f)
+            curveTo(5.5f, 13.9f, 6.9f, 12.8f, 8.6f, 12.8f)
+            curveTo(10.3f, 12.8f, 11.7f, 13.9f, 11.9f, 15.9f)
+            close()
+        }
+        // the two lines of text
+        path(
+            stroke = ink,
+            strokeLineWidth = 1.6f,
+            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+        ) {
+            moveTo(14.2f, 10.2f)
+            lineTo(18.6f, 10.2f)
+            moveTo(14.2f, 13.8f)
+            lineTo(17.4f, 13.8f)
+        }
+    }.build()
+}
+
+/** [ContactsIcon] filled ("person.text.rectangle.fill"): a solid card with the person and the
+ *  lines cut out of it - a saved contact. */
+val ContactsFilledIcon: androidx.compose.ui.graphics.vector.ImageVector by lazy {
+    val ink = androidx.compose.ui.graphics.SolidColor(Color.Black)
+    androidx.compose.ui.graphics.vector.ImageVector.Builder(
+        name = "ContactsPersonTextRectangleFill",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(fill = ink, pathFillType = androidx.compose.ui.graphics.PathFillType.EvenOdd) {
+            // the card
+            moveTo(4.8f, 3.8f)
+            lineTo(19.2f, 3.8f)
+            arcTo(3f, 3f, 0f, false, true, 22.2f, 6.8f)
+            lineTo(22.2f, 17.2f)
+            arcTo(3f, 3f, 0f, false, true, 19.2f, 20.2f)
+            lineTo(4.8f, 20.2f)
+            arcTo(3f, 3f, 0f, false, true, 1.8f, 17.2f)
+            lineTo(1.8f, 6.8f)
+            arcTo(3f, 3f, 0f, false, true, 4.8f, 3.8f)
+            close()
+            // the head
+            moveTo(8.6f, 7.9f)
+            arcTo(1.9f, 1.9f, 0f, true, false, 8.6f, 11.7f)
+            arcTo(1.9f, 1.9f, 0f, true, false, 8.6f, 7.9f)
+            close()
+            // the shoulders
+            moveTo(5.3f, 15.9f)
+            lineTo(11.9f, 15.9f)
+            curveTo(11.7f, 13.9f, 10.3f, 12.8f, 8.6f, 12.8f)
+            curveTo(6.9f, 12.8f, 5.5f, 13.9f, 5.3f, 15.9f)
+            close()
+            // the lines
+            moveTo(14.2f, 9.4f)
+            lineTo(18.6f, 9.4f)
+            lineTo(18.6f, 11.0f)
+            lineTo(14.2f, 11.0f)
+            close()
+            moveTo(14.2f, 13.0f)
+            lineTo(17.4f, 13.0f)
+            lineTo(17.4f, 14.6f)
+            lineTo(14.2f, 14.6f)
+            close()
+        }
+    }.build()
 }

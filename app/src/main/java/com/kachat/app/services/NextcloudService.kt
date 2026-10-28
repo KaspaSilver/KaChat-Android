@@ -689,7 +689,7 @@ class NextcloudService @Inject constructor(
      * Uploads [bytes] as [filename] into the KaChat folder ([backupFolderPath] - the same folder
      * the chat backup lives in), creating the folder chain if it isn't there yet, and returns the
      * stored path. A file of the same name is replaced - exports carry a timestamp in their name.
-     * [keepSpaces] keeps a name the user gave (a portfolio's, "KaChat Address Book") readable in
+     * [keepSpaces] keeps a name the user gave (a portfolio's, "KaChat Contacts") readable in
      * Nextcloud instead of turning its spaces into underscores (iOS 87b2a0b).
      */
     suspend fun uploadToKaChatFolder(

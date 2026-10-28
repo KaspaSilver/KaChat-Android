@@ -99,7 +99,8 @@ private enum class SwipePhase { FORM, SENDING }
  * Again brings the form back as it was. Only the bar answers - scrolling the form never sends.
  * TalkBack gets a plain activate action on the bar.
  *
- * It draws its own header (Cancel and [screenTitle]) in place of a top bar, so the header goes
+ * It draws its own header ([SendStepHeader]: Cancel and [screenTitle], with [onBack] Back and
+ * Cancel - a step-by-step send's Review, iOS bc3e1ff3) in place of a top bar, so the header goes
  * up with the rest of the screen. [content] is the form, scrolled.
  */
 @Composable
@@ -121,9 +122,14 @@ fun SwipeUpToSendScreen(
     /** The confirmation's Done. */
     onDone: () -> Unit,
     action: () -> Unit,
+    /** A step-by-step send's Review: the header shows Back (and Cancel on the right). */
+    onBack: (() -> Unit)? = null,
+    /** False: only Back in the header (a step pushed inside another sheet, which Back leaves). */
+    showsCancel: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalAppColors.current
+    val dismissKeyboard = rememberDismissSystemKeyboard()
     val haptic = com.kachat.app.util.rememberHaptics()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -160,6 +166,7 @@ fun SwipeUpToSendScreen(
     }
 
     fun startSending() {
+        dismissKeyboard()
         armed = false
         dagShown = false
         sendStarted = latestBusy
@@ -220,7 +227,7 @@ fun SwipeUpToSendScreen(
                 .offset { IntOffset(0, -lift.roundToInt()) }
                 .background(colors.background)
         ) {
-            SwipeUpHeader(screenTitle, onCancel)
+            SendStepHeader(screenTitle, onBack = onBack, onCancel = if (showsCancel || onBack == null) onCancel else null)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -249,7 +256,11 @@ fun SwipeUpToSendScreen(
                             if (phase != SwipePhase.FORM) continue
                             val y = change.position.y - lift
                             val next = max(0f, startY - y)
-                            if (lift == 0f && next > 0f) haptic(IosHaptic.IMPACT_LIGHT)
+                            if (lift == 0f && next > 0f) {
+                                // a keyboard left up (the memo) would sit over the rising screen
+                                dismissKeyboard()
+                                haptic(IosHaptic.IMPACT_LIGHT)
+                            }
                             lift = next
                             val pastThreshold = lift >= threshold
                             if (pastThreshold != armed) {
@@ -290,28 +301,6 @@ fun SwipeUpToSendScreen(
     // Back is Cancel on the form; while the send screen is up it does nothing until Done or Try
     // Again (iOS interactiveDismissDisabled while sending).
     BackHandler(enabled = phase == SwipePhase.SENDING) {}
-}
-
-/** Cancel and the title, where the top bar would be. */
-@Composable
-private fun SwipeUpHeader(screenTitle: String, onCancel: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 14.dp, bottom = 6.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            screenTitle,
-            color = LocalAppColors.current.textPrimary,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 17.sp,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 110.dp),
-        )
-        SheetBarButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.align(Alignment.CenterStart))
-    }
 }
 
 @Composable

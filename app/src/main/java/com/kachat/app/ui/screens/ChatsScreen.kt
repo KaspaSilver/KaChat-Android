@@ -600,7 +600,7 @@ fun ChatsScreen(
                             val saved = addressBookEntries.isNotEmpty() &&
                                 com.kachat.app.services.AddressBookManager.shared?.entry(convo.contact.id) != null
                             ActionSheetRow(
-                                icon = if (saved) Icons.Filled.Book else Icons.Outlined.Book,
+                                icon = if (saved) ContactsFilledIcon else ContactsIcon,
                                 title = stringResource(if (saved) R.string.ab_address_book else R.string.ab_add_to_address_book),
                                 subtitle = stringResource(if (saved) R.string.ab_row_edit_subtitle else R.string.ab_row_add_subtitle),
                             ) {

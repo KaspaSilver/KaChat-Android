@@ -11,7 +11,6 @@
     <string name="added">जोड़ा</string>
     <string name="address">पता</string>
     <string name="address_actions">पता कार्रवाइयां</string>
-    <string name="addresses">पते</string>
     <string name="adjust_network_fee">नेटवर्क शुल्क समायोजित करें</string>
     <string name="admin">एडमिन</string>
     <string name="all_discovered_nodes_sorted_by_state">सभी खोजे गए नोड स्थिति और विलंबता के अनुसार क्रमबद्ध। नोड host:port द्वारा डिडुप्लिकेट किए गए हैं।</string>
@@ -636,35 +635,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">एड्रेस बुक</string>
-    <string name="ab_add_to_address_book">एड्रेस बुक में जोड़ें</string>
+    <string name="ab_address_book">संपर्क</string>
+    <string name="ab_add_to_address_book">संपर्कों में जोड़ें</string>
     <string name="ab_search_prompt">नाम और पते खोजें</string>
-    <string name="ab_empty_body">जिन Kaspa पतों का आप उपयोग करते हैं, उन्हें पहचाने जाने वाले नाम से सहेजें। वे KaChat में रहते हैं, सिर्फ़ इस वॉलेट के लिए, और कभी आपके फ़ोन के संपर्कों में नहीं जाते।</string>
-    <string name="ab_add_address">पता जोड़ें</string>
+    <string name="ab_empty_body">जिन Kaspa पतों का आप इस्तेमाल करते हैं, उन्हें पहचानने लायक नाम से सहेजें। ये KaChat में सिर्फ़ इस वॉलेट के लिए रहते हैं और कभी आपके फ़ोन के संपर्क ऐप में नहीं जाते।</string>
+    <string name="ab_add_address">संपर्क जोड़ें</string>
     <string name="ab_copied">कॉपी हो गया</string>
     <string name="ab_share_address">पता साझा करें</string>
     <string name="ab_edit">संपादित करें</string>
-    <string name="ab_delete_from">एड्रेस बुक से हटाएँ</string>
-    <string name="ab_delete_confirm">%1$s को अपनी एड्रेस बुक से हटाएँ?</string>
-    <string name="ab_not_in_book">आपकी एड्रेस बुक में नहीं है</string>
+    <string name="ab_delete_from">संपर्क हटाएँ</string>
+    <string name="ab_delete_confirm">%s को अपने संपर्कों से हटाएँ?</string>
+    <string name="ab_not_in_book">आपके संपर्कों में नहीं</string>
     <string name="ab_note_optional">नोट (वैकल्पिक)</string>
-    <string name="ab_editor_footer">सिर्फ़ इस वॉलेट के लिए KaChat में सहेजा गया। कभी आपके फ़ोन के संपर्कों में नहीं जोड़ा जाता।</string>
-    <string name="ab_remove_from">एड्रेस बुक से हटाएँ</string>
-    <string name="ab_edit_address">पता संपादित करें</string>
-    <string name="ab_picker_empty_body">Kaspa Hub &gt; एड्रेस बुक में पते जोड़ें।</string>
+    <string name="ab_editor_footer">सिर्फ़ इस वॉलेट के लिए KaChat में सहेजा गया। कभी आपके फ़ोन के संपर्क ऐप में नहीं जोड़ा जाता।</string>
+    <string name="ab_remove_from">संपर्कों से हटाएँ</string>
+    <string name="ab_edit_address">संपर्क संपादित करें</string>
+    <string name="ab_picker_empty_body">उन्हें संपर्क में जोड़ें।</string>
     <string name="ab_err_no_wallet">पहले एक वॉलेट खोलें।</string>
     <string name="ab_err_empty_name">एक नाम दर्ज करें।</string>
     <string name="ab_err_invalid_address">एक मान्य Kaspa पता दर्ज करें।</string>
-    <string name="ab_saved_toast">एड्रेस बुक में सहेजा गया।</string>
-    <string name="ab_removed_toast">एड्रेस बुक से हटाया गया।</string>
+    <string name="ab_saved_toast">संपर्कों में सहेजा गया।</string>
+    <string name="ab_removed_toast">संपर्कों से हटाया गया।</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">फ़ोटो बदलें</string>
     <string name="ab_remove_photo">फ़ोटो हटाएँ</string>
     <string name="ab_photo_failed">वह फ़ोटो इस्तेमाल नहीं हो सकी।</string>
     <string name="ab_photo_footer">आपकी अपनी फ़ोटो न होने पर, यहाँ वह अवतार दिखता है जो उन्होंने अपनी प्रोफ़ाइल पर लगाया है।</string>
-    <string name="ab_photos_title">एड्रेस बुक फ़ोटो</string>
-    <string name="ab_photos_remove">एड्रेस बुक फ़ोटो हटाएँ</string>
-    <string name="ab_photos_remove_question">एड्रेस बुक फ़ोटो हटाएँ?</string>
+    <string name="ab_photos_title">संपर्क फ़ोटो</string>
+    <string name="ab_photos_remove">संपर्क फ़ोटो हटाएँ</string>
+    <string name="ab_photos_remove_question">संपर्क फ़ोटो हटाएँ?</string>
     <string name="ab_photos_footer">सहेजे गए पतों को आपकी दी हुई फ़ोटो, इस डिवाइस के सभी वॉलेट के लिए। आप हटाएँ तब तक रहती हैं, और आपके चैट बैकअप में शामिल होती हैं।</string>
     <string name="ab_photos_frees">%1$s खाली होगा। सहेजे गए पतों के नाम बने रहेंगे; बदले में उनके मालिक का लगाया अवतार दिखेगा।</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -673,16 +672,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">जोड़ें (%1$d)</string>
     <string name="ab_add_members">सदस्य जोड़ें</string>
-    <string name="ab_members_footer">अपनी एड्रेस बुक से लोग चुनें, या किसी को भी Kaspa पते या डोमेन से जोड़ें।</string>
+    <string name="ab_members_footer">अपने संपर्कों से लोग चुनें, या किसी को भी Kaspa पते या डोमेन से जोड़ें।</string>
     <string name="ab_members_intro">समूह में लोग जोड़ें। समूह एडमिन के रूप में सदस्यता आपके नियंत्रण में है।</string>
-    <string name="ab_members_empty">अभी तक कोई सदस्य नहीं जोड़ा गया। नीचे एड्रेस बुक से या पते से लोग जोड़ें।</string>
+    <string name="ab_members_empty">अभी कोई सदस्य नहीं। अपने संपर्कों से या नीचे पते से लोग जोड़ें।</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">किसी Kaspa पते को ऐसे नाम से सहेजें जिसे आप पहचानते हों।</string>
     <string name="ab_import_file">फ़ाइल इंपोर्ट करें</string>
     <string name="ab_export_file">फ़ाइल एक्सपोर्ट करें</string>
-    <string name="ab_import_file_sub">एड्रेस बुक एक्सपोर्ट से पते जोड़ें।</string>
-    <string name="ab_export_file_sub">इस एड्रेस बुक को फ़ोटो सहित एक फ़ाइल में सहेजें।</string>
-    <string name="ab_nc_import_sub">अपने Nextcloud से एड्रेस बुक एक्सपोर्ट चुनें।</string>
+    <string name="ab_import_file_sub">संपर्क एक्सपोर्ट फ़ाइल से संपर्क जोड़ें।</string>
+    <string name="ab_export_file_sub">अपने संपर्क उनकी फ़ोटो के साथ एक फ़ाइल में सहेजें।</string>
+    <string name="ab_nc_import_sub">अपने Nextcloud से एक संपर्क एक्सपोर्ट चुनें।</string>
     <string name="ab_nc_export_sub">इसे अपने Nextcloud के KaChat फ़ोल्डर में सहेजें, ताकि किसी भी डिवाइस पर इंपोर्ट कर सकें।</string>
     <string name="ab_nc_connect_hint">सेटिंग्स &gt; स्टोरेज में Nextcloud जोड़ें, ताकि वहाँ भी सहेजकर दूसरे डिवाइस पर इंपोर्ट कर सकें।</string>
     <string name="ab_couldnt_read_file">वह फ़ाइल पढ़ी नहीं जा सकी।</string>
@@ -690,8 +689,8 @@
     <string name="ab_export_failed">एक्सपोर्ट विफल। फ़ाइल लिखी नहीं जा सकी।</string>
     <string name="ab_already_up_to_date">पहले से अद्यतन। फ़ाइल के सभी पते सहेजे हुए हैं।</string>
     <string name="ab_imported_counts">इंपोर्ट हुआ: %1$d जोड़े, %2$d अपडेट।</string>
-    <string name="ab_err_not_an_export">यह फ़ाइल KaChat एड्रेस बुक एक्सपोर्ट नहीं है।</string>
-    <string name="ab_err_export_empty">इस एक्सपोर्ट में कोई पता नहीं है।</string>
+    <string name="ab_err_not_an_export">यह फ़ाइल KaChat संपर्क एक्सपोर्ट नहीं है।</string>
+    <string name="ab_err_export_empty">इस संपर्क एक्सपोर्ट में कोई संपर्क नहीं है।</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">नेटवर्क को भेजा गया</string>
     <string name="kn_step_in_block">एक ब्लॉक में</string>
@@ -757,7 +756,7 @@
     <string name="pr_chatting_footer">भुगतान, नोट के साथ, भुगतान करने वाले के साथ आपकी चैट में आएगा।</string>
     <string name="pr_memo_placeholder">किसलिए (वैकल्पिक)</string>
     <string name="pr_copy">भुगतान अनुरोध कॉपी करें</string>
-    <string name="pr_anyone_note">KaChat में इसे खोलने या पेस्ट करने वाले को भरी हुई Kaspa भेजें स्क्रीन मिलेगी, और दिखेगा कि यह आपके चैटिंग पते से बना है (उसकी कुंजी से हस्ताक्षरित)।</string>
+    <string name="pr_anyone_note">जो भी इसे KaPay या KaChat में खोलेगा, उसे यह भरी हुई Kaspa भेजें स्क्रीन मिलेगी, और दिखेगा कि इसे आपके चैट पते ने बनाया है (उसकी कुंजी से हस्ताक्षरित)।</string>
     <string name="pr_requested">माँगा गया</string>
     <string name="pr_paid_as_chat_payment">चैट भुगतान के रूप में: उनके साथ आपकी चैट में दिखेगा।</string>
     <string name="pr_paid_to_their_spending">उनके खर्च वाले पते पर भुगतान।</string>
@@ -879,4 +878,27 @@
     <string name="swipe_keep_swiping">स्वाइप करते रहें</string>
     <string name="swipe_failed">विफल</string>
     <string name="swipe_tap_tx_hint">एक्सप्लोरर में खोलने के लिए लेनदेन पर टैप करें।</string>
+    <string name="contacts">संपर्क</string>
+    <string name="review">समीक्षा</string>
+    <string name="send_step_who_to">आप किसे भेज रहे हैं?</string>
+    <string name="send_youre_sending">आप भेज रहे हैं</string>
+    <string name="send_consolidating">मिलाया जा रहा है</string>
+    <string name="send_this_address_consolidating">यह पता (मिलाना)</string>
+    <string name="send_this_address">यह पता</string>
+    <string name="send_exceeds_balance">यह भेजने वाले पते में मौजूद राशि से ज़्यादा है।</string>
+    <string name="send_set_fee">नेटवर्क शुल्क तय करें</string>
+    <string name="send_fee_minimum">नेटवर्क को कम से कम %s KAS चाहिए। इससे कम शुल्क इतना कर दिया जाता है।</string>
+    <string name="send_fee_much_more">यह नेटवर्क की ज़रूरत से बहुत ज़्यादा है।</string>
+    <string name="keypad_decimal_point">दशमलव बिंदु</string>
+    <string name="send_fee_tier_footer_edit">नेटवर्क व्यस्त हो तो तेज़ या प्राथमिकता जल्दी पुष्टि के लिए ज़्यादा शुल्क देते हैं। संपादित करें से अपना शुल्क तय करें।</string>
+    <string name="send_available">उपलब्ध: %s KAS</string>
+    <string name="send_step_where_from">आप कहाँ से भेज रहे हैं?</string>
+    <string name="send_step_pick_from">चुनें कि Kaspa आपके किस पते से जाए।</string>
+    <string name="pr_step_where_paid">आप भुगतान कहाँ लेना चाहते हैं?</string>
+    <string name="pr_step_how_much">कितना?</string>
+    <string name="pr_youre_requesting">आप माँग रहे हैं</string>
+    <string name="pr_fresh_footer">आपका बिल्कुल नया पता, जो कभी इस्तेमाल या साझा नहीं हुआ।</string>
+    <string name="pr_paid_to">भुगतान किसे</string>
+    <string name="nextcloud_sync_address_book">आपके संपर्क उसी बैकअप में हैं और आपके डिवाइसों के बीच उसी तरह सिंक होते हैं।</string>
+    <string name="ab_empty_title">अभी कोई संपर्क नहीं</string>
 </resources>

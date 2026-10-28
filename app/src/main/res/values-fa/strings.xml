@@ -19,7 +19,6 @@
     <string name="added">اضافه شد</string>
     <string name="address">آدرس</string>
     <string name="address_actions">عملیات آدرس</string>
-    <string name="addresses">آدرس‌ها</string>
     <string name="adjust_network_fee">تنظیم کارمزد شبکه</string>
     <string name="admin">مدیر</string>
     <string name="all_discovered_nodes_sorted_by_state">همه گره‌های کشف‌شده بر اساس وضعیت و تاخیر مرتب شده‌اند. گره‌های تکراری بر اساس host:port حذف می‌شوند.</string>
@@ -663,35 +662,35 @@
     <!-- .kachat: when a name's grace period ends (iOS fde757f) -->
     <!-- .kachat: names in grace keep resolving to their owner -->
     <!-- Address Book (iOS 00767a4) -->
-    <string name="ab_address_book">دفترچه نشانی</string>
-    <string name="ab_add_to_address_book">افزودن به دفترچه نشانی</string>
+    <string name="ab_address_book">مخاطبین</string>
+    <string name="ab_add_to_address_book">افزودن به مخاطبان</string>
     <string name="ab_search_prompt">جستجوی نام‌ها و نشانی‌ها</string>
-    <string name="ab_empty_body">نشانی‌های Kaspa که استفاده می‌کنید را با نامی که می‌شناسید ذخیره کنید. آن‌ها در KaChat می‌مانند، فقط برای این کیف پول، و هرگز به مخاطبین گوشی شما نمی‌روند.</string>
-    <string name="ab_add_address">افزودن آدرس</string>
+    <string name="ab_empty_body">نشانی‌های کاسپا که استفاده می‌کنید را با نامی آشنا ذخیره کنید. فقط برای این کیف پول در KaChat می‌مانند و هرگز وارد برنامهٔ مخاطبان گوشی نمی‌شوند.</string>
+    <string name="ab_add_address">افزودن مخاطب</string>
     <string name="ab_copied">کپی شد</string>
     <string name="ab_share_address">اشتراک‌گذاری نشانی</string>
     <string name="ab_edit">ویرایش</string>
-    <string name="ab_delete_from">حذف از دفترچه نشانی</string>
-    <string name="ab_delete_confirm">%1$s از دفترچه نشانی حذف شود؟</string>
-    <string name="ab_not_in_book">در دفترچه نشانی شما نیست</string>
+    <string name="ab_delete_from">حذف مخاطب</string>
+    <string name="ab_delete_confirm">%s از مخاطبان شما حذف شود؟</string>
+    <string name="ab_not_in_book">در مخاطبان شما نیست</string>
     <string name="ab_note_optional">یادداشت (اختیاری)</string>
-    <string name="ab_editor_footer">فقط برای این کیف پول در KaChat ذخیره می‌شود. هرگز به مخاطبین گوشی شما اضافه نمی‌شود.</string>
-    <string name="ab_remove_from">برداشتن از دفترچه نشانی</string>
-    <string name="ab_edit_address">ویرایش نشانی</string>
-    <string name="ab_picker_empty_body">نشانی‌ها را در Kaspa Hub &gt; دفترچه نشانی اضافه کنید.</string>
+    <string name="ab_editor_footer">فقط برای این کیف پول در KaChat ذخیره می‌شود. هرگز به برنامهٔ مخاطبان گوشی اضافه نمی‌شود.</string>
+    <string name="ab_remove_from">حذف از مخاطبان</string>
+    <string name="ab_edit_address">ویرایش مخاطب</string>
+    <string name="ab_picker_empty_body">آن‌ها را در مخاطبان اضافه کنید.</string>
     <string name="ab_err_no_wallet">ابتدا یک کیف پول باز کنید.</string>
     <string name="ab_err_empty_name">یک نام وارد کنید.</string>
     <string name="ab_err_invalid_address">یک نشانی معتبر Kaspa وارد کنید.</string>
-    <string name="ab_saved_toast">در دفترچه نشانی ذخیره شد.</string>
-    <string name="ab_removed_toast">از دفترچه نشانی برداشته شد.</string>
+    <string name="ab_saved_toast">در مخاطبان ذخیره شد.</string>
+    <string name="ab_removed_toast">از مخاطبان حذف شد.</string>
     <!-- Address Book photos (iOS cda0d99) -->
     <string name="ab_change_photo">تغییر عکس</string>
     <string name="ab_remove_photo">حذف عکس</string>
     <string name="ab_photo_failed">نشد از آن عکس استفاده کرد.</string>
     <string name="ab_photo_footer">بدون عکسی از خودتان، اینجا آواتاری نمایش داده می‌شود که آن شخص در نمایه‌اش گذاشته است.</string>
-    <string name="ab_photos_title">عکس‌های دفترچه نشانی</string>
-    <string name="ab_photos_remove">حذف عکس‌های دفترچه نشانی</string>
-    <string name="ab_photos_remove_question">عکس‌های دفترچه نشانی حذف شوند؟</string>
+    <string name="ab_photos_title">عکس مخاطبان</string>
+    <string name="ab_photos_remove">حذف عکس‌های مخاطبان</string>
+    <string name="ab_photos_remove_question">عکس‌های مخاطبان حذف شود؟</string>
     <string name="ab_photos_footer">عکس‌هایی که به نشانی‌های ذخیره‌شده داده‌اید، برای همه کیف پول‌های این دستگاه. تا وقتی حذفشان نکنید می‌مانند و در پشتیبان گفتگوهای شما هستند.</string>
     <string name="ab_photos_frees">%1$s آزاد می‌شود. نشانی‌های ذخیره‌شده نامشان را نگه می‌دارند و به جای آن آواتاری را نشان می‌دهند که صاحبشان گذاشته است.</string>
     <!-- Chats: long-press Address Book tile (iOS 98f3728) -->
@@ -700,16 +699,16 @@
     <!-- New Chat / New Group: Address Book (iOS 1be4f6e) -->
     <string name="ab_add_count">افزودن (%1$d)</string>
     <string name="ab_add_members">افزودن اعضا</string>
-    <string name="ab_members_footer">افراد را از دفترچه نشانی انتخاب کنید، یا هر کسی را با نشانی Kaspa یا دامنه اضافه کنید.</string>
+    <string name="ab_members_footer">افرادی را از مخاطبان خود انتخاب کنید یا هر کسی را با نشانی کاسپا یا دامنه اضافه کنید.</string>
     <string name="ab_members_intro">افرادی را به گروه اضافه کنید. شما به‌عنوان مدیر گروه عضویت را کنترل می‌کنید.</string>
-    <string name="ab_members_empty">هنوز عضوی اضافه نشده. در پایین افراد را از دفترچه نشانی یا با نشانی اضافه کنید.</string>
+    <string name="ab_members_empty">هنوز عضوی نیست. افراد را از مخاطبان یا با نشانی در پایین اضافه کنید.</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">یک آدرس کسپا را با نامی که می‌شناسید ذخیره کنید.</string>
     <string name="ab_import_file">وارد کردن فایل</string>
     <string name="ab_export_file">صادر کردن فایل</string>
-    <string name="ab_import_file_sub">نشانی‌ها را از یک فایل صادرشده دفترچه نشانی اضافه کنید.</string>
-    <string name="ab_export_file_sub">این دفترچه نشانی را همراه عکس‌هایش در یک فایل ذخیره کنید.</string>
-    <string name="ab_nc_import_sub">یک فایل صادرشده دفترچه نشانی را از Nextcloud انتخاب کنید.</string>
+    <string name="ab_import_file_sub">افزودن مخاطبان از یک فایل خروجی مخاطبان.</string>
+    <string name="ab_export_file_sub">مخاطبان خود را با عکس‌هایشان در یک فایل ذخیره کنید.</string>
+    <string name="ab_nc_import_sub">یک فایل خروجی مخاطبان را از Nextcloud خود انتخاب کنید.</string>
     <string name="ab_nc_export_sub">آن را در پوشه KaChat در Nextcloud ذخیره کنید تا روی هر دستگاهی وارد شود.</string>
     <string name="ab_nc_connect_hint">Nextcloud را در تنظیمات &gt; فضای ذخیره‌سازی وصل کنید تا آنجا هم ذخیره و روی دستگاه دیگری وارد شود.</string>
     <string name="ab_couldnt_read_file">خواندن آن فایل ممکن نشد.</string>
@@ -717,8 +716,8 @@
     <string name="ab_export_failed">صدور ناموفق بود. نوشتن فایل ممکن نشد.</string>
     <string name="ab_already_up_to_date">به‌روز است. همه نشانی‌های فایل ذخیره شده‌اند.</string>
     <string name="ab_imported_counts">وارد شد: %1$d افزوده، %2$d به‌روزرسانی.</string>
-    <string name="ab_err_not_an_export">آن فایل یک فایل صادرشده دفترچه نشانی KaChat نیست.</string>
-    <string name="ab_err_export_empty">این فایل صادرشده هیچ نشانی‌ای ندارد.</string>
+    <string name="ab_err_not_an_export">این فایل خروجی مخاطبان KaChat نیست.</string>
+    <string name="ab_err_export_empty">این خروجی مخاطبان هیچ مخاطبی ندارد.</string>
     <!-- .kachat: fees, busy network, progress receipt (iOS e426432) -->
     <string name="kn_step_sent">به شبکه ارسال شد</string>
     <string name="kn_step_in_block">در یک بلوک</string>
@@ -784,7 +783,7 @@
     <string name="pr_chatting_footer">پرداخت با یادداشت در گفتگوی شما با پرداخت‌کننده ثبت می‌شود.</string>
     <string name="pr_memo_placeholder">بابت چه (اختیاری)</string>
     <string name="pr_copy">کپی درخواست پرداخت</string>
-    <string name="pr_anyone_note">هر کس آن را در KaChat باز یا جای‌گذاری کند، صفحه ارسال Kaspa را پرشده می‌بیند و می‌فهمد که از آدرس گفتگوی شما ساخته شده است (با کلید آن امضا شده).</string>
+    <string name="pr_anyone_note">هر کس آن را در KaPay یا KaChat باز کند، صفحهٔ ارسال کاسپا را با همین اطلاعات پرشده می‌بیند و می‌فهمد که نشانی گفتگوی شما آن را ساخته است (با کلید آن امضا شده).</string>
     <string name="pr_requested">درخواست‌شده</string>
     <string name="pr_paid_as_chat_payment">به‌صورت پرداخت در گفتگو: در گفتگوی شما با او نمایش داده می‌شود.</string>
     <string name="pr_paid_to_their_spending">به آدرس هزینه او پرداخت می‌شود.</string>
@@ -906,4 +905,27 @@
     <string name="swipe_keep_swiping">به کشیدن ادامه دهید</string>
     <string name="swipe_failed">ناموفق</string>
     <string name="swipe_tap_tx_hint">برای باز کردن در کاوشگر روی تراکنش بزنید.</string>
+    <string name="contacts">مخاطبین</string>
+    <string name="review">بازبینی</string>
+    <string name="send_step_who_to">برای چه کسی می‌فرستید؟</string>
+    <string name="send_youre_sending">در حال ارسال</string>
+    <string name="send_consolidating">در حال ادغام</string>
+    <string name="send_this_address_consolidating">این نشانی (ادغام)</string>
+    <string name="send_this_address">این نشانی</string>
+    <string name="send_exceeds_balance">این بیشتر از موجودی نشانی ارسال‌کننده است.</string>
+    <string name="send_set_fee">کارمزد شبکه را تعیین کنید</string>
+    <string name="send_fee_minimum">شبکه دست‌کم %s KAS نیاز دارد. کارمزد کمتر به این مقدار افزایش می‌یابد.</string>
+    <string name="send_fee_much_more">این خیلی بیشتر از نیاز شبکه است.</string>
+    <string name="keypad_decimal_point">ممیز اعشار</string>
+    <string name="send_fee_tier_footer_edit">اگر شبکه شلوغ باشد، سریع یا اولویت‌دار کارمزد بیشتری می‌پردازند تا زودتر تأیید شود. با ویرایش کارمزد دلخواه را تعیین کنید.</string>
+    <string name="send_available">موجودی: %s KAS</string>
+    <string name="send_step_where_from">از کجا می‌فرستید؟</string>
+    <string name="send_step_pick_from">انتخاب کنید کاسپا از کدام نشانی شما خارج شود.</string>
+    <string name="pr_step_where_paid">می‌خواهید پرداخت به کجا برسد؟</string>
+    <string name="pr_step_how_much">چقدر؟</string>
+    <string name="pr_youre_requesting">درخواست شما</string>
+    <string name="pr_fresh_footer">یک نشانی کاملاً تازه از شما که هرگز استفاده یا به کسی داده نشده است.</string>
+    <string name="pr_paid_to">پرداخت به</string>
+    <string name="nextcloud_sync_address_book">مخاطبان شما در همان پشتیبان هستند و به همان شکل میان دستگاه‌هایتان همگام می‌شوند.</string>
+    <string name="ab_empty_title">هنوز مخاطبی نیست</string>
 </resources>

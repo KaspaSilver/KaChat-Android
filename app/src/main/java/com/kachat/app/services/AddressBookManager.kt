@@ -619,9 +619,9 @@ class AddressBookManager @Inject constructor(
         const val EXPORT_KIND = "kachat-address-book"
 
         /** The export's file name, with the time so several exports don't overwrite each other:
-         *  "KaChat Address Book 2026-10-08T18-37-50Z.json", exactly as iOS names it. */
+         *  "KaChat Contacts 2026-10-08T18-37-50Z.json", exactly as iOS names it (iOS bc3e1ff3). */
         fun exportFileName(epochMs: Long = System.currentTimeMillis()): String =
-            "KaChat Address Book ${isoSeconds(epochMs).replace(":", "-")}.json"
+            "KaChat Contacts ${isoSeconds(epochMs).replace(":", "-")}.json"
 
         @Volatile private var instance: AddressBookManager? = null
 

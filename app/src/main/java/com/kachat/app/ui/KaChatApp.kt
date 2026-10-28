@@ -66,7 +66,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 
 /**
  * The dock's tabs (iOS `AppTab`). Since 2026-10-24 KaChat is 1:1 and group chats, and the dock is
- * fixed - since 2026-10-26 a five: Addresses, Groups, Chats, Profile, Settings, with Chats in the
+ * fixed - since 2026-10-26 a five: Contacts, Groups, Chats, Profile, Settings, with Chats in the
  * center (iOS d54ea87, 95a7d1f, a53d343): no Kaspa Hub, no Customize Dock. The wallet features
  * (Portfolio, Cold Storage, Swap, .kachat names) live in the KaChat wallet app.
  */
@@ -74,9 +74,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Chats       : Screen("chats",        "Chats",        Icons.Default.Forum)
     // Group Chats, their own screen again since 2026-10-26 (they were circles above the chats).
     object Groups      : Screen("group_chats",  "Groups",       Icons.Outlined.Groups)
-    // Saved Kaspa addresses with names, per wallet (iOS 00767a4); "Addresses", as in the KaChat
-    // wallet app (iOS 5868613). The route keeps its old name.
-    object AddressBook : Screen("address_book", "Addresses",    Icons.Outlined.Book)
+    // Saved Kaspa addresses with names, per wallet (iOS 00767a4); "Contacts" with a contact-card
+    // icon since 2026-10-28 (iOS bc3e1ff3; "Addresses" before). The route keeps its old name.
+    object AddressBook : Screen("address_book", "Contacts",     ContactsIcon)
     object Profile     : Screen("profile",      "Profile",      Icons.Default.AccountCircle)
     // Its own tab since 2026-10-24 (it used to be a sheet behind Profile's settings row).
     object Settings    : Screen("settings",     "Settings",     Icons.Default.Settings)
