@@ -3730,7 +3730,6 @@ fun ProfileScreen(
     }
     // Donate: the Send screen, addressed to KaChat's donation address (iOS e7cc0d5, 8bc86f8).
     var showDonateSheet by remember { mutableStateOf(false) }
-    var showLogoutConfirmation by remember { mutableStateOf(false) }
 
     val knsInscribeState by viewModel.knsInscribeState.collectAsState()
     val pendingKnsCommit by viewModel.pendingKnsCommit.collectAsState()
@@ -4263,30 +4262,6 @@ fun ProfileScreen(
                 onClick = { navController.navigate("help") },
             )
 
-            // iOS logOutSection: red "Log Out" on the left, the red
-            // rectangle.portrait.and.arrow.right on the right, no chevron.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .iosGlass(18.dp)
-                    .clickable { showLogoutConfirmation = true }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.log_out),
-                    color = LocalAppColors.current.danger,
-                    fontSize = 17.sp,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = null,
-                    tint = LocalAppColors.current.danger,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-
             // Bottom-most section on Profile - merges what used to be a separate "Info" section
             // (just "Created") with Settings' old "About" section (Version/Website/Support
             // Email/Donate), now reached without needing to open Settings at all.
@@ -4391,18 +4366,6 @@ fun ProfileScreen(
         )
     }
 
-    // Half sheet rather than a dialog, matching every other chooser in the app - and it gives
-    // the consequence a row of its own beside the action, which a dialog of bare verbs cannot.
-    if (showLogoutConfirmation) {
-        ConfirmActionSheet(
-            title = stringResource(R.string.log_out),
-            confirmTitle = stringResource(R.string.log_out),
-            confirmSubtitle = "Signs out of this account. Wallet and message data stay on this device.",
-            confirmIcon = Icons.AutoMirrored.Filled.Logout,
-            onConfirm = { viewModel.logout() },
-            onDismiss = { showLogoutConfirmation = false },
-        )
-    }
 }
 
 /**
@@ -9198,6 +9161,7 @@ fun SettingsScreen(
     // render as full-screen overlays over the whole Scaffold (same in-composition Box pattern
     // as ChatRestoreProgressOverlay on the storage pages), so their visibility lives up here.
     var showResyncChatPicker by remember { mutableStateOf(false) }
+    var showLogoutConfirmation by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -9297,6 +9261,20 @@ fun SettingsScreen(
                         navController.navigate("settings_section/danger_zone")
                     }
                     }
+                }
+                // Back in Settings (it spent a while on Profile, iOS 84f9bb0): its own section at
+                // the very bottom, apart from the category rows, so it is easy to find and hard to
+                // hit by accident.
+                Surface(
+                    color = LocalAppColors.current.surface,
+                    shape = RoundedCornerShape(26.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SettingsActionItem(
+                        stringResource(R.string.log_out),
+                        Icons.AutoMirrored.Filled.Logout,
+                        LocalAppColors.current.danger,
+                    ) { showLogoutConfirmation = true }
                 }
             }
 
@@ -9658,6 +9636,19 @@ fun SettingsScreen(
         }
         ChatRestoreProgressOverlay(chatViewModel.restoreCoordinator)
     }
+    }
+
+    // Half sheet rather than a dialog, matching every other chooser in the app - and it gives
+    // the consequence a row of its own beside the action, which a dialog of bare verbs cannot.
+    if (showLogoutConfirmation) {
+        ConfirmActionSheet(
+            title = stringResource(R.string.log_out),
+            confirmTitle = stringResource(R.string.log_out),
+            confirmSubtitle = "Signs out of this account. Wallet and message data stay on this device.",
+            confirmIcon = Icons.AutoMirrored.Filled.Logout,
+            onConfirm = { walletViewModel.logout() },
+            onDismiss = { showLogoutConfirmation = false },
+        )
     }
 }
 
