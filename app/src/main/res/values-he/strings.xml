@@ -486,7 +486,6 @@
     <string name="chats_new_chat">צ\'אט חדש</string>
     <string name="chats_new_group_chat">צ\'אט קבוצתי חדש</string>
     <string name="chats_new_chat_subtitle">שלחו הודעה למישהו לפי כתובת או שם.</string>
-    <string name="chats_new_group_subtitle">פתחו קבוצה מוצפנת עם כמה אנשים.</string>
     <string name="chats_fund_subtitle">מציג קוד QR להוספת Kaspa לשליחת הודעות.</string>
     <string name="chats_receive_subtitle">מציג כתובת חדשה לקבלת תשלום.</string>
     <string name="qr_receive_address_subtitle">כתובת חדשה שמעולם לא נעשה בה שימוש. Kaspa שנשלחים לכאן מגיעים לחשבון הזה ומופיעים ביתרת ההוצאה שלך. השתמשו בכתובת הזו לכל מה שלא קשור לצ\'אט או לדומיינים.</string>
@@ -861,4 +860,11 @@
     <string name="non_quantum_addresses">כתובות לא קוונטיות</string>
     <string name="addresses_shown_count">%1$d מתוך %2$d מוצגות</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">קבוצות</string>
+    <string name="groups_search">חפש צ\'אטים קבוצתיים</string>
+    <string name="groups_pin_hint">נשאר ראשון בצ\'אטים הקבוצתיים שלך.</string>
+    <string name="groups_pinned">מוצמד</string>
+    <string name="no_group_chats_yet">אין עדיין צ\'אטים קבוצתיים</string>
+    <string name="groups_empty_body">התחל קבוצה חדשה מכפתור הוספת צ\'אט</string>
+    <string name="select_group">בחר קבוצה</string>
 </resources>

@@ -486,7 +486,6 @@
     <string name="chats_new_chat">새 채팅</string>
     <string name="chats_new_group_chat">새 그룹 채팅</string>
     <string name="chats_new_chat_subtitle">주소나 이름으로 메시지를 보냅니다.</string>
-    <string name="chats_new_group_subtitle">여러 사람과 암호화된 그룹을 시작합니다.</string>
     <string name="chats_fund_subtitle">메시지 전송용 Kaspa를 추가할 QR 코드를 보여줍니다.</string>
     <string name="chats_receive_subtitle">결제를 받을 새 주소를 보여줍니다.</string>
     <string name="qr_receive_address_subtitle">한 번도 사용하지 않은 새 주소입니다. 여기로 보낸 Kaspa는 이 계정에 들어오며 지출 잔액에 표시됩니다. 채팅이나 도메인과 관련 없는 모든 용도에 이 주소를 사용하세요.</string>
@@ -861,4 +860,11 @@
     <string name="non_quantum_addresses">비양자 주소</string>
     <string name="addresses_shown_count">%2$d개 중 %1$d개 표시</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">그룹</string>
+    <string name="groups_search">그룹 채팅 검색</string>
+    <string name="groups_pin_hint">그룹 채팅의 맨 앞에 유지됩니다.</string>
+    <string name="groups_pinned">고정됨</string>
+    <string name="no_group_chats_yet">아직 그룹 채팅 없음</string>
+    <string name="groups_empty_body">채팅 추가 버튼으로 새 그룹을 시작하세요</string>
+    <string name="select_group">그룹 선택</string>
 </resources>

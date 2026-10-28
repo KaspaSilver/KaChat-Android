@@ -486,7 +486,6 @@
     <string name="chats_new_chat">Yeni Sohbet</string>
     <string name="chats_new_group_chat">Yeni Grup Sohbeti</string>
     <string name="chats_new_chat_subtitle">Birine adresi veya adıyla mesaj gönder.</string>
-    <string name="chats_new_group_subtitle">Birkaç kişiyle şifreli bir grup başlat.</string>
     <string name="chats_fund_subtitle">Mesaj göndermek için Kaspa eklemek üzere QR kodunu gösterir.</string>
     <string name="chats_receive_subtitle">Ödeme almak için yeni bir adres gösterir.</string>
     <string name="qr_receive_address_subtitle">Daha önce hiç kullanılmamış yeni bir adres. Buraya gönderilen Kaspa bu hesaba gelir ve harcama bakiyende görünür. Bu adresi sohbet veya alan adlarıyla ilgili olmayan her şey için kullan.</string>
@@ -861,4 +860,11 @@
     <string name="non_quantum_addresses">Kuantum Olmayan Adresler</string>
     <string name="addresses_shown_count">%2$d adresten %1$d tanesi gösteriliyor</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">Gruplar</string>
+    <string name="groups_search">Grup sohbeti ara</string>
+    <string name="groups_pin_hint">Grup sohbetlerinde ilk kalır.</string>
+    <string name="groups_pinned">Sabitlendi</string>
+    <string name="no_group_chats_yet">Henuz Grup Sohbeti Yok</string>
+    <string name="groups_empty_body">Sohbet ekle dugmesinden yeni bir grup baslatin</string>
+    <string name="select_group">Grup sec</string>
 </resources>

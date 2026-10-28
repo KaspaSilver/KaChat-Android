@@ -486,7 +486,6 @@
     <string name="chats_new_chat">Cuộc trò chuyện mới</string>
     <string name="chats_new_group_chat">Nhóm trò chuyện mới</string>
     <string name="chats_new_chat_subtitle">Nhắn tin cho ai đó bằng địa chỉ hoặc tên.</string>
-    <string name="chats_new_group_subtitle">Tạo nhóm được mã hóa với nhiều người.</string>
     <string name="chats_fund_subtitle">Hiện mã QR để nạp Kaspa dùng cho việc gửi tin nhắn.</string>
     <string name="chats_receive_subtitle">Hiện một địa chỉ mới để nhận thanh toán.</string>
     <string name="qr_receive_address_subtitle">Một địa chỉ mới, chưa từng dùng. Kaspa gửi đến đây sẽ vào tài khoản này và hiện trong số dư chi tiêu của bạn. Hãy dùng địa chỉ này cho mọi việc không liên quan đến trò chuyện hoặc tên miền.</string>
@@ -861,4 +860,11 @@
     <string name="non_quantum_addresses">Địa chỉ không lượng tử</string>
     <string name="addresses_shown_count">Hiển thị %1$d/%2$d</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">Nhóm</string>
+    <string name="groups_search">Tìm kiếm trò chuyện nhóm</string>
+    <string name="groups_pin_hint">Luôn đứng đầu trong các cuộc trò chuyện nhóm.</string>
+    <string name="groups_pinned">Đã ghim</string>
+    <string name="no_group_chats_yet">Chưa có trò chuyện nhóm nào</string>
+    <string name="groups_empty_body">Bắt đầu một nhóm mới từ nút thêm trò chuyện</string>
+    <string name="select_group">Chọn nhóm</string>
 </resources>

@@ -486,7 +486,6 @@
     <string name="chats_new_chat">Neuer Chat</string>
     <string name="chats_new_group_chat">Neuer Gruppenchat</string>
     <string name="chats_new_chat_subtitle">Schreib jemandem über Adresse oder Namen.</string>
-    <string name="chats_new_group_subtitle">Starte eine verschlüsselte Gruppe mit mehreren Personen.</string>
     <string name="chats_fund_subtitle">Zeigt den QR-Code, um Kaspa zum Senden von Nachrichten hinzuzufügen.</string>
     <string name="chats_receive_subtitle">Zeigt eine neue Adresse, um bezahlt zu werden.</string>
     <string name="qr_receive_address_subtitle">Eine neue, noch nie benutzte Adresse. Kaspa, die hierher gesendet werden, landen in diesem Konto und erscheinen in deinem Ausgabenguthaben. Diese Adresse sollte für alles verwendet werden, was nichts mit Chats oder Domains zu tun hat.</string>
@@ -858,4 +857,11 @@
     <string name="non_quantum_addresses">Nicht quantensichere Adressen</string>
     <string name="addresses_shown_count">%1$d von %2$d angezeigt</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">Gruppen</string>
+    <string name="groups_search">Gruppenchats durchsuchen</string>
+    <string name="groups_pin_hint">Bleibt an erster Stelle in deinen Gruppenchats.</string>
+    <string name="groups_pinned">Angeheftet</string>
+    <string name="no_group_chats_yet">Noch keine Gruppenchats</string>
+    <string name="groups_empty_body">Starte eine neue Gruppe über die Chat-hinzufügen-Schaltfläche</string>
+    <string name="select_group">Gruppe auswählen</string>
 </resources>

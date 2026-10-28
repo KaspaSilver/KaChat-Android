@@ -597,7 +597,6 @@
     <string name="chats_new_chat">New Chat</string>
     <string name="chats_new_group_chat">New Group Chat</string>
     <string name="chats_new_chat_subtitle">Message someone by their address or name.</string>
-    <string name="chats_new_group_subtitle">Start an encrypted group with several people.</string>
     <string name="chats_fund_subtitle">Show the QR code to add Kaspa for sending messages.</string>
     <string name="chats_receive_subtitle">Show a fresh address to get paid.</string>
     <string name="qr_receive_address_subtitle">A fresh address, never used before. Kaspa sent here lands in this account and shows in your spending total. This address should be used for everything not related to chatting or domains.</string>
@@ -1060,4 +1059,11 @@
     <string name="non_quantum_addresses">Non-Quantum Addresses</string>
     <string name="addresses_shown_count">%1$d of %2$d shown</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">Groups</string>
+    <string name="groups_search">Search group chats</string>
+    <string name="groups_pin_hint">Keeps it first in your group chats.</string>
+    <string name="groups_pinned">Pinned</string>
+    <string name="no_group_chats_yet">No Group Chats Yet</string>
+    <string name="groups_empty_body">Start a new group from the add-chat button</string>
+    <string name="select_group">Select group</string>
 </resources>

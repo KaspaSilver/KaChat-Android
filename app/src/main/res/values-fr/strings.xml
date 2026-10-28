@@ -486,7 +486,6 @@
     <string name="chats_new_chat">Nouvelle discussion</string>
     <string name="chats_new_group_chat">Nouveau groupe</string>
     <string name="chats_new_chat_subtitle">Écrivez à quelqu\'un par son adresse ou son nom.</string>
-    <string name="chats_new_group_subtitle">Créez un groupe chiffré à plusieurs.</string>
     <string name="chats_fund_subtitle">Affiche le QR code pour ajouter des Kaspa servant à envoyer des messages.</string>
     <string name="chats_receive_subtitle">Affiche une nouvelle adresse pour être payé.</string>
     <string name="qr_receive_address_subtitle">Une adresse neuve, jamais utilisée. Les Kaspa envoyés ici arrivent sur ce compte et s\'ajoutent à votre solde disponible. Utilisez cette adresse pour tout ce qui ne concerne ni les discussions ni les domaines.</string>
@@ -861,4 +860,11 @@
     <string name="non_quantum_addresses">Adresses non quantiques</string>
     <string name="addresses_shown_count">%1$d sur %2$d affichées</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">Groupes</string>
+    <string name="groups_search">Rechercher dans les discussions de groupe</string>
+    <string name="groups_pin_hint">Reste en premier dans vos discussions de groupe.</string>
+    <string name="groups_pinned">Épinglé</string>
+    <string name="no_group_chats_yet">Aucune discussion de groupe pour l\'instant</string>
+    <string name="groups_empty_body">Demarrez un nouveau groupe depuis le bouton d\'ajout de discussion</string>
+    <string name="select_group">Selectionner le groupe</string>
 </resources>

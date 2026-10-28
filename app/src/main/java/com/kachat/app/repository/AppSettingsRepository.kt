@@ -364,6 +364,22 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setChatCirclePins(walletAddress: String, pins: List<String>) =
         dataStore.edit { it[chatCirclePinsKey(walletAddress)] = pins.joinToString("\n") }
 
+    /**
+     * The group chats pinned on Group Chats, newest pin first, saved per wallet like iOS's
+     * `kachat_group_pins_<address>` (a53d343). Null until first saved, so the first read can carry
+     * over the groups pinned in the old Chats circles row ("g:" ids in [chatCirclePins]).
+     */
+    private fun groupPinsKey(walletAddress: String) =
+        stringPreferencesKey("kachat_group_pins_${walletAddress.lowercase()}")
+
+    fun groupPins(walletAddress: String): Flow<List<String>?> =
+        dataStore.data.map { prefs ->
+            prefs[groupPinsKey(walletAddress)]?.split('\n')?.filter { it.isNotEmpty() }
+        }
+
+    suspend fun setGroupPins(walletAddress: String, pins: List<String>) =
+        dataStore.edit { it[groupPinsKey(walletAddress)] = pins.joinToString("\n") }
+
     // Last-known-good automatic-discovery nodes — see KEY_KNOWN_GOOD_NODES.
     val knownGoodNodeAddresses: Flow<List<String>> = dataStore.data.map { prefs ->
         prefs[knownGoodNodesKey]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()

@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.MoveToInbox
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,16 +90,15 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import com.kachat.app.repository.GroupConversation
 import kotlinx.coroutines.launch
 
 /**
- * Chats tab: one list (iOS a062577). The chats, with every group chat and bot chat as a circle
- * above them ([ChatCirclesStrip]) under the search bar - swipe sideways for all of them.
+ * Chats tab: one list (iOS a062577). The chats, with every bot chat as a circle above them
+ * ([ChatCirclesStrip]) under the search bar - swipe sideways for all of them. Group chats have
+ * their own tab ([GroupChatsScreen], iOS a53d343).
  *
- * Select mode selects chats and group circles together; Select All takes everything visible, and
- * mark read / mark unread / delete act on the whole selection. Pull to refresh syncs chats and
- * groups together.
+ * Select mode selects chats; Select All takes everything visible, and mark read / mark unread /
+ * delete act on the whole selection.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -122,14 +120,12 @@ fun ChatsScreen(
     }
     val botCircles by chatViewModel.botCircles.collectAsState()
     val messageRequests by chatViewModel.messageRequests.collectAsState()
-    val groupConversations by chatViewModel.groupConversations.collectAsState()
     val latestReactionByContact by chatViewModel.latestReactionByContact.collectAsState()
     val myAddress by walletViewModel.address.collectAsState()
     val isRefreshing by chatViewModel.isRefreshing.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedContactIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var selectedGroupIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showBulkDeleteConfirmation by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -159,15 +155,14 @@ fun ChatsScreen(
         }
     }
 
-    // Group chats and bot chats pinned to the front of the circles row, newest pin first - saved
-    // per wallet (iOS a062577).
+    // Bot chats pinned to the front of the circles row, newest pin first - saved per wallet (iOS
+    // a062577). The key once held group circles too, as "g:<groupId>"; Group Chats took those over
+    // and the row ignores them (iOS a53d343).
     val circlePins by remember(myAddress) {
         myAddress?.let { chatViewModel.chatCirclePins(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList())
     }.collectAsState(initial = emptyList())
-    /** The circle whose long-press half sheet is up ("g:<groupId>" / "b:<address>", iOS f90a70a). */
+    /** The circle whose long-press half sheet is up ("b:<address>", iOS f90a70a). */
     var circleActionTarget by remember { mutableStateOf<String?>(null) }
-    /** A group waiting on its delete confirmation, from that sheet. */
-    var circleDeleteGroup by remember { mutableStateOf<String?>(null) }
     /** A bot chat waiting on its delete confirmation, from its circle's sheet (iOS 5fcf755). */
     var circleDeleteBot by remember { mutableStateOf<com.kachat.app.models.ContactEntity?>(null) }
     /** Pins a circle to the front, or unpins it, with a toast saying which (iOS `toggleCirclePin`). */
@@ -201,34 +196,22 @@ fun ChatsScreen(
     }
 
     // The circles, as the row shows them: pinned first, then by latest activity, filtered by the
-    // search. Select All and the action bar read the same list, so they agree on what's visible.
-    val circleItems = remember(groupConversations, botCircles, searchQuery, circlePins) {
-        chatCircleItems(groupConversations, botCircles, searchQuery, circlePins) { bot ->
+    // search.
+    val circleItems = remember(botCircles, searchQuery, circlePins) {
+        chatCircleItems(botCircles, searchQuery, circlePins) { bot ->
             context.getString(bot.nameRes)
         }
     }
-    // What Select All and "everything selected" count while searching is iOS's displayedGroups -
-    // not the circles row, which matches a title alone. A group matches by its name, a member's
-    // name or address, or a message.
-    val searchedGroupIds by produceState<Set<String>?>(initialValue = null, groupConversations, searchQuery) {
-        value = chatViewModel.groupIdsMatchingSearch(groupConversations.map { it.group }, searchQuery)
-    }
-    val visibleGroupIds = searchedGroupIds?.toList()
-        ?: circleItems.mapNotNull { (it as? ChatCircle.Group)?.convo?.group?.groupId }
-    val selectionCount = selectedContactIds.size + selectedGroupIds.size
-    val isEverythingSelected = run {
-        val total = filteredConversations.size + visibleGroupIds.size
-        total > 0 && selectionCount >= total
-    }
+    val selectionCount = selectedContactIds.size
+    val isEverythingSelected = filteredConversations.isNotEmpty() && selectionCount >= filteredConversations.size
     fun endSelection() {
         isSelectionMode = false
         selectedContactIds = emptySet()
-        selectedGroupIds = emptySet()
     }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
-        // One list now: the chats and the group circles above them both refresh (iOS a062577).
+        // Group chats refresh on their own tab (iOS a53d343).
         onRefresh = { chatViewModel.refreshChats() }
     )
 
@@ -292,21 +275,14 @@ fun ChatsScreen(
                         onStatusClick = { ConnectionStatusOverlayState.open() },
                         dotColorHex = dotColorHex,
                         showAddButton = false,
-                        showEditButton = conversations.isNotEmpty() || groupConversations.isNotEmpty(),
+                        showEditButton = conversations.isNotEmpty(),
                         isEditing = isSelectionMode,
                         onEditClick = {
                             if (isSelectionMode) endSelection() else isSelectionMode = true
                         },
-                        // One selection across the chats and the circles above them.
                         selectAllLabel = if (isEverythingSelected) "Deselect All" else "Select All",
                         onSelectAllClick = {
-                            if (isEverythingSelected) {
-                                selectedContactIds = emptySet()
-                                selectedGroupIds = emptySet()
-                            } else {
-                                selectedContactIds = filteredConversations.map { it.contact.id }.toSet()
-                                selectedGroupIds = visibleGroupIds.toSet()
-                            }
+                            selectedContactIds = if (isEverythingSelected) emptySet() else filteredConversations.map { it.contact.id }.toSet()
                         }
                     )
 
@@ -380,8 +356,7 @@ fun ChatsScreen(
             )
         },
         bottomBar = {
-            // Mark read, mark unread and delete, for everything selected: chats and group circles
-            // alike (iOS a062577 `selectionActionBar`).
+            // Mark read, mark unread and delete, for every selected chat (iOS `selectionActionBar`).
             if (isSelectionMode) {
                 Column(modifier = Modifier.background(LocalAppColors.current.background).navigationBarsPadding()) {
                     HorizontalDivider(color = LocalAppColors.current.textPrimary.copy(alpha = 0.1f))
@@ -391,7 +366,6 @@ fun ChatsScreen(
                     ) {
                         Button(
                             onClick = {
-                                if (selectedGroupIds.isNotEmpty()) chatViewModel.markGroupsAsRead(selectedGroupIds)
                                 if (selectedContactIds.isNotEmpty()) chatViewModel.markContactsAsRead(selectedContactIds)
                                 endSelection()
                             },
@@ -404,7 +378,6 @@ fun ChatsScreen(
                         Button(
                             onClick = {
                                 if (selectedContactIds.isNotEmpty()) chatViewModel.markContactsAsUnread(selectedContactIds)
-                                if (selectedGroupIds.isNotEmpty()) chatViewModel.markGroupsAsUnread(selectedGroupIds)
                                 endSelection()
                             },
                             enabled = selectionCount > 0,
@@ -447,37 +420,20 @@ fun ChatsScreen(
                 // the selection bar replaces the dock and pads itself).
                 contentPadding = PaddingValues(bottom = if (isSelectionMode) 0.dp else dockInset),
             ) {
-                // Group chats and bot chats, as circles under the search bar - swipe sideways for
-                // all of them. Tap opens, hold opens its half sheet, Select mode selects them too.
+                // The bot chats, as circles under the search bar - swipe sideways for all of them.
+                // Tap opens, hold opens its half sheet.
                 item(key = "chat_circles") {
                     ChatCirclesStrip(
                         items = circleItems,
                         pins = circlePins,
                         isSelectionMode = isSelectionMode,
-                        isSelected = { item ->
-                            when (item) {
-                                is ChatCircle.Group -> item.convo.group.groupId in selectedGroupIds
-                                // a bot chat is deleted from its own half sheet, not in Select mode
-                                is ChatCircle.Bot -> false
-                            }
-                        },
+                        // a bot chat is deleted from its own half sheet, not in Select mode
+                        isSelected = { false },
                         onTap = { item ->
-                            when (item) {
-                                is ChatCircle.Group -> {
-                                    val id = item.convo.group.groupId
-                                    if (isSelectionMode) {
-                                        selectedGroupIds = if (id in selectedGroupIds) selectedGroupIds - id else selectedGroupIds + id
-                                    } else {
-                                        navController.navigate("group_chat/$id")
-                                    }
-                                }
-                                // Opens the bot's chat, starting it the first time (iOS d54ea87).
-                                is ChatCircle.Bot -> {
-                                    if (!isSelectionMode) {
-                                        chatViewModel.openBotChat(item.circle.bot, item.title) { address ->
-                                            navController.navigate("chat/$address")
-                                        }
-                                    }
+                            // Opens the bot's chat, starting it the first time (iOS d54ea87).
+                            if (!isSelectionMode && item is ChatCircle.Bot) {
+                                chatViewModel.openBotChat(item.circle.bot, item.title) { address ->
+                                    navController.navigate("chat/$address")
                                 }
                             }
                         },
@@ -720,40 +676,24 @@ fun ChatsScreen(
             )
         }
 
-        // One confirmation for the whole selection - chats and groups together. Its title names
-        // the one kind when only one is picked (iOS a062577 `bulkDeleteAlertTitle`), and its
-        // message carries a paragraph per kind picked.
+        // One confirmation for the whole selection (iOS `bulkDeleteAlertTitle`).
         if (showBulkDeleteConfirmation) {
             val chats = selectedContactIds.size
-            val groups = selectedGroupIds.size
             com.kachat.app.ui.theme.IosAlertDialog(
                 onDismissRequest = { showBulkDeleteConfirmation = false },
                 containerColor = LocalAppColors.current.surface,
                 title = {
-                    Text(
-                        when {
-                            groups == 0 -> "Delete $chats Chat${if (chats == 1) "" else "s"}?"
-                            chats == 0 -> "Delete $groups Group${if (groups == 1) "" else "s"}?"
-                            else -> "Delete ${chats + groups} Selected?"
-                        },
-                        color = LocalAppColors.current.textPrimary
-                    )
+                    Text("Delete $chats Chat${if (chats == 1) "" else "s"}?", color = LocalAppColors.current.textPrimary)
                 },
                 text = {
                     Text(
-                        listOfNotNull(
-                            "This permanently deletes every message in each selected chat from this device. This cannot be undone."
-                                .takeIf { chats > 0 },
-                            "This removes each selected group and its messages from this device. This cannot be undone, and other members won't be notified."
-                                .takeIf { groups > 0 },
-                        ).joinToString("\n\n"),
+                        "This permanently deletes every message in each selected chat from this device. This cannot be undone.",
                         color = LocalAppColors.current.textSecondary
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         if (selectedContactIds.isNotEmpty()) chatViewModel.deleteChats(selectedContactIds)
-                        if (selectedGroupIds.isNotEmpty()) chatViewModel.deleteGroupChats(selectedGroupIds)
                         showBulkDeleteConfirmation = false
                         endSelection()
                     }) {
@@ -773,12 +713,10 @@ fun ChatsScreen(
         ChatCircleActionSheet(
             id = id,
             isPinned = id in circlePins,
-            groupConversations = groupConversations,
             botCircles = botCircles,
             chatViewModel = chatViewModel,
             onDismiss = { circleActionTarget = null },
             onTogglePin = { toggleCirclePin(id) },
-            onDeleteGroup = { circleDeleteGroup = it },
             onDeleteBot = { circleDeleteBot = it },
         )
     }
@@ -810,32 +748,9 @@ fun ChatsScreen(
             }
         )
     }
-    circleDeleteGroup?.let { groupId ->
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { circleDeleteGroup = null },
-            containerColor = LocalAppColors.current.surface,
-            title = { Text("Delete Group?", color = LocalAppColors.current.textPrimary) },
-            text = {
-                Text(stringResource(R.string.this_removes_the_group_and_its), color = LocalAppColors.current.textSecondary)
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    chatViewModel.deleteGroupChat(groupId)
-                    circleDeleteGroup = null
-                }) {
-                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { circleDeleteGroup = null }) {
-                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
-                }
-            }
-        )
-    }
-
-    // The New sheet (iOS 5da8ccf -> e6400d6): New Chat / New Group Chat swap it to the create
-    // screen, and the two QR options close it and then bring up Profile's white QR page.
+    // The New sheet (iOS 5da8ccf -> e6400d6): New Chat swaps it to the create screen, and the two
+    // QR options close it and then bring up Profile's white QR page. New groups start on Group
+    // Chats (iOS a53d343).
     if (showNewSheet) {
         ChatsNewSheet(
             chatViewModel = chatViewModel,
@@ -884,18 +799,12 @@ fun ChatsScreen(
     }
 }
 
-/** One circle in [ChatCirclesStrip]: a group chat or a bot chat. [id] is the pin id -
- *  "g:<groupId>" / "b:<bot address, lowercased>", as iOS's (a062577, 5fcf755). */
+/** One circle in [ChatCirclesStrip]: a bot chat. [id] is the pin id - "b:<bot address,
+ *  lowercased>", as iOS's (5fcf755). */
 private sealed interface ChatCircle {
     val id: String
     val title: String
     val unread: Int
-
-    data class Group(val convo: GroupConversation) : ChatCircle {
-        override val id get() = "g:${convo.group.groupId}"
-        override val title get() = convo.group.name
-        override val unread get() = convo.unreadCount
-    }
 
     /** A bot, with its chat when there is one ([ChatViewModel.botCircles]); [title] is the
      *  bot's name. */
@@ -906,20 +815,18 @@ private sealed interface ChatCircle {
 }
 
 /**
- * The circles in row order (iOS `ChatCirclesStrip.items`): every group and every bot, filtered by
- * the search on its title; the pinned ones first, in pin order, then the rest by latest activity -
- * a group's last message, else when it was created; a bot's last message, else never.
+ * The circles in row order (iOS `ChatCirclesStrip.items`): every bot, filtered by the search on
+ * its title; the pinned ones first, in pin order, then the rest by latest activity - a bot's last
+ * message, else never.
  */
 private fun chatCircleItems(
-    groups: List<GroupConversation>,
     bots: List<ChatViewModel.BotCircle>,
     searchQuery: String,
     pins: List<String>,
     botTitle: (com.kachat.app.models.KaChatBot) -> String,
-): List<ChatCircle> {
-    var dated: List<Pair<ChatCircle, Long>> =
-        groups.map { ChatCircle.Group(it) to (it.lastMessage?.blockTimestamp ?: it.group.createdAt) } +
-            bots.map { ChatCircle.Bot(it, botTitle(it.bot)) to (it.conversation?.lastMessage?.blockTimestamp ?: 0L) }
+): List<ChatCircle.Bot> {
+    var dated: List<Pair<ChatCircle.Bot, Long>> =
+        bots.map { ChatCircle.Bot(it, botTitle(it.bot)) to (it.conversation?.lastMessage?.blockTimestamp ?: 0L) }
     val query = searchQuery.trim()
     if (query.isNotEmpty()) dated = dated.filter { it.first.title.contains(query, ignoreCase = true) }
     val byId = dated.associate { it.first.id to it.first }
@@ -1044,25 +951,10 @@ private fun ChatCirclesStrip(
     }
 }
 
-/** A circle's face: the group's photo, else the groups glyph; a bot's own icon. On the accent
- *  tint, as iOS's (a062577). */
+/** A circle's face: the bot's own icon (iOS 5fcf755), on the accent tint. */
 @Composable
 private fun ChatCircleAvatar(item: ChatCircle) {
     when (item) {
-        is ChatCircle.Group -> {
-            val photoHex = item.convo.group.photoHex
-            if (!photoHex.isNullOrEmpty()) {
-                GroupAvatar(photoHex = photoHex, size = 60.dp)
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Default.Groups, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(28.dp))
-                }
-            }
-        }
-        // The bot's own icon (iOS 5fcf755).
         is ChatCircle.Bot -> Box(
             modifier = Modifier.fillMaxSize().background(KaspaTeal.copy(alpha = 0.2f), CircleShape),
             contentAlignment = Alignment.Center,
@@ -1078,25 +970,20 @@ private fun ChatCircleAvatar(item: ChatCircle) {
 }
 
 /**
- * A group or bot circle's long-press half sheet - the chat row's options for that kind (iOS
- * f90a70a `circleActionSheet`): read state, pin to the front, notifications and delete, confirmed
- * first ([onDeleteGroup] / [onDeleteBot]). As square tiles, like every long-press menu (iOS
- * cdac6d0).
+ * A bot circle's long-press half sheet - the chat row's options (iOS f90a70a `circleActionSheet`):
+ * read state, pin to the front, notifications and delete, confirmed first ([onDeleteBot]). As
+ * square tiles, like every long-press menu (iOS cdac6d0).
  */
 @Composable
 private fun ChatCircleActionSheet(
     id: String,
     isPinned: Boolean,
-    groupConversations: List<GroupConversation>,
     botCircles: List<ChatViewModel.BotCircle>,
     chatViewModel: ChatViewModel,
     onDismiss: () -> Unit,
     onTogglePin: () -> Unit,
-    onDeleteGroup: (String) -> Unit,
     onDeleteBot: (com.kachat.app.models.ContactEntity) -> Unit,
 ) {
-    val silentGroups by chatViewModel.groupSilent.collectAsState()
-
     @Composable
     fun PinRow() {
         ActionSheetRow(
@@ -1109,55 +996,7 @@ private fun ChatCircleActionSheet(
         }
     }
 
-    if (id.startsWith("g:")) {
-        val convo = groupConversations.firstOrNull { "g:${it.group.groupId}" == id } ?: return
-        val groupId = convo.group.groupId
-        val isSilent = groupId in silentGroups
-        // Fixed at two rows of tiles, as iOS sizes a circle's sheet (sheetHeight(tiles: 4)).
-        TileActionSheet(title = convo.group.name, onDismiss = onDismiss, height = ActionSheetTileMetrics.sheetHeight(tiles = 4)) {
-                if (convo.unreadCount > 0) {
-                    ActionSheetRow(
-                        icon = Icons.Outlined.MarkEmailRead,
-                        title = stringResource(R.string.mark_as_read),
-                        subtitle = "Clears the unread badge on this group.",
-                    ) {
-                        onDismiss()
-                        chatViewModel.markGroupsAsRead(listOf(groupId))
-                    }
-                } else {
-                    ActionSheetRow(
-                        icon = Icons.Outlined.MarkEmailUnread,
-                        title = stringResource(R.string.mark_as_unread),
-                        subtitle = "Puts the unread badge back so you come across it again.",
-                    ) {
-                        onDismiss()
-                        chatViewModel.markGroupsAsUnread(listOf(groupId))
-                    }
-                }
-                PinRow()
-                ActionSheetRow(
-                    icon = if (isSilent) Icons.Outlined.Notifications else Icons.Outlined.NotificationsOff,
-                    title = if (isSilent) "Unsilence" else "Silence",
-                    subtitle = if (isSilent) {
-                        "Notifications from this group resume, including mentions."
-                    } else {
-                        "No notification from this group, mentions included."
-                    },
-                ) {
-                    onDismiss()
-                    chatViewModel.setGroupSilent(groupId, !isSilent)
-                }
-                ActionSheetRow(
-                    icon = Icons.Outlined.Delete,
-                    title = stringResource(R.string.delete),
-                    subtitle = "Removes this group and its messages from this device.",
-                    tint = LocalAppColors.current.danger,
-                ) {
-                    onDismiss()
-                    onDeleteGroup(groupId)
-                }
-        }
-    } else if (id.startsWith("b:")) {
+    if (id.startsWith("b:")) {
         // A bot's circle (iOS 5fcf755, d54ea87): read state, pin to the front, Silence, and
         // Delete - confirmed; the bot stays in the row. A bot never written to has only its pin.
         val circle = botCircles.firstOrNull { "b:${it.bot.address.lowercase()}" == id } ?: return
@@ -1732,14 +1571,14 @@ private enum class ChatsNewQr { FUND_CHATTING, RECEIVE }
 
 /** What the Chats New sheet shows: its menu, or a create screen swapped in (iOS be0857a /
  *  e6400d6). */
-private enum class ChatsNewPage { MENU, NEW_CHAT, NEW_GROUP }
+private enum class ChatsNewPage { MENU, NEW_CHAT }
 
 /**
- * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6, f81e8d6
- * and c6851d6 - this is where they ended): a half sheet of square tiles - New Chat, New Group
- * Chat, Send Kaspa, Receive Kaspa, Request Payment and Fund Chatting Address. Everything but the
+ * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6, f81e8d6,
+ * c6851d6 and a53d343 - this is where they ended): a half sheet of square tiles - New Chat, Send
+ * Kaspa, Receive Kaspa, Request Payment and Fund Chatting Address. Everything but the
  * send and the QR codes happens in this one sheet, so there is no close-then-open wait:
- * - New Chat / New Group Chat swap the sheet to the create screen, full height ([CreateChatScreen],
+ * - New Chat swaps the sheet to the create screen, full height ([CreateChatScreen],
  *   whose Cancel comes back to the menu);
  * - Send Kaspa closes the sheet and then opens Profile's send from the current spending address
  *   ([onSendKaspa]);
@@ -1794,18 +1633,17 @@ private fun ChatsNewSheet(
                 Box {
                 when (page) {
                     // Below the grabber, as iOS's navigation bar sits in a sheet.
-                    ChatsNewPage.NEW_CHAT, ChatsNewPage.NEW_GROUP -> Box(Modifier.fillMaxHeight().padding(top = 10.dp)) {
+                    ChatsNewPage.NEW_CHAT -> Box(Modifier.fillMaxHeight().padding(top = 10.dp)) {
                         CreateChatScreen(
                             onBack = { close() },
                             onCancel = { page = ChatsNewPage.MENU },
                             onChatCreated = { address -> close { onChatCreated(address) } },
                             onGroupCreated = { groupId -> close { onGroupCreated(groupId) } },
-                            startInGroupMode = page == ChatsNewPage.NEW_GROUP,
                             chatViewModel = chatViewModel,
                         )
                     }
-                    // The New options as square tiles, three to a row (iOS f81e8d6, e2f6732): New Chat,
-                    // New Group Chat, Send Kaspa / Receive Kaspa, Request Payment, Fund Chatting Address.
+                    // The New options as square tiles, three to a row (iOS f81e8d6, e2f6732, a53d343):
+                    // New Chat, Send Kaspa, Receive Kaspa / Request Payment, Fund Chatting Address.
                     // Each keeps its old line as the TalkBack hint.
                     ChatsNewPage.MENU -> Column(
                         modifier = Modifier
@@ -1836,24 +1674,18 @@ private fun ChatsNewSheet(
                                     ) { page = ChatsNewPage.NEW_CHAT }
                                     ChatsNewTile(
                                         size = tileSize,
-                                        icon = Icons.Default.Groups,
-                                        title = stringResource(R.string.chats_new_group_chat),
-                                        hint = stringResource(R.string.chats_new_group_subtitle),
-                                    ) { page = ChatsNewPage.NEW_GROUP }
-                                    ChatsNewTile(
-                                        size = tileSize,
                                         icon = Icons.Outlined.ArrowCircleUp,
                                         title = stringResource(R.string.chats_send_kaspa),
                                         hint = stringResource(R.string.chats_send_kaspa_hint),
                                     ) { close { onSendKaspa() } }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
                                     ChatsNewTile(
                                         size = tileSize,
                                         icon = Icons.Outlined.ArrowCircleDown,
                                         title = stringResource(R.string.receive_kaspa),
                                         hint = stringResource(R.string.chats_receive_subtitle),
                                     ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
                                     // A link asking for an exact amount (iOS c6851d6).
                                     ChatsNewTile(
                                         size = tileSize,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Settings
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -64,12 +66,14 @@ import androidx.compose.material.icons.filled.CheckCircle
 
 /**
  * The dock's tabs (iOS `AppTab`). Since 2026-10-24 KaChat is 1:1 and group chats, and the dock is
- * a fixed four - Addresses, Chats, Profile, Settings (iOS d54ea87, 95a7d1f): no Kaspa Hub, no
- * Customize Dock. The wallet features (Portfolio, Cold Storage, Swap, .kachat names) live in the
- * KaChat wallet app.
+ * fixed - since 2026-10-26 a five: Addresses, Groups, Chats, Profile, Settings, with Chats in the
+ * center (iOS d54ea87, 95a7d1f, a53d343): no Kaspa Hub, no Customize Dock. The wallet features
+ * (Portfolio, Cold Storage, Swap, .kachat names) live in the KaChat wallet app.
  */
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Chats       : Screen("chats",        "Chats",        Icons.Default.Forum)
+    // Group Chats, their own screen again since 2026-10-26 (they were circles above the chats).
+    object Groups      : Screen("group_chats",  "Groups",       Icons.Outlined.Groups)
     // Saved Kaspa addresses with names, per wallet (iOS 00767a4); "Addresses", as in the KaChat
     // wallet app (iOS 5868613). The route keeps its old name.
     object AddressBook : Screen("address_book", "Addresses",    Icons.Outlined.Book)
@@ -85,15 +89,33 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
  */
 private fun dockOwnerRoute(route: String?): String? = when (route) {
     null -> null
-    "chat/{contactId}?paymentMode={paymentMode}", "group_chat/{groupId}" -> Screen.Chats.route
+    "chat/{contactId}?paymentMode={paymentMode}" -> Screen.Chats.route
+    "group_chat/{groupId}" -> Screen.Groups.route
     "help", "manage_addresses", "identity_address_detail", "spending_address_detail/{index}",
     "kns_domains" -> Screen.Profile.route
     else -> route.takeIf { r -> bottomNavItems.any { it.route == r } }
 }
 
+/**
+ * Switches to [tab] the way a dock tap does: back to it when it is already on the back stack (a
+ * navigate() + popUpTo to the start destination alone is a no-op for Chats in Navigation
+ * Compose), else a first visit that keeps each tab's own stack.
+ */
+fun navigateToTab(navController: NavController, tab: Screen) {
+    val poppedToExisting = navController.popBackStack(route = tab.route, inclusive = false, saveState = true)
+    if (!poppedToExisting) {
+        navController.navigate(tab.route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+}
+
 /** What the dock renders, in order (iOS `AppTab.dock`). The app opens on Chats. */
 val bottomNavItems = listOf(
     Screen.AddressBook,
+    Screen.Groups,
     Screen.Chats,
     Screen.Profile,
     Screen.Settings,
@@ -253,22 +275,23 @@ fun MainShell(
         }
     }
 
-    // Same idea for a group chat notification.
+    // Same idea for a group chat notification: the Groups tab, then the group on top of it (iOS
+    // a53d343 - a tapped group notification switches to that tab and opens its group).
     LaunchedEffect(pendingGroupId) {
         if (pendingGroupId != null) {
+            navigateToTab(navController, Screen.Groups)
             navController.navigate("group_chat/$pendingGroupId")
             onPendingGroupHandled()
         }
     }
 
     // A group notification that names no local group (a "you were added" push, or a group push
-    // this device could not resolve or ingest), or a stray KaPosts / public chat / .kachat name
-    // one: the Chats list, whose circles row is where the new group appears once the next sync
-    // lands - as specific as that tap can get now the Group Chats page is gone (iOS a062577).
-    // Better than a group_chat/<blinded id> route that resolves to an empty, unusable thread.
+    // this device could not resolve or ingest): the Groups list, where the new group appears once
+    // the next sync lands - as specific as that tap can get (iOS a53d343). Better than a
+    // group_chat/<blinded id> route that resolves to an empty, unusable thread.
     LaunchedEffect(pendingOpenGroups) {
         if (pendingOpenGroups) {
-            navController.popBackStack(Screen.Chats.route, false)
+            navigateToTab(navController, Screen.Groups)
             onPendingOpenGroupsHandled()
         }
     }
@@ -480,18 +503,7 @@ fun MainShell(
                                 walletViewModel.notifyTabReselected(screen.route)
                                 return
                             }
-                            val poppedToExisting = navController.popBackStack(
-                                route = screen.route,
-                                inclusive = false,
-                                saveState = true,
-                            )
-                            if (!poppedToExisting) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
+                            navigateToTab(navController, screen)
                         }
 
                         // The slide handler below is keyed only on the tab order and the slot width,
@@ -861,6 +873,17 @@ fun MainShell(
                 // Runs on under the dock, as iOS's list runs on under its tab bar (LocalDockInset).
                 CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
                     ChatsScreen(navController, walletViewModel, chatViewModel = chatViewModel)
+                }
+            }
+            composable(
+                Screen.Groups.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
+                CompositionLocalProvider(com.kachat.app.ui.screens.LocalDockInset provides innerPadding.calculateBottomPadding()) {
+                    com.kachat.app.ui.screens.GroupChatsScreen(navController, walletViewModel, chatViewModel = chatViewModel)
                 }
             }
             composable(

@@ -444,8 +444,7 @@ class MainActivity : AppCompatActivity() {
         pendingOwnAddress = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS)?.takeIf { it.isNotEmpty() }
         if (pendingOwnAddress != null) pendingWalletActivityKind = null
         // A .kachat name notification an older build posted: the market left the app (iOS
-        // d54ea87), so its tap lands on Chats.
-        if (!intent.getStringExtra(NotificationHelper.EXTRA_KACHAT_NAME).isNullOrBlank()) pendingOpenGroups = true
+        // d54ea87), so its tap only opens the app (the extra is stripped below).
         if (pendingContactId == null &&
             pendingGroupId == null && !pendingOpenGroups && pendingWalletActivityKind == null &&
             pendingOwnAddress == null
@@ -483,8 +482,8 @@ class MainActivity : AppCompatActivity() {
             // Chats list is the honest destination.
             "group_message", "group_control" -> pendingOpenGroups = true
             // KaPosts, Public Chats and the .kachat market left the app (iOS e2f6732, d54ea87): a
-            // stray tap on one of their notifications lands on the Chats list.
-            "broadcast", "kaposts", "name_event" -> pendingOpenGroups = true
+            // stray tap on one of their notifications only opens the app.
+            "broadcast", "kaposts", "name_event" -> Unit
         }
         // A KaPosts push names its post under any of these; stripped with the rest.
         FCM_KEYS_POST_ID.forEach(intent::removeExtra)

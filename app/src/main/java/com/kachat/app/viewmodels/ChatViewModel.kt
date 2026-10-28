@@ -896,20 +896,12 @@ class ChatViewModel @Inject constructor(
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
     /**
-     * Pull-to-refresh on the Chats list, which is one list now - the chats, with the group chats
-     * and public rooms as circles above them - so the wheel waits for both the 1:1 fetch and the
-     * group catch-up, side by side, as iOS's `.refreshable` awaits `fetchNewMessages()` and
-     * `performCatchUpSync()` together (a062577). The pages it replaced each had their own pull.
-     * The rooms need no pull: their rows follow the database.
+     * Pull-to-refresh on the Chats list: the 1:1 fetch, as iOS's `.refreshable` awaits
+     * `fetchNewMessages()`. Group chats refresh on their own tab ([refreshGroups], iOS a53d343).
+     * The balance refreshes alongside without holding the wheel.
      *
-     * The catch-up goes through runGroupCatchUp, so repeated pulls queue rather than pile up full
-     * syncs side by side, and group invites (gctl_root) surface on a pull instead of only via the
-     * 15-min SyncWorker or the live delivery. The balance refreshes alongside without holding the
-     * wheel.
-     *
-     * And the wheel stops after [REFRESH_SPINNER_CAP_MS] whatever happens: the fetches keep going
-     * and their rows still land, but a slow node or indexer cannot pin the control on screen -
-     * the group sync is every member of every group, up to 40 pages each.
+     * The wheel stops after [REFRESH_SPINNER_CAP_MS] whatever happens: the fetch keeps going and
+     * its rows still land, but a slow node or indexer cannot pin the control on screen.
      */
     fun refreshChats() {
         if (_isRefreshing.value) return
@@ -924,6 +916,26 @@ class ChatViewModel @Inject constructor(
                     Log.e("ChatViewModel", "Error refreshing chats", e)
                 }
             }
+            launch { runCatching { walletService.refreshBalance() } }
+            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) { fetch.join() }
+            _isRefreshing.value = false
+        }
+    }
+
+    private val _isRefreshingGroups = MutableStateFlow(false)
+    val isRefreshingGroups: StateFlow<Boolean> = _isRefreshingGroups.asStateFlow()
+
+    /**
+     * Pull-to-refresh on Group Chats: the group catch-up, as iOS's `.refreshable` awaits
+     * `performCatchUpSync()` (a53d343). It goes through runGroupCatchUp, so repeated pulls queue
+     * rather than pile up full syncs side by side, and group invites (gctl_root) surface on a pull
+     * instead of only via the 15-min SyncWorker or the live delivery. The wheel stops after
+     * [REFRESH_SPINNER_CAP_MS]: the group sync is every member of every group, up to 40 pages each.
+     */
+    fun refreshGroups() {
+        if (_isRefreshingGroups.value) return
+        viewModelScope.launch {
+            _isRefreshingGroups.value = true
             val groups = launch {
                 try {
                     groupRepository.runGroupCatchUp()
@@ -934,11 +946,8 @@ class ChatViewModel @Inject constructor(
                 }
             }
             launch { runCatching { walletService.refreshBalance() } }
-            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) {
-                fetch.join()
-                groups.join()
-            }
-            _isRefreshing.value = false
+            kotlinx.coroutines.withTimeoutOrNull(REFRESH_SPINNER_CAP_MS) { groups.join() }
+            _isRefreshingGroups.value = false
         }
     }
 
@@ -1830,6 +1839,33 @@ class ChatViewModel @Inject constructor(
 
     fun setGroupSilent(groupId: String, enabled: Boolean) {
         viewModelScope.launch { settings.setGroupSilent(groupId, enabled) }
+    }
+
+    /**
+     * Group Chats' pins for [walletAddress], newest first (iOS a53d343 `loadPins`). The first
+     * time, the groups pinned in the old Chats circles row carry over, in the same order.
+     */
+    fun groupPins(walletAddress: String): Flow<List<String>> =
+        settings.groupPins(walletAddress).map { saved ->
+            saved ?: settings.chatCirclePins(walletAddress).first()
+                .filter { it.startsWith("g:") }
+                .map { it.removePrefix("g:") }
+                .also { settings.setGroupPins(walletAddress, it) }
+        }
+
+    /** Pins a group (newest pin first) or unpins it; returns whether it is pinned now, for the
+     *  toast (iOS a53d343 `togglePin`). */
+    suspend fun toggleGroupPin(walletAddress: String, groupId: String): Boolean {
+        val pins = groupPins(walletAddress).first()
+        val pinned = groupId !in pins
+        settings.setGroupPins(walletAddress, if (pinned) listOf(groupId) + pins else pins - groupId)
+        return pinned
+    }
+
+    /** Deleted groups leave the pins with them (iOS a53d343 `deleteGroups`). */
+    suspend fun unpinGroups(walletAddress: String, groupIds: Collection<String>) {
+        val pins = groupPins(walletAddress).first()
+        if (pins.any { it in groupIds }) settings.setGroupPins(walletAddress, pins.filterNot { it in groupIds })
     }
 
     /** The Chats circles row's pins for [walletAddress], in order (iOS a062577 `circlePins`). */

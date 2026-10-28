@@ -425,7 +425,6 @@
     <string name="chats_new_chat">Obrolan Baru</string>
     <string name="chats_new_group_chat">Obrolan Grup Baru</string>
     <string name="chats_new_chat_subtitle">Kirim pesan ke seseorang lewat alamat atau namanya.</string>
-    <string name="chats_new_group_subtitle">Mulai grup terenkripsi dengan beberapa orang.</string>
     <string name="chats_fund_subtitle">Menampilkan kode QR untuk menambah Kaspa guna mengirim pesan.</string>
     <string name="chats_receive_subtitle">Menampilkan alamat baru untuk menerima pembayaran.</string>
     <string name="qr_receive_address_subtitle">Alamat baru yang belum pernah dipakai. Kaspa yang dikirim ke sini masuk ke akun ini dan tampil di saldo belanja Anda. Gunakan alamat ini untuk semua hal yang tidak terkait obrolan atau domain.</string>
@@ -799,4 +798,10 @@
     <string name="non_quantum_addresses">Alamat Non-Kuantum</string>
     <string name="addresses_shown_count">%1$d dari %2$d ditampilkan</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">Grup</string>
+    <string name="groups_search">Cari obrolan grup</string>
+    <string name="groups_pin_hint">Tetap pertama di obrolan grup Anda.</string>
+    <string name="groups_pinned">Disematkan</string>
+    <string name="no_group_chats_yet">Belum Ada Obrolan Grup</string>
+    <string name="groups_empty_body">Mulai grup baru dari tombol tambah obrolan</string>
 </resources>

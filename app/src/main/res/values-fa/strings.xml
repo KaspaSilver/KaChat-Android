@@ -519,7 +519,6 @@
     <string name="chats_new_chat">گفتگوی جدید</string>
     <string name="chats_new_group_chat">گفتگوی گروهی جدید</string>
     <string name="chats_new_chat_subtitle">با آدرس یا نام به کسی پیام دهید.</string>
-    <string name="chats_new_group_subtitle">یک گروه رمزگذاری‌شده با چند نفر بسازید.</string>
     <string name="chats_fund_subtitle">کد QR را برای افزودن Kaspa جهت ارسال پیام نشان می‌دهد.</string>
     <string name="chats_receive_subtitle">یک آدرس تازه برای دریافت پول نشان می‌دهد.</string>
     <string name="qr_receive_address_subtitle">یک آدرس تازه که هرگز استفاده نشده است. Kaspa ارسال‌شده به اینجا وارد این حساب می‌شود و در موجودی قابل خرج شما نمایش داده می‌شود. از این آدرس برای هر چیزی که به گفتگو یا دامنه مربوط نیست استفاده کنید.</string>
@@ -888,4 +887,11 @@
     <string name="non_quantum_addresses">آدرس‌های غیرکوانتومی</string>
     <string name="addresses_shown_count">%1$d از %2$d نمایش داده شده</string>
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
+    <string name="groups_tab">گروه‌ها</string>
+    <string name="groups_search">جستجوی گفتگوهای گروهی</string>
+    <string name="groups_pin_hint">در گفتگوهای گروهی‌تان اول می‌ماند.</string>
+    <string name="groups_pinned">سنجاق‌شده</string>
+    <string name="no_group_chats_yet">هنوز هیچ گفتگوی گروهی وجود ندارد</string>
+    <string name="groups_empty_body">یک گروه جدید از دکمه افزودن گفتگو شروع کنید</string>
+    <string name="select_group">انتخاب گروه</string>
 </resources>
