@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">Nhóm</string>
     <string name="groups_search">Tìm kiếm trò chuyện nhóm</string>
-    <string name="groups_pin_hint">Luôn đứng đầu trong các cuộc trò chuyện nhóm.</string>
-    <string name="groups_pinned">Đã ghim</string>
     <string name="no_group_chats_yet">Chưa có trò chuyện nhóm nào</string>
     <string name="groups_empty_body">Bắt đầu một nhóm mới từ nút thêm trò chuyện</string>
     <string name="select_group">Chọn nhóm</string>
     <string name="kachat_names_indexer_footer">Tên và hồ sơ .kachat được đọc từ đây. Hãy trỏ đến trình lập chỉ mục của riêng bạn nếu bạn tự chạy. Nếu nó không cung cấp được tên, tên sẽ được đọc trực tiếp từ chuỗi. Được phân giải trước tiên, ở mọi nơi bạn có thể nhập địa chỉ.</string>
+    <string name="pin_to_top_row">Ghim lên hàng trên cùng</string>
+    <string name="chats_pin_top_hint">Chuyển nó lên hàng phía trên các cuộc trò chuyện.</string>
+    <string name="chats_unpin_top_hint">Đưa nó trở lại danh sách trò chuyện.</string>
+    <string name="groups_pin_top_hint">Chuyển nó lên hàng phía trên các nhóm chat.</string>
+    <string name="groups_unpin_top_hint">Đưa nó trở lại danh sách nhóm chat.</string>
+    <string name="pinned_to_top_row">Đã ghim lên hàng trên cùng</string>
 </resources>

@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">קבוצות</string>
     <string name="groups_search">חפש צ\'אטים קבוצתיים</string>
-    <string name="groups_pin_hint">נשאר ראשון בצ\'אטים הקבוצתיים שלך.</string>
-    <string name="groups_pinned">מוצמד</string>
     <string name="no_group_chats_yet">אין עדיין צ\'אטים קבוצתיים</string>
     <string name="groups_empty_body">התחל קבוצה חדשה מכפתור הוספת צ\'אט</string>
     <string name="select_group">בחר קבוצה</string>
     <string name="kachat_names_indexer_footer">מכאן נקראים שמות ופרופילים של ‎.kachat. הפנה אותו למאנדקס משלך אם אתה מריץ אחד. אם הוא לא יכול לספק שמות, הם נקראים ישירות מהשרשרת. נפתר ראשון, בכל מקום שבו אפשר להקליד כתובת.</string>
+    <string name="pin_to_top_row">הצמד לשורה העליונה</string>
+    <string name="chats_pin_top_hint">מעביר אותו לשורה שמעל הצ\'אטים שלך.</string>
+    <string name="chats_unpin_top_hint">מחזיר אותו לרשימת הצ\'אטים שלך.</string>
+    <string name="groups_pin_top_hint">מעביר אותה לשורה שמעל הצ\'אטים הקבוצתיים שלך.</string>
+    <string name="groups_unpin_top_hint">מחזיר אותה לרשימת הצ\'אטים הקבוצתיים שלך.</string>
+    <string name="pinned_to_top_row">הוצמד לשורה העליונה</string>
 </resources>

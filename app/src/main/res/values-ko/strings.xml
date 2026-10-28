@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">그룹</string>
     <string name="groups_search">그룹 채팅 검색</string>
-    <string name="groups_pin_hint">그룹 채팅의 맨 앞에 유지됩니다.</string>
-    <string name="groups_pinned">고정됨</string>
     <string name="no_group_chats_yet">아직 그룹 채팅 없음</string>
     <string name="groups_empty_body">채팅 추가 버튼으로 새 그룹을 시작하세요</string>
     <string name="select_group">그룹 선택</string>
     <string name="kachat_names_indexer_footer">.kachat 이름과 프로필을 여기서 읽습니다. 직접 인덱서를 운영한다면 여기에 지정하세요. 이름을 제공하지 못하면 체인에서 직접 읽습니다. 주소를 입력할 수 있는 모든 곳에서 가장 먼저 확인됩니다.</string>
+    <string name="pin_to_top_row">위쪽 줄에 고정</string>
+    <string name="chats_pin_top_hint">채팅 위의 줄로 옮깁니다.</string>
+    <string name="chats_unpin_top_hint">채팅 목록으로 되돌립니다.</string>
+    <string name="groups_pin_top_hint">그룹 채팅 위의 줄로 옮깁니다.</string>
+    <string name="groups_unpin_top_hint">그룹 채팅 목록으로 되돌립니다.</string>
+    <string name="pinned_to_top_row">위쪽 줄에 고정됨</string>
 </resources>

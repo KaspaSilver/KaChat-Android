@@ -56,10 +56,11 @@ import kotlinx.coroutines.launch
 
 /**
  * Group Chats, a dock tab of its own (iOS a53d343 `GroupChatListView`; from 2026-10-05 they were
- * circles in the row above the chats). Every group, pinned ones first, then the rest by latest
- * activity. Tap opens; hold opens the half sheet (read state, pin, notifications, delete); Select
- * marks read, unread or deletes several at once. The + starts a new group. A tapped group
- * notification lands here (MainShell switches to this tab) and opens its group.
+ * circles in the row above the chats). Pinned groups live in a row of circles above the list (Pin
+ * to Top Row, iOS 7abc06e); the list holds the rest by latest activity. Tap opens; hold opens the
+ * half sheet (read state, pin, notifications, delete); Select marks read, unread or deletes
+ * several at once. The + starts a new group. A tapped group notification lands here (MainShell
+ * switches to this tab) and opens its group.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -89,7 +90,7 @@ fun GroupChatsScreen(
     var deleteTarget by remember { mutableStateOf<String?>(null) }
     var showBulkDeleteConfirmation by remember { mutableStateOf(false) }
 
-    // Group ids pinned to the top of the list, newest pin first, saved per wallet.
+    // Group ids pinned up into the row above the list, newest pin first, saved per wallet.
     val pins by remember(myAddress) {
         myAddress?.let { chatViewModel.groupPins(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList())
     }.collectAsState(initial = emptyList())
@@ -106,17 +107,27 @@ fun GroupChatsScreen(
         value = if (searchQuery.isBlank()) null
         else chatViewModel.groupIdsMatchingSearch(groupConversations.map { it.group }, searchQuery)
     }
-    // Pinned groups first (newest pin first), then the rest by latest activity - the last
-    // message, else when the group was created, so a brand-new empty group still sorts by when it
-    // was added. Shared by Select All and the bulk actions so they agree on what's visible.
-    val displayedGroups = remember(groupConversations, pins, searchedGroupIds) {
+    // The groups in the row above the list, in pin order (newest pin first). Empty while
+    // searching: the results list them with the rest.
+    val pinnedGroups = remember(groupConversations, pins, searchQuery) {
+        if (searchQuery.isNotBlank()) emptyList()
+        else {
+            val byId = groupConversations.associateBy { it.group.groupId }
+            pins.mapNotNull { byId[it] }
+        }
+    }
+    // The list under the pinned row: the unpinned groups by latest activity - the last message,
+    // else when the group was created, so a brand-new empty group still sorts by when it was
+    // added. While searching, every matching group, pinned or not. Shared by Select All and the
+    // bulk actions so they agree on what's visible.
+    val displayedGroups = remember(groupConversations, pins, searchedGroupIds, searchQuery) {
         val sorted = groupConversations.sortedByDescending { it.lastMessage?.blockTimestamp ?: it.group.createdAt }
-        val byId = sorted.associateBy { it.group.groupId }
-        val pinned = pins.mapNotNull { byId[it] }
-        val pinnedIds = pinned.map { it.group.groupId }.toSet()
-        val ordered = pinned + sorted.filter { it.group.groupId !in pinnedIds }
         val matches = searchedGroupIds
-        if (matches == null) ordered else ordered.filter { it.group.groupId in matches }
+        when {
+            searchQuery.isBlank() -> sorted.filter { it.group.groupId !in pins }
+            matches == null -> emptyList()
+            else -> sorted.filter { it.group.groupId in matches }
+        }
     }
     val isEverythingSelected = displayedGroups.isNotEmpty() && selectedGroupIds.size >= displayedGroups.size
 
@@ -133,12 +144,12 @@ fun GroupChatsScreen(
         IosToasts.show(if (ids.size == 1) "Group deleted." else "${ids.size} groups deleted.")
     }
 
-    /** Hold a group: pin it to the top (newest pin first), or unpin it. */
+    /** Hold a group: pin it up into the row above the list (newest pin first), or unpin it. */
     fun togglePin(groupId: String) {
         val address = myAddress ?: return
         scope.launch {
             val pinned = chatViewModel.toggleGroupPin(address, groupId)
-            IosToasts.show(context.getString(if (pinned) R.string.chats_pinned_to_front else R.string.chats_unpinned))
+            IosToasts.show(context.getString(if (pinned) R.string.pinned_to_top_row else R.string.chats_unpinned))
         }
     }
 
@@ -258,6 +269,24 @@ fun GroupChatsScreen(
                 // the selection bar replaces the dock and pads itself).
                 contentPadding = PaddingValues(bottom = if (isSelectionMode) 0.dp else dockInset),
             ) {
+                // The pinned groups, as circles above the list - swipe sideways for all of them.
+                // Tap opens; hold opens the group's half sheet (with Unpin).
+                if (pinnedGroups.isNotEmpty()) {
+                    item(key = "pinned_groups") {
+                        PinnedCirclesRow {
+                            pinnedGroups.forEach { convo ->
+                                PinnedCircle(
+                                    name = convo.group.name,
+                                    unreadCount = convo.unreadCount,
+                                    showsPin = false,
+                                    isSelecting = isSelectionMode,
+                                    onTap = { navController.navigate("group_chat/${convo.group.groupId}") },
+                                    onLongPress = { actionTarget = convo.group.groupId },
+                                ) { GroupListAvatar(photoHex = convo.group.photoHex, size = 60.dp) }
+                            }
+                        }
+                    }
+                }
                 items(displayedGroups, key = { it.group.groupId }) { convo ->
                     val groupId = convo.group.groupId
                     Row(
@@ -275,7 +304,6 @@ fun GroupChatsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             GroupChatRow(
                                 convo = convo,
-                                pinned = groupId in pins && !isSelectionMode,
                                 chatViewModel = chatViewModel,
                                 myAddress = myAddress,
                                 onLongClick = {
@@ -301,7 +329,7 @@ fun GroupChatsScreen(
                 }
             }
 
-            if (displayedGroups.isEmpty() && searchQuery.isEmpty()) {
+            if (displayedGroups.isEmpty() && pinnedGroups.isEmpty() && searchQuery.isEmpty()) {
                 Column(
                     modifier = Modifier.align(Alignment.Center).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -468,8 +496,8 @@ private fun GroupChatActionSheet(
         }
         ActionSheetRow(
             icon = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-            title = stringResource(if (isPinned) R.string.chats_circle_unpin else R.string.chats_circle_pin_to_front),
-            subtitle = stringResource(if (isPinned) R.string.chats_circle_unpin_hint else R.string.groups_pin_hint),
+            title = stringResource(if (isPinned) R.string.chats_circle_unpin else R.string.pin_to_top_row),
+            subtitle = stringResource(if (isPinned) R.string.groups_unpin_top_hint else R.string.groups_pin_top_hint),
         ) {
             onDismiss()
             onTogglePin()
@@ -507,7 +535,6 @@ private fun GroupChatActionSheet(
 @Composable
 private fun GroupChatRow(
     convo: GroupConversation,
-    pinned: Boolean,
     chatViewModel: ChatViewModel,
     myAddress: String?,
     onLongClick: () -> Unit,
@@ -550,25 +577,7 @@ private fun GroupChatRow(
             .padding(horizontal = 16.dp, vertical = 19.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box {
-            GroupListAvatar(photoHex = group.photoHex, size = 50.dp)
-            if (pinned) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .offset(x = (-2).dp)
-                        .background(KaspaTeal, CircleShape)
-                        .padding(4.dp),
-                ) {
-                    Icon(
-                        Icons.Default.PushPin,
-                        contentDescription = stringResource(R.string.groups_pinned),
-                        tint = Color.White,
-                        modifier = Modifier.size(9.dp),
-                    )
-                }
-            }
-        }
+        GroupListAvatar(photoHex = group.photoHex, size = 50.dp)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

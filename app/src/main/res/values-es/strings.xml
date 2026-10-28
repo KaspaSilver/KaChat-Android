@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">Grupos</string>
     <string name="groups_search">Buscar chats grupales</string>
-    <string name="groups_pin_hint">Se queda primero en tus chats grupales.</string>
-    <string name="groups_pinned">Fijado</string>
     <string name="no_group_chats_yet">Aun no hay chats grupales</string>
     <string name="groups_empty_body">Inicia un nuevo grupo desde el boton de agregar chat</string>
     <string name="select_group">Seleccionar grupo</string>
     <string name="kachat_names_indexer_footer">Desde aquí se leen los nombres y perfiles .kachat. Apúntalo a tu propio indexador si tienes uno. Si no puede servir nombres, se leen directamente de la cadena. Se resuelve primero, en cualquier lugar donde puedas escribir una dirección.</string>
+    <string name="pin_to_top_row">Fijar en la fila superior</string>
+    <string name="chats_pin_top_hint">Lo mueve a la fila sobre tus chats.</string>
+    <string name="chats_unpin_top_hint">Lo devuelve a tu lista de chats.</string>
+    <string name="groups_pin_top_hint">Lo mueve a la fila sobre tus chats de grupo.</string>
+    <string name="groups_unpin_top_hint">Lo devuelve a tu lista de chats de grupo.</string>
+    <string name="pinned_to_top_row">Fijado en la fila superior</string>
 </resources>

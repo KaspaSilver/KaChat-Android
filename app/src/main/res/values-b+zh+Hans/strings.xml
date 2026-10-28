@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">群组</string>
     <string name="groups_search">搜索群聊</string>
-    <string name="groups_pin_hint">在你的群聊中保持在最前。</string>
-    <string name="groups_pinned">已置顶</string>
     <string name="no_group_chats_yet">暂无群聊</string>
     <string name="groups_empty_body">通过添加聊天按钮开始一个新群组</string>
     <string name="select_group">选择群组</string>
     <string name="kachat_names_indexer_footer">.kachat 名称和资料从这里读取。如果你自己运行索引器，可以填在这里。如果它无法提供名称，则直接从链上读取。在所有可以输入地址的地方都会优先解析。</string>
+    <string name="pin_to_top_row">固定到顶部一行</string>
+    <string name="chats_pin_top_hint">将它移到聊天列表上方的一行。</string>
+    <string name="chats_unpin_top_hint">将它移回聊天列表。</string>
+    <string name="groups_pin_top_hint">将它移到群聊列表上方的一行。</string>
+    <string name="groups_unpin_top_hint">将它移回群聊列表。</string>
+    <string name="pinned_to_top_row">已固定到顶部一行</string>
 </resources>

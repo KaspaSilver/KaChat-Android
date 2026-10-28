@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">Группы</string>
     <string name="groups_search">Поиск групповых чатов</string>
-    <string name="groups_pin_hint">Останется первым в ваших групповых чатах.</string>
-    <string name="groups_pinned">Закреплено</string>
     <string name="no_group_chats_yet">Пока нет групповых чатов</string>
     <string name="groups_empty_body">Начните новую группу с помощью кнопки добавления чата</string>
     <string name="select_group">Выбрать группу</string>
     <string name="kachat_names_indexer_footer">Отсюда читаются имена и профили .kachat. Укажите свой индексатор, если он у вас есть. Если он не может отдавать имена, они читаются прямо из блокчейна. Разрешается первым везде, где можно ввести адрес.</string>
+    <string name="pin_to_top_row">Закрепить в верхнем ряду</string>
+    <string name="chats_pin_top_hint">Переносит чат в ряд над вашими чатами.</string>
+    <string name="chats_unpin_top_hint">Возвращает чат в список чатов.</string>
+    <string name="groups_pin_top_hint">Переносит группу в ряд над вашими групповыми чатами.</string>
+    <string name="groups_unpin_top_hint">Возвращает группу в список групповых чатов.</string>
+    <string name="pinned_to_top_row">Закреплено в верхнем ряду</string>
 </resources>

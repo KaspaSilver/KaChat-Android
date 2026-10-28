@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">المجموعات</string>
     <string name="groups_search">البحث في الدردشات الجماعية</string>
-    <string name="groups_pin_hint">تبقى أولاً في دردشاتك الجماعية.</string>
-    <string name="groups_pinned">مثبّتة</string>
     <string name="no_group_chats_yet">لا توجد دردشات جماعية بعد</string>
     <string name="groups_empty_body">ابدأ مجموعة جديدة من زر إضافة دردشة</string>
     <string name="select_group">اختيار المجموعة</string>
     <string name="kachat_names_indexer_footer">من هنا تُقرأ أسماء .kachat وملفاتها الشخصية. وجّهه إلى مفهرسك الخاص إن كنت تشغّل واحدًا. إذا لم يتمكن من تقديم الأسماء، فتُقرأ مباشرة من السلسلة. يُحلّ أولًا في كل مكان يمكنك فيه كتابة عنوان.</string>
+    <string name="pin_to_top_row">تثبيت في الصف العلوي</string>
+    <string name="chats_pin_top_hint">ينقلها إلى الصف فوق محادثاتك.</string>
+    <string name="chats_unpin_top_hint">يعيدها إلى قائمة محادثاتك.</string>
+    <string name="groups_pin_top_hint">ينقلها إلى الصف فوق محادثاتك الجماعية.</string>
+    <string name="groups_unpin_top_hint">يعيدها إلى قائمة محادثاتك الجماعية.</string>
+    <string name="pinned_to_top_row">مثبّتة في الصف العلوي</string>
 </resources>

@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">গ্রুপ</string>
     <string name="groups_search">গ্রুপ চ্যাট খুঁজুন</string>
-    <string name="groups_pin_hint">আপনার গ্রুপ চ্যাটগুলোর মধ্যে প্রথমে থাকে।</string>
-    <string name="groups_pinned">পিন করা</string>
     <string name="no_group_chats_yet">এখনও কোনো গ্রুপ চ্যাট নেই</string>
     <string name="groups_empty_body">চ্যাট যোগ করুন বোতাম থেকে একটি নতুন গ্রুপ শুরু করুন</string>
     <string name="select_group">গ্রুপ নির্বাচন করুন</string>
     <string name="kachat_names_indexer_footer">.kachat নাম ও প্রোফাইল এখান থেকে পড়া হয়। নিজের ইনডেক্সার চালালে এখানে সেটি দিন। এটি নাম দিতে না পারলে সেগুলো সরাসরি চেইন থেকে পড়া হয়। যেখানেই ঠিকানা লিখতে পারেন, সবার আগে এটি সমাধান হয়।</string>
+    <string name="pin_to_top_row">উপরের সারিতে পিন করুন</string>
+    <string name="chats_pin_top_hint">এটি আপনার চ্যাটগুলোর উপরের সারিতে নিয়ে যায়।</string>
+    <string name="chats_unpin_top_hint">এটি আবার আপনার চ্যাট তালিকায় ফিরিয়ে আনে।</string>
+    <string name="groups_pin_top_hint">এটি আপনার গ্রুপ চ্যাটগুলোর উপরের সারিতে নিয়ে যায়।</string>
+    <string name="groups_unpin_top_hint">এটি আবার আপনার গ্রুপ চ্যাট তালিকায় ফিরিয়ে আনে।</string>
+    <string name="pinned_to_top_row">উপরের সারিতে পিন করা হয়েছে</string>
 </resources>

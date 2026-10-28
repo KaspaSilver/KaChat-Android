@@ -1868,11 +1868,17 @@ class ChatViewModel @Inject constructor(
         if (pins.any { it in groupIds }) settings.setGroupPins(walletAddress, pins.filterNot { it in groupIds })
     }
 
+    /** Takes deleted chats' pins ("c:<address>") out of the Chats circles row (iOS 7abc06e). */
+    suspend fun unpinChatCircles(walletAddress: String, ids: Collection<String>) {
+        val pins = settings.chatCirclePins(walletAddress).first()
+        if (pins.any { it in ids }) settings.setChatCirclePins(walletAddress, pins.filterNot { it in ids })
+    }
+
     /** The Chats circles row's pins for [walletAddress], in order (iOS a062577 `circlePins`). */
     fun chatCirclePins(walletAddress: String): Flow<List<String>> = settings.chatCirclePins(walletAddress)
 
     /**
-     * Pins a circle ("g:<groupId>" / "r:<room>") to the front - newest pin first - or unpins it.
+     * Pins a circle ("b:<bot>" / "c:<chat>") - newest pin first - or unpins it.
      * Returns whether it is pinned now, for the toast (iOS a062577 `toggleCirclePin`).
      */
     suspend fun toggleChatCirclePin(walletAddress: String, id: String): Boolean {

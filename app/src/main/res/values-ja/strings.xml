@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">グループ</string>
     <string name="groups_search">グループチャットを検索</string>
-    <string name="groups_pin_hint">グループチャットの先頭に表示されます。</string>
-    <string name="groups_pinned">ピン留め</string>
     <string name="no_group_chats_yet">まだグループチャットがありません</string>
     <string name="groups_empty_body">チャット追加ボタンから新しいグループを開始</string>
     <string name="select_group">グループを選択</string>
     <string name="kachat_names_indexer_footer">.kachat の名前とプロフィールはここから読み込まれます。自分でインデクサーを運用している場合はここに指定してください。名前を提供できない場合は、チェーンから直接読み込まれます。アドレスを入力できるすべての場所で最初に解決されます。</string>
+    <string name="pin_to_top_row">上の列に固定</string>
+    <string name="chats_pin_top_hint">チャットの上の列に移動します。</string>
+    <string name="chats_unpin_top_hint">チャット一覧に戻します。</string>
+    <string name="groups_pin_top_hint">グループチャットの上の列に移動します。</string>
+    <string name="groups_unpin_top_hint">グループチャット一覧に戻します。</string>
+    <string name="pinned_to_top_row">上の列に固定しました</string>
 </resources>

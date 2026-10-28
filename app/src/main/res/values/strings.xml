@@ -1060,10 +1060,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">Groups</string>
     <string name="groups_search">Search group chats</string>
-    <string name="groups_pin_hint">Keeps it first in your group chats.</string>
-    <string name="groups_pinned">Pinned</string>
     <string name="no_group_chats_yet">No Group Chats Yet</string>
     <string name="groups_empty_body">Start a new group from the add-chat button</string>
     <string name="select_group">Select group</string>
     <string name="kachat_names_indexer_footer">Where .kachat names and profiles are read. Point it at your own indexer if you run one. If it can\'t serve names, they are read straight from the chain. Resolved first, everywhere you can type an address.</string>
+    <string name="pin_to_top_row">Pin to Top Row</string>
+    <string name="chats_pin_top_hint">Moves it into the row above your chats.</string>
+    <string name="chats_unpin_top_hint">Moves it back into your chats list.</string>
+    <string name="groups_pin_top_hint">Moves it into the row above your group chats.</string>
+    <string name="groups_unpin_top_hint">Moves it back into your group chats list.</string>
+    <string name="pinned_to_top_row">Pinned to the top row</string>
 </resources>

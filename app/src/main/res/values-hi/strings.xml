@@ -861,10 +861,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">समूह</string>
     <string name="groups_search">समूह चैट खोजें</string>
-    <string name="groups_pin_hint">आपकी समूह चैट्स में सबसे आगे रहता है।</string>
-    <string name="groups_pinned">पिन किया गया</string>
     <string name="no_group_chats_yet">अभी तक कोई समूह चैट नहीं</string>
     <string name="groups_empty_body">चैट जोड़ें बटन से एक नया समूह शुरू करें</string>
     <string name="select_group">समूह चुनें</string>
     <string name="kachat_names_indexer_footer">.kachat नाम और प्रोफ़ाइल यहीं से पढ़े जाते हैं। अगर आप अपना इंडेक्सर चलाते हैं तो उसे यहाँ डालें। अगर यह नाम नहीं दे पाता, तो वे सीधे चेन से पढ़े जाते हैं। जहाँ भी आप पता लिख सकते हैं, यह सबसे पहले हल होता है।</string>
+    <string name="pin_to_top_row">ऊपरी पंक्ति में पिन करें</string>
+    <string name="chats_pin_top_hint">इसे आपकी चैट के ऊपर की पंक्ति में ले जाता है।</string>
+    <string name="chats_unpin_top_hint">इसे वापस आपकी चैट सूची में ले जाता है।</string>
+    <string name="groups_pin_top_hint">इसे आपकी ग्रुप चैट के ऊपर की पंक्ति में ले जाता है।</string>
+    <string name="groups_unpin_top_hint">इसे वापस आपकी ग्रुप चैट सूची में ले जाता है।</string>
+    <string name="pinned_to_top_row">ऊपरी पंक्ति में पिन किया गया</string>
 </resources>

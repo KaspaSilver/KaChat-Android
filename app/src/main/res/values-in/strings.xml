@@ -799,9 +799,13 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">Grup</string>
     <string name="groups_search">Cari obrolan grup</string>
-    <string name="groups_pin_hint">Tetap pertama di obrolan grup Anda.</string>
-    <string name="groups_pinned">Disematkan</string>
     <string name="no_group_chats_yet">Belum Ada Obrolan Grup</string>
     <string name="groups_empty_body">Mulai grup baru dari tombol tambah obrolan</string>
     <string name="kachat_names_indexer_footer">Nama dan profil .kachat dibaca dari sini. Arahkan ke pengindeks Anda sendiri jika Anda menjalankannya. Jika tidak bisa menyajikan nama, nama dibaca langsung dari chain. Diselesaikan pertama, di mana pun Anda bisa mengetik alamat.</string>
+    <string name="pin_to_top_row">Sematkan di Baris Atas</string>
+    <string name="chats_pin_top_hint">Memindahkannya ke baris di atas obrolan Anda.</string>
+    <string name="chats_unpin_top_hint">Mengembalikannya ke daftar obrolan Anda.</string>
+    <string name="groups_pin_top_hint">Memindahkannya ke baris di atas obrolan grup Anda.</string>
+    <string name="groups_unpin_top_hint">Mengembalikannya ke daftar obrolan grup Anda.</string>
+    <string name="pinned_to_top_row">Disematkan di baris atas</string>
 </resources>

@@ -858,10 +858,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">Gruppen</string>
     <string name="groups_search">Gruppenchats durchsuchen</string>
-    <string name="groups_pin_hint">Bleibt an erster Stelle in deinen Gruppenchats.</string>
-    <string name="groups_pinned">Angeheftet</string>
     <string name="no_group_chats_yet">Noch keine Gruppenchats</string>
     <string name="groups_empty_body">Starte eine neue Gruppe über die Chat-hinzufügen-Schaltfläche</string>
     <string name="select_group">Gruppe auswählen</string>
     <string name="kachat_names_indexer_footer">Hier werden .kachat-Namen und -Profile gelesen. Wenn du einen eigenen Indexer betreibst, trag ihn hier ein. Kann er keine Namen liefern, werden sie direkt aus der Chain gelesen. Wird zuerst aufgelöst, überall, wo du eine Adresse eingeben kannst.</string>
+    <string name="pin_to_top_row">In obere Reihe anheften</string>
+    <string name="chats_pin_top_hint">Verschiebt ihn in die Reihe über deinen Chats.</string>
+    <string name="chats_unpin_top_hint">Verschiebt ihn zurück in deine Chatliste.</string>
+    <string name="groups_pin_top_hint">Verschiebt sie in die Reihe über deinen Gruppenchats.</string>
+    <string name="groups_unpin_top_hint">Verschiebt sie zurück in deine Gruppenchat-Liste.</string>
+    <string name="pinned_to_top_row">In die obere Reihe angeheftet</string>
 </resources>

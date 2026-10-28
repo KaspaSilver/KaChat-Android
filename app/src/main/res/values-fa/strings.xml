@@ -888,10 +888,14 @@
     <!-- Chess leaderboard: this month / all time (iOS 77d6038) -->
     <string name="groups_tab">گروه‌ها</string>
     <string name="groups_search">جستجوی گفتگوهای گروهی</string>
-    <string name="groups_pin_hint">در گفتگوهای گروهی‌تان اول می‌ماند.</string>
-    <string name="groups_pinned">سنجاق‌شده</string>
     <string name="no_group_chats_yet">هنوز هیچ گفتگوی گروهی وجود ندارد</string>
     <string name="groups_empty_body">یک گروه جدید از دکمه افزودن گفتگو شروع کنید</string>
     <string name="select_group">انتخاب گروه</string>
     <string name="kachat_names_indexer_footer">نام‌ها و نمایه‌های .kachat از اینجا خوانده می‌شوند. اگر نمایه‌ساز خودتان را اجرا می‌کنید، آن را اینجا وارد کنید. اگر نتواند نام‌ها را ارائه دهد، مستقیماً از زنجیره خوانده می‌شوند. هر جا بتوانید نشانی وارد کنید، اول این بررسی می‌شود.</string>
+    <string name="pin_to_top_row">سنجاق در ردیف بالا</string>
+    <string name="chats_pin_top_hint">آن را به ردیف بالای گفتگوهایتان می‌برد.</string>
+    <string name="chats_unpin_top_hint">آن را به فهرست گفتگوهایتان برمی‌گرداند.</string>
+    <string name="groups_pin_top_hint">آن را به ردیف بالای گفتگوهای گروهی‌تان می‌برد.</string>
+    <string name="groups_unpin_top_hint">آن را به فهرست گفتگوهای گروهی‌تان برمی‌گرداند.</string>
+    <string name="pinned_to_top_row">در ردیف بالا سنجاق شد</string>
 </resources>
