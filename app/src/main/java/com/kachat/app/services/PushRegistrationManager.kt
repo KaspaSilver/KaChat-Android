@@ -290,9 +290,10 @@ class PushRegistrationManager @Inject constructor(
     private suspend fun leavePushServiceOfOtherNetworkIfNeeded() {
         pushState.setActive(false)
         lastRegisteredFingerprint = null
-        // Registrations made before this was recorded went to the shipped default service.
+        // Registrations made before this was recorded went to the default service of the time,
+        // kachat.duckdns.org (indexer.kachat.app since).
         val registeredBase = pushPrefs.getString(KEY_REGISTERED_BASE_URL, null)?.takeIf { it.isNotBlank() }
-            ?: com.kachat.app.repository.AppSettingsRepository.DEFAULT_PUSH_INDEXER_URL.takeIf { !pushPrefs.getBoolean(KEY_LEFT, false) }
+            ?: com.kachat.app.repository.AppSettingsRepository.LEGACY_DEFAULT_INDEXER_URL_DUCKDNS.takeIf { !pushPrefs.getBoolean(KEY_LEFT, false) }
             ?: return
         pushPrefs.edit().remove(KEY_REGISTERED_BASE_URL).putBoolean(KEY_LEFT, true).apply()
         val token = try { FirebaseMessaging.getInstance().token.await().trim() } catch (e: Exception) { return }

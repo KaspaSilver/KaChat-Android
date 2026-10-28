@@ -31,7 +31,7 @@ class NetworkService @Inject constructor(
     private val _knsApi = MutableStateFlow<KnsApi?>(null)
     val knsApi: StateFlow<KnsApi?> = _knsApi
 
-    // Push registration lives on the same host as the indexer (kachat.duckdns.org).
+    // Push registration lives on the same host as the indexer (indexer.kachat.app).
     private val _pushApi = MutableStateFlow<PushApi?>(null)
     val pushApi: StateFlow<PushApi?> = _pushApi
 
@@ -64,7 +64,7 @@ class NetworkService @Inject constructor(
         }
         scope.launch {
             // Push registration has its own configurable host (mirrors iOS's pushIndexerURL),
-            // defaulting to the same kachat.duckdns.org.
+            // defaulting to the same indexer.kachat.app.
             settings.pushIndexerUrl.collectLatest { url ->
                 // Blank = no server (testnet has no KaChat indexers yet) - never keep the
                 // other network's client.

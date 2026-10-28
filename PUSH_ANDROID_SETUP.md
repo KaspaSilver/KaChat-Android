@@ -37,7 +37,7 @@ With `google-services.json` present, the `com.google.gms.google-services` plugin
   (the exact `kasia-push-auth:v1` / LegacyV1 shape the server verifies). It runs on wallet
   unlock / account switch (from `WalletViewModel`) and whenever FCM rotates the token
   (`onNewToken`).
-- The push host is `AppSettingsRepository.kapostIndexerUrl` (default `https://kachat.duckdns.org`),
+- The push host is `AppSettingsRepository.pushIndexerUrl` (default `https://indexer.kachat.app`),
   reached via a new `NetworkService.pushApi` Retrofit client.
 - **`POST_NOTIFICATIONS`** is requested at runtime in `MainActivity` (required on Android 13+).
 
@@ -56,5 +56,5 @@ banner (see `KaChatFirebaseMessagingService`).
    send your wallet a DM. Background the app — the notification should arrive.
 
 Troubleshooting: if nothing arrives, check `adb logcat -s PushRegistration KaChatFCM` for the
-registration result and incoming messages, and verify `https://kachat.duckdns.org/v1/push/challenge`
+registration result and incoming messages, and verify `https://indexer.kachat.app/v1/push/challenge`
 is reachable from the phone's network.

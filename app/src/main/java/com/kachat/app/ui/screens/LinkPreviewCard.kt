@@ -764,8 +764,8 @@ private fun LinkPreviewCardContent(data: LinkPreviewData, url: String, txId: Str
  * `kaspa:` prefix (the app writes it without, so the link reads cleanly) and a missing prefix
  * means mainnet.
  *
- * Links written before kachat.app used kachat.duckdns.org. Those are still opened; they are
- * never written.
+ * Only kachat.app opens in the app: links from before it, on kachat.duckdns.org, are ordinary
+ * web links.
  *
  * KaPosts posts (`/post/`) and public chat rooms (`/broadcast/`) left the app on 2026-10-24 (iOS
  * e2f6732): their links are ordinary web links now.
@@ -789,9 +789,6 @@ object KaChatLink {
      *  preview in every chat app, which a bare kachat:// line does nowhere. */
     const val WEB_HOST = "kachat.app"
 
-    /** Hosts from before kachat.app: still opened, never written. */
-    val LEGACY_WEB_HOSTS = setOf("kachat.duckdns.org")
-
     fun profileUrl(address: String) = "kachat://profile/$address"
     /** The one builder both share buttons use - your own Profile and anyone's User Info - so the
      *  two links cannot drift apart: kachat.app/u/<address>, trimmed and lowercased (iOS 44d5fa4). */
@@ -801,13 +798,13 @@ object KaChatLink {
     // The trailing segment deliberately excludes '/', '?' and '#' so a link can never carry a
     // second path component, a query string or a fragment into the app.
     private val LINK_REGEX = Regex(
-        """(?:kachat://(profile)/|https?://(?:kachat\.app|kachat\.duckdns\.org)/(u)/)([^\s/?#]+)""",
+        """(?:kachat://(profile)/|https?://kachat\.app/(u)/)([^\s/?#]+)""",
         RegexOption.IGNORE_CASE
     )
     // A payment request carries a query, so it has its own pattern: everything up to whitespace
     // or a quote/angle bracket, as iOS matches it (the memo inside is percent-encoded).
     private val PAY_LINK_REGEX = Regex(
-        """(?:kachat://pay/|https?://(?:www\.)?(?:kachat\.app|kachat\.duckdns\.org)/pay/)([^\s<>"']+)""",
+        """(?:kachat://pay/|https?://(?:www\.)?kachat\.app/pay/)([^\s<>"']+)""",
         RegexOption.IGNORE_CASE
     )
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ';', ':', '\'', '"', ')', ']', '}', '>')

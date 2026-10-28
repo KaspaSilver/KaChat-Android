@@ -11514,10 +11514,11 @@ fun ConnectionUrlField(label: String, value: String, onClick: (() -> Unit)? = nu
     ) {
         Text(label, color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(6.dp))
-        // iOS shows an address in the body font, monospaced.
+        // iOS shows an address in the body font, monospaced. An empty one (testnet's indexers,
+        // which have no default) shows iOS's field hint, "https://" (iOS fc4aedb8).
         Text(
-            text = value,
-            color = LocalAppColors.current.textPrimary,
+            text = value.ifBlank { "https://" },
+            color = if (value.isBlank()) LocalAppColors.current.textTertiary else LocalAppColors.current.textPrimary,
             fontSize = 17.sp,
             fontFamily = FontFamily.Monospace,
         )

@@ -1,6 +1,6 @@
 # Android push: notifications only arrive when the app is reopened
 
-**For:** whoever maintains the KaChat indexer / push sender at `kachat.duckdns.org`.
+**For:** whoever maintains the KaChat indexer / push sender at `indexer.kachat.app`.
 
 **Reported by users:** with the app fully closed, nothing arrives. Open the app and the
 notifications all appear at once. On iOS the same messages arrive normally.

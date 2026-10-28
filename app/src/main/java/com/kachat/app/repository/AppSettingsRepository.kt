@@ -77,12 +77,43 @@ class AppSettingsRepository @Inject constructor(
 
         // Defaults matching the iOS app
         const val DEFAULT_NETWORK        = "mainnet"
-        const val DEFAULT_INDEXER_URL    = "https://kachat.duckdns.org"
+        const val DEFAULT_INDEXER_URL    = "https://indexer.kachat.app"
         // Superseded defaults, migrated away on read (see `indexerUrl` below): kasia.fyi is offline
         // and never ran the group-chat REST endpoints; kasia.wtf was the previous community default,
-        // now replaced by KaChat's own indexer (kachat.duckdns.org).
+        // replaced by KaChat's own indexer, first at kachat.duckdns.org and now indexer.kachat.app.
         const val LEGACY_DEFAULT_INDEXER_URL = "https://indexer.kasia.fyi"
         const val LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF = "https://indexer.kasia.wtf"
+        /** KaChat's own indexer under its DuckDNS name, the default until it moved to
+         *  indexer.kachat.app (2026-10-28). Moved forward by [replacingRetiredDefaultIndexer]. */
+        const val LEGACY_DEFAULT_INDEXER_URL_DUCKDNS = "https://kachat.duckdns.org"
+
+        /** A stored mainnet indexer URL with a superseded default (kasia.fyi, kasia.wtf, the
+         *  DuckDNS name) moved to [DEFAULT_INDEXER_URL]; anything else - a custom indexer - is kept. */
+        internal fun migratedIndexerUrl(stored: String): String {
+            val normalized = stored.trim().trimEnd('/')
+            if (normalized.equals(LEGACY_DEFAULT_INDEXER_URL, ignoreCase = true) ||
+                normalized.equals(LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF, ignoreCase = true)
+            ) return DEFAULT_INDEXER_URL
+            // The retired testnet default in a mainnet field clears like on testnet - and blank
+            // on mainnet means the default.
+            return replacingRetiredDefaultIndexer(stored).ifBlank { DEFAULT_INDEXER_URL }
+        }
+
+        /** An indexer, push or `.kachat` names URL still on a retired DuckDNS default moves on:
+         *  the mainnet one to the current default, the testnet one to blank (testnet has no
+         *  default). Anything else, a custom server included, is kept as it is. Case, trailing
+         *  slashes and a missing https:// don't make a different host (iOS fc4aedb8
+         *  `replacingRetiredDefaultIndexer`). */
+        internal fun replacingRetiredDefaultIndexer(url: String): String {
+            var normalized = url.trim().lowercase().trimEnd('/')
+            if (normalized.isEmpty()) return url
+            if (!normalized.contains("://")) normalized = "https://$normalized"
+            return when (normalized) {
+                LEGACY_DEFAULT_INDEXER_URL_DUCKDNS -> DEFAULT_INDEXER_URL
+                LEGACY_TESTNET_INDEXER_URL -> ""
+                else -> url
+            }
+        }
         const val DEFAULT_KNS_API_URL    = "https://api.knsdomains.org/mainnet/api/v1"
         const val DEFAULT_KASPA_REST_URL = "https://api.kaspa.org"
         /** Testnet-10 (Toccata covenants; the node pool's testnet seeds are on 16210). */
@@ -90,14 +121,18 @@ class AppSettingsRepository @Inject constructor(
         /** Retired TN11 (503) - migrated forward on read (iOS a67a1c2). */
         const val LEGACY_DEFAULT_KASPA_TESTNET_REST_URL = "https://api-tn11.kaspa.org"
         const val DEFAULT_KNS_TESTNET_API_URL = "https://api.knsdomains.org/tn10/api/v1"
-        /** The testnet-10 KaChat indexer (Kaspa-Quick-Start's `kachat-testnet` target): chat,
-         *  push and `.kachat` names on one name. Port 7443: 443 on that
-         *  address is answered by another proxy (iOS 5463ab7). */
-        const val DEFAULT_TESTNET_INDEXER_URL = "https://tnkachat.duckdns.org:7443"
+        /** The retired testnet-10 default. Testnet has no default indexer: its chat, push and
+         *  `.kachat` names fields start blank (every indexer and push call is skipped then) until
+         *  someone enters a server; a saved copy of this is cleared ([replacingRetiredDefaultIndexer]). */
+        const val LEGACY_TESTNET_INDEXER_URL = "https://tnkachat.duckdns.org:7443"
+
+        /** A stored testnet indexer URL: blank when unset, the retired defaults moved on. */
+        internal fun testnetIndexerUrl(stored: String?): String =
+            stored?.takeIf { it.isNotBlank() }?.let { replacingRetiredDefaultIndexer(it) } ?: ""
 
         fun defaultKaspaRestUrl(network: com.kachat.app.util.KaspaNetwork.Type) =
             if (network == com.kachat.app.util.KaspaNetwork.Type.MAINNET) DEFAULT_KASPA_REST_URL else DEFAULT_KASPA_TESTNET_REST_URL
-        const val DEFAULT_PUSH_INDEXER_URL = "https://kachat.duckdns.org"
+        const val DEFAULT_PUSH_INDEXER_URL = DEFAULT_INDEXER_URL
         /**
          * DataStore keys the retired features wrote: KaPosts (feeds, follows, mutes, notification
          * switches, tips, the poller's last-seen), Public Chats (room indexers, the Popular and
@@ -278,30 +313,32 @@ class AppSettingsRepository @Inject constructor(
         value: (ConnectionProfile, KaspaNetwork.Type) -> String,
     ): Flow<String> = map { (profile, network) -> value(profile, network) }.distinctUntilChanged()
 
-    /** A blank field means the network's own default: the mainnet host on mainnet, the testnet-10
-     *  indexer on testnet - so a blank left from before testnet had an indexer becomes it, and a
-     *  custom URL is kept (iOS 5463ab7). */
+    /** A blank field means the network's own default: the mainnet host on mainnet, none on
+     *  testnet (it has no KaChat indexer); a custom URL is kept. */
     private fun indexerOrDefault(stored: String?, default: String, network: KaspaNetwork.Type): String {
         val value = stored?.takeIf { it.isNotBlank() }
-        return value ?: if (network == KaspaNetwork.Type.TESTNET) DEFAULT_TESTNET_INDEXER_URL else default
+        if (network == KaspaNetwork.Type.TESTNET) return testnetIndexerUrl(value)
+        // A push host saved on an old default moves to the current one, as the indexer does.
+        return value?.let { migratedIndexerUrl(it) } ?: default
     }
 
     // Transforms away superseded default indexers on read (rather than a one-time write-back
     // migration) - anyone who saved settings on an old default (kasia.fyi, or the previous
-    // community default kasia.wtf) is moved to the current default (kachat.duckdns.org). Custom
-    // indexers the user typed are kept as-is.
+    // community default kasia.wtf, or KaChat's own at its old kachat.duckdns.org name) is moved to
+    // the current default (indexer.kachat.app). Custom indexers the user typed are kept as-is.
     private fun resolveIndexerUrl(profile: ConnectionProfile, network: KaspaNetwork.Type): String {
         val stored = profile.indexerUrl?.takeIf { url -> url.isNotBlank() }
-        if (network == KaspaNetwork.Type.TESTNET) return stored ?: DEFAULT_TESTNET_INDEXER_URL
-        return if (stored == null || stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
+        if (network == KaspaNetwork.Type.TESTNET) return testnetIndexerUrl(stored)
+        return stored?.let { migratedIndexerUrl(it) } ?: DEFAULT_INDEXER_URL
     }
 
     /** The .kachat names indexer: its own field when set, else the message indexer (iOS 7abc06e).
      *  It started as a copy of the message indexer, so it can hold the same superseded defaults,
-     *  which move the same way (neither of those hosts serves names). */
+     *  which move the same way. */
     private fun resolveKachatNamesIndexerUrl(profile: ConnectionProfile, network: KaspaNetwork.Type): String {
         val stored = profile.kachatNamesIndexerUrl?.takeIf { it.isNotBlank() } ?: return resolveIndexerUrl(profile, network)
-        return if (stored == LEGACY_DEFAULT_INDEXER_URL || stored == LEGACY_DEFAULT_INDEXER_URL_KASIA_WTF) DEFAULT_INDEXER_URL else stored
+        if (network == KaspaNetwork.Type.TESTNET) return testnetIndexerUrl(stored)
+        return migratedIndexerUrl(stored)
     }
 
     /**
@@ -819,8 +856,8 @@ data class ConnectionProfile(
         }
 
         /** What a network starts with. Testnet: the public testnet-10 REST API, automatic node
-         *  discovery, and KaChat's testnet-10 indexer (unset = the network's default) for chat and
-         *  push (iOS 5463ab7). */
+         *  discovery, and no KaChat indexer for chat and push (unset = the network's default,
+         *  which on testnet is none). */
         fun defaults(network: com.kachat.app.util.KaspaNetwork.Type): ConnectionProfile =
             if (network == com.kachat.app.util.KaspaNetwork.Type.MAINNET) {
                 ConnectionProfile()
