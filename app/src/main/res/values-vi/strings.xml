@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Hiện chưa thể kiểm tra một số liên kết từ điện thoại này. Chúng được lưu đúng như đã nhập và ứng dụng của người khác sẽ tải khi có thể.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">Kaspa đến ví của bạn và tin tức về tên .kachat của bạn hiển thị ở đây.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">Xóa huy hiệu chưa đọc của cuộc trò chuyện này.</string>
     <string name="bot_sheet_notifications_resume">Thông báo từ bot này hoạt động lại.</string>
     <string name="bot_sheet_no_notification">Không có thông báo từ bot này.</string>
-    <string name="bot_sheet_delete_subtitle">Xóa cuộc trò chuyện này cho đến khi bạn viết lại cho bot.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Yêu cầu thanh toán</string>
     <string name="pr_request_payment_hint">Một liên kết yêu cầu số tiền chính xác, kèm mục đích.</string>

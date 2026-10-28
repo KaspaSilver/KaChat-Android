@@ -504,7 +504,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Beberapa tautan belum bisa diperiksa dari ponsel ini sekarang. Tautan disimpan sesuai yang dimasukkan, dan aplikasi orang lain akan memuatnya saat bisa.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">Kaspa yang masuk ke dompet Anda dan kabar nama .kachat Anda muncul di sini.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -690,7 +689,6 @@
     <string name="bot_sheet_clears_unread">Menghapus lencana belum dibaca di obrolan ini.</string>
     <string name="bot_sheet_notifications_resume">Notifikasi dari bot ini kembali aktif.</string>
     <string name="bot_sheet_no_notification">Tidak ada notifikasi dari bot ini.</string>
-    <string name="bot_sheet_delete_subtitle">Menghapus obrolan ini sampai Anda menulis ke bot lagi.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Minta Pembayaran</string>
     <string name="pr_request_payment_hint">Tautan yang meminta jumlah pasti, beserta keperluannya.</string>

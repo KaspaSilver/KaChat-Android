@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">いくつかのリンクを今このスマートフォンから確認できませんでした。入力どおりに保存され、ほかの人のアプリが読み込めるときに読み込みます。</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">ウォレットに届いた Kaspa と .kachat 名のお知らせがここに表示されます。</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">このチャットの未読バッジを消します。</string>
     <string name="bot_sheet_notifications_resume">このボットからの通知を再開します。</string>
     <string name="bot_sheet_no_notification">このボットからの通知はありません。</string>
-    <string name="bot_sheet_delete_subtitle">ボットにもう一度書くまで、このチャットを削除します。</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">支払いをリクエスト</string>
     <string name="pr_request_payment_hint">金額と用途を指定して支払いを依頼するリンク。</string>

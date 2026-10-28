@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">अभी इस फ़ोन से कुछ लिंक जाँचे नहीं जा सके। वे जैसे लिखे गए वैसे ही सहेजे जाते हैं, और लोगों के ऐप उन्हें जब हो सके लोड करेंगे।</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">आपके वॉलेट में आने वाला Kaspa और आपके .kachat नामों की खबरें यहाँ दिखती हैं।</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">इस चैट का अपठित बैज हटा देता है।</string>
     <string name="bot_sheet_notifications_resume">इस बॉट की सूचनाएँ फिर शुरू होती हैं।</string>
     <string name="bot_sheet_no_notification">इस बॉट से कोई सूचना नहीं।</string>
-    <string name="bot_sheet_delete_subtitle">जब तक आप बॉट को फिर न लिखें, यह चैट हटा देता है।</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">भुगतान का अनुरोध</string>
     <string name="pr_request_payment_hint">एक लिंक जो सटीक राशि माँगता है, कारण के साथ।</string>

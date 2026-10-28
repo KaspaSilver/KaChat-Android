@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">暂时无法从这部手机检查部分链接。它们会按输入内容保存，其他人的应用会在可以时加载。</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">到达你钱包的 Kaspa 和你的 .kachat 名称动态都会显示在这里。</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">清除此聊天的未读标记。</string>
     <string name="bot_sheet_notifications_resume">恢复此机器人的通知。</string>
     <string name="bot_sheet_no_notification">不接收此机器人的通知。</string>
-    <string name="bot_sheet_delete_subtitle">删除此聊天，直到你再次给机器人发消息。</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">请求付款</string>
     <string name="pr_request_payment_hint">一个按确切金额请求付款的链接，并注明用途。</string>

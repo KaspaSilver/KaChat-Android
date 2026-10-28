@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Bazı bağlantılar şu anda bu telefondan kontrol edilemedi. Girildiği gibi kaydedilir ve başkalarının uygulamaları yükleyebildiğinde yükler.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">Cüzdanlarınıza gelen Kaspa ve .kachat adlarınızla ilgili haberler burada görünür.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">Bu sohbetteki okunmamış rozetini kaldırır.</string>
     <string name="bot_sheet_notifications_resume">Bu bottan bildirimler yeniden gelir.</string>
     <string name="bot_sheet_no_notification">Bu bottan bildirim gelmez.</string>
-    <string name="bot_sheet_delete_subtitle">Bota yeniden yazana kadar bu sohbeti kaldırır.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Ödeme İste</string>
     <string name="pr_request_payment_hint">Tam bir tutarı, ne için olduğuyla isteyen bir bağlantı.</string>

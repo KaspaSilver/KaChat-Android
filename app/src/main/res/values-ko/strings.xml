@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">지금 이 휴대폰에서 일부 링크를 확인하지 못했어요. 입력한 그대로 저장되며, 다른 사람들의 앱이 가능할 때 불러와요.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">지갑에 도착한 Kaspa와 .kachat 이름 소식이 여기에 표시돼요.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">이 채팅의 읽지 않음 배지를 지웁니다.</string>
     <string name="bot_sheet_notifications_resume">이 봇의 알림이 다시 옵니다.</string>
     <string name="bot_sheet_no_notification">이 봇의 알림을 받지 않습니다.</string>
-    <string name="bot_sheet_delete_subtitle">봇에게 다시 쓸 때까지 이 채팅을 삭제합니다.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">결제 요청</string>
     <string name="pr_request_payment_hint">정확한 금액과 용도를 담아 결제를 요청하는 링크.</string>

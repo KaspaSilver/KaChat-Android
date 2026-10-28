@@ -565,7 +565,6 @@
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Alcuni link non si sono potuti verificare da questo telefono in questo momento. Vengono salvati come inseriti e le app degli altri li caricheranno appena possibile.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
-    <string name="notification_center_empty">Qui compaiono i Kaspa che arrivano nei tuoi wallet e le novità sui tuoi nomi .kachat.</string>
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
     <!-- .kachat registration progress half sheet (iOS 61fb0fc) -->
@@ -752,7 +751,6 @@
     <string name="bot_sheet_clears_unread">Rimuove il badge non letto da questa chat.</string>
     <string name="bot_sheet_notifications_resume">Le notifiche di questo bot riprendono.</string>
     <string name="bot_sheet_no_notification">Nessuna notifica da questo bot.</string>
-    <string name="bot_sheet_delete_subtitle">Rimuove questa chat finché non scrivi di nuovo al bot.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Richiedi pagamento</string>
     <string name="pr_request_payment_hint">Un link che chiede un importo esatto, con il motivo.</string>
