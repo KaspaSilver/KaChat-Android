@@ -809,4 +809,8 @@
     <string name="groups_unpin_top_hint">Mengembalikannya ke daftar obrolan grup Anda.</string>
     <string name="pinned_to_top_row">Disematkan di baris atas</string>
     <string name="send_and_receive">Kirim dan Terima</string>
+    <string name="nc_uploading">Mengunggah ke Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">Unggahan gagal. Dikirim lewat chain.</string>
+    <string name="nc_photo_upload_failed_toast">Unggahan ke Nextcloud gagal. Saat dikirim, foto akan lewat chain.</string>
+    <string name="video">Video</string>
 </resources>

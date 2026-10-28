@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">将它移回群聊列表。</string>
     <string name="pinned_to_top_row">已固定到顶部一行</string>
     <string name="send_and_receive">发送和接收</string>
+    <string name="nc_uploading">正在上传到 Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">上传失败。将通过链上发送。</string>
+    <string name="nc_photo_upload_failed_toast">上传到 Nextcloud 失败。发送时照片将改为通过链上发送。</string>
+    <string name="video">视频</string>
 </resources>

@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">グループチャット一覧に戻します。</string>
     <string name="pinned_to_top_row">上の列に固定しました</string>
     <string name="send_and_receive">送金と受け取り</string>
+    <string name="nc_uploading">Nextcloud にアップロード中…</string>
+    <string name="nc_upload_failed_sends_on_chain">アップロードに失敗しました。チェーンで送信します。</string>
+    <string name="nc_photo_upload_failed_toast">Nextcloud へのアップロードに失敗しました。送信すると写真はチェーンで送られます。</string>
+    <string name="video">動画</string>
 </resources>

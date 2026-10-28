@@ -869,4 +869,8 @@
     <string name="groups_unpin_top_hint">Verschiebt sie zurück in deine Gruppenchat-Liste.</string>
     <string name="pinned_to_top_row">In die obere Reihe angeheftet</string>
     <string name="send_and_receive">Senden und Empfangen</string>
+    <string name="nc_uploading">Wird in Nextcloud hochgeladen…</string>
+    <string name="nc_upload_failed_sends_on_chain">Upload fehlgeschlagen. Wird über die Chain gesendet.</string>
+    <string name="nc_photo_upload_failed_toast">Nextcloud-Upload fehlgeschlagen. Beim Senden geht das Foto stattdessen über die Chain.</string>
+    <string name="video">Video</string>
 </resources>

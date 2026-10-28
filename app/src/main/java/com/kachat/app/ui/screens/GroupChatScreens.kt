@@ -7,16 +7,11 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,39 +23,27 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowCircleUp
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
-import android.graphics.BitmapFactory
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -80,9 +63,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -93,7 +74,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -128,9 +108,7 @@ import com.kachat.app.util.ImagePrep
 import com.kachat.app.util.KaspaAddress
 import com.kachat.app.util.KaspaUnit
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -291,6 +269,7 @@ fun GroupChatThreadScreen(
     val contactAvatarsByAddress by chatViewModel.groupMemberAvatarsByAddress.collectAsState()
     val contactAliasesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
     val pendingPhotoUri by chatViewModel.groupPendingPhotoUri.collectAsState()
+    val nextcloudStaged by chatViewModel.groupNextcloudStaged.collectAsState()
     val voiceRecordingState by chatViewModel.groupVoiceRecordingState.collectAsState()
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val estimatedFeeRaw by chatViewModel.groupEstimatedFeeSompi.collectAsState()
@@ -443,13 +422,14 @@ fun GroupChatThreadScreen(
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) chatViewModel.setGroupPendingPhoto(uri)
     }
-    // "Send Photo or Video via Nextcloud": videos too, sent as an upload-and-share link (iOS a890102).
+    // "Send Photo or Video via Nextcloud": videos too. A picked video waits in the composer like a
+    // photo, uploading meanwhile (iOS a890102, 7abc06e).
     val nextcloudMediaPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         if (micContext.contentResolver.getType(uri)?.startsWith("video/") == true) {
             // A failure shows above the composer, as iOS's group chat shows it (not a toast).
             errorMessage = null
-            chatViewModel.sendGroupNextcloudVideo(groupId, uri) { errorMessage = it }
+            chatViewModel.setGroupPendingNextcloudVideo(uri) { errorMessage = it }
         } else {
             chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = true)
         }
@@ -669,6 +649,7 @@ fun GroupChatThreadScreen(
                             groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
                             groupPhotoPreviewRow(
                                 pendingPhotoUri = pendingPhotoUri,
+                                staged = nextcloudStaged,
                                 onCancel = { chatViewModel.cancelGroupPendingPhoto() },
                                 onSend = { chatViewModel.sendPendingGroupPhoto(groupId) }
                             )
@@ -1264,7 +1245,12 @@ private fun groupFeePill(feeSompi: Long?, modifier: Modifier = Modifier, estimat
 }
 
 @Composable
-private fun groupPhotoPreviewRow(pendingPhotoUri: android.net.Uri?, onCancel: () -> Unit, onSend: () -> Unit) {
+private fun groupPhotoPreviewRow(
+    pendingPhotoUri: android.net.Uri?,
+    staged: ChatViewModel.NextcloudStagedMedia?,
+    onCancel: () -> Unit,
+    onSend: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1278,38 +1264,9 @@ private fun groupPhotoPreviewRow(pendingPhotoUri: android.net.Uri?, onCancel: ()
         IconButton(onClick = onCancel) {
             Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_photo), tint = LocalAppColors.current.danger)
         }
-        val thumbnailContext = LocalContext.current
-        val thumbnail = remember(pendingPhotoUri) {
-            pendingPhotoUri?.let { uri ->
-                try {
-                    thumbnailContext.contentResolver.openInputStream(uri)?.use {
-                        android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = 8 })
-                    }
-                } catch (e: Exception) {
-                    null
-                }
-            }
-        }
-        if (thumbnail != null) {
-            Image(
-                bitmap = thumbnail.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-        }
-        Text(stringResource(R.string.photo), color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
-        IconButton(
-            onClick = onSend,
-            modifier = Modifier.size(32.dp).background(KaspaTeal, CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = stringResource(R.string.send_photo),
-                tint = Color.Black,
-                modifier = Modifier.size(16.dp)
-            )
-        }
+        PendingMediaThumbnail(pendingPhotoUri, isVideo = staged?.isVideo == true)
+        PendingMediaLabel(staged)
+        PendingMediaSendButton(staged, size = 32.dp, onSend = onSend)
     }
 }
 
@@ -1733,7 +1690,6 @@ private fun GroupMessageBubble(
                     }
                 }
             }
-
 
             // The pill (anchored to the bubble's inner-bottom corner above) is offset ~10dp down,
             // and offset reserves no layout space, so reserve it here - otherwise it overlaps the
@@ -2799,7 +2755,6 @@ fun GroupChatInfoScreen(
         )
     }
 }
-
 
 /**
  * Group mirror of the 1:1 chat's `ChatHeaderCard`: the group photo over a capsule that tucks

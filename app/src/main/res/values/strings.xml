@@ -1071,4 +1071,8 @@
     <string name="groups_unpin_top_hint">Moves it back into your group chats list.</string>
     <string name="pinned_to_top_row">Pinned to the top row</string>
     <string name="send_and_receive">Send and Receive</string>
+    <string name="nc_uploading">Uploading to Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">Upload failed. Sends on chain.</string>
+    <string name="nc_photo_upload_failed_toast">Nextcloud upload failed. Send puts the photo on chain instead.</string>
+    <string name="video">Video</string>
 </resources>

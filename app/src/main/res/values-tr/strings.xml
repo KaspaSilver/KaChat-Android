@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">Grup sohbeti listene geri taşır.</string>
     <string name="pinned_to_top_row">Üst sıraya sabitlendi</string>
     <string name="send_and_receive">Gönder ve Al</string>
+    <string name="nc_uploading">Nextcloud\'a yükleniyor…</string>
+    <string name="nc_upload_failed_sends_on_chain">Yükleme başarısız. Zincir üzerinden gönderilecek.</string>
+    <string name="nc_photo_upload_failed_toast">Nextcloud\'a yükleme başarısız. Gönderince fotoğraf zincir üzerinden gider.</string>
+    <string name="video">Video</string>
 </resources>

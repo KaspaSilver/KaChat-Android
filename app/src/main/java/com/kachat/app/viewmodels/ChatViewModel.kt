@@ -1024,14 +1024,98 @@ class ChatViewModel @Inject constructor(
     private val groupPhotoViaNextcloud: Boolean get() = _groupNextcloudPhotoRequested.value && nextcloudService.isConnected
     private val groupVoiceViaNextcloud: Boolean get() = _groupNextcloudVoiceRequested.value && nextcloudService.isConnected
 
+    /**
+     * A photo or video picked "via Nextcloud", waiting in the composer (iOS 7abc06e
+     * `NextcloudStagedMedia`). Its upload starts the moment it is staged, not when send is tapped,
+     * and the send button spins until the share link is back - then a tap sends the link. Shared
+     * by 1:1 and group chats.
+     */
+    data class NextcloudStagedMedia(val id: Long, val isVideo: Boolean, val phase: Phase) {
+        sealed interface Phase {
+            data object Uploading : Phase
+            data class Ready(val url: String) : Phase
+            /** Photos only: send then puts the photo on chain. A video that fails is dropped
+             *  from the composer instead, since no on-chain path fits one. */
+            data object Failed : Phase
+        }
+
+        val isUploading: Boolean get() = phase == Phase.Uploading
+    }
+
+    /** One composer's staged Nextcloud upload ([NextcloudStagedMedia]), with the composer's own
+     *  pending media and route state, which a failed video upload clears. */
+    private inner class NextcloudStager(
+        private val pendingUri: MutableStateFlow<Uri?>,
+        private val requested: MutableStateFlow<Boolean>,
+    ) {
+        val staged = MutableStateFlow<NextcloudStagedMedia?>(null)
+        private var job: kotlinx.coroutines.Job? = null
+
+        /** Starts uploading [uri] as the staged media; [onVideoFailed] shows why a video left. */
+        fun start(uri: Uri, isVideo: Boolean, onVideoFailed: (String) -> Unit) {
+            job?.cancel()
+            val media = NextcloudStagedMedia(System.nanoTime(), isVideo, NextcloudStagedMedia.Phase.Uploading)
+            staged.value = media
+            job = viewModelScope.launch {
+                try {
+                    val url = uploadMediaToNextcloud(uri, isVideo)
+                    // Warm the preview cache so the sender's own bubble shows the card at once.
+                    launch { com.kachat.app.services.LinkPreviewService.fetchPreview(url) }
+                    if (staged.value?.id == media.id) staged.value = media.copy(phase = NextcloudStagedMedia.Phase.Ready(url))
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (staged.value?.id != media.id) return@launch
+                    Log.w("ChatViewModel", "Nextcloud ${if (isVideo) "video" else "photo"} upload failed", e)
+                    if (isVideo) {
+                        discard()
+                        onVideoFailed(e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed))
+                    } else {
+                        staged.value = media.copy(phase = NextcloudStagedMedia.Phase.Failed)
+                        requested.value = false
+                        com.kachat.app.ui.screens.IosToasts.error(appContext.getString(com.kachat.app.R.string.nc_photo_upload_failed_toast))
+                    }
+                }
+            }
+        }
+
+        /** Stops the upload; the composer's pending media stays. */
+        fun cancel() {
+            job?.cancel()
+            job = null
+            staged.value = null
+        }
+
+        /** Removing the pending media cancels its upload. */
+        fun discard() {
+            cancel()
+            requested.value = false
+            pendingUri.value = null
+        }
+    }
+
+    private val nextcloudStager = NextcloudStager(_pendingPhotoUri, _nextcloudPhotoRequested)
+    /** The 1:1 composer's staged Nextcloud upload, if any. */
+    val nextcloudStaged: StateFlow<NextcloudStagedMedia?> = nextcloudStager.staged.asStateFlow()
+
     fun setPendingPhoto(uri: Uri?, viaNextcloud: Boolean = false) {
+        nextcloudStager.cancel()
         _nextcloudPhotoRequested.value = viaNextcloud && uri != null
         _pendingPhotoUri.value = uri
+        if (uri != null && photoViaNextcloud) nextcloudStager.start(uri, isVideo = false) {}
+    }
+
+    /** A video picked "via Nextcloud" waits in the composer like a photo and starts uploading
+     *  right away (iOS 7abc06e). It used to send on its own the moment it was picked. */
+    fun setPendingNextcloudVideo(contactId: String, uri: Uri) {
+        nextcloudStager.cancel()
+        _nextcloudPhotoRequested.value = true
+        _pendingPhotoUri.value = uri
+        nextcloudStager.start(uri, isVideo = true) { reportSendFailure(contactId, it) }
     }
 
     fun cancelPendingPhoto() {
-        _nextcloudPhotoRequested.value = false
-        _pendingPhotoUri.value = null
+        nextcloudStager.discard()
     }
 
     // Group chat's own photo-staging/voice-recording state - kept separate from the 1:1 fields
@@ -1043,14 +1127,28 @@ class ChatViewModel @Inject constructor(
     private val _groupPendingPhotoUri = MutableStateFlow<Uri?>(null)
     val groupPendingPhotoUri: StateFlow<Uri?> = _groupPendingPhotoUri.asStateFlow()
 
+    private val groupNextcloudStager = NextcloudStager(_groupPendingPhotoUri, _groupNextcloudPhotoRequested)
+    /** The group composer's staged Nextcloud upload, if any. */
+    val groupNextcloudStaged: StateFlow<NextcloudStagedMedia?> = groupNextcloudStager.staged.asStateFlow()
+
     fun setGroupPendingPhoto(uri: Uri?, viaNextcloud: Boolean = false) {
+        groupNextcloudStager.cancel()
         _groupNextcloudPhotoRequested.value = viaNextcloud && uri != null
         _groupPendingPhotoUri.value = uri
+        if (uri != null && groupPhotoViaNextcloud) groupNextcloudStager.start(uri, isVideo = false) {}
+    }
+
+    /** The group composer's [setPendingNextcloudVideo]; [onError] shows a failed upload above the
+     *  composer, as iOS's group chat shows it. */
+    fun setGroupPendingNextcloudVideo(uri: Uri, onError: (String) -> Unit) {
+        groupNextcloudStager.cancel()
+        _groupNextcloudPhotoRequested.value = true
+        _groupPendingPhotoUri.value = uri
+        groupNextcloudStager.start(uri, isVideo = true, onError)
     }
 
     fun cancelGroupPendingPhoto() {
-        _groupNextcloudPhotoRequested.value = false
-        _groupPendingPhotoUri.value = null
+        groupNextcloudStager.discard()
     }
 
     /** Bumped when code (not a keystroke) sets the 1:1 composer's text, or the fee editor opens:
@@ -2864,34 +2962,26 @@ class ChatViewModel @Inject constructor(
 
     /** Mirrors [sendPendingPhoto] for the group's own staged photo - smaller default target than 1:1's preset since group's `gcomm` payload hex-encodes the ciphertext (vs. 1:1's base64) plus extra fixed per-message fields, so the same raw photo lands as a noticeably larger on-chain payload.
      *
-     *  Same Nextcloud gate as 1:1's [sendPendingPhoto]: sent "via Nextcloud" from the "+" sheet
-     *  (and still connected), the ORIGINAL picked image uploads to the server at full quality and the
-     *  group message is just the public share link — recipients' link-preview cards render it as a
-     *  photo. Any upload/share failure falls back to the compressed on-chain gcomm envelope below,
-     *  with a toast so the sender knows. */
+     *  Same Nextcloud route as 1:1's [sendPendingPhoto]: a photo or video staged "via Nextcloud"
+     *  has been uploading since it was staged, and the group message is its share link once that
+     *  is back; a photo whose upload failed goes as the compressed on-chain gcomm envelope below. */
     fun sendPendingGroupPhoto(groupId: String) {
         val uri = _groupPendingPhotoUri.value ?: return
-        // Read before it is cleared: the send below runs after this returns.
-        val viaNextcloud = groupPhotoViaNextcloud
+        val staged = groupNextcloudStager.staged.value
+        // The send button spins until the share link is back.
+        if (staged?.isUploading == true) return
+        val shareUrl = (staged?.phase as? NextcloudStagedMedia.Phase.Ready)?.url
+        groupNextcloudStager.cancel()
         _groupPendingPhotoUri.value = null
         _groupNextcloudPhotoRequested.value = false
         viewModelScope.launch {
-            if (viaNextcloud) {
+            if (shareUrl != null) {
                 try {
-                    val url = withContext(Dispatchers.IO) {
-                        val resolver = appContext.contentResolver
-                        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-                            ?: throw java.io.IOException("Could not read the selected photo.")
-                        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
-                        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
-                        nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
-                    }
-                    groupRepository.sendGroupMessage(url, groupId)
-                    return@launch
+                    groupRepository.sendGroupMessage(shareUrl, groupId)
                 } catch (e: Exception) {
-                    Log.w("ChatViewModel", "Nextcloud group photo upload failed, falling back to on-chain send", e)
-                    com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
+                    Log.e("ChatViewModel", "Error sending a Nextcloud link to a group", e)
                 }
+                return@launch
             }
             try {
                 val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, GROUP_PHOTO_TARGET_BYTES) }
@@ -2904,35 +2994,23 @@ class ChatViewModel @Inject constructor(
 
     /** Compresses and sends the currently staged [pendingPhotoUri] — clears the staged photo either way, matching the picker-cancel UX (a failed compression just drops back to the empty input bar, same as [sendVoiceMessage] logging and moving on rather than surfacing a dedicated error).
      *
-     *  Sent "via Nextcloud" from the "+" sheet (and still connected), the ORIGINAL picked image
-     *  uploads to the server at full quality and the chat message is just the public share link —
-     *  the recipient's link preview renders it as a photo bubble. Any upload/share failure falls
-     *  back to the embedded on-chain envelope below, with a toast so the sender knows the photo
-     *  went on-chain (compressed) instead of via their server. 1:1 only — the group path
-     *  ([sendPendingGroupPhoto]) is untouched. */
+     *  A photo or video staged "via Nextcloud" from the "+" sheet has been uploading at full
+     *  quality since it was staged ([nextcloudStaged], iOS 7abc06e); once the share link is back
+     *  the chat message is just that link - the recipient's link preview renders it as a photo or
+     *  video bubble. A photo whose upload failed goes as the embedded on-chain envelope below. */
     fun sendPendingPhoto(contactId: String) {
         val uri = _pendingPhotoUri.value ?: return
-        // Read before it is cleared: the send below runs after this returns.
-        val viaNextcloud = photoViaNextcloud
+        val staged = nextcloudStager.staged.value
+        // The send button spins until the share link is back.
+        if (staged?.isUploading == true) return
+        val shareUrl = (staged?.phase as? NextcloudStagedMedia.Phase.Ready)?.url
+        nextcloudStager.cancel()
         _pendingPhotoUri.value = null
         _nextcloudPhotoRequested.value = false
         viewModelScope.launch {
-            if (viaNextcloud) {
-                try {
-                    val url = withContext(Dispatchers.IO) {
-                        val resolver = appContext.contentResolver
-                        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-                            ?: throw java.io.IOException("Could not read the selected photo.")
-                        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
-                        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
-                        nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
-                    }
-                    sendMessage(contactId, url, sendFailureAlert(contactId))
-                    return@launch
-                } catch (e: Exception) {
-                    Log.w("ChatViewModel", "Nextcloud photo upload failed, falling back to on-chain send", e)
-                    com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
-                }
+            if (shareUrl != null) {
+                sendMessage(contactId, shareUrl, sendFailureAlert(contactId))
+                return@launch
             }
             try {
                 // On chain, the photo budget: 20 KB, or the largest a transaction carries with
@@ -2950,55 +3028,36 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * A video picked from the library with "Send Photo or Video via Nextcloud" (iOS a890102):
-     * uploaded to the Nextcloud media folder and sent as its share link, which the recipient's
-     * link preview renders as a video. There is no on-chain path that fits a video, so a failure
-     * says so instead of falling back. [send] delivers the link - a 1:1 or a group message.
+     * Uploads a picked photo or video to the Nextcloud media folder and returns its share link,
+     * which the recipient's link preview renders as a photo or video (iOS a890102). A photo goes
+     * up as the ORIGINAL picked image, at full quality; a video is streamed from the content
+     * provider into the PUT - a phone video can be far larger than is sensible to hold in memory.
      */
-    private fun sendNextcloudVideo(uri: Uri, onError: (String) -> Unit, send: suspend (String) -> Unit) {
-        viewModelScope.launch {
-            val url = try {
-                val resolver = appContext.contentResolver
-                val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("video/") } ?: "video/mp4"
-                val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "mp4"
-                val length = runCatching {
-                    resolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
-                }.getOrNull()?.takeIf { it >= 0 } ?: -1L
-                // Streamed from the content provider into the PUT: a phone video can be far larger
-                // than is sensible to hold in memory.
-                val body = object : okhttp3.RequestBody() {
-                    override fun contentType() = mimeType.toMediaTypeOrNull()
-                    override fun contentLength(): Long = length
-                    override fun writeTo(sink: okio.BufferedSink) {
-                        val input = resolver.openInputStream(uri)
-                            ?: throw java.io.IOException("Couldn't load that video. Please try another.")
-                        input.use { stream -> sink.writeAll(stream.source()) }
-                    }
-                }
-                nextcloudService.uploadMediaAndShare(body, "video_${System.currentTimeMillis() / 1000}.$extension")
-            } catch (e: Exception) {
-                Log.w("ChatViewModel", "Nextcloud video upload failed", e)
-                onError(e.message ?: appContext.getString(com.kachat.app.R.string.media_video_load_failed))
-                return@launch
-            }
-            // Warm the preview cache so the sender's own bubble shows the video card at once.
-            launch { com.kachat.app.services.LinkPreviewService.fetchPreview(url) }
-            try {
-                send(url)
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error sending Nextcloud video link", e)
-                onError(UserFacingError.message(e, "Failed to send"))
+    private suspend fun uploadMediaToNextcloud(uri: Uri, isVideo: Boolean): String = withContext(Dispatchers.IO) {
+        val resolver = appContext.contentResolver
+        if (!isVideo) {
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw java.io.IOException("Could not read the selected photo.")
+            val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+            val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+            return@withContext nextcloudService.uploadMediaAndShare(bytes, "photo_${System.currentTimeMillis()}.$extension", mimeType)
+        }
+        val mimeType = resolver.getType(uri)?.takeIf { it.startsWith("video/") } ?: "video/mp4"
+        val extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "mp4"
+        val length = runCatching {
+            resolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+        }.getOrNull()?.takeIf { it >= 0 } ?: -1L
+        val body = object : okhttp3.RequestBody() {
+            override fun contentType() = mimeType.toMediaTypeOrNull()
+            override fun contentLength(): Long = length
+            override fun writeTo(sink: okio.BufferedSink) {
+                val input = resolver.openInputStream(uri)
+                    ?: throw java.io.IOException("Couldn't load that video. Please try another.")
+                input.use { stream -> sink.writeAll(stream.source()) }
             }
         }
+        nextcloudService.uploadMediaAndShare(body, "video_${System.currentTimeMillis() / 1000}.$extension")
     }
-
-    /** 1:1 entry to [sendNextcloudVideo]. */
-    fun sendNextcloudVideo(contactId: String, uri: Uri) =
-        sendNextcloudVideo(uri, sendFailureAlert(contactId)) { url -> sendMessage(contactId, url, sendFailureAlert(contactId)) }
-
-    /** Group entry to [sendNextcloudVideo] - the link goes out as a normal group text message. */
-    fun sendGroupNextcloudVideo(groupId: String, uri: Uri, onError: (String) -> Unit) =
-        sendNextcloudVideo(uri, onError) { url -> groupRepository.sendGroupMessage(url, groupId) }
 
     /** Recorded "via Nextcloud", the recorded file (Opus-in-WebM, exactly as captured — no
      *  duration cap pressure from on-chain payload size) uploads to the server and the message

@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">بترجعها لقايمة شاتات الجروبات.</string>
     <string name="pinned_to_top_row">اتثبتت في الصف اللي فوق</string>
     <string name="send_and_receive">إرسال واستلام</string>
+    <string name="nc_uploading">بيترفع على Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">الرفع فشل. هيتبعت على السلسلة.</string>
+    <string name="nc_photo_upload_failed_toast">الرفع على Nextcloud فشل. لما تبعت، الصورة هتروح على السلسلة بدل كده.</string>
+    <string name="video">فيديو</string>
 </resources>

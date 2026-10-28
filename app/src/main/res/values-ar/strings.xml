@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">يعيدها إلى قائمة محادثاتك الجماعية.</string>
     <string name="pinned_to_top_row">مثبّتة في الصف العلوي</string>
     <string name="send_and_receive">إرسال واستلام</string>
+    <string name="nc_uploading">جارٍ الرفع إلى Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">فشل الرفع. سيُرسل عبر السلسلة.</string>
+    <string name="nc_photo_upload_failed_toast">فشل الرفع إلى Nextcloud. عند الإرسال ستُرسل الصورة عبر السلسلة بدلًا من ذلك.</string>
+    <string name="video">فيديو</string>
 </resources>

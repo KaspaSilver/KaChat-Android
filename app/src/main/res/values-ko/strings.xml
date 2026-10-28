@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">그룹 채팅 목록으로 되돌립니다.</string>
     <string name="pinned_to_top_row">위쪽 줄에 고정됨</string>
     <string name="send_and_receive">보내기 및 받기</string>
+    <string name="nc_uploading">Nextcloud에 업로드 중…</string>
+    <string name="nc_upload_failed_sends_on_chain">업로드 실패. 체인으로 보냅니다.</string>
+    <string name="nc_photo_upload_failed_toast">Nextcloud 업로드에 실패했습니다. 보내면 사진은 체인으로 전송됩니다.</string>
+    <string name="video">동영상</string>
 </resources>

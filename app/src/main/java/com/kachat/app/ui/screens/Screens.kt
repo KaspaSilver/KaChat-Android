@@ -293,6 +293,7 @@ fun ChatThreadScreen(
     }
     val voiceRecordingState by chatViewModel.voiceRecordingState.collectAsState()
     val pendingPhotoUri by chatViewModel.pendingPhotoUri.collectAsState()
+    val nextcloudStaged by chatViewModel.nextcloudStaged.collectAsState()
     val replyingTo by chatViewModel.replyingTo.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
@@ -473,12 +474,12 @@ fun ChatThreadScreen(
     val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) chatViewModel.setPendingPhoto(uri)
     }
-    // "Send Photo or Video via Nextcloud": the library picker offers videos too, and a picked
-    // video goes straight out as an upload-and-share link (iOS a890102).
+    // "Send Photo or Video via Nextcloud": the library picker offers videos too. A picked video
+    // waits in the composer like a photo, uploading meanwhile (iOS a890102, 7abc06e).
     val nextcloudMediaPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         if (micContext.contentResolver.getType(uri)?.startsWith("video/") == true) {
-            chatViewModel.sendNextcloudVideo(contactId, uri)
+            chatViewModel.setPendingNextcloudVideo(contactId, uri)
         } else {
             chatViewModel.setPendingPhoto(uri, viaNextcloud = true)
         }
@@ -907,49 +908,9 @@ fun ChatThreadScreen(
                             IconButton(onClick = { chatViewModel.cancelPendingPhoto() }) {
                                 Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_photo), tint = LocalAppColors.current.danger)
                             }
-                            val thumbnailContext = LocalContext.current
-                            // Fixed downsample for a quick composition-time thumbnail decode — the real
-                            // compression (ImagePrep.prepareForChatMessage) happens off the main thread
-                            // in the ViewModel when Send is tapped, this is display-only.
-                            // Decode off the main thread (contentResolver I/O + BitmapFactory) so
-                            // attaching a photo can't hitch composition; matches the incoming-photo
-                            // produceState pattern used elsewhere in this file.
-                            val thumbnailState = produceState<android.graphics.Bitmap?>(initialValue = null, pendingPhotoUri) {
-                                value = pendingPhotoUri?.let { uri ->
-                                    withContext(Dispatchers.IO) {
-                                        try {
-                                            thumbnailContext.contentResolver.openInputStream(uri)?.use {
-                                                android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = 8 })
-                                            }
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                    }
-                                }
-                            }
-                            val thumbnail = thumbnailState.value
-                            if (thumbnail != null) {
-                                Image(
-                                    bitmap = thumbnail.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            Text(stringResource(R.string.photo), color = LocalAppColors.current.textPrimary, modifier = Modifier.weight(1f))
-                            IconButton(
-                                onClick = { chatViewModel.sendPendingPhoto(contactId) },
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(KaspaTeal, CircleShape)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = stringResource(R.string.send_photo),
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                            PendingMediaThumbnail(pendingPhotoUri, isVideo = nextcloudStaged?.isVideo == true)
+                            PendingMediaLabel(nextcloudStaged)
+                            PendingMediaSendButton(nextcloudStaged, size = 32.dp) { chatViewModel.sendPendingPhoto(contactId) }
                         }
                     }
                 } else if (voiceRecordingState.status == ChatViewModel.VoiceRecordingStatus.RECORDING) {

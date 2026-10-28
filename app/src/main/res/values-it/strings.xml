@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">Lo riporta nell\'elenco delle chat di gruppo.</string>
     <string name="pinned_to_top_row">Fissato nella riga in alto</string>
     <string name="send_and_receive">Invia e ricevi</string>
+    <string name="nc_uploading">Caricamento su Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">Caricamento non riuscito. Inviata sulla chain.</string>
+    <string name="nc_photo_upload_failed_toast">Caricamento su Nextcloud non riuscito. All\'invio la foto andrà sulla chain.</string>
+    <string name="video">Video</string>
 </resources>

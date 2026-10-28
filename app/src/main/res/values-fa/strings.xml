@@ -899,4 +899,8 @@
     <string name="groups_unpin_top_hint">آن را به فهرست گفتگوهای گروهی‌تان برمی‌گرداند.</string>
     <string name="pinned_to_top_row">در ردیف بالا سنجاق شد</string>
     <string name="send_and_receive">ارسال و دریافت</string>
+    <string name="nc_uploading">در حال بارگذاری در Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">بارگذاری ناموفق بود. روی زنجیره ارسال می‌شود.</string>
+    <string name="nc_photo_upload_failed_toast">بارگذاری در Nextcloud ناموفق بود. هنگام ارسال، عکس روی زنجیره فرستاده می‌شود.</string>
+    <string name="video">ویدیو</string>
 </resources>

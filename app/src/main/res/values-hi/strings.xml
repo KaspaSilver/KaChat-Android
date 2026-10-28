@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">इसे वापस आपकी ग्रुप चैट सूची में ले जाता है।</string>
     <string name="pinned_to_top_row">ऊपरी पंक्ति में पिन किया गया</string>
     <string name="send_and_receive">भेजें और पाएँ</string>
+    <string name="nc_uploading">Nextcloud पर अपलोड हो रहा है…</string>
+    <string name="nc_upload_failed_sends_on_chain">अपलोड विफल। चेन पर भेजा जाएगा।</string>
+    <string name="nc_photo_upload_failed_toast">Nextcloud अपलोड विफल। भेजने पर फ़ोटो चेन पर जाएगी।</string>
+    <string name="video">वीडियो</string>
 </resources>

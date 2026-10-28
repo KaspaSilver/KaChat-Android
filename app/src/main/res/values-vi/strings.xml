@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">Đưa nó trở lại danh sách nhóm chat.</string>
     <string name="pinned_to_top_row">Đã ghim lên hàng trên cùng</string>
     <string name="send_and_receive">Gửi và nhận</string>
+    <string name="nc_uploading">Đang tải lên Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">Tải lên thất bại. Sẽ gửi qua chuỗi.</string>
+    <string name="nc_photo_upload_failed_toast">Tải lên Nextcloud thất bại. Khi gửi, ảnh sẽ đi qua chuỗi.</string>
+    <string name="video">Video</string>
 </resources>

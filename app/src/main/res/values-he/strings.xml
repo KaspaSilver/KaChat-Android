@@ -872,4 +872,8 @@
     <string name="groups_unpin_top_hint">מחזיר אותה לרשימת הצ\'אטים הקבוצתיים שלך.</string>
     <string name="pinned_to_top_row">הוצמד לשורה העליונה</string>
     <string name="send_and_receive">שליחה וקבלה</string>
+    <string name="nc_uploading">מעלה ל-Nextcloud…</string>
+    <string name="nc_upload_failed_sends_on_chain">ההעלאה נכשלה. יישלח דרך השרשרת.</string>
+    <string name="nc_photo_upload_failed_toast">ההעלאה ל-Nextcloud נכשלה. בשליחה התמונה תישלח דרך השרשרת במקום.</string>
+    <string name="video">וידאו</string>
 </resources>
