@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">একটি নোট যোগ করুন (এনক্রিপ্টেড)</string>
     <string name="payment_switch_currency">Kaspa ও আপনার মুদ্রার মধ্যে বদলান</string>
     <string name="payment_dust_warning">নেটওয়ার্কের dust সুরক্ষা সীমার কারণে 0.1 KAS-এর কম পাঠানো ব্যর্থ হতে পারে।</string>
-    <string name="payment_small_amount">ছোট পরিমাণ</string>
-    <string name="payment_send_anyway">তবুও পাঠান</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Nextcloud দিয়ে ছবি বা ভিডিও পাঠান</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">পূর্ণ মান, বা একটি ভিডিও। আপনার Nextcloud-এ আপলোড হয়; চ্যাটে লিংক যায়।</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">QR স্ক্যান করুন</string>
     <string name="network_fee">নেটওয়ার্ক ফি</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">পাঠাতে স্লাইড করুন</string>
-    <string name="slide_to_consolidate">একত্র করতে স্লাইড করুন</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">যেখান থেকে পাঠাবেন</string>
     <string name="primary">প্রাথমিক</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">.kachat নাম এই নেটওয়ার্কে এখনো চালু হয়নি</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">আপনার অ্যাড্রেস বুক ও পোর্টফোলিও একই ব্যাকআপে থাকে এবং একইভাবে আপনার ডিভাইসগুলোর মধ্যে সিঙ্ক হয়।</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">গ্রেস পিরিয়ড শেষ %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">আপলোড ব্যর্থ। চেইনে পাঠানো হবে।</string>
     <string name="nc_photo_upload_failed_toast">Nextcloud-এ আপলোড ব্যর্থ। পাঠালে ছবিটি চেইনে যাবে।</string>
     <string name="video">ভিডিও</string>
+    <string name="swipe_up_to_send">পাঠাতে উপরে সোয়াইপ করুন</string>
+    <string name="swipe_up_to_consolidate">একত্র করতে উপরে সোয়াইপ করুন</string>
+    <string name="swipe_release_to_send">পাঠাতে ছেড়ে দিন</string>
+    <string name="swipe_sending">পাঠানো হচ্ছে</string>
+    <string name="swipe_broadcasting">Kaspa BlockDAG-এ সম্প্রচার হচ্ছে...</string>
+    <string name="swipe_hint">পাঠাতে অর্ধেকের পরে ছেড়ে দিন।</string>
+    <string name="swipe_send_failed_fallback">পাঠানো হয়নি।</string>
+    <string name="swipe_keep_swiping">সোয়াইপ চালিয়ে যান</string>
+    <string name="swipe_failed">ব্যর্থ</string>
+    <string name="swipe_tap_tx_hint">এক্সপ্লোরারে খুলতে লেনদেনে ট্যাপ করুন।</string>
 </resources>

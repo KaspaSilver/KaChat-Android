@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">메모 추가(암호화됨)</string>
     <string name="payment_switch_currency">Kaspa와 통화 간 전환</string>
     <string name="payment_dust_warning">0.1 KAS 미만 전송은 네트워크 dust 보호 제한으로 인해 실패할 수 있습니다.</string>
-    <string name="payment_small_amount">소액 송금</string>
-    <string name="payment_send_anyway">그래도 보내기</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Nextcloud로 사진 또는 동영상 전송</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">원본 화질 또는 동영상. Nextcloud에 업로드되고 채팅에는 링크가 전송됩니다.</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">QR 스캔</string>
     <string name="network_fee">네트워크 수수료</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">밀어서 보내기</string>
-    <string name="slide_to_consolidate">밀어서 통합</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">보내는 주소</string>
     <string name="primary">기본</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">이 네트워크에서는 아직 .kachat 이름을 사용할 수 없습니다</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">주소록과 포트폴리오도 같은 백업에 포함되며 같은 방식으로 기기 간에 동기화됩니다.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">유예 기간 종료 %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">업로드 실패. 체인으로 보냅니다.</string>
     <string name="nc_photo_upload_failed_toast">Nextcloud 업로드에 실패했습니다. 보내면 사진은 체인으로 전송됩니다.</string>
     <string name="video">동영상</string>
+    <string name="swipe_up_to_send">위로 밀어서 보내기</string>
+    <string name="swipe_up_to_consolidate">위로 밀어서 통합</string>
+    <string name="swipe_release_to_send">손을 떼면 보내기</string>
+    <string name="swipe_sending">보내는 중</string>
+    <string name="swipe_broadcasting">Kaspa BlockDAG에 전파하는 중...</string>
+    <string name="swipe_hint">절반을 넘긴 뒤 손을 떼면 보냅니다.</string>
+    <string name="swipe_send_failed_fallback">전송되지 않았습니다.</string>
+    <string name="swipe_keep_swiping">계속 밀기</string>
+    <string name="swipe_failed">실패</string>
+    <string name="swipe_tap_tx_hint">트랜잭션을 탭하면 익스플로러에서 열립니다.</string>
 </resources>

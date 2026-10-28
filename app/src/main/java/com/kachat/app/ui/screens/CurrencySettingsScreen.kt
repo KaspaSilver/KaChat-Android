@@ -36,9 +36,9 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.viewmodels.WalletViewModel
 
 /**
- * Fiat currency for Portfolio's live KAS price/value display, independent of device locale.
+ * Fiat currency for the Send screens' KAS price, independent of device locale.
  * Raw [code] is the lowercase ISO 4217 value, doubling as the literal CoinGecko `vs_currency`
- * value (see `CoinGeckoApi`/`PortfolioRepository`) - no separate mapping table to keep in sync.
+ * value (see `CoinGeckoApi`/`KasPriceRepository`) - no separate mapping table to keep in sync.
  * Mirrors iOS's `AppCurrency` enum's shape and case list exactly.
  */
 enum class AppCurrency(val code: String, val currencyName: String) {
@@ -63,7 +63,7 @@ enum class AppCurrency(val code: String, val currencyName: String) {
     ZAR("zar", "South African Rand"),
     // Not ISO 4217 (no fiat currency is) - CoinGecko's `vs_currency` list includes major
     // cryptocurrencies alongside fiat ones, "btc" among them, so this needs no special handling
-    // in CoinGeckoApi/PortfolioRepository: same API call as any other code.
+    // in CoinGeckoApi/KasPriceRepository: same API call as any other code.
     BTC("btc", "Bitcoin");
 
     val displayName: String get() = "$currencyName (${code.uppercase()})"

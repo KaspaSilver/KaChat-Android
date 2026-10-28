@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">Aggiungi una nota (cifrata)</string>
     <string name="payment_switch_currency">Passa tra Kaspa e la tua valuta</string>
     <string name="payment_dust_warning">L\'invio di meno di 0,1 KAS potrebbe fallire a causa del limite di protezione dust della rete.</string>
-    <string name="payment_small_amount">Importo ridotto</string>
-    <string name="payment_send_anyway">Invia comunque</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Invia foto o video tramite Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">Qualità piena, o un video. Caricato sul tuo Nextcloud; la chat contiene il link.</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">Scansiona QR</string>
     <string name="network_fee">Commissione di rete</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">Scorri per inviare</string>
-    <string name="slide_to_consolidate">Scorri per consolidare</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Invia da</string>
     <string name="primary">Primario</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">I nomi .kachat non sono ancora attivi su questa rete</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">La tua rubrica e i tuoi portafogli sono nello stesso backup e si sincronizzano allo stesso modo tra i tuoi dispositivi.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Tolleranza fino al %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">Caricamento non riuscito. Inviata sulla chain.</string>
     <string name="nc_photo_upload_failed_toast">Caricamento su Nextcloud non riuscito. All\'invio la foto andrà sulla chain.</string>
     <string name="video">Video</string>
+    <string name="swipe_up_to_send">Scorri in alto per inviare</string>
+    <string name="swipe_up_to_consolidate">Scorri in alto per consolidare</string>
+    <string name="swipe_release_to_send">Rilascia per inviare</string>
+    <string name="swipe_sending">Invio in corso</string>
+    <string name="swipe_broadcasting">Trasmissione al BlockDAG di Kaspa...</string>
+    <string name="swipe_hint">Rilascia oltre metà per inviare.</string>
+    <string name="swipe_send_failed_fallback">L\'invio non è partito.</string>
+    <string name="swipe_keep_swiping">Continua a scorrere</string>
+    <string name="swipe_failed">Non riuscito</string>
+    <string name="swipe_tap_tx_hint">Tocca la transazione per aprirla nell\'explorer.</string>
 </resources>

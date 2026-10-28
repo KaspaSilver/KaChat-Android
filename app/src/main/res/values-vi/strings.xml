@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">Thêm ghi chú (đã mã hóa)</string>
     <string name="payment_switch_currency">Chuyển giữa Kaspa và tiền tệ của bạn</string>
     <string name="payment_dust_warning">Gửi dưới 0,1 KAS có thể thất bại do giới hạn bảo vệ dust của mạng.</string>
-    <string name="payment_small_amount">Số tiền nhỏ</string>
-    <string name="payment_send_anyway">Vẫn gửi</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Gửi ảnh hoặc video qua Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">Chất lượng gốc, hoặc video. Tải lên Nextcloud của bạn; cuộc trò chuyện mang liên kết.</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">Quét QR</string>
     <string name="network_fee">Phí mạng</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">Trượt để gửi</string>
-    <string name="slide_to_consolidate">Trượt để gộp</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Gửi từ</string>
     <string name="primary">Chính</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Tên .kachat chưa hoạt động trên mạng này</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">Sổ địa chỉ và danh mục đầu tư của bạn nằm trong cùng bản sao lưu và được đồng bộ giữa các thiết bị theo cùng cách.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Hết ân hạn %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">Tải lên thất bại. Sẽ gửi qua chuỗi.</string>
     <string name="nc_photo_upload_failed_toast">Tải lên Nextcloud thất bại. Khi gửi, ảnh sẽ đi qua chuỗi.</string>
     <string name="video">Video</string>
+    <string name="swipe_up_to_send">Vuốt lên để gửi</string>
+    <string name="swipe_up_to_consolidate">Vuốt lên để hợp nhất</string>
+    <string name="swipe_release_to_send">Thả để gửi</string>
+    <string name="swipe_sending">Đang gửi</string>
+    <string name="swipe_broadcasting">Đang phát lên BlockDAG của Kaspa...</string>
+    <string name="swipe_hint">Thả sau nửa đường để gửi.</string>
+    <string name="swipe_send_failed_fallback">Giao dịch chưa được gửi đi.</string>
+    <string name="swipe_keep_swiping">Tiếp tục vuốt</string>
+    <string name="swipe_failed">Thất bại</string>
+    <string name="swipe_tap_tx_hint">Chạm vào giao dịch để mở trong trình khám phá.</string>
 </resources>

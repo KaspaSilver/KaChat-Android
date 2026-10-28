@@ -318,6 +318,9 @@ fun ChatThreadScreen(
     /** Why the payment could not be sent - shown in the Send KAS sheet, which is still up. */
     var paymentError by remember { mutableStateOf<String?>(null) }
     var paymentSending by remember { mutableStateOf(false) }
+    /** The Send KAS sheet's confirmation: set once the payment went out, shown by the swipe-up
+     *  send screen until Done (iOS 7abc06e). */
+    var sentPayment by remember { mutableStateOf<SentTransaction?>(null) }
     /** The payment bubble that was tapped, driving its details half sheet (amount, memo, View in
      *  Explorer, Copy Transaction ID). It replaced the sent-confirmation sheet after a chat
      *  payment (iOS 80a6aae). */
@@ -349,6 +352,7 @@ fun ChatThreadScreen(
         chatViewModel.setPaymentNote("")
         paymentNote = ""
         paymentError = null
+        sentPayment = null
         paymentFrom = SendSource.Chatting
         chatViewModel.setPaymentSource(null)
         resetPaymentFeeAndCoins()
@@ -360,6 +364,7 @@ fun ChatThreadScreen(
         chatViewModel.setPaymentNote("")
         paymentNote = ""
         paymentError = null
+        sentPayment = null
         paymentFrom = SendSource.Chatting
         chatViewModel.setPaymentSource(null)
         resetPaymentFeeAndCoins()
@@ -1904,10 +1909,21 @@ fun ChatThreadScreen(
             },
             error = paymentError,
             isSending = paymentSending,
+            sent = sentPayment,
+            explorer = kaspaExplorer,
             onSend = {
                 if (paymentAmount.isNotEmpty() && !paymentSending) {
                     paymentSending = true
                     paymentError = null
+                    if (SendFailureSimulation.isEnabled) {
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(SendFailureSimulation.DELAY_MS)
+                            paymentSending = false
+                            paymentError = SendFailureSimulation.error().message
+                        }
+                        return@SendKasSheet
+                    }
+                    val sentAmountSompi = amountSompi
                     chatViewModel.sendPayment(
                         contactId,
                         paymentAmount,
@@ -1915,17 +1931,25 @@ fun ChatThreadScreen(
                         sourceSpendingIndex = paymentFrom.spendingIndex,
                         extraFeeSompi = paymentExtraFeeSompi,
                         manualUtxos = paymentManualUtxos,
-                    ) { ok, message, _ ->
+                    ) { ok, message, txId ->
                         paymentSending = false
-                        if (ok) {
-                            // No confirmation sheet: the payment bubble in the chat is the
-                            // confirmation, and its transaction is a tap away (iOS 80a6aae).
+                        if (ok && !txId.isNullOrEmpty()) {
+                            // The swipe-up screen shows Sent with the transaction until Done (it
+                            // plays the success haptic itself).
+                            sentPayment = SentTransaction(
+                                txId = txId,
+                                amountSompi = sentAmountSompi,
+                                recipient = conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId),
+                            )
+                        } else if (ok) {
+                            // Deferred (no confirmed inputs yet): no transaction to show, and the
+                            // payment bubble is already in the chat - the retry timer sends it.
                             haptic(com.kachat.app.util.IosHaptic.SUCCESS)
                             closePaymentSheet()
                         } else {
-                            haptic(com.kachat.app.util.IosHaptic.ERROR)
-                            // A payment that never reached the network leaves no row in the
-                            // thread, so the sheet - still up - says why.
+                            // Shown under "Failed" on the swipe-up screen (which plays the error
+                            // haptic), and on the form after Try Again. A payment that never
+                            // reached the network leaves no row in the thread.
                             paymentError = message ?: "The payment could not be sent."
                         }
                     }
@@ -3795,7 +3819,6 @@ fun ProfileScreen(
                 viewModel = viewModel,
                 priceViewModel = priceViewModel,
                 onDone = close,
-                presentedAsSheet = true,
                 prefillAddress = donationAddress,
             )
         }
@@ -6017,9 +6040,11 @@ private fun AddressVisibilityChainList(
 }
 
 /**
- * Send Kaspa (iOS `WithdrawKaspaView`): Chats > + > Send Kaspa, Donate, the Address Book, an
- * address's Send, paying a payment request - and, in [isCompoundMode], Compound UTXOs for one
- * address. Every send but Compound starts with From ([SendFromSection], iOS 6333dd3): Chatting
+ * Send Kaspa (iOS `WithdrawKaspaView`): Profile's send / receive button > Send Kaspa, Donate, the
+ * Address Book, an address's Send, paying a payment request - and, in [isCompoundMode], Compound
+ * UTXOs for one address. Swipe up to send ([SwipeUpToSendScreen], iOS 7abc06e, from KaChat
+ * Wallet): the screen rises into a full-screen BlockDAG while sending, then shows Sent with the
+ * transaction, or Failed with the error and Try Again. Every send but Compound starts with From ([SendFromSection], iOS 6333dd3): Chatting
  * Address (the default) or Choose an Address. Fees, Max, coin control and the send follow the
  * chosen address: the chatting address signs with the identity key
  * ([WalletViewModel.onSendClicked]), a spending address with its own key
@@ -6044,12 +6069,6 @@ fun SpendingAddressSendFlow(
     // isCompoundMode behavior, since editing it away from fromAddress would defeat the point of
     // a compound send.
     isCompoundMode: Boolean = false,
-    /**
-     * Shown inside a sheet ([IosFullSheet] - every send entry, as iOS presents them): the bar's
-     * leading control is "Cancel", as iOS's SpendingAddressWithdrawView and WithdrawKaspaView have
-     * it, and the bars take no system insets of their own - the sheet already sits clear of them.
-     */
-    presentedAsSheet: Boolean = false,
     /** Pre-fills the recipient (Address Book > Send KAS, iOS `WithdrawKaspaView(prefillAddress:)`);
      *  it stays editable. */
     prefillAddress: String? = null,
@@ -6082,8 +6101,11 @@ fun SpendingAddressSendFlow(
     // Custom fee, edited in place on the fee row (SendFeeControls), as on iOS.
     var isEditingFee by remember { mutableStateOf(false) }
     var customFeeText by remember { mutableStateOf("") }
-    /// The completed send, driving the sent-confirmation half sheet.
+    /// The completed send: the swipe-up screen shows it until Done.
     var sentTransaction by remember { mutableStateOf<SentTransaction?>(null) }
+    /// Why the last send failed: under "Failed" on the swipe-up screen, and on the form after Try
+    /// Again (iOS errorMessage).
+    var sendError by remember { mutableStateOf<String?>(null) }
     // This presentation's own sends (iOS's per-sheet isSending/sentTransaction): one closed
     // mid-send leaves its send running in the view model, and its outcome is never shown here
     // or on the next send screen.
@@ -6302,24 +6324,13 @@ fun SpendingAddressSendFlow(
                 )
             }
         } else {
-            IosToasts.error(result.exceptionOrNull()?.message ?: context.getString(R.string.withdrawal_failed))
+            sendError = result.exceptionOrNull()?.message ?: context.getString(R.string.withdrawal_failed)
         }
         viewModel.sends.consume(sendId)
     }
 
     // Back is Cancel, and Cancel closes the send at any time, as iOS's does - mid-send too.
     BackHandler { onDone() }
-
-    sentTransaction?.let { sent ->
-        SentConfirmationSheet(
-            transaction = sent,
-            explorerName = kaspaExplorer.displayName,
-            explorerUrl = kaspaExplorer.txUrl(sent.txId),
-        ) {
-            sentTransaction = null
-            onDone()
-        }
-    }
 
     // The recipient scanner and coin control are sheets over the send, as iOS's
     // SpendingAddressWithdrawView and WithdrawKaspaView present QRScannerView and CoinControlView.
@@ -6407,6 +6418,15 @@ fun SpendingAddressSendFlow(
     val canSend = !isSending && hasValidRecipient && (amountSompi ?: 0) > 0 && !isPreviewingFee
     val send: () -> Unit = {
         amountSompi?.takeIf { canSend }?.let {
+            sendError = null
+            if (SendFailureSimulation.isEnabled) {
+                viewModel.sends.start(sendId)
+                coroutineScope.launch {
+                    kotlinx.coroutines.delay(SendFailureSimulation.DELAY_MS)
+                    viewModel.sends.finish(sendId, Result.failure(SendFailureSimulation.error()))
+                }
+                return@let
+            }
             val request = activeRequest
             val recipient = effectiveAddress.trim()
             // No rate override: the engine prices the base at the live quote, and the speed or
@@ -6453,43 +6473,34 @@ fun SpendingAddressSendFlow(
         }
     }
 
-    Scaffold(
-        containerColor = LocalAppColors.current.background,
-        contentWindowInsets = if (presentedAsSheet) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
-        topBar = {
-            CenterAlignedTopAppBar(
-                windowInsets = if (presentedAsSheet) WindowInsets(0, 0, 0, 0) else TopAppBarDefaults.windowInsets,
-                title = {
-                    Text(
-                        when {
-                            isCompoundMode -> stringResource(R.string.compound_utxos)
-                            activeRequest != null -> stringResource(R.string.pr_payment_request)
-                            else -> title
-                        },
-                        color = LocalAppColors.current.textPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    if (presentedAsSheet) {
-                        SheetBarButton(stringResource(R.string.cancel), onClick = onDone, modifier = Modifier.padding(start = 12.dp))
-                    } else {
-                        SheetBarBackButton(onClick = onDone, modifier = Modifier.padding(start = 12.dp))
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
-            )
-        }
-    ) { padding ->
+    // Swipe up anywhere on the bar at the bottom to send; the header (Cancel, title) is the
+    // screen's own, so it moves with the swipe.
+    SwipeUpToSendScreen(
+        screenTitle = when {
+            isCompoundMode -> stringResource(R.string.compound_utxos)
+            activeRequest != null -> stringResource(R.string.pr_payment_request)
+            else -> title
+        },
+        onCancel = onDone,
+        title = stringResource(if (isCompoundMode) R.string.swipe_up_to_consolidate else R.string.swipe_up_to_send),
+        isBusy = isSending,
+        isEnabled = canSend,
+        amountSompi = amountSompi?.takeIf { it > 0 },
+        recipient = if (isCompoundMode) null else (knsResolvedDomain ?: effectiveAddress.trim()),
+        sent = sentTransaction,
+        failureMessage = sendError,
+        explorer = kaspaExplorer,
+        onDone = {
+            sentTransaction = null
+            onDone()
+        },
+        action = send,
+    ) {
         // The layout of the 1:1 chat's Send KAS sheet, from the shared Send Kaspa pieces (iOS
-        // 4d0324f): recipient, the big amount, Available, fee and coin control, and the send
-        // button in the column. The confirmation is a half sheet (SentConfirmationSheet), not a
-        // page that replaced this form - so every send in the app finishes the same way.
+        // 4d0324f): recipient, the big amount, Available, fee and coin control.
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(top = 12.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -6582,12 +6593,9 @@ fun SpendingAddressSendFlow(
                 onCoinControl = { if (!isSending) showCoinControl = true },
             )
 
-            SendActionButton(
-                title = stringResource(if (isCompoundMode) R.string.slide_to_consolidate else R.string.slide_to_send),
-                isBusy = isSending,
-                isEnabled = canSend,
-                onSend = send,
-            )
+            sendError?.let {
+                Text(it, color = LocalAppColors.current.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+            }
         }
     }
 }
@@ -6686,7 +6694,6 @@ fun SpendingAddressTxHistoryScreen(
                 viewModel = viewModel,
                 priceViewModel = priceViewModel,
                 onDone = close,
-                presentedAsSheet = true,
                 // Send from this address's own page: it is the From, with no other to pick.
                 lockedSource = SendSource.Spending(entry.index, entry.address, spendingAddressDisplayLabel(entry.index, entry.label)),
             )
@@ -6711,7 +6718,6 @@ fun SpendingAddressTxHistoryScreen(
                 priceViewModel = priceViewModel,
                 isCompoundMode = true,
                 onDone = close,
-                presentedAsSheet = true,
             )
         }
     }
@@ -6946,7 +6952,6 @@ fun IdentityAddressDetailScreen(
                 viewModel = viewModel,
                 priceViewModel = priceViewModel,
                 onDone = close,
-                presentedAsSheet = true,
                 lockedSource = SendSource.Chatting,
             )
         }
@@ -6969,7 +6974,6 @@ fun IdentityAddressDetailScreen(
                 priceViewModel = priceViewModel,
                 isCompoundMode = true,
                 onDone = close,
-                presentedAsSheet = true,
             )
         }
     }

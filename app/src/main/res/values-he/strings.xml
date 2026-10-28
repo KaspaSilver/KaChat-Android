@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">הוסיפו הערה (מוצפנת)</string>
     <string name="payment_switch_currency">מעבר בין Kaspa למטבע שלכם</string>
     <string name="payment_dust_warning">שליחת פחות מ-0.1 KAS עלולה להיכשל בגלל מגבלת הגנת הדאסט של הרשת.</string>
-    <string name="payment_small_amount">סכום קטן</string>
-    <string name="payment_send_anyway">שלח בכל זאת</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">שליחת תמונה או וידאו דרך Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">איכות מלאה, או וידאו. עולה ל-Nextcloud שלכם; הצ\'אט נושא את הקישור.</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">סרוק QR</string>
     <string name="network_fee">עמלת רשת</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">החליקו לשליחה</string>
-    <string name="slide_to_consolidate">החליקו לאיחוד</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">שליחה מ-</string>
     <string name="primary">ראשי</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">שמות .kachat עדיין לא פעילים ברשת הזו</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">פנקס הכתובות והתיקים שלך נמצאים באותו גיבוי ומסתנכרנים בין המכשירים שלך באותו אופן.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">תקופת החסד מסתיימת %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">ההעלאה נכשלה. יישלח דרך השרשרת.</string>
     <string name="nc_photo_upload_failed_toast">ההעלאה ל-Nextcloud נכשלה. בשליחה התמונה תישלח דרך השרשרת במקום.</string>
     <string name="video">וידאו</string>
+    <string name="swipe_up_to_send">החלק למעלה כדי לשלוח</string>
+    <string name="swipe_up_to_consolidate">החלק למעלה כדי לאחד</string>
+    <string name="swipe_release_to_send">שחרר כדי לשלוח</string>
+    <string name="swipe_sending">שולח</string>
+    <string name="swipe_broadcasting">משדר ל-BlockDAG של Kaspa...</string>
+    <string name="swipe_hint">שחרר אחרי האמצע כדי לשלוח.</string>
+    <string name="swipe_send_failed_fallback">השליחה לא יצאה.</string>
+    <string name="swipe_keep_swiping">המשך להחליק</string>
+    <string name="swipe_failed">נכשל</string>
+    <string name="swipe_tap_tx_hint">הקישו על העסקה כדי לפתוח אותה בסייר.</string>
 </resources>

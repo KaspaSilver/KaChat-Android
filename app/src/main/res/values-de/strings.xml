@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">Notiz hinzufügen (verschlüsselt)</string>
     <string name="payment_switch_currency">Zwischen Kaspa und deiner Währung wechseln</string>
     <string name="payment_dust_warning">Das Senden von weniger als 0,1 KAS kann aufgrund des Netzwerk-Dust-Schutzlimits fehlschlagen.</string>
-    <string name="payment_small_amount">Kleiner Betrag</string>
-    <string name="payment_send_anyway">Trotzdem senden</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Foto oder Video über Nextcloud senden</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">Volle Qualität oder ein Video. Wird in deine Nextcloud hochgeladen; der Chat enthält den Link.</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">QR scannen</string>
     <string name="network_fee">Netzwerkgebühr</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">Zum Senden schieben</string>
-    <string name="slide_to_consolidate">Zum Zusammenführen schieben</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Senden von</string>
     <string name="primary">Primär</string>
@@ -729,7 +725,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">.kachat-Namen sind in diesem Netzwerk noch nicht verfügbar</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">Dein Adressbuch und deine Portfolios sind im selben Backup und werden genauso zwischen deinen Geräten synchronisiert.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Kulanz endet %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -873,4 +868,14 @@
     <string name="nc_upload_failed_sends_on_chain">Upload fehlgeschlagen. Wird über die Chain gesendet.</string>
     <string name="nc_photo_upload_failed_toast">Nextcloud-Upload fehlgeschlagen. Beim Senden geht das Foto stattdessen über die Chain.</string>
     <string name="video">Video</string>
+    <string name="swipe_up_to_send">Zum Senden nach oben wischen</string>
+    <string name="swipe_up_to_consolidate">Zum Zusammenführen nach oben wischen</string>
+    <string name="swipe_release_to_send">Loslassen zum Senden</string>
+    <string name="swipe_sending">Wird gesendet</string>
+    <string name="swipe_broadcasting">Wird an den Kaspa-BlockDAG übertragen...</string>
+    <string name="swipe_hint">Über die Hälfte hinaus loslassen, um zu senden.</string>
+    <string name="swipe_send_failed_fallback">Die Sendung ist nicht rausgegangen.</string>
+    <string name="swipe_keep_swiping">Weiter wischen</string>
+    <string name="swipe_failed">Fehlgeschlagen</string>
+    <string name="swipe_tap_tx_hint">Tippe auf die Transaktion, um sie im Explorer zu öffnen.</string>
 </resources>

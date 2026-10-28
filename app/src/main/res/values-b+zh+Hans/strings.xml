@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">添加备注（已加密）</string>
     <string name="payment_switch_currency">在 Kaspa 和你的货币之间切换</string>
     <string name="payment_dust_warning">发送少于 0.1 KAS 的金额可能因网络 dust 保护限制而失败。</string>
-    <string name="payment_small_amount">小额转账</string>
-    <string name="payment_send_anyway">仍然发送</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">通过 Nextcloud 发送照片或视频</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">原画质或视频。上传到你的 Nextcloud，聊天中发送链接。</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">扫描 QR</string>
     <string name="network_fee">网络手续费</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">滑动发送</string>
-    <string name="slide_to_consolidate">滑动合并</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">发送自</string>
     <string name="primary">主节点</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">.kachat 名称尚未在此网络上线</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">你的地址簿和投资组合也在同一份备份中,并以同样方式在你的设备之间同步。</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">宽限期结束 %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">上传失败。将通过链上发送。</string>
     <string name="nc_photo_upload_failed_toast">上传到 Nextcloud 失败。发送时照片将改为通过链上发送。</string>
     <string name="video">视频</string>
+    <string name="swipe_up_to_send">向上滑动发送</string>
+    <string name="swipe_up_to_consolidate">向上滑动合并</string>
+    <string name="swipe_release_to_send">松开即发送</string>
+    <string name="swipe_sending">正在发送</string>
+    <string name="swipe_broadcasting">正在广播到 Kaspa BlockDAG...</string>
+    <string name="swipe_hint">滑过一半后松开即可发送。</string>
+    <string name="swipe_send_failed_fallback">发送未成功。</string>
+    <string name="swipe_keep_swiping">继续滑动</string>
+    <string name="swipe_failed">失败</string>
+    <string name="swipe_tap_tx_hint">点按交易可在浏览器中打开。</string>
 </resources>

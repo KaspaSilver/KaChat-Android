@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Warning
@@ -29,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,8 +49,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kachat.app.R
@@ -77,7 +71,11 @@ private const val DUST_LIMIT_SOMPI = 10_000_001L
 /**
  * "Send KAS": who it goes to, From (Chatting Address or Choose an Address, with that address's
  * balance - iOS 6333dd3), the exact amount (KAS or fiat), an encrypted memo, the fee card (speed,
- * custom fee, coin control - iOS 62c2773), and a slide-to-send button (iOS afaad34) - sliding rather than tapping, so a payment can't go out on a stray touch.
+ * custom fee, coin control - iOS 62c2773), and the swipe-up send screen Send Kaspa uses (iOS
+ * 7abc06e, from KaChat Wallet): swipe the bar up past halfway to send, so a payment can't go out on
+ * a stray touch. The screen then runs the BlockDAG while it goes out and shows Sent ([sent]), or
+ * Failed with Try Again. An amount under the dust limit is warned about on the form, not asked
+ * again: the swipe is deliberate.
  * It replaced the composer's payment mode; every way into a payment (the "+" sheet's Pay in
  * Kaspa, "Pay in Kaspa" from a group or public chat's sender sheet) opens it. It scrolls and
  * opens at full height.
@@ -116,6 +114,9 @@ fun SendKasSheet(
     feeControls: @Composable () -> Unit,
     error: String?,
     isSending: Boolean,
+    /** Set once the payment went out: the swipe-up screen shows it until Done. */
+    sent: SentTransaction?,
+    explorer: KaspaExplorer,
     onSend: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -140,15 +141,14 @@ fun SendKasSheet(
     LaunchedEffect(maxRefreshKey) {
         if (maxFilledKasText != null) applyMax()
     }
-    var showDustConfirm by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
     val submit = {
         if (amountSompi > 0 && !isSending) {
             // The amount field (KaspaAmountEntry) keeps its own focus: drop the keyboard for the
-            // dust question or the send (iOS 4d0324f).
+            // send (iOS 4d0324f).
             focusManager.clearFocus()
-            if (amountSompi < DUST_LIMIT_SOMPI) showDustConfirm = true else onSend()
+            onSend()
         }
     }
 
@@ -162,33 +162,38 @@ fun SendKasSheet(
             onDismissRequest = { if (!isSending) onDismiss() },
             sheetState = sheetState,
             containerColor = colors.background,
+            // The swipe-up screen draws its own header (iOS drops the grabber here).
+            dragHandle = null,
         ) {
-            // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
-            // its content stays above it.
-            Column(Modifier.navigationBarsPadding()) {
+            SwipeUpToSendScreen(
+                screenTitle = title,
+                onCancel = { if (!isSending) onDismiss() },
+                title = stringResource(R.string.swipe_up_to_send),
+                isBusy = isSending,
+                isEnabled = amountSompi > 0,
+                amountSompi = amountSompi.takeIf { it > 0 },
+                recipient = recipientName,
+                sent = sent,
+                failureMessage = error,
+                explorer = explorer,
+                onDone = onDismiss,
+                action = submit,
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            title,
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                        )
-                        // iOS truncates the line in the middle, so a long address-like name keeps its end.
-                        MiddleEllipsisText(
-                            stringResource(R.string.payment_to_name, recipientName),
-                            color = colors.textSecondary,
-                            fontSize = 15.sp,
-                        )
-                    }
+                    // iOS truncates the line in the middle, so a long address-like name keeps its end.
+                    MiddleEllipsisText(
+                        stringResource(R.string.payment_to_name, recipientName),
+                        color = colors.textSecondary,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
 
                     fromSection()
 
@@ -262,35 +267,9 @@ fun SendKasSheet(
                         )
                     }
 
-                    // The button gives its own haptics as the knob moves and reaches the end.
-                    SendActionButton(
-                        title = stringResource(R.string.slide_to_send),
-                        isBusy = isSending,
-                        isEnabled = amountSompi > 0 && !isSending,
-                        onSend = { submit() },
-                    )
                 }
             }
         }
-    }
-
-    if (showDustConfirm) {
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { showDustConfirm = false },
-            title = { Text(stringResource(R.string.payment_small_amount), color = colors.textPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text(KaspaUnit.label(stringResource(R.string.payment_dust_warning)), color = colors.textSecondary) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDustConfirm = false
-                    onSend()
-                }) { Text(stringResource(R.string.payment_send_anyway), color = KaspaTeal, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDustConfirm = false }) {
-                    Text(stringResource(R.string.cancel), color = KaspaTeal)
-                }
-            },
-        )
     }
 }
 

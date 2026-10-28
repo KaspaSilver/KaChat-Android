@@ -406,8 +406,6 @@
     <string name="payment_memo_placeholder">Tambahkan catatan (terenkripsi)</string>
     <string name="payment_switch_currency">Beralih antara Kaspa dan mata uang Anda</string>
     <string name="payment_dust_warning">Mengirim kurang dari 0,1 KAS dapat gagal karena batas perlindungan dust jaringan.</string>
-    <string name="payment_small_amount">Jumlah Kecil</string>
-    <string name="payment_send_anyway">Tetap Kirim</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Kirim Foto atau Video via Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">Kualitas penuh, atau video. Diunggah ke Nextcloud Anda; chat membawa tautannya.</string>
@@ -444,8 +442,6 @@
     <string name="scan_qr">Pindai QR</string>
     <string name="to">Kepada</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">Geser untuk mengirim</string>
-    <string name="slide_to_consolidate">Geser untuk menggabungkan</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Kirim Dari</string>
     <!-- Chats circles row (iOS a062577) -->
@@ -670,7 +666,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Nama .kachat belum aktif di jaringan ini</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">Buku Alamat dan portofolio Anda ada di cadangan yang sama dan tersinkron antarperangkat dengan cara yang sama.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Tenggang berakhir %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -813,4 +808,14 @@
     <string name="nc_upload_failed_sends_on_chain">Unggahan gagal. Dikirim lewat chain.</string>
     <string name="nc_photo_upload_failed_toast">Unggahan ke Nextcloud gagal. Saat dikirim, foto akan lewat chain.</string>
     <string name="video">Video</string>
+    <string name="swipe_up_to_send">Geser ke atas untuk mengirim</string>
+    <string name="swipe_up_to_consolidate">Geser ke atas untuk menggabungkan</string>
+    <string name="swipe_release_to_send">Lepaskan untuk mengirim</string>
+    <string name="swipe_sending">Mengirim</string>
+    <string name="swipe_broadcasting">Menyiarkan ke BlockDAG Kaspa...</string>
+    <string name="swipe_hint">Lepaskan lewat setengah untuk mengirim.</string>
+    <string name="swipe_send_failed_fallback">Pengiriman tidak terkirim.</string>
+    <string name="swipe_keep_swiping">Terus geser</string>
+    <string name="swipe_failed">Gagal</string>
+    <string name="swipe_tap_tx_hint">Ketuk transaksi untuk membukanya di explorer.</string>
 </resources>

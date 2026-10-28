@@ -710,8 +710,7 @@ fun AddressBookEntryDetail(
                 title = "Send Kaspa",
                 viewModel = walletViewModel,
                 onDone = close,
-                presentedAsSheet = true,
-                prefillAddress = entry.address,
+                    prefillAddress = entry.address,
             )
         }
     }

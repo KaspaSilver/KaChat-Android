@@ -578,8 +578,6 @@
     <string name="payment_memo_placeholder">Add a memo (encrypted)</string>
     <string name="payment_switch_currency">Switch between Kaspa and your currency</string>
     <string name="payment_dust_warning">Sending less than 0.1 KAS may fail due to the network dust protection limit.</string>
-    <string name="payment_small_amount">Small Amount</string>
-    <string name="payment_send_anyway">Send Anyway</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Send Photo or Video via Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">Full quality, or a video. Uploads to your Nextcloud; the chat carries the link.</string>
@@ -610,8 +608,6 @@
     <string name="paste">Paste</string>
     <string name="scan_qr">Scan QR</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">Slide to Send</string>
-    <string name="slide_to_consolidate">Slide to Consolidate</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Send From</string>
     <!-- Chats circles row (iOS a062577) -->
@@ -867,7 +863,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">.kachat names aren\'t live on this network yet</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">Your Address Book and portfolios are in the same backup and sync between your devices the same way.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Grace ends %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -1075,4 +1070,15 @@
     <string name="nc_upload_failed_sends_on_chain">Upload failed. Sends on chain.</string>
     <string name="nc_photo_upload_failed_toast">Nextcloud upload failed. Send puts the photo on chain instead.</string>
     <string name="video">Video</string>
+    <string name="swipe_up_to_send">Swipe up to Send</string>
+    <string name="swipe_up_to_consolidate">Swipe up to Consolidate</string>
+    <string name="swipe_release_to_send">Release to Send</string>
+    <string name="swipe_sending">Sending</string>
+    <string name="swipe_broadcasting">Broadcasting to the Kaspa BlockDAG...</string>
+    <string name="swipe_hint">Let go past halfway to send.</string>
+    <string name="swipe_send_failed_fallback">The send didn\'t go out.</string>
+    <string name="swipe_keep_swiping">Keep Swiping</string>
+    <string name="swipe_failed">Failed</string>
+    <string name="swipe_tap_tx_hint">Tap the transaction to open it in the explorer.</string>
+    <string name="nextcloud_sync_address_book">Your Address Book is in the same backup and syncs between your devices the same way.</string>
 </resources>

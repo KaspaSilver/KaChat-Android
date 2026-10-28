@@ -883,7 +883,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             title = stringResource(R.string.nc_message_backup),
             footers = listOf(
                 stringResource(R.string.nc_message_backup_footer, NextcloudService.BACKUP_FILE_NAME, NextcloudService.BACKUP_FOLDER_NAME),
-                stringResource(R.string.nextcloud_sync_address_book_portfolios),
+                stringResource(R.string.nextcloud_sync_address_book),
             ),
         ) {
             SettingsSwitchItem(stringResource(R.string.nc_automatic_sync), autoBackupEnabled) { enabled ->

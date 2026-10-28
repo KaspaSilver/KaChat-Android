@@ -169,8 +169,7 @@ fun PaymentRequestSheetHost(walletViewModel: WalletViewModel, chatViewModel: Cha
                             title = stringResource(R.string.chats_send_kaspa),
                             viewModel = walletViewModel,
                             onDone = close,
-                            presentedAsSheet = true,
-                            paymentRequest = current.request,
+                                            paymentRequest = current.request,
                             chatViewModel = chatViewModel,
                         )
                     }

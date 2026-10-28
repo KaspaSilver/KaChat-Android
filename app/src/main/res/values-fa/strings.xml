@@ -500,8 +500,6 @@
     <string name="payment_memo_placeholder">افزودن یادداشت (رمزگذاری‌شده)</string>
     <string name="payment_switch_currency">جابه‌جایی بین Kaspa و ارز شما</string>
     <string name="payment_dust_warning">ارسال کمتر از 0.1 KAS ممکن است به دلیل محدودیت حفاظت از غبار شبکه ناموفق باشد.</string>
-    <string name="payment_small_amount">مبلغ کوچک</string>
-    <string name="payment_send_anyway">ارسال در هر صورت</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">ارسال عکس یا ویدیو از طریق Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">کیفیت کامل یا ویدیو. در Nextcloud شما بارگذاری می‌شود و گفتگو پیوند را می‌برد.</string>
@@ -532,8 +530,6 @@
     <string name="paste">جای‌گذاری</string>
     <string name="scan_qr">اسکن QR</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">برای ارسال بکشید</string>
-    <string name="slide_to_consolidate">برای ادغام بکشید</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">ارسال از</string>
     <!-- Chats circles row (iOS a062577) -->
@@ -759,7 +755,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">نام‌های .kachat هنوز در این شبکه فعال نیستند</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">دفترچه نشانی و پرتفوهای شما در همین پشتیبان هستند و به همین شکل بین دستگاه‌هایتان همگام می‌شوند.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">پایان مهلت %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -903,4 +898,14 @@
     <string name="nc_upload_failed_sends_on_chain">بارگذاری ناموفق بود. روی زنجیره ارسال می‌شود.</string>
     <string name="nc_photo_upload_failed_toast">بارگذاری در Nextcloud ناموفق بود. هنگام ارسال، عکس روی زنجیره فرستاده می‌شود.</string>
     <string name="video">ویدیو</string>
+    <string name="swipe_up_to_send">برای ارسال به بالا بکشید</string>
+    <string name="swipe_up_to_consolidate">برای ادغام به بالا بکشید</string>
+    <string name="swipe_release_to_send">برای ارسال رها کنید</string>
+    <string name="swipe_sending">در حال ارسال</string>
+    <string name="swipe_broadcasting">در حال پخش در BlockDAG کاسپا...</string>
+    <string name="swipe_hint">پس از نیمه رها کنید تا ارسال شود.</string>
+    <string name="swipe_send_failed_fallback">ارسال انجام نشد.</string>
+    <string name="swipe_keep_swiping">به کشیدن ادامه دهید</string>
+    <string name="swipe_failed">ناموفق</string>
+    <string name="swipe_tap_tx_hint">برای باز کردن در کاوشگر روی تراکنش بزنید.</string>
 </resources>

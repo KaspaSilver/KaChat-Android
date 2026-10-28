@@ -467,8 +467,6 @@
     <string name="payment_memo_placeholder">Добавить заметку (зашифрована)</string>
     <string name="payment_switch_currency">Переключить между Kaspa и вашей валютой</string>
     <string name="payment_dust_warning">Отправка менее 0,1 KAS может не пройти из-за ограничения сети на минимальный размер транзакции (dust limit).</string>
-    <string name="payment_small_amount">Малая сумма</string>
-    <string name="payment_send_anyway">Отправить всё равно</string>
     <!-- Photo or video via Nextcloud (iOS a890102) -->
     <string name="media_send_photo_or_video_via_nextcloud">Отправить фото или видео через Nextcloud</string>
     <string name="media_photo_or_video_via_nextcloud_subtitle">Полное качество или видео. Загружается в ваш Nextcloud; в чате будет ссылка.</string>
@@ -504,8 +502,6 @@
     <string name="scan_qr">Сканировать QR</string>
     <string name="network_fee">Комиссия сети</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
-    <string name="slide_to_send">Сдвиньте, чтобы отправить</string>
-    <string name="slide_to_consolidate">Сдвиньте, чтобы объединить</string>
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Отправить с</string>
     <string name="primary">Основной</string>
@@ -732,7 +728,6 @@
     <!-- Bare names resolve to .kachat only (iOS 5a5122d) -->
     <string name="kachat_names_not_live_here">Имена .kachat в этой сети пока не работают</string>
     <!-- Nextcloud sync carries portfolios -->
-    <string name="nextcloud_sync_address_book_portfolios">Адресная книга и портфели хранятся в той же резервной копии и так же синхронизируются между устройствами.</string>
     <!-- Your Domains > .kachat card: grace end (iOS 72b7dc7) -->
     <string name="kn_grace_ends">Льготный период до %1$s</string>
     <!-- .kachat on mainnet (iOS ef6b21e) -->
@@ -876,4 +871,14 @@
     <string name="nc_upload_failed_sends_on_chain">Не удалось загрузить. Отправится в блокчейн.</string>
     <string name="nc_photo_upload_failed_toast">Не удалось загрузить в Nextcloud. При отправке фото уйдёт в блокчейн.</string>
     <string name="video">Видео</string>
+    <string name="swipe_up_to_send">Смахните вверх, чтобы отправить</string>
+    <string name="swipe_up_to_consolidate">Смахните вверх, чтобы объединить</string>
+    <string name="swipe_release_to_send">Отпустите, чтобы отправить</string>
+    <string name="swipe_sending">Отправка</string>
+    <string name="swipe_broadcasting">Передача в BlockDAG Kaspa...</string>
+    <string name="swipe_hint">Отпустите выше середины, чтобы отправить.</string>
+    <string name="swipe_send_failed_fallback">Отправка не состоялась.</string>
+    <string name="swipe_keep_swiping">Продолжайте смахивать</string>
+    <string name="swipe_failed">Ошибка</string>
+    <string name="swipe_tap_tx_hint">Нажмите на транзакцию, чтобы открыть её в обозревателе.</string>
 </resources>

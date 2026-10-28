@@ -1776,7 +1776,6 @@ internal fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone:
             title = stringResource(R.string.chats_send_kaspa),
             viewModel = walletViewModel,
             onDone = close,
-            presentedAsSheet = true,
         )
     }
 }
