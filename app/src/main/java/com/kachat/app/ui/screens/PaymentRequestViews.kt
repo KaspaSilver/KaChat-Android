@@ -76,8 +76,8 @@ import androidx.compose.runtime.getValue
 /**
  * The payment request waiting to be shown - a tapped request card, a pasted link, a link opened
  * from outside the app (iOS `PaymentRequestRouter`). [PaymentRequestSheetHost], in MainShell,
- * presents it: Send Kaspa filled in for someone else's, the request itself for your own. Every
- * opening is its own sheet, even of the same request.
+ * presents it: KaPay for someone else's, Send Kaspa filled in for a chat payment, the request
+ * itself for your own. Every opening is its own sheet, even of the same request.
  */
 object PaymentRequestRouter {
     data class Pending(val request: PaymentRequest, val id: Long)
@@ -138,19 +138,61 @@ object PaymentRequestPaste {
 }
 
 /**
+ * Payment requests are paid in KaPay, KaChat's wallet app (iOS 3a7ddcf9, 63c2ee1c `KaPayHandoff`):
+ * someone else's request opens there on Send, filled in, through KaPay's own scheme
+ * (`kapay://pay/...`, the same tail as `kachat://pay/`). Two stay here: your own (nothing to pay -
+ * [OwnPaymentRequestSheet]), and one asking for a chat payment ([PaymentRequest.toChattingAddress],
+ * made from a 1:1 chat), which KaChat pays as an encrypted chat payment so it lands in your chat
+ * with them - KaPay can't. Without KaPay installed, the Play Store opens to get it.
+ */
+object KaPayHandoff {
+    const val SCHEME = "kapay"
+    /** Where a request goes when KaPay isn't installed. KaPay isn't listed yet, so this is a store
+     *  search for it; swap in its page (`details?id=com.kachat.wallet`) once it is. */
+    private const val STORE_URL = "market://search?q=KaPay&c=apps"
+    private const val STORE_WEB_URL = "https://play.google.com/store/search?q=KaPay&c=apps"
+
+    /** True when the request belongs in KaPay; not your own, and not a chat payment. */
+    fun paysInKaPay(request: PaymentRequest, isOwn: Boolean): Boolean = !isOwn && !request.toChattingAddress
+
+    /** Opens [request] in KaPay, or the store when KaPay isn't installed. */
+    fun pay(context: android.content.Context, request: PaymentRequest) {
+        val opened = open(context, "$SCHEME://pay/${request.linkTail}")
+        if (!opened && !open(context, STORE_URL)) open(context, STORE_WEB_URL)
+    }
+
+    private fun open(context: android.content.Context, url: String): Boolean = try {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (_: android.content.ActivityNotFoundException) {
+        false
+    }
+}
+
+/**
  * Presents the payment request waiting in [PaymentRequestRouter] (iOS
- * `PaymentRequestSheetPresenter`): your own shows it ([OwnPaymentRequestSheet]); someone else's
- * opens Send Kaspa from the chatting address with the address locked and the amount and memo
- * filled in - every send check as always, and nothing goes out until slide to send.
+ * `PaymentRequestSheetPresenter`): your own shows it ([OwnPaymentRequestSheet]); someone else's is
+ * paid in KaPay ([KaPayHandoff]); a chat-payment one opens Send Kaspa from the chatting address
+ * with the address locked and the amount and memo filled in - every send check as always, and
+ * nothing goes out until slide to send.
  */
 @Composable
 fun PaymentRequestSheetHost(walletViewModel: WalletViewModel, chatViewModel: ChatViewModel) {
     val pending by PaymentRequestRouter.pending.collectAsState()
     val current = pending ?: return
+    val context = LocalContext.current
     key(current.id) {
         var isOwn by remember { mutableStateOf<Boolean?>(null) }
         LaunchedEffect(Unit) {
-            isOwn = withContext(Dispatchers.Default) { current.request.isOwn }
+            val own = withContext(Dispatchers.Default) { current.request.isOwn }
+            if (KaPayHandoff.paysInKaPay(current.request, own)) {
+                KaPayHandoff.pay(context, current.request)
+                PaymentRequestRouter.dismiss(current.id)
+            } else {
+                isOwn = own
+            }
         }
         when (isOwn) {
             null -> Unit
@@ -169,7 +211,7 @@ fun PaymentRequestSheetHost(walletViewModel: WalletViewModel, chatViewModel: Cha
                             title = stringResource(R.string.chats_send_kaspa),
                             viewModel = walletViewModel,
                             onDone = close,
-                                            paymentRequest = current.request,
+                            paymentRequest = current.request,
                             chatViewModel = chatViewModel,
                         )
                     }

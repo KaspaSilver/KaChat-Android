@@ -883,7 +883,8 @@ object KaChatLink {
 fun openKaChatLink(ref: KaChatLinkRef) {
     when (ref) {
         is KaChatLinkRef.Profile -> ProfileDeepLink.request(ref.address)
-        // Someone else's opens Send Kaspa filled in, your own shows it (MainShell presents both).
+        // Someone else's is paid in KaPay, a chat payment opens Send Kaspa filled in, your own
+        // shows it (MainShell's PaymentRequestSheetHost).
         is KaChatLinkRef.PaymentRequest -> PaymentRequestRouter.open(ref.request)
     }
 }
