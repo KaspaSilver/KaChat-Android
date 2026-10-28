@@ -565,6 +565,12 @@ class ChatViewModel @Inject constructor(
         all.filter { it.contact.id !in requests && it.contact.id.lowercase() !in state.blocked }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Unread messages across the chats the Chats list shows - not Message Requests or blocked
+     *  chats: an unaccepted sender must not be able to keep ringing the badge (iOS 64d63846
+     *  `chatListUnreadCount`). The Chats dock tab's count. */
+    val chatListUnreadCount: StateFlow<Int> = chatListConversations.map { list -> list.sumOf { it.unreadCount.coerceAtLeast(0) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     /**
      * Every bot that can be messaged on this network, always, as a circle in the row above the
      * chat list beside the group chats - with its chat when there is one (iOS d54ea87
@@ -1658,6 +1664,11 @@ class ChatViewModel @Inject constructor(
             }) { conversations -> conversations.sortedByDescending { it.lastMessage?.blockTimestamp ?: 0L } }
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Unread messages across every group (iOS `totalGroupUnreadCount`): the Groups dock tab's
+     *  count (iOS 64d63846). */
+    val groupsUnreadCount: StateFlow<Int> = groupConversations.map { list -> list.sumOf { it.unreadCount.coerceAtLeast(0) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /**
      * The groups a chat-list search matches, as iOS's Select All counts them

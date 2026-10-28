@@ -466,7 +466,7 @@ fun MainShell(
                 // overlaid on top of them (it was blocking the chat input entirely).
                 if (onTabRoute && !hideBottomBar) {
                     // Red dot on the Profile tab while the notification bell (which lives on the
-                    // Profile screen) holds unread entries.
+                    // Profile screen) holds unread entries; Chats and Groups show their counts.
                     val dockNotifVm: com.kachat.app.viewmodels.NotificationCenterViewModel = hiltViewModel()
                     // The store is a singleton keyed per wallet internally; reload whenever the
                     // active account changes so a switch never leaves the previous account's unread
@@ -478,6 +478,9 @@ fun MainShell(
                     val dockNotifEntries by dockNotifVm.store.entries.collectAsState()
                     val dockNotifLastSeen by dockNotifVm.store.lastSeenAt.collectAsState()
                     val dockNotifUnread = dockNotifEntries.count { it.timestampMs > dockNotifLastSeen }
+                    // Chats and Groups show their unread message counts (iOS 64d63846).
+                    val dockChatsUnread by chatViewModel.chatListUnreadCount.collectAsState()
+                    val dockGroupsUnread by chatViewModel.groupsUnreadCount.collectAsState()
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -752,12 +755,14 @@ fun MainShell(
                                                 // decision gets made.
                                                 val badgeCount = when (screen) {
                                                     Screen.Profile -> dockNotifUnread
+                                                    Screen.Chats -> dockChatsUnread
+                                                    Screen.Groups -> dockGroupsUnread
                                                     else -> 0
                                                 }
                                                 if (badgeCount > 0 && screen == Screen.Profile) {
                                                     // Profile: a red DOT while the bell holds anything
                                                     // unread - the bell itself is a dot, so the dock
-                                                    // says the same thing. KaPosts keeps its count.
+                                                    // says the same thing.
                                                     // The entries/lastSeen flows above recompose this
                                                     // from any tab, on tab switches and at launch.
                                                     Box(
