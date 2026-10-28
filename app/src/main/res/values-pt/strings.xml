@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">Move para a linha acima das suas conversas em grupo.</string>
     <string name="groups_unpin_top_hint">Volta para a sua lista de conversas em grupo.</string>
     <string name="pinned_to_top_row">Fixado na linha de cima</string>
+    <string name="send_and_receive">Enviar e receber</string>
 </resources>

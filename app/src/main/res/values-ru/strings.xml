@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">Переносит группу в ряд над вашими групповыми чатами.</string>
     <string name="groups_unpin_top_hint">Возвращает группу в список групповых чатов.</string>
     <string name="pinned_to_top_row">Закреплено в верхнем ряду</string>
+    <string name="send_and_receive">Отправить и получить</string>
 </resources>

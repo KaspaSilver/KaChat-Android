@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">Le place dans la rangée au-dessus de vos discussions de groupe.</string>
     <string name="groups_unpin_top_hint">Le remet dans votre liste de discussions de groupe.</string>
     <string name="pinned_to_top_row">Épinglé dans la rangée du haut</string>
+    <string name="send_and_receive">Envoyer et recevoir</string>
 </resources>

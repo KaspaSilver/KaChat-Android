@@ -898,4 +898,5 @@
     <string name="groups_pin_top_hint">آن را به ردیف بالای گفتگوهای گروهی‌تان می‌برد.</string>
     <string name="groups_unpin_top_hint">آن را به فهرست گفتگوهای گروهی‌تان برمی‌گرداند.</string>
     <string name="pinned_to_top_row">در ردیف بالا سنجاق شد</string>
+    <string name="send_and_receive">ارسال و دریافت</string>
 </resources>

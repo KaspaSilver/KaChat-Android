@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">그룹 채팅 위의 줄로 옮깁니다.</string>
     <string name="groups_unpin_top_hint">그룹 채팅 목록으로 되돌립니다.</string>
     <string name="pinned_to_top_row">위쪽 줄에 고정됨</string>
+    <string name="send_and_receive">보내기 및 받기</string>
 </resources>

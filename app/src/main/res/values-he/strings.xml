@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">מעביר אותה לשורה שמעל הצ\'אטים הקבוצתיים שלך.</string>
     <string name="groups_unpin_top_hint">מחזיר אותה לרשימת הצ\'אטים הקבוצתיים שלך.</string>
     <string name="pinned_to_top_row">הוצמד לשורה העליונה</string>
+    <string name="send_and_receive">שליחה וקבלה</string>
 </resources>

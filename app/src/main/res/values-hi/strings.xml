@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">इसे आपकी ग्रुप चैट के ऊपर की पंक्ति में ले जाता है।</string>
     <string name="groups_unpin_top_hint">इसे वापस आपकी ग्रुप चैट सूची में ले जाता है।</string>
     <string name="pinned_to_top_row">ऊपरी पंक्ति में पिन किया गया</string>
+    <string name="send_and_receive">भेजें और पाएँ</string>
 </resources>

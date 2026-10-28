@@ -3955,7 +3955,14 @@ fun ProfileScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
-        }
+        },
+        // Quick send: the floating glass button in the bottom-right corner (the same button Addresses
+        // uses for +), opening Send Kaspa, Receive Kaspa and Request Payment (iOS 7abc06e).
+        floatingActionButton = {
+            if (address != null) {
+                ProfileSendReceiveButton(walletViewModel = viewModel, modifier = Modifier.padding(bottom = dockInset))
+            }
+        },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -4330,11 +4337,9 @@ fun ProfileScreen(
                 }
             }
 
-            // Moved here from Settings > Actions - Profile is where the rest of the
-            // account-level actions (address management, About) already live.
-
-            // Room for the last card to scroll clear of the dock it runs under.
-            Spacer(modifier = Modifier.height(dockInset + 16.dp))
+            // Room for the last card to scroll clear of the dock it runs under, and out from under
+            // the floating send / receive button.
+            Spacer(modifier = Modifier.height(dockInset + 16.dp + 56.dp))
         }
 
         PullToRefreshContainer(

@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">Lo mueve a la fila sobre tus chats de grupo.</string>
     <string name="groups_unpin_top_hint">Lo devuelve a tu lista de chats de grupo.</string>
     <string name="pinned_to_top_row">Fijado en la fila superior</string>
+    <string name="send_and_receive">Enviar y recibir</string>
 </resources>

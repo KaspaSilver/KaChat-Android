@@ -1070,4 +1070,5 @@
     <string name="groups_pin_top_hint">Moves it into the row above your group chats.</string>
     <string name="groups_unpin_top_hint">Moves it back into your group chats list.</string>
     <string name="pinned_to_top_row">Pinned to the top row</string>
+    <string name="send_and_receive">Send and Receive</string>
 </resources>

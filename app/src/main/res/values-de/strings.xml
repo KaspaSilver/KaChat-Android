@@ -868,4 +868,5 @@
     <string name="groups_pin_top_hint">Verschiebt sie in die Reihe über deinen Gruppenchats.</string>
     <string name="groups_unpin_top_hint">Verschiebt sie zurück in deine Gruppenchat-Liste.</string>
     <string name="pinned_to_top_row">In die obere Reihe angeheftet</string>
+    <string name="send_and_receive">Senden und Empfangen</string>
 </resources>

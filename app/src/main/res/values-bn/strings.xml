@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">এটি আপনার গ্রুপ চ্যাটগুলোর উপরের সারিতে নিয়ে যায়।</string>
     <string name="groups_unpin_top_hint">এটি আবার আপনার গ্রুপ চ্যাট তালিকায় ফিরিয়ে আনে।</string>
     <string name="pinned_to_top_row">উপরের সারিতে পিন করা হয়েছে</string>
+    <string name="send_and_receive">পাঠান ও গ্রহণ করুন</string>
 </resources>

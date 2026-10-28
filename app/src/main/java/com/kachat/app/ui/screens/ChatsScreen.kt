@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.MarkEmailRead
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
@@ -134,27 +132,8 @@ fun ChatsScreen(
     // The bottom-right + : one New sheet for the whole list (iOS 5da8ccf), and the QR page one of
     // its options leaves for, shown once the sheet has gone (iOS e6400d6).
     var showNewSheet by remember { mutableStateOf(false) }
-    var newSheetQr by remember { mutableStateOf<ChatsNewQr?>(null) }
-    // Receive Kaspa's fresh address: decided as the sheet opens (the check is a network round
-    // trip) and re-confirmed when the QR page comes up - the same two steps as Profile's.
-    var receiveQrAddress by remember { mutableStateOf<String?>(null) }
-    var receiveQrResolving by remember { mutableStateOf(true) }
+    var showFundQr by remember { mutableStateOf(false) }
     val chattingBalanceSompi by walletViewModel.balanceSompi.collectAsState()
-    /** "Send Kaspa" in the New sheet: Profile's send from the current spending address (iOS f81e8d6). */
-    var showSpendingSend by remember { mutableStateOf(false) }
-    /** "Request Payment" in the New sheet (iOS c6851d6 `CreatePaymentRequestView`). */
-    var showPaymentRequest by remember { mutableStateOf(false) }
-    LaunchedEffect(showNewSheet, newSheetQr) {
-        if (showNewSheet || newSheetQr == ChatsNewQr.RECEIVE) {
-            if (receiveQrAddress == null) receiveQrResolving = true
-            // Revealed (on Manage Addresses, watched) only once the Receive QR is shown; the New
-            // sheet opening only warms the pick (iOS 24c2094).
-            walletViewModel.resolveFreshReceiveAddress(revealing = newSheetQr == ChatsNewQr.RECEIVE) { address ->
-                if (address != null) receiveQrAddress = address
-                receiveQrResolving = false
-            }
-        }
-    }
 
     // What is pinned in the circles row, newest pin first, saved per wallet: bots ("b:<address>")
     // pinned to its front, and chats ("c:<address>") pinned up out of the list into the row (iOS
@@ -801,54 +780,30 @@ fun ChatsScreen(
             }
         )
     }
-    // The New sheet (iOS 5da8ccf -> e6400d6): New Chat swaps it to the create screen, and the two
-    // QR options close it and then bring up Profile's white QR page. New groups start on Group
-    // Chats (iOS a53d343).
+    // The New sheet (iOS 5da8ccf -> e6400d6, 7abc06e): New Chat swaps it to the create screen, and
+    // Fund Chatting Address closes it and then brings up Profile's white QR page. New groups start
+    // on Group Chats (iOS a53d343); Send, Receive and Request Payment are on Profile's floating
+    // send / receive button (iOS 7abc06e).
     if (showNewSheet) {
         ChatsNewSheet(
             chatViewModel = chatViewModel,
             onDismiss = { showNewSheet = false },
             onChatCreated = { address -> navController.navigate("chat/$address") },
             onGroupCreated = { groupId -> navController.navigate("group_chat/$groupId") },
-            onShowQr = { newSheetQr = it },
-            onSendKaspa = { showSpendingSend = true },
-            onRequestPayment = { showPaymentRequest = true },
+            onShowFundQr = { showFundQr = true },
         )
     }
-    // A sheet over Chats once the New sheet has gone, as iOS presents it (c6851d6): the link to
-    // copy or share, paid to a brand-new address or one you choose (iOS 6dee531).
-    if (showPaymentRequest) {
-        CreatePaymentRequestSheet(
-            walletViewModel = walletViewModel,
-            onDismissed = { showPaymentRequest = false },
-        )
-    }
-    // A sheet over Chats, as iOS presents it once the New sheet has gone (f81e8d6).
-    if (showSpendingSend) {
-        ChatsSpendingSendLauncher(walletViewModel = walletViewModel, onDone = { showSpendingSend = false })
-    }
-    // Each in a sheet of its own, Done at the top right, as iOS presents them once the New sheet
-    // has gone (e6400d6): the white QR page with the address's balance in its bar.
-    when (newSheetQr) {
-        ChatsNewQr.FUND_CHATTING -> QrPageSheet(onDismiss = { newSheetQr = null }, white = true) {
+    // In a sheet of its own, Done at the top right, as iOS presents it once the New sheet has gone
+    // (e6400d6): the white QR page with the address's balance in its bar.
+    if (showFundQr) {
+        QrPageSheet(onDismiss = { showFundQr = false }, white = true) {
             ChattingAddressQrPage(
                 address = myAddress ?: "",
                 balanceSompi = chattingBalanceSompi,
                 dismiss = QrPageDismiss.DONE,
-                onDismiss = { newSheetQr = null },
+                onDismiss = { showFundQr = false },
             )
         }
-        ChatsNewQr.RECEIVE -> QrPageSheet(onDismiss = { newSheetQr = null }, white = receiveQrAddress != null) {
-            ReceiveKaspaQrPage(
-                address = receiveQrAddress,
-                resolving = receiveQrResolving,
-                dismiss = QrPageDismiss.DONE,
-                onDismiss = { newSheetQr = null },
-                walletViewModel = walletViewModel,
-                title = stringResource(R.string.receive_kaspa),
-            )
-        }
-        null -> Unit
     }
 }
 
@@ -1652,24 +1607,18 @@ fun MessageRequestsScreen(
     }
 }
 
-/** The QR pages the Chats New sheet opens (iOS e6400d6 `ChatsQRScreen`). */
-private enum class ChatsNewQr { FUND_CHATTING, RECEIVE }
-
 /** What the Chats New sheet shows: its menu, or a create screen swapped in (iOS be0857a /
  *  e6400d6). */
 private enum class ChatsNewPage { MENU, NEW_CHAT }
 
 /**
  * The Chats screen's New sheet (iOS 5da8ccf, then be0857a, f508292, 231c05e, e6400d6, f81e8d6,
- * c6851d6 and a53d343 - this is where they ended): a half sheet of square tiles - New Chat, Send
- * Kaspa, Receive Kaspa, Request Payment and Fund Chatting Address. Everything but the
- * send and the QR codes happens in this one sheet, so there is no close-then-open wait:
- * - New Chat swaps the sheet to the create screen, full height ([CreateChatScreen],
- *   whose Cancel comes back to the menu);
- * - Send Kaspa closes the sheet and then opens Profile's send from the current spending address
- *   ([onSendKaspa]);
- * - Fund Chatting Address / Receive Kaspa close the sheet and then bring up Profile's full white QR
- *   page ([onShowQr]) - a white page inside a dark sheet never fit (231c05e, undone by e6400d6).
+ * c6851d6, a53d343 and 7abc06e - this is where they ended): a half sheet of square tiles - New
+ * Chat and Fund Chatting Address:
+ * - New Chat swaps the sheet to the create screen, full height ([CreateChatScreen], whose Cancel
+ *   comes back to the menu);
+ * - Fund Chatting Address closes the sheet and then brings up Profile's full white QR page
+ *   ([onShowFundQr]) - a white page inside a dark sheet never fit (231c05e, undone by e6400d6).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1678,9 +1627,7 @@ private fun ChatsNewSheet(
     onDismiss: () -> Unit,
     onChatCreated: (String) -> Unit,
     onGroupCreated: (String) -> Unit,
-    onShowQr: (ChatsNewQr) -> Unit,
-    onSendKaspa: () -> Unit,
-    onRequestPayment: () -> Unit,
+    onShowFundQr: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1728,8 +1675,8 @@ private fun ChatsNewSheet(
                             chatViewModel = chatViewModel,
                         )
                     }
-                    // The New options as square tiles, three to a row (iOS f81e8d6, e2f6732, a53d343):
-                    // New Chat, Send Kaspa, Receive Kaspa / Request Payment, Fund Chatting Address.
+                    // The New options as square tiles, three to a row (iOS f81e8d6, 7abc06e): New
+                    // Chat and Fund Chatting Address.
                     // Each keeps its old line as the TalkBack hint.
                     ChatsNewPage.MENU -> Column(
                         modifier = Modifier
@@ -1750,42 +1697,21 @@ private fun ChatsNewSheet(
                         // 104 dp tiles as on iOS, smaller only where three of them do not fit across.
                         BoxWithConstraints(contentAlignment = Alignment.Center) {
                             val tileSize = minOf(ChatsNewTileSize, (maxWidth - ChatsNewTileSpacing * 2) / 3)
-                            Column(verticalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                                    ChatsNewTile(
-                                        size = tileSize,
-                                        icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
-                                        title = stringResource(R.string.chats_new_chat),
-                                        hint = stringResource(R.string.chats_new_chat_subtitle),
-                                    ) { page = ChatsNewPage.NEW_CHAT }
-                                    ChatsNewTile(
-                                        size = tileSize,
-                                        icon = Icons.Outlined.ArrowCircleUp,
-                                        title = stringResource(R.string.chats_send_kaspa),
-                                        hint = stringResource(R.string.chats_send_kaspa_hint),
-                                    ) { close { onSendKaspa() } }
-                                    ChatsNewTile(
-                                        size = tileSize,
-                                        icon = Icons.Outlined.ArrowCircleDown,
-                                        title = stringResource(R.string.receive_kaspa),
-                                        hint = stringResource(R.string.chats_receive_subtitle),
-                                    ) { close { onShowQr(ChatsNewQr.RECEIVE) } }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
-                                    // A link asking for an exact amount (iOS c6851d6).
-                                    ChatsNewTile(
-                                        size = tileSize,
-                                        icon = RequestPaymentIcon,
-                                        title = stringResource(R.string.pr_request_payment),
-                                        hint = stringResource(R.string.pr_request_payment_hint),
-                                    ) { close { onRequestPayment() } }
-                                    ChatsNewTile(
-                                        size = tileSize,
-                                        icon = Icons.Default.QrCode,
-                                        title = stringResource(R.string.chatting_address),
-                                        hint = stringResource(R.string.chats_fund_subtitle),
-                                    ) { close { onShowQr(ChatsNewQr.FUND_CHATTING) } }
-                                }
+                            Row(horizontalArrangement = Arrangement.spacedBy(ChatsNewTileSpacing)) {
+                                ChatsNewTile(
+                                    size = tileSize,
+                                    icon = androidx.compose.material.icons.Icons.Outlined.ChatBubbleOutline,
+                                    title = stringResource(R.string.chats_new_chat),
+                                    hint = stringResource(R.string.chats_new_chat_subtitle),
+                                ) { page = ChatsNewPage.NEW_CHAT }
+                                ChatsNewTile(
+                                    size = tileSize,
+                                    icon = Icons.Default.QrCode,
+                                    title = stringResource(R.string.chatting_address),
+                                    hint = stringResource(R.string.chats_fund_subtitle),
+                                ) { close { onShowFundQr() } }
+                                // The grid's third column, empty.
+                                Spacer(Modifier.size(tileSize))
                             }
                         }
                         Spacer(Modifier.weight(1f))
@@ -1801,7 +1727,7 @@ private fun ChatsNewSheet(
 /** One square option in the Chats New sheet: an icon over a two-line title, on glass. Its old
  *  explanatory line is the TalkBack hint (iOS f81e8d6 `CreateTile`). */
 @Composable
-private fun ChatsNewTile(size: Dp, icon: ImageVector, title: String, hint: String, onClick: () -> Unit) {
+internal fun ChatsNewTile(size: Dp, icon: ImageVector, title: String, hint: String, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .size(size)
@@ -1825,17 +1751,17 @@ private fun ChatsNewTile(size: Dp, icon: ImageVector, title: String, hint: Strin
     }
 }
 
-private val ChatsNewTileSize = 104.dp
-private val ChatsNewTileSpacing = 14.dp
+internal val ChatsNewTileSize = 104.dp
+internal val ChatsNewTileSpacing = 14.dp
 
 /**
- * The New sheet's "Send Kaspa" (iOS 6333dd3): Send Kaspa ([SpendingAddressSendFlow]) in a sheet of
- * its own, as iOS presents it over Chats once the New sheet has gone, with Cancel leading its bar,
+ * Profile's Send and Receive sheet's "Send Kaspa" (iOS 6333dd3, 7abc06e): Send Kaspa
+ * ([SpendingAddressSendFlow]) in a sheet of its own, as iOS presents it once that sheet has gone,
  * which only Cancel closes. It starts from the chatting address, and From picks any other.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: () -> Unit) {
+internal fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: () -> Unit) {
     val chattingAddress by walletViewModel.address.collectAsState()
     val chattingBalance by walletViewModel.balanceSompi.collectAsState()
     val from = chattingAddress
@@ -1855,6 +1781,6 @@ private fun ChatsSpendingSendLauncher(walletViewModel: WalletViewModel, onDone: 
     }
 }
 
-/** Two rows of tiles; the create screens open at full height (iOS e2f6732 `createSheetHeight`,
- *  380 pt). */
-private val ChatsNewSheetHeight = 380.dp
+/** One row of tiles; New Chat opens at full height (iOS 7abc06e `createSheetHeight`, 262 pt).
+ *  Profile's Send and Receive sheet is the same height. */
+internal val ChatsNewSheetHeight = 262.dp

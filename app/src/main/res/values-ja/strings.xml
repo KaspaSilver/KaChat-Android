@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">グループチャットの上の列に移動します。</string>
     <string name="groups_unpin_top_hint">グループチャット一覧に戻します。</string>
     <string name="pinned_to_top_row">上の列に固定しました</string>
+    <string name="send_and_receive">送金と受け取り</string>
 </resources>

@@ -871,4 +871,5 @@
     <string name="groups_pin_top_hint">بتنقلها للصف اللي فوق شاتات الجروبات.</string>
     <string name="groups_unpin_top_hint">بترجعها لقايمة شاتات الجروبات.</string>
     <string name="pinned_to_top_row">اتثبتت في الصف اللي فوق</string>
+    <string name="send_and_receive">إرسال واستلام</string>
 </resources>
