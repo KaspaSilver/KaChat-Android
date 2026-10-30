@@ -901,4 +901,5 @@
     <string name="pr_paid_to">يُدفع إلى</string>
     <string name="nextcloud_sync_address_book">جهات اتصالك في النسخة الاحتياطية نفسها وتتزامن بين أجهزتك بالطريقة نفسها.</string>
     <string name="ab_empty_title">لا جهات اتصال بعد</string>
+    <string name="chats_fund_chatting_address">اشحن عنوان الشات</string>
 </resources>

@@ -87,12 +87,17 @@ class MainActivity : AppCompatActivity() {
             if (granted) refreshBatteryRationale()
         }
 
+    /** Asked once, as iOS asks (its system prompt never comes back): an answer of "Don't allow"
+     *  is kept, and Settings > Notifications is where to turn them on later. */
     private fun maybeRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val granted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        val prefs = getSharedPreferences("kachat_prefs", Context.MODE_PRIVATE)
+        if (granted || prefs.getBoolean("notification_permission_asked", false)) return
+        prefs.edit().putBoolean("notification_permission_asked", true).apply()
+        requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     /**

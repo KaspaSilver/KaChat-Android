@@ -901,4 +901,5 @@
     <string name="pr_paid_to">भुगतान किसे</string>
     <string name="nextcloud_sync_address_book">आपके संपर्क उसी बैकअप में हैं और आपके डिवाइसों के बीच उसी तरह सिंक होते हैं।</string>
     <string name="ab_empty_title">अभी कोई संपर्क नहीं</string>
+    <string name="chats_fund_chatting_address">चैटिंग पता फंड करें</string>
 </resources>

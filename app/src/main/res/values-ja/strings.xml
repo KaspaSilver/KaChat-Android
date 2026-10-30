@@ -901,4 +901,5 @@
     <string name="pr_paid_to">支払先</string>
     <string name="nextcloud_sync_address_book">連絡先は同じバックアップに含まれ、同じようにデバイス間で同期されます。</string>
     <string name="ab_empty_title">連絡先はまだありません</string>
+    <string name="chats_fund_chatting_address">チャット用アドレスに入金</string>
 </resources>

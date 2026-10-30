@@ -176,7 +176,9 @@ fun GroupChatsScreen(
                     onStatusClick = { ConnectionStatusOverlayState.open() },
                     dotColorHex = dotColorHex,
                     showAddButton = false,
-                    showEditButton = groupConversations.isNotEmpty(),
+                    // iOS's Groups toolbar: the dot and Select, always - no balance.
+                    showEditButton = true,
+                    showBalance = false,
                     isEditing = isSelectionMode,
                     onEditClick = { if (isSelectionMode) endSelection() else isSelectionMode = true },
                     selectAllLabel = if (isEverythingSelected) "Deselect All" else "Select All",

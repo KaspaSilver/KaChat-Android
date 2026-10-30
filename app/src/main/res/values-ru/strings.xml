@@ -901,4 +901,5 @@
     <string name="pr_paid_to">Оплата на</string>
     <string name="nextcloud_sync_address_book">Ваши контакты хранятся в той же резервной копии и так же синхронизируются между устройствами.</string>
     <string name="ab_empty_title">Контактов пока нет</string>
+    <string name="chats_fund_chatting_address">Пополнить адрес для чатов</string>
 </resources>

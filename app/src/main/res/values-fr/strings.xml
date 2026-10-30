@@ -901,4 +901,5 @@
     <string name="pr_paid_to">Payé à</string>
     <string name="nextcloud_sync_address_book">Vos contacts sont dans la même sauvegarde et se synchronisent de la même façon entre vos appareils.</string>
     <string name="ab_empty_title">Aucun contact pour l\'instant</string>
+    <string name="chats_fund_chatting_address">Approvisionner l\'adresse de chat</string>
 </resources>

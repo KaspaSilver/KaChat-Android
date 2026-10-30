@@ -10826,6 +10826,8 @@ fun TopStatusBar(
     // Rendered at the trailing end when there is no Add button - a slot rather than a fixed
     // button so a page can decide what belongs there (Profile puts its notification bell here).
     trailingContent: (@Composable () -> Unit)? = null,
+    /** The balance as the principal item. Groups has none on iOS (GroupChatListView's toolbar). */
+    showBalance: Boolean = true,
 ) {
     // iOS's toolbar: the connection dot leading, the balance as the principal item (placed as
     // UIKit places one - see IosToolbarRow), and the trailing items (Select All, the page's own
@@ -10833,7 +10835,7 @@ fun TopStatusBar(
     IosToolbarRow(
         modifier = Modifier.fillMaxWidth().height(52.dp),
         leading = { ConnectionDotButton(onClick = onStatusClick) },
-        principal = { BalanceLabelRow(balance, copyOnTap = true) },
+        principal = { if (showBalance) BalanceLabelRow(balance, copyOnTap = true) },
         trailing = { TopStatusBarTrailing(showAddButton, showEditButton, isEditing, onEditClick, selectAllLabel, onSelectAllClick, onAddClick, trailingContent) },
     )
 }
@@ -12685,11 +12687,12 @@ fun CreateChatScreen(
                 return@Column
             }
 
+            // iOS: the Form section's header, in the secondary colour.
             Text(
                 text = stringResource(R.string.address),
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
+                color = LocalAppColors.current.textSecondary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 17.sp
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -12709,7 +12712,9 @@ fun CreateChatScreen(
                 TextField(
                     value = address,
                     onValueChange = { address = it },
-                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = LocalAppColors.current.textTertiary) },
+                    // Monospaced, placeholder included, as iOS's field is.
+                    placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain), color = LocalAppColors.current.textTertiary, fontFamily = FontFamily.Monospace) },
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -12798,9 +12803,12 @@ fun CreateChatScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
+                // The section's second row, under a divider as in iOS's Form.
+                HorizontalDivider(color = LocalAppColors.current.divider)
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     CreateChatActionItem(ContactsIcon, stringResource(R.string.ab_address_book)) {
                         showAddressBookPicker = true
@@ -12867,9 +12875,10 @@ fun CreateChatActionItem(icon: ImageVector, label: String, onClick: () -> Unit) 
         modifier = Modifier.clickable { onClick() },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+        // iOS's Label: the symbol, then the title at body size, regular weight.
+        Icon(icon, null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(8.dp))
-        Text(label, color = KaspaTeal, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+        Text(label, color = KaspaTeal, fontSize = 17.sp)
     }
 }
 

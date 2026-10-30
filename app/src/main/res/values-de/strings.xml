@@ -898,4 +898,5 @@
     <string name="pr_paid_to">Zahlung an</string>
     <string name="nextcloud_sync_address_book">Deine Kontakte sind im selben Backup und werden genauso zwischen deinen Geräten synchronisiert.</string>
     <string name="ab_empty_title">Noch keine Kontakte</string>
+    <string name="chats_fund_chatting_address">Chat-Adresse aufladen</string>
 </resources>

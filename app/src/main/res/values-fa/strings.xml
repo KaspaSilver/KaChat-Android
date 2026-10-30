@@ -928,4 +928,5 @@
     <string name="pr_paid_to">پرداخت به</string>
     <string name="nextcloud_sync_address_book">مخاطبان شما در همان پشتیبان هستند و به همان شکل میان دستگاه‌هایتان همگام می‌شوند.</string>
     <string name="ab_empty_title">هنوز مخاطبی نیست</string>
+    <string name="chats_fund_chatting_address">شارژ آدرس گفتگو</string>
 </resources>

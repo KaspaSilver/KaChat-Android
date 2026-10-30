@@ -901,4 +901,5 @@
     <string name="pr_paid_to">받는 주소</string>
     <string name="nextcloud_sync_address_book">연락처는 같은 백업에 들어 있고 기기 간에 같은 방식으로 동기화됩니다.</string>
     <string name="ab_empty_title">아직 연락처가 없습니다</string>
+    <string name="chats_fund_chatting_address">채팅 주소 충전</string>
 </resources>

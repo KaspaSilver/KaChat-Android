@@ -901,4 +901,5 @@
     <string name="pr_paid_to">Trả cho</string>
     <string name="nextcloud_sync_address_book">Danh bạ của bạn nằm trong cùng bản sao lưu và đồng bộ giữa các thiết bị theo cùng cách.</string>
     <string name="ab_empty_title">Chưa có liên hệ</string>
+    <string name="chats_fund_chatting_address">Nạp tiền địa chỉ trò chuyện</string>
 </resources>

@@ -1,11 +1,6 @@
 package com.kachat.app.ui.screens
 
 import androidx.compose.material3.IconButton
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -45,7 +40,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -251,17 +245,8 @@ fun ChatsScreen(
         chatViewModel.refreshKnsAvatarsForAllContacts()
     }
 
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* nothing to do either way — notifications just won't show if denied */ }
-
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
+    // Notifications are asked for once, at launch (MainActivity), not again each time this
+    // list appears.
 
     val dockInset = LocalDockInset.current
     Scaffold(
@@ -1707,7 +1692,7 @@ private fun ChatsNewSheet(
                                 ChatsNewTile(
                                     size = tileSize,
                                     icon = Icons.Default.QrCode,
-                                    title = stringResource(R.string.chatting_address),
+                                    title = stringResource(R.string.chats_fund_chatting_address),
                                     hint = stringResource(R.string.chats_fund_subtitle),
                                 ) { close { onShowFundQr() } }
                                 // The grid's third column, empty.
