@@ -617,10 +617,10 @@ private fun GroupChatRow(
                     color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    // The rest of the row, so the badge sits at its end without halving the text.
+                    modifier = Modifier.weight(1f),
                 )
                 if (convo.unreadCount > 0) {
-                    Spacer(Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
                     // caption2 bold white on the accent, 6 by 2 padding, a capsule.
                     Box(

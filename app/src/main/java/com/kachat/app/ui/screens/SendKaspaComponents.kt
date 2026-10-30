@@ -1664,8 +1664,8 @@ fun SendReviewCard(content: @Composable ColumnScope.() -> Unit) {
 fun SendReviewRow(label: String, value: @Composable () -> Unit) {
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         Text(label, color = LocalAppColors.current.textSecondary, fontSize = 15.sp)
-        Spacer(Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(3f, fill = false)) {
+        // The value takes the rest of the row and sits at its trailing edge, however short.
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
             value()
         }
     }
