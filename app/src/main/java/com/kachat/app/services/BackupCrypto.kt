@@ -30,10 +30,10 @@ import javax.crypto.spec.SecretKeySpec
  * The key is derived identically on every platform:
  * `SHA-256(identity_private_key_bytes || UTF8("kachat-backup-v1"))`, so any device holding the
  * seed can read the archive and nothing else can. The plaintext is the unchanged
- * [com.kachat.app.models.ChatHistoryArchive] JSON. Readers detect the envelope via [isEnvelope]
- * and fall back to parsing legacy plaintext archives as-is — old files stay restorable
- * indefinitely; writers ALWAYS encrypt. [envelopeWalletHint] lets a reader skip a foreign
- * wallet's file without decrypting anything.
+ * [com.kachat.app.models.ChatHistoryArchive] JSON. Writers ALWAYS encrypt, and readers detect
+ * the envelope via [isEnvelope] and refuse anything else: a plaintext archive is checked against
+ * neither the chain nor a key, so anyone could have written one (iOS d23e6f7a).
+ * [envelopeWalletHint] lets a reader skip a foreign wallet's file without decrypting anything.
  */
 object BackupCrypto {
 

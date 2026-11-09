@@ -19,6 +19,15 @@ class MessageProtocolTest {
     }
 
     @Test
+    fun `estimated comm payload size is the size a send builds`() {
+        val recipientPub = Schnorr.publicKeyXOnly(randomScalarBytes())
+        listOf("a", "Note from iPhone test 1", "Note from Android test 1", "x".repeat(300), "héllo 👋").forEach { text ->
+            val built = MessageProtocol.buildCommPayload("525418dc013e", MessageProtocol.encrypt(text, recipientPub))
+            assertEquals(built.size, MessageProtocol.estimatedCommPayloadSize(text.toByteArray(Charsets.UTF_8).size))
+        }
+    }
+
+    @Test
     fun `comm payload builds and parses back to the original alias and message`() {
         val recipientPriv = randomScalarBytes()
         val recipientPub = Schnorr.publicKeyXOnly(recipientPriv)

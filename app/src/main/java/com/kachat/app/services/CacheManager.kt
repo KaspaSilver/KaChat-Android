@@ -86,9 +86,10 @@ class CacheManager @Inject constructor(
     }
 
     suspend fun clear(category: Category) = withContext(Dispatchers.IO) {
-        directories(category).forEach { emptyDirectory(it) }
+        val cutoff = System.currentTimeMillis() - minimumAgeMs(category)
+        directories(category).forEach { emptyDirectory(it, cutoff) }
         if (category == Category.TEMPORARY_FILES) {
-            looseTempFiles().forEach { runCatching { it.delete() } }
+            looseTempFiles().filter { it.lastModified() <= cutoff }.forEach { runCatching { it.delete() } }
         }
         if (category == Category.PROFILES) {
             // The in-memory half has to go too, or the screen keeps showing what was just
@@ -110,14 +111,20 @@ class CacheManager @Inject constructor(
         kachatRegistry.get().clearProfileCache()
     }
 
+    /** The temporary folders are shared with whatever the app is doing right now: a voice note
+     *  being encoded, a file waiting on a share sheet. Clearing leaves anything written within the
+     *  last hour (iOS 4f8e14bb). */
+    private fun minimumAgeMs(category: Category): Long =
+        if (category == Category.TEMPORARY_FILES) 60 * 60 * 1000L else 0L
+
     /**
      * Removes the CONTENTS, not the directory: services hold their directory handle from
      * construction, so deleting the folder itself would leave them writing into a path that no
-     * longer exists.
+     * longer exists. Anything modified after [cutoff] stays.
      */
-    private fun emptyDirectory(dir: File) {
+    private fun emptyDirectory(dir: File, cutoff: Long) {
         if (!dir.isDirectory) return
-        dir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+        dir.listFiles()?.filter { it.lastModified() <= cutoff }?.forEach { runCatching { it.deleteRecursively() } }
     }
 
     /** Recursive byte total. Skips what it cannot read: a size readout is not worth an error. */

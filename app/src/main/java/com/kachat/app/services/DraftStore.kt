@@ -49,6 +49,13 @@ class DraftStore @Inject constructor(
         scheduleSave()
     }
 
+    /** Drops the drafts under [keys]: an account going off this device takes its own (iOS bfe9f022). */
+    fun removeDrafts(keys: Collection<String>) {
+        var removed = false
+        keys.forEach { if (drafts.remove(it) != null) removed = true }
+        if (removed) scheduleSave()
+    }
+
     @Synchronized
     private fun scheduleSave() {
         saveJob?.cancel()

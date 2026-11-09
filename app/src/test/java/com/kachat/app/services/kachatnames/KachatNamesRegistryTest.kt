@@ -1007,3 +1007,46 @@ class KachatNamesRegistryV5Test : KachatNamesRegistryTest() {
 class KachatNamesRegistryMainnetTest : KachatNamesRegistryTest() {
     override val vectorsResource: String = "KachatNamesVectors-mainnet.json"
 }
+
+/** The names indexer outage rule (iOS 4f8e14bb): three failures in a row within two minutes. */
+class KachatNamesIndexerOutageTest {
+    @Test
+    fun `the third failure in a row confirms an outage`() {
+        val outage = IndexerOutageCounter()
+        assertTrue(!outage.recordFailure(1_000_000L))
+        assertTrue(!outage.recordFailure(1_010_000L))
+        assertTrue(outage.recordFailure(1_020_000L))
+    }
+
+    @Test
+    fun `failures within five seconds count once`() {
+        val outage = IndexerOutageCounter()
+        assertTrue(!outage.recordFailure(1_000_000L))
+        assertTrue(!outage.recordFailure(1_001_000L))
+        assertTrue(!outage.recordFailure(1_002_000L))
+        assertTrue(!outage.recordFailure(1_005_000L))
+        assertTrue(outage.recordFailure(1_010_000L))
+    }
+
+    @Test
+    fun `a gap of two minutes starts over, and an answer clears the count`() {
+        val outage = IndexerOutageCounter()
+        outage.recordFailure(1_000_000L)
+        outage.recordFailure(1_010_000L)
+        assertTrue(!outage.recordFailure(1_200_000L))
+        outage.clear()
+        assertTrue(!outage.recordFailure(1_210_000L))
+    }
+
+    @Test
+    fun `only no answer, 429 and 5xx mean the indexer is down`() {
+        fun answered(code: Int) = KachatNames.Failure("the names indexer answered $code")
+        assertTrue(KachatNamesRegistry.indexerFailureIsDown(answered(503), deviceOffline = false))
+        assertTrue(KachatNamesRegistry.indexerFailureIsDown(answered(429), deviceOffline = false))
+        assertTrue(KachatNamesRegistry.indexerFailureIsDown(java.net.SocketTimeoutException(), deviceOffline = false))
+        assertTrue(!KachatNamesRegistry.indexerFailureIsDown(answered(400), deviceOffline = false))
+        assertTrue(!KachatNamesRegistry.indexerFailureIsDown(KachatNames.Failure("not found"), deviceOffline = false))
+        assertTrue(!KachatNamesRegistry.indexerFailureIsDown(java.net.SocketTimeoutException(), deviceOffline = true))
+        assertTrue(!KachatNamesRegistry.indexerFailureIsDown(IllegalArgumentException("bad body"), deviceOffline = false))
+    }
+}

@@ -178,10 +178,6 @@ class AppSettingsRepository @Inject constructor(
         // `chatPhotoQualityPreset` setting. Only affects photos sent, not received.
         // Which block explorer website "Go to Explorer" links open in.
         val KEY_KASPA_EXPLORER = stringPreferencesKey("kaspa_explorer")
-        // Flat, chain-wide set of txIds the user has manually revealed a hidden photo for —
-        // mirrors iOS's `PhotoRevealStore`. Not per-wallet: txIds are unique on-chain already.
-        val KEY_REVEALED_PHOTO_TX_IDS = stringSetPreferencesKey("revealed_photo_tx_ids")
-
         // Per-group hidden/muted member sets - each entry is "{groupId}|{address}", flattened
         // into one Set<String> rather than a nested map since DataStore preferences only have
         // flat native collection types. Mirrors iOS's GroupChatService.groupHiddenMembers/
@@ -208,11 +204,6 @@ class AppSettingsRepository @Inject constructor(
          *  Default on (iOS ba352a2). */
         val KEY_SPENDING_RECEIVE_NOTIFICATIONS = booleanPreferencesKey("spending_receive_notifications_enabled")
         val KEY_SHOW_FEE_ESTIMATE = booleanPreferencesKey("show_fee_estimate")
-        // Settings > Chats > Require approval for photos from new contacts (iOS
-        // AppSettings.requirePhotoApprovalForNewContacts). On by default: photos from a contact
-        // you never added or wrote to stay behind "Show Photo" unless their Chat Info says
-        // otherwise. Off shows every contact's photos unless that contact is set to Always Hide.
-        val KEY_REQUIRE_PHOTO_APPROVAL = booleanPreferencesKey("require_photo_approval_for_new_contacts")
         // Settings > Chats > Higher quality photos (iOS AppSettings.higherQualityPhotos, off by
         // default): 1:1 on-chain photos use ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES, the largest
         // one transaction carries, instead of the default, for a higher fee.
@@ -450,10 +441,6 @@ class AppSettingsRepository @Inject constructor(
         com.kachat.app.models.KaspaExplorer.fromName(it[KEY_KASPA_EXPLORER])
     }
 
-    val revealedPhotoTxIds: Flow<Set<String>> = dataStore.data.map {
-        it[KEY_REVEALED_PHOTO_TX_IDS] ?: emptySet()
-    }
-
     /** See KEY_APPEARANCE: the stored choice, else the old Dark Mode switch's, else System. */
     val appearance: Flow<com.kachat.app.models.AppAppearance> = dataStore.data.map { prefs ->
         com.kachat.app.models.AppAppearance.fromName(prefs[KEY_APPEARANCE])
@@ -468,7 +455,8 @@ class AppSettingsRepository @Inject constructor(
     val currency: Flow<String> = dataStore.data.map { it[KEY_CURRENCY] ?: "usd" }
 
     val biometricSeedPhraseEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_BIOMETRIC_SEED_PHRASE_ENABLED] ?: true }
-    // Account-login biometrics are opt-in (off by default) on every platform.
+    // Asked when signing back in to a saved account: off by default so a phone with no screen lock
+    // can still get in; people can turn it on in Settings > Security (owner's call, 2026-11-05).
     val biometricAccountLoginEnabled: Flow<Boolean> = dataStore.data.map { it[KEY_BIOMETRIC_ACCOUNT_LOGIN_ENABLED] ?: false }
     /** Gates the "Export" button on a spending address's own screen - separate from
      *  [biometricSeedPhraseEnabled] since revealing one address's own derived key is lower-stakes
@@ -503,10 +491,6 @@ class AppSettingsRepository @Inject constructor(
 
     val showFeeEstimate: Flow<Boolean> = dataStore.data.map {
         it[KEY_SHOW_FEE_ESTIMATE] ?: true
-    }
-
-    val requirePhotoApprovalForNewContacts: Flow<Boolean> = dataStore.data.map {
-        it[KEY_REQUIRE_PHOTO_APPROVAL] ?: true
     }
 
     val higherQualityPhotos: Flow<Boolean> = dataStore.data.map {
@@ -747,9 +731,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setHasWallet(value: Boolean) = dataStore.edit { it[KEY_HAS_WALLET] = value }
     suspend fun setActiveAddress(value: String) = dataStore.edit { it[KEY_ACTIVE_ADDRESS] = value }
     suspend fun setKaspaExplorer(value: com.kachat.app.models.KaspaExplorer) = dataStore.edit { it[KEY_KASPA_EXPLORER] = value.name }
-    suspend fun revealPhoto(txId: String) = dataStore.edit {
-        it[KEY_REVEALED_PHOTO_TX_IDS] = (it[KEY_REVEALED_PHOTO_TX_IDS] ?: emptySet()) + txId
-    }
     suspend fun setVerboseApiLogging(value: Boolean) = dataStore.edit { it[KEY_VERBOSE_API_LOGGING] = value }
     suspend fun setAppearance(value: com.kachat.app.models.AppAppearance) = dataStore.edit { it[KEY_APPEARANCE] = value.name }
     suspend fun setCurrency(value: String) = dataStore.edit { it[KEY_CURRENCY] = value }
@@ -765,7 +746,6 @@ class AppSettingsRepository @Inject constructor(
     suspend fun clearOnboardingWizardPending() = dataStore.edit { it[KEY_ONBOARDING_WIZARD_PENDING] = false }
     suspend fun setNotificationsEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATIONS_ENABLED] = value }
     suspend fun setShowFeeEstimate(value: Boolean) = dataStore.edit { it[KEY_SHOW_FEE_ESTIMATE] = value }
-    suspend fun setRequirePhotoApprovalForNewContacts(value: Boolean) = dataStore.edit { it[KEY_REQUIRE_PHOTO_APPROVAL] = value }
     suspend fun setHigherQualityPhotos(value: Boolean) = dataStore.edit { it[KEY_HIGHER_QUALITY_PHOTOS] = value }
     suspend fun setQuickReactionEmojis(value: List<String>) = dataStore.edit { it[KEY_QUICK_REACTION_EMOJIS] = Gson().toJson(value) }
     suspend fun setNotificationSoundEnabled(value: Boolean) = dataStore.edit { it[KEY_NOTIFICATION_SOUND] = value }
@@ -806,6 +786,14 @@ class AppSettingsRepository @Inject constructor(
 
     suspend fun setHandshakeOutSyncCursor(address: String, value: Long) = dataStore.edit { it[handshakeOutSyncCursorKey(address)] = value }
     suspend fun setShowSetupGuides(address: String, value: Boolean) = dataStore.edit { it[showSetupGuidesKey(address)] = value }
+
+    /** The rest of what's kept per account here: it's going off this device (iOS bfe9f022). */
+    suspend fun removeWalletData(address: String) = dataStore.edit {
+        it.remove(chatCirclePinsKey(address))
+        it.remove(groupPinsKey(address))
+        it.remove(heldPaymentsKey(address))
+        it.remove(showSetupGuidesKey(address))
+    }
 
     private fun paymentHistoryScannedKey(address: String) = booleanPreferencesKey("payment_history_scanned_$address")
     private fun heldPaymentsKey(wallet: String) = stringPreferencesKey("kachat_held_payments_${wallet.lowercase()}")

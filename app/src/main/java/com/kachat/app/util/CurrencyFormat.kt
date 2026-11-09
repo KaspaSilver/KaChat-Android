@@ -24,10 +24,11 @@ fun currencySymbolFor(currencyCode: String): String {
 
 private val currencySymbols = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-/** Generic fiat total formatter - symbol, thousands separators, 2 decimals. */
-fun formatFiatAmount(value: Double, currencyCode: String): String {
+/** Generic fiat total formatter - symbol, 2 decimals unless asked for more, no thousands
+ *  separators (iOS CurrencyFormat.swift; the Wallet tab's balance uses 4). */
+fun formatFiatAmount(value: Double, currencyCode: String, decimals: Int = 2): String {
     val sign = if (value < 0) "-" else ""
-    return "$sign${currencySymbolFor(currencyCode)}${String.format(Locale.US, "%,.2f", kotlin.math.abs(value))}"
+    return "$sign${currencySymbolFor(currencyCode)}${String.format(Locale.US, "%.${decimals}f", kotlin.math.abs(value))}"
 }
 
 /**

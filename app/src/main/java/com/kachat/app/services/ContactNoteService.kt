@@ -115,7 +115,8 @@ class ContactNoteService @Inject constructor(
             for (page in 0 until MAX_PAGES) {
                 val rows = api.getSelfStashByOwner(wallet, SCOPE_HEX, PAGE_SIZE, cursor)
                 notes += rows
-                if (rows.size < PAGE_SIZE) { reachedEnd = true; break }
+                // A short page from the chain fallback isn't the end of the stash (iOS 4f8e14bb).
+                if (rows.size < PAGE_SIZE) { reachedEnd = !IndexerHealth.isDown.value; break }
                 val next = rows.mapNotNull { it.blockTime }.maxOrNull() ?: break
                 if (next <= cursor) break
                 cursor = next
@@ -176,6 +177,18 @@ class ContactNoteService @Inject constructor(
 
     /** Your message went out in [contactAddress]'s chat: make sure a fresh import of this seed
      *  can find the chat again. A cheap no-op for every chat already noted. */
+    /** Everything kept for [wallet]: it's going off this device (iOS bfe9f022). */
+    fun removeAllData(wallet: String) {
+        prefs.edit()
+            .remove(knownKey(wallet))
+            .remove(completeKey(wallet))
+            .remove(pendingKey(wallet))
+            .remove(highWaterKey(wallet))
+            .remove(fullScanKey(wallet))
+            .remove(pendingHandshakeKey(wallet))
+            .apply()
+    }
+
     fun onMessageDelivered(contactAddress: String) {
         scope.launch {
             mutex.withLock {

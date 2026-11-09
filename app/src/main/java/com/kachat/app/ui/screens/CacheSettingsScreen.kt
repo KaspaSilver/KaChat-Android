@@ -107,11 +107,8 @@ fun CacheSettingsScreen(
             // SettingsFormSection.
             Spacer(Modifier.height(4.dp))
 
-            // Total, on one row, with the footer under its section (iOS CacheSettingsPage).
-            SettingsFormSection(
-                title = null,
-                footer = "Everything here is downloaded or generated again when it is needed, so clearing it costs a little data and nothing else.",
-            ) {
+            // Total, on one row (iOS CacheSettingsPage).
+            SettingsFormSection(title = null) {
                 Row(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -177,15 +174,16 @@ fun CacheSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            // Pushed inside the Settings tab: the page ends clear of the dock.
+            Spacer(Modifier.height(24.dp + LocalDockInset.current))
         }
     }
 
     pendingClear?.let { category ->
         ConfirmActionSheet(
-            title = "Clear ${stringResource(category.title)}?",
+            title = stringResource(R.string.clear_category_title, stringResource(category.title)),
             confirmTitle = stringResource(R.string.clear),
-            confirmSubtitle = "${CacheManager.formatted(sizes[category] ?: 0L)} freed. ${stringResource(category.detail)}",
+            confirmSubtitle = stringResource(R.string.cache_freed_detail, CacheManager.formatted(sizes[category] ?: 0L), stringResource(category.detail)),
             confirmIcon = Icons.Outlined.Delete,
             onConfirm = { scope.launch { cacheManager.clear(category); refresh() } },
             onDismiss = { pendingClear = null },
@@ -194,9 +192,9 @@ fun CacheSettingsScreen(
 
     if (showClearAll) {
         ConfirmActionSheet(
-            title = "Clear All Cache?",
-            confirmTitle = "Clear All",
-            confirmSubtitle = "Frees ${CacheManager.formatted(total)}. Your messages, contacts and keys are not touched.",
+            title = stringResource(R.string.clear_all_cache_title),
+            confirmTitle = stringResource(R.string.notification_center_clear_all),
+            confirmSubtitle = stringResource(R.string.cache_frees_your_messages_are_not_touched, CacheManager.formatted(total)),
             confirmIcon = Icons.Outlined.Delete,
             onConfirm = { scope.launch { cacheManager.clearAll(); refresh() } },
             onDismiss = { showClearAll = false },

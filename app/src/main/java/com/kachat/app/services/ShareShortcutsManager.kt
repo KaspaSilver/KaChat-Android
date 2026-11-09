@@ -20,13 +20,19 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.kachat.app.MainActivity
 import com.kachat.app.models.Conversation
+import com.kachat.app.models.MessageEntity
+import com.kachat.app.services.database.KaChatDatabase
 import com.kachat.app.util.KaspaAddress
+import com.kachat.app.util.KaspaNetwork
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -68,7 +74,8 @@ data class PendingShare(
     val text: String?,
     /** file:// URIs of app-cache copies of the shared images (safe to read at any later point). */
     val imageUris: List<Uri>,
-    /** Contact address picked on the share sheet (direct-share shortcut id), or null for "into KaChat, pick a chat". */
+    /** Contact address picked on the share sheet (from the direct-share shortcut id, and only when
+     *  that shortcut belongs to the signed-in account), or null for "into KaChat, pick a chat". */
     val targetContactId: String?,
     val createdAt: Long = System.currentTimeMillis()
 ) {
@@ -85,28 +92,121 @@ data class PendingShare(
  * recency order can change while the app is in the foreground. Publishing is diffed against the
  * last published (id, label) list so repeat calls with an unchanged top-N are free, and the actual
  * ShortcutManager binder work runs off the main thread.
+ *
+ * Only the signed-in account's own chats are targets, and each shortcut names its account in its
+ * id ([shortcutId]): a share to another account's chat would be sent from this one, linking the two
+ * on chain (iOS d23e6f7a, share extension bound to its account). An account switch replaces them
+ * with the new account's chats; signed out there are none ([syncWithActiveAccount]).
  */
 @Singleton
 class ShareShortcutsManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val walletManager: WalletManager,
+    private val database: KaChatDatabase,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Volatile
     private var lastPublished: List<ShortcutEntry>? = null
 
-    /** One publishable share target: its name and its KNS avatar (else initials). */
+    /** One ShortcutManager write at a time: an account switch's removal must not interleave with
+     *  a publish of the previous account's list. */
+    private val publishLock = Mutex()
+
+    /** One publishable share target: its account, its name and its KNS avatar (else initials). */
     private data class ShortcutEntry(
+        val owner: String,
         val contactId: String,
         val label: String,
         val knsAvatarUrl: String?
-    )
+    ) {
+        val id: String get() = shortcutId(owner, contactId)
+    }
+
+    init {
+        // Fires at once with the account signed in now - which also replaces shortcuts an earlier
+        // run left for another account, or in the old bare-address form - then on every switch,
+        // create, import and delete.
+        scope.launch {
+            walletManager.activeAddressFlow.collect { syncWithActiveAccount() }
+        }
+    }
+
+    /** The account whose chats may be share targets: the active one, unless signed out. */
+    private fun signedInAccount(): String? =
+        walletManager.activeAddressFlow.value?.takeUnless { walletManager.isLoggedOut }
+
+    /**
+     * Brings the published shortcuts in line with who is signed in: kept when they are all this
+     * account's, otherwise removed and, while signed in, replaced with this account's recent chats
+     * read from the database. Called on every account change (above) and by MainActivity when the
+     * signed-in state changes (Log Out doesn't change the active address).
+     */
+    fun syncWithActiveAccount() {
+        scope.launch {
+            try {
+                publishLock.withLock {
+                    val owner = signedInAccount()
+                    val existing = ShortcutManagerCompat.getDynamicShortcuts(context)
+                    val allOwned = owner != null && existing.all { info ->
+                        parseShortcutId(info.id)?.owner?.let { KaspaNetwork.isSameAccount(it, owner) } == true
+                    }
+                    if (allOwned && existing.isNotEmpty()) return@withLock
+                    if (existing.isNotEmpty()) removeAll(existing.map { it.id })
+                    if (owner == null) return@withLock
+                    val contacts = database.contactDao().getContacts(owner).first()
+                    val latest = database.messageDao()
+                        .getLatestMessagePerContact(owner, MessageEntity.HIDDEN_PLACEHOLDERS).first()
+                        .associateBy { it.contactId }
+                    val top = entriesFor(owner, contacts.map { Conversation(it, latest[it.id], 0) }, null)
+                    // the account may have changed during the reads; the next sync handles that one
+                    if (owner != signedInAccount()) return@withLock
+                    lastPublished = top
+                    publish(top)
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.w(TAG, "Failed to bring share shortcuts in line with the signed-in account", e)
+            }
+        }
+    }
+
+    /** Every published share target gone, cached long-lived copies included. */
+    private fun removeAll(ids: List<String>) {
+        lastPublished = null
+        ShortcutManagerCompat.removeAllDynamicShortcuts(context)
+        runCatching { ShortcutManagerCompat.removeLongLivedShortcuts(context, ids) }
+    }
 
     /** [promoteContactId] pins that conversation to the front — used at send time, before the
      *  conversations flow has reordered around the still-pending insert. */
     fun refresh(conversations: List<Conversation>, promoteContactId: String? = null) {
-        val top = conversations
+        val owner = signedInAccount() ?: return
+        val top = entriesFor(owner, conversations, promoteContactId)
+        if (top == lastPublished) return
+        lastPublished = top
+        scope.launch {
+            try {
+                publishLock.withLock {
+                    // A list built before an account switch is not published over the new one's.
+                    val current = signedInAccount()
+                    if (current == null || !KaspaNetwork.isSameAccount(current, owner)) return@withLock
+                    publish(top)
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                // Never let launcher/shortcut quirks (rate limiting, OEM bugs) affect messaging.
+                Log.w(TAG, "Failed to publish share shortcuts", e)
+            }
+        }
+    }
+
+    /** [owner]'s most recent chats as share targets. */
+    private fun entriesFor(owner: String, conversations: List<Conversation>, promoteContactId: String?): List<ShortcutEntry> {
+        return conversations
             .asSequence()
+            // only this account's own chats, never one left in a list from before a switch
+            .filter { KaspaNetwork.isSameAccount(it.contact.walletAddress, owner) }
             .filter { it.contact.conversationStatus != "rejected" }
             // Only the running network's chats are share targets (iOS 421a832).
             .filter { com.kachat.app.util.KaspaNetwork.isOnActiveNetwork(it.contact.id) }
@@ -122,22 +222,13 @@ class ShareShortcutsManager @Inject constructor(
                     ?: convo.contact.knsName?.takeIf { it.isNotBlank() && com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
                     ?: KaspaAddress.shortDisplay(convo.contact.id)
                 ShortcutEntry(
+                    owner = owner,
                     contactId = convo.contact.id,
                     label = label,
                     knsAvatarUrl = convo.contact.knsAvatarUrl?.takeIf { it.isNotBlank() }
                 )
             }
             .toList()
-        if (top == lastPublished) return
-        lastPublished = top
-        scope.launch {
-            try {
-                publish(top)
-            } catch (e: Exception) {
-                // Never let launcher/shortcut quirks (rate limiting, OEM bugs) affect messaging.
-                Log.w(TAG, "Failed to publish share shortcuts", e)
-            }
-        }
     }
 
     private suspend fun publish(entries: List<ShortcutEntry>) {
@@ -151,7 +242,7 @@ class ShareShortcutsManager @Inject constructor(
                 action = Intent.ACTION_MAIN
                 putExtra(NotificationHelper.EXTRA_CONTACT_ID, entry.contactId)
             }
-            ShortcutInfoCompat.Builder(context, entry.contactId)
+            ShortcutInfoCompat.Builder(context, entry.id)
                 .setShortLabel(entry.label)
                 .setLongLabel(entry.label)
                 .setIcon(IconCompat.createWithBitmap(avatarBitmap(entry)))
@@ -224,7 +315,33 @@ class ShareShortcutsManager @Inject constructor(
         return bitmap
     }
 
+    /** A share shortcut's account and chat, read back from its id. */
+    data class ShortcutTarget(
+        /** The account the chat belongs to; null for a shortcut published before ids named it. */
+        val owner: String?,
+        val contactId: String,
+    )
+
     companion object {
+        /** Between the account and the chat in a shortcut id. Never part of a Kaspa address. */
+        private const val ID_SEPARATOR = '|'
+
+        /** A share shortcut's id: `"<owner>|<contactId>"`, the chat filed under its account. */
+        fun shortcutId(owner: String, contactId: String): String = "$owner$ID_SEPARATOR$contactId"
+
+        /** Reads [shortcutId]'s form, and the bare contact address older builds published (with no
+         *  owner). Null for an empty id. */
+        fun parseShortcutId(id: String?): ShortcutTarget? {
+            val raw = id?.trim().orEmpty()
+            if (raw.isEmpty()) return null
+            val cut = raw.indexOf(ID_SEPARATOR)
+            if (cut < 0) return ShortcutTarget(owner = null, contactId = raw)
+            val owner = raw.substring(0, cut).trim()
+            val contactId = raw.substring(cut + 1).trim()
+            if (contactId.isEmpty()) return null
+            return ShortcutTarget(owner = owner.takeIf { it.isNotEmpty() }, contactId = contactId)
+        }
+
         private const val TAG = "ShareShortcuts"
         const val SHARE_TARGET_CATEGORY = "com.kachat.app.category.SHARE_TARGET"
         private const val MAX_SHORTCUTS = 8

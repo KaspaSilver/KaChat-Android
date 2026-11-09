@@ -54,7 +54,9 @@ private fun hexPrefix(prefix: String): String = prefix.toByteArray(Charsets.US_A
  *  - **Metered (cellular)**: never stream, even with groups and foregrounded — full blocks over
  *    mobile data is the wrong trade. Group messages/invites still arrive via the same cursored
  *    indexer catch-ups (foreground sync, per-chat refresh, 15-min worker); the cost is latency
- *    (seconds-to-minutes instead of instant), not lost delivery.
+ *    (seconds-to-minutes instead of instant), not lost delivery. The exception is an indexer
+ *    outage ([IndexerHealth]): nothing else can carry groups then, so the stream runs on a
+ *    metered network too (iOS 4f8e14bb).
  *
  * `gcomm` matches remain cheap no-ops when irrelevant, since they're filtered against known
  * groups downstream in [GroupRepository] regardless.
@@ -122,18 +124,25 @@ class GroupScanningService @Inject constructor(
                     nodePoolManager.activeNodes,
                     groupRepository.getGroupCount(),
                     notificationHelper.appForegroundFlow,
-                    meteredNetwork.isMeteredFlow
-                ) { active, nodes, groupCount, foreground, metered ->
-                    active && nodes.isNotEmpty() && groupCount > 0 && foreground && !metered
+                ) { active, nodes, groupCount, foreground ->
+                    active && nodes.isNotEmpty() && groupCount > 0 && foreground
                 },
+                meteredNetwork.isMeteredFlow,
                 indexerLiveDelivery,
-            ) { streamWanted, indexerLive ->
+                IndexerHealth.isDown,
+            ) { streamWanted, metered, indexerLive, indexerDown ->
                 // The stream is the fallback for an indexer without the `since` reads, not the
-                // primary path.
-                streamWanted && !indexerLive
+                // primary path. With the indexer down it carries groups until it's back, on an
+                // expensive connection too, since nothing else can (iOS 4f8e14bb).
+                streamWanted && (!metered || indexerDown) && !indexerLive
             }.distinctUntilChanged().collectLatest { shouldRun ->
                 onWalletActiveChanged(shouldRun)
             }
+        }
+        // The indexer going down moves live delivery to the block stream; when it recovers, its
+        // next answered poll moves it back.
+        scope.launch {
+            IndexerHealth.isDown.collect { down -> if (down) indexerLiveDelivery.value = false }
         }
         // The live poll runs while the app is in front with an account that has groups. Keyed on
         // the account too: a switch starts the new account's cursors from scratch.
@@ -173,6 +182,8 @@ class GroupScanningService @Inject constructor(
 
     /** One pass on the right cursor. False once the indexer turns out not to serve the reads. */
     private suspend fun applyLivePoll(onlyGroupId: String?, includeControl: Boolean, openGroup: Boolean): Boolean {
+        // Not while the indexer is down: the next tick tries again (iOS 4f8e14bb).
+        if (IndexerHealth.isDown.value) return true
         val nowMs = System.currentTimeMillis()
         val cursor = (if (openGroup) openGroupCursor else allGroupsCursor)
             .takeIf { it > 0 } ?: (nowMs - LIVE_POLL_START_LOOKBACK_MS)
@@ -285,19 +296,27 @@ class GroupScanningService @Inject constructor(
 
             val blockTimestampMillis = if (block.hasHeader()) block.header.timestamp else System.currentTimeMillis()
 
-            when {
-                matchesGcomm -> {
-                    val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
-                    groupRepository.handleIncomingGroupMessage(parsed, txId, blockTimestampMillis)
+            // One transaction that can't be handled is logged and skipped: it must not cost the rest
+            // of the block, as a stranger's malformed control once did in catch-up.
+            try {
+                when {
+                    matchesGcomm -> {
+                        val parsed = GroupCipher.parseGroupMessagePayload(payloadString) ?: continue
+                        groupRepository.handleIncomingGroupMessage(parsed, txId, blockTimestampMillis)
+                    }
+                    matchesGctl -> {
+                        // A control message is a self-stash transaction - its own output's
+                        // scriptPublicKey directly encodes the sender's address, same as broadcast.
+                        val senderAddress = tx.outputsList.firstOrNull()
+                            ?.let { KaspaAddress.addressFromScriptPublicKey(it.scriptPublicKey.scriptPublicKey, groupRepository.addressPrefix()) }
+                            ?: continue
+                        groupRepository.handleIncomingControlMessage(GroupCipher.normalizeControlPayload(payloadString), senderAddress, blockTimestampMillis, txId, fromBlockScan = true)
+                    }
                 }
-                matchesGctl -> {
-                    // A control message is a self-stash transaction - its own output's
-                    // scriptPublicKey directly encodes the sender's address, same as broadcast.
-                    val senderAddress = tx.outputsList.firstOrNull()
-                        ?.let { KaspaAddress.addressFromScriptPublicKey(it.scriptPublicKey.scriptPublicKey, groupRepository.addressPrefix()) }
-                        ?: continue
-                    groupRepository.handleIncomingControlMessage(GroupCipher.normalizeControlPayload(payloadString), senderAddress)
-                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("GroupScanningService", "Skipped group transaction ${txId.take(12)}", e)
             }
         }
     }

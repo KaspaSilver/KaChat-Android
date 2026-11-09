@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.R
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -173,11 +174,12 @@ class NextcloudService @Inject constructor(
                 .joinToString("") { "%02x".format(it) }
 
         const val BACKUP_FOLDER_NAME = "KaChat"
+
         /** Where "Send Media via Nextcloud" uploads land: a fixed KaChat/Media folder at the files root. */
         const val MEDIA_FOLDER_PATH = "$BACKUP_FOLDER_NAME/Media"
         /** FIXED filename, identical to iOS/desktop — same archive schema, so a backup written by
          *  one platform restores cleanly on any other. */
-        const val BACKUP_FILE_NAME = "kachat-backup.json"
+        const val BACKUP_FILE_NAME = "kachat-contacts.json"
 
         /** Bounds for [discoverExistingBackupFolder] - a connect must not become a full crawl. */
         private const val FOLDER_DISCOVERY_MAX_FOLDERS = 40
@@ -541,7 +543,7 @@ class NextcloudService @Inject constructor(
         val user = username.trim()
         val password = appPassword.trim()
         if (user.isEmpty() || password.isEmpty()) {
-            throw IOException("Nextcloud rejected the username or app password.")
+            throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
         }
         val candidate = NextcloudAccount(server = server, username = user, appPassword = password)
 
@@ -553,7 +555,7 @@ class NextcloudService @Inject constructor(
                 .header("Accept", "application/json")
                 .build()
             client.newCall(request).execute().use { response ->
-                if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                 if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
                 val body = response.body?.string() ?: throw IOException("Unexpected response from the Nextcloud server.")
                 val ocsData = runCatching { JSONObject(body).getJSONObject("ocs").optJSONObject("data") }.getOrNull()
@@ -563,8 +565,9 @@ class NextcloudService @Inject constructor(
             }
         }
         persistAccount(candidate)
-        // Connected: Automatic Sync defaults ON unless a choice is already on record.
-        _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = true)
+        // Recorded now and shown after the folder search below, so nothing syncs before the folder
+        // is known: a catch-up during the search could start a second file beside the real one.
+        val autoSync = resolveAutoSyncForConnect(currentSuffix ?: return)
         refreshTalkAvailability()
 
         // Point at the backup this account already has, before anything reads or writes one.
@@ -576,9 +579,23 @@ class NextcloudService @Inject constructor(
                 setBackupFolder(found)
             }
         }
+        _autoBackupEnabled.value = autoSync
+    }
+
+    /** Connecting starts Automatic Sync off unless a choice is on record, so nothing uploads until
+     *  the user turns it on (iOS `resolveAutoSyncForConnect`). */
+    private fun resolveAutoSyncForConnect(suffix: String): Boolean {
+        val key = scopedKey(PREF_AUTO_BACKUP_ENABLED, suffix)
+        if (prefs.contains(key)) return prefs.getBoolean(key, false)
+        prefs.edit().putBoolean(key, false).apply()
+        return false
     }
 
     fun disconnect() {
+        // Revoke first, while the credentials still exist to authenticate the request (iOS).
+        _account.value?.let { account ->
+            serviceScope.launch(Dispatchers.IO) { revokeAppPassword(account) }
+        }
         val editor = prefs.edit()
         // Only the active wallet's entries — other accounts' logins stay untouched.
         currentSuffix?.let { suffix ->
@@ -591,6 +608,48 @@ class NextcloudService @Inject constructor(
         _account.value = null
         _autoBackupEnabled.value = false
         _talkCallsAvailable.value = false
+    }
+
+    /** Delete Account: the active wallet's app password, revoked while the credentials still exist
+     *  to authenticate with (iOS d063b897). Best effort. */
+    suspend fun revokeAppPassword() {
+        val account = _account.value ?: return
+        withContext(Dispatchers.IO) { revokeAppPassword(account) }
+    }
+
+    /**
+     * An account being removed from this phone: revokes the app password KaChat made with its
+     * stored login (signed in or not), then deletes that login and its settings. Mirrors iOS's
+     * `revokeAndPurgeStoredState(forWalletAddress:)` (d23e6f7a). Best effort on the server; the
+     * local copy goes whatever it says.
+     */
+    suspend fun revokeAndPurgeStoredState(walletAddress: String) = withContext(Dispatchers.IO) {
+        val suffix = walletHashSuffix(walletAddress)
+        val server = prefs.getString(scopedKey(PREF_SERVER, suffix), null)
+        val username = prefs.getString(scopedKey(PREF_USERNAME, suffix), null)
+        val appPassword = prefs.getString(scopedKey(PREF_APP_PASSWORD, suffix), null)
+        if (server != null && username != null && appPassword != null) {
+            revokeAppPassword(NextcloudAccount(server = server, username = username, appPassword = appPassword))
+        }
+        purgeStoredState(walletAddress)
+    }
+
+    /** Revokes [account]'s app password on its server (iOS `revokeAppPassword`), so a
+     *  disconnected or deleted wallet leaves nothing that can still log in. Best effort. */
+    private fun revokeAppPassword(account: NextcloudAccount) {
+        try {
+            val request = Request.Builder()
+                .url("${account.server.trimEnd('/')}/ocs/v2.php/core/apppassword")
+                .delete()
+                .header("Authorization", basicAuth(account))
+                .header("OCS-APIRequest", "true")
+                .build()
+            client.newCall(request).execute().use { response ->
+                Log.i("NextcloudService", "App password revoke answered HTTP ${response.code}")
+            }
+        } catch (e: Exception) {
+            Log.w("NextcloudService", "App password revoke failed: ${e.message}")
+        }
     }
 
     /** Persists the picker's start folder (null/"" = files root). */
@@ -707,7 +766,7 @@ class NextcloudService @Inject constructor(
             val mkcol = Request.Builder().url(davUrl(account, level)).method("MKCOL", null)
                 .header("Authorization", basicAuth(account)).build()
             client.newCall(mkcol).execute().use { response ->
-                if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                 if (!response.isSuccessful && response.code != 405) throw IOException("Nextcloud returned HTTP ${response.code}.")
             }
         }
@@ -720,7 +779,7 @@ class NextcloudService @Inject constructor(
         val put = Request.Builder().url(davUrl(account, path)).put(bytes.toRequestBody(mediaType))
             .header("Authorization", basicAuth(account)).build()
         client.newCall(put).execute().use { response ->
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
         }
         path
@@ -732,12 +791,12 @@ class NextcloudService @Inject constructor(
         val account = requireAccount()
         val get = Request.Builder().url(davUrl(account, relativePath)).header("Authorization", basicAuth(account)).build()
         client.newCall(get).execute().use { response ->
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
-            val body = response.body ?: throw IOException("Nextcloud sent an empty file.")
-            if (body.contentLength() > maxBytes) throw IOException("That file is too large to import.")
+            val body = response.body ?: throw IOException(context.getString(R.string.nextcloud_sent_an_empty_file))
+            if (body.contentLength() > maxBytes) throw IOException(context.getString(R.string.that_file_is_too_large_to_import))
             val bytes = body.bytes()
-            if (bytes.size > maxBytes) throw IOException("That file is too large to import.")
+            if (bytes.size > maxBytes) throw IOException(context.getString(R.string.that_file_is_too_large_to_import))
             bytes
         }
     }
@@ -768,7 +827,7 @@ class NextcloudService @Inject constructor(
             .build()
 
         client.newCall(request).execute().use { response ->
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
             if (response.code != 207) throw IOException("Nextcloud returned HTTP ${response.code}.")
             val xml = response.body?.string() ?: throw IOException("Unexpected response from the Nextcloud server.")
             parseMultistatus(xml, davBasePath, listedPath)
@@ -908,7 +967,7 @@ class NextcloudService @Inject constructor(
             .build()
 
         client.newCall(request).execute().use { response ->
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
             if (response.isSuccessful) {
                 val body = response.body?.string()
                 val url = body?.let { shareUrlFromOcsObject(it) }
@@ -988,7 +1047,7 @@ class NextcloudService @Inject constructor(
                     .header("Authorization", basicAuth(account))
                     .build()
                 client.newCall(mkcol).execute().use { response ->
-                    if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                    if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                     if (!response.isSuccessful && response.code != 405) {
                         throw IOException("Nextcloud returned HTTP ${response.code}.")
                     }
@@ -1005,7 +1064,7 @@ class NextcloudService @Inject constructor(
                 .header("Authorization", basicAuth(account))
                 .build()
             client.newCall(put).execute().use { response ->
-                if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                 if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
             }
             path
@@ -1018,57 +1077,32 @@ class NextcloudService @Inject constructor(
     // -------------------------------------------------------------------------
 
     /**
-     * The whole backup (NEXTCLOUD_SYNC.md §4): read whatever the server already holds, hand it to
-     * [buildJson] to be MERGED with this device's history, write the union with one PUT to the
-     * same path, then verify the stored size - so a backup can only ever ADD to
-     * `kachat-backup.json` (desktop, iOS and Android all write that same file) and no device can
-     * delete another's chat history.
-     *
-     * [buildJson] receives the raw server content: null for a genuine 404 (no backup yet - the
-     * only case that writes without merging), otherwise the file exactly as downloaded, which
-     * [ChatHistoryExportImportService.buildBackupJson] judges per §7 - another wallet's file, a
-     * hint-less envelope and a newer schema throw (nothing is written), while THIS wallet's
-     * unreadable file is replaced in place. A download that failed or stopped early throws here,
-     * before [buildJson] ever sees it: a transfer problem says nothing about the file, so it is
-     * never a reason to overwrite.
+     * One read, merge, write of `kachat-contacts.json` (iOS performBackup). [buildBody] receives the
+     * raw server content, null for a genuine 404 (no file yet), and returns what to write, or null
+     * when the file already holds everything: nothing is written then. It throws, so nothing is
+     * written either, on a file that must not be touched. A download that failed or stopped early
+     * throws here, before [buildBody] ever sees it: a transfer problem says nothing about the file,
+     * so it is never a reason to overwrite.
      *
      * The active wallet is re-checked after the download and again right before the PUT (§4.7):
-     * a switch mid-sync aborts instead of writing one account's history into another's file -
-     * for the manual Back Up Now as much as for the automatic sync.
+     * a switch mid-sync aborts instead of writing one account's contacts into another's file.
      *
-     * Returns the uploaded file's WebDAV ETag (`OC-ETag` then `ETag` on the PUT response, with a
-     * Depth-0 PROPFIND fallback for proxies that strip both), or null when nothing yielded one.
-     * [NextcloudSyncService] records it so its remote change watcher never mistakes this
-     * device's own write for another device's change. Throws [NextcloudUploadCutOffException]
-     * when the server kept fewer bytes than were sent (§4.6).
+     * Returns the file's WebDAV ETag (`OC-ETag` then `ETag` on the PUT response, with a Depth-0
+     * PROPFIND fallback for proxies that strip both), or null when nothing yielded one.
+     * [NextcloudSyncService] records it so its remote change watcher never mistakes this device's
+     * own write for another device's change. Throws [NextcloudUploadCutOffException] when the
+     * server kept fewer bytes than were sent (§4.6).
      */
-    suspend fun runBackup(buildJson: suspend (String?) -> String): String? = backupMutex.withLock {
+    suspend fun runBackup(buildBody: suspend (String?) -> String?): String? = backupMutex.withLock {
         // Snapshot the account/folder/wallet so a wallet switch mid-backup can't redirect the upload.
         val account = requireAccount()
         val folder = backupFolderPath
         val walletAtStart = currentWalletAddress ?: throw IOException("Open a wallet account before backing up.")
-        val existingRemoteJson = readBackupBody(account, folder, onProgress = null)
+        val existingRemote = readBackupBody(account, folder, onProgress = null)
         ensureWalletUnchanged(walletAtStart)
-        val body = buildJson(existingRemoteJson)
+        val body = buildBody(existingRemote)
         ensureWalletUnchanged(walletAtStart)
-        return@withLock writeAndVerifyBackup(body, account, folder)
-    }
-
-    /**
-     * [runBackup] minus the pre-merge download, for the ONE case where skipping it is provably
-     * safe (§4.2): the caller verified (by ETag — see NextcloudSyncService.uploadIfDirty) that the
-     * server file is still content this device has already merged, i.e. bytes we wrote or
-     * imported and have kept merged since via the change watcher. Anything short of that
-     * certainty must use [runBackup] — the merge-on-upload rule is what guarantees no device can
-     * erase another's history. Same wallet re-check, verify step and ETag return contract as
-     * [runBackup].
-     */
-    suspend fun runBackupWithoutDownload(buildJson: suspend () -> String): String? = backupMutex.withLock {
-        val account = requireAccount()
-        val folder = backupFolderPath
-        val walletAtStart = currentWalletAddress ?: throw IOException("Open a wallet account before backing up.")
-        val body = buildJson()
-        ensureWalletUnchanged(walletAtStart)
+        if (body == null) return@withLock runCatching { fetchBackupEtag(account, folder) }.getOrNull()
         return@withLock writeAndVerifyBackup(body, account, folder)
     }
 
@@ -1109,45 +1143,10 @@ class NextcloudService @Inject constructor(
     }
 
     /**
-     * Deletes the encrypted archive from the user's Nextcloud.
-     *
-     * Only ever on the user's say-so - the "Delete and Remove Nextcloud Backup" choice when an
-     * account is deleted names it outright - because that archive is what carries their history to
-     * their other devices, and a deletion here is not recoverable from the app. Mirrors iOS's
-     * `deleteRemoteBackup` (78152d3).
-     *
-     * Takes [backupMutex] like the two backup entry points: a delete racing an upload would leave
-     * either the file or the caller confused about which won. A 404 is the state being asked for,
-     * not a failure.
-     */
-    suspend fun deleteRemoteBackup(): Unit = backupMutex.withLock {
-        withContext(Dispatchers.IO) {
-            val account = requireAccount()
-            val request = Request.Builder()
-                .url(davUrl(account, "$backupFolderPath/$BACKUP_FILE_NAME"))
-                .delete()
-                .header("Authorization", basicAuth(account))
-                .build()
-            client.newCall(request).execute().use { response ->
-                when {
-                    response.code == 404 -> Log.i(TAG, "Remote archive was already gone")
-                    response.code == 401 -> throw IOException(
-                        "Nextcloud rejected the username or app password - the backup was left in place."
-                    )
-                    !response.isSuccessful -> throw IOException(
-                        "Could not delete the backup on the server (HTTP ${response.code}) - it was left in place."
-                    )
-                    else -> Log.i(TAG, "Remote archive deleted")
-                }
-            }
-        }
-    }
-
-    /**
-     * Uploads the archive to `<backup folder>/kachat-backup.json`, creating the folder first
+     * Uploads the contacts to `<backup folder>/kachat-contacts.json`, creating the folder first
      * (MKCOL answers 405 when it already exists — fine; a user-picked folder always already
-     * exists since it was chosen through the folder browser). Overwrites in place: callers that
-     * back chat history up must go through [runBackup] so the body is a merge, not a replacement.
+     * exists since it was chosen through the folder browser). Overwrites in place: every caller
+     * goes through [runBackup] and the body is a merge, not a replacement.
      * Returns the new file's ETag when the server sends one on the PUT response, else null:
      * `OC-ETag` first - Nextcloud's canonical header - then `ETag` (NEXTCLOUD_SYNC.md §4.5, same
      * order as iOS).
@@ -1161,7 +1160,7 @@ class NextcloudService @Inject constructor(
             .header("Authorization", basicAuth(account))
             .build()
         client.newCall(mkcol).execute().use { response ->
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
             if (!response.isSuccessful && response.code != 405) {
                 throw IOException("Nextcloud returned HTTP ${response.code}.")
             }
@@ -1175,7 +1174,7 @@ class NextcloudService @Inject constructor(
         var attempt = 0
         while (true) {
             val outcome = backupWriteClient.newCall(put).execute().use { response ->
-                if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+                if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                 // 423 Locked: another device, or this one's own sync, is reading or writing the
                 // archive. The lock clears in seconds, so wait it out rather than failing the
                 // backup - only a lock that never clears is worth telling the user about.
@@ -1225,7 +1224,7 @@ class NextcloudService @Inject constructor(
         client.newCall(request).execute().use { response ->
             when {
                 response.code == 404 -> null
-                response.code == 401 -> throw IOException("Nextcloud rejected the username or app password.")
+                response.code == 401 -> throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                 response.code != 207 -> throw IOException("Nextcloud returned HTTP ${response.code}.")
                 else -> {
                     val xml = response.body?.string() ?: throw IOException("Unexpected response from the Nextcloud server.")
@@ -1258,7 +1257,7 @@ class NextcloudService @Inject constructor(
         client.newCall(request).execute().use { response ->
             when {
                 response.code == 404 -> null
-                response.code == 401 -> throw IOException("Nextcloud rejected the username or app password.")
+                response.code == 401 -> throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
                 response.code != 207 -> throw IOException("Nextcloud returned HTTP ${response.code}.")
                 else -> parseBackupStat(
                     response.body?.string() ?: throw IOException("Unexpected response from the Nextcloud server.")
@@ -1312,10 +1311,9 @@ class NextcloudService @Inject constructor(
     }
 
     /**
-     * Downloads the backup archive JSON. 404 -> "no backup was found". [onProgress] (optional)
-     * streams (receivedBytes, totalBytes) as the body downloads — totalBytes is null when the
-     * server sends no Content-Length. Drives the restore modal's download stage; the change
-     * watcher and the silent restore read through here too.
+     * Downloads the contacts file. 404 -> "no backup was found". [onProgress] (optional) streams
+     * (receivedBytes, totalBytes) as the body downloads — totalBytes is null when the server sends
+     * no Content-Length. The change watcher reads through here.
      */
     suspend fun downloadBackup(onProgress: ((receivedBytes: Long, totalBytes: Long?) -> Unit)? = null): String {
         val account = requireAccount()
@@ -1325,9 +1323,9 @@ class NextcloudService @Inject constructor(
     }
 
     /**
-     * GETs `<folder>/kachat-backup.json`: null on 404 (file or folder - no backup yet), the body
+     * GETs `<folder>/kachat-contacts.json`: null on 404 (file or folder - no backup yet), the body
      * otherwise (possibly empty, when the file on the server is). The one download every reader
-     * shares - the sync's read step ([runBackup]), the restore and the change watcher - so they
+     * shares - the sync's read step ([runBackup]) and the change watcher - so they
      * all treat a bad transfer the same way: every failure here is an [IOException] that
      * aborts the caller BEFORE any PUT (NEXTCLOUD_SYNC.md §4.3, §7). In particular:
      *   * a 2xx HTML body is a reverse-proxy, login, or maintenance page standing in for the
@@ -1348,7 +1346,7 @@ class NextcloudService @Inject constructor(
             .build()
         client.newCall(request).execute().use { response ->
             if (response.code == 404) return@withContext null
-            if (response.code == 401) throw IOException("Nextcloud rejected the username or app password.")
+            if (response.code == 401) throw IOException(context.getString(R.string.nextcloud_rejected_the_username_or_app_password))
             if (!response.isSuccessful) throw IOException("Nextcloud returned HTTP ${response.code}.")
             val contentType = response.header("Content-Type")?.lowercase() ?: ""
             if ("html" in contentType) throw IOException("Unexpected response from the Nextcloud server.")

@@ -37,4 +37,13 @@ class PeerAliasStore @Inject constructor(
         prefs.edit().putStringSet(key(wallet, contact), current + clean).apply()
         return true
     }
+
+    /** Everything kept for [wallet]: it's going off this device (iOS bfe9f022). */
+    @Synchronized
+    fun removeAllData(wallet: String) {
+        val prefix = "${wallet.lowercase()}|"
+        val editor = prefs.edit()
+        prefs.all.keys.filter { it.startsWith(prefix) }.forEach { editor.remove(it) }
+        editor.apply()
+    }
 }

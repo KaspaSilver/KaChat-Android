@@ -144,8 +144,8 @@ abstract class KaChatDatabase : RoomDatabase() {
         }
 
         /**
-         * v18 -> v19: adds `contacts.photoAutoDisplayOverride` (nullable [PhotoAutoDisplayMode]
-         * name, null = automatic) backing the per-contact photo auto-display picker in Chat Info.
+         * v18 -> v19: adds `contacts.photoAutoDisplayOverride` (nullable photo display mode
+         * name, null = automatic; nothing reads it since iOS d1844582) backing the per-contact photo auto-display picker in Chat Info.
          * A single nullable column addition, so a plain `ALTER TABLE ... ADD COLUMN` suffices —
          * no rebuild-the-table dance needed (that was only required for the v15->v16 column drop).
          */

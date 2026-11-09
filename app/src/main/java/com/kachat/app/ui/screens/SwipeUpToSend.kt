@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -60,6 +61,7 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.IosHaptic
 import com.kachat.app.util.KaspaUnit
+import com.kachat.app.util.authenticateWithDeviceCredential
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.floor
@@ -92,12 +94,14 @@ private enum class SwipePhase { FORM, SENDING }
 /**
  * A send screen with "Swipe up to Send" pinned at the bottom (iOS 7abc06e
  * `SwipeUpToSendScrollView`, from KaChat Wallet). Press the bar and drag it up: the whole screen
- * moves up with the finger, and the send screen rises from below in its place. Letting go past
- * halfway up sends: the send screen takes over the full screen, a BlockDAG runs across it while
+ * moves up with the finger, and the send screen rises from below in its place. Letting go about a
+ * third of the way up sends: the send screen takes over the full screen, a BlockDAG runs across it while
  * the transaction goes out, and then it shows the confirmation ([sent]). Letting go sooner springs
  * it back. A send that fails or never starts shows "Failed" there with [failureMessage], and Try
  * Again brings the form back as it was. Only the bar answers - scrolling the form never sends.
- * TalkBack gets a plain activate action on the bar.
+ * TalkBack gets a plain activate action on the bar. Kaspa never leaves on the swipe alone: the
+ * device's own lock asks first (iOS d1844582), and declined, the screen settles back with
+ * everything still filled in.
  *
  * It draws its own header ([SendStepHeader]: Cancel and [screenTitle], with [onBack] Back and
  * Cancel - a step-by-step send's Review, iOS bc3e1ff3) in place of a top bar, so the header goes
@@ -133,10 +137,12 @@ fun SwipeUpToSendScreen(
     val haptic = com.kachat.app.util.rememberHaptics()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val context = LocalContext.current
+    val confirmSendingTitle = stringResource(R.string.confirm_sending_kaspa)
 
     /** How far the screen has been pushed up, in px. */
     var lift by remember { mutableFloatStateOf(0f) }
-    /** Past halfway: letting go sends. */
+    /** Past the threshold: letting go sends. */
     var armed by remember { mutableStateOf(false) }
     var phase by remember { mutableStateOf(SwipePhase.FORM) }
     /** The DAG gets a moment on screen before the confirmation, however fast the send was. */
@@ -148,7 +154,11 @@ fun SwipeUpToSendScreen(
     /** The send ended without a transaction: the sending screen shows "Failed". */
     var failed by remember { mutableStateOf(false) }
     var heightPx by remember { mutableIntStateOf(0) }
-    val active = isEnabled && !isBusy
+    /** The device lock is up for a send. Until it answers the screen is still the form, so without
+     *  this a second swipe (or TalkBack activation) in that moment asked again and could send
+     *  twice (iOS `authPending`). */
+    var authPending by remember { mutableStateOf(false) }
+    val active = isEnabled && !isBusy && !authPending
     val latestActive by rememberUpdatedState(active)
     val latestBusy by rememberUpdatedState(isBusy)
     val latestAction by rememberUpdatedState(action)
@@ -166,6 +176,7 @@ fun SwipeUpToSendScreen(
     }
 
     fun startSending() {
+        if (phase != SwipePhase.FORM) return
         dismissKeyboard()
         armed = false
         dagShown = false
@@ -184,6 +195,26 @@ fun SwipeUpToSendScreen(
             delay(600)
             if (!sendStarted) showFailure()
         }
+    }
+
+    /** Kaspa never leaves on the swipe alone: the device's lock first, on every Send Kaspa screen
+     *  (iOS d1844582 `authenticateThenSend`). Declined, or a phone with no screen lock (which says
+     *  why, see [authenticateWithDeviceCredential]): the screen settles back, still filled in. */
+    fun authenticateThenSend() {
+        if (authPending || phase != SwipePhase.FORM) return
+        authPending = true
+        context.authenticateWithDeviceCredential(
+            title = confirmSendingTitle,
+            onSuccess = {
+                startSending()
+                authPending = false
+            },
+            onFailure = {
+                authPending = false
+                armed = false
+                settle(0f)
+            },
+        )
     }
 
     /** Try Again: back down to the form, filled in as it was. */
@@ -235,12 +266,13 @@ fun SwipeUpToSendScreen(
                     .verticalScroll(rememberScrollState()),
                 content = content,
             )
-            val threshold = max(with(density) { 160.dp.toPx() }, heightPx * 0.5f)
+            // About a third of the way up arms it (iOS fdb32549).
+            val threshold = max(with(density) { 120.dp.toPx() }, heightPx * 0.3f)
             SwipeUpBar(
                 title = title,
                 armed = armed,
                 isEnabled = isEnabled,
-                onActivate = { if (latestActive && phase == SwipePhase.FORM) startSending() },
+                onActivate = { if (latestActive && phase == SwipePhase.FORM) authenticateThenSend() },
                 modifier = Modifier.pointerInput(threshold) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -268,9 +300,10 @@ fun SwipeUpToSendScreen(
                                 haptic(if (pastThreshold) IosHaptic.IMPACT_MEDIUM else IosHaptic.IMPACT_LIGHT)
                             }
                         }
-                        if (phase != SwipePhase.FORM) return@awaitEachGesture
+                        // a touch while the device lock is up leaves the waiting send as it is
+                        if (phase != SwipePhase.FORM || authPending) return@awaitEachGesture
                         if (armed && latestActive) {
-                            startSending()
+                            authenticateThenSend()
                         } else {
                             armed = false
                             settle(0f)
@@ -292,6 +325,7 @@ fun SwipeUpToSendScreen(
                 explorer = explorer,
                 onDone = onDone,
                 onTryAgain = ::returnToForm,
+                outcomeUnknown = failureMessage == stringResource(R.string.send_outcome_unknown),
                 modifier = Modifier
                     .fillMaxSize()
                     .offset { IntOffset(0, max(0f, heightPx - lift).roundToInt()) },
@@ -358,6 +392,8 @@ private fun SendProgressScreen(
     done: Boolean,
     /** Non-null once the send failed: the error to show. */
     failure: String?,
+    /** The send may have gone through: the failure says so, and only Done is offered. */
+    outcomeUnknown: Boolean,
     /** False while the swipe is still being dragged (a preview of what's coming). */
     isSending: Boolean,
     armed: Boolean,
@@ -409,6 +445,7 @@ private fun SendProgressScreen(
                 stringResource(
                     when {
                         done -> R.string.sent
+                        failure != null && outcomeUnknown -> R.string.swipe_not_confirmed
                         failure != null -> R.string.swipe_failed
                         isSending -> R.string.swipe_sending
                         armed -> R.string.swipe_release_to_send
@@ -500,11 +537,12 @@ private fun SendProgressScreen(
                     .fillMaxWidth()
                     .height(56.dp)
                     .background(KaspaTeal, RoundedCornerShape(28.dp))
-                    .clickable { if (done) onDone() else onTryAgain() },
+                    // After an unknown outcome there is no Try Again: it could pay twice.
+                    .clickable { if (done || outcomeUnknown) onDone() else onTryAgain() },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    stringResource(if (done) R.string.done else R.string.try_again),
+                    stringResource(if (done || outcomeUnknown) R.string.done else R.string.try_again),
                     color = Color.Black,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,

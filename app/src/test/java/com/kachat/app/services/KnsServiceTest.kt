@@ -102,45 +102,6 @@ class KnsServiceTest {
         assertEquals(5, KnsService.feeTierForLabel("averylongdomainlabel"))
     }
 
-    @Test
-    fun `fee for tier falls back to tier 5 when the exact tier is missing`() {
-        val tiers = mapOf(5 to 35.0)
-        assertEquals(35.0, KnsService.feeForTier(3, tiers), 0.0)
-    }
-
-    @Test
-    fun `fee for tier uses the exact tier when present`() {
-        val tiers = mapOf(1 to 4200.0, 5 to 35.0)
-        assertEquals(4200.0, KnsService.feeForTier(1, tiers), 0.0)
-    }
-
-    @Test(expected = IllegalStateException::class)
-    fun `fee for tier throws when neither the exact tier nor tier 5 is present`() {
-        KnsService.feeForTier(2, mapOf(1 to 4200.0))
-    }
-
-    @Test
-    fun `reveal amount is zero for a reserved domain regardless of tier fee`() {
-        assertEquals(0.0, KnsService.revealAmountKas(tierFee = 35.0, isReservedDomain = true), 0.0)
-    }
-
-    @Test
-    fun `reveal amount is the tier fee for a non-reserved domain`() {
-        assertEquals(35.0, KnsService.revealAmountKas(tierFee = 35.0, isReservedDomain = false), 0.0)
-    }
-
-    @Test
-    fun `commit amount is floored at 2 KAS when reveal is 1 KAS or less`() {
-        assertEquals(2.0, KnsService.commitAmountKas(0.0), 0.0)
-        assertEquals(2.0, KnsService.commitAmountKas(1.0), 0.0)
-    }
-
-    @Test
-    fun `commit amount is reveal times 1point05 rounded above 1 KAS`() {
-        assertEquals(37.0, KnsService.commitAmountKas(35.0), 0.0) // 35 * 1.05 = 36.75 -> rounds to 37
-        assertEquals(4410.0, KnsService.commitAmountKas(4200.0), 0.0) // 4200 * 1.05 = 4410.0
-    }
-
     // --- isSignatureVerificationFailure ---------------------------------------------------
 
     @Test

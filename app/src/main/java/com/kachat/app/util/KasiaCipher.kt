@@ -22,6 +22,7 @@ object KasiaCipher {
     private const val NONCE_SIZE = 12
     private const val TAG_SIZE = 16
     private const val COMPRESSED_KEY_SIZE = 33
+    private val SENT_MESSAGE_INFO = "kachat-sent-message-v1".toByteArray(Charsets.US_ASCII)
 
     /**
      * Wire layout: nonce(12) || ephemeralPubKey(33, SEC1-compressed) || ciphertext || tag(16).
@@ -70,22 +71,26 @@ object KasiaCipher {
      * Encrypts [plaintext] for a recipient identified by their 32-byte x-only
      * secp256k1 public key (this is exactly the payload of their Kaspa address).
      */
-    fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray): EncryptedMessage =
-        encrypt(plaintext.toByteArray(Charsets.UTF_8), recipientXOnlyPubKey)
+    fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): EncryptedMessage =
+        encrypt(plaintext.toByteArray(Charsets.UTF_8), recipientXOnlyPubKey, senderPrivateKey)
 
     /**
      * Encrypts raw bytes - the binary media frame ([ContextualMediaFrame]) of a photo or voice
      * note travels this way, without a base64 layer inside the encryption (iOS `encrypt(data:)`).
+     *
+     * With [senderPrivateKey], the ephemeral key is derived from it and the message's nonce
+     * ([sentMessageKey]) instead of random, so the seed can read the message back ([decryptSent],
+     * iOS bfe9f022). To the recipient it's an ordinary message: the format doesn't change.
      */
-    fun encrypt(data: ByteArray, recipientXOnlyPubKey: ByteArray): EncryptedMessage {
-        val ephemeralPrivate = randomScalar()
+    fun encrypt(data: ByteArray, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): EncryptedMessage {
+        val nonce = ByteArray(NONCE_SIZE).also { SecureRandom().nextBytes(it) }
+        val ephemeralPrivate = senderPrivateKey?.let { sentMessageKey(it, nonce) } ?: randomScalar()
         val ephemeralPublic = Secp256k1.G.multiply(ephemeralPrivate).normalize().getEncoded(true)
 
         val recipientPoint = decodePoint(recipientXOnlyPubKey)
         val sharedX = ecdhX(ephemeralPrivate, recipientPoint)
         val key = hkdfSha256(sharedX, ByteArray(0), 32)
 
-        val nonce = ByteArray(NONCE_SIZE).also { SecureRandom().nextBytes(it) }
         val ciphertext = chaChaPolyEncrypt(key, nonce, data)
 
         return EncryptedMessage(nonce, ephemeralPublic, ciphertext)
@@ -97,8 +102,40 @@ object KasiaCipher {
     fun decrypt(message: EncryptedMessage, privateKey: ByteArray): String {
         val ephemeralPoint = decodePoint(message.ephemeralPublicKey)
         val sharedX = ecdhX(BigInteger(1, privateKey), ephemeralPoint)
-        val key = hkdfSha256(sharedX, ByteArray(0), 32)
+        return open(message, hkdfSha256(sharedX, ByteArray(0), 32))
+    }
 
+    /**
+     * Reads back a message this wallet sent (iOS `decryptSent`, bfe9f022): the ephemeral key comes
+     * from the seed again and the shared secret from its side of the exchange. A message sealed
+     * before this existed (or by a client that doesn't do this) used a random key, which is gone:
+     * its ephemeral public key won't match, and this throws [NotReadableBackException].
+     */
+    fun decryptSent(message: EncryptedMessage, senderPrivateKey: ByteArray, recipientXOnlyPubKey: ByteArray): String {
+        val ephemeralPrivate = sentMessageKey(senderPrivateKey, message.nonce)
+        val ephemeralPublic = Secp256k1.G.multiply(ephemeralPrivate).normalize().getEncoded(true)
+        if (!ephemeralPublic.contentEquals(message.ephemeralPublicKey)) throw NotReadableBackException()
+        val sharedX = ecdhX(ephemeralPrivate, decodePoint(recipientXOnlyPubKey))
+        return open(message, hkdfSha256(sharedX, ByteArray(0), 32))
+    }
+
+    /**
+     * The ephemeral private key of a message this wallet sends: HKDF-SHA256 (RFC 5869) with
+     * ikm = the chatting private key, salt = the message's 12-byte nonce, info =
+     * "kachat-sent-message-v1", 32 bytes out (iOS `sentMessageKey`). The nonce is random and
+     * travels in the message, so no two messages share a key and nothing extra goes on chain; only
+     * someone holding the seed can work this out.
+     */
+    private fun sentMessageKey(senderPrivateKey: ByteArray, nonce: ByteArray): BigInteger {
+        val key = hkdfSha256(senderPrivateKey, SENT_MESSAGE_INFO, 32, salt = nonce)
+        val scalar = BigInteger(1, key)
+        // A key outside the curve's range is refused, as P256K's PrivateKey init refuses it on iOS.
+        if (scalar == BigInteger.ZERO || scalar >= Secp256k1.N) throw NotReadableBackException()
+        return scalar
+    }
+
+    /** ChaCha20-Poly1305, and what the plaintext turns out to be. */
+    private fun open(message: EncryptedMessage, key: ByteArray): String {
         val plaintext = chaChaPolyDecrypt(key, message.nonce, message.ciphertext)
         // A binary media frame comes back as the same media-file JSON a text-encoded one always
         // was, so everything after decryption is unchanged (iOS KasiaCipher.decrypt).
@@ -108,6 +145,9 @@ object KasiaCipher {
         if (ContextualMediaFrame.startsWithFrameByte(plaintext)) throw UnreadablePlaintextException()
         return String(plaintext, Charsets.UTF_8)
     }
+
+    /** A message that can't be read back with the seed: not sealed by [sentMessageKey]. */
+    class NotReadableBackException : IllegalStateException("Not a message this seed can read back")
 
     /** The plaintext opened but is neither text nor a well-formed binary media frame. */
     class UnreadablePlaintextException : IllegalStateException("Decrypted bytes are not text or a media frame")
@@ -165,13 +205,14 @@ object KasiaCipher {
     }
 
     // -------------------------------------------------------------------------
-    // HKDF-SHA256 (empty salt — matches CryptoKit's HKDF<SHA256> defaults; message
-    // encryption uses empty info too, deterministic alias derivation passes a real one)
+    // HKDF-SHA256 (empty salt unless given — matches CryptoKit's HKDF<SHA256> defaults; message
+    // encryption uses empty info too, deterministic alias derivation passes a real one, and
+    // sentMessageKey a real salt and info)
     // -------------------------------------------------------------------------
 
-    private fun hkdfSha256(ikm: ByteArray, info: ByteArray, outputLength: Int): ByteArray {
+    private fun hkdfSha256(ikm: ByteArray, info: ByteArray, outputLength: Int, salt: ByteArray = ByteArray(0)): ByteArray {
         val generator = HKDFBytesGenerator(SHA256Digest())
-        generator.init(HKDFParameters(ikm, ByteArray(0), info))
+        generator.init(HKDFParameters(ikm, salt, info))
         val out = ByteArray(outputLength)
         generator.generateBytes(out, 0, outputLength)
         return out

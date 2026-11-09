@@ -31,7 +31,8 @@ import javax.inject.Singleton
 @Singleton
 class NotificationHelper @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val settings: AppSettingsRepository
+    private val settings: AppSettingsRepository,
+    private val walletManager: WalletManager,
 ) {
     /** The localized words a 1:1 banner body uses (dmNotificationText), in the app's language. */
     fun dmNotificationLabels(): com.kachat.app.util.DmNotificationLabels =
@@ -72,8 +73,8 @@ class NotificationHelper @Inject constructor(
             // matches the current settings.
             val manager = context.getSystemService(NotificationManager::class.java)
             CHANNELS.forEach { (channelId, soundOn, vibrationOn) ->
-                val channel = NotificationChannel(channelId, "Messages", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "New messages, connection requests, and payments"
+                val channel = NotificationChannel(channelId, context.getString(R.string.messages), NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = context.getString(R.string.new_messages_connection_requests_and_payments)
                     enableVibration(vibrationOn)
                     if (!soundOn) setSound(null, null)
                 }
@@ -188,7 +189,9 @@ class NotificationHelper @Inject constructor(
     val currentContactId: String? get() = activeContactId.value
 
     /** The one notification a new Message Request gets: "New message request - <address> wants
-     *  to chat with you." (NO_HANDSHAKE_MESSAGING.md §4). The caller decides it is the first. */
+     *  to chat with you." (NO_HANDSHAKE_MESSAGING.md §4). The caller decides it is the first. Its
+     *  tap opens Message Requests, where it is answered (iOS 4f8e14bb, the "message_requests"
+     *  thread). */
     suspend fun showMessageRequest(contactId: String, dedupeTxId: String? = null) {
         show(
             contactId = contactId,
@@ -198,10 +201,19 @@ class NotificationHelper @Inject constructor(
                 com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
             ),
             dedupeTxId = dedupeTxId,
+            opensMessageRequests = true,
         )
     }
 
-    suspend fun show(contactId: String, title: String, text: String, notificationOverride: ContactNotificationMode? = null, dedupeTxId: String? = null) {
+    suspend fun show(
+        contactId: String,
+        title: String,
+        text: String,
+        notificationOverride: ContactNotificationMode? = null,
+        dedupeTxId: String? = null,
+        opensMessageRequests: Boolean = false,
+    ) {
+        if (walletManager.isLoggedOut) return // signed out: no message text on this phone (iOS bfe9f022)
         if (activeContactId.value == contactId) return // already looking at this conversation
         if (!settings.notificationsEnabled.first()) return
         if (notificationOverride == ContactNotificationMode.OFF) return
@@ -209,7 +221,12 @@ class NotificationHelper @Inject constructor(
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_CONTACT_ID, contactId)
+            if (opensMessageRequests) {
+                putExtra(EXTRA_OPEN_GROUPS, true)
+                putExtra(EXTRA_OPEN_MESSAGE_REQUESTS, true)
+            } else {
+                putExtra(EXTRA_CONTACT_ID, contactId)
+            }
         }
         // Stable per-contact request code so a burst of updates for the same
         // conversation replaces the pending intent instead of leaking a new one each time.
@@ -271,6 +288,7 @@ class NotificationHelper @Inject constructor(
         kind: String = KIND_SPENDING,
         address: String? = null,
     ) {
+        if (walletManager.isLoggedOut) return
         if (!settings.notificationsEnabled.first()) return
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -301,8 +319,8 @@ class NotificationHelper @Inject constructor(
     }
 
     /**
-     * Per-group opt-in notification for a new `gcomm` message or a "you were added" `gctl_root`
-     * join — see [EXTRA_GROUP_ID]/GroupRepository.
+     * Per-group opt-in notification for a new `gcomm` message — see [EXTRA_GROUP_ID]/GroupRepository.
+     * Being added to a group has its own, [showGroupInvite].
      *
      * [groupId] is the notification's identity (dedupe + open-thread suppression + request code).
      * [targetGroupId] is what the TAP opens, and defaults to the same thing. A remote push whose
@@ -318,7 +336,10 @@ class NotificationHelper @Inject constructor(
         text: String,
         dedupeTxId: String? = null,
         targetGroupId: String? = groupId,
+        /** The line under the title (iOS `content.subtitle`), for a banner whose body doesn't name the sender. */
+        subtitle: String? = null,
     ) {
+        if (walletManager.isLoggedOut) return
         if (activeGroupId.value == groupId) return // already looking at this group's thread
         if (!settings.notificationsEnabled.first()) return
         if (!claimTxId(dedupeTxId)) return // the other delivery path (scan/sync vs push) got here first
@@ -347,6 +368,7 @@ class NotificationHelper @Inject constructor(
             .setSmallIcon(R.drawable.ic_kachat_logo)
             .setContentTitle(title)
             .setContentText(text)
+            .setSubText(subtitle)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -362,7 +384,130 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    /**
+     * The one notification being added to a group gets (iOS bfe9f022): "New message request - You
+     * were invited to "<name>"". There is no group to open yet, so the tap lands on the Chats list
+     * and opens Message Requests from there ([EXTRA_OPEN_MESSAGE_REQUESTS]). The caller decides it
+     * is the first.
+     */
+    suspend fun showGroupInvite(inviteKey: String, groupName: String, dedupeTxId: String? = null) {
+        if (walletManager.isLoggedOut) return
+        if (!settings.notificationsEnabled.first()) return
+        if (!claimTxId(dedupeTxId)) return // the other delivery path (scan/sync vs push) got here first
+        if (!claimGroupInviteAnnouncement(inviteKey)) return // this invite has had its one banner
+        // One admin can't fill the lock screen by inviting you to many groups (iOS 4f8e14bb).
+        if (!claimGroupInviteBannerSlot(inviteKey.substringAfterLast(':'))) return
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_OPEN_GROUPS, true)
+            putExtra(EXTRA_OPEN_MESSAGE_REQUESTS, true)
+        }
+        val notificationId = "group_requests:$inviteKey".hashCode()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val soundEnabled = settings.notificationSoundEnabled.first()
+        val vibrationEnabled = settings.notificationVibrationEnabled.first()
+        val channelId = channelFor(soundEnabled, vibrationEnabled)
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(R.drawable.ic_kachat_logo)
+            .setContentTitle(context.getString(R.string.new_message_request))
+            .setContentText(context.getString(R.string.group_invite_notification, inviteBannerGroupName(groupName)))
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSilent(!soundEnabled && !vibrationEnabled)
+            .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
+            .apply { if (!soundEnabled) setSound(null) }
+            .build()
+
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            // POST_NOTIFICATIONS not granted — skip rather than crash.
+        }
+    }
+
+    /** Invites that have had their one banner, per wallet. Kept across launches: the push that
+     *  announces an invite may land in a later process than the poll that held it, and an invite
+     *  later roots keep arriving for must not ring again (iOS NotificationService's
+     *  `handled_group_invites`, which has only "already waiting" to go on). */
+    private val announcedInvites by lazy { context.getSharedPreferences(PREFS_ANNOUNCED_INVITES, Context.MODE_PRIVATE) }
+
+    private fun announcedInviteId(inviteKey: String): String =
+        "${walletManager.getActiveAccount()?.address.orEmpty()}|$inviteKey"
+
+    /** True for the first caller per invite. */
+    @Synchronized
+    private fun claimGroupInviteAnnouncement(inviteKey: String): Boolean {
+        val id = announcedInviteId(inviteKey)
+        if (announcedInvites.getBoolean(id, false)) return false
+        announcedInvites.edit().putBoolean(id, true).apply()
+        return true
+    }
+
+    /** When each admin last rang each wallet (iOS `group_invite_banner_admins`). */
+    private val inviteBannerAdmins by lazy { context.getSharedPreferences(PREFS_INVITE_BANNER_ADMINS, Context.MODE_PRIVATE) }
+
+    /** True the first time an admin may ring this account today. Per wallet, like the invites
+     *  above, so another account on this phone still gets its own first banner. */
+    @Synchronized
+    private fun claimGroupInviteBannerSlot(adminSigningPub: String): Boolean {
+        val wallet = walletManager.getActiveAccount()?.address ?: return true
+        val entry = "${wallet.lowercase()}|$adminSigningPub"
+        val rung = inviteBannerAdmins.all.mapNotNull { (key, value) -> (value as? Long)?.let { key to it } }.toMap()
+        val updated = claimInviteBannerSlot(rung, entry, System.currentTimeMillis()) ?: return false
+        inviteBannerAdmins.edit().clear().apply { updated.forEach { (key, value) -> putLong(key, value) } }.apply()
+        return true
+    }
+
+    /** History an import walks through waits in Message Requests without a banner, then or later. */
+    @Synchronized
+    fun markGroupInviteAnnounced(inviteKey: String) {
+        announcedInvites.edit().putBoolean(announcedInviteId(inviteKey), true).apply()
+    }
+
+    /** The invite was taken back: being invited again is news again. */
+    @Synchronized
+    fun forgetGroupInviteAnnouncement(inviteKey: String) {
+        announcedInvites.edit().remove(announcedInviteId(inviteKey)).apply()
+    }
+
     companion object {
+        private const val PREFS_ANNOUNCED_INVITES = "kachat_announced_group_invites"
+        private const val PREFS_INVITE_BANNER_ADMINS = "kachat_group_invite_banner_admins"
+        private const val MAX_GROUP_INVITE_NAME_LENGTH = 60
+        /** How long one admin's invite banner holds off their next, and how many admins are
+         *  remembered (iOS 4f8e14bb `groupInviteBannerInterval` / `groupInviteBannerAdminLimit`). */
+        internal const val GROUP_INVITE_BANNER_INTERVAL_MS = 24 * 60 * 60 * 1000L
+        internal const val GROUP_INVITE_BANNER_ADMIN_LIMIT = 500
+
+        /** The group's name as an invite banner shows it: it is the inviter's, unbounded and
+         *  signed by nobody who has to care (iOS 4f8e14bb). Counted in code points, so a cut can't
+         *  land inside an emoji. */
+        internal fun inviteBannerGroupName(name: String): String =
+            if (name.codePointCount(0, name.length) > MAX_GROUP_INVITE_NAME_LENGTH) {
+                name.substring(0, name.offsetByCodePoints(0, MAX_GROUP_INVITE_NAME_LENGTH)) + "…"
+            } else {
+                name
+            }
+
+        /** [rung] with [entry] stamped [nowMs] and the oldest past the limit gone, or null when
+         *  [entry] rang within the interval. */
+        internal fun claimInviteBannerSlot(rung: Map<String, Long>, entry: String, nowMs: Long): Map<String, Long>? {
+            val last = rung[entry]
+            if (last != null && nowMs - last < GROUP_INVITE_BANNER_INTERVAL_MS) return null
+            val updated = rung + (entry to nowMs)
+            val excess = updated.size - GROUP_INVITE_BANNER_ADMIN_LIMIT
+            if (excess <= 0) return updated
+            return updated - updated.entries.sortedBy { it.value }.take(excess).map { it.key }.toSet()
+        }
+
         const val CHANNEL_ID = "kachat_messages_sound_vibrate"
         const val EXTRA_CONTACT_ID = "contact_id"
         const val EXTRA_GROUP_ID = "group_id"
@@ -374,6 +519,10 @@ class NotificationHelper @Inject constructor(
          *  the tap opens the Chats list rather than a `group_chat/<id>` route that would resolve
          *  to nothing. See [showGroup]'s `targetGroupId`. */
         const val EXTRA_OPEN_GROUPS = "open_groups"
+
+        /** Set with [EXTRA_OPEN_GROUPS] on a group invite's notification: the Chats list opens
+         *  Message Requests once it is up (iOS `pendingMessageRequestsOpen`). */
+        const val EXTRA_OPEN_MESSAGE_REQUESTS = "open_message_requests"
 
         /** [KIND_SPENDING] / [KIND_CHATTING] — what an address-activity notification is about. */
         const val EXTRA_WALLET_ACTIVITY_KIND = "wallet_activity_kind"

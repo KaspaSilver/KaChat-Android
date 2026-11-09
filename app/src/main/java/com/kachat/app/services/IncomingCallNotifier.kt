@@ -10,7 +10,6 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.Person
 import com.kachat.app.MainActivity
 import com.kachat.app.R
 import dagger.hilt.InstallIn
@@ -31,7 +30,7 @@ import javax.inject.Singleton
  * It does NOT take the screen over with a full-screen intent. That needs USE_FULL_SCREEN_INTENT,
  * which Google Play grants only to apps whose core purpose is calling or alarms; KaChat is a chat
  * app that can also call, and a submission carrying the permission is rejected (policy notice,
- * 2026-09-22). A call-style notification of the highest importance is what is left, and it still
+ * 2026-09-22). A call notification of the highest importance is what is left, and it still
  * rings, still shows Answer and Decline, and still opens the call screen when tapped.
  *
  * Deliberately silent: the channel has no sound and no vibration because [CallService] plays the
@@ -60,7 +59,7 @@ class IncomingCallNotifier @Inject constructor(
     private fun openCallIntent(callId: String?, requestCode: Int): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            if (callId != null) putExtra(EXTRA_ANSWER_CALL_ID, callId)
+            if (callId != null) CallAnswerToken.putAnswer(this, callId)
         }
         return PendingIntent.getActivity(
             context,
@@ -83,14 +82,14 @@ class IncomingCallNotifier @Inject constructor(
         )
     }
 
-    /** Rings: posts the call notification for [callerName] and asks the system to show the call
-     *  screen full-screen. Safe to call twice for the same call - it replaces itself. */
+    /** Rings: posts the call notification for [callerName] - a heads-up notification with Answer
+     *  and Decline, never a full-screen intent (see the class doc). Safe to call twice for the
+     *  same call - it replaces itself. */
     fun showIncoming(callId: String, callerName: String, video: Boolean) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
         val answer = openCallIntent(callId, REQUEST_ANSWER)
         val decline = declineIntent(callId)
-        val caller = Person.Builder().setName(callerName).setImportant(true).build()
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_kachat_logo)
             .setContentTitle(callerName)
@@ -103,7 +102,11 @@ class IncomingCallNotifier @Inject constructor(
             .setSilent(true)
             // Tapping the notification (not Answer) opens the call screen without picking up.
             .setContentIntent(openCallIntent(null, REQUEST_OPEN))
-            .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
+            // Plain actions, not CallStyle: on Android 12+ the system refuses a CallStyle notification
+            // that has neither a foreground service nor a full-screen intent (see the class doc), and
+            // this rings before either could exist.
+            .addAction(0, context.getString(R.string.decline), decline)
+            .addAction(0, context.getString(R.string.call_answer), answer)
         runCatching { manager.notify(NOTIFICATION_ID, builder.build()) }
             .onFailure { Log.w(TAG, "Could not post the incoming call notification", it) }
     }

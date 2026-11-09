@@ -492,4 +492,59 @@ class ChatRepositoryTest {
         assertEquals((0 until 25).map { "%02d".format(it) }, first)
         assertEquals(emptyList<String>(), none)
     }
+
+    private fun provisional(id: String, body: String, status: String) = com.kachat.app.models.MessageEntity(
+        id = id,
+        contactId = "kaspa:them",
+        walletAddress = "kaspa:me",
+        type = "comm",
+        direction = "sent",
+        plaintextBody = body,
+        encryptedPayload = "",
+        amountSompi = 0L,
+        blockTimestamp = 1_000L,
+        deliveryStatus = status,
+    )
+
+    @Test
+    fun `a failed row is never settled by being the only one left`() {
+        val failed = provisional("pending_a", "hello", "failed")
+        assertEquals(
+            ChatRepository.ProvisionalMatch.None,
+            ChatRepository.matchProvisionalCandidates(listOf(failed), "something else", 1_000L),
+        )
+    }
+
+    @Test
+    fun `a failed row with the same text is settled by its content`() {
+        val failed = provisional("pending_a", "hello", "failed")
+        assertEquals(
+            ChatRepository.ProvisionalMatch.Exact(failed),
+            ChatRepository.matchProvisionalCandidates(listOf(failed), "hello", 1_000L),
+        )
+    }
+
+    @Test
+    fun `a live send of the same text goes before a failed one`() {
+        val failed = provisional("pending_a", "hello", "failed")
+        val pending = provisional("pending_b", "hello", "pending")
+        assertEquals(
+            ChatRepository.ProvisionalMatch.Exact(pending),
+            ChatRepository.matchProvisionalCandidates(listOf(failed, pending), "hello", 1_000L),
+        )
+    }
+
+    @Test
+    fun `a sole pending row still matches and several are ambiguous`() {
+        val one = provisional("pending_a", "hello", "pending")
+        val two = provisional("pending_b", "there", "pending")
+        assertEquals(
+            ChatRepository.ProvisionalMatch.Sole(one),
+            ChatRepository.matchProvisionalCandidates(listOf(one), "drifted", 1_000L),
+        )
+        assertEquals(
+            ChatRepository.ProvisionalMatch.Ambiguous,
+            ChatRepository.matchProvisionalCandidates(listOf(one, two), "drifted", 1_000L),
+        )
+    }
 }

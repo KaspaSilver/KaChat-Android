@@ -150,20 +150,27 @@ class KaspadConnection internal constructor(
     private val blockSubscribers = mutableSetOf<String>()
     private var blockSubscribersGeneration = -1L
 
-    /** Consecutive auto-reconnect attempts since the last successful [connect] - drives backoff
-     * so a node that's actively rejecting new streams (e.g. it logged "reached connection
-     * capacity") gets breathing room instead of a retry every ~100ms-1s indefinitely, which
-     * just keeps re-triggering the same rejection. */
+    /** Consecutive auto-reconnect attempts since the node last really answered on this stream -
+     * drives backoff so a node that's actively rejecting new streams (e.g. it logged "reached
+     * connection capacity") gets breathing room instead of a retry every ~100ms-1s indefinitely,
+     * which just keeps re-triggering the same rejection. [connect] leaves it alone: a stream that
+     * opens says nothing about one the node then refuses (iOS 4f8e14bb). */
+    @Volatile
     private var reconnectAttempts = 0
 
+    /** The sleeping self-reconnect, which [close] calls off (iOS 4f8e14bb). */
+    private var autoReconnectJob: Job? = null
+
     fun connect() {
-        if (isConnected) return
+        // [closed] too: a connect after close() would open a stream on a shut-down channel.
+        if (isConnected || closed) return
         isConnected = true
-        reconnectAttempts = 0
         generation.value++
         streamJob = scope.launch {
             try {
                 stub.messageStream(outbound.receiveAsFlow()).collect { response ->
+                    // The node really is talking on this stream, so the backoff can start over.
+                    reconnectAttempts = 0
                     val matched = pending.remove(response.id)
                     if (matched != null) {
                         matched.complete(response)
@@ -200,7 +207,8 @@ class KaspadConnection internal constructor(
     private fun scheduleAutoReconnect() {
         reconnectAttempts++
         val attempt = reconnectAttempts
-        scope.launch {
+        autoReconnectJob?.cancel()
+        autoReconnectJob = scope.launch {
             // First attempt: small jitter only. Later attempts: capped exponential backoff
             // (1, 2, 4, 8, 16, 30, 30...s) - a node that's actively rejecting new streams needs
             // breathing room, not a retry every ~100ms-1s forever.
@@ -282,6 +290,12 @@ class KaspadConnection internal constructor(
             extract = { it.getUtxosByAddressesResponse }
         )
         if (response.hasError()) throw IllegalStateException(response.error.message)
+        // Coins for addresses not asked about are a crossed or broken answer: refused, and the
+        // caller asks elsewhere (iOS 4f8e14bb).
+        val requested = addresses.map { it.lowercase() }.toSet()
+        if (response.entriesList.any { it.address.isNotEmpty() && it.address.lowercase() !in requested }) {
+            throw IllegalStateException("UTXO response for addresses not requested")
+        }
         // more than the Kaspa supply (a coin, or all of them) is a broken or hostile node's:
         // refused here, where it's decoded (iOS 283cd28, IOS-020)
         return com.kachat.app.util.UtxoMath.checkedFromNetwork(response.entriesList) { it.utxoEntry.amount }
@@ -458,6 +472,7 @@ class KaspadConnection internal constructor(
         closed = true
         isConnected = false
         generation.value++
+        autoReconnectJob?.cancel()
         streamJob?.cancel()
         pending.values.forEach { it.cancel() }
         pending.clear()

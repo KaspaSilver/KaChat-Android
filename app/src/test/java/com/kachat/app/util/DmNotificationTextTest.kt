@@ -38,9 +38,15 @@ class DmNotificationTextTest {
     }
 
     @Test
-    fun `a reply shows what it replied to`() {
+    fun `a reply shows its own text, never what it quotes`() {
         val reply = MessageReply.encode(replyToId = "abc", replyToSender = "kaspa:qq", replyToPreview = "hello", text = "hi back")
-        assertEquals("Replied to \"hello\"", dmNotificationText(reply))
+        assertEquals("hi back", dmNotificationText(reply))
+    }
+
+    @Test
+    fun `a reply that is a file says what it is`() {
+        val reply = MessageReply.encode(replyToId = "abc", replyToSender = "kaspa:qq", replyToPreview = "hello", text = file("application/pdf"))
+        assertEquals("Sent a file", dmNotificationText(reply))
     }
 
     @Test

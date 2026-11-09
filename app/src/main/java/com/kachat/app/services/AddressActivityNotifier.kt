@@ -117,6 +117,9 @@ class AddressActivityNotifier @Inject constructor(
     // --- Core diff pass ---------------------------------------------------------------
 
     private suspend fun runDiffPass() = runMutex.withLock {
+        // Signed out: the baselines stay put, or what arrives meanwhile would never get its banner
+        // once signed back in (iOS runCatchUpIfNeeded guards on the current wallet).
+        if (walletManager.isLoggedOut) return@withLock
         val walletAddress = walletAddressOrNull() ?: return@withLock
         val api = networkService.kaspaRestApi.value ?: return@withLock
 
@@ -211,6 +214,10 @@ class AddressActivityNotifier @Inject constructor(
         } catch (e: Exception) {
             emptyList()
         }
+        // That read can take a while: if the account changed meanwhile, this receive isn't the
+        // current account's news. Left unmarked, so the catch-up finds it on the way back (iOS
+        // 4f8e14bb).
+        if (walletAddressOrNull() != walletAddress) return
         // the chatting address: only plain transfers newer than what was already looked at
         val floorKey = chattingFloorKey(walletAddress)
         val floor = prefs.getLong(floorKey, 0L).coerceAtLeast(0L)
@@ -304,6 +311,15 @@ class AddressActivityNotifier @Inject constructor(
     }
 
     // --- Persistence (per wallet) -----------------------------------------------------
+
+    /** Everything kept for [walletAddress]: it's going off this device (iOS bfe9f022). */
+    fun removeAllData(walletAddress: String) {
+        prefs.edit()
+            .remove(baselinesKey(walletAddress))
+            .remove(chattingFloorKey(walletAddress))
+            .remove(handledKey(walletAddress))
+            .apply()
+    }
 
     private fun baselinesKey(walletAddress: String) = "baselines_$walletAddress"
 

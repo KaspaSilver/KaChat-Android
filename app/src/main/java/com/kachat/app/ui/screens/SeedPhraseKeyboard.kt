@@ -42,6 +42,9 @@ fun SeedPhraseKeyboard(
     activeSlot: Int,
     wordList: List<String>,
     modifier: Modifier = Modifier,
+    /** The number shown on each slot, when they aren't simply 1, 2, 3 (the Backup Hygiene check
+     *  asks for a few words of the phrase). */
+    slotNumbers: List<Int>? = null,
     onWordsChange: (List<String>) -> Unit,
     onActiveSlotChange: (Int) -> Unit
 ) {
@@ -99,7 +102,7 @@ fun SeedPhraseKeyboard(
                     rowWords.forEachIndexed { colIdx, w ->
                         val index = rowIdx * 3 + colIdx
                         SeedSlot(
-                            index = index,
+                            number = slotNumbers?.getOrNull(index) ?: (index + 1),
                             word = w,
                             active = index == activeSlot,
                             isValidWord = w.isNotEmpty() && wordList.contains(w.lowercase()),
@@ -187,7 +190,7 @@ fun SeedPhraseKeyboard(
 
 @Composable
 private fun SeedSlot(
-    index: Int,
+    number: Int,
     word: String,
     active: Boolean,
     isValidWord: Boolean,
@@ -200,11 +203,11 @@ private fun SeedSlot(
             .background(if (active) KaspaTeal.copy(alpha = 0.15f) else LocalAppColors.current.surface)
             .then(if (active) Modifier.border(1.5.dp, KaspaTeal, RoundedCornerShape(8.dp)) else Modifier)
             .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "${index + 1}",
+            text = "$number",
             color = LocalAppColors.current.textSecondary,
             fontSize = 11.sp,
             modifier = Modifier.width(18.dp)

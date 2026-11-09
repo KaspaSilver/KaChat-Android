@@ -1,5 +1,6 @@
 package com.kachat.app.services
 
+import com.kachat.app.R
 import android.content.Context
 import android.util.Log
 import android.net.Uri
@@ -66,11 +67,7 @@ class ChatHistoryExportImportService @Inject constructor(
 
     /**
      * Builds the archive for the active account, ENCRYPTED into the cross-platform v1 backup
-     * envelope ([BackupCrypto]) — the shared payload for every backup transport (local file
-     * share, Nextcloud backup and automatic sync, ...). Callers that need a shareable
-     * file use [exportChatHistory]; callers that just need the bytes (e.g. a Nextcloud upload) call
-     * this directly. Backup transports that write the SHARED `kachat-backup.json` must go
-     * through [buildBackupJson] instead, so they merge rather than overwrite.
+     * envelope ([BackupCrypto]). Callers that need a shareable file use [exportChatHistory].
      */
     suspend fun buildArchiveJson(): String {
         val archive = buildLocalArchive()
@@ -134,40 +131,6 @@ class ChatHistoryExportImportService @Inject constructor(
         )
     }
 
-    /**
-     * The upload body for the SHARED `kachat-backup.json` — this device's history UNIONED with
-     * whatever is already on the server, so a backup can only ever add to the shared history and
-     * no device can delete another's. [existingRemoteJson] is what the transport just downloaded
-     * (null when there is no backup yet — then this is simply the local archive).
-     *
-     * What happens to the server copy is [planRemoteBackup]'s call (NEXTCLOUD_SYNC.md §7, iOS
-     * d57019a): another wallet's file, a hint-less envelope that won't decrypt and a newer
-     * schema THROW, so the caller aborts before any PUT and that file is never touched; THIS
-     * wallet's file that can't be read (a failed decrypt under our own walletHint, or content
-     * that isn't a valid archive, e.g. cut off at rest) is replaced in place with this device's
-     * history and no copy is made — Nextcloud's version history keeps the old content, and every
-     * other device unions its own history back in on its next sync. It used to abort instead,
-     * which left automatic sync stuck for good.
-     *
-     * The upload body is ALWAYS a fresh v1 envelope ([BackupCrypto]).
-     */
-    suspend fun buildBackupJson(existingRemoteJson: String?): String {
-        val myAddress = walletManager.getAddress()
-        val key = backupEncryptionKey()
-        val plan = planRemoteBackup(existingRemoteJson, myAddress) { BackupCrypto.decrypt(it, key) }
-        val local = gson.toJsonTree(buildLocalArchive()).asJsonObject
-        val body = when (plan) {
-            is RemoteBackupPlan.Merge -> mergeArchives(plan.remote, local)
-            is RemoteBackupPlan.WriteLocal -> {
-                plan.replacedBecause?.let {
-                    Log.w(TAG, "The backup on the server is this account's but $it; replacing it in place (Nextcloud keeps the old version)")
-                }
-                local
-            }
-        }
-        return BackupCrypto.encrypt(gson.toJson(body), key, myAddress)
-    }
-
     /** The contact's cross-platform photo (one restored from another device), or null. KaChat no
      *  longer reads the phone's Contacts, so no Contacts-app photo is rendered (iOS 00767a4). */
     private fun contactPhotoForArchive(contact: ContactEntity?): String? =
@@ -175,7 +138,7 @@ class ChatHistoryExportImportService @Inject constructor(
 
     /** Builds the archive for the active account (encrypted into the v1 backup envelope, like every
      *  cloud copy), writes it to app-private cache, and returns a content:// URI ready to hand to a
-     *  share sheet. [importChatHistory] accepts both this format and legacy plaintext exports. */
+     *  share sheet. [importChatHistory] accepts only this format: a plaintext file is refused. */
     suspend fun exportChatHistory(): Uri {
         val exportDir = File(context.cacheDir, "chat_exports").apply { mkdirs() }
         // The archive carries the permanent group decryption keys (sealed, but still), and
@@ -198,24 +161,35 @@ class ChatHistoryExportImportService @Inject constructor(
     }
 
     /**
-     * Parses and merges an archive JSON string into the active account's local data — the shared
-     * core used by the local file-picker import and the Nextcloud restore. Throws
-     * with a user-facing message on any validation failure.
+     * Parses and merges an archive JSON string into the active account's local data, for the
+     * local file-picker import. Throws with a user-facing message on any validation failure.
      *
      * [onConversationProgress] (optional) fires as `(done, total)` after each conversation's
      * messages land (real work, not simulated) — total counts the archive's non-empty
      * conversations. Drives the blocking restore modal's determinate bar
      * (see [BackupRestoreCoordinator]).
      *
-     * Accepts BOTH file formats: a v1 encrypted envelope ([BackupCrypto.isEnvelope]) is
-     * walletHint-checked (a foreign wallet's file is refused without decrypting) and decrypted
-     * first — a wrong-key or corrupt file throws [BackupCrypto.DECRYPT_FAILED_MESSAGE] — while
-     * a legacy plaintext archive parses exactly as before, so old backups restore forever.
+     * Accepts only a v1 encrypted envelope ([BackupCrypto.isEnvelope]), which is all KaChat
+     * writes: it is walletHint-checked (a foreign wallet's file is refused without decrypting)
+     * and decrypted first — a wrong-key or corrupt file throws
+     * [BackupCrypto.DECRYPT_FAILED_MESSAGE]. A plaintext archive is refused
+     * ([R.string.archive_not_encrypted]): nothing in it is checked against the chain or a key,
+     * so its messages, contacts and groups would be taken as they are from anyone who sent it
+     * (iOS d23e6f7a `EnvelopeError.notEncrypted`).
      */
     suspend fun importChatHistory(
         json: String,
         onConversationProgress: ((done: Int, total: Int) -> Unit)? = null
     ): ImportResult {
+        // A switch of account mid-import must not land this archive in the next account's chats:
+        // the decode and the reads below take seconds, and nothing else stops the import (iOS
+        // bfe9f022). Not a verdict on the file: the watcher tries again.
+        val importOwner = walletManager.getAddress()
+        fun ensureSameAccount() {
+            if (runCatching { walletManager.getAddress() }.getOrNull() != importOwner) {
+                throw IllegalStateException(context.getString(R.string.the_active_account_changed_switch_back_to))
+            }
+        }
         // Every "this file can't be imported" verdict below is an [UnreadableBackupException]
         // (messages unchanged for the restore screens), so the change watcher can tell a file it
         // has judged - and should not download again until it changes (NEXTCLOUD_SYNC.md §6) -
@@ -234,7 +208,8 @@ class ChatHistoryExportImportService @Inject constructor(
                 throw UnreadableBackupException(e.message ?: BackupCrypto.DECRYPT_FAILED_MESSAGE)
             }
         } else {
-            json
+            // Only an encrypted export, as on iOS: a plaintext file could have been written by anyone.
+            throw UnreadableBackupException(context.getString(R.string.archive_not_encrypted))
         }
         val archive = try {
             gson.fromJson(archiveJson, ChatHistoryArchive::class.java) ?: throw IllegalStateException("empty")
@@ -244,6 +219,7 @@ class ChatHistoryExportImportService @Inject constructor(
         if (archive.schemaVersion != ChatHistoryArchive.CURRENT_SCHEMA_VERSION) {
             throw UnreadableBackupException("This export was made with an incompatible app version")
         }
+        ensureSameAccount()
 
         // The Address Book is per wallet: only this wallet's archive (or an unstamped one) fills
         // it (iOS 00767a4).
@@ -270,6 +246,7 @@ class ChatHistoryExportImportService @Inject constructor(
         var progressDone = 0
         for (conversation in archive.conversations) {
             if (conversation.messages.isEmpty()) continue
+            ensureSameAccount()
             progressDone++
             val contactAddress = conversation.contactAddress
             // Never resurrect a deleted chat: honor this device's tombstones AND the ones the
@@ -319,6 +296,7 @@ class ChatHistoryExportImportService @Inject constructor(
             // instead of zeros.
             var restoredAny = false
             for (archiveMessage in conversation.messages) {
+                ensureSameAccount()
                 // "\ud83d\udce4 Sent via another device" placeholders never surface on any platform -
                 // skip them at import; an archive that later carries the real body inserts it then.
                 if (com.kachat.app.models.MessageEntity.isSentPlaceholder(archiveMessage.content)) continue
@@ -385,6 +363,7 @@ class ChatHistoryExportImportService @Inject constructor(
         // Groups (cross-platform recovery): restore full group key material so this device
         // recovers admin groups it created elsewhere as well as member ones. Optional - older
         // archives omit it.
+        ensureSameAccount()
         archive.groups?.takeIf { it.isNotEmpty() }?.let { groupRepository.importArchiveGroups(it) }
 
         return ImportResult(importedMessageCount = importedCount, conversationCount = conversationCount)

@@ -1,5 +1,7 @@
 package com.kachat.app.ui.screens
 
+import androidx.compose.ui.res.stringResource
+import com.kachat.app.R
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -32,6 +34,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Cameraswitch
@@ -40,6 +43,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhoneDisabled
+import androidx.compose.material.icons.filled.PhoneEnabled
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
@@ -55,6 +59,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,11 +90,179 @@ import com.kachat.app.ui.theme.KaspaTeal
 import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.CallCodec
 import com.kachat.app.util.CallEnvelope
+import com.kachat.app.viewmodels.ChatViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
 import java.util.Locale
+
+/**
+ * The half sheets before a call starts, the same from a chat's call button and a Contacts entry
+ * (iOS `CallConfirmationSheets`, d1844582): with no Nextcloud on this account, what calling needs;
+ * while calls are off for this person, whether to enable them; then voice or video. Set
+ * [isRequested] to begin; [onRequestHandled] puts it back. [newContactAlias] names the contact if
+ * the address has no chat yet (Contacts).
+ */
+@Composable
+fun CallConfirmationSheets(
+    isRequested: Boolean,
+    onRequestHandled: () -> Unit,
+    contactId: String,
+    name: String,
+    chatViewModel: ChatViewModel,
+    newContactAlias: String? = null,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val nextcloudAccount by chatViewModel.nextcloud.account.collectAsState()
+    var showCallsNeedTalk by remember { mutableStateOf(false) }
+    var showEnableCalls by remember { mutableStateOf(false) }
+    var showCallOptions by remember { mutableStateOf(false) }
+
+    val openCallSheet: () -> Unit = {
+        scope.launch {
+            // Read only now, so viewing a Contacts entry never adds a chat contact.
+            val contact = chatViewModel.contactForCall(contactId, newContactAlias)
+            if (contact.callsEnabled == true) {
+                showCallOptions = true
+            } else {
+                showEnableCalls = true
+            }
+        }
+    }
+    LaunchedEffect(isRequested) {
+        if (!isRequested) return@LaunchedEffect
+        onRequestHandled()
+        if (nextcloudAccount != null) {
+            openCallSheet()
+        } else {
+            showCallsNeedTalk = true
+        }
+    }
+
+    // The microphone (and camera) permission ask that starting a call may need first.
+    val requestCallPermissions = rememberCallPermissionRequester()
+    var pendingCallVideo by remember { mutableStateOf<Boolean?>(null) }
+    val placeCall: (Boolean) -> Unit = { video ->
+        scope.launch {
+            // Only reachable once calls are enabled for this contact - the saved row may still be
+            // on its way to the database when the prompt was just answered.
+            chatViewModel.startCall(chatViewModel.contactForCall(contactId, newContactAlias).copy(callsEnabled = true), video)
+        }
+    }
+    val callPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        val video = pendingCallVideo
+        pendingCallVideo = null
+        if (video != null && granted[Manifest.permission.RECORD_AUDIO] == true) {
+            // The camera refused, the call still goes, as a voice call.
+            placeCall(video && ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+        } else if (video != null) {
+            IosToasts.error(context.getString(R.string.kachat_needs_the_microphone_to_make_a))
+        }
+    }
+    val startCallWithPermissions: (Boolean) -> Unit = { video ->
+        val needed = buildList {
+            add(Manifest.permission.RECORD_AUDIO)
+            if (video) add(Manifest.permission.CAMERA)
+        }.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isEmpty()) {
+            placeCall(video)
+        } else {
+            pendingCallVideo = video
+            callPermissionLauncher.launch(needed.toTypedArray())
+        }
+    }
+
+    if (showCallsNeedTalk) {
+        ActionSheetContainer(
+            title = stringResource(R.string.continue_label_2),
+            subtitle = null,
+            onDismiss = { showCallsNeedTalk = false },
+            // iOS: the notice in subheadline above the headline question.
+            headerIcon = {
+                Text(
+                    stringResource(R.string.calling_only_works_if_you_or_the),
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 15.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp),
+                )
+            },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.Phone,
+                title = stringResource(R.string.import_words_continue),
+                subtitle = stringResource(R.string.go_on_to_calling_this_person),
+            ) {
+                showCallsNeedTalk = false
+                openCallSheet()
+            }
+            ActionSheetRow(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                title = stringResource(R.string.back),
+                subtitle = stringResource(R.string.close_this_and_stay_in_the_chat),
+                tint = LocalAppColors.current.textSecondary,
+            ) { showCallsNeedTalk = false }
+        }
+    }
+    if (showEnableCalls) {
+        // The first tap on the call button for a contact: calls are off by default, and enabling
+        // them is a decision about this person (they can ring you from then on, and use your
+        // Nextcloud to host a call), so it is asked plainly before anything rings.
+        ActionSheetContainer(
+            title = stringResource(R.string.enable_calls_and_video_calls_with, name),
+            subtitle = stringResource(R.string.they_will_be_able_to_call_you),
+            onDismiss = { showEnableCalls = false },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.PhoneEnabled,
+                title = stringResource(R.string.enable_calls),
+                subtitle = stringResource(R.string.saves_this_for_and_lets_you_call, name),
+            ) {
+                chatViewModel.setCallsEnabled(contactId, enabled = true)
+                // The microphone and camera are asked for now, not in the middle of the first call.
+                requestCallPermissions()
+                showEnableCalls = false
+                // Enabled: go straight on to voice-or-video, as if the button had been tapped on
+                // an already-enabled contact.
+                showCallOptions = true
+            }
+            ActionSheetRow(
+                icon = Icons.Default.Close,
+                title = stringResource(R.string.not_now_2),
+                subtitle = stringResource(R.string.calls_stay_off_for_this_contact),
+                tint = LocalAppColors.current.textSecondary,
+            ) { showEnableCalls = false }
+        }
+    }
+    if (showCallOptions) {
+        // Voice or video - the same half-sheet shape as every other menu.
+        ActionSheetContainer(
+            title = stringResource(R.string.call, name),
+            subtitle = null,
+            onDismiss = { showCallOptions = false },
+        ) {
+            ActionSheetRow(
+                icon = Icons.Default.Phone,
+                title = stringResource(R.string.voice_call),
+                subtitle = stringResource(R.string.rings_them_in_kachat_your_nextcloud_carries),
+            ) {
+                showCallOptions = false
+                startCallWithPermissions(false)
+            }
+            ActionSheetRow(
+                icon = Icons.Default.Videocam,
+                title = stringResource(R.string.video_call),
+                subtitle = stringResource(R.string.same_with_your_camera_on_from_the),
+            ) {
+                showCallOptions = false
+                startCallWithPermissions(true)
+            }
+        }
+    }
+}
 
 /**
  * The call screen sits over the whole app whenever [CallService.session] exists - ringing in,
@@ -219,7 +392,7 @@ private fun CallFullScreen(live: CallService.ActiveCall, callService: CallServic
             ) {
                 Icon(
                     Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Tuck the call away",
+                    contentDescription = stringResource(R.string.tuck_the_call_away),
                     tint = Color.White,
                     modifier = Modifier.size(30.dp),
                 )
@@ -250,9 +423,12 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
     // Accept tap, so the permission dialog reads as part of picking up.
     val acceptLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
         if (granted[Manifest.permission.RECORD_AUDIO] == true) {
-            callService.acceptIncoming()
+            // The camera refused, the call is still answered, as a voice call.
+            callService.acceptIncoming(
+                audioOnly = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED,
+            )
         } else {
-            IosToasts.error("KaChat needs the microphone to take a call.")
+            IosToasts.error(context.getString(R.string.kachat_needs_the_microphone_to_take_a))
             callService.declineIncoming()
         }
     }
@@ -268,20 +444,20 @@ private fun CallScreen(call: CallService.ActiveCall, callService: CallService) {
         String.format(Locale.US, "%d:%02d", seconds / 60, seconds % 60)
     }
     val statusText = when (val phase = call.phase) {
-        CallService.Phase.RingingOut -> "calling…"
-        CallService.Phase.RingingIn -> if (call.video) "KaChat Video" else "KaChat Audio"
-        CallService.Phase.Connecting -> call.statusDetail ?: "connecting…"
+        CallService.Phase.RingingOut -> stringResource(R.string.calling)
+        CallService.Phase.RingingIn -> if (call.video) stringResource(R.string.kachat_video) else stringResource(R.string.kachat_audio)
+        CallService.Phase.Connecting -> call.statusDetail ?: stringResource(R.string.connecting)
         CallService.Phase.Connected -> call.statusDetail ?: timer ?: "connected"
         is CallService.Phase.Ended -> when (phase.reason) {
-            "declined" -> "Declined"
+            "declined" -> stringResource(R.string.group_member_declined)
             // A request nobody hosted rings out exactly like an unanswered call - the other
             // side never says anything on chain - so the hint rides along here.
-            "no_answer" -> if (call.hostsThisCall) "No answer" else "No answer. If they don't have Nextcloud Talk, one of you needs it to make calls."
-            "missed" -> "Missed call"
-            "busy" -> "Busy"
-            "no_host" -> "One person in this chat needs Nextcloud Talk set up to make calls."
-            "failed" -> lastError ?: "Call failed"
-            else -> "Call ended"
+            "no_answer" -> if (call.hostsThisCall) stringResource(R.string.no_answer) else stringResource(R.string.no_answer_if_they_dont_have_nextcloud)
+            "missed" -> stringResource(R.string.missed_call)
+            "busy" -> stringResource(R.string.busy)
+            "no_host" -> stringResource(R.string.one_person_in_this_chat_needs_nextcloud)
+            "failed" -> lastError ?: stringResource(R.string.call_failed)
+            else -> stringResource(R.string.call_ended)
         }
     }
     // A video call shows its two tiles from the first second, ringing out included: the contact
@@ -332,12 +508,12 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
         when (val phase = call.phase) {
             CallService.Phase.RingingIn -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(96.dp)) {
-                    BigButton(Icons.Default.CallEnd, tint = LocalAppColors.current.danger, label = "Decline") { callService.declineIncoming() }
-                    BigButton(if (call.video) Icons.Default.Videocam else Icons.Default.Phone, tint = LocalAppColors.current.success, label = "Accept", onClick = onAccept)
+                    BigButton(Icons.Default.CallEnd, tint = LocalAppColors.current.danger, label = stringResource(R.string.decline)) { callService.declineIncoming() }
+                    BigButton(if (call.video) Icons.Default.Videocam else Icons.Default.Phone, tint = LocalAppColors.current.success, label = stringResource(R.string.accept), onClick = onAccept)
                 }
             }
             is CallService.Phase.Ended -> {
-                BigButton(Icons.Default.Close, tint = Color.White.copy(alpha = 0.22f), label = "Close") { callService.dismissEnded() }
+                BigButton(Icons.Default.Close, tint = Color.White.copy(alpha = 0.22f), label = stringResource(R.string.close)) { callService.dismissEnded() }
             }
             else -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(40.dp)) {
@@ -348,13 +524,13 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                         BigButton(
                             if (call.isMuted) Icons.Default.MicOff else Icons.Default.Mic,
                             tint = if (call.isMuted) Color.White else Color.White.copy(alpha = 0.22f),
-                            label = if (call.isMuted) "muted" else "mute",
+                            label = if (call.isMuted) stringResource(R.string.muted) else stringResource(R.string.mute),
                             foreground = if (call.isMuted) Color.Black else Color.White,
                         ) { callService.toggleMute() }
                         BigButton(
                             if (call.isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeDown,
                             tint = if (call.isSpeakerOn) Color.White else Color.White.copy(alpha = 0.22f),
-                            label = if (call.isSpeakerOn) "speaker on" else "speaker",
+                            label = if (call.isSpeakerOn) stringResource(R.string.speaker_on) else stringResource(R.string.speaker),
                             foreground = if (call.isSpeakerOn) Color.Black else Color.White,
                         ) { callService.toggleSpeaker() }
                     }
@@ -364,7 +540,7 @@ private fun VoiceLayout(call: CallService.ActiveCall, callService: CallService, 
                         BigButton(
                             Icons.Default.Videocam,
                             tint = Color.White.copy(alpha = 0.22f),
-                            label = if (call.videoRequest == CallService.VideoRequest.OUTGOING) "asking…" else "video",
+                            label = if (call.videoRequest == CallService.VideoRequest.OUTGOING) stringResource(R.string.asking) else stringResource(R.string.video_2),
                         ) { callService.upgradeToVideo() }
                     }
                     BigButton(Icons.Default.CallEnd, tint = LocalAppColors.current.danger, label = null) { callService.hangUp() }
@@ -393,18 +569,18 @@ private fun VideoLayout(call: CallService.ActiveCall, callService: CallService, 
             name = call.contact.displayName,
             timer = if (call.phase == CallService.Phase.Connected) timer else null,
             placeholder = when (call.phase) {
-                CallService.Phase.Connected -> "Camera off"
-                CallService.Phase.RingingOut -> "calling…"
-                else -> call.statusDetail ?: "Connecting…"
+                CallService.Phase.Connected -> stringResource(R.string.camera_off)
+                CallService.Phase.RingingOut -> stringResource(R.string.calling)
+                else -> call.statusDetail ?: stringResource(R.string.connecting_2)
             },
             contact = call.contact,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         VideoTile(
             track = if (call.isCameraOff) null else call.localVideoTrack,
-            name = "You",
+            name = stringResource(R.string.reactions_you),
             timer = null,
-            placeholder = "Camera off",
+            placeholder = stringResource(R.string.camera_off),
             contact = null,
             // Before the call has a camera of its own, the stand-in fills this tile.
             standInCamera = standInWanted && !call.isCameraOff && call.localVideoTrack == null,
@@ -553,7 +729,7 @@ private fun CallReturnBar(call: CallService.ActiveCall, onReturn: () -> Unit) {
                 modifier = Modifier.size(16.dp),
             )
             Text(
-                "${call.contact.displayName}${timer?.let { " · $it" } ?: ""} · Tap to return",
+                stringResource(R.string.tap_to_return, call.contact.displayName, timer?.let { " · $it" } ?: ""),
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -607,7 +783,7 @@ private fun VideoRequestSheet(name: String, onAccept: () -> Unit, onDecline: () 
                     .background(Color.White.copy(alpha = 0.3f)),
             )
             Text(
-                "$name wants to switch to video",
+                stringResource(R.string.wants_to_switch_to_video, name),
                 color = Color.White,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -615,14 +791,14 @@ private fun VideoRequestSheet(name: String, onAccept: () -> Unit, onDecline: () 
             )
             VideoRequestRow(
                 icon = Icons.Default.Videocam,
-                title = "Switch to video",
-                subtitle = "Your camera turns on and the call moves to the speaker.",
+                title = stringResource(R.string.switch_to_video),
+                subtitle = stringResource(R.string.your_camera_turns_on_and_the_call),
                 onClick = onAccept,
             )
             VideoRequestRow(
                 icon = Icons.Default.Phone,
-                title = "Stay on voice",
-                subtitle = "The call carries on as it is, and they are told.",
+                title = stringResource(R.string.stay_on_voice),
+                subtitle = stringResource(R.string.the_call_carries_on_as_it_is),
                 onClick = onDecline,
             )
         }

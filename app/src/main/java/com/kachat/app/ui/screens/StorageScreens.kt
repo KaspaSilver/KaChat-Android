@@ -131,6 +131,27 @@ fun NextcloudStorageScreen(
     }
 }
 
+/** "Re-syncing... 3 of 7 chats", the one [BackupRestoreCoordinator] stage that carries numbers. */
+private val RESYNC_STAGE = Regex("""Re-syncing\.\.\. (\d+) of (\d+) chats""")
+
+/** A [BackupRestoreCoordinator] stage, written in English, looked up for the screen as iOS does
+ *  (4f8e14bb). A stage with no translation shows as written. */
+@Composable
+private fun restoreStageText(stage: String): String {
+    val progress = RESYNC_STAGE.matchEntire(stage)
+    if (progress != null) {
+        val done = progress.groupValues[1].toIntOrNull()
+        val total = progress.groupValues[2].toIntOrNull()
+        if (done != null && total != null) return stringResource(R.string.re_syncing_chats_progress, done, total)
+    }
+    return when (stage) {
+        "Wiping incoming messages..." -> stringResource(R.string.wiping_incoming_messages)
+        "Finishing up..." -> stringResource(R.string.finishing_up)
+        "Done" -> stringResource(R.string.done)
+        else -> stage
+    }
+}
+
 /**
  * The blocking chat-restore modal — the Android port of iOS's `ChatRestoreProgressModal`
  * (SettingsView.swift). Also fronts the Danger Zone's "Wipe and Re-sync Incoming Messages"
@@ -143,7 +164,7 @@ fun NextcloudStorageScreen(
  *     (including the top bar's back arrow) is unreachable;
  *   * [BackHandler] swallows system back — [BackupRestoreCoordinator.dismiss] refuses to fire
  *     while the restore is running, and acts as Done/Close on a terminal state;
- *   * the storage pages are not tab routes, so there is no bottom bar to block.
+ *   * the dock steps aside while it shows ([CoverDock]), as a fullScreenCover covers iOS's tab bar.
  * The restore itself is owned by the [BackupRestoreCoordinator] singleton, so even if this
  * composition died the import would keep running to completion.
  */
@@ -151,6 +172,7 @@ fun NextcloudStorageScreen(
 fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
     val phase by coordinator.phase.collectAsState()
     if (phase is BackupRestoreCoordinator.Phase.Idle) return
+    CoverDock()
     val fraction by coordinator.fraction.collectAsState()
     val stageText by coordinator.stageText.collectAsState()
     val kind by coordinator.kind.collectAsState()
@@ -188,7 +210,7 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         modifier = Modifier.size(40.dp)
                     )
                     Text(
-                        if (isResync) "Re-syncing Messages" else "Restoring Backup",
+                        if (isResync) stringResource(R.string.re_syncing_messages) else stringResource(R.string.restoring_backup),
                         color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -204,7 +226,7 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                stageText,
+                                restoreStageText(stageText),
                                 color = colors.textSecondary,
                                 fontSize = 12.sp,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -219,9 +241,9 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                     }
                     Text(
                         if (isResync) {
-                            "Please keep the app open. Leaving now could leave your chat history incomplete."
+                            stringResource(R.string.please_keep_the_app_open_leaving_now)
                         } else {
-                            "Please keep the app open. Leaving now could corrupt your chat history."
+                            stringResource(R.string.please_keep_the_app_open_leaving_now_2)
                         },
                         color = colors.textSecondary,
                         fontSize = 11.sp,
@@ -236,14 +258,19 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         modifier = Modifier.size(44.dp)
                     )
                     Text(
-                        if (isResync) "Re-sync Complete" else "Restore Complete",
+                        if (isResync) stringResource(R.string.re_sync_complete) else stringResource(R.string.restore_complete),
                         color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold
                     )
                     Text(
                         if (isResync) {
-                            "Re-synced ${current.messages} incoming messages across ${current.conversations} chats."
+                            when {
+                                current.messages == 1 && current.conversations == 1 -> stringResource(R.string.resynced_one_message_one_chat)
+                                current.messages == 1 -> stringResource(R.string.resynced_one_message_n_chats, current.conversations)
+                                current.conversations == 1 -> stringResource(R.string.resynced_n_messages_one_chat, current.messages)
+                                else -> stringResource(R.string.resynced_n_messages_n_chats, current.messages, current.conversations)
+                            }
                         } else {
-                            "Restored ${current.messages} messages from ${current.conversations} chats."
+                            stringResource(R.string.restored_messages_from_chats, current.messages, current.conversations)
                         },
                         color = colors.textSecondary,
                         fontSize = 14.sp,
@@ -254,7 +281,7 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Done", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.done), color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
                 is BackupRestoreCoordinator.Phase.Failure -> {
@@ -265,7 +292,7 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                         modifier = Modifier.size(44.dp)
                     )
                     Text(
-                        if (isResync) "Re-sync Failed" else "Restore Failed",
+                        if (isResync) stringResource(R.string.re_sync_failed) else stringResource(R.string.restore_failed),
                         color = colors.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -280,13 +307,13 @@ fun ChatRestoreProgressOverlay(coordinator: BackupRestoreCoordinator) {
                             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Try Again", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.try_again), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                         TextButton(
                             onClick = { coordinator.dismiss() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Close", color = colors.textSecondary)
+                            Text(stringResource(R.string.close), color = colors.textSecondary)
                         }
                     }
                 }

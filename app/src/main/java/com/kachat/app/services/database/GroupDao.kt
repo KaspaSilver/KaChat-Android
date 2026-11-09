@@ -81,6 +81,18 @@ interface GroupDao {
     @Query("SELECT COUNT(*) FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress")
     suspend fun countMessagesByTxId(txId: String, walletAddress: String): Int
 
+    /** Sends still on "pending" that were started before [beforeMs]. */
+    @Query("SELECT * FROM group_messages WHERE walletAddress = :walletAddress AND txId LIKE 'pending\\_%' ESCAPE '\\' AND deliveryStatus = 'pending' AND blockTimestamp < :beforeMs")
+    suspend fun getPendingSentBefore(walletAddress: String, beforeMs: Long): List<GroupMessageEntity>
+
+    /** Whether a delivered copy of the message [msgIdHex] names is stored. */
+    @Query("SELECT EXISTS(SELECT 1 FROM group_messages WHERE walletAddress = :walletAddress AND groupId = :groupId AND msgIdHex = :msgIdHex AND txId NOT LIKE 'pending\\_%' ESCAPE '\\')")
+    suspend fun hasDeliveredCopy(walletAddress: String, groupId: String, msgIdHex: String): Boolean
+
+    /** Drops the unsent placeholders of the message [msgIdHex] names, once its delivered copy is in. */
+    @Query("DELETE FROM group_messages WHERE walletAddress = :walletAddress AND groupId = :groupId AND msgIdHex = :msgIdHex AND txId LIKE 'pending\\_%' ESCAPE '\\'")
+    suspend fun deletePlaceholders(walletAddress: String, groupId: String, msgIdHex: String)
+
     /** Removes a single message by id — used to drop a "pending_<uuid>" placeholder once its real send resolves. */
     @Query("DELETE FROM group_messages WHERE txId = :txId AND walletAddress = :walletAddress")
     suspend fun deleteMessage(txId: String, walletAddress: String)

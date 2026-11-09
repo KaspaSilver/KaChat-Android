@@ -8,7 +8,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
 /**
- * Periodic fallback for the continuous automatic Nextcloud chat-history sync (see
+ * Periodic fallback for the automatic Nextcloud contacts sync (see
  * [NextcloudSyncService]) — every 6 hours, network connected + battery not low, its own unique
  * work. The debounced in-process upload is the primary path;
  * this worker only exists so an upload the process died before finishing (persisted dirty flag
@@ -22,11 +22,14 @@ import dagger.assisted.AssistedInject
 class NextcloudAutoSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val nextcloudSyncService: NextcloudSyncService
+    // Lazy: it needs the wallet store, so it's built only once the stores are known to open.
+    private val nextcloudSyncService: dagger.Lazy<NextcloudSyncService>
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        nextcloudSyncService.periodicUploadIfNeeded()
+        // Account stores unreadable: the app shows its problem screen when opened; nothing to upload.
+        if (!com.kachat.app.util.SecureStores.accountStoresOpen(applicationContext)) return Result.success()
+        nextcloudSyncService.get().periodicUploadIfNeeded()
         return Result.success()
     }
 }

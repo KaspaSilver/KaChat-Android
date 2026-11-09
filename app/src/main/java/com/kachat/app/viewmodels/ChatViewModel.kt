@@ -70,8 +70,10 @@ class ChatViewModel @Inject constructor(
     private val addressActivityNotifier: com.kachat.app.services.AddressActivityNotifier,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
     private val nameServices: com.kachat.app.services.NameServicesClient,
-    /** Payment notices the empty chatting address could not send yet (iOS 710fdc0, IOS-086). */
-    private val paymentNoticeOutbox: com.kachat.app.services.PaymentNoticeOutbox,
+    /** Sends a chat payment and owns its retry timer (iOS `ChatService.sendPayment`). */
+    private val chatPaymentSender: com.kachat.app.services.ChatPaymentSender,
+    /** Reads the payment source's coins fresh and reconciled ([refreshSpendingUtxos]). */
+    private val walletEngine: com.kachat.app.services.KaspaWalletEngine,
 ) : ViewModel() {
 
     // ---------------------------------------------------------------------
@@ -193,21 +195,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { settings.setKaspaExplorer(explorer) }
     }
 
-    val revealedPhotoTxIds: StateFlow<Set<String>> = settings.revealedPhotoTxIds
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptySet())
-
-    /** Permanently reveals a photo bubble that was hidden behind "Show Photo", by txId. */
-    fun revealPhoto(txId: String) {
-        viewModelScope.launch { settings.revealPhoto(txId) }
-    }
-
-    /** Per-contact override for the "Photos" picker in Chat Info — null clears back to Automatic. */
-    fun updateContactPhotoOverride(contactId: String, override: com.kachat.app.models.PhotoAutoDisplayMode?) {
-        viewModelScope.launch {
-            val existing = getOrCreateContact(contactId)
-            chatRepository.addContact(existing.copy(photoAutoDisplayOverride = override?.name))
-        }
-    }
+    /** When this contact's incoming photos start to show (ChatRepository.photosUnlockAt); null
+     *  until you have both sent a message. */
+    fun photosUnlockAt(contactId: String): Flow<Long?> = chatRepository.photosUnlockAt(contactId)
 
     /** Per-contact override for the "Incoming Notifications" picker in Chat Info — null clears back to Default. */
     fun updateContactNotificationOverride(contactId: String, override: com.kachat.app.models.ContactNotificationMode?) {
@@ -232,6 +222,19 @@ class ChatViewModel @Inject constructor(
     fun takeCallChatNotice(contactId: String): String? = callService.takeChatNotice(contactId)
 
     fun startCall(contact: ContactEntity, video: Boolean) = callService.startCall(contact, video)
+
+    /** The contact a call goes to: the saved row, or a new one when a Contacts entry has no chat
+     *  yet. Only asked for once Call is tapped, so viewing an entry never adds a chat contact
+     *  (iOS AddressBookEntryDetail, `getOrCreateContact(address:alias:)`). */
+    suspend fun contactForCall(contactId: String, newContactAlias: String? = null): ContactEntity {
+        chatRepository.getContact(contactId)?.let { return it }
+        val created = getOrCreateContact(contactId).copy(alias = newContactAlias?.takeIf { it.isNotBlank() })
+        // A deliberate add is of the network the app runs on (see addContact).
+        if (com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(contactId.trim())) {
+            chatRepository.addContact(created, deliberate = true)
+        }
+        return created
+    }
 
     /** "Allow calls and video calls" for one contact - Chat Info's switch and the prompt behind
      *  the call button. OFF by default: while off, this contact's invites and requests are
@@ -375,6 +378,8 @@ class ChatViewModel @Inject constructor(
     }
 
     fun disconnectNextcloud() {
+        // Its sync state goes with it: a different server is a new start (iOS `disconnect`).
+        walletManager.activeAddressFlow.value?.let { nextcloudSyncService.purgeStoredState(it) }
         nextcloudService.disconnect()
         _nextcloudConnectState.value = ChatHistoryOpState()
         _nextcloudBackupState.value = ChatHistoryOpState()
@@ -390,13 +395,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.IN_PROGRESS)
             try {
-                // Merges with whatever is already on the server - aborting without uploading on a
-                // failed download or another wallet's file, replacing this wallet's own unreadable
-                // file in place (NEXTCLOUD_SYNC.md §7) - see runBackup.
-                val etag = nextcloudService.runBackup { remote -> chatHistoryExportImportService.buildBackupJson(remote) }
-                // Own-write guard for the automatic change watcher: this manual upload must not
-                // read as "another device changed the file" on the next ETag poll.
-                nextcloudSyncService.noteOwnUpload(etag)
+                // Merge-on-upload: reads the server's copy first, so a manual backup can never undo
+                // another device's newer change, and it brings those changes in here.
+                nextcloudSyncService.backUpContactsNow()
                 _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.SUCCESS, message = "Backed up just now")
                 refreshNextcloudBackupInfo()
             } catch (e: Exception) {
@@ -404,12 +405,6 @@ class ChatViewModel @Inject constructor(
                 _nextcloudBackupState.value = ChatHistoryOpState(status = ChatHistoryOpStatus.FAILED, message = UserFacingError.message(e, "Backup failed"))
             }
         }
-    }
-
-    /** Manual only — never triggered automatically. Hands the whole restore to
-     *  [restoreCoordinator]. */
-    fun restoreFromNextcloud() {
-        backupRestoreCoordinator.startNextcloudRestore()
     }
 
     private val _nextcloudBackupInfo = MutableStateFlow<NextcloudFile?>(null)
@@ -446,6 +441,13 @@ class ChatViewModel @Inject constructor(
     // other saved accounts on the device.
     // -------------------------------------------------------------------------
 
+    /** Sync keeps failing right now: only a note on the wipe-and-resync sheet (iOS 76aec44f). */
+    val syncTrouble: StateFlow<Boolean> = chatRepository.syncTrouble
+
+    /** What each chat's row shows about its own fetch; a chat with no entry shows nothing. */
+    val chatFetchStates: StateFlow<Map<String, com.kachat.app.repository.ChatRepository.ChatFetchState>> =
+        chatRepository.chatFetchStates
+
     enum class DangerZoneOpStatus { IDLE, IN_PROGRESS, SUCCESS, FAILED }
     data class DangerZoneOpState(val status: DangerZoneOpStatus = DangerZoneOpStatus.IDLE, val message: String? = null)
 
@@ -458,50 +460,6 @@ class ChatViewModel @Inject constructor(
      */
     fun wipeAndResyncIncomingMessages(contactIds: List<String>?) {
         backupRestoreCoordinator.startIncomingResync(contactIds)
-    }
-
-    private val _wipeAccountState = MutableStateFlow(DangerZoneOpState())
-    val wipeAccountState: StateFlow<DangerZoneOpState> = _wipeAccountState.asStateFlow()
-
-    /**
-     * Wipes all local chat data (messages + contacts) for [address]. [alsoDeleteCloud] is kept
-     * for the callers' shape; Nextcloud state is purged either way.
-     * Does NOT delete the wallet's keys — that's a separate, synchronous step
-     * ([WalletManager.deleteAccount] via [WalletViewModel.deleteWallet]) the caller must run via
-     * [onLocalWipeComplete] once this finishes, since key deletion and the resulting
-     * logged-in/logged-out state transition live in WalletViewModel, not here.
-     */
-    fun wipeAccountAndMessages(address: String, alsoDeleteCloud: Boolean, onLocalWipeComplete: () -> Unit) {
-        if (_wipeAccountState.value.status == DangerZoneOpStatus.IN_PROGRESS) return
-        viewModelScope.launch {
-            _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.IN_PROGRESS)
-            try {
-                // Both networks' data: one key, one account (iOS 741c005).
-                for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
-                    chatRepository.wipeAllLocalDataForAddress(variant)
-                    groupRepository.clearAllLocalData(variant)
-                }
-                // Both danger-zone entries to this flow delete the wallet itself right after the
-                // local wipe (onLocalWipeComplete -> deleteWallet), so the account's Nextcloud
-                // login and settings must go with it — mirrors iOS's purgeStoredState in the
-                // WalletManager account-deletion flows.
-                for (variant in com.kachat.app.util.KaspaNetwork.accountAddressVariants(address)) {
-                    nextcloudService.purgeStoredState(variant)
-                    // The continuous Nextcloud sync state (dirty flag, last-synced stamp, restored
-                    // marker) and any pending debounced upload go with the account too.
-                    nextcloudSyncService.purgeStoredState(variant)
-                }
-                _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.SUCCESS)
-                onLocalWipeComplete()
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Wipe account failed", e)
-                _wipeAccountState.value = DangerZoneOpState(status = DangerZoneOpStatus.FAILED, message = UserFacingError.message(e, "Failed"))
-            }
-        }
-    }
-
-    fun resetWipeAccountState() {
-        _wipeAccountState.value = DangerZoneOpState()
     }
 
     // Auto-created payment chats are always shown — no toggle to hide them.
@@ -987,7 +945,8 @@ class ChatViewModel @Inject constructor(
     private val _messageText = MutableStateFlow("")
     val messageText: StateFlow<String> = _messageText.asStateFlow()
 
-    private val _networkFeeRate = MutableStateFlow(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble()) // sompi per mass-gram
+    // Sompi per mass-gram: the network minimum, what every send pays (iOS KaspaFeePolicy).
+    private val _networkFeeRate = MutableStateFlow(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble())
     val networkFeeRate: StateFlow<Double> = _networkFeeRate.asStateFlow()
 
     // User-adjustable override for a busy fee market — set via the composer's clickable fee pill.
@@ -1027,8 +986,8 @@ class ChatViewModel @Inject constructor(
      *  on chain, as iOS's `photoViaNextcloud` / `voiceViaNextcloud` do. */
     private val photoViaNextcloud: Boolean get() = _nextcloudPhotoRequested.value && nextcloudService.isConnected
     private val voiceViaNextcloud: Boolean get() = _nextcloudVoiceRequested.value && nextcloudService.isConnected
-    private val groupPhotoViaNextcloud: Boolean get() = _groupNextcloudPhotoRequested.value && nextcloudService.isConnected
-    private val groupVoiceViaNextcloud: Boolean get() = _groupNextcloudVoiceRequested.value && nextcloudService.isConnected
+    val groupPhotoViaNextcloud: Boolean get() = _groupNextcloudPhotoRequested.value && nextcloudService.isConnected
+    val groupVoiceViaNextcloud: Boolean get() = _groupNextcloudVoiceRequested.value && nextcloudService.isConnected
 
     /**
      * A photo or video picked "via Nextcloud", waiting in the composer (iOS 7abc06e
@@ -1191,18 +1150,18 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * The payload byte count to price the live fee preview off of: the real typed-text length
+     * The payload byte count to price the live fee preview off of: the typed text's payload
      * while composing, a rough elapsed-time-based estimate of the final encoded/encrypted size
      * while recording a voice message, or a rough estimate of the final wire size for a staged
      * photo — same shape as [VoiceMessage.estimatedWirePayloadSize]: the real send always measures
      * the actual encoded bytes exactly, this is only ever used for the live preview.
      */
     private val previewPayloadSize: Flow<Int> = combine(
-        combine(typedTextPreviewBytes, voiceRecordingState, pendingPhotoUri) { textBytes, recording, photoUri -> Triple(textBytes, recording, photoUri) },
+        combine(typedTextPreviewBytes, voiceRecordingState, pendingPhotoUri, flow { emitAll(replyingTo) }) { textBytes, recording, photoUri, reply -> PreviewInput(textBytes, recording, photoUri, reply) },
         _nextcloudPhotoRequested,
         _nextcloudVoiceRequested,
         onChainPhotoTargetBytes,
-    ) { (textBytes, recording, photoUri), photoNextcloud, voiceNextcloud, photoTargetBytes ->
+    ) { (textBytes, recording, photoUri, reply), photoNextcloud, voiceNextcloud, photoTargetBytes ->
         // Via Nextcloud (chosen in the "+" sheet), the chain only carries the ~100-byte share
         // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
         val connected = nextcloudService.isConnected
@@ -1213,9 +1172,31 @@ class ChatViewModel @Inject constructor(
             // base64 layer (iOS f5f6a11), at the chosen budget (Chats > Higher quality photos):
             // never used for the real fee, only this live preview.
             if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else ImagePrep.estimatedWirePayloadSize(photoTargetBytes)
+        } else if (textBytes == 0) {
+            0
         } else {
-            textBytes
+            // The whole payload a send carries, reply envelope included, so the pill shows what
+            // the send costs (iOS estimateMessageFee builds this payload to price it).
+            MessageProtocol.estimatedCommPayloadSize(textBytes + replyEnvelopeBytes(reply))
         }
+    }
+
+    private data class PreviewInput(
+        val textBytes: Int,
+        val recording: VoiceRecordingState,
+        val photoUri: android.net.Uri?,
+        val reply: MessageEntity?,
+    )
+
+    /** What replying to [reply] adds to the text's bytes; built as [sendMessage] builds it. */
+    private fun replyEnvelopeBytes(reply: MessageEntity?): Int {
+        if (reply == null) return 0
+        val preview = VoiceMessage.parseOrNull(reply.plaintextBody)?.let { "🎤 Audio message" }
+            ?: ImageMessage.parseOrNull(reply.plaintextBody)?.let { "📷 Photo" }
+            ?: MessageReply.parseOrNull(reply.plaintextBody)?.text
+            ?: (reply.plaintextBody ?: "")
+        val sender = if (reply.direction == "sent") runCatching { walletManager.getAddress() }.getOrDefault("") else reply.contactId
+        return MessageReply.encode(replyToId = reply.id, replyToSender = sender, replyToPreview = preview, text = "").toByteArray(Charsets.UTF_8).size
     }
 
     /** Where the open Send KAS sheet pays from - its From (iOS 6333dd3
@@ -1242,6 +1223,68 @@ class ChatViewModel @Inject constructor(
             FeeEstimateCoins(identity, spending, manual, com.kachat.app.services.WalletManager.signatureScriptSize(source))
         }
 
+    /** [paymentFeeEstimateOrThrow], null when it can't go or can't be worked out. */
+    private fun paymentFeeEstimate(
+        coins: FeeEstimateCoins,
+        amountSompi: Long,
+        note: String,
+        overrideRate: Long?,
+        extraFeeSompi: Long = 0L,
+    ): com.kachat.app.util.SendFeeModel.SendFeeEstimate? {
+        if (amountSompi <= 0) return null
+        return try {
+            paymentFeeEstimateOrThrow(coins, amountSompi, note, overrideRate, extraFeeSompi)
+        } catch (e: IllegalStateException) {
+            null
+        }
+    }
+
+    /**
+     * What the chat payment being priced costs (iOS `estimatePaymentFee`): the From's non-coinbase
+     * coins, or coin control's pick among them. With no [extraFeeSompi] it is the Normal base; with
+     * one, the shape the send builds at that speed (its network fee holds the extra). Throws why it
+     * can't go - too little for the amount and fee, real change storage mass won't let stand, more
+     * inputs than one transaction holds, no spendable coins, or every picked coin gone (never a
+     * silent fall back to automatic selection, iOS d23e6f7a `resolveReviewSelection`) - and the
+     * sheet shows it with Try Again ([paymentFeeError]).
+     */
+    private fun paymentFeeEstimateOrThrow(
+        coins: FeeEstimateCoins,
+        amountSompi: Long,
+        note: String,
+        overrideRate: Long?,
+        extraFeeSompi: Long = 0L,
+    ): com.kachat.app.util.SendFeeModel.SendFeeEstimate {
+        val candidates = coins.payment.filterNot { it.utxoEntry.isCoinbase }
+        val manual = resolvePaymentSelection(coins.manual, candidates)
+        if ((manual ?: candidates).isEmpty()) {
+            throw IllegalStateException(appContext.getString(com.kachat.app.R.string.no_spendable_utxos))
+        }
+        return com.kachat.app.util.SendFeeModel.estimate(
+            // Picked greedily among coin control's coins, as the send does.
+            utxos = manual ?: candidates,
+            manual = null,
+            amountSompi = amountSompi,
+            feeRateSompiPerGram = overrideRate?.coerceAtLeast(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
+                ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM,
+            // A chat payment always carries its sealed `kchat:1:pay:` payload, memo or not (see
+            // sendPayment), so the fee prices it - as iOS estimatePaymentFee(note:) always does.
+            payloadSize = MessageProtocol.estimatedPaymentPayloadSize(note.trim(), amountSompi),
+            signatureScriptSize = coins.paymentSignatureScriptSize,
+            extraFeeSompi = extraFeeSompi,
+        )
+    }
+
+    /** Coin control for the payment's fee or Max: the picked coins still among [candidates], null
+     *  for automatic. When none of the picked coins are left it throws the send's own error
+     *  rather than pricing automatic selection (iOS d23e6f7a `resolveReviewSelection`). */
+    private fun resolvePaymentSelection(
+        manual: List<com.kachat.app.services.UtxoEntry>?,
+        candidates: List<com.kachat.app.services.UtxoEntry>,
+    ): List<com.kachat.app.services.UtxoEntry>? = com.kachat.app.util.SendFeeModel.resolveReviewSelection(
+        manual, candidates, appContext.getString(com.kachat.app.R.string.selected_utxos_are_no_longer_available_please)
+    )
+
     val estimatedFeeSompi: StateFlow<Long?> = combine(
         combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
         previewPayloadSize, utxosForFeeEstimate, _networkFeeRate, _feeRateOverride
@@ -1249,57 +1292,81 @@ class ChatViewModel @Inject constructor(
         val rate = overrideRate?.toDouble() ?: networkRate
         if (amount.isEmpty() && textPayloadSize == 0) return@combine null
 
-        val isPayment = amount.isNotEmpty()
-        val sompiNeeded = if (isPayment) KaspaUnit.sompiFromUserText(amount) ?: 0L else 0L
+        if (amount.isNotEmpty()) {
+            return@combine paymentFeeEstimate(coins, KaspaUnit.sompiFromUserText(amount) ?: 0L, paymentNote, overrideRate)?.networkFeeSompi
+        }
 
-        var total = 0L
         var count = 0
-        if (isPayment) {
-            val (paymentTotal, paymentCount) = paymentFeeInputs(coins.payment, coins.manual, sompiNeeded)
-            total = paymentTotal
-            count = paymentCount
-        } else {
-            for (utxo in coins.identity) {
-                total += utxo.utxoEntry.amount
-                count++
-                if (total >= sompiNeeded + 1000) break // Buffer for fee
-            }
-        }
-        
-        if (total < sompiNeeded && isPayment) return@combine null
-        
-        // A chat payment always carries its sealed `kchat:1:pay:` payload, memo or not (see
-        // sendPayment), so the fee prices it - as iOS estimatePaymentFee(note:) always does.
-        val payloadSize = if (isPayment) {
-            MessageProtocol.estimatedPaymentPayloadSize(paymentNote.trim(), sompiNeeded)
-        } else {
-            textPayloadSize
+        var total = 0L
+        for (utxo in coins.identity) {
+            total += utxo.utxoEntry.amount
+            count++
+            if (total >= 1000) break // Buffer for fee
         }
 
-        // Preview only — a payment gets 2 standard 34-byte P2PK outputs (recipient + change).
-        // A message (isPayment=false) is a zero-amount self-stash send, and KaspaWalletEngine
+        // Preview only. A message is a zero-amount self-stash send, and KaspaWalletEngine
         // skips the zero-value recipient output for those (a 0-value output is non-standard and
         // gets rejected) — matches iOS's estimateContextualMessageFee, which also prices a
         // message off a single output. Assuming 2 outputs here previously overpriced every
         // message/voice/photo preview by a phantom output (~412 mass, ~0.0004 KAS at min rate).
         val mass = com.kachat.app.util.KaspaMass.calculateMass(
             numInputs = count.coerceAtLeast(1),
-            outputScriptLens = if (isPayment) listOf(34, 34) else listOf(34),
-            payloadSize = payloadSize,
-            sigScriptLens = if (isPayment) {
-                com.kachat.app.util.KaspaMass.sigScriptLensFor(count.coerceAtLeast(1), coins.paymentSignatureScriptSize)
-            } else null
+            outputScriptLens = listOf(34),
+            payloadSize = textPayloadSize,
         )
-        // A payment is priced at the rate the send itself uses: the quote rounded up, never
-        // under the network minimum (KaspaWalletEngine.fetchQuotedFeeRateSompiPerGram), so the
-        // base fee shown is the base fee paid.
-        val feeRate = if (isPayment) {
-            kotlin.math.ceil(rate).toLong().coerceAtLeast(com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM)
-        } else {
-            rate.toLong()
-        }
-        com.kachat.app.util.KaspaMass.calculateFee(mass, feeRate)
+        com.kachat.app.util.KaspaMass.calculateFee(mass, rate.toLong())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    /** The Send KAS sheet's speed (its multiplier) and custom extra, which the fee it shows is
+     *  worked out with ([paymentBuiltFeeSompi]). Set by the sheet. */
+    private val _paymentFeeSpeed = MutableStateFlow<Pair<Long, Long?>>(1L to null)
+
+    fun setPaymentFeeSpeed(feeMultiplier: Long, customExtraFeeSompi: Long?) {
+        _paymentFeeSpeed.value = feeMultiplier to customExtraFeeSompi
+    }
+
+    /** The payment source's coins as [refreshSpendingUtxos] last read them: still being read, or
+     *  why they couldn't be. Declared before the fee quote below, which reads it. */
+    private data class PaymentCoinsStatus(val loading: Boolean = false, val error: String? = null)
+
+    private val _paymentCoinsStatus = MutableStateFlow(PaymentCoinsStatus())
+
+    /** The payment's fee at the chosen speed, or why it couldn't be worked out. */
+    private data class PaymentFeeQuote(val builtFeeSompi: Long? = null, val error: String? = null)
+
+    /**
+     * The fee the payment being priced pays at the chosen speed: network fee, extra and any change
+     * too small to keep (iOS `paymentBuiltFeeSompi`). The Normal base is priced first (the speeds
+     * multiply it), then the payment again with the extra in: a bigger extra can take another coin
+     * or leave no change worth keeping, so it is not just added on top. Either failing holds the
+     * swipe with the error: never a silent fall back to a fee nobody saw (iOS d23e6f7a
+     * `paymentFeeError`). While the coins are being read there is no fee and no error.
+     */
+    private val paymentFeeQuote: StateFlow<PaymentFeeQuote> = combine(
+        combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
+        utxosForFeeEstimate, _feeRateOverride, _paymentFeeSpeed, _paymentCoinsStatus
+    ) { (amount, paymentNote), coins, overrideRate, (multiplier, customExtra), coinsStatus ->
+        val amountSompi = KaspaUnit.sompiFromUserText(amount) ?: 0L
+        if (amountSompi <= 0L || coinsStatus.loading) return@combine PaymentFeeQuote()
+        coinsStatus.error?.let { return@combine PaymentFeeQuote(error = it) }
+        try {
+            val base = paymentFeeEstimateOrThrow(coins, amountSompi, paymentNote, overrideRate)
+            val extra = com.kachat.app.util.SendFeeModel.extraFee(base.networkFeeSompi, multiplier, customExtra)
+            val paid = if (extra > 0L) paymentFeeEstimateOrThrow(coins, amountSompi, paymentNote, overrideRate, extra) else base
+            PaymentFeeQuote(builtFeeSompi = paid.networkFeeSompi + paid.foldedChangeSompi)
+        } catch (e: IllegalStateException) {
+            PaymentFeeQuote(error = UserFacingError.message(e, appContext.getString(com.kachat.app.R.string.could_not_work_out_the_network_fee)))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), PaymentFeeQuote())
+
+    /** [paymentFeeQuote]'s fee; null while unknown or when it can't go. */
+    val paymentBuiltFeeSompi: StateFlow<Long?> = paymentFeeQuote.map { it.builtFeeSompi }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    /** Why the payment's fee couldn't be worked out: the Review shows it with Try Again
+     *  ([refreshSpendingUtxos]) and the swipe waits. */
+    val paymentFeeError: StateFlow<String?> = paymentFeeQuote.map { it.error }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     /**
      * The Send KAS sheet's Max: what the payment's source can send after the base fee and the
@@ -1321,16 +1388,22 @@ class ChatViewModel @Inject constructor(
      * The speed's base is the fee preview's own for the max send (iOS df4aba6): the coins and
      * payload [estimatedFeeSompi] would price for that amount.
      */
-    fun paymentMaxSompi(sourceBalanceSompi: Long, feeMultiplier: Long, customExtraFeeSompi: Long?): Long {
+    fun paymentMaxSompi(feeMultiplier: Long, customExtraFeeSompi: Long?): PaymentMax {
         val spending = _spendingUtxos.value
-        val manual = _paymentManualUtxos.value
-        val (balance, inputs) = paymentMaxCoins(sourceBalanceSompi, spending, manual)
+        // Coin control's pick still among the coins; every picked coin gone gives no Max (iOS
+        // d23e6f7a: the fee estimate says to reselect), never a Max of automatic selection.
+        val manual = try {
+            resolvePaymentSelection(_paymentManualUtxos.value, spending.filterNot { it.utxoEntry.isCoinbase })
+        } catch (e: IllegalStateException) {
+            return PaymentMax(0L, cappedAtInputLimit = false)
+        }
+        val (balance, inputs, capped) = paymentMaxCoins(spending, manual)
         val note = _paymentNote.value
-        return computePaymentMaxSompi(
+        val maxSompi = computePaymentMaxSompi(
             balanceSompi = balance,
             inputCount = inputs,
             note = note,
-            feeRate = _feeRateOverride.value?.toDouble() ?: _networkFeeRate.value,
+            feeRate = _feeRateOverride.value?.toDouble() ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble(),
             feeMultiplier = feeMultiplier,
             customExtraFeeSompi = customExtraFeeSompi,
             signatureScriptSize = com.kachat.app.services.WalletManager.signatureScriptSize(_paymentSourceIndex.value),
@@ -1339,7 +1412,17 @@ class ChatViewModel @Inject constructor(
                     MessageProtocol.estimatedPaymentPayloadSize(note.trim(), provisional)
             },
         )
+        return PaymentMax(maxSompi, cappedAtInputLimit = capped)
     }
+
+    /** A chat payment's Max: the amount, and whether it is what one transaction's largest coins
+     *  can carry rather than all of them (iOS d23e6f7a `cappedAtInputLimit`) - the Review then
+     *  says so while the amount is still that Max. */
+    data class PaymentMax(val amountSompi: Long, val cappedAtInputLimit: Boolean)
+
+    /** What a chat payment's Max spends ([paymentMaxCoins]): the coins' total, how many inputs
+     *  that is, and whether it is only the largest ones one transaction can carry. */
+    data class PaymentMaxCoins(val balanceSompi: Long, val inputCount: Int, val cappedAtInputLimit: Boolean)
 
     // -------------------------------------------------------------------------
     // Group chat's own live fee preview - same KaspaMass calc as [estimatedFeeSompi] above, but
@@ -1520,15 +1603,6 @@ class ChatViewModel @Inject constructor(
             try {
                 val address = walletManager.getAddress()
                 val api = networkService.kaspaRestApi.value ?: return@launch
-                
-                // Refresh fee rate from network
-                try {
-                    val feeInfo = api.getFeeEstimate()
-                    _networkFeeRate.value = feeInfo.normalBuckets.firstOrNull()?.feerate
-                        ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble()
-                } catch (e: Exception) {
-                    Log.w("ChatViewModel", "Could not fetch fee estimate, using network minimum")
-                }
 
                 _currentUtxos.value = api.getUtxos(address)
             } catch (e: Exception) {
@@ -1548,27 +1622,32 @@ class ChatViewModel @Inject constructor(
 
     /** Re-reads the payment source's coins into [spendingUtxos] (iOS
      *  `paymentFundingSourceAddress`: the chatting address, or the chosen spending address); the
-     *  returned job completes when the read is done. */
+     *  returned job completes when the read is done. Read fresh and reconciled, as the send reads
+     *  them: coins a send or message from this app just spent stay out until that is in a block,
+     *  and only confirmed, non-coinbase coins count (iOS d23e6f7a `withdrawalSpendableUtxos`). A
+     *  read that fails is the fee's error, with Try Again (this again). */
     fun refreshSpendingUtxos(): kotlinx.coroutines.Job {
         val source = _paymentSourceIndex.value
+        _paymentCoinsStatus.value = PaymentCoinsStatus(loading = true)
         return viewModelScope.launch {
             try {
                 val address = if (source != null) walletManager.deriveSpendingAddress(source) else walletManager.getAddress()
-                val api = networkService.kaspaRestApi.value ?: return@launch
-
-                try {
-                    val feeInfo = api.getFeeEstimate()
-                    _networkFeeRate.value = feeInfo.normalBuckets.firstOrNull()?.feerate
-                        ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble()
-                } catch (e: Exception) {
-                    Log.w("ChatViewModel", "Could not fetch fee estimate, using network minimum")
-                }
-
-                val utxos = api.getUtxos(address)
+                val utxos = walletEngine.fetchUtxosOrThrow(address)
+                    .filter { !it.utxoEntry.isCoinbase && it.utxoEntry.blockDaaScore > 0 }
                 // A refresh for a source that has since changed would price the wrong address.
-                if (_paymentSourceIndex.value == source) _spendingUtxos.value = utxos
+                if (_paymentSourceIndex.value == source) {
+                    _spendingUtxos.value = utxos
+                    _paymentCoinsStatus.value = PaymentCoinsStatus()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w("ChatViewModel", "Spending UTXO refresh failed", e)
+                if (_paymentSourceIndex.value == source) {
+                    _paymentCoinsStatus.value = PaymentCoinsStatus(
+                        error = UserFacingError.message(e, appContext.getString(com.kachat.app.R.string.could_not_work_out_the_network_fee))
+                    )
+                }
             }
         }
     }
@@ -2140,6 +2219,36 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Groups this wallet was added to and hasn't answered, newest first - they wait in Message
+     *  Requests (iOS `pendingGroupInvites`, bfe9f022). */
+    val pendingGroupInvites: StateFlow<List<com.kachat.app.models.PendingGroupInvite>> =
+        groupRepository.getPendingGroupInvites()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Joins now; the answer and the group's history follow. A send that can't go yet is retried
+     *  at the next catch-up. */
+    fun acceptGroupInvite(invite: com.kachat.app.models.PendingGroupInvite) {
+        viewModelScope.launch {
+            try { groupRepository.acceptGroupInvite(invite) } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.w("ChatViewModel", "Accepting a group invite failed", e)
+            }
+        }
+    }
+
+    /** Never offered again; the group hears you declined. Retried like an accept. */
+    fun rejectGroupInvite(invite: com.kachat.app.models.PendingGroupInvite) {
+        viewModelScope.launch {
+            try { groupRepository.rejectGroupInvite(invite) } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.w("ChatViewModel", "Rejecting a group invite failed", e)
+            }
+        }
+    }
+
+    /** Member address -> "invited" or "declined", for a group's member rows. */
+    fun groupInviteStatuses(groupId: String) = groupRepository.getGroupInviteStatuses(groupId)
+
     /** Deletes individual messages from a group, this device only - local-only, never on-chain.
      *  Used by GroupChatThreadScreen's message multi-select "Delete". [groupId] isn't needed by
      *  the delete itself (txId + wallet address alone identify a group message row) but is kept
@@ -2521,14 +2630,18 @@ class ChatViewModel @Inject constructor(
             !com.kachat.app.util.MessageEdit.isEditable(target.plaintextBody)) return
         _editingMessage.value = null
         viewModelScope.launch {
+            val owner = walletManager.getAddress()
             val now = System.currentTimeMillis()
             chatRepository.upsertOwnEdit(target.id, contactId, clean, null, now, deliveryStatus = "pending")
             try {
                 val payload = com.kachat.app.util.MessageEdit.encode(target.id, clean)
                 val result = walletService.sendKasiaMessage(contactId, payload)
+                // The send can outlast the account; its results don't go in the next one (iOS 4f8e14bb).
+                if (walletManager.getAddress() != owner) return@launch
                 chatRepository.upsertOwnEdit(target.id, contactId, clean, result.txId, now, deliveryStatus = "sent")
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Edit of ${target.id.take(12)} failed: ${e.message}", e)
+                if (walletManager.getAddress() != owner) return@launch
                 chatRepository.upsertOwnEdit(target.id, contactId, clean, null, now, deliveryStatus = "failed")
                 onError(UserFacingError.message(e, "Edit failed"))
             }
@@ -2609,6 +2722,7 @@ class ChatViewModel @Inject constructor(
 
                 // Encrypt + self-stash the message. Sending a message NEVER sends a handshake —
                 // handshakes are only ever sent by an explicit user tap (sendHandshakeToNewContact).
+                refuseIfAccountChanged(myAddress)
                 val result = walletService.sendKasiaMessage(contactId, payload, feeRateOverride = feeRate)
 
                 // Merge-aware finalize: if a backup mirror import inserted the txId row first,
@@ -2630,6 +2744,14 @@ class ChatViewModel @Inject constructor(
                 )
                 if (!plain && !isCallEnvelope) _replyingTo.value = null
                 return true
+            } catch (unknown: com.kachat.app.services.SendOutcomeUnknownException) {
+                // It may have landed: never Retry (that could post it twice). The row takes the
+                // transaction's own id and shows Not confirmed until its delivered copy arrives
+                // (iOS d23e6f7a markSendUnconfirmed).
+                Log.w("ChatViewModel", "Message send outcome unknown: marked not confirmed")
+                finalizeUnconfirmedSend(pendingId, unknown.txId)
+                onError?.invoke(UserFacingError.message(unknown, "Failed to send"))
+                return false
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)
                 chatRepository.updateMessageStatus(pendingId, "failed")
@@ -2701,11 +2823,14 @@ class ChatViewModel @Inject constructor(
             try {
                 val payload = MessageReaction.encode(targetTxId, emoji, action)
                 val result = walletService.sendKasiaMessage(contactId, payload)
+                // The send can outlast the account; its results don't go in the next one (iOS 4f8e14bb).
+                if (walletManager.getAddress() != myAddress) return@launch
                 if (action == "add") {
                     chatRepository.upsertReaction(targetTxId, myAddress, contactId, emoji, result.txId, System.currentTimeMillis())
                 }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Reaction $action $emoji on ${targetTxId.take(12)} failed: ${e.message}", e)
+                if (walletManager.getAddress() != myAddress) return@launch
                 // Flag failed so the pill shows the red error icon and a Retry appears under the
                 // message. A failed "remove" restores the optimistically-deleted reaction (marked
                 // failed) so it isn't silently lost; Retry re-attempts the change.
@@ -2779,11 +2904,136 @@ class ChatViewModel @Inject constructor(
         sendMessage(contactId, com.kachat.app.util.ChessMessage.encode(content))
     }
 
-    /** `reason`: "timeout" when the local player flagged, null for a manual resign. */
-    fun resignChessGame(contactId: String, gameId: String, reason: String? = null) {
+    // The timeout resign being sent for each game id, and the one resign row each game's tries
+    // reuse. Only ever touched on the main thread (the view model's scope and the board screen).
+    private val timeoutResigns = mutableMapOf<String, kotlinx.coroutines.Deferred<Boolean>>()
+    private val timeoutResignRows = mutableMapOf<String, String>()
+    // iOS's tries; then a minute before the next cycle, where iOS starts one on the next tick.
+    private val timeoutResignRetryDelaysSeconds = listOf(0L, 3L, 10L, 30L)
+    private val timeoutResignPauseMs = 60_000L
+
+    /**
+     * Flagging: my clock hit zero on my turn, so the game is resigned with reason "timeout". A send
+     * that fails is tried again, a little later each time: dropped once, the opponent waited on a
+     * move that could never come. Runs on the view model's scope, so leaving the screen doesn't
+     * stop it (iOS `sendTimeoutResign`).
+     *
+     * One send per game: a second call while one is running (the board reopened, the clock
+     * re-firing) gets the same one. Every try reuses one resign row, so failed tries leave one
+     * failed bubble, not one each, and the composer's reply and fee are left alone. It is sent
+     * from the account that flagged and stops if another becomes active. A send whose outcome is
+     * unknown may have landed, so it counts as sent: resigning twice is worse than once.
+     *
+     * Completes with true once sent. After a full cycle fails it waits [timeoutResignPauseMs]
+     * before completing with false, so the board, while it still shows the clock at zero, starts
+     * the next cycle no sooner than that (iOS: the next clock tick after a cycle gives up).
+     */
+    fun sendTimeoutResign(contactId: String, gameId: String, onSent: () -> Unit): kotlinx.coroutines.Deferred<Boolean> {
+        timeoutResigns[gameId]?.takeIf { it.isActive }?.let { return it }
+        val resign = viewModelScope.async {
+            val account = walletManager.activeAddressFlow.value
+            if (account != null) {
+                for (delaySeconds in timeoutResignRetryDelaysSeconds) {
+                    if (delaySeconds > 0) delay(delaySeconds * 1_000L)
+                    if (walletManager.activeAddressFlow.value != account) {
+                        Log.w("ChatViewModel", "[Chess] Timeout resign dropped: another account is active")
+                        break
+                    }
+                    if (attemptTimeoutResign(contactId, gameId, account)) {
+                        timeoutResignRows.remove(gameId)
+                        onSent()
+                        return@async true
+                    }
+                    Log.w("ChatViewModel", "[Chess] Timeout resign didn't send")
+                }
+            }
+            delay(timeoutResignPauseMs)
+            false
+        }
+        timeoutResigns[gameId] = resign
+        return resign
+    }
+
+    /** One try of [sendTimeoutResign]: the game's resign row goes (back) to pending and is sent. */
+    private suspend fun attemptTimeoutResign(contactId: String, gameId: String, account: String): Boolean {
+        val payload = com.kachat.app.util.ChessMessage.encode(
+            com.kachat.app.util.ChessResignContent(gameId = gameId, reason = "timeout")
+        )
+        var rowId: String? = null
+        return try {
+            // The row a previous try left, unless it has gone since (deleted, or sent by Retry).
+            val previous = timeoutResignRows[gameId]?.takeIf { chatRepository.getMessage(it) != null }
+            val id = previous ?: "pending_${java.util.UUID.randomUUID()}"
+            rowId = id
+            if (previous != null) {
+                chatRepository.updateMessageStatus(id, "pending")
+            } else {
+                chatRepository.insertMessage(
+                    MessageEntity(
+                        id = id,
+                        contactId = contactId,
+                        walletAddress = account,
+                        type = com.kachat.app.util.MessageProtocol.TYPE_COMM,
+                        direction = "sent",
+                        plaintextBody = payload,
+                        encryptedPayload = "",
+                        amountSompi = 0,
+                        blockTimestamp = System.currentTimeMillis(),
+                        deliveryStatus = "pending"
+                    )
+                )
+                timeoutResignRows[gameId] = id
+            }
+            var outcomeUnknown = false
+            val (txId, payloadHex) = try {
+                walletService.sendKasiaMessage(contactId, payload).let { it.txId to it.payloadHex }
+            } catch (unknown: com.kachat.app.services.SendOutcomeUnknownException) {
+                // It may have landed (audit IOS-014): counted as sent, so no second resign goes
+                // after it, but its row says Not confirmed rather than Sent (iOS d23e6f7a).
+                Log.w("ChatViewModel", "[Chess] Timeout resign outcome unknown, counted as sent")
+                outcomeUnknown = true
+                unknown.txId to ""
+            }
+            chatRepository.finalizeProvisionalMessage(
+                id,
+                MessageEntity(
+                    id = txId,
+                    contactId = contactId,
+                    walletAddress = account,
+                    type = com.kachat.app.util.MessageProtocol.TYPE_COMM,
+                    direction = "sent",
+                    plaintextBody = payload,
+                    encryptedPayload = payloadHex,
+                    amountSompi = 0,
+                    blockTimestamp = System.currentTimeMillis(),
+                    deliveryStatus = if (outcomeUnknown) "warning" else "sent"
+                )
+            )
+            true
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "[Chess] Error sending timeout resign", e)
+            rowId?.let { chatRepository.updateMessageStatus(it, "failed") }
+            false
+        }
+    }
+
+    /** `reason`: "timeout" when the local player flagged, null for a manual resign.
+     *  [onResult] is (sent, errorMessage): the board leaves only once the resignation is out (iOS
+     *  d23e6f7a `resign()`); a failed one keeps the player there with the error, and its row offers
+     *  Retry. */
+    fun resignChessGame(
+        contactId: String,
+        gameId: String,
+        reason: String? = null,
+        onResult: ((Boolean, String?) -> Unit)? = null,
+    ) {
         cancelReply()
         val content = com.kachat.app.util.ChessResignContent(gameId = gameId, reason = reason)
-        sendMessage(contactId, com.kachat.app.util.ChessMessage.encode(content))
+        viewModelScope.launch {
+            var error: String? = null
+            val sent = sendMessageAwait(contactId, com.kachat.app.util.ChessMessage.encode(content), onError = { error = it })
+            onResult?.invoke(sent, error)
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -2951,7 +3201,7 @@ class ChatViewModel @Inject constructor(
                         return@launch
                     } catch (e: Exception) {
                         Log.w("ChatViewModel", "Nextcloud group voice upload failed, falling back to on-chain send", e)
-                        com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
+                        com.kachat.app.ui.screens.IosToasts.error(appContext.getString(com.kachat.app.R.string.nextcloud_upload_failed_sending_on_chain))
                     }
                 }
                 groupRepository.sendGroupAudio(bytes, groupId, fileName = file.name)
@@ -3093,7 +3343,7 @@ class ChatViewModel @Inject constructor(
                         return@launch
                     } catch (e: Exception) {
                         Log.w("ChatViewModel", "Nextcloud voice upload failed, falling back to on-chain send", e)
-                        com.kachat.app.ui.screens.IosToasts.error("Nextcloud upload failed — sending on-chain instead")
+                        com.kachat.app.ui.screens.IosToasts.error(appContext.getString(com.kachat.app.R.string.nextcloud_upload_failed_sending_on_chain))
                     }
                 }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
@@ -3108,19 +3358,26 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** Re-attempts a failed message, reusing its same id/content — the same placeholder resurrected, not a new message. */
+    /** Re-attempts a failed message, reusing its same id/content — the same placeholder resurrected, not a new message.
+     *  Never a Not confirmed one ("warning"): it may have landed, and a second send could post it
+     *  twice (iOS d23e6f7a `retryOutgoingMessage`). */
     fun retrySendMessage(message: MessageEntity, onError: ((String) -> Unit)? = null) {
+        if (message.deliveryStatus == "warning") return
         val text = message.plaintextBody ?: return
         viewModelScope.launch {
+            val owner = runCatching { walletManager.getAddress() }.getOrNull() ?: return@launch
             try {
-                chatRepository.updateMessageStatus(message.id, "pending")
+                // Pending from this moment: a second tap finds nothing left to retry, where the
+                // row used to stay Failed and post twice (iOS 4f8e14bb).
+                if (!chatRepository.claimFailedSendForRetry(message.id)) return@launch
+                refuseIfAccountChanged(owner)
                 val result = walletService.sendKasiaMessage(message.contactId, text)
                 chatRepository.finalizeProvisionalMessage(
                     message.id,
                     MessageEntity(
                         id = result.txId,
                         contactId = message.contactId,
-                        walletAddress = walletManager.getAddress(),
+                        walletAddress = owner,
                         type = com.kachat.app.util.MessageProtocol.TYPE_COMM,
                         direction = "sent",
                         plaintextBody = text,
@@ -3130,11 +3387,43 @@ class ChatViewModel @Inject constructor(
                         deliveryStatus = "sent"
                     )
                 )
+            } catch (unknown: com.kachat.app.services.SendOutcomeUnknownException) {
+                // It may have landed: Not confirmed under its own id, never Failed with Retry.
+                Log.w("ChatViewModel", "Retried message outcome unknown: marked not confirmed")
+                finalizeUnconfirmedSend(message.id, unknown.txId)
+                onError?.invoke(UserFacingError.message(unknown, "Failed to send"))
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error retrying message", e)
                 chatRepository.updateMessageStatus(message.id, "failed")
                 onError?.invoke(UserFacingError.message(e, "Failed to send"))
             }
+        }
+    }
+
+    /** A send runs when its turn comes, and the person may have switched accounts since: refused
+     *  rather than signed with the new account's key (iOS 4f8e14bb `refuseIfAccountChanged`). */
+    private fun refuseIfAccountChanged(owner: String) {
+        if (walletManager.getAddress() != owner) {
+            throw IllegalStateException(appContext.getString(com.kachat.app.R.string.not_sent_you_switched_accounts))
+        }
+    }
+
+    /**
+     * A send whose outcome is unknown ([com.kachat.app.services.SendOutcomeUnknownException]):
+     * its pending row [provisionalId] takes the transaction's own id and "warning" - Not confirmed,
+     * with no Retry - until the delivered copy is read back and settles it to sent (iOS d23e6f7a
+     * `markSendUnconfirmed`). A row already gone (deleted meanwhile) stays gone.
+     */
+    private suspend fun finalizeUnconfirmedSend(provisionalId: String, txId: String) {
+        try {
+            val row = chatRepository.getMessage(provisionalId) ?: return
+            chatRepository.finalizeProvisionalMessage(
+                provisionalId,
+                row.copy(id = txId, blockTimestamp = System.currentTimeMillis(), deliveryStatus = "warning")
+            )
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Couldn't mark a send not confirmed", e)
+            chatRepository.updateMessageStatus(provisionalId, "warning")
         }
     }
 
@@ -3147,8 +3436,8 @@ class ChatViewModel @Inject constructor(
      *  sheet - its bubble is the confirmation (iOS 80a6aae); the txId is null on failure.
      *
      *  [note] is the Send KAS sheet's memo (iOS 8d208b2): sealed to the recipient in a
-     *  `kchat:1:pay:` payload, so only they can read it back from the chain - which is why the
-     *  sender's own bubble keeps it from send time ("Sent X KAS — memo", iOS 2be75ed). A payment
+     *  `kchat:1:pay:` payload, which the seed also reads back on another device (iOS bfe9f022).
+     *  The sender's own bubble keeps it from send time ("Sent X KAS — memo", iOS 2be75ed). A payment
      *  from the chatting address carries that payload even with no memo (iOS buildPaymentTx);
      *  one from a spending address carries none (see below).
      *
@@ -3167,6 +3456,9 @@ class ChatViewModel @Inject constructor(
          *  control pick (null = automatic) - both paid / spent exactly (iOS 62c2773). */
         extraFeeSompi: Long = 0L,
         manualUtxos: List<com.kachat.app.services.UtxoEntry>? = null,
+        /** The fee the Send KAS sheet's Review showed (iOS 4f8e14bb): a build that would pay
+         *  more sends nothing. Null holds it to nothing. */
+        expectedFeeSompi: Long? = null,
         onResult: ((Boolean, String?, String?) -> Unit)? = null,
     ) {
         // Exact (iOS 16b64bc, AND-013): "2.3" pays 230,000,000 sompi - a Double multiply and
@@ -3181,8 +3473,6 @@ class ChatViewModel @Inject constructor(
         val feeRate = _feeRateOverride.value
         _feeRateOverride.value = null
         val memo = note.trim()
-        // The amount as sent, not as typed ("1,5" or "01.50" both read "1.5").
-        val bubbleText = "Sent ${KaspaUnit.plain(sompi)} ${KaspaUnit.symbol}" + if (memo.isEmpty()) "" else " — $memo"
         viewModelScope.launch {
             // Paying someone is reaching out to them, like writing to them - and watches for
             // their messages from now on, so a reply their app didn't tag for our inbox still
@@ -3191,141 +3481,33 @@ class ChatViewModel @Inject constructor(
                 chatRepository.acceptChat(contactId)
                 chatRepository.watchPaymentDestination(contactId)
             }
-            val pendingId = "pending_${java.util.UUID.randomUUID()}"
-            try {
-                val myAddress = walletManager.getAddress()
-                chatRepository.insertMessage(
-                    MessageEntity(
-                        id = pendingId,
-                        contactId = contactId,
-                        walletAddress = myAddress,
-                        type = "pay",
-                        direction = "sent",
-                        plaintextBody = bubbleText,
-                        encryptedPayload = "",
-                        amountSompi = sompi,
-                        blockTimestamp = System.currentTimeMillis(),
-                        deliveryStatus = "pending"
-                    )
-                )
-
-                // Paid to the contact's chatting address, the memo sealed to its key (iOS
-                // 6333dd3: no payment-pool destinations any more).
-                val destination = contactId
-                // From a spending address it is a plain transfer, and the chatting address tells
-                // the chat about it right after ([sendSpendingPaymentNotice]): the payee has never
-                // seen that address, so a chat payment from it would open a stranger's Message
-                // Request on their side instead of landing in this chat (iOS 927322b, XP-022).
-                val fromChattingAddress = sourceSpendingIndex == null
-                // From the chatting address it is a chat payment, which always carries its
-                // `kchat:1:pay:` payload - an empty memo too (iOS buildPaymentTx): that payload is
-                // what opens our chat on the payee's side when they don't know us yet (iOS 1eb4708).
-                val payload = if (!fromChattingAddress) null else MessageProtocol.paymentMemoPayload(
-                    memo = memo,
+            val outcome = chatPaymentSender.send(
+                com.kachat.app.services.ChatPaymentSender.Request(
+                    contactId = contactId,
                     amountSompi = sompi,
-                    recipientXOnlyPubKey = com.kachat.app.util.KaspaAddress.decode(contactId).second
+                    memo = memo,
+                    sourceSpendingIndex = sourceSpendingIndex,
+                    feeRateOverride = feeRate,
+                    extraFeeSompi = extraFeeSompi,
+                    manualUtxos = manualUtxos,
+                    expectedFeeSompi = expectedFeeSompi,
                 )
-                // FUNDING SOURCE - the From the person chose (iOS sendPaymentInternal): the
-                // chatting address (null, the default) is funded with the identity key, change
-                // back to it, sharing the exact same UTXO/outpoint bookkeeping message sends use
-                // (KaspaWalletEngine's pending-spent tracking), so an immediately-following message
-                // can't race onto the just-spent outpoints; a spending address is signed with its
-                // own key and its change goes to a never-used address.
-                val txId = if (sourceSpendingIndex != null) {
-                    walletService.payInKaspa(
-                        toAddress = destination,
-                        amountSompi = sompi,
-                        sourceSpendingIndex = sourceSpendingIndex,
-                        feeRateOverride = feeRate,
-                        payloadBytes = payload,
-                        manualUtxos = manualUtxos,
-                        extraFeeSompi = extraFeeSompi,
-                    )
-                } else {
-                    walletService.sendKaspa(
-                        toAddress = destination,
-                        amountSompi = sompi,
-                        payloadBytes = payload,
-                        feeRateOverride = feeRate,
-                        manualUtxos = manualUtxos,
-                        extraFeeSompi = extraFeeSompi,
-                    )
-                }
-                if (!fromChattingAddress) sendSpendingPaymentNotice(contactId, txId, sompi, memo)
-
-                // The From's balance lags the send - retry it shortly after, then again once the
-                // change output has typically landed (~1.5s and ~4s).
-                launch {
-                    delay(1_500)
-                    walletService.refreshSpendingBalance()
-                    walletService.refreshBalance()
-                    refreshSpendingUtxos()
-                    delay(2_500)
-                    walletService.refreshSpendingBalance()
-                    walletService.refreshBalance()
-                    refreshSpendingUtxos()
-                    addressActivityNotifier.requestRefresh()
-                }
-
-                chatRepository.finalizeProvisionalMessage(
-                    pendingId,
-                    MessageEntity(
-                        id = txId,
-                        contactId = contactId,
-                        walletAddress = myAddress,
-                        type = "pay",
-                        direction = "sent",
-                        plaintextBody = bubbleText,
-                        encryptedPayload = "",
-                        amountSompi = sompi,
-                        blockTimestamp = System.currentTimeMillis(),
-                        deliveryStatus = "sent"
-                    )
-                )
-                onResult?.invoke(true, null, txId)
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error sending payment", e)
-                // Remove the optimistic row rather than leaving it as a failed one (iOS parity):
-                // a payment that never reached the network did not happen, and a permanent
-                // "failed" entry in the history for a send the user was simply short the balance
-                // for is a record of nothing. The caller surfaces the reason instead.
-                chatRepository.deleteMessage(pendingId)
-                onResult?.invoke(false, e.message, null)
-            }
-        }
-    }
-
-    /**
-     * Tells the chat about a payment just sent From a spending address (iOS 927322b
-     * `sendSpendingPaymentNotice`): an encrypted `payment_notice` from the chatting address, so
-     * the payee's app files the payment (and its memo, which travels only here) in the chat with
-     * us. Our own bubble is already there. Fire-and-forget, and not tied to this screen's
-     * lifetime: if it fails (usually an empty chatting address) it is kept and sent once the
-     * chatting address has KAS ([com.kachat.app.services.PaymentNoticeOutbox], iOS 710fdc0,
-     * IOS-086); meanwhile the payee still has the KAS, shown in their self-chat.
-     */
-    private fun sendSpendingPaymentNotice(contactId: String, txId: String, amountSompi: Long, memo: String) {
-        val payload = com.kachat.app.util.PaymentPoolProtocol.encode(
-            com.kachat.app.util.PaymentPoolProtocol.PaymentNoticeContent(
-                txId = txId.lowercase(),
-                amountSompi = amountSompi,
-                address = contactId,
-                memo = com.kachat.app.util.PaymentPoolProtocol.noticeMemo(memo)
             )
-        )
-        viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
-            try {
-                // Untagged, like iOS sendEnvelopeInternal: kchat:1:comm:, never a first-contact dm.
-                walletService.sendKasiaMessage(contactId, payload, firstContactTag = false)
-                Log.i("ChatViewModel", "Sent payment_notice for ${txId.take(12)}")
-            } catch (e: Exception) {
-                // usually an empty chatting address: kept, and sent once it has KAS (IOS-086)
-                Log.w("ChatViewModel", "payment_notice send failed for ${txId.take(12)}, kept for later: ${e.message}")
-                paymentNoticeOutbox.keep(
-                    com.kachat.app.services.PaymentNoticeOutbox.UnsentPaymentNotice(
-                        contactAddress = contactId, payload = payload, txId = txId
-                    )
-                )
+            when (outcome) {
+                is com.kachat.app.services.ChatPaymentSender.Outcome.Sent -> {
+                    // The From's coins lag the send, as its balance does (~1.5s and ~4s).
+                    launch {
+                        delay(1_500)
+                        refreshSpendingUtxos()
+                        delay(2_500)
+                        refreshSpendingUtxos()
+                    }
+                    onResult?.invoke(true, null, outcome.txId)
+                }
+                // No confirmed coins yet: the bubble is in the chat and the sender's retry timer
+                // owns it, so there is no transaction to show (iOS sendPayment returning nil).
+                com.kachat.app.services.ChatPaymentSender.Outcome.Deferred -> onResult?.invoke(true, null, null)
+                is com.kachat.app.services.ChatPaymentSender.Outcome.Failed -> onResult?.invoke(false, outcome.message, null)
             }
         }
     }
@@ -3547,40 +3729,35 @@ class ChatViewModel @Inject constructor(
 
     companion object {
         /**
-         * The balance and input count the Send KAS sheet's Max
-         * prices: coin control's pick, else the source's coins - leaving out coinbase coins, as
-         * iOS's estimateMaxPaymentAmount does (its candidates are the non-coinbase coins, and a
-         * coin control pick is resolved against them) - and in both cases only the
-         * [com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] largest when there
-         * are more, since the engine refuses a transaction with more inputs (audit AND-012;
-         * mirrors WalletViewModel.estimateMaxSendableAmount). Under the cap: the picked coins, or
-         * [sourceBalanceSompi] less whatever of it is in coinbase coins.
+         * The balance and input count the Send KAS sheet's Max prices (iOS d23e6f7a
+         * estimateMaxPaymentAmount): coin control's pick (already resolved against the source's
+         * coins), else the source's coins (fresh, confirmed - [refreshSpendingUtxos]) - leaving out
+         * coinbase coins, as iOS's candidates do. With no pick and more coins than one transaction
+         * can spend, it is what the largest [com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION]
+         * carry, and [PaymentMaxCoins.cappedAtInputLimit] says so; a pick is never cut.
          */
         fun paymentMaxCoins(
-            sourceBalanceSompi: Long,
             sourceCoins: List<com.kachat.app.services.UtxoEntry>,
             manual: List<com.kachat.app.services.UtxoEntry>?,
-        ): Pair<Long, Int> {
-            val coins = (manual ?: sourceCoins).filterNot { it.utxoEntry.isCoinbase }
-            val capped = com.kachat.app.util.SendFeeModel.largestSpendable(coins)
+        ): PaymentMaxCoins {
             // Node-supplied amounts that are not real values count as nothing (IOS-020).
             fun sum(c: List<com.kachat.app.services.UtxoEntry>) =
                 com.kachat.app.util.UtxoMath.checkedTotal(c.map { it.utxoEntry.amount }) ?: 0L
-            return when {
-                capped.size < coins.size -> sum(capped) to capped.size
-                manual != null -> sum(coins) to coins.size
-                else -> {
-                    val coinbase = sum(sourceCoins.filter { it.utxoEntry.isCoinbase })
-                    (sourceBalanceSompi - coinbase).coerceAtLeast(0L) to coins.size
-                }
+            if (manual != null) {
+                val picked = manual.filterNot { it.utxoEntry.isCoinbase }
+                return PaymentMaxCoins(sum(picked), picked.size, cappedAtInputLimit = false)
             }
+            val coins = sourceCoins.filterNot { it.utxoEntry.isCoinbase }
+            val limit = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION
+            val spent = if (coins.size > limit) coins.sortedByDescending { it.utxoEntry.amount }.take(limit) else coins
+            return PaymentMaxCoins(sum(spent), spent.size, cappedAtInputLimit = spent.size < coins.size)
         }
 
         /**
-         * The coins a payment's fee preview prices, as (their total, how many): coin control's
-         * exact pick (iOS 62c2773 estimatePaymentFee(manualUtxos:)); otherwise the largest coins,
-         * one by one, until the amount and a little fee are covered - the engine's own
-         * largest-first selection, also stopping at 80 inputs. The same for either From: a
+         * The coins a payment's fee preview prices, as (their total, how many): the largest of
+         * coin control's pick, or of the source's coins, one by one, until the amount and a little
+         * fee are covered (iOS estimatePaymentFee(manualUtxos:)) - the engine's own largest-first
+         * selection, also stopping at 80 inputs. The same for either From: a
          * spending-address payment selects its coins exactly as a chatting-address one does
          * (iOS 6333dd3, KaspaWalletEngine.sendSpendingPayment). A busy address used to be priced
          * on every coin it held, in fetch order, past what one send can spend.
@@ -3591,12 +3768,9 @@ class ChatViewModel @Inject constructor(
             sompiNeeded: Long,
         ): Pair<Long, Int> {
             // Node-supplied amounts that are not real values count as nothing (IOS-020).
-            fun sum(c: List<com.kachat.app.services.UtxoEntry>) =
-                com.kachat.app.util.UtxoMath.checkedTotal(c.map { it.utxoEntry.amount }) ?: 0L
-            if (manual != null) return sum(manual) to manual.size
             var total = 0L
             var count = 0
-            for (utxo in paymentCoins.sortedByDescending { it.utxoEntry.amount }.take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)) {
+            for (utxo in (manual ?: paymentCoins).sortedByDescending { it.utxoEntry.amount }.take(com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)) {
                 total = com.kachat.app.util.UtxoMath.checkedTotal(listOf(total, utxo.utxoEntry.amount)) ?: return 0L to 0
                 count++
                 if (total >= sompiNeeded + 1000) break // Buffer for fee
@@ -3714,7 +3888,10 @@ class ChatViewModel @Inject constructor(
          */
         internal fun hasUnansweredOutgoingHandshake(messages: List<MessageEntity>): Boolean {
             val handshake = com.kachat.app.util.MessageProtocol.TYPE_HANDSHAKE
-            val sentHandshake = messages.any { it.direction == "sent" && it.type == handshake }
+            // Any of ours that didn't fail: a Not confirmed one ("warning", outcome unknown) may
+            // have landed, so it counts as out (iOS `hasOutgoingHandshakeMessage`: deliveryStatus
+            // != .failed).
+            val sentHandshake = messages.any { it.direction == "sent" && it.type == handshake && it.deliveryStatus != "failed" }
             if (!sentHandshake) return false
             val answered = messages.any {
                 it.direction == "received" &&

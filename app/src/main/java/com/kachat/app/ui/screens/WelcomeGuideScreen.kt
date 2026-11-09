@@ -1,7 +1,6 @@
 package com.kachat.app.ui.screens
 
 import com.kachat.app.R
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,15 +10,18 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Translate
@@ -58,7 +60,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kachat.app.repository.AppSettingsRepository
@@ -68,15 +69,14 @@ import com.kachat.app.viewmodels.ConnectionViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import com.kachat.app.util.showAddressCopiedToast
 
-private enum class WelcomeGuideStep { WELCOME, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER, CHATTING }
+private enum class WelcomeGuideStep { WELCOME, LANGUAGE, CURRENCY, FEES, FUNDING, NODE_CONNECTION, ADDRESS_EXPLAINER }
 
 private enum class NodeChoice { DEFAULT_NODE, OWN_NODE, AUTO_DISCOVER }
 
 /**
  * First-run guided walkthrough shown automatically right after an account is added — whether
  * created or imported (see `WalletViewModel.pendingWelcomeGuide`) — and replayable any time from
- * the Profile screen. Mirrors [KnsCreateProfileWizardScreen]'s step-enum-driven single-screen
- * wizard shape.
+ * the Profile screen. One screen driven by a step enum ([WelcomeGuideStep]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +87,7 @@ fun WelcomeGuideScreen(
      * Explicit presentation context, supplied by the presenter and NEVER inferred from persisted
      * markers (matches iOS): true only for auto-presented onboarding runs (create AND import,
      * including re-presentations of an interrupted run) — those are fully unskippable end to
-     * end, from Welcome through Finish. Help replays leave this false and keep the Skip (X) and
+     * end, from Welcome through Finish. Help replays leave this false and keep Skip and
      * back-dismiss.
      */
     isOnboardingRun: Boolean = false,
@@ -97,8 +97,9 @@ fun WelcomeGuideScreen(
     val chattingAddress by walletViewModel.address.collectAsState()
     val justImportedWallet by walletViewModel.justImportedWallet.collectAsState()
     val trustedNodeAddress by connectionViewModel.trustedNodeAddress.collectAsState()
+    val fundingBalanceSompi by walletViewModel.balanceSompi.collectAsState()
 
-    // Skip gating: an onboarding run is unskippable END TO END (top-bar X hidden and system back
+    // Skip gating: an onboarding run is unskippable END TO END (top-bar Skip hidden and system back
     // swallowed until Finish); a replay skips any time.
     val canSkip = !isOnboardingRun
     androidx.activity.compose.BackHandler(enabled = !canSkip) {
@@ -124,18 +125,21 @@ fun WelcomeGuideScreen(
     val goBack: (() -> Unit)? = if (step == WelcomeGuideStep.WELCOME) null else {
         { step = WelcomeGuideStep.entries[step.ordinal - 1] }
     }
+    // The funding step's Show QR Code, pushed over the whole guide as iOS's NavigationLink pushes it.
+    var showFundingQr by remember { mutableStateOf(false) }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            // Nothing to put in the bar on an onboarding run: just iOS's 44 under the status bar.
+            if (!canSkip) Spacer(Modifier.statusBarsPadding().height(44.dp))
+            else TopAppBar(
                 title = {},
                 navigationIcon = {
                     // Skip exists only on replays - an onboarding run has no way out until
                     // Finish (back-dismiss swallowed too).
                     if (canSkip) {
-                        IconButton(onClick = onFinished) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.skip), tint = LocalAppColors.current.textPrimary)
-                        }
+                        SheetBarButton(stringResource(R.string.skip), onClick = onFinished, modifier = Modifier.padding(start = 12.dp))
                     }
                     // Previous-step navigation lives in the fixed bottom button row next
                     // to Next (see WelcomeGuideButtonRow) - only skipping forward stays
@@ -167,7 +171,7 @@ fun WelcomeGuideScreen(
                     onNext = { step = WelcomeGuideStep.FEES }
                 )
                 WelcomeGuideStep.FEES -> WelcomeGuideStepScaffold(
-                    icon = Icons.Default.Public,
+                    icon = Icons.Default.Language,
                     title = stringResource(R.string.how_kachat_uses_kaspa),
                     body = stringResource(R.string.kachat_lets_you_send_and_receive),
                     buttonLabel = stringResource(R.string.next),
@@ -181,6 +185,7 @@ fun WelcomeGuideScreen(
                     // let the user re-pick an identity behind their existing conversations.
                     walletViewModel = walletViewModel,
                     canChangeChattingAddress = isOnboardingRun && justImportedWallet,
+                    onShowQr = { showFundingQr = true },
                     onPrevious = goBack,
                     onNext = { step = WelcomeGuideStep.NODE_CONNECTION }
                 )
@@ -210,15 +215,7 @@ fun WelcomeGuideScreen(
                 WelcomeGuideStep.ADDRESS_EXPLAINER -> WelcomeGuideAddressExplainerStep(
                     chattingAddress = chattingAddress,
                     onPrevious = goBack,
-                    onNext = { step = WelcomeGuideStep.CHATTING }
-                )
-                WelcomeGuideStep.CHATTING -> WelcomeGuideStepScaffold(
-                    icon = Icons.AutoMirrored.Filled.Chat,
-                    title = stringResource(R.string.starting_a_conversation),
-                    body = stringResource(R.string.welcome_starting_conversation_body),
-                    // The guide's final step (iOS 6333dd3 removed Chat Payment Privacy after it).
-                    buttonLabel = stringResource(R.string.finish),
-                    onPrevious = goBack,
+                    // The guide's final step (iOS d1844582 removed Starting a Conversation after it).
                     onNext = {
                         // Reaching Finish is what completes an onboarding run — clear the
                         // persisted re-presentation marker (no-op on replays, which never set it).
@@ -228,6 +225,15 @@ fun WelcomeGuideScreen(
                 )
             }
         }
+    }
+    PushedQrPage(visible = showFundingQr, white = true, onBack = { showFundingQr = false }) {
+        ChattingAddressQrPage(
+            address = chattingAddress.orEmpty(),
+            balanceSompi = fundingBalanceSompi,
+            dismiss = QrPageDismiss.BACK,
+            onDismiss = { showFundingQr = false },
+        )
+    }
     }
 }
 
@@ -258,10 +264,11 @@ private fun WelcomeGuideStepScaffold(
                 color = LocalAppColors.current.textPrimary,
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(20.dp))
             Text(
                 body,
                 color = LocalAppColors.current.textSecondary,
+                fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
         }
@@ -290,25 +297,28 @@ private fun WelcomeGuideButtonRow(
         Button(
             onClick = { onPrevious?.invoke() },
             enabled = onPrevious != null,
+            shape = RoundedCornerShape(14.dp),
+            // iOS systemGray5, the whole button at 0.35 on the first step.
             colors = ButtonDefaults.buttonColors(
-                containerColor = LocalAppColors.current.surfaceVariant,
-                disabledContainerColor = LocalAppColors.current.surfaceVariant.copy(alpha = 0.4f)
+                containerColor = LocalAppColors.current.incomingBubble,
+                disabledContainerColor = LocalAppColors.current.incomingBubble.copy(alpha = 0.35f)
             ),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).height(48.dp)
         ) {
             Text(
                 stringResource(R.string.previous),
-                color = if (onPrevious != null) LocalAppColors.current.textPrimary
-                        else LocalAppColors.current.textSecondary,
-                fontWeight = FontWeight.Bold
+                color = LocalAppColors.current.textPrimary.copy(alpha = if (onPrevious != null) 1f else 0.35f),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
         Button(
             onClick = onNext,
+            shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).height(48.dp)
         ) {
-            Text(nextLabel, color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(nextLabel, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -329,8 +339,8 @@ private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onPreviou
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Default.Translate, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
-        Spacer(Modifier.height(20.dp))
+        Icon(Icons.Default.Language, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.choose_your_language),
             fontSize = 22.sp,
@@ -338,13 +348,14 @@ private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onPreviou
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.select_the_language_youd_like_to),
             color = LocalAppColors.current.textSecondary,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
 
         Column(
             modifier = Modifier
@@ -357,7 +368,7 @@ private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onPreviou
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(LocalAppColors.current.surfaceVariant)
+                        .background(LocalAppColors.current.surface)
                         .clickable {
                             // No-op re-tap of the already-active language (most commonly "System",
                             // the pre-checked top row) must not re-arm the restart flag below:
@@ -377,12 +388,12 @@ private fun WelcomeGuideLanguageStep(walletViewModel: WalletViewModel, onPreviou
                     Text(
                         if (language == AppLanguage.SYSTEM) stringResource(R.string.system_default) else language.displayName,
                         color = LocalAppColors.current.textPrimary,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f)
                     )
                     if (current == language) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -410,8 +421,8 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onPreviou
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Default.AttachMoney, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
-        Spacer(Modifier.height(20.dp))
+        Icon(Icons.Default.MonetizationOn, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(56.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.choose_your_currency),
             fontSize = 22.sp,
@@ -419,13 +430,14 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onPreviou
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.select_the_currency_youd_like_prices),
             color = LocalAppColors.current.textSecondary,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
 
         Column(
             modifier = Modifier
@@ -438,7 +450,7 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onPreviou
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(LocalAppColors.current.surfaceVariant)
+                        .background(LocalAppColors.current.surface)
                         .clickable { walletViewModel.setCurrency(currency.code) }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -446,12 +458,12 @@ private fun WelcomeGuideCurrencyStep(walletViewModel: WalletViewModel, onPreviou
                     Text(
                         currency.displayName,
                         color = LocalAppColors.current.textPrimary,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f)
                     )
                     if (current == currency) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Check, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -468,10 +480,10 @@ private fun WelcomeGuideFundingStep(
     chattingAddress: String?,
     walletViewModel: WalletViewModel,
     canChangeChattingAddress: Boolean,
+    onShowQr: () -> Unit,
     onPrevious: (() -> Unit)?,
     onNext: () -> Unit
 ) {
-    var showQr by remember { mutableStateOf(false) }
     var showChattingAddressPicker by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -506,10 +518,11 @@ private fun WelcomeGuideFundingStep(
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
             stringResource(R.string.welcome_fund_chatting_body),
             color = LocalAppColors.current.textSecondary,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center
         )
         if (chattingAddress != null) {
@@ -517,7 +530,8 @@ private fun WelcomeGuideFundingStep(
             Text(
                 chattingAddress,
                 // iOS: .footnote.monospaced(), at most two lines, 24pt in from the sides.
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                fontSize = 13.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 color = LocalAppColors.current.textPrimary,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -528,11 +542,10 @@ private fun WelcomeGuideFundingStep(
                     }
                     .padding(horizontal = 24.dp)
             )
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { showQr = true }) {
+            TextButton(onClick = onShowQr) {
                 Icon(Icons.Default.QrCode, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.show_qr_code), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.show_qr_code), color = KaspaTeal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         if (canChangeChattingAddress) {
@@ -540,24 +553,14 @@ private fun WelcomeGuideFundingStep(
                 walletViewModel.resetChattingAddressScan()
                 showChattingAddressPicker = true
             }) {
-                Icon(Icons.Default.PersonSearch, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.change_chatting_address), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.change_chatting_address), color = KaspaTeal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
         Spacer(Modifier.height(16.dp))
         WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
-    }
-
-    if (showQr && chattingAddress != null) {
-        QrCodeOverlay(
-            value = chattingAddress,
-            onDismiss = { showQr = false },
-            message = stringResource(R.string.qr_chatting_address_subtitle),
-            borderColor = KaspaTeal,
-            borderWidth = 4.dp
-        )
     }
 }
 
@@ -593,17 +596,15 @@ private fun WelcomeGuideNodeConnectionStep(
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.kachat_needs_to_connect_to_a),
             color = LocalAppColors.current.textSecondary,
+            fontSize = 15.sp,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // The shipped default node is a mainnet node: on testnet it isn't offered, as in
-        // Connection Settings (picking it would pin a node the pool drops as the wrong network).
-        if (!com.kachat.app.util.KaspaNetwork.isTestnet) {
         NodeChoiceRow(
             selected = nodeChoice == NodeChoice.DEFAULT_NODE,
             title = stringResource(R.string.default_option),
@@ -612,7 +613,6 @@ private fun WelcomeGuideNodeConnectionStep(
             onClick = { onNodeChoiceChange(NodeChoice.DEFAULT_NODE) }
         )
         Spacer(Modifier.height(10.dp))
-        }
         NodeChoiceRow(
             selected = nodeChoice == NodeChoice.OWN_NODE,
             title = stringResource(R.string.connect_your_own_node),
@@ -671,13 +671,13 @@ private fun NodeChoiceRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surfaceVariant)
+            .background(LocalAppColors.current.surface)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.Top
     ) {
         Icon(
-            if (selected) Icons.Default.CheckCircle else Icons.Default.Circle,
+            if (selected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
             contentDescription = null,
             tint = if (selected) KaspaTeal else LocalAppColors.current.textSecondary,
             modifier = Modifier.size(20.dp)
@@ -685,7 +685,7 @@ private fun NodeChoiceRow(
         Spacer(Modifier.width(12.dp))
         Column {
             Row {
-                Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)
+                Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 15.sp)
                 if (badge != null) {
                     Spacer(Modifier.width(6.dp))
                     Text(badge, fontWeight = FontWeight.Bold, color = KaspaTeal, fontSize = 11.sp)
@@ -714,32 +714,37 @@ private fun WelcomeGuideAddressExplainerStep(chattingAddress: String?, onPreviou
             color = LocalAppColors.current.textPrimary,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(16.dp))
-        // Profile: Receive Kaspa, the Chatting Address QR and Manage Addresses.
-        Image(
-            painter = painterResource(R.drawable.address_explainer),
-            contentDescription = null,
-            modifier = Modifier
-                .widthIn(max = 340.dp)
-                .clip(RoundedCornerShape(16.dp))
+        Spacer(Modifier.height(20.dp))
+        Text(
+            stringResource(R.string.welcome_chatting_address_phone_number),
+            fontSize = 15.sp,
+            color = LocalAppColors.current.textSecondary,
+            textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
         AddressMockRow(
-            icon = Icons.AutoMirrored.Filled.Chat,
-            title = stringResource(R.string.chatting_address),
+            icon = Icons.Filled.Forum,
+            title = stringResource(R.string.welcome_how_people_reach_you),
             address = chattingAddress.orEmpty(),
-            caption = stringResource(R.string.welcome_chatting_address_identity_caption)
+            caption = stringResource(R.string.welcome_how_people_reach_you_caption)
         )
         Spacer(Modifier.height(12.dp))
         AddressMockRow(
-            icon = Icons.Filled.Security,
-            title = stringResource(R.string.welcome_everything_else),
+            icon = Icons.AutoMirrored.Filled.Send,
+            title = stringResource(R.string.welcome_paying_for_messages),
             address = "",
-            caption = stringResource(R.string.welcome_everything_else_caption)
+            caption = stringResource(R.string.welcome_paying_for_messages_caption)
+        )
+        Spacer(Modifier.height(12.dp))
+        AddressMockRow(
+            icon = Icons.Filled.Visibility,
+            title = stringResource(R.string.welcome_what_others_can_see),
+            address = "",
+            caption = stringResource(R.string.welcome_what_others_can_see_caption)
         )
     }
         Spacer(Modifier.height(16.dp))
-        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext)
+        WelcomeGuideButtonRow(onPrevious = onPrevious, onNext = onNext, nextLabel = stringResource(R.string.finish))
     }
 }
 
@@ -749,7 +754,7 @@ private fun AddressMockRow(icon: ImageVector, title: String, address: String, ca
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(LocalAppColors.current.surfaceVariant)
+            .background(LocalAppColors.current.surface)
             .padding(12.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -761,12 +766,12 @@ private fun AddressMockRow(icon: ImageVector, title: String, address: String, ca
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 14.sp)
+            Text(title, fontWeight = FontWeight.SemiBold, color = LocalAppColors.current.textPrimary, fontSize = 15.sp)
             if (address.isNotEmpty()) {
                 MiddleEllipsisText(
                     address,
                     color = LocalAppColors.current.textSecondary,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                 )
             }

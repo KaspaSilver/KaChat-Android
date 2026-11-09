@@ -48,6 +48,34 @@ data class GroupMember(
 )
 
 /**
+ * A group you were added to and haven't answered (iOS `PendingGroupInvite`, bfe9f022). It holds
+ * every root received so far, in [com.kachat.app.services.GroupSecretStore]: those are the group's
+ * keys, and accepting turns them into a joined group. Never a [GroupEntity] until then.
+ * It's one admin's offer of a group id, not the group: nothing ties an id to its admin, and anyone
+ * who knows one can sign a root for it, so two admins' roots for an id are two invites.
+ */
+data class PendingGroupInvite(
+    val adminAddress: String,
+    val invitedAt: Long,
+    /** Oldest first; never empty. */
+    val roots: List<com.kachat.app.util.GroupCipher.GroupRootPayload>,
+    /** Rejected, and still waiting to tell the group. Gone from Message Requests already. */
+    val rejected: Boolean? = null
+) {
+    val latest: com.kachat.app.util.GroupCipher.GroupRootPayload get() = roots.last()
+    val groupId: String get() = latest.groupId
+    val name: String get() = latest.name
+    val members: List<String> get() = latest.members
+    val adminSigningPub: String get() = latest.adminSigningPub
+    val id: String get() = key(groupId, adminSigningPub)
+
+    companion object {
+        fun key(groupId: String, adminSigningPub: String): String =
+            "${groupId.lowercase()}:${adminSigningPub.lowercase()}"
+    }
+}
+
+/**
  * A group chat message - content stored as raw gcomm ciphertext (hex), NOT plaintext, decrypted
  * on read using the group's Keystore-held root key (see GroupRepository). Same posture as
  * [MessageEntity.encryptedPayload] - compromising this database alone doesn't reveal content.

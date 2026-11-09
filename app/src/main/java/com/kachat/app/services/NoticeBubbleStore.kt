@@ -44,6 +44,12 @@ class NoticeBubbleStore @Inject constructor(
         save(wallet, ids.filter { it != id })
     }
 
+    /** Everything kept for [wallet]: it's going off this device (iOS bfe9f022). */
+    @Synchronized
+    fun removeAllData(wallet: String) {
+        prefs.edit().remove(key(wallet)).apply()
+    }
+
     private fun ids(wallet: String): List<String> {
         val raw = prefs.getString(key(wallet), null) ?: return emptyList()
         return try {

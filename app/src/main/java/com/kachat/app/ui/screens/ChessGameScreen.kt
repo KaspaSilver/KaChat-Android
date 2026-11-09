@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
@@ -56,6 +57,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +98,11 @@ import com.kachat.app.util.VoiceMessage
 import com.kachat.app.viewmodels.ChatViewModel
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/** How long a Not confirmed move waits for its transaction to be read back before it can be sent
+ *  again (iOS unconfirmedMoveReplayDelay). */
+private const val UNCONFIRMED_MOVE_REPLAY_DELAY_MS = 60_000L
 
 /**
  * Full-screen interactive chess board, opened by tapping a chess card in a 1:1 chat
@@ -181,7 +188,6 @@ fun ChessGameScreen(
     // speculatively while they think - it just shows their last reported value.
     // ------------------------------------------------------------------
     val isTimed = summary?.isTimed == true
-    val incrementMs = (summary?.tcIncSeconds ?: 0) * 1000L
     val moveCount = summary?.moveHistory?.size ?: 0
     val context = LocalContext.current
     val clockPrefs = remember(context) {
@@ -254,16 +260,21 @@ fun ChessGameScreen(
         }
     }
 
-    // Flagging: my clock hit zero on my turn -> auto-resign with reason "timeout", exactly once
-    // per screen session (the resign lands optimistically, flipping the game to RESIGNED, so this
-    // can't re-fire after that either). Input below is also gated on not-flagged.
+    // Flagging: my clock hit zero on my turn -> auto-resign with reason "timeout" (the resign lands
+    // optimistically, flipping the game to RESIGNED, so this stops while it is pending). The view
+    // model keeps one send per game, retried if it fails; when a whole cycle fails it pauses a
+    // minute, and then, with the clock still at zero, this starts the next one (iOS: the next
+    // clock tick). Reopening the board joins the send already running. Input below is also gated
+    // on not-flagged.
     val hasFlagged = isTimed && isMyTurn && myRemainingMs != null && myRemainingMs <= 0L
-    var timeoutSent by remember(gameId) { mutableStateOf(false) }
-    LaunchedEffect(hasFlagged) {
-        if (hasFlagged && !timeoutSent) {
-            timeoutSent = true
-            clockPrefs.edit().remove(clockPrefsKey).apply()
-            chatViewModel.resignChessGame(contactId, gameId, reason = "timeout")
+    LaunchedEffect(hasFlagged, gameId, myAddress) {
+        if (!hasFlagged) return@LaunchedEffect
+        while (true) {
+            val sent = chatViewModel.sendTimeoutResign(
+                contactId, gameId,
+                onSent = { clockPrefs.edit().remove(clockPrefsKey).apply() },
+            ).await()
+            if (sent) break
         }
     }
 
@@ -295,9 +306,36 @@ fun ChessGameScreen(
         }
     }
 
+    // A Not confirmed move may have landed, so a resend right away could play it twice. Once its
+    // transaction has had time to be read back, Play It Again is offered: a move that never landed
+    // otherwise leaves both sides waiting for good, and if both copies do land, replay drops the
+    // second as illegal (iOS 4f8e14bb).
+    val coroutineScope = rememberCoroutineScope()
+    var isReplayingMove by remember { mutableStateOf(false) }
+    var unconfirmedMoveNowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(lastMoveSendStatus) {
+        if (lastMoveSendStatus != "warning") return@LaunchedEffect
+        while (true) {
+            unconfirmedMoveNowMs = System.currentTimeMillis()
+            delay(5_000)
+        }
+    }
+    val canPlayMoveAgain = lastMoveSendStatus == "warning" && !isReplayingMove && lastActionMessage != null &&
+        unconfirmedMoveNowMs - lastActionMessage.blockTimestamp >= UNCONFIRMED_MOVE_REPLAY_DELAY_MS
+
     var selectedSquare by remember { mutableStateOf<ChessSquare?>(null) }
     var pendingPromotionMove by remember { mutableStateOf<ChessMove?>(null) }
     var showResignConfirm by remember { mutableStateOf(false) }
+    // A manual resign on its way: the board leaves once it is out (iOS isSending).
+    var isResigning by remember { mutableStateOf(false) }
+    // Why the resign didn't go, shown in "Something went wrong" (iOS ChessGameView's alert).
+    var resignError by remember { mutableStateOf<String?>(null) }
+    // Set when the resign is out: the board closes from an effect, so an answer that arrives after
+    // the player already left never pops the chat underneath.
+    var resignSent by remember { mutableStateOf(false) }
+    LaunchedEffect(resignSent) {
+        if (resignSent) navController.popBackStack()
+    }
 
     val legalDestinations = remember(selectedSquare, summary) {
         val square = selectedSquare
@@ -311,12 +349,24 @@ fun ChessGameScreen(
             // that value becomes my authoritative clock until my next move. The local thinking
             // accumulator resets (the persisted record is keyed to a move count that just
             // advanced, so it's stale either way; clear it eagerly).
-            val newClockMs = (myRemainingMs ?: 0L) + incrementMs
+            val newClockMs = summary?.timeControl?.clockMsAfterMove(myRemainingMs ?: 0L)
             clockPrefs.edit().remove(clockPrefsKey).apply()
             thinkingElapsedMs = 0L
             chatViewModel.sendChessMove(contactId, gameId, move, clockMs = newClockMs)
         } else {
             chatViewModel.sendChessMove(contactId, gameId, move)
+        }
+    }
+
+    /** A new transaction with the same move: Retry refuses a Not confirmed row, which keeps a
+     *  payment from going twice, and the row stays until its copy is read back. */
+    fun playUnconfirmedMoveAgain(message: MessageEntity) {
+        val body = message.plaintextBody ?: return
+        if (isReplayingMove) return
+        isReplayingMove = true
+        coroutineScope.launch {
+            chatViewModel.sendMessageAwait(contactId, body, onError = { resignError = it }, plain = true)
+            isReplayingMove = false
         }
     }
 
@@ -375,7 +425,9 @@ fun ChessGameScreen(
                         if (lastMoveSendStatus != null) {
                             MoveSendStatusRow(
                                 status = lastMoveSendStatus,
-                                onRetry = { lastActionMessage?.let { chatViewModel.retrySendMessage(it) } }
+                                onRetry = { lastActionMessage?.let { chatViewModel.retrySendMessage(it) } },
+                                canPlayAgain = canPlayMoveAgain,
+                                onPlayAgain = { lastActionMessage?.let { playUnconfirmedMoveAgain(it) } }
                             )
                         }
                     }
@@ -520,14 +572,36 @@ fun ChessGameScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showResignConfirm = false
-                    chatViewModel.resignChessGame(contactId, gameId)
-                    navController.popBackStack()
+                    if (!isResigning) {
+                        isResigning = true
+                        // Leaves the board only once the resignation is out; a failed one keeps the
+                        // player here with the error (the game isn't over for the opponent).
+                        chatViewModel.resignChessGame(contactId, gameId) { sent, error ->
+                            isResigning = false
+                            if (sent) {
+                                resignSent = true
+                            } else {
+                                resignError = error ?: context.getString(R.string.something_went_wrong)
+                            }
+                        }
+                    }
                 }) {
                     Text(stringResource(R.string.resign), color = LocalAppColors.current.danger)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResignConfirm = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    resignError?.let { message ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { resignError = null },
+            title = { Text(stringResource(R.string.something_went_wrong)) },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { resignError = null }) { Text(stringResource(R.string.ok)) }
             }
         )
     }
@@ -561,11 +635,15 @@ fun ChessGameScreen(
  *  transcript's own delivery-status ticks from here). Mirrors the app's existing sent/pending/
  *  failed icon language (see [ChessChatRow]'s status icon) rather than inventing new iconography. */
 @Composable
-private fun MoveSendStatusRow(status: String, onRetry: () -> Unit) {
+private fun MoveSendStatusRow(status: String, onRetry: () -> Unit, canPlayAgain: Boolean, onPlayAgain: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = if (status == "failed") Modifier.clickable { onRetry() } else Modifier
+        modifier = when {
+            status == "failed" -> Modifier.clickable { onRetry() }
+            status == "warning" && canPlayAgain -> Modifier.clickable { onPlayAgain() }
+            else -> Modifier
+        }
     ) {
         when (status) {
             "sent" -> {
@@ -575,6 +653,15 @@ private fun MoveSendStatusRow(status: String, onRetry: () -> Unit) {
             "failed" -> {
                 Icon(Icons.Default.Error, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(14.dp))
                 Text(stringResource(R.string.retry), color = LocalAppColors.current.danger, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            "warning" -> {
+                // The move's outcome is unknown: it may have landed, so a Retry could play it
+                // twice (iOS d23e6f7a). Only Play It Again, once it has had time to be read back.
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = Color(0xFFFF9500), modifier = Modifier.size(14.dp))
+                Text(stringResource(R.string.delivery_not_confirmed), color = Color(0xFFFF9500), fontSize = 11.sp)
+                if (canPlayAgain) {
+                    Text(stringResource(R.string.play_it_again), color = Color(0xFFFF9500), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
             else -> {
                 Icon(Icons.Default.Schedule, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(14.dp))

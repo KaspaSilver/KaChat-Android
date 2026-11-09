@@ -272,4 +272,13 @@ class ChessEngineTest {
         assertFalse(ChessEngine.isInsufficientMaterial(withRook))
         assertFalse(ChessEngine.isInsufficientMaterial(ChessEngine.initialBoard()))
     }
+
+    @Test
+    fun `a square reads only as ascii lowercase`() {
+        assertEquals(ChessSquare(4, 1), ChessSquare.fromAlgebraic("e2"))
+        assertEquals(null, ChessSquare.fromAlgebraic("E2"))
+        assertEquals(null, ChessSquare.fromAlgebraic("e\u0662"))
+        assertEquals(null, ChessSquare.fromAlgebraic("e9"))
+        assertEquals(null, ChessSquare.fromAlgebraic("i1"))
+    }
 }

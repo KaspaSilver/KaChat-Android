@@ -60,6 +60,8 @@ fun CoinControlSheet(
     /** Coin labels for [fromAddress] (outpoint key "txId:index" -> label), shown over each
      *  coin's amount. */
     utxoLabels: Map<String, String> = emptyMap(),
+    /** The account's chatting address: a mining reward on it isn't spendable (see [CoinControlScreen]). */
+    chattingAddress: String? = null,
 ) {
     IosFullSheet(onDismissed = onDismiss, swipeToDismiss = true, grouped = true) { close ->
         BackHandler(onBack = close)
@@ -71,6 +73,7 @@ fun CoinControlSheet(
             onCancel = close,
             maxSelection = maxSelection,
             utxoLabels = utxoLabels,
+            chattingAddress = chattingAddress,
         )
     }
 }
@@ -97,6 +100,8 @@ fun CoinControlScreen(
      *  grows past it (see [com.kachat.app.util.CoinControlSelection]). */
     maxSelection: Int = com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
     utxoLabels: Map<String, String> = emptyMap(),
+    /** The account's chatting address, whose sends leave mining rewards out. */
+    chattingAddress: String? = null,
 ) {
     var utxos by remember { mutableStateOf<List<UtxoEntry>>(emptyList()) }
     var selectedKeys by remember { mutableStateOf<Set<com.kachat.app.services.Outpoint>>(emptySet()) }
@@ -119,15 +124,30 @@ fun CoinControlScreen(
         isLoading = false
     }
 
+    /** A coin the send can't spend right now: not in a block yet, or a mining reward on the
+     *  chatting address, whose sends leave those out (coins a send or message from this app just
+     *  spent are already left out of [fetchUtxos]' list). Shown greyed, never picked: a selection
+     *  of them would only fail at the send (iOS d23e6f7a `isSpendable`). */
+    fun isSpendable(utxo: UtxoEntry): Boolean {
+        if (utxo.utxoEntry.blockDaaScore <= 0L) return false
+        val chatting = chattingAddress
+        if (utxo.utxoEntry.isCoinbase && chatting != null && com.kachat.app.util.KaspaNetwork.isSameAccount(chatting, fromAddress)) {
+            return false
+        }
+        return true
+    }
+
     LaunchedEffect(fromAddress) {
         loadUtxos()
         if (!initialSelection.isNullOrEmpty()) {
+            // only coins still in the list and spendable: a pick that's gone isn't kept
             selectedKeys = com.kachat.app.util.CoinControlSelection
-                .resolve(utxos, initialSelection.map { it.outpoint }.toSet(), maxSelection)
+                .resolve(utxos.filter(::isSpendable), initialSelection.map { it.outpoint }.toSet(), maxSelection)
                 .map { it.outpoint }.toSet()
         }
     }
-    val atCap = com.kachat.app.util.CoinControlSelection.isAtCap(selectedKeys.size, utxos.size, maxSelection)
+    val spendableCount = utxos.count(::isSpendable)
+    val atCap = com.kachat.app.util.CoinControlSelection.isAtCap(selectedKeys.size, spendableCount, maxSelection)
 
     val selectedTotalSompi = utxos.filter { selectedKeys.contains(it.outpoint) }.sumOf { it.utxoEntry.amount }
 
@@ -158,7 +178,7 @@ fun CoinControlScreen(
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.select_all)) },
-                            onClick = { selectedKeys = com.kachat.app.util.CoinControlSelection.selectAll(utxos, maxSelection); showMenu = false }
+                            onClick = { selectedKeys = com.kachat.app.util.CoinControlSelection.selectAll(utxos.filter(::isSpendable), maxSelection); showMenu = false }
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.automatic_clear_selection)) },
@@ -234,6 +254,7 @@ fun CoinControlScreen(
                     }
                     itemsIndexed(utxos, key = { _, it -> "${it.outpoint.transactionId}:${it.outpoint.index}" }) { index, utxo ->
                         val isSelected = selectedKeys.contains(utxo.outpoint)
+                        val spendable = isSpendable(utxo)
                         val first = index == 0
                         val last = index == utxos.lastIndex
                         val shape = RoundedCornerShape(
@@ -244,13 +265,19 @@ fun CoinControlScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .clickable(enabled = spendable) {
                                         // Past the cap the tap is refused; the note above says why.
                                         com.kachat.app.util.CoinControlSelection
                                             .toggle(selectedKeys, utxo.outpoint, maxSelection)
                                             ?.let { selectedKeys = it }
                                     }
-                                    .alpha(if (!isSelected && atCap) 0.5f else 1f)
+                                    .alpha(
+                                        when {
+                                            !spendable -> 0.45f
+                                            !isSelected && atCap -> 0.5f
+                                            else -> 1f
+                                        }
+                                    )
                                     .padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -277,6 +304,9 @@ fun CoinControlScreen(
                                         fontSize = 11.sp,
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                     )
+                                    if (!spendable) {
+                                        Text(stringResource(R.string.not_spendable_yet), color = colors.textSecondary, fontSize = 11.sp)
+                                    }
                                 }
                             }
                             if (!last) HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 50.dp))

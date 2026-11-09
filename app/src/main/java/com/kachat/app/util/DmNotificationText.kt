@@ -5,14 +5,17 @@ import com.google.gson.JsonParser
 import com.kachat.app.R
 
 /**
- * The words [dmNotificationText] uses that come from string resources. The rest of a 1:1
- * banner's wording is still English, as before. [ENGLISH] is what tests use.
+ * The words [dmNotificationText] uses that come from string resources. [ENGLISH] is what tests use.
  */
 data class DmNotificationLabels(
     val sentVideo: String,
     val sentFile: String,
     val newMessage: String,
     val receivedPayment: String = "Received payment",
+    val paymentRequest: String = "Requested for payment",
+    val sentVoice: String = "Sent a voice message",
+    val sentPhoto: String = "Sent a photo",
+    val chessGame: String = "♟️ Chess game",
 ) {
     companion object {
         val ENGLISH = DmNotificationLabels(sentVideo = "Sent a video", sentFile = "Sent a file", newMessage = "New message")
@@ -22,6 +25,10 @@ data class DmNotificationLabels(
             sentFile = context.getString(R.string.dm_notif_sent_file),
             newMessage = context.getString(R.string.dm_notif_new_message),
             receivedPayment = context.getString(R.string.dm_notif_received_payment),
+            paymentRequest = context.getString(R.string.dm_notif_payment_request),
+            sentVoice = context.getString(R.string.dm_notif_sent_voice),
+            sentPhoto = context.getString(R.string.dm_notif_sent_photo),
+            chessGame = context.getString(R.string.chess_game_2),
         )
     }
 }
@@ -43,21 +50,32 @@ fun dmNotificationText(plaintext: String, labels: DmNotificationLabels = DmNotif
     // chatting address never gets this far: both callers keep it silent (XP-023).
     if (PaymentPoolProtocol.parse(plaintext) is PaymentPoolProtocol.Envelope.Notice) return labels.receivedPayment
     CallCodec.parseOrNull(plaintext)?.let { return CallCodec.notificationPreview(it) }
-    MessageReply.parseOrNull(plaintext)?.let { return "Replied to \"${it.replyToPreview}\"" }
-    if (VoiceMessage.parseOrNull(plaintext) != null) return "Sent a voice message"
-    if (ImageMessage.parseOrNull(plaintext) != null) return "Sent a photo"
-    if (ChessMessage.parseOrNull(plaintext) != null) return "♟️ Chess game"
+    // A reply says its own words, or "Sent a photo" when it is one, never what it quotes (iOS
+    // MessageReplyCodec.unwrappedText in formatNotificationBody, NotificationService.unwrapReplyText).
+    MessageReply.parseOrNull(plaintext)?.let { reply -> return dmNotificationText(reply.text, labels) }
+    if (VoiceMessage.parseOrNull(plaintext) != null) return labels.sentVoice
+    if (ImageMessage.parseOrNull(plaintext) != null) return labels.sentPhoto
+    if (ChessMessage.parseOrNull(plaintext) != null) return labels.chessGame
     VoiceMessage.parseAnyFileOrNull(plaintext)?.let { file ->
         val mime = file.mimeType.lowercase()
         return when {
             mime.startsWith("video/") -> labels.sentVideo
-            mime.startsWith("image/") -> "Sent a photo"
-            mime.startsWith("audio/") -> "Sent a voice message"
+            mime.startsWith("image/") -> labels.sentPhoto
+            mime.startsWith("audio/") -> labels.sentVoice
             else -> labels.sentFile
         }
     }
     if (looksLikeJsonEnvelope(plaintext)) return labels.newMessage
+    // The chat shows a payment request link as a card, so the banner says what it is instead of
+    // printing the link (iOS bfe9f022 NotificationService.paymentRequestPreviewText).
+    if (holdsPaymentRequestLink(plaintext)) return labels.paymentRequest
     return plaintext
+}
+
+/** A message holding a payment request link, in either of its forms (kachat:// and kachat.app). */
+internal fun holdsPaymentRequestLink(text: String): Boolean {
+    val lowered = text.lowercase()
+    return (lowered.contains("kachat://pay/") || lowered.contains("kachat.app/pay/")) && lowered.contains("amount=")
 }
 
 /**

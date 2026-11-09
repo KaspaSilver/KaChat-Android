@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
+import com.kachat.app.services.CallAnswerToken
 import com.kachat.app.services.CallService
 import com.kachat.app.services.CrashRecorder
 import com.kachat.app.services.IncomingCallNotifier
@@ -59,8 +60,14 @@ import androidx.compose.runtime.getValue
  */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
-    @Inject lateinit var callService: CallService
+    // Through Lazy: it needs the wallet store, and that's checked before anything builds it.
+    @Inject lateinit var callServiceLazy: dagger.Lazy<CallService>
+    private val callService: CallService get() = callServiceLazy.get()
+    private var accountStoresOpen = true
     @Inject lateinit var onboardingGate: com.kachat.app.services.OnboardingGate
+    // Lazy for the same reason as the call service: both need the wallet store.
+    @Inject lateinit var walletManagerLazy: dagger.Lazy<com.kachat.app.services.WalletManager>
+    @Inject lateinit var shareShortcutsLazy: dagger.Lazy<com.kachat.app.services.ShareShortcutsManager>
 
     // The KaChat sheet that explains the battery exemption before Android's own dialog. Re-derived
     // on every resume (see refreshBatteryRationale), so it follows the notification answer.
@@ -79,7 +86,8 @@ class MainActivity : AppCompatActivity() {
     private var pendingOwnAddress by mutableStateOf<String?>(null)
 
     // Android 13+ requires an explicit runtime grant before ANY notification (local or FCM push)
-    // can be shown. Registered here (during construction, as required) and requested in onCreate.
+    // can be shown. Registered here (during construction, as required) and requested by the Chats
+    // list (ChatsScreen).
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             // The battery sheet waits for this answer: notifications off means there is nothing
@@ -87,9 +95,10 @@ class MainActivity : AppCompatActivity() {
             if (granted) refreshBatteryRationale()
         }
 
-    /** Asked once, as iOS asks (its system prompt never comes back): an answer of "Don't allow"
-     *  is kept, and Settings > Notifications is where to turn them on later. */
-    private fun maybeRequestNotificationPermission() {
+    /** Asked once, when the Chats list first appears, as iOS asks (its system prompt never comes
+     *  back): an answer of "Don't allow" is kept, and Settings > Notifications is where to turn
+     *  them on later. */
+    fun maybeRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val granted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.POST_NOTIFICATIONS
@@ -164,6 +173,7 @@ class MainActivity : AppCompatActivity() {
         guarded("notification target") { consumeNotificationTarget(intent) }
         guarded("profile link") { handleProfileDeepLink(intent) }
         guarded("payment request link") { handlePaymentRequestDeepLink(intent) }
+        guarded("KaPost link") { handleKaPostDeepLink(intent) }
         guarded("share") { handleShareIntent(intent) }
         guarded("clear intent payload") { clearConsumedIntentPayload(intent) }
         guarded("call answer") { consumeCallAnswer(intent) }
@@ -171,6 +181,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        accountStoresOpen = com.kachat.app.util.SecureStores.accountStoresOpen(this)
+        if (!accountStoresOpen) {
+            setContent {
+                KaChatTheme(darkTheme = androidx.compose.foundation.isSystemInDarkTheme()) {
+                    com.kachat.app.ui.screens.SecureStoreProblemScreen(
+                        onTryAgain = ::restartApp,
+                        onStartOver = {
+                            com.kachat.app.util.SecureStores.startOver(this)
+                            restartApp()
+                        },
+                    )
+                }
+            }
+            return
+        }
         // Phones lock to portrait; tablets (sw>=600dp, see res/values-sw600dp/bools.xml) rotate
         // freely - mirroring iOS (iPhone portrait-only, iPad any orientation).
         requestedOrientation = if (resources.getBoolean(R.bool.lock_portrait)) {
@@ -191,7 +216,6 @@ class MainActivity : AppCompatActivity() {
         // Everything up to setContent is a side step - a permission prompt, a notification or
         // link to route, the call window wiring. Each is guarded on its own: one that throws is
         // logged, and the app still opens (KaChatApplication's startup rule).
-        guarded("notification permission") { maybeRequestNotificationPermission() }
         guarded("battery rationale") { refreshBatteryRationale() }
         handleLaunchIntent(intent)
         guarded("call window") { observeCallForLockScreen() }
@@ -200,6 +224,12 @@ class MainActivity : AppCompatActivity() {
             // Settings > Customization > Appearance: System follows the device, as on iOS.
             val appearance by walletViewModel.appearance.collectAsState()
             val isLoggedIn by walletViewModel.isLoggedIn.collectAsState()
+            // Log Out and signing back in leave the active address as it was, so the share
+            // targets hear about it here: signed out there are none, signed in they are this
+            // account's chats (iOS d23e6f7a).
+            androidx.compose.runtime.LaunchedEffect(isLoggedIn) {
+                guarded("share targets") { shareShortcutsLazy.get().syncWithActiveAccount() }
+            }
             KaChatTheme(darkTheme = appearance.isDark(androidx.compose.foundation.isSystemInDarkTheme())) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -264,6 +294,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun restartApp() {
+        packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
+            startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        }
+        finishAffinity()
+        Runtime.getRuntime().exit(0)
+    }
+
     @androidx.compose.runtime.Composable
     private fun CrashNotice() {
         val crashFile = remember { CrashRecorder.unseenCrash(this) }
@@ -281,7 +319,7 @@ class MainActivity : AppCompatActivity() {
                 }) { Text("Share report") }
             },
             dismissButton = {
-                TextButton(onClick = { show = false; CrashRecorder.markSeen(this) }) { Text("Not now") }
+                TextButton(onClick = { show = false; CrashRecorder.markSeen(this) }) { Text(androidx.compose.ui.res.stringResource(R.string.not_now_2)) }
             }
         )
     }
@@ -312,11 +350,20 @@ class MainActivity : AppCompatActivity() {
      * one-tap answer; without it the call screen is on screen anyway and its Accept button asks.
      *
      * The id is checked so a stale tap (the call already over, or another one ringing) cannot
-     * answer the wrong call, and stripped so a configuration change does not re-answer.
+     * answer the wrong call, and stripped so a configuration change does not re-answer. This
+     * activity is exported, so only an Intent carrying this process's [CallAnswerToken] - the
+     * notification's own - answers; another app that knows the call id cannot.
      */
     private fun consumeCallAnswer(intent: Intent) {
         val callId = intent.getStringExtra(IncomingCallNotifier.EXTRA_ANSWER_CALL_ID) ?: return
+        val token = intent.getStringExtra(CallAnswerToken.EXTRA_TOKEN)
         intent.removeExtra(IncomingCallNotifier.EXTRA_ANSWER_CALL_ID)
+        intent.removeExtra(CallAnswerToken.EXTRA_TOKEN)
+        if (!CallAnswerToken.matches(token)) {
+            android.util.Log.w("MainActivity", "Ignored a call answer without KaChat's token")
+            return
+        }
+        if (!accountStoresOpen) return
         val call = callService.session.value ?: return
         if (call.id != callId || call.phase != CallService.Phase.RingingIn) return
         val needed = buildList {
@@ -346,11 +393,13 @@ class MainActivity : AppCompatActivity() {
     /** Leaving the app with a video call up floats it, rather than leaving it behind. */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (!accountStoresOpen) return
         if (callService.session.value != null) enterCallPictureInPicture()
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (!accountStoresOpen) return
         callService.setInPictureInPicture(isInPictureInPictureMode)
     }
 
@@ -443,6 +492,10 @@ class MainActivity : AppCompatActivity() {
         pendingContactId = intent.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
         pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
         pendingOpenGroups = intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_GROUPS, false)
+        // A group invite's notification: the Chats list opens Message Requests once it is up.
+        if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_MESSAGE_REQUESTS, false)) {
+            com.kachat.app.ui.screens.MessageRequestsDeepLink.request()
+        }
         pendingWalletActivityKind = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND)
         // One address got the Kaspa: open that address's History rather than the wallet tab -
         // the kind is then only the fallback (iOS 13046ad).
@@ -460,6 +513,7 @@ class MainActivity : AppCompatActivity() {
             NotificationHelper.EXTRA_CONTACT_ID,
             NotificationHelper.EXTRA_GROUP_ID,
             NotificationHelper.EXTRA_OPEN_GROUPS,
+            NotificationHelper.EXTRA_OPEN_MESSAGE_REQUESTS,
             NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND,
             NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS,
             NotificationHelper.EXTRA_KACHAT_NAME,
@@ -542,14 +596,35 @@ class MainActivity : AppCompatActivity() {
         com.kachat.app.ui.screens.PaymentRequestRouter.open(ref.request)
     }
 
+    /** kachat://kapost/<txid> or https://kachat.app/post/<txid> - a post on KaPost, opened from
+     *  outside the app: it goes straight to the post in KaPost, or its install page (iOS
+     *  a8a5807a). The id is checked before anything opens. */
+    private fun handleKaPostDeepLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        val isPostLink = when {
+            uri.scheme.equals("kachat", ignoreCase = true) -> uri.host.equals("kapost", ignoreCase = true)
+            uri.scheme.equals("https", ignoreCase = true) || uri.scheme.equals("http", ignoreCase = true) ->
+                isKaChatWebHost(uri.host) && uri.pathSegments.firstOrNull() == "post"
+            else -> false
+        }
+        if (!isPostLink) return
+        val ref = com.kachat.app.ui.screens.KaChatLink.parse(uri.toString()) as? com.kachat.app.ui.screens.KaChatLinkRef.KaPost
+            ?: return
+        com.kachat.app.ui.screens.KaPostHandoff.open(this, ref.txId)
+    }
+
     /**
      * System share sheet intake (ACTION_SEND / ACTION_SEND_MULTIPLE — text/plain and image MIME types).
      *
      * If the user picked a specific conversation on the share sheet (a direct-share shortcut
-     * published by ShareShortcutsManager), the shortcut id — the contact's address — arrives in
-     * [Intent.EXTRA_SHORTCUT_ID] and the share is targeted straight at that chat. Otherwise the
-     * share is untargeted: the Chats list shows a "choose a chat" banner and whichever thread is
-     * opened next consumes it (see ShareIntake).
+     * published by ShareShortcutsManager), the shortcut id — `"<account>|<contact address>"` —
+     * arrives in [Intent.EXTRA_SHORTCUT_ID] and the share is targeted straight at that chat, but
+     * only when the shortcut's account is the one signed in: sending it from another would message
+     * that account's contact from this address, linking the two on chain (iOS d23e6f7a). A target
+     * from another account, signed out, or from an old shortcut that names no account is dropped,
+     * and the share arrives untargeted. Otherwise the share is untargeted: the Chats list shows a
+     * "choose a chat" banner and whichever thread is opened next consumes it (see ShareIntake).
      *
      * Image streams are copied into app cache immediately: the sender's content-URI read grant
      * is tied to this delivery and can't be relied on later when the user actually hits send.
@@ -558,7 +633,7 @@ class MainActivity : AppCompatActivity() {
         val action = intent.action
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
         val type = intent.type ?: return
-        val targetContactId = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID)
+        val targetContactId = shareTargetForSignedInAccount(intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID))
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)
         val imageStreams: List<android.net.Uri> = when {
             action == Intent.ACTION_SEND && type.startsWith("image/") ->
@@ -578,6 +653,21 @@ class MainActivity : AppCompatActivity() {
                 targetContactId = targetContactId
             )
         }
+    }
+
+    /** The chat a direct-share shortcut names, when it belongs to the signed-in account; null for
+     *  no shortcut, or one made under another account (or before shortcuts named theirs). */
+    private fun shareTargetForSignedInAccount(shortcutId: String?): String? {
+        val target = com.kachat.app.services.ShareShortcutsManager.parseShortcutId(shortcutId) ?: return null
+        val active = if (!accountStoresOpen) null else runCatching {
+            walletManagerLazy.get().takeUnless { it.isLoggedOut }?.activeAddressFlow?.value
+        }.getOrNull()
+        val owner = target.owner
+        if (owner == null || active == null || !com.kachat.app.util.KaspaNetwork.isSameAccount(owner, active)) {
+            android.util.Log.i("MainActivity", "[Share] Dropped a share target made under another account")
+            return null
+        }
+        return target.contactId
     }
 
     /** Copies a shared image stream into app cache, returning a file:// URI readable at any later point (or null on failure). */

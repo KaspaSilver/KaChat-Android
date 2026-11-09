@@ -50,10 +50,12 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -102,7 +104,7 @@ import com.kachat.app.util.KaspaAddress
 import com.kachat.app.viewmodels.WalletViewModel
 import kotlinx.coroutines.delay
 
-// The Address Book (Kaspa Hub > Address Book): saved Kaspa addresses with a name and a note, per
+// The Address Book (the Contacts tab): saved Kaspa addresses with a name and a note, per
 // wallet. It replaced syncing with the phone's Contacts - see AddressBookManager (iOS
 // AddressBookView.swift, 00767a4).
 
@@ -115,14 +117,16 @@ fun rememberAddressBookEntries(): List<AddressBookEntry> {
 }
 
 /**
- * Kaspa Hub > Address Book (also a dock tab, if placed there): the list with its search, add, and
- * the entry pages it opens. [onBack] is the Hub's way back to its grid; null as a dock tab.
+ * The Contacts tab: the list with its search, add, and the entry pages it opens. [onBack] is a way
+ * back when it is pushed; null as a dock tab.
  */
 @Composable
 fun AddressBookScreen(
     onBack: (() -> Unit)?,
     onOpenChat: (String) -> Unit,
     walletViewModel: WalletViewModel,
+    /** Under the balance: the backup warning every main screen shows (iOS d1844582). */
+    headerBanner: @Composable () -> Unit = {},
 ) {
     val entries = rememberAddressBookEntries()
     var openAddress by rememberSaveable { mutableStateOf<String?>(null) }
@@ -153,7 +157,7 @@ fun AddressBookScreen(
         topBar = {
             // iOS's bar, with or without entries: the connection dot and the balance centred, and
             // "Contacts" large under it, as the other tabs show their titles (iOS wallet 1314382).
-            MainPageHeader(title = stringResource(R.string.contacts), onBack = onBack)
+            MainPageHeader(title = stringResource(R.string.contacts), onBack = onBack, banner = headerBanner)
         },
         // Add and Import / Export live behind one floating glass + (like Chats'), not in the bar
         // (iOS wallet 06b5e8a).
@@ -183,8 +187,15 @@ fun AddressBookScreen(
                 // Always showing: hidden until you pulled the list down, it read as pull-to-refresh.
                 AddressBookSearchField(search, { search = it }, Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(10.dp))
+                // Swipe to delete, one row open at a time and none once the list moves (iOS .onDelete).
+                val entriesListState = androidx.compose.foundation.lazy.rememberLazyListState()
+                var openSwipeRow by remember { mutableStateOf<Any?>(null) }
+                LaunchedEffect(entriesListState.isScrollInProgress) {
+                    if (entriesListState.isScrollInProgress) openSwipeRow = null
+                }
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    state = entriesListState,
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).dismissKeyboardOnScroll(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = LocalDockInset.current + 24.dp),
                 ) {
                     item {
@@ -193,15 +204,34 @@ fun AddressBookScreen(
                         ) {
                             shown.forEachIndexed { index, entry ->
                                 if (index > 0) SettingsDivider(inset = 66.dp)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { openAddress = entry.address }
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    AddressBookRow(entry, Modifier.weight(1f))
-                                    IosDisclosureChevron()
+                                androidx.compose.runtime.key(entry.address) {
+                                    SwipeActionsRow(
+                                        key = entry.address,
+                                        openKey = openSwipeRow,
+                                        onOpenKeyChange = { openSwipeRow = it },
+                                        enabled = true,
+                                        leadingActions = emptyList(),
+                                        trailingActions = listOf(
+                                            SwipeAction(Icons.Outlined.Delete, stringResource(R.string.delete), colors.danger) {
+                                                AddressBookManager.shared?.remove(entry.address)
+                                            },
+                                        ),
+                                        compactActions = true,
+                                        trailingFullSwipe = true,
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                // In the card, over what the swipe reveals.
+                                                .background(colors.surface)
+                                                .clickable { openAddress = entry.address }
+                                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            AddressBookRow(entry, Modifier.weight(1f))
+                                            IosDisclosureChevron()
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -342,7 +372,7 @@ private fun AddressBookActions(show: Boolean, onAdd: () -> Unit, onDismiss: () -
                 IosToasts.show(context.getString(R.string.pnc_saved_to, path))
             } catch (e: Exception) {
                 IosToasts.error(
-                    context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again"))
+                    context.getString(R.string.pnc_export_failed, com.kachat.app.util.UserFacingError.message(e, context.getString(R.string.please_try_again)))
                 )
             }
         }
@@ -419,7 +449,7 @@ private fun AddressBookActions(show: Boolean, onAdd: () -> Unit, onDismiss: () -
                         runImport(nextcloud.downloadFile(file.path, maxBytes = 50_000_000L))
                     } catch (e: Exception) {
                         IosToasts.error(
-                            context.getString(R.string.pnc_import_failed, com.kachat.app.util.UserFacingError.message(e, "Please try again"))
+                            context.getString(R.string.pnc_import_failed, com.kachat.app.util.UserFacingError.message(e, context.getString(R.string.please_try_again)))
                         )
                     }
                 }
@@ -527,7 +557,7 @@ fun AddressBookAvatar(
     } else {
         // Exactly the avatar the address set on its own profile - no backup photo of the chat
         // contact (iOS `includeBackupPhoto: false`).
-        ContactAvatar(imageUrl = null, fallbackText = "", size = size, address = address)
+        ContactAvatar(imageUrl = null, fallbackText = "", size = size, address = address, includeAssignedPhoto = false)
     }
 }
 
@@ -578,6 +608,7 @@ fun AddressBookEntryDetail(
     onBack: () -> Unit,
     onOpenChat: (String) -> Unit,
     walletViewModel: WalletViewModel,
+    chatViewModel: com.kachat.app.viewmodels.ChatViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     BackHandler(onBack = onBack)
     val colors = LocalAppColors.current
@@ -593,6 +624,9 @@ fun AddressBookEntryDetail(
     val otherNetwork = KaspaAddress.otherNetworkMessageRes(address)?.let { stringResource(it) }
     var showEdit by remember { mutableStateOf(false) }
     var showSend by remember { mutableStateOf(false) }
+    // Call was tapped: CallConfirmationSheets takes it from there (iOS d1844582).
+    var callRequested by remember { mutableStateOf(false) }
+    val callSession by chatViewModel.callSession.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) {
@@ -681,6 +715,12 @@ fun AddressBookEntryDetail(
                         AddressBookActionRow(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.message), enabled = otherNetwork == null) {
                             if (KaspaAddress.isValidOnActiveNetwork(entry.address)) onOpenChat(entry.address)
                         }
+                        if (!com.kachat.app.models.KaChatBot.isBot(entry.address)) {
+                            SettingsDivider()
+                            AddressBookActionRow(Icons.Outlined.Phone, stringResource(R.string.call_2), enabled = otherNetwork == null && callSession == null) {
+                                callRequested = true
+                            }
+                        }
                     }
                 }
                 if (otherNetwork != null) SettingsFooter(otherNetwork)
@@ -696,6 +736,16 @@ fun AddressBookEntryDetail(
         }
     }
 
+    if (entry != null) {
+        CallConfirmationSheets(
+            isRequested = callRequested,
+            onRequestHandled = { callRequested = false },
+            contactId = entry.address,
+            name = entry.customName ?: com.kachat.app.models.addressDisplayName(entry.address),
+            chatViewModel = chatViewModel,
+            newContactAlias = entry.customName,
+        )
+    }
     if (showEdit && entry != null) {
         AddressBookEntryEditor(
             address = entry.address,
@@ -708,7 +758,7 @@ fun AddressBookEntryDetail(
             SpendingAddressSendFlow(
                 fromAddress = walletAddress.orEmpty(),
                 balanceSompi = balanceSompi,
-                title = "Send Kaspa",
+                title = stringResource(R.string.chats_send_kaspa),
                 viewModel = walletViewModel,
                 onDone = close,
                     prefillAddress = entry.address,
@@ -872,7 +922,7 @@ fun AddressBookEntryEditor(
         BackHandler(onBack = close)
         Column(Modifier.fillMaxSize()) {
             SheetNavBar(
-                title = stringResource(if (existing == null) R.string.ab_add_to_address_book else R.string.ab_edit_address),
+                title = stringResource(if (existing == null) R.string.ab_add_address else R.string.ab_edit_address),
                 leading = { SheetBarButton(stringResource(R.string.cancel), onClick = close) },
                 trailing = {
                     SheetBarButton(
@@ -1034,7 +1084,7 @@ fun AddressBookEntryEditor(
 
                 if (address != null && existing != null) {
                     SettingsSection(title = null) {
-                        AddressBookActionRow(Icons.Default.Delete, stringResource(R.string.ab_remove_from), tint = colors.danger) {
+                        AddressBookActionRow(Icons.Default.Delete, stringResource(R.string.ab_delete_from), tint = colors.danger) {
                             book.remove(effectiveAddress)
                             onDone(AddressBookEditResult.REMOVED)
                             close()

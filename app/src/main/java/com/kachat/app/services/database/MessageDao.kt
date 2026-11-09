@@ -126,6 +126,20 @@ interface MessageDao {
     )
     suspend fun existsShown(id: String, walletAddress: String, hidden: List<String>): Boolean
 
+    /** When each side of a chat first wrote: what incoming photos wait for (ChatRepository.
+     *  photosUnlockAt, iOS `ContactsManager.photosUnlockDate`). A handshake isn't writing, nor is a
+     *  send that hasn't gone out. */
+    @Query(
+        """
+        SELECT MIN(CASE WHEN direction = 'sent' THEN blockTimestamp END) AS firstSent,
+               MIN(CASE WHEN direction != 'sent' THEN blockTimestamp END) AS firstReceived
+        FROM messages
+        WHERE contactId = :contactId AND walletAddress = :walletAddress
+          AND type != 'handshake' AND deliveryStatus NOT IN ('failed', 'pending')
+        """
+    )
+    fun getPhotoUnlockTimes(contactId: String, walletAddress: String): Flow<PhotoUnlockTimes>
+
     /** Per contact: when its first message was and whether you ever sent anything - what
      *  Message Requests decides from (ChatRequestStore.isMessageRequest). */
     @Query(
@@ -320,6 +334,11 @@ interface MessageDao {
     @Query("UPDATE messages SET deliveryStatus = :status WHERE id = :id AND walletAddress = :walletAddress")
     suspend fun updateStatus(id: String, walletAddress: String, status: String)
 
+    /** A Failed send goes back to pending for its Retry, or nothing happens: 0 when another tap
+     *  got there first (iOS 4f8e14bb, Retry can't post twice). */
+    @Query("UPDATE messages SET deliveryStatus = 'pending' WHERE id = :id AND walletAddress = :walletAddress AND deliveryStatus = 'failed'")
+    suspend fun claimFailedForRetry(id: String, walletAddress: String): Int
+
     @Query("DELETE FROM messages WHERE id = :id AND walletAddress = :walletAddress")
     suspend fun deleteById(id: String, walletAddress: String)
 
@@ -389,6 +408,11 @@ interface MessageDao {
     )
     suspend fun rewindMessageSyncCursors(contactId: String, walletAddress: String, floor: Long): Int
 
+    /** Every account's cursors back to [floor]: what was read from the chain during an indexer
+     *  outage moved them, and the indexer has the final word on that window (iOS 4f8e14bb). */
+    @Query("UPDATE message_sync_cursors SET lastBlockTime = :floor WHERE lastBlockTime > :floor")
+    suspend fun rewindAllMessageSyncCursors(floor: Long): Int
+
     /** Resets every per-contact sync cursor for this wallet — used by "wipe and re-sync" so it actually re-fetches full history again instead of picking up where the (now-deleted) cache left off. */
     @Query("DELETE FROM message_sync_cursors WHERE walletAddress = :walletAddress")
     suspend fun deleteSyncCursorsForWallet(walletAddress: String)
@@ -406,6 +430,12 @@ interface MessageDao {
 data class ContactMessageBody(
     val contactId: String,
     val plaintextBody: String?,
+)
+
+/** Row of [MessageDao.getPhotoUnlockTimes]. */
+data class PhotoUnlockTimes(
+    val firstSent: Long?,
+    val firstReceived: Long?,
 )
 
 /** Row of [MessageDao.getContactMessageStats]. */

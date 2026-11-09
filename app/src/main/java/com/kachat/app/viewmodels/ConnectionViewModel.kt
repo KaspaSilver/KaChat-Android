@@ -160,6 +160,8 @@ class ConnectionViewModel @Inject constructor(
     val kaspaRestApiUrl: StateFlow<String> = settings.selectedKaspaRestUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     /** The indexer the running app is connected to, for the connection status screen. */
     val runningIndexerUrl: StateFlow<String> = settings.indexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+    /** The push service the running app registers with, for the same screen. */
+    val runningPushIndexerUrl: StateFlow<String> = settings.pushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val pushIndexerUrl: StateFlow<String> = settings.selectedPushIndexerUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     val trustedNodeAddress: StateFlow<String> = settings.selectedTrustedNodeAddress.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
     /**

@@ -93,7 +93,7 @@ class QuantumAddressTest {
         assertFalse(WalletManager.isQuantumIndex(0))
         assertFalse(WalletManager.isQuantumIndex(999_999))
         assertTrue(WalletManager.isQuantumIndex(1_000_000))
-        assertEquals("Address #3", WalletManager.spendingAddressTitle(3))
+        assertEquals("Address #4", WalletManager.spendingAddressTitle(3))
         assertEquals("Address #0", WalletManager.spendingAddressTitle(1_000_000))
         // a quantum primary never widens the legacy chain
         val account = WalletManager.Account(
@@ -237,6 +237,18 @@ class QuantumAddressTest {
         assertEquals(base + 7, WalletManager.nextFreshQuantumIndex(3, setOf(base + 4, base + 6)))
         // a pick already covered by the bound (revealed meanwhile) changes nothing
         assertEquals(base + 9, WalletManager.nextFreshQuantumIndex(8, setOf(base + 4)))
+    }
+
+    @Test
+    fun `change and requests are never handed the Receive QR's slot`() {
+        val base = WalletManager.QUANTUM_INDEX_BASE
+        // the QR picked the slot past the chain's end, or further on: the next one goes past it
+        assertEquals(base + 5, WalletManager.nextFreshQuantumIndex(3, emptySet(), base + 4))
+        assertEquals(base + 8, WalletManager.nextFreshQuantumIndex(3, emptySet(), base + 7))
+        // a QR slot the chain already covers changes nothing, nor does a legacy one
+        assertEquals(base + 4, WalletManager.nextFreshQuantumIndex(3, emptySet(), base + 2))
+        assertEquals(base + 4, WalletManager.nextFreshQuantumIndex(3, emptySet(), 5))
+        assertEquals(listOf(base + 5, base + 6), WalletManager.freshQuantumAllocation(3, emptySet(), 2, base + 4))
     }
 
     // MARK: run 17 (iOS da2c8e2) - IOS-101 / AND-049 restore sweep + checked fresh slots,

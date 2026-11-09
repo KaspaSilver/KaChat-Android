@@ -6,7 +6,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import coil.imageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
@@ -36,7 +35,7 @@ object ProfileImageRefetch {
      *  banner showing one redraw it. Returns how many came back. */
     suspend fun refetch(context: Context, urls: List<String>): Int {
         val app = context.applicationContext
-        val loader = app.imageLoader
+        val loader = com.kachat.app.services.LinkPreviewService.profileImageLoader(app)
         var fetched = 0
         for (url in urls.filter { it.isNotBlank() }.toSet()) {
             val request = ImageRequest.Builder(app)

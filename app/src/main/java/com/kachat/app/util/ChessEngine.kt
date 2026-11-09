@@ -71,14 +71,15 @@ data class ChessSquare(val file: Int, val rank: Int) {
     val algebraic: String get() = "${('a' + file)}${rank + 1}"
 
     companion object {
+        /** Exactly what [algebraic] writes, ASCII lowercase "a1".."h8" and nothing else: a move off
+         *  the wire that only some clients could read (a Unicode digit, say) would split the two
+         *  boards (iOS 4f8e14bb). */
         fun fromAlgebraic(algebraic: String): ChessSquare? {
             if (algebraic.length != 2) return null
-            val fileChar = algebraic[0].lowercaseChar()
+            val fileChar = algebraic[0]
             val rankChar = algebraic[1]
-            if (fileChar < 'a' || fileChar > 'h') return null
-            val rankDigit = rankChar.digitToIntOrNull() ?: return null
-            if (rankDigit !in 1..8) return null
-            return ChessSquare(fileChar - 'a', rankDigit - 1)
+            if (fileChar !in 'a'..'h' || rankChar !in '1'..'8') return null
+            return ChessSquare(fileChar - 'a', rankChar - '1')
         }
     }
 }

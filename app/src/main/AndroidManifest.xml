@@ -25,8 +25,10 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- No USE_FULL_SCREEN_INTENT: Google Play grants it only to apps whose core purpose is
          calling or alarms, and KaChat is a chat app that can also call, so a submission carrying
-         it is rejected (policy notice, 2026-09-22). An incoming call rings through the CallStyle
-         notification instead - see IncomingCallNotifier. -->
+         it is rejected (policy notice, 2026-09-22). An incoming call rings through a high-importance
+         call notification with plain Answer and Decline actions instead (not CallStyle, which the
+         system refuses without a full-screen intent or foreground service) - see
+         IncomingCallNotifier. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
@@ -41,6 +43,9 @@
     <!-- Biometric/device-credential prompt guarding the seed phrase and account unlock -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- NFC card backup (NfcCard.isAvailable): optional, so a phone with no NFC still installs. -->
+    <uses-permission android:name="android.permission.NFC" />
+
     <!-- Play derives REQUIRED hardware from the permissions above unless it is told otherwise:
          CAMERA implies android.hardware.camera, RECORD_AUDIO implies android.hardware.microphone.
          Left implicit, the store hides the app from every device without that hardware - most
@@ -52,6 +57,7 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
     <!-- usesCleartextTraffic stays true DELIBERATELY (2026-08 security audit, decision 3A):
          Kaspa node gRPC (protowire on port 16110/16210) is plaintext by protocol, and a
@@ -66,6 +72,7 @@
     <application
         android:name=".KaChatApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -104,10 +111,18 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kachat" android:host="pay" />
             </intent-filter>
+            <!-- KaPost posts: kachat://kapost/<txid> opens the post in KaPost, or its install page
+                 without it (iOS a8a5807a). The id is checked before anything opens. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kachat" android:host="kapost" />
+            </intent-filter>
             <!-- Universal-link form. autoVerify needs /.well-known/assetlinks.json served at
                  the domain (mirrors iOS's AASA file - see KACHAT_APP_LINKS.md). KaPosts posts
-                 (/post/) and public chat rooms (/broadcast/) left the app on 2026-10-24 (iOS
-                 e2f6732): those open in the browser now. -->
+                 (/post/) go on to the post in KaPost (iOS a8a5807a); public chat rooms
+                 (/broadcast/) left the app on 2026-10-24 (iOS e2f6732) and open in the browser. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -116,6 +131,8 @@
                 <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/u/" />
                 <!-- Payment requests (Chats > + > Request Payment, iOS c6851d6). -->
                 <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/pay/" />
+                <!-- KaPosts share links, handed on to KaPost (iOS a8a5807a). -->
+                <data android:scheme="https" android:host="kachat.app" android:pathPrefix="/post/" />
             </intent-filter>
             <!-- System share sheet: text/links and images shared from any app land in a chat's
                  composer (see ShareShortcutsManager/ShareIntake + MainActivity.handleShareIntent).

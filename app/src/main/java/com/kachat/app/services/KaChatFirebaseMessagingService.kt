@@ -1,10 +1,13 @@
 package com.kachat.app.services
 
+import com.kachat.app.R
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.kachat.app.models.ContactNotificationMode
 import com.kachat.app.repository.ChatRepository
+import com.kachat.app.repository.GroupRepository.GroupControlPush
+import com.kachat.app.repository.GroupRepository.GroupMessagePush
 import com.kachat.app.util.KasiaCipher
 import com.kachat.app.util.MessageProtocol
 import com.kachat.app.util.MessageReaction
@@ -33,21 +36,41 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
-    @Inject lateinit var notificationHelper: NotificationHelper
-    @Inject lateinit var pushRegistrationManager: PushRegistrationManager
-    @Inject lateinit var walletManager: WalletManager
-    @Inject lateinit var chatRepository: ChatRepository
-    @Inject lateinit var groupRepository: com.kachat.app.repository.GroupRepository
-    @Inject lateinit var settingsRepository: com.kachat.app.repository.AppSettingsRepository
-    @Inject lateinit var callService: CallService
+    // All through Lazy: each needs the wallet store, directly or not, and Hilt injects in
+    // onCreate - so with the account stores unreadable every push would end the process in the
+    // background. Nothing is built until a handler has checked the stores open.
+    @Inject lateinit var notificationHelperLazy: dagger.Lazy<NotificationHelper>
+    @Inject lateinit var pushRegistrationManagerLazy: dagger.Lazy<PushRegistrationManager>
+    @Inject lateinit var walletManagerLazy: dagger.Lazy<WalletManager>
+    @Inject lateinit var chatRepositoryLazy: dagger.Lazy<ChatRepository>
+    @Inject lateinit var groupRepositoryLazy: dagger.Lazy<com.kachat.app.repository.GroupRepository>
+    @Inject lateinit var settingsRepositoryLazy: dagger.Lazy<com.kachat.app.repository.AppSettingsRepository>
+    @Inject lateinit var callServiceLazy: dagger.Lazy<CallService>
+    private val notificationHelper: NotificationHelper get() = notificationHelperLazy.get()
+    private val pushRegistrationManager: PushRegistrationManager get() = pushRegistrationManagerLazy.get()
+    private val walletManager: WalletManager get() = walletManagerLazy.get()
+    private val chatRepository: ChatRepository get() = chatRepositoryLazy.get()
+    private val groupRepository: com.kachat.app.repository.GroupRepository get() = groupRepositoryLazy.get()
+    private val settingsRepository: com.kachat.app.repository.AppSettingsRepository get() = settingsRepositoryLazy.get()
+    private val callService: CallService get() = callServiceLazy.get()
+
+    /** The account stores open: the app's problem screen covers the rest; a push or a token
+     *  rotation meanwhile is dropped rather than building the wallet and ending the process. */
+    private fun accountStoresOpen(what: String): Boolean {
+        if (com.kachat.app.util.SecureStores.accountStoresOpen(applicationContext)) return true
+        Log.w(TAG, "Account stores unreadable, $what ignored")
+        return false
+    }
 
     override fun onNewToken(token: String) {
+        if (!accountStoresOpen("FCM token rotation")) return
         // FCM rotated the token — re-register it with the indexer (signed with the wallet key).
         Log.i(TAG, "FCM token rotated, re-registering with the push service")
         pushRegistrationManager.onTokenRefreshed(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        if (!accountStoresOpen("push")) return
         val data = message.data
         if (data.isEmpty()) {
             Log.d(TAG, "push received with empty data payload, ignoring")
@@ -55,7 +78,6 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         }
 
         val type = data["type"].orEmpty()
-        val title = data["title"].orEmpty()
         val body = data["body"].orEmpty()
         Log.i(TAG, "push received: type=$type txId=${data["tx_id"].orEmpty().take(16)}")
 
@@ -73,6 +95,25 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     Log.i(TAG, "Silenced a $type push from the other network")
                     return@runBlocking
                 }
+                // Signed out: the key stays on the device for signing back in, but this phone
+                // shows nothing until then. A failed unregister at logout can keep pushes coming
+                // (iOS NotificationService, bfe9f022).
+                if (walletManager.isLoggedOut || walletManager.getActiveAccount() == null) {
+                    data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+                    Log.i(TAG, "Silenced a $type push while signed out")
+                    return@runBlocking
+                }
+                // Our own transaction, sent from another device of this seed: never a banner (iOS
+                // NotificationService). A message is read back with the seed and stored
+                // (iOS addOutgoingMessageFromPush, bfe9f022).
+                val ownAddress = runCatching { walletManager.getAddress() }.getOrNull()
+                if (type in OWN_SEND_PUSH_TYPES && data["sender"].orEmpty().equals(ownAddress, ignoreCase = true)) {
+                    data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
+                        notificationHelper.claimWithoutNotifying(txId)
+                        if (type == "contextual") chatRepository.noteOwnSentPush(txId)
+                    }
+                    return@runBlocking
+                }
                 when (type) {
                     // .kachat name events left with the .kachat market (iOS d54ea87): one that
                     // still arrives is never shown; KaChat Wallet carries them.
@@ -88,108 +129,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                         Log.i(TAG, "Dropped a $type push: the feature left the app")
                     }
 
-                    "group_message" -> {
-                        // Group decryption is stateful (needs the local group seed + a ciphertext
-                        // fetch), so a push can't be decrypted inline the way a DM's enc_payload
-                        // can. Instead, run the normal indexer catch-up sync: it fetches the
-                        // ciphertext, decrypts it, and posts the PRECISE banner itself through
-                        // NotificationHelper ("Alice: hi", "Alice reacted 👍 to your message") —
-                        // or deliberately stays silent (e.g. a reaction to someone else's
-                        // message, a muted member). Only when the sync could not ingest the tx
-                        // at all (indexer lag, no network) does the generic fallback fire.
-                        val groupId = data["blinded_group_id"] ?: return@runBlocking
-                        val txId = data["tx_id"].orEmpty()
-                        // Bounded, as group_control is: syncGroups() is a full catch-up (every
-                        // group, backfill sends included) and FCM gives this handler about 20 s.
-                        // A sync still running at 8 s is left behind and the generic fallback
-                        // below posts in time (audit AND-008).
-                        val ingested = try {
-                            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
-                            txId.isNotBlank() && groupRepository.isGroupTxIngested(txId)
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Push-triggered group sync failed: ${e.message}")
-                            false
-                        }
-                        if (!ingested) {
-                            // The generic fallback can't know whether the un-ingested message
-                            // mentions the user, so in a group with "Only Notify if I'm
-                            // Mentioned" on it can't be posted correctly. Resolve the per-sender
-                            // blinded id back to the local group and consult the toggle:
-                            // mentions-only means suppress. Tradeoff: a missed banner for a
-                            // non-mention is exactly what the toggle asks for, while a missed
-                            // banner for an actual mention is the cost of the ingest failure;
-                            // the message itself still lands on the next successful sync, and if
-                            // this tx ingests later the precise local path still banners the
-                            // mention (which is why the txId is deliberately NOT claimed here).
-                            // When the blinded id matches no local group the toggle can't be
-                            // consulted, so the generic banner fires as before.
-                            val resolvedGroup = try {
-                                groupRepository.findGroupByBlindedId(groupId)
-                            } catch (e: Exception) {
-                                null
-                            }
-                            // When the blinded id resolves, silent and mentions-only both
-                            // suppress. When it does NOT resolve we cannot tell which group it is,
-                            // so the only honest question is whether the answer would be the same
-                            // for all of them - if every known group is silenced or mentions-only,
-                            // no group here would have allowed this banner.
-                            val suppressed = if (resolvedGroup != null) {
-                                groupRepository.isGroupSilent(resolvedGroup.groupId) ||
-                                    groupRepository.isGroupMentionsOnly(resolvedGroup.groupId)
-                            } else {
-                                groupRepository.allGroupsSuppressUnidentifiedPushes()
-                            }
-                            if (suppressed) {
-                                Log.i(TAG, "Generic group fallback suppressed by notification settings")
-                            } else {
-                                notificationHelper.showGroup(
-                                    // Prefer the resolved real group id/name: the tap intent
-                                    // then opens the actual thread and the open-thread
-                                    // suppression keys correctly.
-                                    groupId = resolvedGroup?.groupId ?: groupId,
-                                    title = resolvedGroup?.name ?: title.ifEmpty { "Group" },
-                                    text = body.ifEmpty { "New group message" },
-                                    dedupeTxId = txId.takeIf { it.isNotBlank() },
-                                    // Unresolved: `groupId` here is the per-sender BLINDED id,
-                                    // which is not a route argument any thread can be found by.
-                                    // Send the tap to the Chats list instead.
-                                    targetGroupId = resolvedGroup?.groupId,
-                                )
-                            }
-                        }
-                    }
+                    "group_message" -> handleGroupMessagePush(data)
 
-                    "group_control" -> {
-                        // "You were added to a group" / group update. This push is usually the
-                        // FIRST this device hears of the group, and nothing else was ingesting
-                        // it - the notification arrived, the tap had nothing to open, and the
-                        // group only turned up on the next manual refresh. Sync here so the
-                        // group actually exists by the time the notification is posted, which
-                        // also lets the blinded id below resolve to a real thread to open.
-                        //
-                        // Bounded: a push handler has seconds, not minutes, and a notification
-                        // that never posts is worse than one whose tap lands on the group list.
-                        runCatching {
-                            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
-                        }
-                        val blindedId = data["blinded_group_id"]?.takeIf { it.isNotBlank() }
-                        val key = blindedId ?: data["tx_id"] ?: "group"
-                        // Neither a blinded id nor a tx id is a local group id, so a tap keyed on
-                        // one opened `group_chat/<tx id>` — a thread with no group behind it, no
-                        // title, no messages and a composer that could not send. Resolve it when
-                        // the blinded id is there; otherwise route to the Chats list, where
-                        // the group appears as soon as the next sync ingests its root.
-                        val resolvedGroup = blindedId?.let {
-                            try { groupRepository.findGroupByBlindedId(it) } catch (e: Exception) { null }
-                        }
-                        notificationHelper.showGroup(
-                            groupId = resolvedGroup?.groupId ?: key,
-                            title = resolvedGroup?.name ?: title.ifEmpty { "Group" },
-                            text = body.ifEmpty { "Group update" },
-                            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
-                            targetGroupId = resolvedGroup?.groupId,
-                        )
-                    }
+                    "group_control" -> handleGroupControlPush(data)
 
                     "contextual" -> handleDirectMessage(data)
 
@@ -204,7 +146,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                             contactId = sender,
                             title = contactTitle(sender, sender),
                             // A payment: "<who> - Sent you 1.5 KAS" (iOS dcb329a).
-                            text = if (type == "payment") paymentPushBody(data["amount"]) else body.ifEmpty { "New message" },
+                            text = if (type == "payment") paymentPushBody(data["amount"]) else body.ifEmpty { getString(R.string.dm_notif_new_message) },
                             dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
                         )
                     }
@@ -215,6 +157,156 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                 Log.w(TAG, "Failed to handle push (type=$type): ${e.message}")
             }
         }
+    }
+
+    /**
+     * A group message. While push is active this is the only banner it gets, and it has to come
+     * from here whatever the sync does: the sync may run out of time, or have stored this very
+     * message on an earlier pass. So it is read straight off the push with the group secrets held
+     * here, as iOS's notification service extension does (iOS handleGroupPushResolved), and the
+     * banner goes up before the catch-up starts. A push with no payload (a photo: over the push's
+     * 3.5 KB) is read off chain first.
+     */
+    private suspend fun handleGroupMessagePush(data: Map<String, String>) {
+        val groupId = data["blinded_group_id"] ?: return
+        val txId = data["tx_id"].orEmpty()
+        val payload = data["enc_payload"]?.takeIf { it.isNotBlank() }?.let { "kchat:1:gcomm:$it" }
+            ?: txId.takeIf { it.isNotBlank() }?.let { id ->
+                runCatching {
+                    kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { groupRepository.readChainPayload(id) }
+                }.getOrNull()
+            }
+        val read = groupRepository.readGroupMessagePush(payload)
+        if (read is GroupMessagePush.Banner) postGroupBanner(read, txId)
+        // Stores the message, and brings the keys of a group this device has only just heard of.
+        // Bounded: syncGroups() is a full catch-up (every group, backfill sends included) and FCM
+        // gives this handler about 20 s. A sync still running at 8 s is left behind and the
+        // generic fallback below posts in time (audit AND-008).
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Push-triggered group sync failed: ${e.message}")
+        }
+        if (read !is GroupMessagePush.Unreadable) return
+        // The catch-up may have just brought the group this message belongs to.
+        when (val reread = groupRepository.readGroupMessagePush(payload)) {
+            is GroupMessagePush.Banner -> {
+                postGroupBanner(reread, txId)
+                return
+            }
+            GroupMessagePush.Silent -> return
+            GroupMessagePush.Unreadable -> Unit
+        }
+        // The generic fallback can't know whether the unread message mentions the user, so in a
+        // group with "Only Notify if I'm Mentioned" on it can't be posted correctly. Resolve the
+        // per-sender blinded id back to the local group and consult the toggle: mentions-only means
+        // suppress. Tradeoff: a missed banner for a non-mention is exactly what the toggle asks
+        // for, while a missed banner for an actual mention is the cost of the read failure; the
+        // message itself still lands on the next successful sync, and with no push active that
+        // path still banners the mention (which is why the txId is deliberately NOT claimed here).
+        // When the blinded id matches no local group the toggle can't be consulted, so the generic
+        // banner fires as before.
+        val resolvedGroup = try {
+            groupRepository.findGroupByBlindedId(groupId)
+        } catch (e: Exception) {
+            null
+        }
+        // When the blinded id resolves, silent and mentions-only both suppress. When it does NOT
+        // resolve we cannot tell which group it is, so the only honest question is whether the
+        // answer would be the same for all of them - if every known group is silenced or
+        // mentions-only, no group here would have allowed this banner.
+        val suppressed = if (resolvedGroup != null) {
+            groupRepository.isGroupSilent(resolvedGroup.groupId) ||
+                groupRepository.isGroupMentionsOnly(resolvedGroup.groupId)
+        } else {
+            groupRepository.allGroupsSuppressUnidentifiedPushes()
+        }
+        if (suppressed) {
+            Log.i(TAG, "Generic group fallback suppressed by notification settings")
+            return
+        }
+        notificationHelper.showGroup(
+            // Prefer the resolved real group id/name: the tap intent then opens the actual thread
+            // and the open-thread suppression keys correctly.
+            groupId = resolvedGroup?.groupId ?: groupId,
+            // Never the push's own title: the service sends the sender's raw address there.
+            title = resolvedGroup?.name ?: getString(R.string.group_chat),
+            text = getString(R.string.new_group_message),
+            dedupeTxId = txId.takeIf { it.isNotBlank() },
+            // Unresolved: `groupId` here is the per-sender BLINDED id, which is not a route
+            // argument any thread can be found by. Send the tap to the Chats list instead.
+            targetGroupId = resolvedGroup?.groupId,
+        )
+    }
+
+    private suspend fun postGroupBanner(banner: GroupMessagePush.Banner, txId: String) {
+        notificationHelper.showGroup(
+            groupId = banner.groupId,
+            title = banner.title,
+            text = banner.text,
+            dedupeTxId = txId.takeIf { it.isNotBlank() },
+        )
+    }
+
+    /**
+     * A group control: usually "you were added to a group". Read straight off the push with the
+     * wallet key, needing no network, as iOS's extension does (iOS handleGroupPushResolved): being
+     * added is only a request, announced once, so nothing for a group you're already in (a new root
+     * only rotates its keys) and otherwise "You were invited", whose tap opens Message Requests.
+     * Every other control, and one that can't be read, is "Group update". A root too big for the
+     * push (a long member list) is read off chain first; iOS has only the generic banner for those.
+     */
+    private suspend fun handleGroupControlPush(data: Map<String, String>) {
+        val txId = data["tx_id"]?.takeIf { it.isNotBlank() }
+        val payload = data["enc_payload"]?.takeIf { it.isNotBlank() }
+            ?: txId?.let { id ->
+                runCatching {
+                    kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { groupRepository.readChainControlPayload(id) }
+                }.getOrNull()
+            }
+        val read = groupRepository.readGroupControlPush(payload, data["sender"].orEmpty(), pushSentAtMs(data), txId)
+        when (read) {
+            is GroupControlPush.Invite -> notificationHelper.showGroupInvite(read.inviteKey, read.groupName, dedupeTxId = txId)
+            GroupControlPush.Update -> postGroupUpdate(data, txId, dedupeTxId = txId)
+            GroupControlPush.Quiet, GroupControlPush.Unreadable -> Unit
+        }
+        // Brings in whatever else it can see. Bounded: a push handler has seconds, not minutes.
+        runCatching {
+            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
+        }
+        if (read !is GroupControlPush.Unreadable) return
+        // Couldn't be read from here, but the sync may have: an invite it held waits for this
+        // push to announce it, and a root for a group held here only rotated its keys.
+        if (txId != null) {
+            groupRepository.inviteHeldByTx(txId)?.let { invite ->
+                notificationHelper.showGroupInvite(invite.inviteKey, invite.groupName, dedupeTxId = txId)
+                return
+            }
+            if (groupRepository.wasRootTx(txId)) return
+        }
+        // The txId is not claimed here: with no push active the sync's real banner can still
+        // follow this one once the control is readable.
+        postGroupUpdate(data, txId, dedupeTxId = null)
+    }
+
+    /**
+     * The generic control banner (iOS deliverGroupFallback): "Group chat", the sender's name under
+     * it, "Group update". Never the push's own title, which the service sets to the sender's raw
+     * address. There is no group to open, so the tap goes to the Chats list.
+     */
+    private suspend fun postGroupUpdate(data: Map<String, String>, txId: String?, dedupeTxId: String?) {
+        val sender = data["sender"]?.takeIf { it.isNotBlank() }
+        notificationHelper.showGroup(
+            groupId = txId ?: "group",
+            title = getString(R.string.group_chat),
+            text = getString(R.string.group_update),
+            dedupeTxId = dedupeTxId,
+            targetGroupId = null,
+            subtitle = sender?.let { address ->
+                val alias = runCatching { chatRepository.getContact(address)?.alias }.getOrNull()
+                com.kachat.app.models.addressDisplayName(address, alias = alias)
+            },
+        )
     }
 
     /**
@@ -232,18 +324,29 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // Media/large messages exceed FCM's 4KB cap, so the server can't attach the encrypted body
         // (enc_payload absent) — the server's generic body is used for those. Small text messages
         // carry enc_payload and are decrypted here for the real preview.
-        val fallback = data["body"].orEmpty().ifEmpty { "New message" }
+        val fallback = data["body"].orEmpty().ifEmpty { getString(R.string.dm_notif_new_message) }
 
         // No enc_payload means the message was too big for FCM - which is EVERY photo and voice
         // message, since those run to tens of kilobytes. Read it off chain so the preview below
         // can say what it is instead of falling back to the server's generic wording.
         // Bounded so the fallback text still posts when the REST API is slow (audit AND-008).
-        val plaintext = decryptDirectMessage(data["enc_payload"])
-            ?: data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
-                runCatching {
-                    kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { chatRepository.decryptChainMessage(txId) }
-                }.getOrNull()
+        val pushedPlaintext = decryptDirectMessage(data["enc_payload"])
+        val chainRead = if (pushedPlaintext != null) null else data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
+            runCatching {
+                kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { chatRepository.readChainMessage(txId) }
+            }.getOrNull()
+        }
+        // The indexer picks devices by who sent a message, not who it's for, so a contact's
+        // message to someone else can reach this phone: it isn't ours, so it says nothing and
+        // isn't queued. Being unable to read one (no key, no network) still rings (iOS bfe9f022).
+        if (chainRead is ChatRepository.ContextualRead.NotForThisAccount) {
+            data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
+                notificationHelper.claimWithoutNotifying(txId)
+                chatRepository.forgetPushedMessage(txId)
             }
+            return
+        }
+        val plaintext = pushedPlaintext ?: (chainRead as? ChatRepository.ContextualRead.Message)?.text
         if (plaintext != null && MessageReaction.parseOrNull(plaintext) != null) {
             // Reactions are never shown as their own notification (matches ChatRepository).
             return
@@ -428,7 +531,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         /** How long a push may spend on a group catch-up before the generic banner posts. */
         private const val GROUP_SYNC_BUDGET_MS = 8_000L
 
-        /** How long a payload-less DM push may spend reading its message off chain. */
-        private const val CHAIN_READ_BUDGET_MS = 5_000L
+        /** How long a payload-less push may spend reading its message off chain (iOS
+         *  NotificationService fetchChainPreview, timeoutInterval 8). */
+        private const val CHAIN_READ_BUDGET_MS = 8_000L
+
+        /** The 1:1 push types whose sender can be this wallet itself. */
+        private val OWN_SEND_PUSH_TYPES = setOf("contextual", "payment", "handshake")
     }
 }

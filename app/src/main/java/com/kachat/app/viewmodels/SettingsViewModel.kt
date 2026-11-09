@@ -16,24 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settings: AppSettingsRepository,
-    pushState: com.kachat.app.services.PushState,
+    private val pushRegistrationManager: com.kachat.app.services.PushRegistrationManager,
 ) : ViewModel() {
-
-    /** Read-only push diagnostics for Settings > Notifications (see PushState.PushDiagnostics). */
-    val pushActive = pushState.pushActive
-    val pushDiagnostics = pushState.diagnostics
-
-    val network = settings.network
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_NETWORK)
-
-    val indexerUrl = settings.indexerUrl
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_INDEXER_URL)
-
-    val knsApiUrl = settings.knsApiUrl
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_KNS_API_URL)
-
-    val kaspaRestUrl = settings.kaspaRestUrl
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_KASPA_REST_URL)
 
     val notificationsEnabled = settings.notificationsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -43,22 +27,40 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val showFeeEstimate = settings.showFeeEstimate
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    /** Settings > Chats > Require approval for photos from new contacts (iOS, on by default). */
-    val requirePhotoApprovalForNewContacts = settings.requirePhotoApprovalForNewContacts
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     /** Settings > Chats > Higher quality photos (iOS, off by default). */
     val higherQualityPhotos = settings.higherQualityPhotos
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val quickReactionEmojis = settings.quickReactionEmojis
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
 
-    fun saveIndexerUrl(value: String) = viewModelScope.launch { settings.setIndexerUrl(value) }
-    fun saveKaspaRestUrl(value: String) = viewModelScope.launch { settings.setKaspaRestUrl(value) }
     fun setNotificationsEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationsEnabled(value) }
+
+    /**
+     * The Push Notifications switch turning on (iOS NotificationsHubPage.enablePushNotifications):
+     * on straight away, then waits for the push service, and back off if it didn't take the
+     * registration. False when it failed.
+     */
+    suspend fun enablePushNotifications(): Boolean {
+        settings.setNotificationsEnabled(true)
+        // This switch also gates local banners, where iOS's notification mode falls back to its
+        // previous one: with no push possible here at all, turning it off for good would leave
+        // no banners and no way back.
+        if (!pushRegistrationManager.canRegister()) return true
+        return try {
+            pushRegistrationManager.registerAndWait()
+            true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("SettingsViewModel", "Failed to enable push: ${e.message}")
+            settings.setNotificationsEnabled(false)
+            false
+        }
+    }
+
     fun setNotificationSoundEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationSoundEnabled(value) }
     fun setNotificationVibrationEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationVibrationEnabled(value) }
     fun setShowFeeEstimate(value: Boolean) = viewModelScope.launch { settings.setShowFeeEstimate(value) }
-    fun setRequirePhotoApprovalForNewContacts(value: Boolean) = viewModelScope.launch { settings.setRequirePhotoApprovalForNewContacts(value) }
     fun setHigherQualityPhotos(value: Boolean) = viewModelScope.launch { settings.setHigherQualityPhotos(value) }
     fun setQuickReactionEmojis(value: List<String>) = viewModelScope.launch { settings.setQuickReactionEmojis(value) }
 

@@ -63,7 +63,10 @@ class NodePoolManager @Inject constructor(
     // startProbing(): a healthy pool probes only its primary node at a slower cadence, and
     // the other pooled connections are closed between cycles so their HTTP/2 keepalive pings
     // stop. Pinned trusted-node mode is untouched (it is already a single cheap connection).
-    private val meteredNetwork: MeteredNetwork
+    private val meteredNetwork: MeteredNetwork,
+    // For the acceptance lookup after a node refused a send: the built-in REST server's client
+    // ([builtInRestApi]), never a custom one set in Settings.
+    private val okHttpClient: okhttp3.OkHttpClient
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val registry = NodeRegistry()
@@ -171,10 +174,11 @@ class NodePoolManager @Inject constructor(
     // Per-hostname bound for resolveDnsSeedsIfNeeded()'s parallel lookups.
     private val dnsLookupTimeoutMillis = 5_000L
 
-    // Per-candidate RPC timeout while racing discovery probes in parallel — tight (vs the 5s
-    // RPC default the pinned trusted node keeps) because the first responder is published
-    // immediately (see probeCycle) and a dead candidate should not hold a cycle open long.
-    private val discoveryProbeTimeoutMillis = 3_000L
+    // Per-candidate RPC timeout while racing discovery probes in parallel. It also covers the
+    // connection's own setup, and TCP, TLS and HTTP/2 on a slow cellular link must fit (iOS
+    // 4f8e14bb `connectionTimeout`, 3 s to 5 s); the first responder is published immediately
+    // anyway (see probeCycle).
+    private val discoveryProbeTimeoutMillis = 5_000L
 
     // Consecutive completed automatic-mode cycles in which not a single probed node was
     // reachable — drives both the exponential probe backoff in startProbing() (a fully
@@ -573,9 +577,7 @@ class NodePoolManager @Inject constructor(
         // discovery resumes automatically. WiFi keeps the full wave exactly as before.
         val fullWave = (seeds + manualEndpoints + discoveredEndpoints + dnsResolvedEndpoints).distinct()
         val firstWave = if (meteredNetwork.isMetered && activeCount >= targetActiveNodes) {
-            registry.snapshot()
-                .filter { registry.statusOf(it) == "Active" }
-                .minByOrNull { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+            registry.activeBestFirst().firstOrNull()
                 ?.let { listOf(it.address) }
                 ?: fullWave
         } else {
@@ -717,9 +719,7 @@ class NodePoolManager @Inject constructor(
      */
     fun getBroadcastConnection(): KaspadConnection {
         trustedNodeAddress.value?.let { return connectionFor(it) }
-        val bestActive = registry.snapshot()
-            .filter { registry.statusOf(it) == "Active" }
-            .minByOrNull { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+        val bestActive = registry.activeBestFirst().firstOrNull()
         if (bestActive != null) {
             connections[bestActive.address]?.let { return it }
         }
@@ -782,7 +782,7 @@ class NodePoolManager @Inject constructor(
         val txId = expectedTxId.lowercase()
         return SubmitConfirmation.submitOrConfirmKnown(
             txId = txId,
-            isKnown = { isTransactionKnown(it, rest) },
+            isKnown = { id, afterRejection -> isTransactionKnown(id, rest, afterRejection) },
             onRecovered = { e ->
                 Log.w("NodePoolManager", "Submit of ${txId.take(12)} reported \"${e.message}\" but the network has it: treated as sent")
             },
@@ -795,10 +795,13 @@ class NodePoolManager @Inject constructor(
      * disallowed" rejection waits for the parent and tries again, then lets the node hold it as an
      * orphan - see [SubmitConfirmation.submitWaitingForParent] (iOS 4eb492f, which does this in
      * NodePoolService.submitTransaction for messages, payments and reactions alike).
+     * [escalateOrphan] false stops at the wait: for sends that move money and must not sit in a
+     * node's orphan pool (iOS 4f8e14bb).
      */
-    suspend fun submitWaitingForParent(transaction: RawTransaction, allowOrphan: Boolean = false): String =
+    suspend fun submitWaitingForParent(transaction: RawTransaction, allowOrphan: Boolean = false, escalateOrphan: Boolean = true): String =
         SubmitConfirmation.submitWaitingForParent(
             allowOrphan = allowOrphan,
+            escalateOrphan = escalateOrphan,
             onHeldAsOrphan = { id ->
                 Log.i("NodePoolManager", "${id.take(12)} submitted as an orphan: its parent hadn't reached that node yet")
             },
@@ -822,9 +825,7 @@ class NodePoolManager @Inject constructor(
      */
     suspend fun feeEstimate(): Pair<NodeFeeBucket, NodeFeeBucket> {
         val addresses = trustedNodeAddress.value?.let { listOf(it) }
-            ?: registry.snapshot()
-                .filter { registry.statusOf(it) == "Active" }
-                .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+            ?: registry.activeBestFirst()
                 .take(5)
                 .map { it.address }
                 .ifEmpty { listOf(dnsResolvedEndpoints.firstOrNull() ?: seeds.first()) }
@@ -867,31 +868,63 @@ class NodePoolManager @Inject constructor(
         }
     }
 
-    /** Whether the network already has [txId]: in a mempool (up to three nodes), or accepted
-     *  (REST API) - asked twice, 1.5 s apart (iOS NodePoolService.isTransactionKnown). */
-    suspend fun isTransactionKnown(txId: String, rest: KaspaRestApi?): Boolean =
-        SubmitConfirmation.isKnown(
+    /** Whether the network already has [txId]: in a mempool (the primary node and up to three
+     *  others), or accepted (REST API) - asked twice, 1.5 s apart (iOS
+     *  NodePoolService.isTransactionKnown). [afterRejection]: a node refused it, so a REST
+     *  "accepted" counts only from the network's built-in REST server ([builtInRestApi]), never
+     *  [rest] when that is a custom one set in Settings (iOS d23e6f7a `builtInOnly`). */
+    suspend fun isTransactionKnown(txId: String, rest: KaspaRestApi?, afterRejection: Boolean = false): Boolean {
+        val acceptanceApi = if (afterRejection) builtInRestApi() else rest
+        return SubmitConfirmation.isKnown(
             txId = txId,
             inMempool = { isInAnyMempool(it) },
-            acceptedViaRest = { id -> rest != null && isAcceptedViaRest(rest, id) },
+            acceptedViaRest = { id -> acceptanceApi != null && isAcceptedViaRest(acceptanceApi, id) },
         )
+    }
+
+    /** The running network's built-in REST server and its client, built once per URL. */
+    @Volatile private var builtInRest: Pair<String, KaspaRestApi>? = null
+
+    /** A client for the running network's built-in REST server
+     *  ([AppSettingsRepository.defaultKaspaRestUrl]), whatever Settings names; null when it
+     *  can't be built. */
+    private fun builtInRestApi(): KaspaRestApi? {
+        val url = AppSettingsRepository.defaultKaspaRestUrl(com.kachat.app.util.KaspaNetwork.launch).trim()
+        builtInRest?.let { (cachedUrl, api) -> if (cachedUrl == url) return api }
+        return try {
+            val api = retrofit2.Retrofit.Builder()
+                .baseUrl(if (url.endsWith("/")) url else "$url/")
+                .client(okHttpClient)
+                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+                .build()
+                .create(KaspaRestApi::class.java)
+            builtInRest = url to api
+            api
+        } catch (e: Exception) {
+            Log.w("NodePoolManager", "Couldn't build the built-in REST client: ${e.message}")
+            null
+        }
+    }
 
     /** Whether a node still holds [txId] in its mempool ([isInAnyMempool]): a `.kachat` commit
      *  that isn't on chain yet is waiting there, or was dropped (iOS b219bb0 `getMempoolEntry`). */
     suspend fun isInMempool(txId: String): Boolean = isInAnyMempool(txId)
 
-    /** Whether any of up to three nodes (the trusted node alone, when one is set) holds [txId]
-     *  in its mempool, orphan pool included. Asked in parallel, 2 s each. */
+    /** Whether the primary node - the one the next broadcast uses, most likely to hold a
+     *  transaction just submitted - or one of the three fastest others (the trusted node alone,
+     *  when one is set) holds [txId] in its mempool, orphan pool included (iOS d23e6f7a
+     *  `getMempoolEntry`). Asked in parallel, 2 s each. */
     private suspend fun isInAnyMempool(txId: String): Boolean {
-        val connections = trustedNodeAddress.value?.let { listOf(connectionFor(it)) }
-            ?: registry.snapshot()
-                .filter { registry.statusOf(it) == "Active" }
-                .sortedBy { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
+        val asked = trustedNodeAddress.value?.let { listOf(connectionFor(it)) } ?: run {
+            val primary = getBroadcastConnection()
+            val others = registry.activeBestFirst()
+                .filter { connections[it.address] !== primary }
                 .take(3)
                 .map { connectionFor(it.address) }
-                .ifEmpty { listOf(getBroadcastConnection()) }
+            listOf(primary) + others
+        }
         return coroutineScope {
-            connections.map { connection -> async { connection.hasMempoolEntry(txId) } }.awaitAll().any { it }
+            asked.map { connection -> async { connection.hasMempoolEntry(txId) } }.awaitAll().any { it }
         }
     }
 
@@ -912,9 +945,7 @@ class NodePoolManager @Inject constructor(
      */
     fun refreshBroadcastConnection() {
         val address = trustedNodeAddress.value
-            ?: registry.snapshot()
-                .filter { registry.statusOf(it) == "Active" }
-                .minByOrNull { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }?.address
+            ?: registry.activeBestFirst().firstOrNull()?.address
             ?: dnsResolvedEndpoints.firstOrNull() ?: seeds.firstOrNull() ?: return
         connections.remove(address)?.let { runCatching { it.close() } }
     }

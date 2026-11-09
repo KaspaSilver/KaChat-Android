@@ -101,7 +101,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -569,6 +568,8 @@ fun NextcloudPhotoViewerDialog(
             SubcomposeAsyncImage(
                 model = downloadUrl,
                 contentDescription = null,
+                // The link is whoever sent it: capped like the file it stands for (iOS 4f8e14bb).
+                imageLoader = com.kachat.app.services.LinkPreviewService.fullImageLoader(LocalContext.current),
                 contentScale = ContentScale.Fit,
                 loading = {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -716,9 +717,9 @@ fun NextcloudPdfViewerDialog(
  * https warning between them, the app-password footer), an error section when connecting failed,
  * and Connect in a section of its own.
  *
- * Connected: Connected Account (server, username); Start Folder with the + menu footer; Message
- * Backup (Automatic Sync, the one-service note, Last synced, Backup Folder, Back Up Messages Now,
- * Restore from Backup, the last backup, the outcome of a backup started here) with its footer;
+ * Connected: Connected Account (server, username); Start Folder with the + menu footer; Contact
+ * Backup (Automatic Sync, the one-service note, Last synced, Backup Folder, Back Up Contacts Now,
+ * the last backup, the outcome of a backup started here) with its footer;
  * Disconnect, confirmed by an alert, with its footer.
  */
 @Composable
@@ -731,13 +732,11 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
     val lastAutoSyncMs by chatViewModel.nextcloudLastAutoSyncMs.collectAsState()
     val connectState by chatViewModel.nextcloudConnectState.collectAsState()
     val backupState by chatViewModel.nextcloudBackupState.collectAsState()
-    val restorePhase by chatViewModel.restoreCoordinator.phase.collectAsState()
     val backupInfo by chatViewModel.nextcloudBackupInfo.collectAsState()
     val is24Hour = is24HourClock()
 
     var showStartFolderPicker by remember { mutableStateOf(false) }
     var showBackupFolderPicker by remember { mutableStateOf(false) }
-    var showRestoreConfirm by remember { mutableStateOf(false) }
     var showDisconnectConfirm by remember { mutableStateOf(false) }
     // iOS keeps a backup's outcome ("Backup uploaded." / the error) in the view's own state, so it
     // shows only for a backup started on this visit; the view model's state outlives the page.
@@ -749,7 +748,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
 
     // Testnet: Nextcloud is off until mainnet is back (iOS af8ec68).
     if (service.isOffForTestnet) {
-        SettingsFormSection(title = null, footer = stringResource(R.string.nextcloud_off_on_testnet_footer)) {
+        SettingsFormSection(title = null) {
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -787,7 +786,6 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
 
         NcFormSection(
             title = stringResource(R.string.nc_server),
-            footers = listOf(stringResource(R.string.nc_app_password_footer)),
         ) {
             NcFormField(
                 value = server,
@@ -851,7 +849,6 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
         }
     } else {
         val backupInFlight = backupState.status == ChatViewModel.ChatHistoryOpStatus.IN_PROGRESS
-        val restoreInFlight = restorePhase is com.kachat.app.services.BackupRestoreCoordinator.Phase.Running
         val host = connected.server.toHttpUrlOrNull()?.host ?: connected.server
         val allFiles = stringResource(R.string.pnc_all_files)
 
@@ -866,10 +863,6 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
         // privacy still belongs here (iOS 8b13460).
         NcFormSection(
             title = null,
-            footers = listOf(
-                stringResource(R.string.nextcloud_file_folder_footer),
-                stringResource(R.string.nextcloud_media_route_footer, NextcloudService.MEDIA_FOLDER_PATH),
-            ),
         ) {
             NcValueRow(
                 stringResource(R.string.nc_start_folder),
@@ -880,17 +873,12 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
         }
 
         NcFormSection(
-            title = stringResource(R.string.nc_message_backup),
-            footers = listOf(
-                stringResource(R.string.nc_message_backup_footer, NextcloudService.BACKUP_FILE_NAME, NextcloudService.BACKUP_FOLDER_NAME),
-                stringResource(R.string.nextcloud_sync_address_book),
-            ),
+            title = stringResource(R.string.nc_contact_backup),
+            footers = listOf(stringResource(R.string.nc_contact_backup_footer)),
         ) {
             SettingsSwitchItem(stringResource(R.string.nc_automatic_sync), autoBackupEnabled) { enabled ->
                 chatViewModel.setNextcloudAutoSyncEnabled(enabled)
             }
-            SettingsDivider()
-            NcCaptionRow(stringResource(R.string.nc_auto_sync_one_service), colors.textSecondary)
             lastAutoSyncMs?.let { ms ->
                 SettingsDivider()
                 NcValueRow(
@@ -910,22 +898,11 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             NcLabelButtonRow(
                 label = stringResource(R.string.nc_back_up_now),
                 icon = Icons.Outlined.UploadFile,
-                enabled = !backupInFlight && !restoreInFlight,
+                enabled = !backupInFlight,
                 busy = backupInFlight,
             ) {
                 backupStartedHere = true
                 chatViewModel.nextcloudBackupNow()
-            }
-            SettingsDivider(inset = IosRowTextInset)
-            NcLabelButtonRow(
-                label = stringResource(R.string.nc_restore_from_backup),
-                icon = Icons.Outlined.FileDownload,
-                enabled = !backupInFlight && !restoreInFlight && backupInfo != null,
-                busy = restoreInFlight,
-            ) {
-                // Progress and the outcome show in the blocking restore modal
-                // (ChatRestoreProgressOverlay), not as rows here.
-                showRestoreConfirm = true
             }
             val info = backupInfo
             val modified = info?.modifiedMs
@@ -951,7 +928,7 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             }
         }
 
-        SettingsFormSection(title = null, footer = stringResource(R.string.nc_disconnect_footer)) {
+        SettingsFormSection(title = null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -985,30 +962,6 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
                 showBackupFolderPicker = false
                 // The backup lives per folder - re-check what exists at the new destination.
                 chatViewModel.refreshNextcloudBackupInfo()
-            }
-        )
-    }
-    if (showRestoreConfirm) {
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { showRestoreConfirm = false },
-            containerColor = colors.surface,
-            title = { Text(stringResource(R.string.nc_restore_from_backup), color = colors.textPrimary) },
-            text = { Text(stringResource(R.string.nc_restore_message), color = colors.textSecondary) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRestoreConfirm = false
-                    backupStartedHere = false
-                    // Runs behind the blocking progress modal; the coordinator owns the work, so
-                    // leaving this page cannot interrupt the restore.
-                    chatViewModel.restoreFromNextcloud()
-                }) {
-                    Text(stringResource(R.string.nc_restore), color = KaspaTeal, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRestoreConfirm = false }) {
-                    Text(stringResource(R.string.cancel), color = colors.textSecondary)
-                }
             }
         )
     }

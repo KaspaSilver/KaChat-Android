@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Create Account's three steps (iOS acd879b / c6bd716) and Import Account's length step (iOS dd0aab1). */
+/** Import Account's name and length steps (iOS dd0aab1). */
 class CreateAccountStepsTest {
 
     @Test
@@ -24,24 +24,6 @@ class CreateAccountStepsTest {
     @Test
     fun `the lengths are 12 then 24 words`() {
         assertEquals(listOf(12, 24), CreateAccountSteps.WORD_COUNTS)
-    }
-
-    @Test
-    fun `generate waits for a length to be chosen`() {
-        assertFalse(CreateAccountSteps.canGenerate(null, isCreating = false))
-        assertTrue(CreateAccountSteps.canGenerate(12, isCreating = false))
-        assertTrue(CreateAccountSteps.canGenerate(24, isCreating = false))
-    }
-
-    @Test
-    fun `only the offered lengths generate`() {
-        assertFalse(CreateAccountSteps.canGenerate(0, isCreating = false))
-        assertFalse(CreateAccountSteps.canGenerate(18, isCreating = false))
-    }
-
-    @Test
-    fun `generate runs once`() {
-        assertFalse(CreateAccountSteps.canGenerate(12, isCreating = true))
     }
 
     @Test

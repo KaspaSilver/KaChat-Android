@@ -3,6 +3,9 @@
 package com.kachat.app.util
 
 import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.gson.annotations.SerializedName
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator
@@ -120,8 +123,11 @@ object GroupCipher {
     fun sign(message: ByteArray, privateKey: ByteArray): ByteArray = Schnorr.sign(message, privateKey)
 
     /** Raw Schnorr verify. */
-    fun verify(signature: ByteArray, message: ByteArray, xOnlyPublicKey: ByteArray): Boolean =
-        Schnorr.verify(message, signature, xOnlyPublicKey)
+    fun verify(signature: ByteArray, message: ByteArray, xOnlyPublicKey: ByteArray): Boolean {
+        // A key of the wrong length off the wire is a refusal, not an error (iOS 4f8e14bb).
+        if (xOnlyPublicKey.size != 32) return false
+        return Schnorr.verify(message, signature, xOnlyPublicKey)
+    }
 
     /** Signing payload for gcomm: sign(AAD || ciphertext+tag). */
     fun buildMessageSigningPayload(aad: ByteArray, ciphertextWithTag: ByteArray): ByteArray = aad + ciphertextWithTag
@@ -131,13 +137,35 @@ object GroupCipher {
         return byteArrayOf(v.toByte()) + "gctl_root".toByteArray(Charsets.UTF_8) + groupId + leBytes(epoch) + groupRootEpoch + blindingKey + adminSigningPub
     }
 
+    /**
+     * Whether a root with no signed roster may be taken from [senderAddress]. Its signature doesn't
+     * cover its roster or name, so a member could re-send the admin's signed root with those
+     * changed: only the admin's own address sends those. A blank sender is the indexer not having
+     * resolved it yet, and is let through: refusing it would lose a real root, as the sync moves on
+     * past it. This narrows the problem and doesn't close it: a blank sender gets through, and the
+     * live block scan reads the sender from a transaction's first output, which whoever builds the
+     * transaction chooses.
+     */
+    fun rootSenderAllowed(senderAddress: String, adminSigningPubHex: String, addressPrefix: String): Boolean {
+        if (senderAddress.isBlank()) return true
+        val admin = runCatching { KaspaAddress.encode(addressPrefix, 0x00, adminSigningPubHex.hexToByteArray()) }.getOrNull()
+            ?: return false
+        return senderAddress.equals(admin, ignoreCase = true)
+    }
+
     /** Signing payload for gctl_epoch: v || "gctl_epoch" || group_id || epoch_le || reason */
     fun buildEpochSigningPayload(v: Int, groupId: ByteArray, epoch: Long, reason: String): ByteArray {
         return byteArrayOf(v.toByte()) + "gctl_epoch".toByteArray(Charsets.UTF_8) + groupId + leBytes(epoch) + reason.toByteArray(Charsets.UTF_8)
     }
 
-    fun buildTombstoneSigningPayload(v: Int, groupId: ByteArray): ByteArray {
-        return byteArrayOf(v.toByte()) + "gctl_tombstone".toByteArray(Charsets.UTF_8) + groupId
+    /** v || "gctl_tombstone" || group_id, then admin_signing_pub in v2. */
+    fun buildTombstoneSigningPayload(v: Int, groupId: ByteArray, adminSigningPub: ByteArray? = null): ByteArray {
+        return byteArrayOf(v.toByte()) + "gctl_tombstone".toByteArray(Charsets.UTF_8) + groupId + (adminSigningPub ?: ByteArray(0))
+    }
+
+    /** v || "gctl_invite_accept" || group_id || admin_signing_pub - iOS GroupCipher.buildInviteAcceptSigningPayload. */
+    fun buildInviteAcceptSigningPayload(v: Int, groupId: ByteArray, adminSigningPub: ByteArray): ByteArray {
+        return byteArrayOf(v.toByte()) + "gctl_invite_accept".toByteArray(Charsets.UTF_8) + groupId + adminSigningPub
     }
 
     fun buildPhotoSigningPayload(v: Int, groupId: ByteArray, photo: ByteArray): ByteArray {
@@ -164,7 +192,12 @@ object GroupCipher {
         // members' copies never carry it). Not signed; authenticated by re-deriving group_id +
         // blinding_key from it (see GroupRepository.completeJoin). Lets a seedless re-import
         // rebuild the group as admin.
-        @SerializedName("group_seed") val groupSeed: String? = null
+        @SerializedName("group_seed") val groupSeed: String? = null,
+        // The admin's signature over `members` and `name`, which `sig` leaves out, and the version
+        // that orders it (iOS MESSAGING.md, "Signed rosters"). Optional: older clients neither send
+        // nor read them, and their `sig` check is unaffected.
+        @SerializedName("roster_version") val rosterVersion: Long? = null,
+        @SerializedName("roster_sig") val rosterSig: String? = null,
     )
 
     /** gctl_epoch - admin announces a membership/epoch change ahead of sending a fresh root. */
@@ -187,11 +220,13 @@ object GroupCipher {
         adminSigningPub: ByteArray,
         members: List<String>,
         name: String,
+        rosterVersion: Long,
         adminPrivateKey: ByteArray,
         groupSeed: ByteArray? = null
     ): GroupRootPayload {
         val signingPayload = buildRootSigningPayload(1, groupId, epoch, groupRootEpoch, blindingKey, adminSigningPub)
         val sig = sign(signingPayload, adminPrivateKey)
+        val rosterSig = sign(buildRosterSigningPayload(groupId, epoch, rosterVersion, members, name), adminPrivateKey)
         return GroupRootPayload(
             groupId = groupId.toHexString(),
             epoch = epoch,
@@ -201,8 +236,56 @@ object GroupCipher {
             members = members,
             name = name,
             sig = sig.toHexString(),
-            groupSeed = groupSeed?.toHexString()
+            groupSeed = groupSeed?.toHexString(),
+            rosterVersion = rosterVersion,
+            rosterSig = rosterSig.toHexString(),
         )
+    }
+
+    /**
+     * What `roster_sig` covers: 0x01 || "gctl_roster" || group_id || epoch || roster_version ||
+     * member count || for each member: byte length, bytes || name byte length, name bytes, with
+     * every integer 8 bytes little-endian. Members are lowercased and sorted by their UTF-8 bytes,
+     * so every client signs the same bytes for the same list; the name is exactly as sent.
+     */
+    fun buildRosterSigningPayload(groupId: ByteArray, epoch: Long, rosterVersion: Long, members: List<String>, name: String): ByteArray {
+        val sorted = members.map { it.lowercase().toByteArray(Charsets.UTF_8) }.sortedWith(UNSIGNED_BYTES)
+        val out = java.io.ByteArrayOutputStream()
+        out.write(1)
+        out.write("gctl_roster".toByteArray(Charsets.UTF_8))
+        out.write(groupId)
+        out.write(leBytes(epoch))
+        out.write(leBytes(rosterVersion))
+        out.write(leBytes(sorted.size.toLong()))
+        for (member in sorted) {
+            out.write(leBytes(member.size.toLong()))
+            out.write(member)
+        }
+        val nameBytes = name.toByteArray(Charsets.UTF_8)
+        out.write(leBytes(nameBytes.size.toLong()))
+        out.write(nameBytes)
+        return out.toByteArray()
+    }
+
+    private val UNSIGNED_BYTES = Comparator<ByteArray> { a, b ->
+        for (i in 0 until minOf(a.size, b.size)) {
+            val diff = (a[i].toInt() and 0xFF) - (b[i].toInt() and 0xFF)
+            if (diff != 0) return@Comparator diff
+        }
+        a.size - b.size
+    }
+
+    /** The root's `roster_sig` checks out against its own `admin_signing_pub`. Whether that's the
+     *  group's real admin is the same separate question as [verifyRootPayload]. */
+    fun verifyRoster(payload: GroupRootPayload): Boolean {
+        return try {
+            val version = payload.rosterVersion ?: return false
+            val sig = payload.rosterSig?.hexToByteArray() ?: return false
+            val signingPayload = buildRosterSigningPayload(payload.groupId.hexToByteArray(), payload.epoch, version, payload.members, payload.name)
+            verify(sig, signingPayload, payload.adminSigningPub.hexToByteArray())
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**
@@ -243,18 +326,28 @@ object GroupCipher {
 
     /** gctl_tombstone - a self-addressed "I deleted this group" marker so a delete survives a
      *  seedless re-import (the recovery invite would otherwise resurrect it). Signed by the
-     *  deleter, honored ONLY when signed by + addressed to the reader's own key. */
+     *  deleter, honored ONLY when signed by + addressed to the reader's own key. v2 names the admin
+     *  it's about, so a stranger reusing a group id can't get the real group refused by being
+     *  rejected. v1 (no admin) covers that id from any admin. */
     data class GroupTombstonePayload(
         val type: String = "gctl_tombstone",
         val v: Int = 1,
         @SerializedName("group_id") val groupId: String,
         @SerializedName("signing_pub") val signingPub: String,
+        @SerializedName("admin_signing_pub") val adminSigningPub: String? = null,
         val sig: String
     )
 
-    fun buildSignedTombstonePayload(groupId: ByteArray, signingPub: ByteArray, privateKey: ByteArray): GroupTombstonePayload {
-        val sig = sign(buildTombstoneSigningPayload(1, groupId), privateKey)
-        return GroupTombstonePayload(groupId = groupId.toHexString(), signingPub = signingPub.toHexString(), sig = sig.toHexString())
+    fun buildSignedTombstonePayload(groupId: ByteArray, adminSigningPub: ByteArray?, signingPub: ByteArray, privateKey: ByteArray): GroupTombstonePayload {
+        val v = if (adminSigningPub == null) 1 else 2
+        val sig = sign(buildTombstoneSigningPayload(v, groupId, adminSigningPub), privateKey)
+        return GroupTombstonePayload(
+            v = v,
+            groupId = groupId.toHexString(),
+            signingPub = signingPub.toHexString(),
+            adminSigningPub = adminSigningPub?.toHexString(),
+            sig = sig.toHexString(),
+        )
     }
 
     fun verifyTombstonePayload(payload: GroupTombstonePayload): Boolean {
@@ -262,13 +355,60 @@ object GroupCipher {
             val groupId = payload.groupId.hexToByteArray()
             val signingPub = payload.signingPub.hexToByteArray()
             val sig = payload.sig.hexToByteArray()
-            verify(sig, buildTombstoneSigningPayload(payload.v, groupId), signingPub)
+            verify(sig, buildTombstoneSigningPayload(payload.v, groupId, payload.adminSigningPub?.hexToByteArray()), signingPub)
         } catch (e: Exception) { false }
     }
 
     fun tombstonePayloadToJson(payload: GroupTombstonePayload): String = gson.toJson(payload)
-    fun tombstonePayloadFromJson(json: String): GroupTombstonePayload? =
-        try { gson.fromJson(json, GroupTombstonePayload::class.java) } catch (e: Exception) { null }
+    fun tombstonePayloadFromJson(json: String): GroupTombstonePayload? {
+        val obj = jsonObjectOrNull(json) ?: return null
+        if (!hasStrings(obj, "type", "group_id", "signing_pub", "sig") || !hasNumbers(obj, "v")) return null
+        if (!optionalString(obj, "admin_signing_pub")) return null
+        return try { gson.fromJson(obj, GroupTombstonePayload::class.java) } catch (e: Exception) { null }
+    }
+
+    /** gctl_invite_accept - you joined this group (iOS bfe9f022). Self-addressed and signed, like
+     *  gctl_tombstone (which is what a rejection publishes): it's how your other devices and a
+     *  restore of your words learn the answer. Older clients ignore it. It names the admin you said
+     *  yes to: another root for that group id is still a separate invite. v1 carried no admin
+     *  ([adminSigningPub] null here) and is ignored: that group is simply offered again. */
+    data class GroupInviteAcceptPayload(
+        val type: String = "gctl_invite_accept",
+        val v: Int = 2,
+        @SerializedName("group_id") val groupId: String,
+        @SerializedName("admin_signing_pub") val adminSigningPub: String?,
+        @SerializedName("signing_pub") val signingPub: String,
+        val sig: String
+    )
+
+    fun buildSignedInviteAcceptPayload(groupId: ByteArray, adminSigningPub: ByteArray, signingPub: ByteArray, privateKey: ByteArray): GroupInviteAcceptPayload {
+        val sig = sign(buildInviteAcceptSigningPayload(2, groupId, adminSigningPub), privateKey)
+        return GroupInviteAcceptPayload(
+            groupId = groupId.toHexString(),
+            adminSigningPub = adminSigningPub.toHexString(),
+            signingPub = signingPub.toHexString(),
+            sig = sig.toHexString(),
+        )
+    }
+
+    fun verifyInviteAcceptPayload(payload: GroupInviteAcceptPayload): Boolean {
+        return try {
+            val groupId = payload.groupId.hexToByteArray()
+            val adminSigningPub = payload.adminSigningPub?.hexToByteArray() ?: return false
+            val signingPub = payload.signingPub.hexToByteArray()
+            val sig = payload.sig.hexToByteArray()
+            verify(sig, buildInviteAcceptSigningPayload(payload.v, groupId, adminSigningPub), signingPub)
+        } catch (e: Exception) { false }
+    }
+
+    fun inviteAcceptPayloadToJson(payload: GroupInviteAcceptPayload): String = gson.toJson(payload)
+    fun inviteAcceptPayloadFromJson(json: String): GroupInviteAcceptPayload? {
+        val obj = jsonObjectOrNull(json) ?: return null
+        // admin_signing_pub stays optional here: a v1 accept carries none, and is ignored later.
+        if (!hasStrings(obj, "type", "group_id", "signing_pub", "sig") || !hasNumbers(obj, "v")) return null
+        if (!optionalString(obj, "admin_signing_pub")) return null
+        return try { gson.fromJson(obj, GroupInviteAcceptPayload::class.java) } catch (e: Exception) { null }
+    }
 
     /** gctl_photo - admin sets the group photo (hex of a compressed JPEG; "" clears it) for all
      *  members. A separate signed control type, so it never touches the gctl_root signature. */
@@ -299,16 +439,63 @@ object GroupCipher {
     }
 
     fun photoPayloadToJson(payload: GroupPhotoPayload): String = gson.toJson(payload)
-    fun photoPayloadFromJson(json: String): GroupPhotoPayload? =
-        try { gson.fromJson(json, GroupPhotoPayload::class.java) } catch (e: Exception) { null }
+    fun photoPayloadFromJson(json: String): GroupPhotoPayload? {
+        val obj = jsonObjectOrNull(json) ?: return null
+        if (!hasStrings(obj, "type", "group_id", "photo", "signing_pub", "sig") || !hasNumbers(obj, "v")) return null
+        return try { gson.fromJson(obj, GroupPhotoPayload::class.java) } catch (e: Exception) { null }
+    }
 
     fun rootPayloadToJson(payload: GroupRootPayload): String = gson.toJson(payload)
-    fun rootPayloadFromJson(json: String): GroupRootPayload? =
-        try { gson.fromJson(json, GroupRootPayload::class.java) } catch (e: Exception) { null }
+
+    /**
+     * Null unless every field the root can't do without is there: a stranger's self-signed root
+     * with `"members":[null]` or no `name` used to parse, pass the signature and sender checks,
+     * and throw when the invite code read its members - which stopped group catch-up for good.
+     */
+    fun rootPayloadFromJson(json: String): GroupRootPayload? {
+        val obj = jsonObjectOrNull(json) ?: return null
+        if (!hasStrings(obj, "type", "group_id", "group_root_epoch", "blinding_key", "admin_signing_pub", "name", "sig")) return null
+        if (!hasNumbers(obj, "v", "epoch")) return null
+        if (!optionalString(obj, "group_seed") || !optionalString(obj, "roster_sig")) return null
+        if (obj.has("roster_version") && !obj.get("roster_version").isJsonNull && !isNumber(obj.get("roster_version"))) return null
+        val members = obj.get("members")
+        if (members == null || !members.isJsonArray) return null
+        if (members.asJsonArray.any { !isString(it) || it.asString.isBlank() }) return null
+        return try { gson.fromJson(obj, GroupRootPayload::class.java) } catch (e: Exception) { null }
+    }
 
     fun epochPayloadToJson(payload: GroupEpochPayload): String = gson.toJson(payload)
-    fun epochPayloadFromJson(json: String): GroupEpochPayload? =
-        try { gson.fromJson(json, GroupEpochPayload::class.java) } catch (e: Exception) { null }
+    fun epochPayloadFromJson(json: String): GroupEpochPayload? {
+        val obj = jsonObjectOrNull(json) ?: return null
+        if (!hasStrings(obj, "type", "group_id", "reason", "sig") || !hasNumbers(obj, "v", "epoch")) return null
+        // iOS decodes the reason as an enum of these three, and refuses anything else.
+        if (obj.get("reason").asString !in setOf("add", "remove", "rotate")) return null
+        return try { gson.fromJson(obj, GroupEpochPayload::class.java) } catch (e: Exception) { null }
+    }
+
+    // Gson fills a field the JSON leaves out, or sends as null, with null - under a non-null
+    // Kotlin type too, since it never runs the constructor - and reads a number where a string
+    // belongs. iOS's Codable refuses all of that, so these checks run on the raw JSON first and a
+    // malformed control is dropped here, rather than throwing wherever the missing field is first
+    // touched.
+    private fun jsonObjectOrNull(json: String): JsonObject? =
+        try { JsonParser.parseString(json).takeIf { it.isJsonObject }?.asJsonObject } catch (e: Exception) { null }
+
+    private fun isString(element: JsonElement?): Boolean =
+        element != null && element.isJsonPrimitive && element.asJsonPrimitive.isString
+
+    private fun isNumber(element: JsonElement?): Boolean =
+        element != null && element.isJsonPrimitive && element.asJsonPrimitive.isNumber
+
+    private fun hasStrings(obj: JsonObject, vararg names: String): Boolean = names.all { isString(obj.get(it)) }
+
+    private fun hasNumbers(obj: JsonObject, vararg names: String): Boolean = names.all { isNumber(obj.get(it)) }
+
+    /** Absent, null, or a string. */
+    private fun optionalString(obj: JsonObject, name: String): Boolean {
+        val element = obj.get(name) ?: return true
+        return element.isJsonNull || isString(element)
+    }
 
     // -------------------------------------------------------------------------
     // On-chain payload codecs

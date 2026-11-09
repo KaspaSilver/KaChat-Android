@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider
 import com.google.gson.GsonBuilder
 import com.kachat.app.repository.AppSettingsRepository
 import com.kachat.app.repository.ChatRepository
+import com.kachat.app.util.shortenAddresses
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.io.File
@@ -62,12 +63,15 @@ class DiagnosticsExportService @Inject constructor(
     suspend fun exportDiagnostics(): Uri {
         val exportDir = File(context.cacheDir, "diagnostics_exports").apply { mkdirs() }
         val fileTimestamp = DateTimeFormatter.ISO_INSTANT.format(Instant.now()).replace(":", "-")
+        // One export at a time: the last one has been shared by now, and it holds logs (iOS
+        // 4f8e14bb removes it once the share is done; Android doesn't say when that is).
+        exportDir.listFiles()?.forEach { runCatching { it.delete() } }
         val zipFile = File(exportDir, "kachat-diagnostics-$fileTimestamp.zip")
 
         val diagnosticsJson = gson.toJson(buildDiagnosticsArchive())
         val logs = collectAppLogs()
 
-        ZipOutputStream(zipFile.outputStream()).use { zip ->
+        try { ZipOutputStream(zipFile.outputStream()).use { zip ->
             zip.putNextEntry(ZipEntry("diagnostics.json"))
             zip.write(diagnosticsJson.toByteArray())
             zip.closeEntry()
@@ -96,6 +100,10 @@ class DiagnosticsExportService @Inject constructor(
                 zip.write(crash.readBytes())
                 zip.closeEntry()
             }
+        } } catch (e: Exception) {
+            // Never leave a partial archive behind.
+            zipFile.delete()
+            throw e
         }
 
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", zipFile)
@@ -185,7 +193,7 @@ class DiagnosticsExportService @Inject constructor(
             val output = process.inputStream.bufferedReader().use { it.readText() }
             process.waitFor()
             val lines = output.lines()
-            if (lines.size > maxLines) lines.takeLast(maxLines).joinToString("\n") else output
+            shortenAddresses(if (lines.size > maxLines) lines.takeLast(maxLines).joinToString("\n") else output)
         } catch (e: Exception) {
             "Failed to collect crash buffer: ${e.message}"
         }
@@ -199,7 +207,8 @@ class DiagnosticsExportService @Inject constructor(
             val output = process.inputStream.bufferedReader().use { it.readText() }
             process.waitFor()
             val lines = output.lines()
-            if (lines.size > maxLines) lines.takeLast(maxLines).joinToString("\n") else output
+            // Every address cut to its tail, whichever line logged it, as iOS's AppLog does.
+            shortenAddresses(if (lines.size > maxLines) lines.takeLast(maxLines).joinToString("\n") else output)
         } catch (e: Exception) {
             "Failed to collect logs: ${e.message}"
         }

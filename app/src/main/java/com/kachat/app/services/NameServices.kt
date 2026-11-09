@@ -57,24 +57,6 @@ enum class NameServiceTLD(val raw: String) {
             KACHAT -> "KaChat Names"
         }
 
-    /** Where a person gets one of these names today. */
-    val websiteUrl: String?
-        get() = when (this) {
-            KAS -> "https://app.knsdomains.org"
-            K -> "https://dotk.name"
-            KASPA -> "https://kaspaname.com"
-            KACHAT -> null
-        }
-
-    /** The site's name as people know it, for "Get a .kas domain at knsdomains.org". */
-    val websiteName: String?
-        get() = when (this) {
-            KAS -> "knsdomains.org"
-            K -> "dotk.name"
-            KASPA -> "kaspaname.com"
-            KACHAT -> null
-        }
-
     /** The read API this app calls for the service, shown in Connection Settings > Domains.
      *  Null for `.kas` (KNS has its own setting there) and `.kachat` (the registry has its own
      *  sources: the names indexer, or the chain). */
@@ -410,7 +392,15 @@ class NameServicesClient @Inject constructor(
         val registry = kachatRegistry.get()
         registry.refreshIfStale()
         return try {
-            val owner = KachatNames.resolvedOwner(registry.lookup(canonical), registry.graceMs)
+            val found = registry.lookup(canonical)
+            val owner = KachatNames.resolvedOwner(found, registry.graceMs)
+            if (owner != null) {
+                val record = (found as? com.kachat.app.services.kachatnames.Lookup.Registered)?.info
+                    ?: throw KachatNames.Failure("the registry has no record for that name")
+                // a node must hold this exact record before anything is sent to it (iOS 4f8e14bb)
+                if (record.name != canonical) throw KachatNames.Failure("the indexer answered for another name")
+                registry.confirmOnChain(record)
+            }
             NameResolution(NameServiceTLD.KACHAT, display, owner?.let { KachatNamesRegistry.address(it) }, failed = false)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -526,6 +516,10 @@ class NameServicesClient @Inject constructor(
                 (results.any { it.tld == NameServiceTLD.KACHAT && it.notLive } || !NameServiceTLD.KACHAT.isLive)
             ) {
                 return context.getString(com.kachat.app.R.string.kachat_names_not_live_here)
+            }
+            // Couldn't be checked is not "no such name" (iOS 4f8e14bb).
+            results.firstOrNull { it.tld == wanted && it.failed }?.let {
+                return context.getString(com.kachat.app.R.string.couldnt_look_up_name_try_again, it.display)
             }
             return context.getString(com.kachat.app.R.string.no_tld_domain_found, wanted.suffix)
         }

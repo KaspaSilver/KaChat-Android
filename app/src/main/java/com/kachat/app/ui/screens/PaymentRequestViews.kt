@@ -19,8 +19,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.ArrowCircleUp
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -50,6 +53,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -76,20 +80,23 @@ import androidx.compose.runtime.getValue
 /**
  * The payment request waiting to be shown - a tapped request card, a pasted link, a link opened
  * from outside the app (iOS `PaymentRequestRouter`). [PaymentRequestSheetHost], in MainShell,
- * presents it: KaPay for someone else's, Send Kaspa filled in for a chat payment, the request
- * itself for your own. Every opening is its own sheet, even of the same request.
+ * presents it: tapped in a chat ([Pending.fromChat]), Send Kaspa filled in; otherwise KaPay for
+ * someone else's, Send Kaspa filled in for a chat payment. The request itself for your own. Every
+ * opening is its own sheet, even of the same request.
  */
 object PaymentRequestRouter {
-    data class Pending(val request: PaymentRequest, val id: Long)
+    data class Pending(val request: PaymentRequest, val id: Long, val fromChat: Boolean = false)
 
     private val _pending = MutableStateFlow<Pending?>(null)
     val pending: StateFlow<Pending?> = _pending.asStateFlow()
     private var nextId = 0L
 
+    /** [fromChat]: tapped in a 1:1 or group chat, which is paid here (iOS bfe9f022
+     *  `KaChatLinkRouter.openPaymentRequest(fromChat:)`). */
     @Synchronized
-    fun open(request: PaymentRequest) {
+    fun open(request: PaymentRequest, fromChat: Boolean = false) {
         nextId += 1
-        _pending.value = Pending(request, nextId)
+        _pending.value = Pending(request, nextId, fromChat)
     }
 
     /** The sheet for [id] has gone; a newer opening stays. */
@@ -138,27 +145,27 @@ object PaymentRequestPaste {
 }
 
 /**
- * Payment requests are paid in KaPay, KaChat's wallet app (iOS 3a7ddcf9, 63c2ee1c `KaPayHandoff`):
+ * Payment requests from outside a chat are paid in KaPay, KaChat's wallet app (iOS 3a7ddcf9,
+ * 63c2ee1c `KaPayHandoff`; one tapped in a chat stays here, bfe9f022 [PaymentRequestRouter.open]):
  * someone else's request opens there on Send, filled in, through KaPay's own scheme
  * (`kapay://pay/...`, the same tail as `kachat://pay/`). Two stay here: your own (nothing to pay -
  * [OwnPaymentRequestSheet]), and one asking for a chat payment ([PaymentRequest.toChattingAddress],
  * made from a 1:1 chat), which KaChat pays as an encrypted chat payment so it lands in your chat
- * with them - KaPay can't. Without KaPay installed, the Play Store opens to get it.
+ * with them - KaPay can't. Without KaPay installed, KaChat's install page opens to get it.
  */
 object KaPayHandoff {
     const val SCHEME = "kapay"
-    /** Where a request goes when KaPay isn't installed. KaPay isn't listed yet, so this is a store
-     *  search for it; swap in its page (`details?id=com.kachat.wallet`) once it is. */
-    private const val STORE_URL = "market://search?q=KaPay&c=apps"
-    private const val STORE_WEB_URL = "https://play.google.com/store/search?q=KaPay&c=apps"
+    /** Where a request goes when KaPay isn't installed: the install page all the apps share
+     *  (iOS d23e6f7a `installURL`). */
+    const val INSTALL_URL = "https://home.kachat.app/install/"
 
     /** True when the request belongs in KaPay; not your own, and not a chat payment. */
     fun paysInKaPay(request: PaymentRequest, isOwn: Boolean): Boolean = !isOwn && !request.toChattingAddress
 
-    /** Opens [request] in KaPay, or the store when KaPay isn't installed. */
+    /** Opens [request] in KaPay, or the install page when KaPay isn't installed. */
     fun pay(context: android.content.Context, request: PaymentRequest) {
         val opened = open(context, "$SCHEME://pay/${request.linkTail}")
-        if (!opened && !open(context, STORE_URL)) open(context, STORE_WEB_URL)
+        if (!opened) open(context, INSTALL_URL)
     }
 
     private fun open(context: android.content.Context, url: String): Boolean = try {
@@ -172,11 +179,31 @@ object KaPayHandoff {
 }
 
 /**
+ * A KaPost post link ([KaChatLinkRef.KaPost]), tapped in a chat or opened from outside the app,
+ * goes straight to that post in KaPost through its own scheme (iOS a8a5807a `KaPostHandoff`).
+ * Without KaPost installed, the install page all the apps share opens to get it.
+ */
+object KaPostHandoff {
+    fun open(context: android.content.Context, txId: String) {
+        if (!launch(context, "kaposts://kapost/$txId")) launch(context, KaPayHandoff.INSTALL_URL)
+    }
+
+    private fun launch(context: android.content.Context, url: String): Boolean = try {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (_: android.content.ActivityNotFoundException) {
+        false
+    }
+}
+
+/**
  * Presents the payment request waiting in [PaymentRequestRouter] (iOS
- * `PaymentRequestSheetPresenter`): your own shows it ([OwnPaymentRequestSheet]); someone else's is
- * paid in KaPay ([KaPayHandoff]); a chat-payment one opens Send Kaspa from the chatting address
- * with the address locked and the amount and memo filled in - every send check as always, and
- * nothing goes out until slide to send.
+ * `PaymentRequestSheetPresenter`): your own shows it ([OwnPaymentRequestSheet]); someone else's,
+ * from outside a chat, is paid in KaPay ([KaPayHandoff]); one tapped in a chat, or a chat-payment
+ * one, opens Send Kaspa from the chatting address with the address locked and the amount and memo
+ * filled in - every send check as always, and nothing goes out until slide to send.
  */
 @Composable
 fun PaymentRequestSheetHost(walletViewModel: WalletViewModel, chatViewModel: ChatViewModel) {
@@ -187,7 +214,7 @@ fun PaymentRequestSheetHost(walletViewModel: WalletViewModel, chatViewModel: Cha
         var isOwn by remember { mutableStateOf<Boolean?>(null) }
         LaunchedEffect(Unit) {
             val own = withContext(Dispatchers.Default) { current.request.isOwn }
-            if (KaPayHandoff.paysInKaPay(current.request, own)) {
+            if (!current.fromChat && KaPayHandoff.paysInKaPay(current.request, own)) {
                 KaPayHandoff.pay(context, current.request)
                 PaymentRequestRouter.dismiss(current.id)
             } else {
@@ -678,6 +705,67 @@ private enum class PaymentRequestStep { DESTINATION, AMOUNT, REVIEW }
 // MARK: - Paying one
 
 /**
+ * A payment request link in a chat's composer, shown above the field before sending (iOS bfe9f022
+ * `ComposerPaymentRequestPreview`): the same details the bubble's card ([KaChatInternalLinkCard])
+ * will show. The X takes the link out of the message.
+ */
+@Composable
+fun ComposerPaymentRequestPreview(request: PaymentRequest, onRemove: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .sendKaspaGlass(14.dp)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(KaspaTeal.copy(alpha = 0.18f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.ArrowCircleUp, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                stringResource(R.string.pr_payment_request).uppercase(),
+                color = KaspaTeal,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "${request.amountText} ${KaspaUnit.symbol}",
+                color = colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (request.memo.isNotEmpty()) {
+                Text(
+                    request.memo,
+                    color = colors.textSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Icon(
+            Icons.Filled.Cancel,
+            contentDescription = stringResource(R.string.remove),
+            tint = colors.textSecondary,
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onRemove),
+        )
+    }
+}
+
+/**
  * What a payment request asks for, above the amount on Send Kaspa (iOS `PaymentRequestSummary`):
  * the amount, the memo, how it is paid, and who made it - "Requested by" with that address's name
  * and picture once the signature checked out, else "Not signed".
@@ -717,11 +805,9 @@ fun PaymentRequestSummary(request: PaymentRequest, modifier: Modifier = Modifier
 
         val creator = request.creator
         if (creator != null) {
-            // Who made it - checked against the signature in the link when it was opened.
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.Verified, contentDescription = null, tint = colors.success, modifier = Modifier.size(14.dp))
-                Text(stringResource(R.string.pr_requested_by), color = colors.success, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            }
+            // Who made it - the address was checked against the signature in the link when it
+            // was opened; the name on the card has its own check below.
+            RequestedByHeader(creator)
             AddressResolutionCard(address = creator)
             if (!creator.equals(request.address, ignoreCase = true)) {
                 Text(stringResource(R.string.pr_signed_by_their_chatting), color = colors.textSecondary, fontSize = 12.sp)
@@ -732,6 +818,42 @@ fun PaymentRequestSummary(request: PaymentRequest, modifier: Modifier = Modifier
                 Text(stringResource(R.string.pr_not_signed), color = colors.warning, fontSize = 12.sp)
             }
         }
+    }
+}
+
+/**
+ * "Requested by", above the requester's card (iOS 4f8e14bb `RequestedByHeader`). The signature
+ * proves the address and says nothing about the name the card shows, which is the registry's answer
+ * for that address (possibly a cached one), so the green check waits for the name itself to resolve
+ * back to this address.
+ */
+@Composable
+private fun RequestedByHeader(creator: String) {
+    val colors = LocalAppColors.current
+    // Snapshot state: recomposes when the creator's .kachat identity lands.
+    val shownName = com.kachat.app.services.kachatnames.KachatNamesRegistry.cachedIdentityOf(creator)?.label
+    var verifiedName by remember(creator) { mutableStateOf<String?>(null) }
+    LaunchedEffect(creator, shownName) {
+        verifiedName = null
+        val name = shownName ?: return@LaunchedEffect
+        val registry = com.kachat.app.services.kachatnames.KachatNamesRegistry.shared ?: return@LaunchedEffect
+        val owner = com.kachat.app.services.kachatnames.KachatNamesRegistry.keyOf(creator) ?: return@LaunchedEffect
+        val info = try {
+            (registry.lookup(name) as? com.kachat.app.services.kachatnames.Lookup.Registered)?.info
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        } ?: return@LaunchedEffect
+        if (info.owner.contentEquals(owner) && info.status(registry.graceMs) != com.kachat.app.services.kachatnames.Status.LAPSED) {
+            verifiedName = name
+        }
+    }
+    val isVerified = shownName != null && verifiedName == shownName
+    val tint = if (isVerified) colors.success else colors.textSecondary
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(if (isVerified) Icons.Filled.Verified else Icons.Filled.AccountCircle, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+        Text(stringResource(R.string.pr_requested_by), color = tint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

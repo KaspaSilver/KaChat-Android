@@ -211,28 +211,6 @@ class KnsService @Inject constructor(
         }
     }
 
-    /** Inscription fee tiers in KAS, keyed by label-length tier 1-5 (5 = "5+ characters"). Throws on failure — unlike reads, a failed fee lookup must stop an inscription, not silently no-op. */
-    suspend fun fetchInscribeFeeTiers(): Map<Int, Double> {
-        val response = api().getInscribeFee()
-        if (!response.success) throw IllegalStateException(response.error ?: response.message ?: "KNS fee fetch failed")
-        val rawFeeMap = response.data?.fee?.takeIf { it.isNotEmpty() }
-            ?: throw IllegalStateException("KNS fee response is missing tier data")
-        val mapped = rawFeeMap.mapNotNull { (key, value) -> key.toIntOrNull()?.takeIf { it > 0 }?.let { it to value } }.toMap()
-        if (mapped.isEmpty()) throw IllegalStateException("KNS fee response has invalid tier data")
-        return mapped
-    }
-
-    /** Whether a domain is available to register. Throws on failure, same reasoning as [fetchInscribeFeeTiers]. */
-    suspend fun checkDomainAvailability(address: String, domainName: String): DomainAvailability {
-        val normalized = normalizeDomain(domainName)
-        val response = api().checkDomainAvailability(KnsDomainCheckRequest(address = address, domainNames = listOf(normalized)))
-        if (!response.success) throw IllegalStateException(response.error ?: response.message ?: "KNS domain check failed")
-        val domains = response.data?.domains?.takeIf { it.isNotEmpty() }
-            ?: throw IllegalStateException("KNS domain check response is empty")
-        val matched = domains.firstOrNull { it.domain.lowercase() == normalized.lowercase() } ?: domains[0]
-        return DomainAvailability(domain = matched.domain.lowercase(), available = matched.available, isReservedDomain = matched.isReservedDomain)
-    }
-
     /**
      * Uploads a profile avatar/banner image, signing the auth message with each
      * [KaspaMessageSigner.SigningMode] in turn until the server accepts one — matches iOS's
@@ -421,21 +399,6 @@ class KnsService @Inject constructor(
 
         /** Fee-tier number for a label's length: 1-4 are exact, 5 means "5 or more characters". */
         internal fun feeTierForLabel(label: String): Int = label.length.coerceIn(1, 5)
-
-        /** Tier fee lookup with iOS's exact fallback: use tier 5's fee if the specific tier is missing. */
-        internal fun feeForTier(tier: Int, feeTiers: Map<Int, Double>): Double =
-            feeTiers[tier] ?: feeTiers[5] ?: throw IllegalStateException("KNS fee tier data is missing")
-
-        /** The amount actually paid for the domain (0 for server-flagged reserved domains). */
-        internal fun revealAmountKas(tierFee: Double, isReservedDomain: Boolean): Double =
-            if (isReservedDomain) 0.0 else tierFee
-
-        /** Funds the reveal output + network fees: reveal*1.05 rounded, floored at 2 KAS when reveal<=1. */
-        internal fun commitAmountKas(revealKas: Double): Double {
-            if (revealKas <= 1.0) return 2.0
-            return Math.round(revealKas * 1.05).toDouble()
-        }
     }
 }
 
-data class DomainAvailability(val domain: String, val available: Boolean, val isReservedDomain: Boolean)

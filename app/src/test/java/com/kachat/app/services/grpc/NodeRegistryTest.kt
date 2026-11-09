@@ -15,6 +15,35 @@ class NodeRegistryTest {
         isUtxoIndexed = null, serverVersion = null, networkName = null, virtualDaaScore = null, error = "timeout"
     )
 
+    private fun atDaa(address: String, latency: Long, daa: Long) =
+        reachable(address).copy(latencyMs = latency, virtualDaaScore = daa)
+
+    @Test
+    fun `a node behind the median goes after the others however fast it is`() {
+        val registry = NodeRegistry()
+        registry.update("a:1", "Seed", atDaa("a:1", 10, 1_000))
+        registry.update("b:1", "Seed", atDaa("b:1", 50, 5_000))
+        registry.update("c:1", "Seed", atDaa("c:1", 80, 5_010))
+        assertEquals(listOf("b:1", "c:1", "a:1"), registry.activeBestFirst().map { it.address })
+    }
+
+    @Test
+    fun `nodes within the window keep their latency order`() {
+        val registry = NodeRegistry()
+        registry.update("a:1", "Seed", atDaa("a:1", 10, 4_950))
+        registry.update("b:1", "Seed", atDaa("b:1", 50, 5_000))
+        assertEquals(listOf("a:1", "b:1"), registry.activeBestFirst().map { it.address })
+    }
+
+    @Test
+    fun `a score past its time says nothing about lag`() {
+        val registry = NodeRegistry()
+        registry.update("a:1", "Seed", atDaa("a:1", 10, 1_000))
+        registry.update("b:1", "Seed", atDaa("b:1", 50, 5_000))
+        val muchLater = System.currentTimeMillis() + 3_600_000L
+        assertEquals(listOf("a:1", "b:1"), registry.activeBestFirst(nowMs = muchLater).map { it.address })
+    }
+
     @Test
     fun `a freshly successful node is Active`() {
         val registry = NodeRegistry()

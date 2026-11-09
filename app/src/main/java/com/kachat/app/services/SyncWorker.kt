@@ -10,13 +10,14 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
 /**
- * Periodic background catch-up for GROUP chat only ([GroupRepository.syncGroups]) — groups are the
- * one notification surface remote push does NOT cover (the push registration is the LegacyV1
- * shape with no `watched_group_ids`), so this ~15-minute WorkManager cadence is their sole
+ * Periodic background catch-up for GROUP chat only ([GroupRepository.syncGroups]). With push active
+ * it stores what arrived and stays quiet: the push is the only banner source
+ * (KaChatFirebaseMessagingService). Without push this ~15-minute WorkManager cadence is groups'
  * closed-app delivery path, including the group-invite (`gctl_root`) and group-message
  * notifications syncGroups posts itself. Both `gcomm`/`gctl` payloads are self-stash transactions
  * on a queryable identity address, now indexed (`group-messages/by-blinded-group-id`,
- * `group-control/by-sender`), so they fit this short-lived catch-up shape.
+ * `group-control/by-sender`), so they fit this short-lived catch-up shape. Signed out, syncGroups
+ * returns at once.
  *
  * 1:1 chat, broadcasts, and KaPosts are deliberately NOT synced here: FCM push (see
  * PushRegistrationManager) is the only background delivery path for those — a background poller
@@ -27,12 +28,15 @@ import dagger.assisted.AssistedInject
 class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val groupRepository: GroupRepository
+    // Lazy: it needs the wallet store, so it's built only once the stores are known to open.
+    private val groupRepository: dagger.Lazy<GroupRepository>
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
+        // Account stores unreadable: the app shows its problem screen when opened; nothing to sync.
+        if (!com.kachat.app.util.SecureStores.accountStoresOpen(applicationContext)) return Result.success()
         return try {
-            groupRepository.syncGroups()
+            groupRepository.get().syncGroups()
             Result.success()
         } catch (e: Exception) {
             Log.w("SyncWorker", "Periodic group sync failed, will retry next cycle", e)

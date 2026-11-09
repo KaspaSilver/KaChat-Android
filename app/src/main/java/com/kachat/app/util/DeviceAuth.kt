@@ -3,15 +3,17 @@ package com.kachat.app.util
 import android.app.AlertDialog
 import android.content.Context
 import android.content.ContextWrapper
+import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.kachat.app.R
 
-private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+internal tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
     is FragmentActivity -> this
     is ContextWrapper -> baseContext.findFragmentActivity()
     else -> null
@@ -20,8 +22,8 @@ private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (th
 /**
  * Gates [onSuccess] behind whatever the device's own lock screen is set to (fingerprint/face
  * unlock or PIN/pattern/password) — used for the wallet's most sensitive actions (viewing the
- * seed phrase, unlocking a saved account after logout) so they can't be reached by anyone who
- * just picked up an already-unlocked phone.
+ * seed phrase, unlocking a saved account after logout, sending Kaspa, deleting an account) so they
+ * can't be reached by anyone who just picked up an already-unlocked phone.
  *
  * A phone with no secure lock screen at all used to fall straight through to [onSuccess]: the
  * "gate" on the recovery phrase was then no gate, and anyone holding the unlocked phone could
@@ -41,7 +43,14 @@ fun Context.authenticateWithDeviceCredential(
         onFailure()
         return
     }
-    val allowedAuthenticators = BIOMETRIC_STRONG or DEVICE_CREDENTIAL
+    // A strong biometric can't be combined with the device credential on Android 9 and 10: the
+    // combination is refused as unsupported, which would read as "no screen lock" there and stop
+    // every send now that sends ask.
+    val allowedAuthenticators = if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P || Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+        BIOMETRIC_WEAK or DEVICE_CREDENTIAL
+    } else {
+        BIOMETRIC_STRONG or DEVICE_CREDENTIAL
+    }
     if (BiometricManager.from(activity).canAuthenticate(allowedAuthenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
         presentScreenLockRequired(activity)
         onFailure()

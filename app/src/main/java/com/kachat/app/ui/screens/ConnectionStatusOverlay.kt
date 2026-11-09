@@ -41,7 +41,7 @@ object ConnectionStatusOverlayState {
  * iOS, where the dot presents ConnectionStatusDetailView as a sheet from wherever you are.
  */
 @Composable
-fun ConnectionStatusOverlayHost() {
+fun ConnectionStatusOverlayHost(onOpenConnectionSettings: () -> Unit = {}) {
     if (!ConnectionStatusOverlayState.isOpen) return
     Dialog(
         onDismissRequest = { ConnectionStatusOverlayState.close() },
@@ -52,7 +52,13 @@ fun ConnectionStatusOverlayHost() {
             decorFitsSystemWindows = false,
         ),
     ) {
-        ConnectionStatusScreen(onBack = { ConnectionStatusOverlayState.close() })
+        ConnectionStatusScreen(
+            onBack = { ConnectionStatusOverlayState.close() },
+            onOpenConnectionSettings = {
+                ConnectionStatusOverlayState.close()
+                onOpenConnectionSettings()
+            },
+        )
     }
 }
 

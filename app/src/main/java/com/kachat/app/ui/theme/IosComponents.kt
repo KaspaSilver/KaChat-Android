@@ -218,6 +218,34 @@ fun IosActivityIndicator(
     }
 }
 
+/** iOS's bare TextField in a Form row: no inset of its own, so it starts where its row does. */
+@Composable
+fun IosPlainTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    textStyle: androidx.compose.ui.text.TextStyle = LocalTextStyle.current,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
+) {
+    val app = LocalAppColors.current
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        textStyle = textStyle.copy(color = app.textPrimary),
+        keyboardOptions = keyboardOptions,
+        singleLine = true,
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
+        decorationBox = { field ->
+            Box(contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
+                if (value.isEmpty()) androidx.compose.material3.Text(placeholder, style = textStyle.copy(color = app.textTertiary), maxLines = 1)
+                field()
+            }
+        },
+    )
+}
+
 /**
  * The iOS text field: a rounded rectangle with a hairline edge and placeholder text - no
  * Material outline, no floating label. Takes OutlinedTextField's parameters so every field in the

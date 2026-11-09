@@ -72,6 +72,11 @@ class PaymentNoticeOutbox @Inject constructor(
     }
 
     /** Keeps a notice that failed to send (usually an empty chatting address), for this wallet. */
+    /** Everything kept for [walletAddress]: it's going off this device (iOS bfe9f022). */
+    fun removeAllData(walletAddress: String) {
+        synchronized(listLock) { prefs.edit().remove(keyFor(walletAddress)).apply() }
+    }
+
     fun keep(notice: UnsentPaymentNotice) {
         val key = currentKey() ?: return
         synchronized(listLock) {

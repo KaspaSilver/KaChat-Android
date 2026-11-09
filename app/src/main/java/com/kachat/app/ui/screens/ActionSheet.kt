@@ -51,7 +51,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.GppMaybe
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -407,12 +412,15 @@ fun ActionSheetContainer(
     /** What iOS shows as a grouped List (the reactions sheet): the grouped light palette - see
      *  [com.kachat.app.ui.theme.IosSheetColors]. */
     grouped: Boolean = false,
+    /** Above the title: the Delete Account warning's triangle. */
+    headerIcon: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ActionSheetContainer(
         title = title,
         subtitle = subtitle,
         onDismiss = onDismiss,
+        headerIcon = headerIcon,
         grouped = grouped,
         // Opens EXPANDED, not half-height. Partial expansion caps the opening height at about
         // half the screen, so a sheet with more than a few options opened already cut off - the
@@ -439,6 +447,7 @@ fun ActionSheetContainer(
     sheetState: SheetState,
     detail: String? = null,
     grouped: Boolean = false,
+    headerIcon: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -479,6 +488,7 @@ fun ActionSheetContainer(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        headerIcon?.invoke()
                         Text(
                             title,
                             color = colors.textPrimary,
@@ -709,7 +719,7 @@ fun SenderActionsSheet(
 ) {
     val colors = LocalAppColors.current
     ActionSheetContainer(
-        title = if (isOwnMessage) "You" else displayName,
+        title = if (isOwnMessage) stringResource(R.string.reactions_you) else displayName,
         subtitle = null,
         onDismiss = onDismiss,
     ) {
@@ -732,28 +742,28 @@ fun SenderActionsSheet(
             ActionSheetRow(
                 icon = Icons.AutoMirrored.Filled.Chat,
                 title = stringResource(R.string.open_chat),
-                subtitle = "Message them directly, one to one.",
+                subtitle = stringResource(R.string.message_them_directly_one_to_one),
             ) { onDismiss(); onOpenChat() }
             ActionSheetRow(
                 icon = painterResource(R.drawable.ic_kaspa_logo),
                 title = stringResource(R.string.chats_send_kaspa),
-                subtitle = "Open your chat with them in payment mode.",
+                subtitle = stringResource(R.string.open_your_chat_with_them_in_payment),
             ) { onDismiss(); onPayInKaspa() }
         }
         ActionSheetRow(
             icon = Icons.Default.ContentCopy,
             title = stringResource(R.string.copy_address),
-            subtitle = "Copy their Kaspa address.",
+            subtitle = stringResource(R.string.copy_their_kaspa_address),
         ) { onDismiss(); onCopyAddress() }
         if (!isOwnMessage) {
             if (muteState != null) {
                 ActionSheetRow(
                     icon = if (muteState) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                    title = if (muteState) "Unmute User" else "Mute User",
+                    title = if (muteState) stringResource(R.string.unmute_user) else stringResource(R.string.mute_user),
                     subtitle = if (muteState) {
-                        "Get notified for their messages again."
+                        stringResource(R.string.get_notified_for_their_messages_again)
                     } else {
-                        "Their messages still show, but never notify you."
+                        stringResource(R.string.their_messages_still_show_but_never_notify)
                     },
                 ) { onDismiss(); onToggleMute() }
             }
@@ -839,28 +849,31 @@ fun TransactionActionsSheet(
     onDismiss: () -> Unit,
 ) {
     ActionSheetContainer(
-        title = "Transaction",
-        subtitle = summary(tx, com.kachat.app.util.is24HourClock()),
+        title = stringResource(R.string.transaction),
+        subtitle = summary(androidx.compose.ui.platform.LocalContext.current, tx, com.kachat.app.util.is24HourClock()),
         detail = AddressActivityNotifier.shortAddress(tx.txId),
         onDismiss = onDismiss,
     ) {
         ActionSheetRow(
             icon = Icons.AutoMirrored.Filled.OpenInNew,
-            title = "Open in Explorer",
-            subtitle = "Opens this transaction on the block explorer.",
+            title = stringResource(R.string.open_in_explorer),
+            subtitle = stringResource(R.string.opens_this_transaction_on_the_block_explorer),
             onClick = onOpenExplorer,
         )
     }
 }
 
 /** "Sent 12.5 KAS on Sep 3, 2026, 2:02 PM" - what is about to be acted on, in one line. */
-private fun summary(tx: AddressHistoryService.AddressTransaction, is24Hour: Boolean): String {
-    val direction = if (tx.sent) "Sent" else "Received"
+private fun summary(context: android.content.Context, tx: AddressHistoryService.AddressTransaction, is24Hour: Boolean): String {
     val amount = AddressActivityNotifier.formatKas(tx.amountSompi)
     val time = tx.blockTimeMillis?.let {
         com.kachat.app.util.IosDateStyle.mediumDateShortTime(it, is24Hour)
     }
-    return if (time == null) "$direction $amount ${KaspaUnit.symbol}" else "$direction $amount ${KaspaUnit.symbol} on $time"
+    return if (time == null) {
+        KaspaUnit.label(context.getString(if (tx.sent) R.string.sent_amount_kas else R.string.received_amount_kas)).format(amount)
+    } else {
+        KaspaUnit.label(context.getString(if (tx.sent) R.string.sent_amount_kas_on else R.string.received_amount_kas_on)).format(amount, time)
+    }
 }
 
 /**
@@ -1008,7 +1021,7 @@ fun LinkActionsSheet(
     onReply: (() -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
-    ActionSheetContainer(title = "Link", subtitle = null, onDismiss = onDismiss) {
+    ActionSheetContainer(title = stringResource(R.string.link_menu_title), subtitle = null, onDismiss = onDismiss) {
         MiddleEllipsisText(
             url,
             color = colors.textSecondary,
@@ -1022,7 +1035,7 @@ fun LinkActionsSheet(
         ActionSheetRow(
             icon = Icons.Default.Public,
             title = stringResource(R.string.open_link),
-            subtitle = "Opens in your browser.",
+            subtitle = stringResource(R.string.opens_in_your_browser),
         ) { onDismiss(); onOpen() }
         // Not for a Nextcloud share: the link is the address of someone's file, and the preview
         // card already refuses to hand it out on long-press - same rule here, same classifier.
@@ -1030,47 +1043,16 @@ fun LinkActionsSheet(
             ActionSheetRow(
                 icon = Icons.Default.ContentCopy,
                 title = stringResource(R.string.copy_link),
-                subtitle = "Copies the address to your clipboard.",
+                subtitle = stringResource(R.string.copy_link_subtitle),
             ) { onDismiss(); onCopy() }
         }
         if (onReply != null) {
             ActionSheetRow(
                 icon = Icons.AutoMirrored.Filled.Reply,
                 title = stringResource(R.string.reply),
-                subtitle = "Reply to this message instead.",
+                subtitle = stringResource(R.string.reply_to_this_message_instead),
             ) { onDismiss(); onReply() }
         }
-    }
-}
-
-/** Repost as-is, or quote it with your own words. Mirrors iOS's `RepostActionsSheet`. */
-@Composable
-fun RepostActionsSheet(
-    isReposted: Boolean,
-    onDismiss: () -> Unit,
-    onRepost: () -> Unit,
-    onQuote: () -> Unit,
-) {
-    ActionSheetContainer(
-        title = if (isReposted) "Reposted" else "Repost",
-        subtitle = null,
-        onDismiss = onDismiss,
-    ) {
-        ActionSheetRow(
-            icon = if (isReposted) Icons.AutoMirrored.Filled.Undo else Icons.Default.Repeat,
-            title = if (isReposted) "Undo Repost" else "Repost",
-            subtitle = if (isReposted) {
-                "Removes it from your profile."
-            } else {
-                "Shares it to your followers as-is."
-            },
-            tint = if (isReposted) LocalAppColors.current.danger else KaspaTeal,
-        ) { onDismiss(); onRepost() }
-        ActionSheetRow(
-            icon = IosSymbols.QuoteBubble,
-            title = "Quote",
-            subtitle = "Adds your own words above it.",
-        ) { onDismiss(); onQuote() }
     }
 }
 
@@ -1119,8 +1101,96 @@ fun ConfirmActionSheet(
         }
         ActionSheetRow(
             icon = Icons.Default.Close,
-            title = "Cancel",
-            subtitle = "Leave everything as it is.",
+            title = stringResource(R.string.cancel),
+            subtitle = stringResource(R.string.leave_everything_as_it_is),
+            onClick = onDismiss,
+        )
+    }
+}
+
+/**
+ * The warning before an account is deleted, from Settings or the sign-in screen (iOS d063b897).
+ * Nothing can bring the account back without its seed phrase (and passphrase), so it says that
+ * first. Deleting stays possible when no backup was made: an empty account someone doesn't want
+ * shouldn't have to be backed up first.
+ */
+@Composable
+fun DeleteAccountSheet(
+    /** What goes: the Delete row's second line. */
+    confirmSubtitle: String,
+    /** This account hasn't finished the backup steps: the warning says so. */
+    notBackedUp: Boolean = false,
+    /** Settings only: a signed-out account on the sign-in screen has no seed phrase open to show. */
+    onViewSeedPhrase: (() -> Unit)? = null,
+    /** Settings only: into the backup steps, in place of the seed phrase row. */
+    onBackUp: (() -> Unit)? = null,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ActionSheetContainer(
+        title = stringResource(R.string.delete_account),
+        subtitle = null,
+        onDismiss = onDismiss,
+        headerIcon = {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = LocalAppColors.current.danger,
+                modifier = Modifier.padding(bottom = 8.dp).size(36.dp),
+            )
+        },
+    ) {
+        val colors = LocalAppColors.current
+        if (notBackedUp) {
+            Text(
+                stringResource(R.string.this_account_isnt_backed_up_if_you),
+                color = colors.danger,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            if (onBackUp == null) {
+                Text(
+                    stringResource(R.string.to_back_it_up_first_sign_in),
+                    color = colors.textSecondary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Text(
+            stringResource(R.string.make_sure_your_12_or_24_words),
+            color = colors.textSecondary,
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        if (notBackedUp && onBackUp != null) {
+            ActionSheetRow(
+                icon = Icons.Default.GppMaybe,
+                title = stringResource(R.string.settings_back_up_account),
+                subtitle = stringResource(R.string.write_down_your_12_or_24_words),
+                onClick = onBackUp,
+            )
+        } else if (onViewSeedPhrase != null) {
+            ActionSheetRow(
+                icon = Icons.Default.Key,
+                title = stringResource(R.string.view_12_or_24_words_and_passphrase),
+                subtitle = stringResource(R.string.the_passphrase_shows_too_if_this_account),
+                onClick = onViewSeedPhrase,
+            )
+        }
+        ActionSheetRow(
+            icon = Icons.Default.Delete,
+            title = stringResource(R.string.delete_account),
+            subtitle = confirmSubtitle,
+            tint = colors.danger,
+            onClick = { onDismiss(); onConfirm() },
+        )
+        ActionSheetRow(
+            icon = Icons.Default.Close,
+            title = stringResource(R.string.cancel),
+            subtitle = stringResource(R.string.leave_everything_as_it_is),
             onClick = onDismiss,
         )
     }
@@ -1189,7 +1259,7 @@ fun SentConfirmationSheet(
                         modifier = Modifier.size(52.dp),
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Sent", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(stringResource(R.string.sent), color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
 
                     transaction.amountSompi?.let { sompi ->
                         Spacer(Modifier.height(2.dp))
@@ -1199,7 +1269,7 @@ fun SentConfirmationSheet(
                     transaction.recipient?.takeIf { it.isNotBlank() }?.let { recipient ->
                         Spacer(Modifier.height(2.dp))
                         MiddleEllipsisText(
-                            "to $recipient",
+                            stringResource(R.string.payment_to_name, recipient),
                             color = colors.textSecondary,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,
@@ -1220,7 +1290,7 @@ fun SentConfirmationSheet(
                             .padding(16.dp),
                     ) {
                         Text(
-                            if (explorerUrl != null) "Transaction ID · tap to view in $explorerName" else "Transaction ID",
+                            if (explorerUrl != null) stringResource(R.string.transaction_id_tap_to_view_in, explorerName) else stringResource(R.string.transaction_id),
                             color = colors.textSecondary,
                             fontSize = 12.sp,
                         )
@@ -1240,7 +1310,7 @@ fun SentConfirmationSheet(
                         shape = RoundedCornerShape(28.dp),
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                     ) {
-                        Text("Done", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.done), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1325,7 +1395,7 @@ private fun trimmedKasAmount(sompi: Long): String {
 /** What a sent message's delivery row is reporting. Mirrors iOS's `DeliveryStatusLabel.Status`. */
 /**
  * The line under a message: its time, and - for your own messages - the delivery status right
- * after it ("10:57 AM  ✓ Sent"). Every chat shows this under every message; it replaced the
+ * before it ("✓ Sent  10:57 AM", iOS bfe9f022). Every chat shows this under every message; it replaced the
  * swipe-left-to-reveal times (iOS fc6aec6, `MessageTimeLine`).
  *
  * [showsDay]: public chat rooms are long feeds, so a message from another day says which
@@ -1347,19 +1417,21 @@ fun MessageTimeLine(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(text, color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
         status()
+        Text(text, color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
     }
 }
 
-enum class DeliveryStatus { PENDING, SENT, FAILED, WARNING }
+/** [UNCONFIRMED]: our send whose outcome is unknown. It may have landed, so no Retry (iOS d23e6f7a). */
+enum class DeliveryStatus { PENDING, SENT, FAILED, WARNING, UNCONFIRMED }
 
 /** Maps the persisted `deliveryStatus` string onto [DeliveryStatus]; anything unknown reads as sent,
- *  which is what the old `else ->` branch did. */
-fun deliveryStatusOf(raw: String?): DeliveryStatus = when (raw) {
+ *  which is what the old `else ->` branch did. "warning" on our own message is a send whose outcome
+ *  is unknown ([DeliveryStatus.UNCONFIRMED]); on a received one it still needs attention. */
+fun deliveryStatusOf(raw: String?, isOutgoing: Boolean): DeliveryStatus = when (raw) {
     "pending" -> DeliveryStatus.PENDING
     "failed" -> DeliveryStatus.FAILED
-    "warning" -> DeliveryStatus.WARNING
+    "warning" -> if (isOutgoing) DeliveryStatus.UNCONFIRMED else DeliveryStatus.WARNING
     else -> DeliveryStatus.SENT
 }
 
@@ -1384,12 +1456,13 @@ fun DeliveryStatusLabel(
         DeliveryStatus.SENT -> if (compact) colors.textSecondary else LocalAppColors.current.success
         DeliveryStatus.PENDING -> colors.textSecondary
         DeliveryStatus.FAILED -> LocalAppColors.current.danger
-        DeliveryStatus.WARNING -> Color(0xFFFF9500)
+        DeliveryStatus.WARNING, DeliveryStatus.UNCONFIRMED -> Color(0xFFFF9500)
     }
     val icon = when (status) {
         DeliveryStatus.SENT -> if (compact) Icons.Default.Check else Icons.Default.CheckCircle
         DeliveryStatus.PENDING -> Icons.Default.Schedule
         DeliveryStatus.FAILED, DeliveryStatus.WARNING -> Icons.Default.Error
+        DeliveryStatus.UNCONFIRMED -> Icons.AutoMirrored.Filled.HelpOutline
     }
     val retryable = status == DeliveryStatus.FAILED && onRetry != null
     val label = when (status) {
@@ -1399,8 +1472,13 @@ fun DeliveryStatusLabel(
             if (retryable) stringResource(R.string.delivery_failed_tap_to_retry)
             else stringResource(R.string.delivery_failed)
         DeliveryStatus.WARNING -> stringResource(R.string.delivery_needs_attention)
+        DeliveryStatus.UNCONFIRMED -> stringResource(R.string.delivery_not_confirmed)
     }
-    val spoken = if (retryable) stringResource(R.string.delivery_failed_retry_accessibility) else label
+    val spoken = when {
+        retryable -> stringResource(R.string.delivery_failed_retry_accessibility)
+        status == DeliveryStatus.UNCONFIRMED -> stringResource(R.string.delivery_not_confirmed_accessibility)
+        else -> label
+    }
     Row(
         modifier = modifier
             .then(if (retryable) Modifier.clickable { onRetry?.invoke() } else Modifier)

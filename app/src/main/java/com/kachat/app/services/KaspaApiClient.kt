@@ -292,6 +292,20 @@ interface KaspaRestApi {
         @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "light"
     ): List<TransactionResponse>
 
+    /**
+     * One page of [address]'s history as raw rows, newest first - only the fields reading chats
+     * back needs, for while the indexer is down (iOS 4f8e14bb `chainTransactions`). Raw so that
+     * one odd row costs that row, not the page: see [ChainHistoryReader].
+     */
+    @GET("addresses/{address}/full-transactions")
+    suspend fun getAddressHistoryRows(
+        @Path("address") address: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+        @Query("resolve_previous_outpoints") resolvePreviousOutpoints: String = "light",
+        @Query("fields") fields: String = "transaction_id,is_accepted,payload,inputs,outputs,block_time",
+    ): List<com.google.gson.JsonObject>
+
     @POST("transactions")
     suspend fun postTransaction(
         @Body transaction: PostTransactionRequest
@@ -396,6 +410,10 @@ data class PostTransactionResponse(
 // -------------------------------------------------------------------------
 
 interface KasiaIndexerApi {
+
+    /** The one cheap request a minute that checks whether a down indexer is back ([IndexerHealth]). */
+    @GET("metrics")
+    suspend fun getMetrics(): retrofit2.Response<okhttp3.ResponseBody>
 
     /** [blockTime], when given, returns only handshakes at or after that block time — the indexer's own cursor param, letting sync fetch just what's new instead of the same recent window every time. */
     @GET("handshakes/by-receiver")
@@ -727,16 +745,6 @@ interface KnsApi {
         @Path("assetId") assetId: String
     ): KnsProfileResponse
 
-    /** Inscription fee tiers in KAS, keyed by label length 1-5 (5 means "5+ characters"). */
-    @GET("fee")
-    suspend fun getInscribeFee(): KnsFeeResponse
-
-    /** Checks whether a domain is available to register. */
-    @POST("domains/check")
-    suspend fun checkDomainAvailability(
-        @Body request: KnsDomainCheckRequest
-    ): KnsDomainCheckResponse
-
     /** Uploads a profile avatar/banner image, authenticated by a wallet-signed message rather than the image data itself. */
     @Multipart
     @POST("upload/image")
@@ -752,39 +760,6 @@ interface KnsApi {
         @Body request: KnsSetPrimaryNameRequest
     ): KnsBasicResponse
 }
-
-data class KnsFeeResponse(
-    val success: Boolean,
-    val data: KnsFeeData?,
-    val message: String? = null,
-    val error: String? = null
-)
-
-data class KnsFeeData(
-    val fee: Map<String, Double>?
-)
-
-data class KnsDomainCheckRequest(
-    val address: String,
-    val domainNames: List<String>
-)
-
-data class KnsDomainCheckResponse(
-    val success: Boolean,
-    val data: KnsDomainCheckData?,
-    val message: String? = null,
-    val error: String? = null
-)
-
-data class KnsDomainCheckData(
-    val domains: List<KnsDomainCheckEntry>?
-)
-
-data class KnsDomainCheckEntry(
-    val domain: String,
-    val available: Boolean,
-    val isReservedDomain: Boolean = false
-)
 
 // Real shape confirmed against api.knsdomains.org/upload/image — doubly-nested, and the URL
 // field is "imageUrl", not the "resolvedImageURL" iOS's own decoded model happens to call it:

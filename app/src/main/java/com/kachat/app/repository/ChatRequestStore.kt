@@ -149,6 +149,16 @@ class ChatRequestStore @Inject constructor(
         update(wallet) { if (cursor > it.inboxCursor) it.copy(inboxCursor = cursor) else it }
     }
 
+    /** Everything kept for [wallet]: it's going off this device (iOS bfe9f022). */
+    fun removeAllData(wallet: String) {
+        val w = wallet.lowercase()
+        synchronized(lock) {
+            cache.remove(w)
+            prefs.edit().remove(key(w)).remove(notifiedKey(w)).apply()
+        }
+        _revision.value = _revision.value + 1
+    }
+
     // Push: whom the "New message request" notification has already rung, once per sender
     // (iOS keeps this in the notification extension as `chat_request_notified`).
 

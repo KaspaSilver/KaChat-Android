@@ -53,7 +53,7 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary       = Color.Black,
     outline          = Color(0xFF38383A),
     outlineVariant   = Color(0xFF38383A),
-    error            = Color(0xFFFF453A),
+    error            = Color(0xFFFF4245),
 )
 
 // Whatever Material component still reads the scheme gets iOS's colours: the accent in both themes
@@ -85,7 +85,7 @@ private val LightColorScheme = lightColorScheme(
     onTertiary       = Color.Black,
     outline          = Color(0xFFC6C6C8),
     outlineVariant   = Color(0xFFC6C6C8),
-    error            = Color(0xFFFF3B30),
+    error            = Color(0xFFFF383C),
 )
 
 /**
@@ -125,20 +125,20 @@ data class AppColors(
 
 // iOS system colours, dark appearance: systemGroupedBackground / secondarySystemGroupedBackground /
 // tertiary, label / secondaryLabel / tertiaryLabel (as they render on black), the opaque separator,
-// and systemGreen / systemOrange / systemRed.
+// and systemGreen / systemOrange / systemRed (iOS 26's values, read off the simulator).
 val DarkAppColors = AppColors(
     background     = Color.Black,
     surface        = Color(0xFF1C1C1E),
     surfaceVariant = Color(0xFF2C2C2E),
     textPrimary    = Color.White,
     textSecondary  = Color(0xFF8D8D93),
-    textTertiary   = Color(0xFF48484A),
+    textTertiary   = Color(0x4DEBEBF5), // iOS tertiaryLabel: see-through, so it lifts on a sheet
     divider        = Color(0xFF38383A),
     accent         = KaspaTeal,
     textOnAccent   = Color.Black,
     success        = Color(0xFF30D158),
-    warning        = Color(0xFFFF9F0A),
-    danger         = Color(0xFFFF453A),
+    warning        = Color(0xFFFF9230),
+    danger         = Color(0xFFFF4245),
     outgoingBubble = Color(0xFF167368),
     onOutgoingBubble = Color.White,
     incomingBubble = Color(0xFF2C2C2E),
@@ -210,13 +210,13 @@ val LightAppColors = AppColors(
     surfaceVariant = Color(0xFFE5E5EA),
     textPrimary    = Color.Black,
     textSecondary  = Color(0xFF8A8A8E),
-    textTertiary   = Color(0xFFC4C4C6),
+    textTertiary   = Color(0x4D3C3C43), // iOS tertiaryLabel
     divider        = Color(0xFFC6C6C8),
     accent         = KaspaTeal,
     textOnAccent   = Color.Black,
     success        = Color(0xFF34C759),
-    warning        = Color(0xFFFF9500),
-    danger         = Color(0xFFFF3B30),
+    warning        = Color(0xFFFF8D28),
+    danger         = Color(0xFFFF383C),
     outgoingBubble = Color(0xFF70C7BA),
     onOutgoingBubble = Color.White,
     incomingBubble = Color(0xFFE5E5EA)

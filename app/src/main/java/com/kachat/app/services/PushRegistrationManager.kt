@@ -46,8 +46,9 @@ import javax.inject.Singleton
  * registration snapshot (see [lastRegisteredFingerprint]) short-circuits before any network I/O.
  *
  * Beyond the explicit [registerAsync]/[onTokenRefreshed] entry points, the init block observes
- * everything the registration payload is built from — active account, active-contact set,
- * silenced groups and the notifications setting — and re-registers (debounced 2s, so an edit
+ * everything the registration payload is built from — active account, active-contact set, held
+ * groups and their rosters, muted members, silenced groups and the notifications setting — and
+ * re-registers (debounced 2s, so an edit
  * burst is one round-trip) whenever any of it changes, mirroring iOS's updateWatchedAddresses
  * triggers (PUSH_NOTIFICATIONS.md). The same observer unregisters when notifications are switched
  * off or the last account disappears.
@@ -98,6 +99,12 @@ class PushRegistrationManager @Inject constructor(
         /** Groups silenced on this device. They are dropped from the watched ids, so silencing
          *  one has to reach the service the moment the switch flips. */
         val silentGroups: Set<String>,
+        /** The groups held here, with their rosters, and the members muted in them: what the
+         *  watched blinded ids are derived from (iOS observes `$groups` and `$groupMutedMembers`).
+         *  Accepting an invite, deleting a group, a member joining or leaving one, or a group's lost
+         *  keys coming back re-registers through this, or the next push for it only comes after a
+         *  launch or account switch. */
+        val watchedGroupKeys: Pair<Set<String>, Set<String>>,
     )
 
     init {
@@ -109,12 +116,16 @@ class PushRegistrationManager @Inject constructor(
                     contacts.filter { it.conversationStatus == "active" }.map { it.id }.toSet()
                 },
                 settings.groupSilent,
-            ) { activeAddress, notificationsEnabled, activeContacts, silentGroups ->
+                combine(groupRepository.getGroups(), settings.groupMutedMembers, groupRepository.groupKeysRestored) { groups, muted, keysRestored ->
+                    (groups.map { "${it.groupId}|${it.membersJson}" } + "keysRestored|$keysRestored").toSet() to muted
+                },
+            ) { activeAddress, notificationsEnabled, activeContacts, silentGroups, watchedGroupKeys ->
                 Snapshot(
                     activeAddress = activeAddress,
                     notificationsEnabled = notificationsEnabled,
                     activeContacts = activeContacts,
                     silentGroups = silentGroups,
+                    watchedGroupKeys = watchedGroupKeys,
                 )
             }
                 .distinctUntilChanged()
@@ -152,6 +163,26 @@ class PushRegistrationManager @Inject constructor(
             runCatching { register(null) }
                 .onFailure { Log.w(TAG, "push registration failed: ${it.message}") }
         }
+    }
+
+    /** False on a network with no push service, or a phone without Google Play services. */
+    suspend fun canRegister(): Boolean =
+        settings.pushIndexerUrl.first().isNotBlank() &&
+            com.google.android.gms.common.GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) ==
+            com.google.android.gms.common.ConnectionResult.SUCCESS
+
+    /**
+     * For the Push Notifications switch turning on (iOS requestPermissionAndRegisterAndWaitForIndexer):
+     * registers now and waits for the service's answer, up to iOS's 30 seconds. Throws when it
+     * failed, when it timed out, or when this network has no push service (iOS noPushService).
+     */
+    suspend fun registerAndWait() {
+        check(settings.pushIndexerUrl.first().isNotBlank()) { "no push service on this network" }
+        val finished = kotlinx.coroutines.withTimeoutOrNull(30_000) {
+            withContext(Dispatchers.IO) { register(null) }
+            true
+        }
+        check(finished == true) { "push registration timed out" }
     }
 
     /** Called from [KaChatFirebaseMessagingService.onNewToken] when FCM rotates the token. */
@@ -234,7 +265,7 @@ class PushRegistrationManager @Inject constructor(
     private suspend fun unregisterInternal(material: SigningMaterial?) = mutex.withLock {
         // Whatever happens below, this device is no longer in remote-push mode: the pollers must
         // resume posting notifications, and the next register must not be fingerprint-skipped.
-        pushState.setActive(false)
+        setPushActive(false)
         lastRegisteredFingerprint = null
 
         val api = pushApiOrNull() ?: return@withLock
@@ -274,6 +305,19 @@ class PushRegistrationManager @Inject constructor(
     private val gson = com.google.gson.Gson()
     private val pushPrefs by lazy { context.getSharedPreferences("kachat_push_registration", Context.MODE_PRIVATE) }
 
+    init {
+        // A process woken to handle a push or a periodic sync catches up long before its first
+        // registration answers, and with the flag still false that catch-up bannered what the push
+        // is the source for. The last known answer stands until this launch's registration replaces it.
+        pushState.setActive(pushPrefs.getBoolean(KEY_PUSH_ACTIVE, false))
+    }
+
+    /** [PushState.setActive], remembered for the next process. */
+    private fun setPushActive(active: Boolean) {
+        pushState.setActive(active)
+        pushPrefs.edit().putBoolean(KEY_PUSH_ACTIVE, active).apply()
+    }
+
     /** The push API, or null when this network has no push service (a blank URL - testnet). It
      *  used to wait for a client that a blank URL never builds. */
     private suspend fun pushApiOrNull(): PushApi? {
@@ -288,7 +332,7 @@ class PushRegistrationManager @Inject constructor(
      * otherwise the mainnet service kept pushing mainnet messages into the testnet account.
      */
     private suspend fun leavePushServiceOfOtherNetworkIfNeeded() {
-        pushState.setActive(false)
+        setPushActive(false)
         lastRegisteredFingerprint = null
         // Registrations made before this was recorded went to the default service of the time,
         // kachat.duckdns.org (indexer.kachat.app since).
@@ -343,6 +387,9 @@ class PushRegistrationManager @Inject constructor(
 
     private suspend fun register(tokenOverride: String?) = mutex.withLock {
         if (!walletManager.hasWallet()) return@withLock
+        // Signed out stays unregistered, a cold start on the sign-in screen included (iOS has no
+        // current wallet then); login() registers.
+        if (walletManager.isLoggedOut) return@withLock
         if (!settings.notificationsEnabled.first()) return@withLock
         if (settings.pushIndexerUrl.first().isBlank()) {
             withContext(Dispatchers.IO) { leavePushServiceOfOtherNetworkIfNeeded() }
@@ -405,7 +452,7 @@ class PushRegistrationManager @Inject constructor(
         // Remote-push mode is only real if the system will actually show what FCM delivers;
         // with POST_NOTIFICATIONS denied the pollers' (equally invisible) banners are moot
         // anyway, but keeping the flag honest costs nothing.
-        pushState.setActive(NotificationManagerCompat.from(context).areNotificationsEnabled())
+        setPushActive(NotificationManagerCompat.from(context).areNotificationsEnabled())
         pushState.recordAttempt("register", succeeded = true, error = null, fcmTokenPresent = true)
         // The service this device is registered with - withdrawn from on a network without one.
         pushPrefs.edit().putString(KEY_REGISTERED_BASE_URL, settings.pushIndexerUrl.first()).putBoolean(KEY_LEFT, false).apply()
@@ -463,7 +510,7 @@ class PushRegistrationManager @Inject constructor(
         } catch (e: Exception) {
             // Any failed attempt drops us out of remote-push mode so the pollers keep notifying,
             // and forgets the fingerprint so the next trigger retries for real.
-            pushState.setActive(false)
+            setPushActive(false)
             lastRegisteredFingerprint = null
             pushState.recordAttempt(
                 "register",
@@ -666,6 +713,7 @@ class PushRegistrationManager @Inject constructor(
 
         private const val KEY_REGISTERED_BASE_URL = "registered_base_url"
         private const val KEY_LEFT = "left_push_service"
+        private const val KEY_PUSH_ACTIVE = "push_active"
         // Shared with KaChatFirebaseMessagingService so `adb logcat -s KaChatPush` shows the
         // whole story: registration attempts, their outcomes, token rotations, and every
         // received push.

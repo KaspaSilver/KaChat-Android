@@ -101,11 +101,11 @@ fun AddressResolutionCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(colors.surface)
+            .background(colors.textPrimary.copy(alpha = 0.05f))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ContactAvatar(imageUrl = avatarUrl, fallbackText = name ?: shown.takeLast(8), size = 44.dp)
+        ContactAvatar(imageUrl = avatarUrl, fallbackText = name ?: shown.takeLast(8), size = 44.dp, address = shown)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -155,7 +155,14 @@ class AddressResolutionViewModel @Inject constructor(
     private val chatRepository: com.kachat.app.repository.ChatRepository,
     private val nameServices: com.kachat.app.services.NameServicesClient,
     private val walletManager: com.kachat.app.services.WalletManager,
+    private val kaPostPreviewLoader: com.kachat.app.services.KaPostPreviewLoader,
 ) : ViewModel() {
+
+    /** A KaPost link's post if this run already read it, for a card's first frame. */
+    fun cachedKaPostPreview(txId: String): com.kachat.app.services.KaPostPreview? = kaPostPreviewLoader.cached(txId)
+
+    /** A KaPost link's post from the indexer: who posted it and what it says (iOS a8a5807a). */
+    suspend fun kaPostPreview(txId: String): com.kachat.app.services.KaPostPreview? = kaPostPreviewLoader.load(txId)
 
     /** "Chatting Address", "Address #3" or its name when [address] is one of this wallet's own,
      *  else null ([com.kachat.app.services.WalletManager.ownAddressLabel], iOS 56f004f). Off the

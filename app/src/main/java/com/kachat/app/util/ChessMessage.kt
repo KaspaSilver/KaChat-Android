@@ -130,6 +130,46 @@ data class ChessGameStatus(
     val isGameOver: Boolean get() = kind != ChessGameStatusKind.PENDING_RESPONSE && kind != ChessGameStatusKind.IN_PROGRESS
 }
 
+/**
+ * A game's time control (iOS ChessTimeControl). The numbers on the wire are the sender's word, so
+ * nothing reads them without going through here (iOS 4f8e14bb).
+ */
+data class ChessTimeControl(val minutes: Int, val incSeconds: Int) {
+    val initialMs: Long get() = minutes * 60_000L
+    val incrementMs: Long get() = incSeconds * 1_000L
+
+    /** "3 | 2"-style display label, matching how chess sites name minute/increment pairs. */
+    val label: String get() = "$minutes | $incSeconds"
+
+    /** The `clockMs` my move reports: what I have left plus the increment. */
+    fun clockMsAfterMove(remainingMs: Long): Long {
+        val sum = try {
+            Math.addExact(remainingMs, incrementMs)
+        } catch (e: ArithmeticException) {
+            return MAX_CLOCK_MS
+        }
+        return sanitizedClockMs(sum)
+    }
+
+    companion object {
+        /** The most a clock can hold: a month, far past any real game even at the highest
+         *  increment. A move's `clockMs` is whatever the sender wrote. */
+        const val MAX_CLOCK_MS: Long = 30L * 24 * 60 * 60 * 1_000
+
+        /** The time control an invite asks for, null for an untimed game. Anything outside
+         *  1..180 minutes or 0..180 seconds is played untimed. */
+        fun fromInvite(invite: ChessInviteContent): ChessTimeControl? {
+            val minutes = invite.tcMinutes?.takeIf { it in 1..180 } ?: return null
+            val incSeconds = invite.tcIncSeconds ?: 0
+            if (incSeconds !in 0..180) return null
+            return ChessTimeControl(minutes, incSeconds)
+        }
+
+        /** A move's `clockMs` as received, held within what a clock can be. */
+        fun sanitizedClockMs(clockMs: Long): Long = clockMs.coerceIn(0L, MAX_CLOCK_MS)
+    }
+}
+
 /** One applied move, recorded during [ChessGameEngine.summarize]'s replay - lets callers show the
  *  actual piece that moved/was captured (e.g. the in-thread move log, captured-pieces tray)
  *  without re-replaying the game themselves. */
@@ -169,6 +209,10 @@ data class ChessGameSummary(
     val tcIncSeconds: Int? = null
 ) {
     val isTimed: Boolean get() = tcMinutes != null
+
+    /** Null for an untimed game. [tcMinutes] and [tcIncSeconds] came through
+     *  [ChessTimeControl.fromInvite]. */
+    val timeControl: ChessTimeControl? get() = tcMinutes?.let { ChessTimeControl(it, tcIncSeconds ?: 0) }
 
     /** "3 | 2"-style label for a timed game, null for casual - shown on the invite bubble, live
      *  card, and anywhere else the game is previewed. */
@@ -265,7 +309,7 @@ object ChessGameEngine {
     fun summarize(gameId: String, messages: List<ChessSourceMessage>, myAddress: String, contactAddress: String): ChessGameSummary? {
         var invite: ChessInviteContent? = null
         var inviterAddress: String? = null
-        var response: ChessResponseContent? = null
+        val responseEntries = mutableListOf<Triple<ChessSourceMessage, ChessResponseContent, String>>()
         var board = ChessEngine.initialBoard()
         var resignerAddress: String? = null
         var resignReason: String? = null
@@ -283,12 +327,15 @@ object ChessGameEngine {
 
             when (envelope) {
                 is ChessEnvelope.Invite -> {
+                    // The first invite is the game: a second one for this gameId can't change the
+                    // colors or the time control of a game already under way (iOS 4f8e14bb).
+                    if (invite != null) continue
                     invite = envelope.content
                     inviterAddress = senderAddress
                 }
                 is ChessEnvelope.Response -> {
                     if (unsent) continue
-                    response = envelope.content
+                    responseEntries.add(Triple(message, envelope.content, senderAddress))
                 }
                 is ChessEnvelope.Move -> {
                     if (unsent) continue
@@ -345,7 +392,7 @@ object ChessGameEngine {
                             capturedColor = capturedPiece?.color,
                             promotion = promotion,
                             messageId = message.id,
-                            clockMs = content.clockMs
+                            clockMs = content.clockMs?.let { ChessTimeControl.sanitizedClockMs(it) }
                         )
                     )
                     applied = true
@@ -360,6 +407,15 @@ object ChessGameEngine {
         val otherAddress = if (nonNullInviterAddress == myAddress) contactAddress else myAddress
         val whiteAddress = if (nonNullInvite.inviterColor == ChessInviteColor.WHITE) nonNullInviterAddress else otherAddress
         val blackAddress = if (nonNullInvite.inviterColor == ChessInviteColor.WHITE) otherAddress else nonNullInviterAddress
+
+        // The answer is the invited side's, once, and only while the game hasn't started: a decline
+        // sent after the first move would otherwise void a game its sender is losing (iOS 4f8e14bb).
+        val firstMoveAt = moveHistory.firstOrNull()?.let { first ->
+            moveEntries.firstOrNull { it.first.id == first.messageId }?.first?.blockTimestamp
+        }
+        val response = responseEntries.firstOrNull { (message, _, sender) ->
+            sender != nonNullInviterAddress && (firstMoveAt == null || message.blockTimestamp <= firstMoveAt)
+        }?.second
 
         val status = when {
             resignerAddress != null -> {
@@ -383,6 +439,8 @@ object ChessGameEngine {
             else -> null
         }
 
+        val timeControl = ChessTimeControl.fromInvite(nonNullInvite)
+
         return ChessGameSummary(
             gameId = gameId,
             status = status,
@@ -392,8 +450,8 @@ object ChessGameEngine {
             lastMessageId = lastMessageId ?: "",
             viewerColor = viewerColor,
             moveHistory = moveHistory,
-            tcMinutes = nonNullInvite.tcMinutes,
-            tcIncSeconds = nonNullInvite.tcIncSeconds
+            tcMinutes = timeControl?.minutes,
+            tcIncSeconds = timeControl?.incSeconds
         )
     }
 

@@ -54,6 +54,12 @@ class PushedMessageQueue @Inject constructor(
         return true
     }
 
+    /** Everything kept for [wallet]: it's going off this device (iOS bfe9f022). */
+    @Synchronized
+    fun removeAllData(wallet: String) {
+        prefs.edit().remove(key(wallet)).apply()
+    }
+
     /** Drops [txIds] (stored, or given up on). */
     @Synchronized
     fun remove(wallet: String, txIds: Set<String>) {

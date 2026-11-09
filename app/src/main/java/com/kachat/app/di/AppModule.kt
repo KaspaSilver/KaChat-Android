@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.kachat.app.BuildConfig
 import com.kachat.app.util.ApiLogging
+import com.kachat.app.util.shortenAddresses
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -65,10 +66,9 @@ object AppModule {
             "kachat.db"
         )
             .addMigrations(KaChatDatabase.MIGRATION_15_16, KaChatDatabase.MIGRATION_16_17, KaChatDatabase.MIGRATION_17_18, KaChatDatabase.MIGRATION_18_19, KaChatDatabase.MIGRATION_19_20, KaChatDatabase.MIGRATION_20_21, KaChatDatabase.MIGRATION_21_22, KaChatDatabase.MIGRATION_22_23, KaChatDatabase.MIGRATION_23_24, KaChatDatabase.MIGRATION_24_25, KaChatDatabase.MIGRATION_25_26, KaChatDatabase.MIGRATION_26_27, KaChatDatabase.MIGRATION_27_28, KaChatDatabase.MIGRATION_28_29, KaChatDatabase.MIGRATION_29_30, KaChatDatabase.MIGRATION_30_31, KaChatDatabase.MIGRATION_31_32, KaChatDatabase.MIGRATION_32_33, KaChatDatabase.MIGRATION_33_34, KaChatDatabase.MIGRATION_34_35, KaChatDatabase.MIGRATION_35_36, KaChatDatabase.MIGRATION_36_37, KaChatDatabase.MIGRATION_37_38, KaChatDatabase.MIGRATION_38_39, KaChatDatabase.MIGRATION_39_40, KaChatDatabase.MIGRATION_40_41, KaChatDatabase.MIGRATION_41_42, KaChatDatabase.MIGRATION_42_43, KaChatDatabase.MIGRATION_43_44)
-            // Safety net only, for version jumps that don't have an explicit Migration above —
-            // every future schema change should get a real Migration instead of relying on this,
-            // since it silently wipes every user's local contacts/messages.
-            .fallbackToDestructiveMigration()
+            // Only the 1.0.x databases, from before the migrations above begin. A schema change with
+            // no Migration must fail in testing, not silently wipe everyone's contacts and messages.
+            .fallbackToDestructiveMigrationFrom(*(1..14).toList().toIntArray())
             .build()
     }
 
@@ -91,7 +91,13 @@ object AppModule {
         //    release build (logcat is readable by anything with log access on a rooted device,
         //    or captured in bug reports), so release verbose logging caps at BASIC (one line per
         //    request/response, no bodies).
-        val verboseLogger = HttpLoggingInterceptor().apply {
+        // Every line it writes goes through shortenAddresses: request URLs carry full addresses
+        // (`/addresses/kaspa:…/balance`), and logcat goes out in the diagnostics export.
+        val verboseLogger = HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
+            override fun log(message: String) {
+                Log.i(VERBOSE_LOG_TAG, shortenAddresses(message))
+            }
+        }).apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.BASIC
         }
         return OkHttpClient.Builder()
@@ -105,14 +111,14 @@ object AppModule {
                     chain.proceed(request)
                 } catch (e: Exception) {
                     val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
-                    Log.w(API_LOG_TAG, "FAIL ${request.method} ${request.url} after ${elapsedMs}ms: $e")
+                    Log.w(API_LOG_TAG, shortenAddresses("FAIL ${request.method} ${request.url} after ${elapsedMs}ms: $e"))
                     throw e
                 }
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
                 if (!response.isSuccessful) {
-                    Log.w(API_LOG_TAG, "HTTP ${response.code} ${request.method} ${request.url} in ${elapsedMs}ms")
+                    Log.w(API_LOG_TAG, shortenAddresses("HTTP ${response.code} ${request.method} ${request.url} in ${elapsedMs}ms"))
                 } else if (elapsedMs > SLOW_REQUEST_THRESHOLD_MS) {
-                    Log.w(API_LOG_TAG, "SLOW ${request.method} ${request.url} took ${elapsedMs}ms")
+                    Log.w(API_LOG_TAG, shortenAddresses("SLOW ${request.method} ${request.url} took ${elapsedMs}ms"))
                 }
                 response
             }
@@ -131,7 +137,7 @@ object AppModule {
                     ?.let { it * 1000L }
                     ?.coerceIn(500L, MAX_RATE_LIMIT_WAIT_MS)
                     ?: DEFAULT_RATE_LIMIT_WAIT_MS
-                Log.w(API_LOG_TAG, "HTTP 429 ${request.url} - retrying once in ${retryAfterMs}ms")
+                Log.w(API_LOG_TAG, shortenAddresses("HTTP 429 ${request.url} - retrying once in ${retryAfterMs}ms"))
                 response.close()
                 try {
                     Thread.sleep(retryAfterMs)
@@ -145,6 +151,8 @@ object AppModule {
     }
 
     private const val API_LOG_TAG = "ApiLog"
+    /** HttpLoggingInterceptor's own lines (its default logger writes under "okhttp.OkHttpClient"). */
+    private const val VERBOSE_LOG_TAG = "okhttp.OkHttpClient"
 
     /** How long a rate-limited GET waits before its one retry when the server gives no
      *  Retry-After, and the most it will honor when it does - a send cannot sit for a minute. */

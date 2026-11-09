@@ -605,13 +605,10 @@ class KachatNamesActions @Inject constructor(
         )
     }
 
-    /** The rate a speed pays: the network's Normal rate (never under the relay floor) times the
-     *  speed's multiplier, the same 1x / 2x / 5x the Send screens use. */
-    suspend fun feerate(tier: FeeTier): Double {
-        val estimate = refreshFeeEstimate()
-        val base = estimate?.let { maxOf(KachatNames.MIN_FEERATE, it.normal) } ?: UNKNOWN_FEERATE
-        return KachatNames.safeFeerate(base * tier.multiplier.toDouble())
-    }
+    /** The rate a speed pays: the relay floor, which is all iOS ever prices at (KaspaFeePolicy; it
+     *  reads no fee quote), times the speed's multiplier, the same 1x / 2x / 5x the Send screens use. */
+    fun feerate(tier: FeeTier): Double =
+        KachatNames.safeFeerate(KachatNames.MIN_FEERATE * tier.multiplier.toDouble())
 
     /** The rate for a choice; null keeps the old default (the priority rate). A typed total is
      *  turned into a rate by building the transaction once at the floor to learn its mass. */
@@ -625,14 +622,9 @@ class KachatNamesActions @Inject constructor(
         }
     }
 
-    /** `max(100, the priority fee rate)` in sompi per gram; [UNKNOWN_FEERATE] when it can't be read.
-     *  The rate for a transaction sent without a sheet (nobody saw its fee): the priority rate,
-     *  capped at [BACKGROUND_MAX_FEERATE] (iOS 7e2b6cd, IOS-061). */
-    suspend fun feerate(): Double {
-        val e = refreshFeeEstimate()
-        if (e == null || e.priority <= 0) return UNKNOWN_FEERATE
-        return minOf(KachatNames.safeFeerate(e.priority), BACKGROUND_MAX_FEERATE)
-    }
+    /** The rate for a transaction sent without a sheet (nobody saw its fee): the relay floor, in
+     *  sompi per gram, as iOS prices every send (KaspaFeePolicy). */
+    fun feerate(): Double = KachatNames.safeFeerate(KachatNames.MIN_FEERATE)
 
     private class Context3(val builder: Builder, val env: Env, val wallet: List<Utxo>)
 
@@ -642,7 +634,8 @@ class KachatNamesActions @Inject constructor(
         val builder = service.builder()
         val env = service.environment(s.privateKey, rate ?: feerate())
         _virtualDaa.value = env.blockDaa
-        val utxos = service.utxosByAddresses(listOf(s.address))
+        // never coins another send from this app has just spent (iOS d23e6f7a)
+        val utxos = service.unreservedUtxos(service.utxosByAddresses(listOf(s.address)))
         return Context3(builder, env, KachatNamesService.fundingUtxos(utxos, s.me, env.blockDaa))
     }
 
@@ -654,7 +647,7 @@ class KachatNamesActions @Inject constructor(
     /** What the wallet can spend on names right now (sompi). */
     suspend fun spendable(): Long = withContext(Dispatchers.IO) {
         val s = buyerSigner()
-        val utxos = service.utxosByAddresses(listOf(s.address))
+        val utxos = service.unreservedUtxos(service.utxosByAddresses(listOf(s.address)))
         val daa = service.currentVirtualDaaScore() ?: 0L
         KachatNamesService.fundingUtxos(utxos, s.me, daa).sumOf { it.entry.amount }
     }
@@ -1317,34 +1310,15 @@ class KachatNamesActions @Inject constructor(
     }
 
     /**
-     * Brings this wallet's own profile up to date with the chain (every network), then loads its
-     * registrations and drives the open ones (on a network with a live registry). Call when a
+     * Brings this wallet's own profile up to date with the chain (every network). Call when a
      * screen appears and when the app comes to the foreground (KaChatApplication, iOS app-active).
      */
     fun resume() {
         val address = myAddress
         // Every network: a profile saved on another device (iPhone, Desktop) shows here too (iOS 5d4ce87).
+        // Profile only: buying moved to the KaChat wallet app, so nothing here signs or pays for a
+        // persisted registration any more (iOS KachatNamesActions.swift).
         if (address != null) scope.launch { registry.syncOwnProfile(address) }
-        // Launched networks only (iOS 7227d69): mainnet never drives a registration.
-        if (!KachatNamesService.isLaunched || address == null) {
-            driver?.cancel()
-            driver = null
-            synchronized(lock) {
-                _pending.value = emptyList()
-                pendingWallet = null
-            }
-            return
-        }
-        loadPending(address)
-        startDriver()
-        // A claim still in progress when the app starts: its half sheet comes back up once (iOS b219bb0).
-        synchronized(lock) {
-            val open = _pending.value.firstOrNull { it.needsDriving }
-            if (!autoPresentedThisLaunch && open != null) {
-                autoPresentedThisLaunch = true
-                autoPresentedRegistration.value = open.id
-            }
-        }
     }
 
     private fun startDriver() {

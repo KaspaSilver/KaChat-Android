@@ -1,12 +1,21 @@
 package com.kachat.app.services
 
+import android.content.Context
+import coil.ImageLoader
+import coil.imageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
+import okio.ForwardingSource
+import okio.buffer
 import org.json.JSONObject
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** Open Graph metadata scraped from a message link, for rendering a rich preview card. */
@@ -50,6 +59,12 @@ data class LinkPreviewData(
 object LinkPreviewService {
     private const val FETCH_TIMEOUT_SECONDS = 8L
     private const val MAX_BODY_BYTES = 1_000_000L
+    /** A preview image is useless cut short, so past this it fails instead (iOS maxImageBytes). */
+    private const val MAX_IMAGE_BYTES = 5_000_000L
+    /** The Nextcloud full-quality viewer deliberately fetches the original (iOS fullImageMaxBytes). */
+    private const val MAX_FULL_IMAGE_BYTES = 50_000_000L
+    /** The most a profile picture or banner downloads: past this it's not one (iOS 4f8e14bb). */
+    private const val MAX_PROFILE_IMAGE_BYTES = 10_000_000L
     private const val CACHE_LIMIT = 2_048
     private const val CACHE_TTL_MS = 24L * 60 * 60 * 1000
 
@@ -116,6 +131,64 @@ object LinkPreviewService {
             .build()
             .toString()
         return NextcloudShareEndpoints(downloadUrl = "$base/download", previewUrl = "$base/preview")
+    }
+
+    /**
+     * Coil loaders that stop reading an image past its cap (iOS 4f8e14bb `fetchCapped`): the link
+     * comes from whoever sent the message, and its server decides how much would come down
+     * otherwise. Built from the app's loader, so the memory and disk caches are the same ones.
+     */
+    @Volatile private var previewLoader: ImageLoader? = null
+    @Volatile private var fullLoader: ImageLoader? = null
+    @Volatile private var profileLoader: ImageLoader? = null
+
+    fun previewImageLoader(context: Context): ImageLoader = previewLoader ?: synchronized(this) {
+        previewLoader ?: context.applicationContext.imageLoader.newBuilder()
+            .okHttpClient(client.newBuilder().addInterceptor(CappedBodyInterceptor(MAX_IMAGE_BYTES)).build())
+            .build()
+            .also { previewLoader = it }
+    }
+
+    /** [previewImageLoader] with the original file's higher cap, for the full-screen photo viewer. */
+    fun fullImageLoader(context: Context): ImageLoader = fullLoader ?: synchronized(this) {
+        fullLoader ?: context.applicationContext.imageLoader.newBuilder()
+            .okHttpClient(downloadClient.newBuilder().addInterceptor(CappedBodyInterceptor(MAX_FULL_IMAGE_BYTES)).build())
+            .build()
+            .also { fullLoader = it }
+    }
+
+    /** [previewImageLoader] for profile pictures and banners. The URL is whatever the profile's
+     *  owner set, so the size is theirs too (iOS 4f8e14bb). Shares the app's caches. */
+    fun profileImageLoader(context: Context): ImageLoader = profileLoader ?: synchronized(this) {
+        profileLoader ?: context.applicationContext.imageLoader.newBuilder()
+            .okHttpClient(downloadClient.newBuilder().addInterceptor(CappedBodyInterceptor(MAX_PROFILE_IMAGE_BYTES)).build())
+            .build()
+            .also { profileLoader = it }
+    }
+
+    /** Fails a response whose body passes [limit], at the declared Content-Length when there is
+     *  one, or as the bytes arrive, so it never all lands in memory first. */
+    private class CappedBodyInterceptor(private val limit: Long) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val response = chain.proceed(chain.request())
+            val body = response.body ?: return response
+            if (body.contentLength() > limit) {
+                response.close()
+                throw IOException("Response is larger than $limit bytes")
+            }
+            val capped = object : ForwardingSource(body.source()) {
+                private var total = 0L
+                override fun read(sink: Buffer, byteCount: Long): Long {
+                    val read = super.read(sink, byteCount)
+                    if (read > 0) {
+                        total += read
+                        if (total > limit) throw IOException("Response is larger than $limit bytes")
+                    }
+                    return read
+                }
+            }.buffer()
+            return response.newBuilder().body(capped.asResponseBody(body.contentType(), body.contentLength())).build()
+        }
     }
 
     suspend fun fetchPreview(url: String): LinkPreviewData? {
@@ -339,12 +412,26 @@ object LinkPreviewService {
                 if (body.contentLength() > maxBytes) return@withContext null
                 val dir = java.io.File(context.cacheDir, "nextcloud_previews").apply { mkdirs() }
                 val file = java.io.File(dir, "share-${url.hashCode()}.bin")
-                file.outputStream().use { out -> body.byteStream().copyTo(out) }
-                if (file.length() > maxBytes) {
+                // Counted as it comes: Content-Length can be absent, or lie.
+                var total = 0L
+                val withinLimit = file.outputStream().use { out ->
+                    body.byteStream().use { input ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            total += read
+                            if (total > maxBytes) break
+                            out.write(buffer, 0, read)
+                        }
+                    }
+                    total <= maxBytes
+                }
+                if (withinLimit) {
+                    file
+                } else {
                     file.delete()
                     null
-                } else {
-                    file
                 }
             }
         } catch (e: Exception) {

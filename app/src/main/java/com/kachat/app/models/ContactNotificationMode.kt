@@ -2,8 +2,8 @@ package com.kachat.app.models
 
 /**
  * Per-contact override for the "Incoming Notifications" picker in Chat Info — null means
- * "Default", i.e. follow Settings > Notifications' global sound/vibration, so unlike
- * [PhotoAutoDisplayMode] this has no baked-in default case to fall back to.
+ * "Default", i.e. follow Settings > Notifications' global sound/vibration, so this has no baked-in
+ * default case to fall back to.
  */
 enum class ContactNotificationMode(val displayName: String) {
     OFF("Off"),

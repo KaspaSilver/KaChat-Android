@@ -797,7 +797,10 @@ data class RegistryState(
     /** every registry event the walker has seen (most recent last, bounded) */
     var events: List<Event>,
     /** when the live set was last confirmed against a node (unix ms) */
-    var verifiedAt: Long? = null
+    var verifiedAt: Long? = null,
+    /** A walk has reached the live UTXOs at least once. Until then this copy is only part of the
+     *  registry: a name missing from it may well exist, so nothing is answered from it (iOS 4f8e14bb). */
+    var reachedTip: Boolean? = null
 ) {
     data class Gap(val txid: String, val index: Int, val lo: String, val hi: String, val value: Long)
 
@@ -842,7 +845,11 @@ data class RegistryState(
         var unresolved: List<String> = emptyList(),
         /** a tracked UTXO was spent by a transaction this state already applied: the state is
          *  inconsistent (the caller walks again from the genesis) */
-        var stale: Boolean = false
+        var stale: Boolean = false,
+        /** every tracked UTXO was still live: the state is the registry as it stands (iOS 4f8e14bb) */
+        var reachedTip: Boolean = false,
+        /** `maxRounds` ended the walk with more to do (the caller walks on; iOS 4f8e14bb) */
+        var ranOutOfRounds: Boolean = false
     )
 
     /** Whether this cache belongs to [m]'s registry. */
@@ -1177,6 +1184,7 @@ data class RegistryState(
             val spent = byAddress.flatMap { (a, ops) -> ops.filter { it !in unspent }.map { a to it } }
             if (spent.isEmpty()) {
                 report.unresolved = emptyList()
+                report.reachedTip = true
                 return report
             }
             val candidates = LinkedHashMap<String, TxView>()
@@ -1232,6 +1240,7 @@ data class RegistryState(
             }
             sortEventsByTime()
         }
+        report.ranOutOfRounds = true
         return report
     }
 

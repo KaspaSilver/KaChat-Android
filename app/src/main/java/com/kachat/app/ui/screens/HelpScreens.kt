@@ -181,7 +181,7 @@ private fun HelpRow(icon: ImageVector, label: String, subtitle: String, onClick:
 }
 
 /**
- * "Claim Testnet Kaspa", above the Chatting card on Profile, testnet only (iOS 182ae68, 2a81767).
+ * "Claim Testnet Kaspa", on Wallet, testnet only (iOS 182ae68, 2a81767, bfe9f022).
  * The official TN10 faucet sits behind a Cloudflare check, so it can't be claimed in the
  * background: the button copies the chatting address in its `kaspatest:` form and opens the
  * faucet in the in-app browser, with a strip saying it's copied. The faucet allows one claim a

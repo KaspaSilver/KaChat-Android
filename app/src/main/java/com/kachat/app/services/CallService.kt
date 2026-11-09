@@ -153,7 +153,12 @@ class CallService @Inject constructor(
 
     /** Everything about the live call the screen does not need: the Talk client, the peer
      *  connection, the timers. Lives and dies with one call. */
-    private class Plumbing(val callId: String) {
+    private class Plumbing(
+        val callId: String,
+        /** The account this call belongs to, null only when no wallet has loaded yet
+         *  ([walletChanged]; iOS `ownerAddress`). */
+        var ownerAddress: String?,
+    ) {
         var client: NextcloudTalkClient? = null
         var mySessionId: String? = null
         val mySid: String = UUID.randomUUID().toString().take(8)
@@ -234,6 +239,9 @@ class CallService @Inject constructor(
                 if (call == null || call.phase != Phase.RingingOut) plumbing?.ringback?.stop()
             }
         }
+        scope.launch {
+            walletManager.activeAddressFlow.collect { address -> walletChanged(address) }
+        }
     }
 
     private fun update(transform: (ActiveCall) -> ActiveCall) {
@@ -310,7 +318,7 @@ class CallService @Inject constructor(
             // No Nextcloud here: ask the contact to host. Their phone opens the room and rings
             // (if their "Allow calls" switch is on for us) and answers with an invite this call
             // joins as a guest - see handleIncoming(Invite).
-            val pipes = Plumbing(callId)
+            val pipes = Plumbing(callId, currentAccountAddress())
             plumbing = pipes
             _session.value = ActiveCall(id = callId, contact = contact, isOutgoing = true, server = null, token = "", hostsThisCall = false, video = video, phase = Phase.RingingOut)
             CallDiagnostics.log(TAG, "outgoing ${if (video) "video" else "voice"} call $callId to ${contact.id.takeLast(8)} - asking them to host")
@@ -337,7 +345,7 @@ class CallService @Inject constructor(
         }
         val server = account.server.trimEnd('/')
         // Token is filled in once the conversation exists; the screen shows "calling" meanwhile.
-        val pipes = Plumbing(callId)
+        val pipes = Plumbing(callId, currentAccountAddress())
         plumbing = pipes
         _session.value = ActiveCall(id = callId, contact = contact, isOutgoing = true, server = server, token = "", hostsThisCall = true, video = video, phase = Phase.RingingOut)
         CallDiagnostics.log(TAG, "outgoing ${if (video) "video" else "voice"} call $callId to ${contact.id.takeLast(8)} hosted on $server")
@@ -513,7 +521,7 @@ class CallService @Inject constructor(
         val account = nextcloudService.account.value ?: return false
         if (_session.value != null) return false
         val server = account.server.trimEnd('/')
-        val pipes = Plumbing(callId)
+        val pipes = Plumbing(callId, currentAccountAddress())
         plumbing = pipes
         CallDiagnostics.log(TAG, "request $callId from ${contact.id.takeLast(8)}: hosting on $server")
         _isMinimized.value = false
@@ -618,7 +626,7 @@ class CallService @Inject constructor(
         // delivered twice is simply ignored.
         if (current != null) return dropped(id, "busy")
         markHandled(invite.callId)
-        val incoming = Plumbing(invite.callId)
+        val incoming = Plumbing(invite.callId, currentAccountAddress())
         plumbing = incoming
         CallDiagnostics.log(TAG, "incoming ${if (invite.video) "video" else "voice"} call ${invite.callId} from ${contact.id.takeLast(8)} via $server")
         _isMinimized.value = false
@@ -631,13 +639,14 @@ class CallService @Inject constructor(
         return null
     }
 
-    fun acceptIncoming() {
-        val call = _session.value ?: return
+    fun acceptIncoming(audioOnly: Boolean = false) {
+        val ringing = _session.value ?: return
         val pipes = plumbing ?: return
-        if (call.phase != Phase.RingingIn) return
+        if (ringing.phase != Phase.RingingIn) return
+        val call = if (audioOnly) ringing.copy(video = false) else ringing
         stopRinging(pipes)
         pipes.timeoutJob?.cancel()
-        update { it.copy(phase = Phase.Connecting) }
+        update { it.copy(phase = Phase.Connecting, video = call.video) }
         // Answered: the call screen comes up, whatever was tucked away before.
         _isMinimized.value = false
         // The other phone has 30 s to show up in the room; a call stuck on "Connecting" forever
@@ -1116,6 +1125,34 @@ class CallService @Inject constructor(
 
     // ---- Teardown ----
 
+    /** The signed-in account's address; null once signed out, when the saved account stays
+     *  listed but no longer counts as current (iOS `currentWallet` going nil). */
+    private fun currentAccountAddress(): String? =
+        if (walletManager.isLoggedOut) null else walletManager.activeAddressFlow.value
+
+    /**
+     * A call belongs to the account it started on: switching accounts or logging out ends it, or
+     * it would go on under someone else's name. [finish] sends no call_end for it (iOS 4f8e14bb).
+     */
+    private fun walletChanged(address: String?) {
+        val call = _session.value ?: return
+        val pipes = plumbing ?: return
+        if (call.phase is Phase.Ended) return
+        val owner = pipes.ownerAddress
+        if (owner == null) {
+            pipes.ownerAddress = address
+            return
+        }
+        if (address == owner) return
+        CallDiagnostics.log(TAG, "account changed during call ${call.id}; ending it")
+        scope.launch { finish("hangup") }
+    }
+
+    /** Log Out keeps the saved account as the active one, so nothing else says it happened. */
+    fun onSignedOut() {
+        walletChanged(null)
+    }
+
     private suspend fun finish(reason: String) {
         val call = _session.value ?: return
         val pipes = plumbing ?: return
@@ -1149,8 +1186,10 @@ class CallService @Inject constructor(
 
         // The caller is the only side that ever puts a call on chain: one opening message
         // (invite or request) and one closing message with how it went and, if it connected, for
-        // how long. A callee's hang-up reaches the caller through the room instead.
-        if (call.isOutgoing && pipes.openingMessageSent) {
+        // how long. A callee's hang-up reaches the caller through the room instead. Never from
+        // another account: it would go to the contact from a stranger, and sending would open a
+        // chat with them there (iOS 4f8e14bb).
+        if (call.isOutgoing && pipes.openingMessageSent && pipes.ownerAddress == currentAccountAddress()) {
             runCatching { sendCallMessage(call.contact.id, CallCodec.encode(CallEnvelope.End(call.id, reason = reason, durationSeconds = duration))) }
         }
         val client = pipes.client

@@ -111,6 +111,18 @@ class SubmitWaitingForParentTest {
     }
 
     @Test
+    fun `a send that moves money is never left to a node's orphan pool`() = runBlocking {
+        val node = Node({ throw orphan }, { throw orphan }, { "tx" })
+        try {
+            SubmitConfirmation.submitWaitingForParent(false, delayMs = 0, escalateOrphan = false, submit = node::submit)
+            fail("expected the orphan rejection")
+        } catch (e: IllegalStateException) {
+            assertSame(orphan, e)
+        }
+        assertEquals(listOf(false, false), node.calls)
+    }
+
+    @Test
     fun `the orphan rejection is recognised in any case`() {
         assertTrue(SubmitConfirmation.isOrphanRejection(IllegalStateException("Transaction X is an ORPHAN where orphan is disallowed")))
         assertTrue(!SubmitConfirmation.isOrphanRejection(IllegalStateException("fee too low")))

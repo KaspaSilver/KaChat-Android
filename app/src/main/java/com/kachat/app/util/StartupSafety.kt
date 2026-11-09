@@ -77,6 +77,64 @@ object StartupSafety {
 }
 
 /**
+ * The stores everything else depends on. Unlike a side feature's, [accountStoresOpen] failing means
+ * there is no app to open: the wallet and group stores throw as they're built, before any screen.
+ */
+object SecureStores {
+    private val ACCOUNT_STORES = listOf("kachat_secure_prefs", "kachat_group_secure_prefs")
+    private val ALL_STORES = ACCOUNT_STORES + listOf("nextcloud_secure_prefs", "kachat_names_secure_prefs")
+    private val accountStoresCheck = TrueOnceCache()
+
+    /**
+     * Whether the account stores open. Asked by the activity and by every background entry point
+     * (pushes, workers) before anything that builds the wallet; a yes is kept for the process, so
+     * a push doesn't reopen the stores, while a no is asked again, so a Keystore that recovers is
+     * noticed without a restart.
+     */
+    fun accountStoresOpen(context: Context): Boolean = accountStoresCheck.get { openAccountStores(context) }
+
+    private fun openAccountStores(context: Context): Boolean = try {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        for (name in ACCOUNT_STORES) {
+            EncryptedSharedPreferences.create(
+                context,
+                name,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
+        true
+    } catch (e: Exception) {
+        Log.e("SecureStores", "The account stores could not be opened", e)
+        false
+    }
+
+    /** Only on the user's say-so, since a Keystore fault can pass: removes the stores and their key,
+     *  so the next launch starts clean and accounts come back from their words. */
+    fun startOver(context: Context) {
+        for (name in ALL_STORES) context.deleteSharedPreferences(name)
+        runCatching {
+            java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+                .deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+        }.onFailure { Log.w("SecureStores", "Could not remove the master key", it) }
+    }
+}
+
+/** A yes/no check whose yes is kept: once [get] has seen true it returns true without asking again;
+ *  false is never kept. */
+internal class TrueOnceCache {
+    @Volatile private var knownTrue = false
+
+    fun get(check: () -> Boolean): Boolean {
+        if (knownTrue) return true
+        return check().also { if (it) knownTrue = true }
+    }
+}
+
+/**
  * A SharedPreferences that lives only in memory - the stand-in [StartupSafety.encryptedPrefsOrInMemory]
  * hands a feature whose encrypted store could not be opened. Reads see what was written this
  * session; nothing reaches disk.

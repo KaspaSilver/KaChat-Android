@@ -66,7 +66,7 @@ import kotlinx.coroutines.launch
  *
  * Unlike iOS's out-of-process extension, Android runs this in-process with full wallet access, so
  * Send goes out immediately with progress and a success state. If the send fails the sheet closes
- * into that chat with the text staged as a draft, so nothing the user typed is lost.
+ * into that chat with what didn't go staged in its composer, so nothing the user typed is lost.
  */
 @Composable
 fun ShareComposeSheet(
@@ -195,18 +195,27 @@ fun ShareComposeSheet(
                         isSending = true
                         val payloadText = text
                         scope.launch {
-                            val ok = try {
-                                chatViewModel.sendSharedContent(share.contactId, payloadText, share.imageUris)
+                            suspend fun trySend(body: String, images: List<android.net.Uri>): Boolean = try {
+                                chatViewModel.sendSharedContent(share.contactId, body, images)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 false
                             }
+                            // Text first, then each image, as iOS's auto-send: a failed text sends
+                            // nothing after it (iOS 4f8e14bb).
+                            val textSent = payloadText.isBlank() || trySend(payloadText, emptyList())
+                            val unsentImages = if (textSent) share.imageUris.filterNot { trySend("", listOf(it)) } else share.imageUris
                             isSending = false
-                            if (ok) {
+                            if (textSent && unsentImages.isEmpty()) {
                                 sent = true
                             } else {
-                                // Nothing typed is ever lost: stage the text in that chat's
-                                // composer and drop the user there to retry manually.
-                                chatViewModel.stageDraft(share.contactId, payloadText)
+                                // Nothing is ever lost: what didn't go is staged in that chat's
+                                // composer and the user lands there to retry manually. Text
+                                // already sent isn't drafted again (iOS 4f8e14bb). The composer
+                                // holds one photo.
+                                if (!textSent) chatViewModel.stageDraft(share.contactId, payloadText)
+                                unsentImages.firstOrNull()?.let { chatViewModel.setPendingPhoto(it) }
                                 IosToasts.error(context.getString(R.string.couldnt_send_saved_as_draft))
                                 onDismiss()
                                 onOpenChat(share.contactId)

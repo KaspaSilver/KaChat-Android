@@ -10,10 +10,8 @@ import com.kachat.app.R
 
 /**
  * Copies sensitive text (a private key hex) to the system clipboard and auto-wipes it 30 seconds
- * later — but only if the clipboard still holds that exact value (i.e. the user hasn't copied
- * something else in the meantime). A main-looper [Handler] is used rather than a composition-scoped
- * coroutine so the wipe still fires after the user navigates away from the screen that copied it.
- * Mirrors the iOS 30-second clipboard clear for private-key material.
+ * later, whether or not the app is still open (see [wipeSensitiveClip]). Mirrors the iOS 30-second
+ * clipboard clear for private-key material.
  *
  * The recovery phrase goes through here too (iOS f9beba1): copying it is how it reaches a
  * password manager, and the same sensitive marking and 30-second wipe apply.
@@ -55,8 +53,9 @@ internal fun addressCopiedDisplay(address: String): String {
 }
 
 fun copyPrivateKeyWithAutoWipe(context: Context, value: String, label: String = "private key") {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText(label, value)
+    val appContext = context.applicationContext
+    val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText(SENSITIVE_CLIP_LABEL_PREFIX + label, value)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         // Marks the clip sensitive on Android 13+: the system clipboard preview redacts the key
         // instead of flashing it on screen, and clipboard-history/sync surfaces treat it as
@@ -66,14 +65,50 @@ fun copyPrivateKeyWithAutoWipe(context: Context, value: String, label: String = 
         }
     }
     clipboard.setPrimaryClip(clip)
+    // Scheduled too, so the wipe survives the app being closed; the first of the two to run wins.
+    val workManager = androidx.work.WorkManager.getInstance(appContext)
+    workManager.enqueueUniqueWork(
+        CLIPBOARD_WIPE_WORK,
+        androidx.work.ExistingWorkPolicy.REPLACE,
+        androidx.work.OneTimeWorkRequestBuilder<ClipboardWipeWorker>()
+            .setInitialDelay(CLIPBOARD_WIPE_DELAY_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build(),
+    )
     Handler(Looper.getMainLooper()).postDelayed({
-        val current = clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
-        if (current == value) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                clipboard.clearPrimaryClip()
-            } else {
-                clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
-            }
-        }
-    }, 30_000L)
+        wipeSensitiveClip(appContext)
+        workManager.cancelUniqueWork(CLIPBOARD_WIPE_WORK)
+    }, CLIPBOARD_WIPE_DELAY_MS)
+}
+
+private const val SENSITIVE_CLIP_LABEL_PREFIX = "KaChat secret: "
+private const val CLIPBOARD_WIPE_WORK = "kachat_clipboard_wipe"
+private const val CLIPBOARD_WIPE_DELAY_MS = 30_000L
+
+/**
+ * Clears the clipboard unless it visibly holds something the user copied since. Android hides the
+ * clipboard from an app in the background, and reading it to compare is why the wipe used to do
+ * nothing after the user switched to a password manager: there, "can't tell" clears it. Only the
+ * clip's label is compared, so the secret itself is never kept anywhere to compare against.
+ */
+internal fun wipeSensitiveClip(context: Context) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val label = runCatching { clipboard.primaryClipDescription }.getOrNull()?.label?.toString()
+    if (!shouldWipeClip(label)) return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        clipboard.clearPrimaryClip()
+    } else {
+        clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
+    }
+}
+
+/** [visibleLabel] is the clip's label, or null when Android won't show it to this app right now. */
+internal fun shouldWipeClip(visibleLabel: String?): Boolean =
+    visibleLabel == null || visibleLabel.startsWith(SENSITIVE_CLIP_LABEL_PREFIX)
+
+/** The wipe, for when the app was closed before its 30 seconds were up. */
+class ClipboardWipeWorker(context: Context, params: androidx.work.WorkerParameters) : androidx.work.Worker(context, params) {
+    override fun doWork(): Result {
+        wipeSensitiveClip(applicationContext)
+        return Result.success()
+    }
 }

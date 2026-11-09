@@ -89,19 +89,19 @@ class UtxoMathTest {
     }
 
     @Test
-    fun `the fee preview gives no answer for nonsense coins, rather than throwing`() {
+    fun `the fee estimate refuses nonsense coins`() {
         val utxos = listOf(utxo(-100L, 0), utxo(100_000_000L, 1))
-        assertNull(SendFeeModel.previewAutomaticSelection(utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 1L))
+        assertInvalid { SendFeeModel.estimate(utxos, null, amountSompi = 10_000_000L, feeRateSompiPerGram = 1L) }
     }
 
     @Test
     fun `the chat sheet's Max and fee inputs never sum nonsense coins`() {
         val bad = listOf(utxo(Long.MAX_VALUE, 0), utxo(Long.MAX_VALUE, 1))
-        assertEquals(0L, ChatViewModel.paymentMaxCoins(0L, bad, bad).first)
+        assertEquals(0L, ChatViewModel.paymentMaxCoins(bad, bad).balanceSompi)
         assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, bad, sompiNeeded = 1L).first)
         assertEquals(0L, ChatViewModel.paymentFeeInputs(bad, null, sompiNeeded = 1L).first)
         // Real coins are untouched.
         val good = listOf(utxo(100_000_000L, 0), utxo(50_000_000L, 1))
-        assertEquals(150_000_000L to 2, ChatViewModel.paymentMaxCoins(0L, good, good))
+        assertEquals(ChatViewModel.PaymentMaxCoins(150_000_000L, 2, cappedAtInputLimit = false), ChatViewModel.paymentMaxCoins(good, good))
     }
 }

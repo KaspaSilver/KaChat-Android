@@ -195,6 +195,10 @@ fun MainPageHeader(
     /** The connection dot and the balance. A pushed page iOS gives only a back button and its
      *  title (Help) passes false. */
     showStatus: Boolean = true,
+    /** In place of the exact balance: the Wallet tab's own label (iOS `balanceToolbarView`). */
+    balanceLabel: (@Composable () -> Unit)? = null,
+    /** Under the balance, above the title: the dock tabs' [AccountBackupBanner]. */
+    banner: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalAppColors.current
@@ -224,9 +228,10 @@ fun MainPageHeader(
                     if (showStatus) ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
                 }
             },
-            principal = { if (showStatus) BalanceTopBarLabel() },
+            principal = { if (showStatus) (balanceLabel ?: { BalanceTopBarLabel() })() },
             trailing = { ToolbarGlassGroup(content = actions) },
         )
+        banner()
         Text(
             text = title,
             color = colors.textPrimary,

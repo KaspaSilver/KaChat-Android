@@ -30,6 +30,14 @@ class CallForegroundService : Service() {
         private const val EXTRA_VIDEO = "video"
 
         fun start(context: Context, title: String, video: Boolean) {
+            // Not started at all without the microphone permission: the service always asks for
+            // the microphone type, startForeground then throws (Android 14+), and a service begun
+            // with startForegroundService that never goes foreground gets the app killed about
+            // 10 s later - stopping it afterwards doesn't undo that. Without the mic there is
+            // nothing for it to keep usable in the background.
+            val micGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!micGranted) return
             val intent = Intent(context, CallForegroundService::class.java)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_VIDEO, video)
@@ -72,7 +80,11 @@ class CallForegroundService : Service() {
             .setContentIntent(open)
             .build()
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or (if (video) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0)
+            // Only what's been granted: on Android 14+ asking for the camera type without the camera
+            // permission throws, and then the system ends the app for not going foreground in time.
+            val cameraGranted = androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or (if (video && cameraGranted) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0)
         } else 0
         runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type) }
         return START_NOT_STICKY

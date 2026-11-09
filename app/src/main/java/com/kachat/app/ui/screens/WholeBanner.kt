@@ -54,6 +54,7 @@ fun WholeBanner(
         SubcomposeAsyncImage(
             model = if (model is String) refetched else model,
             contentDescription = null,
+            imageLoader = com.kachat.app.services.LinkPreviewService.profileImageLoader(context),
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize(),
             // While a rescanned banner reloads, the cached picture stays up rather than the

@@ -23,6 +23,7 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -273,7 +274,7 @@ fun GroupChatThreadScreen(
     val voiceRecordingState by chatViewModel.groupVoiceRecordingState.collectAsState()
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val estimatedFeeRaw by chatViewModel.groupEstimatedFeeSompi.collectAsState()
-    val estimatedFee = if (showFeeEstimate) estimatedFeeRaw else null
+    val estimatedFee = estimatedFeeRaw
     val isEstimatingFee by chatViewModel.groupIsEstimatingFee.collectAsState()
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
     val feeRateOverride by chatViewModel.feeRateOverride.collectAsState()
@@ -288,6 +289,11 @@ fun GroupChatThreadScreen(
     // and last character, not on every one. The draft/fee sync below reads it in a snapshotFlow.
     var draft by draftState
     val draftIsEmpty by remember(draftState) { derivedStateOf { draftState.value.text.isEmpty() } }
+    // The payment request in the text being typed, previewed above the field (iOS bfe9f022). Only
+    // when the request itself changes, like draftIsEmpty, so typing stays cheap.
+    val composerPaymentRequest by remember(draftState) {
+        derivedStateOf { (KaChatLink.findFirst(draftState.value.text)?.ref as? KaChatLinkRef.PaymentRequest)?.request }
+    }
     // The text the field itself last reported, so the sync below can tell a keystroke (the fee
     // preview waits for a pause) from text set by code (priced at once).
     val lastTypedDraft = remember(groupId) { arrayOf<String?>(null) }
@@ -588,7 +594,7 @@ fun GroupChatThreadScreen(
             }
             GroupChatHeaderCard(
                 photoHex = group?.photoHex,
-                name = group?.name ?: "Group",
+                name = group?.name ?: stringResource(R.string.group),
                 onClick = { navController.navigate("group_chat_info/$groupId") },
                 // statusBarsPadding, because the app bar applies its own inset and this card does
                 // not sit inside it - without this the photo draws up behind the camera cutout.
@@ -646,7 +652,11 @@ fun GroupChatThreadScreen(
                 ) {
                     if (pendingPhotoUri != null) {
                         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                            // Show Fee Estimate covers text. A photo or voice message on chain
+                            // costs enough more that its fee always shows (iOS d1844582).
+                            if (showFeeEstimate || !chatViewModel.groupPhotoViaNextcloud) {
+                                groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                            }
                             groupPhotoPreviewRow(
                                 pendingPhotoUri = pendingPhotoUri,
                                 staged = nextcloudStaged,
@@ -656,7 +666,9 @@ fun GroupChatThreadScreen(
                         }
                     } else if (voiceRecordingState.status == ChatViewModel.VoiceRecordingStatus.RECORDING) {
                         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                            if (showFeeEstimate || !chatViewModel.groupVoiceViaNextcloud) {
+                                groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                            }
                             groupRecordingRow(
                                 elapsedMs = voiceRecordingState.elapsedMs,
                                 onCancel = { chatViewModel.cancelGroupVoiceRecording() },
@@ -679,7 +691,7 @@ fun GroupChatThreadScreen(
                                 Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Editing message", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.editing_message), color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     Text(
                                         GroupMentionCodec.decodeForDisplay(
                                             groupEditsByTxId[editing.txId]?.text
@@ -700,7 +712,7 @@ fun GroupChatThreadScreen(
                                     },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cancel editing", tint = LocalAppColors.current.textSecondary)
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel_editing), tint = LocalAppColors.current.textSecondary)
                                 }
                             }
                         }
@@ -724,18 +736,18 @@ fun GroupChatThreadScreen(
                                         address?.let { contactAliasesByAddress.liveNameFor(it) }
                                             ?: member?.displayName?.takeIf { it.isNotBlank() }
                                             ?: address?.let { KaspaAddress.shortDisplay(it) }
-                                            ?: "Unknown"
+                                            ?: stringResource(R.string.unknown)
                                     }
                                     Text(
-                                        "Replying to $replyName",
+                                        stringResource(R.string.replying_to, replyName),
                                         color = KaspaTeal,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         GroupMentionCodec.decodeForDisplay(
-                                            VoiceMessage.parseOrNull(reply.content)?.let { "🎤 Audio message" }
-                                                ?: ImageMessage.parseOrNull(reply.content)?.let { "📷 Photo" }
+                                            VoiceMessage.parseOrNull(reply.content)?.let { stringResource(R.string.audio_message) }
+                                                ?: ImageMessage.parseOrNull(reply.content)?.let { stringResource(R.string.photo_2) }
                                                 ?: MessageReply.parseOrNull(reply.content)?.text
                                                 ?: reply.content,
                                             groupMembers,
@@ -751,6 +763,20 @@ fun GroupChatThreadScreen(
                                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel_reply), tint = LocalAppColors.current.textSecondary)
                                 }
                             }
+                        }
+                        composerPaymentRequest?.let { request ->
+                            ComposerPaymentRequestPreview(
+                                request = request,
+                                onRemove = {
+                                    // The X takes the link out of the message.
+                                    val text = draftState.value.text
+                                    KaChatLink.findFirst(text)?.let { match ->
+                                        val remaining = text.replace(match.raw, "").trim()
+                                        draftState.value = TextFieldValue(remaining, TextRange(remaining.length))
+                                    }
+                                },
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
                         }
                         // The fee, or - while a re-price waits for its pause - iOS's shimmering
                         // placeholder (TypingFeeGate).
@@ -834,7 +860,19 @@ fun GroupChatThreadScreen(
                                 // into the "+" sheet, as in 1:1 chats (iOS 8b13460).
                                 maxLines = 5,
                                 decorationBox = { inner ->
-                                    ChatComposerFieldDecoration(showPlaceholder = draft.text.isEmpty(), innerTextField = inner)
+                                    ChatComposerFieldDecoration(
+                                        showPlaceholder = draft.text.isEmpty(),
+                                        trailing = {
+                                            ComposerEmojiButton { emoji ->
+                                                val field = draft
+                                                val start = field.selection.min
+                                                val text = field.text.replaceRange(start, field.selection.max, emoji)
+                                                lastTypedDraft[0] = text
+                                                draft = TextFieldValue(text, TextRange(start + emoji.length))
+                                            }
+                                        },
+                                        innerTextField = inner,
+                                    )
                                 },
                             )
                             }
@@ -992,7 +1030,7 @@ fun GroupChatThreadScreen(
                         else chatViewModel.muteGroupMember(groupId, address)
                     },
                     onHide = { chatViewModel.hideGroupMember(groupId, address) },
-                    hideSubtitle = "Stop seeing their messages in this group. Undo it in Group Info.",
+                    hideSubtitle = stringResource(R.string.stop_seeing_their_messages_in_this_group),
                 )
             }
             LazyColumn(
@@ -1202,13 +1240,13 @@ fun GroupChatThreadScreen(
             containerColor = LocalAppColors.current.surface,
             title = {
                 Text(
-                    "Delete ${selectedMessageIds.size} Message${if (selectedMessageIds.size == 1) "" else "s"}?",
+                    if (selectedMessageIds.size == 1) stringResource(R.string.delete_one_message) else stringResource(R.string.delete_n_messages, selectedMessageIds.size),
                     color = LocalAppColors.current.textPrimary
                 )
             },
             text = {
                 Text(
-                    "This only deletes the message from this device - other members still have their own copy, and the encrypted transaction remains permanently on the Kaspa blockchain, visible to anyone but unreadable without your keys. This cannot be undone.",
+                    stringResource(R.string.this_only_deletes_the_message_from_this),
                     color = LocalAppColors.current.textSecondary
                 )
             },
@@ -1219,7 +1257,7 @@ fun GroupChatThreadScreen(
                     isSelectingMessages = false
                     selectedMessageIds = emptySet()
                 }) {
-                    Text("Delete", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1287,7 +1325,7 @@ private fun groupRecordingRow(elapsedMs: Long, onCancel: () -> Unit, onSend: () 
         }
         Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
         Text(
-            text = "Recording... ${formatRecordingElapsed(elapsedMs)}",
+            text = stringResource(R.string.recording, formatRecordingElapsed(elapsedMs)),
             color = LocalAppColors.current.textPrimary,
             modifier = Modifier.weight(1f)
         )
@@ -1344,6 +1382,7 @@ private fun GroupMessageBubble(
      *  the "Select" long-press menu option entirely. Mirrors [MessageBubble]'s onSelect. */
     onSelect: (() -> Unit)? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val isSent = message.isOutgoing
     // Prefers the live contact alias (kept current by refreshKnsProfilesForGroupMembers, e.g. a
     // KNS name resolved after the member was added) over the roster's own `displayName`, which is
@@ -1354,7 +1393,7 @@ private fun GroupMessageBubble(
     // each re-parsing.
     val groupMembersForMentions = remember(group?.membersJson) { group?.let(::parseGroupMembers) ?: emptyList() }
     val senderName = remember(message.senderAddress, groupMembersForMentions, liveAlias) {
-        val address = message.senderAddress ?: return@remember "Unknown"
+        val address = message.senderAddress ?: return@remember context.getString(R.string.unknown)
         if (!liveAlias.isNullOrBlank()) return@remember liveAlias
         val member = groupMembersForMentions.firstOrNull { it.address == address }
         member?.displayName?.takeIf { it.isNotBlank() } ?: KaspaAddress.shortDisplay(address)
@@ -1370,7 +1409,7 @@ private fun GroupMessageBubble(
     }
     val replySenderName = remember(replyContent, groupMembersForMentions, myAddress) {
         val reply = replyContent ?: return@remember null
-        if (reply.replyToSender == myAddress) return@remember "You"
+        if (reply.replyToSender == myAddress) return@remember context.getString(R.string.reactions_you)
         val member = groupMembersForMentions.firstOrNull { it.address == reply.replyToSender }
         member?.displayName?.takeIf { it.isNotBlank() } ?: KaspaAddress.shortDisplay(reply.replyToSender)
     }
@@ -1421,7 +1460,7 @@ private fun GroupMessageBubble(
             // only incoming messages got a name label at all, so an outgoing message had no
             // sender indicator next to its avatar.
             Text(
-                text = if (isSent) "You" else senderName,
+                text = if (isSent) stringResource(R.string.reactions_you) else senderName,
                 color = KaspaTeal,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -1544,7 +1583,7 @@ private fun GroupMessageBubble(
                                                             // An in-app link opens the post or room in place; only a real
                                                             // web link leaves for the browser (see KaChatLink).
                                                             val internal = KaChatLink.parse(annotation.item)
-                                                            if (internal != null) openKaChatLink(internal)
+                                                            if (internal != null) openKaChatLink(context, internal, fromChat = true)
                                                             else uriHandler.openUri(annotation.item)
                                                         }
                                                 }
@@ -1586,7 +1625,7 @@ private fun GroupMessageBubble(
             ) {
                 if (isSent) {
                     DeliveryStatusLabel(
-                        status = deliveryStatusOf(message.deliveryStatus),
+                        status = deliveryStatusOf(message.deliveryStatus, isOutgoing = isSent),
                         onRetry = if (canRetry) onRetry else null,
                     )
                 }
@@ -1611,9 +1650,9 @@ private fun GroupMessageBubble(
                 // per action with a line on what it does (iOS 1bc6ba6).
                 MessageActionsSheet(
                     title = when {
-                        imageContent != null -> "Photo"
-                        voiceContent != null -> "Voice Message"
-                        else -> "Message"
+                        imageContent != null -> stringResource(R.string.photo)
+                        voiceContent != null -> stringResource(R.string.composer_voice_message)
+                        else -> stringResource(R.string.message)
                     },
                     preview = displayContent.takeIf { imageContent == null && voiceContent == null },
                     onDismiss = { showMenu = false },
@@ -1621,7 +1660,7 @@ private fun GroupMessageBubble(
                     ActionSheetRow(
                         icon = Icons.AutoMirrored.Filled.Reply,
                         title = stringResource(R.string.reply),
-                        subtitle = "Quotes this message above your reply.",
+                        subtitle = stringResource(R.string.quotes_this_message_above_your_reply),
                     ) {
                         onReply()
                         showMenu = false
@@ -1629,8 +1668,8 @@ private fun GroupMessageBubble(
                     if (onEdit != null) {
                         ActionSheetRow(
                             icon = Icons.Default.Edit,
-                            title = "Edit",
-                            subtitle = "Changes the text. Everyone sees the new version.",
+                            title = stringResource(R.string.ab_edit),
+                            subtitle = stringResource(R.string.changes_the_text_everyone_sees_the_new),
                         ) {
                             onEdit()
                             showMenu = false
@@ -1639,7 +1678,7 @@ private fun GroupMessageBubble(
                     ActionSheetRow(
                         icon = Icons.Default.ContentCopy,
                         title = stringResource(R.string.copy_message),
-                        subtitle = "Copies the text to your clipboard.",
+                        subtitle = stringResource(R.string.copies_the_text_to_your_clipboard),
                     ) {
                         clipboardManager.setText(AnnotatedString(displayContent))
                         showMenu = false
@@ -1651,7 +1690,7 @@ private fun GroupMessageBubble(
                     ActionSheetRow(
                         icon = Icons.Default.Public,
                         title = stringResource(R.string.view_in_explorer),
-                        subtitle = "Opens this transaction in the block explorer.",
+                        subtitle = stringResource(R.string.payment_explorer_subtitle),
                     ) {
                         uriHandler.openUri(com.kachat.app.models.KaspaExplorer.default.txUrl(message.txId))
                         showMenu = false
@@ -1661,8 +1700,8 @@ private fun GroupMessageBubble(
                     if (reactions.isNotEmpty()) {
                         ActionSheetRow(
                             icon = Icons.Default.Favorite,
-                            title = "Reactions (${reactions.size})",
-                            subtitle = "Who reacted, and with what.",
+                            title = stringResource(R.string.reactions, reactions.size),
+                            subtitle = stringResource(R.string.who_reacted_and_with_what),
                         ) {
                             showMenu = false
                             showReactions = true
@@ -1672,7 +1711,7 @@ private fun GroupMessageBubble(
                         ActionSheetRow(
                             icon = Icons.Default.Refresh,
                             title = stringResource(R.string.retry_send),
-                            subtitle = "Sends this message again.",
+                            subtitle = stringResource(R.string.sends_this_message_again),
                         ) {
                             onRetry()
                             showMenu = false
@@ -1681,8 +1720,8 @@ private fun GroupMessageBubble(
                     if (onSelect != null) {
                         ActionSheetRow(
                             icon = Icons.Default.CheckCircle,
-                            title = "Select",
-                            subtitle = "Pick several messages at once.",
+                            title = stringResource(R.string.message_action_select),
+                            subtitle = stringResource(R.string.message_action_select_subtitle),
                         ) {
                             onSelect()
                             showMenu = false
@@ -1718,7 +1757,7 @@ private fun GroupMessageBubble(
 
         if (isSent) {
             Spacer(modifier = Modifier.width(8.dp))
-            groupAvatarButton(address = myAddress, avatarUrl = myAvatarUrl, fallbackText = "You", onTap = onAvatarTap)
+            groupAvatarButton(address = myAddress, avatarUrl = myAvatarUrl, fallbackText = stringResource(R.string.reactions_you), onTap = onAvatarTap)
         }
     }
     }
@@ -1772,8 +1811,10 @@ fun GroupChatInfoScreen(
     groupId: String,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val groups by chatViewModel.groups.collectAsState()
     val group = groups.firstOrNull { it.groupId == groupId }
+    val inviteStatuses by remember(groupId) { chatViewModel.groupInviteStatuses(groupId) }.collectAsState(initial = emptyMap())
     // Merged contact+KNS maps so the roster shows avatars + KNS names for non-contact members too
     // (see the group thread screen / VM's groupMemberAvatarsByAddress/groupMemberNamesByAddress).
     val contactAvatarsByAddress by chatViewModel.groupMemberAvatarsByAddress.collectAsState()
@@ -1813,13 +1854,13 @@ fun GroupChatInfoScreen(
                 if (recovered != null) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("Refresh complete", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.refresh_complete), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Text(
                         if (recovered > 0) {
-                            "Recovered $recovered message${if (recovered == 1) "" else "s"} this device had not been able to read."
+                            if (recovered == 1) stringResource(R.string.recovered_one_message) else stringResource(R.string.recovered_n_messages, recovered)
                         } else {
-                            "No new messages were recovered."
+                            stringResource(R.string.no_new_messages_were_recovered)
                         },
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 13.sp,
@@ -1832,32 +1873,32 @@ fun GroupChatInfoScreen(
                         Spacer(Modifier.height(8.dp))
                         Column(horizontalAlignment = Alignment.Start) {
                             if (rejects.noRootForEpoch > 0) {
-                                Text("${rejects.noRootForEpoch} from an epoch this device holds no key for", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                                Text(stringResource(R.string.from_an_epoch_this_device_holds_no, rejects.noRootForEpoch), color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
                             }
                             if (rejects.senderNotInRoster > 0) {
-                                Text("${rejects.senderNotInRoster} from someone no longer in the group", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                                Text(stringResource(R.string.from_someone_no_longer_in_the_group, rejects.senderNotInRoster), color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
                             }
                             if (rejects.decryptFailed > 0) {
-                                Text("${rejects.decryptFailed} that failed to decrypt", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                                Text(stringResource(R.string.that_failed_to_decrypt, rejects.decryptFailed), color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
                             }
                             if (rejects.epochRootsArchived > 0) {
-                                Text("Recovered ${rejects.epochRootsArchived} older epoch key(s)", color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
+                                Text(stringResource(R.string.recovered_older_epoch_key_s, rejects.epochRootsArchived), color = LocalAppColors.current.textSecondary, fontSize = 11.sp)
                             }
                         }
                     }
                     Spacer(Modifier.height(16.dp))
                     TextButton(onClick = { chatViewModel.clearGroupRefreshState() }) {
-                        Text("Done", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.done), color = KaspaTeal, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.height(14.dp))
-                    Text("Rebuilding this group", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.rebuilding_this_group), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Text(state.label, color = LocalAppColors.current.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Re-reading the whole group from the chain, the same way importing your seed phrase does. Leaving now would stop it partway.",
+                        stringResource(R.string.re_reading_the_whole_group_from_the),
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center
@@ -1900,7 +1941,7 @@ fun GroupChatInfoScreen(
                     // Stash it and confirm (with the estimated fee) before sending.
                     pendingPhotoHex = hex
                 } catch (e: Exception) {
-                    groupPhotoError = UserFacingError.message(e, "Could not set group photo")
+                    groupPhotoError = UserFacingError.message(e, context.getString(R.string.could_not_set_group_photo))
                 }
             }
         }
@@ -1911,7 +1952,7 @@ fun GroupChatInfoScreen(
         val perPhoto = if (photoTx > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * ((group?.photoHex?.length ?: 0) + 300)) else 0L
         val totalSompi = perControl * controlTx + perPhoto * photoTx
         val n = controlTx + photoTx
-        "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(totalSompi)} ${KaspaUnit.symbol} across $n transaction${if (n == 1) "" else "s"}."
+        if (n == 1) context.getString(R.string.estimated_network_fee_one, ChatRepository.formatKas(totalSompi), KaspaUnit.symbol) else context.getString(R.string.estimated_network_fee_n, ChatRepository.formatKas(totalSompi), KaspaUnit.symbol, n)
     }
 
     // iOS presents Group Info as a sheet holding a Form (GroupChatDetailView's `.sheet`): the
@@ -1972,7 +2013,7 @@ fun GroupChatInfoScreen(
                             ) {
                                 Icon(
                                     Icons.Default.Edit,
-                                    contentDescription = "Change group photo",
+                                    contentDescription = stringResource(R.string.change_group_photo),
                                     tint = LocalAppColors.current.background,
                                     modifier = Modifier.size(11.dp)
                                 )
@@ -1981,7 +2022,7 @@ fun GroupChatInfoScreen(
                     }
                 }
                 Text(
-                    text = group?.name ?: "Group",
+                    text = group?.name ?: stringResource(R.string.group),
                     color = LocalAppColors.current.textPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -2047,6 +2088,15 @@ fun GroupChatInfoScreen(
                             if (member.isAdmin) {
                                 Text(stringResource(R.string.admin), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                             }
+                            // Where this member stands on their invite (iOS bfe9f022): someone who
+                            // joined is just a member.
+                            when (inviteStatuses[member.address]) {
+                                com.kachat.app.util.GroupMemberStatus.INVITED ->
+                                    Text(stringResource(R.string.group_member_invited), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                                com.kachat.app.util.GroupMemberStatus.DECLINED ->
+                                    Text(stringResource(R.string.group_member_declined), color = LocalAppColors.current.danger, fontSize = 12.sp)
+                                else -> Unit
+                            }
                             if (group?.isAdmin == true && !member.isAdmin) {
                                 Box(
                                     modifier = Modifier
@@ -2055,7 +2105,7 @@ fun GroupChatInfoScreen(
                                         .clickable { memberToResend = member },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Resend invite", tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.resend_invite), tint = KaspaTeal, modifier = Modifier.size(20.dp))
                                 }
                                 Box(
                                     modifier = Modifier
@@ -2064,7 +2114,7 @@ fun GroupChatInfoScreen(
                                         .clickable { memberToRemove = member },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Outlined.Delete, contentDescription = "Remove from group", tint = LocalAppColors.current.danger, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.remove_from_group), tint = LocalAppColors.current.danger, modifier = Modifier.size(20.dp))
                                 }
                             }
                         }
@@ -2201,7 +2251,7 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { resendMessage = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Resend Invites", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.resend_invites), color = LocalAppColors.current.textPrimary) },
             text = { Text(resendMessage ?: "", color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = { resendMessage = null }) {
@@ -2219,15 +2269,15 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { memberToResend = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Resend invite", color = LocalAppColors.current.textPrimary) },
-            text = { Text("Resend the group invite to $label?${groupFeeText(1, 0)}", color = LocalAppColors.current.textSecondary) },
+            title = { Text(stringResource(R.string.resend_invite), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.resend_the_group_invite_to, label, groupFeeText(1, 0)), color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     val addr = member.address
                     memberToResend = null
                     chatViewModel.resendGroupInviteToMember(groupId, addr) { msg -> resendMessage = msg }
                 }) {
-                    Text("Send", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.send), color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2246,21 +2296,21 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { memberToRemove = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Remove member", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.remove_member), color = LocalAppColors.current.textPrimary) },
             text = {
                 val afterN = (members.size - 2).coerceAtLeast(0)
                 val hasPhoto = group?.photoHex != null
-                Text("Remove $label from the group chat? A fresh group key is issued to everyone who stays.${groupFeeText(2 * afterN + 1, if (hasPhoto) afterN else 0)}", color = LocalAppColors.current.textSecondary)
+                Text(stringResource(R.string.remove_from_the_group_chat_a_fresh, label, groupFeeText(2 * afterN + 1, if (hasPhoto) afterN else 0)), color = LocalAppColors.current.textSecondary)
             },
             confirmButton = {
                 TextButton(onClick = {
                     val m = member
                     memberToRemove = null
                     chatViewModel.removeGroupMember(m, groupId) { ok, err ->
-                        if (!ok) resendMessage = err ?: "Could not remove member. Please try again."
+                        if (!ok) resendMessage = err ?: context.getString(R.string.could_not_remove_member_please_try_again)
                     }
                 }) {
-                    Text("Yes", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.yes), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2275,7 +2325,7 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { groupPhotoError = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Group photo", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.group_photo), color = LocalAppColors.current.textPrimary) },
             text = { Text(groupPhotoError ?: "", color = LocalAppColors.current.textSecondary) },
             confirmButton = { TextButton(onClick = { groupPhotoError = null }) { Text(stringResource(R.string.ok), color = KaspaTeal) } }
         )
@@ -2285,17 +2335,17 @@ fun GroupChatInfoScreen(
     pendingPhotoHex?.let { hex ->
         val others = (members.size - 1).coerceAtLeast(0)
         val perPhoto = if (others > 0) chatViewModel.estimateGroupControlTxFeeSompi(2 * (hex.length + 300)) else 0L
-        val feeLine = "\n\nEstimated network fee ≈ ${ChatRepository.formatKas(perPhoto * others)} ${KaspaUnit.symbol} across $others transaction${if (others == 1) "" else "s"}."
+        val feeLine = if (others == 1) stringResource(R.string.estimated_network_fee_one, ChatRepository.formatKas(perPhoto * others), KaspaUnit.symbol) else stringResource(R.string.estimated_network_fee_n, ChatRepository.formatKas(perPhoto * others), KaspaUnit.symbol, others)
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { pendingPhotoHex = null },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Set group photo", color = LocalAppColors.current.textPrimary) },
-            text = { Text("Set this as the group photo for everyone?$feeLine", color = LocalAppColors.current.textSecondary) },
+            title = { Text(stringResource(R.string.set_group_photo), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.set_this_as_the_group_photo_for, feeLine), color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     chatViewModel.setGroupPhoto(groupId, hex) { err -> groupPhotoError = err }
                     pendingPhotoHex = null
-                }) { Text("Send", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.send), color = KaspaTeal, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingPhotoHex = null }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
@@ -2308,13 +2358,13 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showRemovePhotoConfirm = false },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Remove group photo", color = LocalAppColors.current.textPrimary) },
-            text = { Text("Remove the group photo for everyone?${groupFeeText((members.size - 1).coerceAtLeast(0), 0)}", color = LocalAppColors.current.textSecondary) },
+            title = { Text(stringResource(R.string.remove_group_photo), color = LocalAppColors.current.textPrimary) },
+            text = { Text(stringResource(R.string.remove_the_group_photo_for_everyone, groupFeeText((members.size - 1).coerceAtLeast(0), 0)), color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     chatViewModel.setGroupPhoto(groupId, "") { err -> groupPhotoError = err }
                     showRemovePhotoConfirm = false
-                }) { Text("Remove", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.remove), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { showRemovePhotoConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
@@ -2327,18 +2377,18 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showResendAllConfirm = false },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Resend invites to all", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.group_info_resend_invites_to_all), color = LocalAppColors.current.textPrimary) },
             text = {
                 val others = (members.size - 1).coerceAtLeast(0)
                 val hasPhoto = group?.photoHex != null
-                Text("Resend the group invite to every member? Use this if someone didn't receive the group.${groupFeeText(others + 1, if (hasPhoto) others else 0)}", color = LocalAppColors.current.textSecondary)
+                Text(stringResource(R.string.resend_the_group_invite_to_every_member, groupFeeText(others + 1, if (hasPhoto) others else 0)), color = LocalAppColors.current.textSecondary)
             },
             confirmButton = {
                 TextButton(onClick = {
                     showResendAllConfirm = false
                     chatViewModel.resendGroupInvites(groupId) { msg -> resendMessage = msg }
                 }) {
-                    Text("Send", color = KaspaTeal, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.send), color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2447,15 +2497,15 @@ fun GroupChatInfoScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                if (addTotal > 1) "Adding ${(addDone + 1).coerceAtMost(addTotal)} of $addTotal"
-                                else "Adding member",
+                                if (addTotal > 1) stringResource(R.string.adding_of, (addDone + 1).coerceAtMost(addTotal), addTotal)
+                                else stringResource(R.string.adding_member),
                                 color = LocalAppColors.current.textSecondary,
                                 fontSize = 12.sp,
                             )
                         }
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            "Each member re-keys the group on chain, so this can take a minute. Leave the app open.",
+                            stringResource(R.string.each_member_re_keys_the_group_on),
                             color = LocalAppColors.current.textSecondary,
                             fontSize = 11.sp,
                         )
@@ -2544,7 +2594,7 @@ fun GroupChatInfoScreen(
                         Text(stringResource(R.string.no_contacts_yet_paste_address_or_domain),
                             color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                     } else if (candidates.isEmpty() && typedAddress == null) {
-                        Text(if (query.isEmpty()) "Everyone in your contacts is already in this group." else stringResource(R.string.no_contacts_match_paste_address_or_domain),
+                        Text(if (query.isEmpty()) stringResource(R.string.everyone_in_your_contacts_is_already_in) else stringResource(R.string.no_contacts_match_paste_address_or_domain),
                             color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                     } else if (candidates.isNotEmpty()) {
                         LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
@@ -2585,7 +2635,7 @@ fun GroupChatInfoScreen(
                         Text(it, color = LocalAppColors.current.danger, style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("New members can read messages from the moment they're added, not earlier history.",
+                    Text(stringResource(R.string.new_members_can_read_messages_from_the),
                         color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             },
@@ -2598,7 +2648,7 @@ fun GroupChatInfoScreen(
                         showAddFeeConfirm = true
                     }
                 ) {
-                    Text(if (addSelected.isEmpty()) "Add" else "Add (${addSelected.size})", color = KaspaTeal)
+                    Text(if (addSelected.isEmpty()) stringResource(R.string.add) else stringResource(R.string.ab_add_count, addSelected.size), color = KaspaTeal)
                 }
             },
             dismissButton = {
@@ -2615,8 +2665,8 @@ fun GroupChatInfoScreen(
             com.kachat.app.ui.theme.IosAlertDialog(
                 onDismissRequest = { showAddFeeConfirm = false },
                 containerColor = LocalAppColors.current.surface,
-                title = { Text("Add members", color = LocalAppColors.current.textPrimary) },
-                text = { Text("Add $k member${if (k == 1) "" else "s"} to the group?${groupFeeText(k * (2 * finalOthers + 1), if (hasPhoto) k * finalOthers else 0)}", color = LocalAppColors.current.textSecondary) },
+                title = { Text(stringResource(R.string.add_members), color = LocalAppColors.current.textPrimary) },
+                text = { Text(if (k == 1) stringResource(R.string.add_one_member_to_group, groupFeeText(k * (2 * finalOthers + 1), if (hasPhoto) k * finalOthers else 0)) else stringResource(R.string.add_n_members_to_group, k, groupFeeText(k * (2 * finalOthers + 1), if (hasPhoto) k * finalOthers else 0)), color = LocalAppColors.current.textSecondary) },
                 confirmButton = {
                     TextButton(onClick = {
                         showAddFeeConfirm = false
@@ -2631,9 +2681,9 @@ fun GroupChatInfoScreen(
                         ) { added, failed ->
                             addBusy = false
                             if (failed == 0) showAddMembers = false
-                            else addError = "$failed member(s) could not be added ($added added). Please try again."
+                            else addError = context.getString(R.string.member_s_could_not_be_added_added, failed, added)
                         }
-                    }) { Text("Add", color = KaspaTeal, fontWeight = FontWeight.Bold) }
+                    }) { Text(stringResource(R.string.add), color = KaspaTeal, fontWeight = FontWeight.Bold) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showAddFeeConfirm = false }) { Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary) }
@@ -2731,7 +2781,7 @@ fun GroupChatInfoScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Delete \"${group?.name ?: "this group"}\"", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.delete_quoted_name, group?.name ?: stringResource(R.string.this_group)), color = LocalAppColors.current.textPrimary) },
             text = {
                 Text(
                     stringResource(R.string.this_removes_the_group_and_its),
@@ -2914,5 +2964,244 @@ private fun GroupInfoSwitchRow(
             enabled = enabled,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+// MARK: - Group invites in Message Requests (iOS bfe9f022, ChatListView's GroupInviteRow /
+// GroupInviteRequestView)
+
+/** A tapped invite notification, waiting for the Chats list to open Message Requests (iOS
+ *  `pendingMessageRequestsOpen`) - the same holder shape as [ProfileDeepLink], which is what covers
+ *  a cold start. */
+object MessageRequestsDeepLink {
+    private val _pending = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val pending: kotlinx.coroutines.flow.StateFlow<Boolean> = _pending
+
+    fun request() {
+        _pending.value = true
+    }
+
+    fun consumePending() {
+        _pending.value = false
+    }
+}
+
+/** Call from the Chats list: opens Message Requests when an invite's notification asked for it. */
+@Composable
+fun MessageRequestsDeepLinkEffect(navController: NavController) {
+    val pending by MessageRequestsDeepLink.pending.collectAsState()
+    LaunchedEffect(pending) {
+        if (pending) {
+            MessageRequestsDeepLink.consumePending()
+            navController.navigate("message_requests")
+        }
+    }
+}
+
+@Composable
+private fun GroupInviteAvatar(size: Dp) {
+    Box(
+        modifier = Modifier.size(size).clip(CircleShape).background(KaspaTeal.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Default.Groups, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(size * 0.44f))
+    }
+}
+
+/** The "Group Invites" section at the top of Message Requests: one row per group waiting for an
+ *  answer, each opening [GroupInviteRequestScreen]. */
+@Composable
+fun GroupInvitesSection(
+    invites: List<com.kachat.app.models.PendingGroupInvite>,
+    namesByAddress: Map<String, String>,
+    onOpen: (com.kachat.app.models.PendingGroupInvite) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Column {
+        Text(
+            stringResource(R.string.group_invites),
+            color = colors.textSecondary,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp)
+        )
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(26.dp))
+                .background(colors.surface)
+        ) {
+            invites.forEachIndexed { index, invite ->
+                if (index > 0) {
+                    HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 78.dp))
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpen(invite) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GroupInviteAvatar(50.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            invite.name,
+                            color = colors.textPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            stringResource(R.string.group_invited_by, groupInviteName(invite.adminAddress, namesByAddress)),
+                            color = colors.textSecondary,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IosDisclosureChevron()
+                }
+            }
+        }
+    }
+}
+
+private fun groupInviteName(address: String, namesByAddress: Map<String, String>): String =
+    namesByAddress.liveNameFor(address) ?: KaspaAddress.shortDisplay(address)
+
+/**
+ * What you'd be joining, with Accept and Reject. Nothing of the group exists on this device beyond
+ * the invite: its messages only come in after Accept.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GroupInviteRequestScreen(
+    navController: NavController,
+    inviteId: String,
+    chatViewModel: ChatViewModel = hiltViewModel(),
+) {
+    val colors = LocalAppColors.current
+    val invites by chatViewModel.pendingGroupInvites.collectAsState()
+    val namesByAddress by chatViewModel.groupMemberNamesByAddress.collectAsState()
+    val avatarsByAddress by chatViewModel.groupMemberAvatarsByAddress.collectAsState()
+    val invite = invites.firstOrNull { it.id == inviteId }
+    Scaffold(
+        containerColor = colors.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.group_invite), color = colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                            tint = colors.textPrimary
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
+            )
+        },
+        bottomBar = {
+            if (invite != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.danger.copy(alpha = 0.15f))
+                            .clickable {
+                                chatViewModel.rejectGroupInvite(invite)
+                                navController.popBackStack()
+                            }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.message_request_reject), color = colors.danger, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(KaspaTeal)
+                            .clickable {
+                                chatViewModel.acceptGroupInvite(invite)
+                                navController.popBackStack()
+                            }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.accept), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    }
+                }
+            }
+        }
+    ) { padding ->
+        if (invite != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    GroupInviteAvatar(76.dp)
+                    Text(invite.name, color = colors.textPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    Text(
+                        stringResource(R.string.group_invited_by, groupInviteName(invite.adminAddress, namesByAddress)),
+                        color = colors.textSecondary,
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        stringResource(R.string.group_invite_explainer),
+                        color = colors.textSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Text(
+                    stringResource(R.string.group_invite_members),
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(colors.surface)
+                ) {
+                    invite.members.forEachIndexed { index, address ->
+                        if (index > 0) {
+                            HorizontalDivider(color = colors.divider, thickness = 0.5.dp, modifier = Modifier.padding(start = 58.dp))
+                        }
+                        val label = groupInviteName(address, namesByAddress)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ContactAvatar(imageUrl = avatarsByAddress[address], fallbackText = label, size = 32.dp, address = address)
+                            Text(label, color = colors.textPrimary, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

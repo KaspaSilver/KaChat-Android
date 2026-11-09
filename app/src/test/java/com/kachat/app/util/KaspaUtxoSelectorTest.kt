@@ -70,7 +70,7 @@ class KaspaUtxoSelectorTest {
      * against 2 outputs here used to silently overpay every message's real network fee. 162,400
      * sompi matches iOS's own verified baseline for the identical 1-input/1-output/0-payload
      * shape (KaspaFeePolicy's `standardComputeMass = 1_624`, `test_toccata_fee_policy.swift`) —
-     * not the 203,600 sompi a phantom 2nd output used to charge.
+     * not the 203,600 sompi a phantom 2nd output used to charge - plus iOS's 3-sompi buffer.
      */
     @Test
     fun `a zero-amount send prices only the single change output actually built, matching iOS`() {
@@ -79,7 +79,7 @@ class KaspaUtxoSelectorTest {
             utxos, amountSompi = 0L, feeRateSompiPerGram = 100L,
             payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
         )
-        assertEquals(162_400L, result.estimatedFee)
+        assertEquals(162_400L + KaspaUtxoSelector.FEE_BUFFER_SOMPI, result.estimatedFee)
     }
 
     @Test
@@ -89,7 +89,7 @@ class KaspaUtxoSelectorTest {
             utxos, amountSompi = 10_000_000L, feeRateSompiPerGram = 100L,
             payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34
         )
-        assertEquals(203_600L, result.estimatedFee)
+        assertEquals(203_600L + KaspaUtxoSelector.FEE_BUFFER_SOMPI, result.estimatedFee)
     }
 
     // iOS dd4d977: real change is never folded into the fee to make a shape fit.
@@ -125,6 +125,114 @@ class KaspaUtxoSelectorTest {
         )
         assertTrue(!result.storageMassBlocked)
         assertEquals(1, result.selectedUtxos.size)
+    }
+
+    // --- refusals (iOS selectUtxosForPayment / selectManualUtxosForPayment) ----------------
+
+    private fun payment(utxos: List<com.kachat.app.services.UtxoEntry>, amount: Long) = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+        utxos, amountSompi = amount, feeRateSompiPerGram = 100L,
+        payloadBytes = null, recipientScriptLen = 34, changeScriptLen = 34, allowNoChangeOutput = true
+    )
+
+    // iOS 4f8e14bb: change is kept before it is folded into the fee.
+
+    @Test
+    fun `another coin keeps change the first coin would have folded into the fee`() {
+        // 10.05 and 5 KAS sending 10: the first coin alone would give the 0.05 KAS to the miners.
+        val result = payment(listOf(utxo(1_005_000_000L, "a"), utxo(500_000_000L, "b")), 1_000_000_000L)
+        assertEquals(null, result.refusal)
+        assertEquals(2, result.selectedUtxos.size)
+        assertTrue(!result.noChangeOutput)
+        assertEquals(0L, result.foldedChangeSompi)
+    }
+
+    @Test
+    fun `a coin that would cost more than the change it keeps is not added`() {
+        // 0.0025 KAS left over is less than a second input and a change output cost at this rate.
+        val result = payment(listOf(utxo(100_000_000L, "a"), utxo(50_000_000L, "b")), 100_000_000L - 250_000L)
+        assertEquals(null, result.refusal)
+        assertEquals(1, result.selectedUtxos.size)
+        assertTrue(result.noChangeOutput)
+    }
+
+    @Test
+    fun `a payment just short of the fee is refused, never trimmed to fit`() {
+        val amount = 100_000_000L - (162_403L - 1_000L)
+        val result = payment(listOf(utxo(100_000_000L)), amount)
+        assertEquals(KaspaUtxoSelector.Refusal.InsufficientFunds, result.refusal)
+        assertEquals(amount, result.finalAmount)
+    }
+
+    @Test
+    fun `leftover too small to keep goes without a change output, its fee priced for one output`() {
+        val result = payment(listOf(utxo(100_000_000L)), 100_000_000L - 250_000L)
+        assertEquals(null, result.refusal)
+        assertTrue(result.noChangeOutput)
+        assertEquals(162_403L, result.estimatedFee)
+        assertEquals(87_597L, result.foldedChangeSompi)
+    }
+
+    @Test
+    fun `real change that won't fit storage mass is refused in iOS's words`() {
+        val result = payment(listOf(utxo(1_010_000_000L, "big")), 9_990_000L)
+        assertEquals(KaspaUtxoSelector.Refusal.StorageMass, result.refusal)
+        assertEquals(KaspaUtxoSelector.SMALL_SEND_MASS_MESSAGE, result.refusal?.message)
+    }
+
+    // iOS fitsStorageMass on a no-change send: the recipient's output alone must fit too.
+
+    @Test
+    fun `a small send carved from one bigger coin is refused even with no change`() {
+        // 0.03 KAS from one 0.1 KAS coin: the leftover is small enough to fold, but the recipient's
+        // output alone costs about 233,000 grams of a 100,000 budget, and the node refuses it.
+        assertTrue(!KaspaMass.fitsStorageMass(listOf(10_000_000L), listOf(3_000_000L)))
+        val result = payment(listOf(utxo(10_000_000L)), 3_000_000L)
+        assertEquals(KaspaUtxoSelector.Refusal.StorageMass, result.refusal)
+        assertTrue(!result.noChangeOutput)
+    }
+
+    @Test
+    fun `another coin brings the recipient's output under the budget`() {
+        val result = payment(listOf(utxo(10_000_000L, "a"), utxo(3_000_000L, "b")), 3_000_000L)
+        assertEquals(null, result.refusal)
+        assertEquals(2, result.selectedUtxos.size)
+        assertTrue(!result.noChangeOutput)
+        assertEquals(0L, result.foldedChangeSompi)
+        assertTrue(
+            KaspaMass.fitsStorageMass(result.selectedUtxos.map { it.utxoEntry.amount }, listOf(3_000_000L, result.changeAmount))
+        )
+    }
+
+    @Test
+    fun `coin control refuses a no-change send whose recipient output breaks the budget`() {
+        val result = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
+            listOf(utxo(10_000_000L)), amountSompi = 3_000_000L, feeRateSompiPerGram = 100L,
+            recipientScriptLen = 34, changeScriptLen = 34, allowNoChangeOutput = true
+        )
+        assertEquals(KaspaUtxoSelector.Refusal.StorageMass, result.refusal)
+        assertTrue(result.storageMassBlocked)
+    }
+
+    @Test
+    fun `automatic selection stops at the input cap with iOS's words`() {
+        val coins = (0 until 100).map { utxo(100_000_000L, "c", it) }
+        val result = payment(coins, 90 * 100_000_000L)
+        assertEquals(KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION, result.selectedUtxos.size)
+        assertEquals(KaspaUtxoSelector.Refusal.TooManyInputs, result.refusal)
+        assertEquals(
+            "This send needs more than 80 inputs. Compound (consolidate) this address's UTXOs first, then try again.",
+            result.refusal?.message
+        )
+    }
+
+    @Test
+    fun `coin control refuses a pick over the input cap`() {
+        val coins = (0 until 81).map { utxo(100_000_000L, "c", it) }
+        val result = KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
+            coins, amountSompi = 100_000_000L, feeRateSompiPerGram = 100L,
+            recipientScriptLen = 34, changeScriptLen = 34, allowNoChangeOutput = true
+        )
+        assertEquals(KaspaUtxoSelector.Refusal.TooManyInputsSelected(81), result.refusal)
     }
 
     // --- extraFeeSompi and coin control (the Send KAS sheet's fee card, iOS 62c2773) -------

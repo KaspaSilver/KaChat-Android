@@ -93,9 +93,9 @@ import javax.inject.Inject
 // ---------------------------------------------------------------------------------------------
 // The live `.kachat` screens, where the registry is live (testnet-10, and mainnet since iOS ef6b21e;
 // with a verified registry manifest) - a port
-// of iOS KaChat/Views/Ecosystem/KachatNamesLiveViews.swift (KaChat 5df42b4): the hub's search,
-// registrations in flight, Marketplace / My Names / Activity, the name detail with its actions,
-// every transaction sheet, Your Domains > .kachat and the address profile editor. Where the
+// of iOS KaChat/Views/Ecosystem/KachatNamesLiveViews.swift: what is left since the market moved to
+// the KaChat wallet app (iOS d1844582, bfe9f022) is the finished-transaction sheet, Your Domains >
+// .kachat and the address profile editor. Where the
 // registry isn't launched, the same screens show empty under "Coming soon" (iOS 7227d69). Every spending or destructive action shows its cost first, asks to confirm, then
 // passes the device's own lock (authenticateWithDeviceCredential, iOS DeviceAuth) before anything
 // is signed.
@@ -118,69 +118,6 @@ object KachatLive {
     /** The registry is live on this network (testnet-10 and mainnet) - reads and actions run. Not
      *  the .kachat UI, which is on everywhere ([KachatNamesService.isEnabled], iOS 7227d69). */
     val isEnabled: Boolean get() = KachatNamesService.isLaunched
-
-    /** testnet-10 and mainnet run at 10 blocks per second */
-    const val DAA_PER_SECOND: Long = 10
-
-    /**
-     * MAINNET.md C6 (iOS 0312a3f `KachatLiveNameDetail.currentOffers`): an offer is bound to a
-     * seller key, so one made to this owner before the name last left them - and came back - could
-     * be accepted again. Only offers made since the current owner got the name are shown for them;
-     * others to other sellers (declined, on their way back to the buyer) stay.
-     */
-    fun currentOffers(offers: List<OfferInfo>, owner: ByteArray, history: List<Event>): List<OfferInfo> {
-        val ownershipOps = setOf("register", "import", "transfer", "sale", "offer_accepted", "offer_accept")
-        val since = history.filter { it.op in ownershipOps }.mapNotNull { it.at }.maxOrNull() ?: return offers
-        return offers.filter { o ->
-            val created = o.createdAt
-            if (!o.seller.contentEquals(owner) || created == null) return@filter true
-            created >= since
-        }
-    }
-
-    /** An event party: an address (indexer) or an x-only key in hex (walker), as a short address. */
-    fun party(s: String?): String? {
-        if (s.isNullOrEmpty()) return null
-        if (s.startsWith("kaspa")) return KachatNamesRegistry.shortAddress(s)
-        val key = runCatching { KachatNames.unhex32(s) }.getOrNull()
-        val a = key?.let { KachatNamesRegistry.address(it) }
-        return a?.let { KachatNamesRegistry.shortAddress(it) } ?: s
-    }
-
-    fun eventIcon(op: String): ImageVector = when (op) {
-        "register" -> KachatSymbols.AtBadgePlus
-        "transfer" -> Icons.Default.SwapHoriz
-        "list" -> Icons.Outlined.Sell
-        "delist" -> KachatSymbols.TagSlash
-        "sale", "offer_accepted" -> Icons.Outlined.ShoppingCart
-        "extend" -> KachatSymbols.CalendarBadgePlus
-        "renew" -> Icons.Default.Refresh
-        "release" -> Icons.AutoMirrored.Filled.Undo
-        "reclaim" -> Icons.Default.Recycling
-        // registry v5's import from the old registry (iOS dd836cb `arrow.down.doc`)
-        "import" -> Icons.Outlined.FileDownload
-        else -> Icons.Outlined.PanTool
-    }
-
-    @StringRes
-    fun eventTitle(op: String): Int = when (op) {
-        "register" -> R.string.kn_ev_registered
-        "transfer" -> R.string.kn_ev_transferred
-        "list" -> R.string.kn_ev_listed
-        "delist" -> R.string.kn_ev_delisted
-        "sale" -> R.string.kn_ev_sold
-        "offer_accepted", "offer_accept" -> R.string.kn_ev_offer_accepted
-        "extend" -> R.string.kn_ev_extended
-        "renew" -> R.string.kn_ev_renewed
-        "release" -> R.string.kn_ev_released
-        "reclaim" -> R.string.kn_ev_reclaimed
-        "import" -> R.string.kn_ev_imported
-        "offer" -> R.string.kn_ev_offer_made
-        "offer_withdraw" -> R.string.kn_ev_offer_withdrawn
-        "offer_refund" -> R.string.kn_ev_offer_refunded
-        "offer_decline" -> R.string.kn_ev_offer_declined
-        else -> R.string.km_activity
-    }
 
     /** Why a typed name is not a name. */
     @StringRes
@@ -211,9 +148,6 @@ object KachatLive {
     /** The registry parameters, once the manifest is verified (iOS `KachatLive.params`, bd2c54a). */
     fun params(service: KachatNamesService): Params? = service.manifest.value?.params
 
-    /** Whether a period is a year (mainnet), not a short test clock (testnet's 24 hours; iOS 49c0baa). */
-    fun yearlyPeriods(p: Params?): Boolean = (p?.periodMs ?: KachatNames.YEAR_MS) == KachatNames.YEAR_MS
-
     /**
      * A length of time ("10m", "10d") in the app's language (iOS 49c0baa `KachatLive.duration`):
      * days from a day up, else hours and minutes from an hour up, else minutes; zero units dropped.
@@ -231,27 +165,12 @@ object KachatLive {
 
     /**
      * What registering [name] costs for its first period (registry v4: fixed, baked into the
-     * pinned templates; iOS c8f1086 `KachatLive.price`). Each further period costs [renewPrice].
+     * pinned templates; iOS c8f1086 `KachatLive.price`).
      */
     fun price(registry: KachatNamesRegistry, name: String): Long? {
         val prices = registry.registerPrices ?: return null
         if (prices.size != 5) return null
         return prices[KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size)]
-    }
-
-    /** What one more period of [name] costs: extend, renew, and registering past the first period
-     *  (iOS c8f1086 `KachatLive.renewPrice`). */
-    fun renewPrice(registry: KachatNamesRegistry, name: String): Long? {
-        val prices = registry.renewPrices ?: return null
-        if (prices.size != 5) return null
-        return prices[KachatNames.Codec.tier(name.toByteArray(Charsets.UTF_8).size)]
-    }
-
-    /** Whether extending [info] by [years] fills its period to exactly `maxYears` (iOS
-     *  `KachatExtendSheet.fillsPeriod`, bd2c54a; periodMs from 49c0baa). */
-    fun fillsPeriod(info: NameInfo, years: Long, p: Params): Boolean {
-        val start = info.periodStart ?: return false
-        return info.expiresAt + years * p.periodMs == start + p.maxYears * p.periodMs
     }
 
     /**
@@ -282,36 +201,6 @@ object KachatLive {
     }
 
     private val measureFormats = HashMap<Locale, android.icu.text.MeasureFormat>()
-
-    /**
-     * Time left until a moment, for a live countdown (iOS cb3c27d `KachatLive.countdown`): "2d 5h"
-     * while days remain, else "1:04:09" or "4:09" (hours, minutes, seconds).
-     */
-    fun countdown(ms: Long, context: Context): String {
-        val s = maxOf(ms, 0L) / 1000
-        val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
-        return when {
-            s >= 86_400 -> timeLeft(
-                listOf(KachatNamesActions.TimeLeftUnit.DAY to s / 86_400, KachatNamesActions.TimeLeftUnit.HOUR to (s % 86_400) / 3600)
-                    .filter { it.second > 0 },
-                context
-            )
-            s >= 3600 -> String.format(locale, "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
-            else -> String.format(locale, "%d:%02d", s / 60, s % 60)
-        }
-    }
-
-    /** iOS `.relative(presentation: .named)`: "2 hours ago", "yesterday". */
-    fun relative(ms: Long): String =
-        DateUtils.getRelativeTimeSpanString(ms, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
-
-    /** What the transaction does to the wallet: its outputs to the wallet minus its inputs from it. */
-    fun balanceChange(plan: Plan, me: ByteArray): Long {
-        val mine = KachatNames.Codec.p2pkScript(me)
-        val received = plan.unsignedTx.outputs.filter { it.script.contentEquals(mine) }.sumOf { it.value }
-        val spent = plan.entries.filter { it.script.contentEquals(mine) }.sumOf { it.amount }
-        return received - spent
-    }
 }
 
 /**
@@ -801,11 +690,14 @@ private fun KachatLiveForm(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BackHandler(onBack = onClose)
+    IosSheetPage(grouped = true) {
     val colors = LocalAppColors.current
     Scaffold(
         containerColor = colors.background,
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0),
                 title = { Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 // iOS 26: the bar's buttons on glass capsules, 16 in from the edges.
                 navigationIcon = {
@@ -822,6 +714,7 @@ private fun KachatLiveForm(
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(scrollState).padding(16.dp).padding(bottom = 40.dp),
             content = content,
         )
+    }
     }
 }
 
@@ -1138,7 +1031,8 @@ fun KachatOwnedNamesList(
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            emptyList()
+            // a failed read keeps what's shown (iOS 4f8e14bb)
+            names
         }
         loaded = true
         // a name that lapses while this is open leaves right then
@@ -1188,13 +1082,6 @@ fun KachatOwnedNamesList(
                     )
                 }
             }
-            Text(
-                stringResource(R.string.kn_manage_in_wallet),
-                color = colors.textSecondary,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            )
         }
         PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
     }
@@ -1385,8 +1272,8 @@ private fun KachatSourceField(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(stringResource(R.string.kn_account_on), color = colors.textPrimary, modifier = Modifier.weight(1f))
-            Text(input.platform.displayName, color = colors.textSecondary)
-            Icon(Icons.Default.UnfoldMore, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+            Text(input.platform.displayName, color = KaspaTeal)
+            Icon(Icons.Default.UnfoldMore, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
         }
         DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
             SocialSource.Platform.choices(kind).forEach { p ->
@@ -1395,9 +1282,9 @@ private fun KachatSourceField(
         }
     }
     SettingsDivider()
-    Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(input.platform.prefix, color = colors.textSecondary)
-        FormTextField(
+        com.kachat.app.ui.theme.IosPlainTextField(
             input.handle,
             { h ->
                 val typed = input.copy(handle = h)
@@ -1406,7 +1293,7 @@ private fun KachatSourceField(
             },
             stringResource(if (input.platform == SocialSource.Platform.DISCORD) R.string.kn_invite else R.string.kn_handle),
             Modifier.weight(1f),
-            keyboardType = KeyboardType.Uri
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, keyboardType = KeyboardType.Uri),
         )
         // One tap empties the field; saving then writes the profile without it (iOS 9638498).
         if (input.handle.isNotEmpty()) {
@@ -1474,8 +1361,14 @@ fun KachatLiveProfileEditorScreen(
             bioIn = KachatSourceInput.stored(p.bio, SocialSource.Kind.BIO)
             linktree = Profile.linktreeUsername(p.linktree)
         }
-        KachatNamesRegistry.keyOf(address)?.let { key ->
-            activeNames = (runCatching { vm.registry.names(key, includeInactive = false) }.getOrNull() ?: emptyList()).map { it.name }
+        val held = KachatNamesRegistry.keyOf(address)?.let { key ->
+            runCatching { vm.registry.names(key, includeInactive = false) }.getOrNull()
+        }
+        if (held != null) {
+            activeNames = held.map { it.name }
+        } else {
+            // the names can't be read right now: saving must not drop the primary name (iOS 4f8e14bb)
+            p?.primaryName?.let { activeNames = listOf(it) }
         }
         p?.primaryName?.let { if (it in activeNames) primary = it }
         loaded = true
@@ -1538,13 +1431,6 @@ fun KachatLiveProfileEditorScreen(
     fun invalidHandleNote() = FormFooter(stringResource(R.string.kn_handle_bad), colors.danger)
 
     KachatLiveForm(title = stringResource(R.string.edit_kachat_profile), onClose = onBack, scrollState = formScroll) {
-        FormSection(footer = { FormFooter(stringResource(R.string.kn_profile_pieces_footer)) }) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
-                Icon(Icons.Outlined.Badge, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.kn_profile_belongs), color = colors.textPrimary, fontSize = 15.sp)
-            }
-        }
         FormSection(header = stringResource(R.string.avatar), footer = if (avatarIn.isBad(SocialSource.Kind.AVATAR)) ({ invalidHandleNote() }) else null) {
             KachatSourceField(avatarIn, { avatarIn = it }, SocialSource.Kind.AVATAR, avatarLookup, { avatarLookup = it }, social)
         }
@@ -1556,23 +1442,15 @@ fun KachatLiveProfileEditorScreen(
         }
         FormSection(
             header = stringResource(R.string.kn_links),
-            footer = {
-                if (badLinktree) FormFooter(stringResource(R.string.kn_linktree_username_bad), colors.danger)
-                else FormFooter(stringResource(R.string.kn_linktree_footer))
-            }
+            footer = if (badLinktree) ({ FormFooter(stringResource(R.string.kn_linktree_username_bad), colors.danger) }) else null
         ) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("linktr.ee/", color = colors.textSecondary)
-                FormTextField(linktree, { linktree = it }, stringResource(R.string.kn_username), Modifier.weight(1f), keyboardType = KeyboardType.Uri)
+                com.kachat.app.ui.theme.IosPlainTextField(linktree, { linktree = it }, stringResource(R.string.kn_username), Modifier.weight(1f), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrect = false, keyboardType = KeyboardType.Uri))
                 if (linktree.isNotEmpty()) FormClearButton { linktree = "" }
             }
         }
-        FormSection(
-            header = stringResource(R.string.kachat_name_section),
-            footer = {
-                FormFooter(stringResource(if (KachatNamesService.isLaunched) R.string.kn_primary_footer else R.string.kn_primary_not_on_mainnet))
-            }
-        ) {
+        FormSection(header = stringResource(R.string.kachat_name_section)) {
             // The primary name needs the registry: until it launches on this network (mainnet)
             // there's no name to pick, so the profile saves without one (iOS d36fc42).
             if (!KachatNamesService.isLaunched) {
@@ -1591,8 +1469,8 @@ fun KachatLiveProfileEditorScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(stringResource(R.string.kn_primary_name), color = colors.textPrimary, modifier = Modifier.weight(1f))
-                    Text(if (primary.isEmpty()) stringResource(R.string.kn_none) else "$primary.kachat", color = colors.textSecondary)
-                    Icon(Icons.Default.UnfoldMore, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
+                    Text(if (primary.isEmpty()) stringResource(R.string.kn_none) else "$primary.kachat", color = KaspaTeal)
+                    Icon(Icons.Default.UnfoldMore, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded = pickPrimary, onDismissRequest = { pickPrimary = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.kn_none)) }, onClick = { primary = ""; pickPrimary = false })
@@ -1603,20 +1481,10 @@ fun KachatLiveProfileEditorScreen(
             }
         }
         // Saves on every network: a profile is a self-send, with no registry behind it (iOS d36fc42).
-        FormSection(footer = {
-            Column(
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                if (hasUncheckedLinks) {
-                    Text(stringResource(R.string.kn_save_unchecked_links), fontSize = 13.sp, lineHeight = 18.sp, color = colors.textSecondary)
-                }
-                Text(stringResource(R.string.kn_save_footer), fontSize = 13.sp, lineHeight = 18.sp, color = colors.textSecondary)
-            }
-        }) {
+        FormSection(footer = if (hasUncheckedLinks) ({ FormFooter(stringResource(R.string.kn_save_unchecked_links)) }) else null) {
             FormButtonRow(stringResource(R.string.kn_save_profile), enabled = loaded && !blocked && KachatNamesService.profilesEnabled) { showSave = true }
         }
-        FormSection(footer = { FormFooter(stringResource(R.string.kn_clear_footer)) }) {
+        FormSection {
             // Same gate as saving: a clear IS a save, of the empty record.
             FormButtonRow(stringResource(R.string.kn_clear_profile), enabled = loaded && KachatNamesService.profilesEnabled, destructive = true) { showClear = true }
         }

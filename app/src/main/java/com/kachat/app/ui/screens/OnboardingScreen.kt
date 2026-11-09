@@ -26,6 +26,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.SaveAlt
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +67,8 @@ import com.kachat.app.ui.theme.LocalAppColors
 import com.kachat.app.util.CreateAccountSteps
 import com.kachat.app.util.authenticateWithDeviceCredential
 import com.kachat.app.viewmodels.WalletViewModel
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
 /**
  * Main entry point for the onboarding flow.
@@ -68,25 +76,14 @@ import com.kachat.app.viewmodels.WalletViewModel
 @Composable
 fun OnboardingScreen(viewModel: WalletViewModel) {
     val navController = rememberNavController()
-    // The freshly generated seed lives only in WalletViewModel's memory. The route is fixed and
-    // carries no words: a route argument would be kept in the NavController's saved state, i.e.
-    // the Activity's saved-instance Bundle, which Android parcels to system_server (audit AND-031).
-    val generatedMnemonic by viewModel.mnemonic.collectAsState()
-
-    LaunchedEffect(generatedMnemonic) {
-        if (generatedMnemonic != null) {
-            // Only once per seed: a recreated Activity re-runs this effect with the same words,
-            // and the restored back stack already holds the backup step.
-            val alreadyThere = runCatching { navController.getBackStackEntry("backup_mnemonic") }.isSuccess
-            if (!alreadyThere) navController.navigate("backup_mnemonic")
-        }
-    }
-
     NavHost(navController = navController, startDestination = "welcome") {
         composable("welcome") {
             WelcomeScreen(
                 viewModel,
-                onNavigateToCreate = { navController.navigate("create_account") },
+                onCreateWithPassphrase = {
+                    viewModel.beginCreateWithPassphrase()
+                    navController.navigate("passphrase_create")
+                },
                 onOpenAppSettings = { navController.navigate("app_settings") },
                 onNavigateToImport = {
                     // A stale SUCCESS/FAILED status left over from a previous import would
@@ -101,32 +98,13 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 }
             )
         }
-        // Create Account in three steps (iOS acd879b): the name, the seed length, the seed phrase.
-        composable("create_account") {
-            CreateAccountScreen(
-                onBack = { navController.popBackStack() },
-                onNext = { name -> navController.navigate("create_account_length?name=${android.net.Uri.encode(name)}") }
-            )
-        }
-        composable(
-            "create_account_length?name={name}",
-            arguments = listOf(androidx.navigation.navArgument("name") { defaultValue = "" })
-        ) { backStackEntry ->
-            CreateAccountLengthScreen(
-                viewModel,
-                accountName = backStackEntry.arguments?.getString("name").orEmpty(),
-                onBack = { navController.popBackStack() },
-                onOpenExplainer = { navController.navigate("seed_phrase_explainer") }
-            )
-        }
-        // "What is this?" on the seed length step: a pushed page, like "What is a passphrase?"
-        // (iOS 712bb4d).
-        composable("seed_phrase_explainer") {
-            SeedPhraseExplainerPage(onBack = { navController.popBackStack() })
-        }
         composable("import_source") {
             ImportSourceWalletScreen(
                 onBack = { navController.popBackStack() },
+                onRestoreFromCard = {
+                    viewModel.resetImportWalletState()
+                    navController.navigate("nfc_card_restore")
+                },
                 onContinue = { family ->
                     viewModel.setPendingSourceFamily(family)
                     navController.navigate("import_name")
@@ -168,41 +146,26 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 onProceed = { navController.navigate("passphrase_import") }
             )
         }
-        composable("backup_mnemonic") { backStackEntry ->
-            val pending by viewModel.mnemonic.collectAsState()
-            // Keeps the words on screen while the step animates out after Back cleared the view
-            // model's copy. Plain remember: composition memory only, never saved state.
-            var shown by remember { mutableStateOf(pending) }
-            LaunchedEffect(pending) {
-                if (pending != null) {
-                    shown = pending
-                } else if (navController.currentBackStackEntry == backStackEntry) {
-                    // No pending seed (the process was recreated, so the in-memory copy is
-                    // gone): back to the length step, which generates a fresh one.
-                    navController.popBackStack()
-                }
-            }
-            // Leaving the seed step backwards abandons the uncommitted account: drop its words.
+        composable("nfc_card_restore") {
+            NfcCardRestoreScreen(viewModel, onBack = { navController.popBackStack() })
+        }
+        composable("passphrase_create") {
+            val createError by viewModel.createWalletError.collectAsState()
+            // Nothing is shown or saved before the passphrase: leaving forgets the words, and a
+            // step restored after the process was recreated starts from new ones.
+            LaunchedEffect(Unit) { viewModel.ensureCreateWithPassphrase() }
             val abandon: () -> Unit = {
                 navController.popBackStack()
                 viewModel.abandonCreatedWallet()
             }
             BackHandler(onBack = abandon)
-            CreateAccountSeedScreen(
-                words = shown.orEmpty(),
-                onBack = abandon,
-                // Wallet isn't committed yet — go collect the optional passphrase, then commit.
-                onNext = { navController.navigate("passphrase_create") }
-            )
-        }
-        composable("passphrase_create") {
-            val createError by viewModel.createWalletError.collectAsState()
             PassphraseSetupScreen(
                 mode = PassphraseMode.CREATE,
                 errorMessage = createError,
                 onDismissError = { viewModel.clearCreateWalletError() },
-                onBack = { navController.popBackStack() },
+                onBack = abandon,
                 previewAddress = { viewModel.previewChattingAddress(it) },
+                previewBalance = { viewModel.previewAddressBalanceSompi(it) },
                 // commitCreatedWallet() derives + saves with the passphrase, arms the guide, and
                 // logs in (which swaps onboarding for the main shell).
                 onProceed = { passphrase -> viewModel.commitCreatedWallet(passphrase) }
@@ -219,6 +182,9 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
                 onDismissError = { viewModel.resetImportWalletState() },
                 onBack = { navController.popBackStack() },
                 previewAddress = { viewModel.previewChattingAddress(it) },
+                previewBalance = { viewModel.previewAddressBalanceSompi(it) },
+                findAddresses = { viewModel.findPendingChattingAddresses(it) },
+                onChattingIndexChange = { viewModel.setPendingChattingAddressIndex(it) },
                 // commitImport() imports with the passphrase, arms the guide, and logs in on success.
                 onProceed = { passphrase -> viewModel.commitImport(passphrase) }
             )
@@ -280,7 +246,7 @@ fun OnboardingScreen(viewModel: WalletViewModel) {
 @Composable
 fun WelcomeScreen(
     viewModel: WalletViewModel,
-    onNavigateToCreate: () -> Unit,
+    onCreateWithPassphrase: () -> Unit,
     onNavigateToImport: () -> Unit,
     onOpenAppSettings: () -> Unit = {}
 ) {
@@ -295,26 +261,24 @@ fun WelcomeScreen(
         Box(modifier = Modifier.fillMaxSize()) {
         // Top-right gear (matches iOS OnboardingView's gearshape toolbar button): app-wide
         // settings that make sense with no account active - see AppSettingsHubScreen.
-        IconButton(
+        SheetBarIconButton(
+            Icons.Outlined.Settings,
+            stringResource(R.string.app_settings),
             onClick = onOpenAppSettings,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = 8.dp, end = 8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = stringResource(R.string.app_settings),
-                tint = LocalAppColors.current.textSecondary
-            )
-        }
+                .padding(top = 8.dp, end = 20.dp),
+            tint = LocalAppColors.current.textPrimary,
+            iconSize = 22.dp,
+        )
         // iOS keeps Create and Import 40 above the safe area: the navigation bar (gesture handle
         // or 3-button bar) is cleared first, then the 40 - a fixed chain, nothing swapped in.
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .padding(start = 24.dp, end = 24.dp, top = 48.dp, bottom = 40.dp),
+                .padding(start = 32.dp, end = 32.dp, top = 48.dp, bottom = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Top spacer to help center the middle content
@@ -363,7 +327,10 @@ fun WelcomeScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             val biometricAccountLoginEnabled by viewModel.biometricAccountLoginEnabled.collectAsState()
-            val deleteAccountError by viewModel.deleteAccountError.collectAsState()
+            val isCreatingAccount by viewModel.isCreatingAccount.collectAsState()
+            val isAccountActionRunning by viewModel.isAccountActionRunning.collectAsState()
+            val createAccountError by viewModel.createAccountError.collectAsState()
+            val backupPending by viewModel.accountBackupStatus.pendingAddresses.collectAsState()
 
             if (hasWallet) {
                 Column(
@@ -375,8 +342,9 @@ fun WelcomeScreen(
                     Text(
                         text = stringResource(R.string.saved_accounts),
                         color = LocalAppColors.current.textPrimary,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 10.dp)
                     )
                     
                     // Four at a time, then this scrolls inside itself - the fifth account is
@@ -385,70 +353,63 @@ fun WelcomeScreen(
                     // heightIn(max) rather than a fixed height so three accounts still take
                     // three rows' worth of space, not four.
                     val visibleRows = minOf(accounts.size, 4)
+                    // Whatever is left after the rest of the page, floored at two rows, so a short
+                    // phone keeps Create, Import and the Advanced link on screen (iOS d063b897).
+                    val spareHeight = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp - 400).coerceAtLeast(2 * 74)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = (visibleRows * 84).dp)
+                            .heightIn(max = minOf(visibleRows * 74, spareHeight).dp)
                             .verticalScroll(rememberScrollState())
                     ) {
                         accounts.forEach { account ->
                             SavedAccountCard(
                                 account = account,
                                 requireBiometricLogin = biometricAccountLoginEnabled,
+                                notBackedUp = account.address in backupPending,
+                                // one account action at a time: each replaces the active account
+                                enabled = !isAccountActionRunning,
                                 onLogin = { viewModel.login(account.address) },
                                 onRename = { newName -> viewModel.renameAccount(account.address, newName) },
-                                onDelete = { alsoRemoveBackup -> viewModel.deleteWallet(account.address, alsoRemoveBackup) },
-                                nextcloudConnected = viewModel.nextcloudConnected()
+                                onDelete = { viewModel.deleteWallet(account.address) },
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-                        // The account is already gone by the time this can be known, so this row is
-                        // the only place it can be said: the archive is still on their Nextcloud and
-                        // they have to remove it there.
-                        deleteAccountError?.let { failure ->
-                            Surface(
-                                color = LocalAppColors.current.danger.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { viewModel.clearDeleteAccountError() },
-                            ) {
-                                Text(
-                                    failure,
-                                    color = LocalAppColors.current.danger,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(12.dp),
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                         }
                     }
                 }
             }
 
-            // Create new wallet button
+            // Create new wallet button: one tap, straight into the new account (iOS d063b897).
             Button(
-                onClick = onNavigateToCreate,
+                onClick = { viewModel.createAccountInOneTap() },
+                enabled = !isCreatingAccount,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(52.dp),
+                // iOS: white body text on the accent, the icon plus.circle.fill.
                 colors = ButtonDefaults.buttonColors(
                     containerColor = KaspaTeal,
-                    contentColor = Color.Black // iOS uses black text on teal
+                    contentColor = Color.White,
+                    disabledContainerColor = KaspaTeal,
+                    disabledContentColor = Color.White
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AddCircleOutline,
-                        contentDescription = null,
-                        tint = Color.Black
-                    )
+                    if (isCreatingAccount) {
+                        com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AddCircle,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.create_new_account),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.Black
+                        fontSize = 17.sp,
+                        color = Color.White
                     )
                 }
             }
@@ -458,25 +419,55 @@ fun WelcomeScreen(
             // Import existing wallet button
             Button(
                 onClick = onNavigateToImport,
+                enabled = !isCreatingAccount,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.surface),
+                    .height(52.dp),
+                // iOS systemGray5.
+                colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.incomingBubble),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.FileDownload,
+                        imageVector = Icons.Outlined.SaveAlt,
                         contentDescription = null,
                         tint = LocalAppColors.current.textPrimary
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.import_existing_account),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        fontSize = 17.sp,
                         color = LocalAppColors.current.textPrimary
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // A passphrase is the only thing Create New Account doesn't do: it moved here.
+            Text(
+                text = stringResource(R.string.advanced_create_with_a_passphrase),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = KaspaTeal,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(enabled = !isCreatingAccount, onClick = onCreateWithPassphrase)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+
+            createAccountError?.let { message ->
+                com.kachat.app.ui.theme.IosAlertDialog(
+                    onDismissRequest = { viewModel.clearCreateAccountError() },
+                    containerColor = LocalAppColors.current.surface,
+                    title = { Text(stringResource(R.string.couldnt_create_account), color = LocalAppColors.current.textPrimary) },
+                    text = { Text(message, color = LocalAppColors.current.textSecondary) },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.clearCreateAccountError() }) {
+                            Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                )
             }
         }
         // Which build this phone runs, right where sign-in problems get reported from (iOS
@@ -501,74 +492,103 @@ fun WelcomeScreen(
 fun SavedAccountCard(
     account: WalletManager.Account,
     requireBiometricLogin: Boolean = false,
+    /** This account hasn't finished the backup steps: the Delete warning says so. */
+    notBackedUp: Boolean = false,
+    /** False while another account action runs: sign-in and Rename/Delete wait for it (iOS
+     *  3942a5b7 `isAccountActionRunning`). */
+    enabled: Boolean = true,
     onLogin: () -> Unit,
     onRename: (String) -> Unit,
-    /** True also removes the encrypted Nextcloud archive - the second destructive choice. */
-    onDelete: (Boolean) -> Unit,
-    /** Whether that second choice is offered at all. */
-    nextcloudConnected: Boolean = false
+    /** Removes the account and its local data. The archive on Nextcloud is never touched: it is
+     *  what carries the contacts to the account's other devices (iOS d23e6f7a). */
+    onDelete: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf(account.name) }
+    var signInErrorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    // Read when the lock prompt returns: it may have let another account action start meanwhile
+    // (iOS performSignIn and removeSavedAccount re-check).
+    val isEnabled by rememberUpdatedState(enabled)
+    // iOS displayAlias and shortPublicAddress (the first 10 and last 6 characters).
+    val displayAlias = account.name.trim().ifEmpty { stringResource(R.string.saved_account) }
+    val shortAddress = account.address.let { if (it.length > 16) "${it.take(10)}...${it.takeLast(6)}" else it }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .height(64.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(KaChatSignInCard)
-            .clickable {
+            .clickable(enabled = enabled) {
                 if (requireBiometricLogin) {
                     context.authenticateWithDeviceCredential(
-                        title = "Unlock ${account.name}",
-                        onSuccess = onLogin
+                        title = context.getString(R.string.unlock_to_sign_in_to, displayAlias),
+                        onSuccess = { if (isEnabled) onLogin() },
+                        onFailure = { signInErrorMessage = context.getString(R.string.authentication_failed) },
                     )
                 } else {
                     onLogin()
                 }
             }
-            .padding(16.dp),
+            .padding(start = 12.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(Color(0xFF2C3E50), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
+        // iOS person.crop.circle.badge.checkmark.
+        Box(modifier = Modifier.size(24.dp)) {
             Icon(
-                imageVector = Icons.Default.Person,
+                imageVector = Icons.Outlined.AccountCircle,
                 contentDescription = null,
                 tint = KaspaTeal,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(22.dp).align(Alignment.TopEnd)
+            )
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = KaspaTeal,
+                modifier = Modifier
+                    .size(11.dp)
+                    .align(Alignment.BottomStart)
+                    .background(KaChatSignInCard, CircleShape)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = account.name,
+                color = LocalAppColors.current.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            // Truncated in the middle, as on iOS: both ends of an address are what tell two apart.
+            MiddleEllipsisText(
+                account.address,
+                color = LocalAppColors.current.textSecondary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
             )
         }
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = account.name,
-                color = LocalAppColors.current.textPrimary,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = account.address,
-                color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        IconButton(onClick = { showMenu = true }) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .clickable(enabled = enabled) { showMenu = true },
+        ) {
             Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = stringResource(R.string.edit_account),
                 tint = KaspaTeal,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(17.dp)
             )
         }
     }
@@ -577,14 +597,14 @@ fun SavedAccountCard(
     // line saying what it takes with it, which a menu of bare verbs cannot.
     if (showMenu) {
         ActionSheetContainer(
-            title = account.name,
-            subtitle = account.address,
+            title = displayAlias,
+            subtitle = shortAddress,
             onDismiss = { showMenu = false },
         ) {
             ActionSheetRow(
                 icon = Icons.Default.Edit,
                 title = stringResource(R.string.rename),
-                subtitle = "Gives this account a name of your own.",
+                subtitle = stringResource(R.string.gives_this_account_a_name_of_your),
             ) {
                 showMenu = false
                 nameInput = account.name
@@ -593,7 +613,7 @@ fun SavedAccountCard(
             ActionSheetRow(
                 icon = Icons.Default.Delete,
                 title = stringResource(R.string.delete),
-                subtitle = "Removes this account and its local data from this device.",
+                subtitle = stringResource(R.string.removes_this_account_and_its_local_data),
                 tint = LocalAppColors.current.danger,
             ) {
                 showMenu = false
@@ -608,18 +628,23 @@ fun SavedAccountCard(
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.rename_account), color = LocalAppColors.current.textPrimary) },
             text = {
-                com.kachat.app.ui.theme.IosTextField(
-                    value = nameInput,
-                    onValueChange = { nameInput = it },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = LocalAppColors.current.textPrimary,
-                        unfocusedTextColor = LocalAppColors.current.textPrimary,
-                        focusedBorderColor = KaspaTeal,
-                        unfocusedBorderColor = LocalAppColors.current.textSecondary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stringResource(R.string.enter_a_new_name_for_this_saved), color = LocalAppColors.current.textPrimary)
+                    Spacer(Modifier.height(12.dp))
+                    com.kachat.app.ui.theme.IosTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.settings_account_name_placeholder), color = LocalAppColors.current.textSecondary) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = LocalAppColors.current.textPrimary,
+                            unfocusedTextColor = LocalAppColors.current.textPrimary,
+                            focusedBorderColor = KaspaTeal,
+                            unfocusedBorderColor = LocalAppColors.current.textSecondary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
@@ -640,37 +665,36 @@ fun SavedAccountCard(
         )
     }
 
-    if (showDeleteConfirm) {
-        ConfirmActionSheet(
-            title = stringResource(R.string.delete_account),
-            confirmTitle = stringResource(R.string.delete),
-            confirmSubtitle = "Removes \"${account.name}\" and everything it holds on this device - its " +
-                "chats, contacts, groups and keys. Messages and posts already on the Kaspa blockDAG " +
-                "stay there and cannot be deleted. " +
-                (if (nextcloudConnected) "Your encrypted Nextcloud backup stays. " else "") +
-                "Without its seed phrase written down, any remaining balance is unrecoverable.",
-            confirmIcon = Icons.Default.Delete,
-            onConfirm = { onDelete(false) },
-            onDismiss = { showDeleteConfirm = false },
-            secondaryTitle = if (nextcloudConnected) "Delete and Remove Nextcloud Backup" else null,
-            secondarySubtitle = if (nextcloudConnected) {
-                "The same, and deletes the encrypted archive from your Nextcloud. Your other " +
-                    "devices lose it too, and it cannot be brought back from here."
-            } else null,
-            secondaryIcon = if (nextcloudConnected) Icons.Default.CloudOff else null,
-            onSecondary = if (nextcloudConnected) ({ onDelete(true) }) else null,
+    signInErrorMessage?.let { message ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { signInErrorMessage = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.sign_in_failed), color = LocalAppColors.current.textPrimary) },
+            text = { Text(message, color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = { signInErrorMessage = null }) {
+                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            }
         )
     }
-}
 
-/**
- * Create Account, step 1 of 3 (iOS acd879b `CreateWalletView`): the account's name, stored only
- * on this device. Then the seed length ([CreateAccountLengthScreen]), then the seed phrase itself
- * ([CreateAccountSeedScreen]), then the optional passphrase, which commits the account.
- */
-@Composable
-fun CreateAccountScreen(onBack: () -> Unit, onNext: (String) -> Unit) {
-    AccountNameForm(title = stringResource(R.string.create_account), onBack = onBack, onNext = onNext)
+    if (showDeleteConfirm) {
+        // The warning Settings' Delete Account shows, without its seed phrase and backup rows: this
+        // account is signed out (iOS d063b897). The row names the account and its short address.
+        DeleteAccountSheet(
+            confirmSubtitle = stringResource(R.string.deletes_and_its_local_data_from_this, displayAlias, shortAddress),
+            notBackedUp = notBackedUp,
+            // Deleting asks the device's lock first (iOS d1844582).
+            onConfirm = {
+                context.authenticateWithDeviceCredential(
+                    title = context.getString(R.string.confirm_deleting_account),
+                    onSuccess = { if (isEnabled) onDelete() },
+                )
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
+    }
 }
 
 /**
@@ -709,151 +733,43 @@ private fun AccountNameForm(title: String, onBack: () -> Unit, onNext: (String) 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = stringResource(R.string.create_wallet_name_title),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
                 color = colors.textPrimary
             )
             Text(
                 text = stringResource(R.string.create_wallet_name_detail),
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
                 color = colors.textSecondary
             )
         }
 
-        TextField(
+        // iOS `.roundedBorder`: a short field with a hairline, not a filled block.
+        androidx.compose.foundation.text.BasicTextField(
             value = accountName,
             onValueChange = { accountName = it },
-            placeholder = { Text("Enter account name", color = colors.textSecondary) },
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .height(34.dp)
+                .border(0.5.dp, colors.textSecondary.copy(alpha = 0.35f), RoundedCornerShape(5.dp))
+                .padding(horizontal = 7.dp)
                 .focusRequester(focus),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = colors.surface,
-                unfocusedContainerColor = colors.surface,
-                focusedTextColor = colors.textPrimary,
-                unfocusedTextColor = colors.textPrimary,
-                cursorColor = KaspaTeal,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
+            textStyle = androidx.compose.ui.text.TextStyle(color = colors.textPrimary, fontSize = 17.sp),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(KaspaTeal),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { next() }),
-            singleLine = true
+            singleLine = true,
+            decorationBox = { field ->
+                Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxSize()) {
+                    if (accountName.isEmpty()) {
+                        Text(stringResource(R.string.enter_account_name), color = colors.textTertiary, fontSize = 17.sp)
+                    }
+                    field()
+                }
+            },
         )
 
         CreateWalletNextButton(title = stringResource(R.string.next), enabled = canContinue, onClick = next)
-    }
-}
-
-/**
- * Create Account, step 2 of 3 (iOS acd879b / c6bd716 `CreateWalletLengthStep`): 12 or 24 words as
- * two full-width buttons in the Generate Account style (the chosen one filled; nothing chosen
- * until the user taps one), and the warning that the seed phrase comes next.
- */
-@Composable
-fun CreateAccountLengthScreen(
-    viewModel: WalletViewModel,
-    accountName: String,
-    onBack: () -> Unit,
-    onOpenExplainer: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    var wordCount by rememberSaveable { mutableStateOf<Int?>(null) }
-    // Until the seed phrase screen takes over (OnboardingScreen navigates on the new phrase).
-    var isCreating by remember { mutableStateOf(false) }
-
-    CreateAccountStepScaffold(onBack = onBack) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = stringResource(R.string.choose_seed_phrase_length),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = colors.textPrimary
-            )
-            // 12 first, and no "(recommended)" on 24: both lengths are secure.
-            CreateAccountSteps.WORD_COUNTS.forEach { count ->
-                SeedLengthButton(
-                    title = stringResource(if (count == 12) R.string.n_12_words else R.string.n_24_words),
-                    chosen = wordCount == count,
-                    enabled = !isCreating,
-                    onClick = { wordCount = count },
-                )
-            }
-        }
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.surface)
-                .padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = colors.warning,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = stringResource(R.string.important),
-                    color = colors.warning,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-            Text(
-                text = stringResource(R.string.create_wallet_seed_next_warning),
-                color = colors.textSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        CreateWalletNextButton(
-            title = stringResource(R.string.generate_account),
-            enabled = CreateAccountSteps.canGenerate(wordCount, isCreating),
-            busy = isCreating,
-        ) {
-            val count = wordCount
-            if (count != null && CreateAccountSteps.canGenerate(count, isCreating)) {
-                isCreating = true
-                // The phrase is generated for display only; the account is derived and saved
-                // after the passphrase step.
-                viewModel.createWallet(accountName, count)
-            }
-        }
-
-        // What a seed phrase is, on a page of its own (iOS dd0aab1, 712bb4d). It dims while held,
-        // as iOS's plain button style does.
-        val explainerInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-        val explainerPressed by explainerInteraction.collectIsPressedAsState()
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer { alpha = if (explainerPressed) IOS_PLAIN_PRESSED_ALPHA else 1f }
-                .clickable(
-                    interactionSource = explainerInteraction,
-                    indication = null,
-                    role = Role.Button,
-                    onClick = onOpenExplainer
-                )
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
-                contentDescription = null,
-                tint = KaspaTeal,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = stringResource(R.string.what_is_this),
-                color = KaspaTeal,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp
-            )
-        }
     }
 }
 
@@ -871,12 +787,13 @@ fun ImportLengthScreen(onBack: () -> Unit, onNext: (Int) -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 text = stringResource(R.string.choose_seed_phrase_length),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
                 color = colors.textPrimary
             )
             Text(
                 text = stringResource(R.string.import_seed_length_detail),
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
                 color = colors.textSecondary
             )
             CreateAccountSteps.WORD_COUNTS.forEach { count ->
@@ -906,7 +823,7 @@ fun ImportLengthScreen(onBack: () -> Unit, onNext: (Int) -> Unit) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SeedPhraseExplainerPage(onBack: () -> Unit) {
+internal fun SeedPhraseExplainerPage(onBack: () -> Unit) {
     val colors = LocalAppColors.current
     Scaffold(
         containerColor = colors.background,
@@ -938,10 +855,6 @@ private fun SeedPhraseExplainerPage(onBack: () -> Unit) {
                 stringResource(R.string.seed_phrase_explainer_safe_title),
                 stringResource(R.string.seed_phrase_explainer_paper)
             )
-            PassphraseExplainerSection(
-                stringResource(R.string.seed_phrase_explainer_lengths_title),
-                stringResource(R.string.seed_phrase_explainer_lengths)
-            )
         }
     }
 }
@@ -959,37 +872,41 @@ private fun CreateAccountStepScaffold(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 // Edge-to-edge: Compose reacts to the keyboard inset itself, so the field and the
                 // button stay above it.
                 .imePadding()
                 .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
         ) {
             // iOS 26: the back chevron on a glass disc.
-            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, tint = LocalAppColors.current.textPrimary)
-            Spacer(modifier = Modifier.height(24.dp))
+            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, modifier = Modifier.padding(start = 4.dp), tint = LocalAppColors.current.textPrimary)
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                color = colors.textPrimary
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+                modifier = Modifier.padding(start = 4.dp)
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             Column(verticalArrangement = Arrangement.spacedBy(24.dp), content = content)
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
-/** The accent-filled continue button of the Create Account and Import Account steps, dimmed while
- *  disabled (iOS `CreateWalletNextButton`). */
+/** The accent-filled continue button of the Import Account and backup steps, dimmed while disabled
+ *  (iOS `CreateWalletNextButton`). */
 @Composable
-private fun CreateWalletNextButton(title: String, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
+internal fun CreateWalletNextButton(title: String, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height(52.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = KaspaTeal,
             // Not dimmed while busy, as on iOS.
@@ -999,13 +916,14 @@ private fun CreateWalletNextButton(title: String, enabled: Boolean, busy: Boolea
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (busy) {
-                com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
             }
+            // iOS: white body text on the accent, dimmed along with the button.
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.Black
+                fontSize = 17.sp,
+                color = if (enabled || busy) Color.White else Color.White.copy(alpha = 0.4f)
             )
         }
     }
@@ -1043,15 +961,15 @@ private fun SeedLengthButton(title: String, chosen: Boolean, enabled: Boolean, o
         Icon(
             imageVector = if (chosen) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
             contentDescription = null,
-            tint = if (chosen) Color.Black else KaspaTeal,
+            tint = if (chosen) Color.White else KaspaTeal,
             modifier = Modifier.size(20.dp)
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = title,
-            color = if (chosen) Color.Black else KaspaTeal,
+            color = if (chosen) Color.White else KaspaTeal,
             fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.bodyLarge
+            fontSize = 17.sp
         )
     }
 }
@@ -1070,6 +988,7 @@ fun ImportWalletScreen(
     onBack: () -> Unit,
     onProceed: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var wordCount by remember { mutableIntStateOf(CreateAccountSteps.importWordCount(initialWordCount)) }
     // Fixed-capacity backing store; only the first [wordCount] entries are used.
     var words by remember { mutableStateOf(List(24) { "" }) }
@@ -1136,18 +1055,25 @@ fun ImportWalletScreen(
                     )
                 }
                 val pasteClipboard = pasteContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                // A bordered button, small, as on iOS - not a bare text link.
-                OutlinedButton(
+                // iOS `.bordered`, small: a filled capsule in the accent's text, not an outline.
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = LocalAppColors.current.incomingBubble),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, KaspaTeal.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(50),
                     onClick = {
                         // iOS's pasteSeedPhrase: a refusal goes up in the "Error" alert, a
                         // success is a haptic and the filled slots.
                         val raw = pasteClipboard?.primaryClip?.getItemAt(0)?.coerceToText(pasteContext)?.toString()
                         if (raw == null) {
-                            pasteError = "Nothing to paste."
-                            return@OutlinedButton
+                            pasteError = context.getString(R.string.nothing_to_paste)
+                            return@Button
+                        }
+                        // Cleared as soon as it is read, whether or not the words are accepted:
+                        // secret words don't belong on the clipboard either way (iOS 3942a5b7).
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                            pasteClipboard?.clearPrimaryClip()
+                        } else {
+                            pasteClipboard?.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
                         }
                         val pasted = raw.lowercase()
                             .split(Regex("[\\s,]+"))
@@ -1155,22 +1081,16 @@ fun ImportWalletScreen(
                             .filter { it.isNotEmpty() && !it.all { c -> c.isDigit() } }
                         when {
                             pasted.size != 12 && pasted.size != 24 ->
-                                pasteError = "A recovery phrase is 12 or 24 words - the clipboard holds ${pasted.size}."
+                                pasteError = context.getString(R.string.you_need_12_or_24_words_the, pasted.size)
                             else -> {
                                 val unknown = pasted.filterNot { wordList.contains(it) }
                                 if (unknown.isNotEmpty()) {
-                                    pasteError = "Not a recovery phrase word: ${unknown.take(3).joinToString(", ")}."
+                                    // only a count: the message must never repeat what was pasted
+                                    pasteError = context.resources.getQuantityString(R.plurals.pasted_words_invalid, unknown.size, unknown.size)
                                 } else {
                                     wordCount = pasted.size
                                     words = List(24) { index -> pasted.getOrElse(index) { "" } }
                                     activeSlot = (pasted.size - 1).coerceAtLeast(0)
-                                    // A seed does not belong on the clipboard a moment longer
-                                    // than it takes to get it in here.
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                        pasteClipboard?.clearPrimaryClip()
-                                    } else {
-                                        pasteClipboard?.setPrimaryClip(android.content.ClipData.newPlainText("", ""))
-                                    }
                                     pasteHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                                 }
                             }
@@ -1179,18 +1099,18 @@ fun ImportWalletScreen(
                 ) {
                     Icon(Icons.Default.ContentPaste, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Paste", color = KaspaTeal, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.paste), color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "$filled/$wordCount",
                     color = if (allValid) LocalAppColors.current.success else LocalAppColors.current.textSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Custom in-app keyboard + numbered slot grid + autocomplete (no OS keyboard, no paste)
             SeedPhraseKeyboard(
@@ -1234,7 +1154,7 @@ fun ImportWalletScreen(
             onDismissRequest = { viewModel.resetImportWalletState() },
             containerColor = LocalAppColors.current.surface,
             title = { Text(stringResource(R.string.error), color = LocalAppColors.current.textPrimary) },
-            text = { Text(importState.errorMessage ?: "Something went wrong", color = LocalAppColors.current.textSecondary) },
+            text = { Text(importState.errorMessage ?: stringResource(R.string.something_went_wrong), color = LocalAppColors.current.textSecondary) },
             confirmButton = {
                 TextButton(onClick = { viewModel.resetImportWalletState() }) {
                     Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
@@ -1244,190 +1164,237 @@ fun ImportWalletScreen(
     }
 }
 
-/**
- * Create Account, step 3 of 3 (iOS acd879b `CreateWalletSeedStep`): the seed phrase, behind a
- * tap, written down by hand, then Next to the optional passphrase step (the account isn't derived
- * or saved until after that). Same "Create Account" frame and Back as the first two steps.
- * Settings > Seed Phrase is a separate screen ([SeedPhraseScreen]).
- */
-@Composable
-fun CreateAccountSeedScreen(words: List<String>, onBack: () -> Unit, onNext: () -> Unit) {
-    val colors = LocalAppColors.current
-    var hasConfirmedBackup by rememberSaveable { mutableStateOf(false) }
-    // Hidden until tapped, as on iOS: the words would otherwise appear the moment this screen
-    // opens, the one moment the user has no say in who is looking at the phone.
-    var showSeedPhrase by rememberSaveable { mutableStateOf(false) }
-
-    // Blocks screenshots and screen recording of the freshly-generated seed phrase for as long
-    // as this screen is on-screen (iOS `SecureView`) - see SeedPhraseScreen's identical guard.
-    SecureWindowWhileShown()
-
-    CreateAccountStepScaffold(onBack = onBack) {
-        // Warning
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.warning.copy(alpha = 0.1f))
-                .padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = colors.warning,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = stringResource(R.string.write_down_your_seed_phrase),
-                    color = colors.warning,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-            Text(
-                text = stringResource(R.string.store_this_in_a_safe_place_anyone_with_these_words),
-                color = colors.textSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        // Seed phrase grid: three equal columns, behind a tap.
-        if (showSeedPhrase) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                words.chunked(3).forEachIndexed { rowIndex, row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEachIndexed { column, word ->
-                            CreateAccountSeedWord(
-                                number = rowIndex * 3 + column + 1,
-                                word = word,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.surface)
-                    .clickable { showSeedPhrase = true }
-                    .padding(40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    Icons.Default.VisibilityOff,
-                    contentDescription = null,
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(34.dp),
-                )
-                Text(
-                    stringResource(R.string.tap_to_reveal_seed_phrase),
-                    color = colors.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-
-        // Copying the seed phrase is intentionally not offered (as on iOS): recovery material is
-        // transcribed by hand, never placed on the clipboard.
-
-        // Confirmation checkbox (iOS `CheckboxToggleStyle`).
-        Row(
-            modifier = Modifier
-                .padding(top = 16.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .toggleable(value = hasConfirmedBackup, role = Role.Checkbox) { hasConfirmedBackup = it },
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = if (hasConfirmedBackup) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                contentDescription = null,
-                tint = if (hasConfirmedBackup) KaspaTeal else colors.textSecondary,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = stringResource(R.string.i_have_written_down_my_seed_phrase),
-                color = colors.textPrimary,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        // Next: to the optional passphrase step. Gray until the backup is confirmed, as on iOS.
-        Button(
-            onClick = onNext,
-            enabled = hasConfirmedBackup,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, disabledContainerColor = IosGray),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.next),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = if (hasConfirmedBackup) Color.Black else Color.White
-            )
-        }
-    }
-}
-
 /** How far a control in iOS's plain button style fades while it is held. */
 private const val IOS_PLAIN_PRESSED_ALPHA = 0.4f
 
-/** iOS `Color.gray`, the disabled Next of the seed phrase step. */
+/** iOS `Color.gray`, a disabled button's fill. */
 private val IosGray = Color(0xFF8E8E93)
 
-/** One word of the seed phrase grid: "N." then the word in monospace on one line, shrinking to
- *  fit down to 60% rather than being cut (iOS `.lineLimit(1).minimumScaleFactor(0.6)`). */
+/**
+ * The whole reason the passphrase screen shows an address: a passphrase does not protect one
+ * account, it opens a different one. Watching it change with every character is what makes that
+ * concrete, and on import it is how someone confirms they typed the right thing before committing
+ * to an account that would otherwise look simply empty (iOS 6746b5fb `PassphraseAddressPreview`).
+ *
+ * [findAddresses] is set when the chatting address isn't known yet: the preview checks the first
+ * addresses on the identity chain, picks the first with funds, and lets the user pick another
+ * (iOS 836b62bc). [onSearchingChange] says while that search runs, so the caller can hold its
+ * Import until the pick is made (iOS 3942a5b7 `isSearching`).
+ */
 @Composable
-private fun CreateAccountSeedWord(number: Int, word: String, modifier: Modifier = Modifier) {
+internal fun PassphraseAddressPreview(
+    passphrase: String,
+    previewAddress: (String) -> String?,
+    previewBalance: suspend (String) -> Long?,
+    showsFundsHint: Boolean,
+    findAddresses: (suspend (String) -> List<com.kachat.app.services.WalletService.FoundChattingAddress>?)? = null,
+    onSelectedIndexChange: (Int) -> Unit = {},
+    onSearchingChange: (Boolean) -> Unit = {},
+    /** False while the account is being made: the pick can't change under it. */
+    enabled: Boolean = true,
+) {
     val colors = LocalAppColors.current
-    val maxSize = 15.sp
-    var size by remember(word) { mutableStateOf(maxSize) }
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+    // Debounced: the derivation is PBKDF2 over 2048 rounds, quick but not free, and running it on
+    // every keystroke would be felt.
+    var shownAddress by remember { mutableStateOf<String?>(null) }
+    // What [shownAddress] holds: null while looking it up, or when the lookup failed.
+    var balanceSompi by remember { mutableStateOf<Long?>(null) }
+    var balanceFailed by remember { mutableStateOf(false) }
+    var found by remember { mutableStateOf(emptyList<com.kachat.app.services.WalletService.FoundChattingAddress>()) }
+    var selectedIndex by remember { mutableStateOf(0) }
+    // The funds search failed or ran out of time: Import goes to #0, and the screen says so
+    // (iOS d23e6f7a `searchIncomplete`).
+    var searchIncomplete by remember { mutableStateOf(false) }
+    // Bumped by Search Again, which runs the lookup over for the same passphrase.
+    var searchAttempt by remember { mutableStateOf(0) }
+
+    fun select(address: com.kachat.app.services.WalletService.FoundChattingAddress) {
+        selectedIndex = address.index
+        onSelectedIndexChange(address.index)
+        shownAddress = address.address
+        balanceSompi = address.balanceSompi
+    }
+
+    // A search cut off by leaving the screen must not leave the caller's Import held.
+    DisposableEffect(Unit) { onDispose { onSearchingChange(false) } }
+
+    LaunchedEffect(passphrase, searchAttempt) {
+        balanceSompi = null
+        balanceFailed = false
+        searchIncomplete = false
+        found = emptyList()
+        selectedIndex = 0
+        onSelectedIndexChange(0)
+        // Held from the first keystroke, not only once the lookup starts: an Import tapped in the
+        // pause would otherwise go to #0.
+        onSearchingChange(findAddresses != null)
+        kotlinx.coroutines.delay(250)
+        val address = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { previewAddress(passphrase) }
+        shownAddress = address
+        if (address == null) {
+            balanceFailed = true
+            onSearchingChange(false)
+            return@LaunchedEffect
+        }
+        // a further pause, so only the passphrase someone stopped typing is looked up
+        kotlinx.coroutines.delay(450)
+        if (findAddresses != null) {
+            // A slow or unreachable node lets Import go after the timeout, onto #0, and says so;
+            // an answer that comes later is ignored (iOS d23e6f7a).
+            var timedOut = false
+            val timeout = launch {
+                kotlinx.coroutines.delay(PASSPHRASE_SEARCH_TIMEOUT_MS)
+                timedOut = true
+                searchIncomplete = true
+                balanceFailed = true
+                onSearchingChange(false)
+            }
+            val addresses = findAddresses(passphrase)
+            timeout.cancel()
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (timedOut) return@LaunchedEffect
+            onSearchingChange(false)
+            val first = addresses?.firstOrNull { it.balanceSompi > 0L } ?: addresses?.firstOrNull()
+            if (addresses == null || first == null) {
+                searchIncomplete = true
+                balanceFailed = true
+            } else {
+                found = addresses
+                select(first)
+            }
+            return@LaunchedEffect
+        }
+        val sompi = previewBalance(address)
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        balanceSompi = sompi
+        balanceFailed = sompi == null
+    }
+
+    fun amountText(sompi: Long) = "${com.kachat.app.util.formatKasAmount(sompi / 100_000_000.0)} ${com.kachat.app.util.KaspaUnit.symbol}"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .background(colors.surface)
-            .padding(horizontal = 6.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(16.dp),
     ) {
+        Text(stringResource(R.string.your_chatting_address), color = colors.textSecondary, fontSize = 12.sp)
+        Spacer(Modifier.height(4.dp))
+        // Every character, wrapped over as many lines as it takes. This is the one place the
+        // address has to be readable in full: truncating it would hide exactly the part that
+        // changes when the passphrase does, which is why it is on screen.
         Text(
-            text = "$number.",
-            color = colors.textSecondary,
-            fontSize = 11.sp,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.width(18.dp)
+            shownAddress ?: stringResource(R.string.checking),
+            color = if (shownAddress == null) colors.textSecondary else colors.textPrimary,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            fontSize = 13.sp,
+            softWrap = true,
+            overflow = TextOverflow.Visible,
         )
-        Text(
-            text = word,
-            color = colors.textPrimary,
-            fontFamily = FontFamily.Monospace,
-            fontSize = size,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.weight(1f),
-            onTextLayout = { result ->
-                if (result.hasVisualOverflow && size.value > maxSize.value * 0.6f) {
-                    size = (size.value * 0.94f).coerceAtLeast(maxSize.value * 0.6f).sp
+        // Only the chatting address's: funds can also sit on the account's other addresses, so an
+        // empty one suggests a wrong passphrase rather than proving it.
+        Spacer(Modifier.height(8.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(stringResource(R.string.balance), color = colors.textSecondary, fontSize = 12.sp)
+            val sompi = balanceSompi
+            when {
+                sompi != null -> Text(
+                    amountText(sompi),
+                    color = if (sompi > 0) colors.success else colors.textPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                balanceFailed -> Text(stringResource(R.string.couldnt_check), color = colors.textSecondary, fontSize = 13.sp)
+                else -> com.kachat.app.ui.theme.IosActivityIndicator(color = colors.textSecondary, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+            }
+        }
+        val checkedSompi = balanceSompi
+        if (showsFundsHint && checkedSompi != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (checkedSompi > 0) stringResource(R.string.this_address_holds_funds_so_this_looks)
+                else stringResource(R.string.no_funds_on_this_address_if_you),
+                color = if (checkedSompi > 0) colors.success else colors.warning,
+                fontSize = 12.sp,
+            )
+        }
+        if (found.size > 1) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.we_picked_the_first_address_with_funds),
+                color = colors.textSecondary,
+                fontSize = 12.sp,
+            )
+            for (address in found) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = enabled) { select(address) }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        if (selectedIndex == address.index) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = KaspaTeal,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.address_number, address.index), color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${address.address.take(14)}...${address.address.takeLast(6)}",
+                            color = colors.textSecondary,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontSize = 11.sp,
+                        )
+                    }
+                    Text(
+                        amountText(address.balanceSompi),
+                        color = if (address.balanceSompi > 0) colors.success else colors.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
+        }
+        if (searchIncomplete) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.passphrase_search_unfinished),
+                color = colors.warning,
+                fontSize = 12.sp,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.search_again),
+                color = if (enabled) KaspaTeal else KaspaTeal.copy(alpha = 0.4f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(enabled = enabled) { searchAttempt++ },
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (passphrase.isEmpty())
+                stringResource(R.string.this_is_the_account_your_12_or)
+            else
+                stringResource(R.string.a_different_passphrase_gives_a_different_address),
+            color = colors.textSecondary,
+            fontSize = 12.sp,
         )
     }
 }
 
 enum class PassphraseMode { CREATE, IMPORT }
+
+/** How long Import waits for the funds search before letting go and importing onto #0 (iOS
+ *  d23e6f7a `searchTimeoutNanoseconds`). */
+private const val PASSPHRASE_SEARCH_TIMEOUT_MS = 12_000L
 
 /**
  * Optional BIP39 passphrase ("25th word") step, shown after seed backup (create) or seed entry
@@ -1447,32 +1414,55 @@ fun PassphraseSetupScreen(
     /** Address #0 for a candidate passphrase, for the live preview on the entry step. Null when
      *  the caller has no words to derive from. */
     previewAddress: (String) -> String? = { null },
+    /** What an address holds, for the balance under the live preview; null when it couldn't be
+     *  checked. */
+    previewBalance: suspend (String) -> Long? = { null },
+    /** Set on import: the preview looks for the address holding funds (iOS 836b62bc). */
+    findAddresses: (suspend (String) -> List<com.kachat.app.services.WalletService.FoundChattingAddress>?)? = null,
+    onChattingIndexChange: (Int) -> Unit = {},
     onProceed: (String) -> Unit
 ) {
-    var step by remember { mutableStateOf(PassphraseStep.QUESTION) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Creating only reaches here through "Advanced: Create with a Passphrase", which has already
+    // answered the question (iOS d1844582).
+    var step by remember { mutableStateOf(if (mode == PassphraseMode.CREATE) PassphraseStep.ENTRY else PassphraseStep.QUESTION) }
     var passphrase by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var reveal by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+    // The import's search for the address holding funds is running: Import waits for it, or it
+    // would import onto #0 while the funds sit on another address (iOS 3942a5b7).
+    var isSearching by remember { mutableStateOf(false) }
+    // Where the explainer's Back returns: the question (import) or the entry step, which links it
+    // too since creating opens past the question.
+    var explainerReturnStep by remember { mutableStateOf(PassphraseStep.QUESTION) }
     val colors = LocalAppColors.current
 
-    fun submitFromEntry() {
-        if (isBusy) return
+    /** [skippingSearch]: Import on address #0 without waiting for the funds search (iOS d23e6f7a). */
+    fun submitFromEntry(skippingSearch: Boolean = false) {
+        if (isBusy || (isSearching && !skippingSearch)) return
         when {
-            passphrase.isBlank() ->
-                localError = "Enter a passphrase, or go back and choose No."
+            passphrase.isEmpty() ->
+                localError = context.getString(R.string.enter_a_passphrase_or_go_back_and)
             mode == PassphraseMode.CREATE && passphrase != confirm ->
-                localError = "The passphrases do not match. Please re-enter them."
-            else -> onProceed(passphrase)
+                localError = context.getString(R.string.the_passphrases_do_not_match_please_re)
+            else -> {
+                if (skippingSearch) onChattingIndexChange(0)
+                onProceed(passphrase)
+            }
         }
     }
 
     // Back always lands one step nearer the question, and only leaves the flow from the question
-    // itself - reading the explainer must return to the choice, never skip past it.
-    BackHandler(enabled = step != PassphraseStep.QUESTION) {
+    // itself - reading the explainer must return to the choice, never skip past it. Creating has
+    // no question, so Back from its entry step leaves.
+    fun backFromEntry() {
         passphrase = ""
         confirm = ""
-        step = PassphraseStep.QUESTION
+        if (mode == PassphraseMode.CREATE) onBack() else step = PassphraseStep.QUESTION
+    }
+    BackHandler(enabled = step != PassphraseStep.QUESTION) {
+        if (step == PassphraseStep.EXPLAINER) step = explainerReturnStep else backFromEntry()
     }
 
     Surface(color = colors.background, modifier = Modifier.fillMaxSize()) {
@@ -1482,7 +1472,10 @@ fun PassphraseSetupScreen(
                 isBusy = isBusy,
                 onYes = { step = PassphraseStep.ENTRY },
                 onNo = { if (!isBusy) onProceed("") },
-                onExplain = { step = PassphraseStep.EXPLAINER },
+                onExplain = {
+                    explainerReturnStep = PassphraseStep.QUESTION
+                    step = PassphraseStep.EXPLAINER
+                },
                 onBack = onBack,
             )
             PassphraseStep.ENTRY -> PassphraseEntryStep(
@@ -1495,12 +1488,22 @@ fun PassphraseSetupScreen(
                 reveal = reveal,
                 onToggleReveal = { reveal = !reveal },
                 previewAddress = previewAddress,
+                previewBalance = previewBalance,
+                findAddresses = findAddresses,
+                onChattingIndexChange = onChattingIndexChange,
+                isSearching = isSearching,
+                onSearchingChange = { isSearching = it },
                 onSubmit = { submitFromEntry() },
-                onBack = { passphrase = ""; confirm = ""; step = PassphraseStep.QUESTION },
+                onSkipSearch = { submitFromEntry(skippingSearch = true) },
+                onExplain = {
+                    explainerReturnStep = PassphraseStep.ENTRY
+                    step = PassphraseStep.EXPLAINER
+                },
+                onBack = { backFromEntry() },
             )
             PassphraseStep.EXPLAINER -> PassphraseExplainerStep(
                 mode = mode,
-                onBack = { step = PassphraseStep.QUESTION },
+                onBack = { step = explainerReturnStep },
             )
         }
     }
@@ -1510,7 +1513,7 @@ fun PassphraseSetupScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { localError = null; onDismissError() },
             containerColor = colors.surface,
-            title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+            title = { Text(stringResource(R.string.seed_phrase_passphrase_label), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
             text = { Text(shownError, color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = { localError = null; onDismissError() }) {
@@ -1539,9 +1542,9 @@ private fun PassphraseQuestionStep(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                title = { Text(stringResource(R.string.seed_phrase_passphrase_label), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy, tint = LocalAppColors.current.textPrimary)
+                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy, tint = LocalAppColors.current.textPrimary)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1552,29 +1555,28 @@ private fun PassphraseQuestionStep(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.weight(1f))
-            Icon(
-                Icons.Default.Lock,
-                contentDescription = null,
-                tint = KaspaTeal,
-                modifier = Modifier.size(56.dp),
-            )
-            Spacer(Modifier.height(20.dp))
+            // iOS lock.shield.fill.
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Shield, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(64.dp))
+                Icon(Icons.Default.Lock, contentDescription = null, tint = colors.background, modifier = Modifier.size(28.dp))
+            }
+            Spacer(Modifier.height(24.dp))
             Text(
-                if (mode == PassphraseMode.CREATE) "Do you want to add a passphrase to your account?"
-                else "Did you create this seed with a passphrase?",
+                stringResource(R.string.did_you_create_these_words_with_a),
                 color = colors.textPrimary,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
             // Import keeps a line of steer, because someone who has never heard of a passphrase
             // still has to answer a question about their own past. Create needs none: the choice
             // is theirs to make, and "What is a passphrase?" is right there if they want it.
             if (mode == PassphraseMode.IMPORT) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(24.dp))
                 Text(
-                    "If you are not sure, the answer is almost certainly no. A passphrase is something you would have typed in on purpose.",
+                    stringResource(R.string.if_you_are_not_sure_the_answer),
                     color = colors.textSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 15.sp,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -1583,17 +1585,17 @@ private fun PassphraseQuestionStep(
             Button(
                 onClick = onYes,
                 enabled = !isBusy,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.White),
                 shape = RoundedCornerShape(14.dp),
-            ) { Text("Yes", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+            ) { Text(stringResource(R.string.yes), fontWeight = FontWeight.SemiBold, fontSize = 17.sp) }
 
             Spacer(Modifier.height(12.dp))
 
             Button(
                 onClick = onNo,
                 enabled = !isBusy,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = KaspaTeal.copy(alpha = 0.15f),
                     contentColor = KaspaTeal,
@@ -1603,14 +1605,14 @@ private fun PassphraseQuestionStep(
                 if (isBusy) {
                     com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 } else {
-                    Text("No", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(stringResource(R.string.no), fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
             TextButton(onClick = onExplain, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
-                Text("What is a passphrase?", color = colors.textSecondary, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.what_is_a_passphrase), color = colors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -1636,7 +1638,15 @@ private fun PassphraseEntryStep(
     reveal: Boolean,
     onToggleReveal: () -> Unit,
     previewAddress: (String) -> String?,
+    previewBalance: suspend (String) -> Long?,
+    findAddresses: (suspend (String) -> List<com.kachat.app.services.WalletService.FoundChattingAddress>?)?,
+    onChattingIndexChange: (Int) -> Unit,
+    isSearching: Boolean,
+    onSearchingChange: (Boolean) -> Unit,
     onSubmit: () -> Unit,
+    /** Imports on address #0 without waiting for the funds search. */
+    onSkipSearch: () -> Unit,
+    onExplain: () -> Unit,
     onBack: () -> Unit,
 ) {
     val colors = LocalAppColors.current
@@ -1644,21 +1654,13 @@ private fun PassphraseEntryStep(
     // no screenshots, screen recording or Recents thumbnail while this step is up, like the seed
     // screens (audit AND-030).
     SecureWindowWhileShown()
-    // Debounced: the derivation is PBKDF2 over 2048 rounds, quick but not free, and running it on
-    // every keystroke would be felt.
-    var shownAddress by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(passphrase) {
-        kotlinx.coroutines.delay(250)
-        shownAddress = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { previewAddress(passphrase) }
-    }
-
     Scaffold(
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Passphrase", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                title = { Text(stringResource(R.string.seed_phrase_passphrase_label), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
                 navigationIcon = {
-                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy, tint = LocalAppColors.current.textPrimary)
+                    SheetBarButton(stringResource(R.string.back), onClick = onBack, modifier = Modifier.padding(start = 12.dp), enabled = !isBusy, color = colors.textPrimary)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
@@ -1672,27 +1674,30 @@ private fun PassphraseEntryStep(
                 .padding(24.dp),
         ) {
             Text(
-                if (mode == PassphraseMode.CREATE) "Choose your passphrase" else "Enter your passphrase",
+                if (mode == PassphraseMode.CREATE) stringResource(R.string.choose_your_passphrase) else stringResource(R.string.enter_your_passphrase),
                 color = colors.textPrimary,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(20.dp))
             Text(
                 if (mode == PassphraseMode.CREATE)
-                    "Write it down somewhere safe. Without it this account cannot be recovered, even with your seed phrase."
+                    stringResource(R.string.write_it_down_somewhere_safe_without_it)
                 else
-                    "It has to be exactly what you used before, including capital letters and spaces.",
+                    stringResource(R.string.it_has_to_be_exactly_what_you),
                 color = colors.textSecondary,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
             )
             Spacer(Modifier.height(20.dp))
 
+            // Nothing changes the account once it is being made (iOS 3942a5b7).
             PassphraseInputField(
                 value = passphrase,
                 onValueChange = onPassphraseChange,
                 reveal = reveal,
                 onToggleReveal = onToggleReveal,
-                placeholder = "Passphrase",
+                placeholder = stringResource(R.string.seed_phrase_passphrase_label),
+                enabled = !isBusy,
             )
 
             if (mode == PassphraseMode.CREATE) {
@@ -1701,68 +1706,87 @@ private fun PassphraseEntryStep(
                     value = confirm,
                     onValueChange = onConfirmChange,
                     reveal = reveal,
-                    onToggleReveal = onToggleReveal,
-                    placeholder = "Re-enter passphrase",
+                    onToggleReveal = null,
+                    placeholder = stringResource(R.string.re_enter_passphrase),
+                    enabled = !isBusy,
                 )
             }
 
             Spacer(Modifier.height(20.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.surface)
-                    .padding(14.dp),
-            ) {
-                Text("Your chatting address", color = colors.textSecondary, fontSize = 12.sp)
-                Spacer(Modifier.height(4.dp))
-                // Every character, wrapped over as many lines as it takes. This is the one place
-                // the address has to be readable in full: truncating it would hide exactly the
-                // part that changes when the passphrase does, which is why it is on screen.
-                Text(
-                    shownAddress ?: "Checking...",
-                    color = if (shownAddress == null) colors.textSecondary else colors.textPrimary,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    softWrap = true,
-                    overflow = TextOverflow.Visible,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    if (passphrase.isEmpty())
-                        "This is the account your seed phrase opens on its own."
-                    else
-                        "A different passphrase gives a different address, and a different account.",
-                    color = colors.textSecondary,
-                    fontSize = 12.sp,
-                )
-            }
+            PassphraseAddressPreview(
+                passphrase = passphrase,
+                previewAddress = previewAddress,
+                previewBalance = previewBalance,
+                showsFundsHint = mode == PassphraseMode.IMPORT,
+                findAddresses = findAddresses,
+                onSelectedIndexChange = onChattingIndexChange,
+                onSearchingChange = onSearchingChange,
+                enabled = !isBusy,
+            )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             Button(
                 onClick = onSubmit,
-                enabled = passphrase.isNotBlank() && !isBusy,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal, contentColor = Color.Black),
+                enabled = passphrase.isNotEmpty() && !isSearching && !isBusy,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                // iOS: Color.gray while empty, at the half opacity of a disabled plain button.
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = KaspaTeal,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFF8E8E93).copy(alpha = 0.5f),
+                    disabledContentColor = Color.White.copy(alpha = 0.5f),
+                ),
                 shape = RoundedCornerShape(14.dp),
             ) {
                 if (isBusy) {
-                    com.kachat.app.ui.theme.IosActivityIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                } else if (isSearching && passphrase.isNotEmpty()) {
+                    // Import waits for the search to pick the address holding funds.
+                    com.kachat.app.ui.theme.IosActivityIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.finding_your_address), fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 } else {
                     Text(
-                        if (mode == PassphraseMode.CREATE) "Continue" else "Import",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        if (mode == PassphraseMode.CREATE) stringResource(R.string.import_words_continue) else stringResource(R.string.import_label),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
                     )
                 }
+            }
+
+            // The search is a network round trip: never the only way forward (iOS d23e6f7a).
+            if (mode == PassphraseMode.IMPORT && isSearching && passphrase.isNotEmpty() && !isBusy) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onSkipSearch, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(R.string.skip_search_import_address_0),
+                        color = KaspaTeal,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // Creating opens here, past the question, so this is its only way to the explainer.
+            TextButton(onClick = onExplain, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.what_is_a_passphrase),
+                    color = if (isBusy) KaspaTeal.copy(alpha = 0.4f) else KaspaTeal,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
 }
 
-/** Plain-language explainer. Back only, so reading about it always returns to the choice. */
+/** Plain-language explainer. Back only, so reading about it always returns to the step it was
+ *  opened from: the question, or the entry step, which links it too. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
@@ -1771,8 +1795,8 @@ private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
         containerColor = colors.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("What is a passphrase?", color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
-                navigationIcon = { SheetBarBackButton(onBack, Modifier.padding(start = 12.dp)) },
+                title = { Text(stringResource(R.string.what_is_a_passphrase), color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp) },
+                navigationIcon = { SheetBarButton(stringResource(R.string.back), onClick = onBack, modifier = Modifier.padding(start = 12.dp), color = colors.textPrimary) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = colors.background)
             )
         }
@@ -1786,31 +1810,31 @@ private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             PassphraseExplainerSection(
-                "The short version",
-                "A passphrase is an extra word or sentence you add on top of your seed phrase. It is optional, and most people do not use one."
+                stringResource(R.string.seed_phrase_explainer_short_version),
+                stringResource(R.string.a_passphrase_is_an_extra_word_or)
             )
             PassphraseExplainerSection(
-                "It does not lock your account",
-                "This is the part people get wrong. A passphrase does not put a password on your account. It opens a completely different account. Your seed phrase with no passphrase opens one account. The same seed phrase with the word \"apple\" opens another one. With \"banana\", another one again. Every passphrase is its own separate account, with its own address and its own balance."
+                stringResource(R.string.it_does_not_lock_your_account),
+                stringResource(R.string.this_is_the_part_people_get_wrong)
             )
             PassphraseExplainerSection(
-                "Why anyone bothers",
-                "If someone finds your written seed phrase, they get the account it opens on its own. They do not get the one behind your passphrase, because they do not know there is one, and they could not guess it anyway."
+                stringResource(R.string.why_anyone_bothers),
+                stringResource(R.string.if_someone_finds_your_written_12_or)
             )
             PassphraseExplainerSection(
-                "The catch",
-                "There is no reset and no recovery. If you forget your passphrase, the account it opened is gone for good. Your seed phrase alone will not bring it back, and nobody can help you. Treat it exactly like the seed phrase itself: written down, somewhere safe, before you rely on it."
+                stringResource(R.string.the_catch),
+                stringResource(R.string.there_is_no_reset_and_no_recovery)
             )
             PassphraseExplainerSection(
-                "One more thing to know",
-                "If you type the wrong passphrase, nothing will tell you. You will simply land in a different account, and it will look empty. That is not a bug and your money is not lost, it just means you are in the wrong account."
+                stringResource(R.string.one_more_thing_to_know),
+                stringResource(R.string.if_you_type_the_wrong_passphrase_nothing)
             )
             PassphraseExplainerSection(
-                "So do you need one?",
+                stringResource(R.string.so_do_you_need_one),
                 if (mode == PassphraseMode.CREATE)
-                    "If you are not sure, choose No. Your account is still protected by your seed phrase, and you can always create another account with a passphrase later."
+                    stringResource(R.string.if_you_are_not_sure_choose_no)
                 else
-                    "If you never set one up, choose No. A passphrase is something you would have typed in on purpose, so if this is the first you are hearing of it, you do not have one."
+                    stringResource(R.string.if_you_never_set_one_up_choose)
             )
         }
     }
@@ -1820,9 +1844,9 @@ private fun PassphraseExplainerStep(mode: PassphraseMode, onBack: () -> Unit) {
 private fun PassphraseExplainerSection(title: String, body: String) {
     val colors = LocalAppColors.current
     Column {
-        Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
         Spacer(Modifier.height(6.dp))
-        Text(body, color = colors.textSecondary, style = MaterialTheme.typography.bodyMedium)
+        Text(body, color = colors.textSecondary, fontSize = 15.sp)
     }
 }
 
@@ -1832,16 +1856,20 @@ private fun PassphraseInputField(
     value: String,
     onValueChange: (String) -> Unit,
     reveal: Boolean,
-    onToggleReveal: () -> Unit,
-    placeholder: String
+    /** Null on the second field: iOS has one eye, on the first. */
+    onToggleReveal: (() -> Unit)?,
+    placeholder: String,
+    enabled: Boolean = true,
 ) {
     TextField(
         value = value,
         onValueChange = onValueChange,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp)),
-        placeholder = { Text(placeholder, color = LocalAppColors.current.textSecondary) },
+        placeholder = { Text(placeholder, color = LocalAppColors.current.textTertiary, fontSize = 17.sp) },
+        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 17.sp),
         singleLine = true,
         visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
         // Password keyboard even while revealed: a visual transformation doesn't change what the
@@ -1852,9 +1880,15 @@ private fun PassphraseInputField(
             capitalization = KeyboardCapitalization.None,
             autoCorrect = false
         ),
-        trailingIcon = {
-            TextButton(onClick = onToggleReveal) {
-                Text(if (reveal) "Hide" else "Show", color = KaspaTeal, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        trailingIcon = onToggleReveal?.let { toggle ->
+            {
+                IconButton(onClick = toggle, enabled = enabled) {
+                    Icon(
+                        if (reveal) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = if (reveal) stringResource(R.string.hide) else stringResource(R.string.show),
+                        tint = LocalAppColors.current.textSecondary,
+                    )
+                }
             }
         },
         colors = TextFieldDefaults.colors(
@@ -1862,9 +1896,13 @@ private fun PassphraseInputField(
             unfocusedContainerColor = LocalAppColors.current.surface,
             focusedTextColor = LocalAppColors.current.textPrimary,
             unfocusedTextColor = LocalAppColors.current.textPrimary,
+            // Disabled only while the account is being made: same field, its text dimmed.
+            disabledContainerColor = LocalAppColors.current.surface,
+            disabledTextColor = LocalAppColors.current.textSecondary,
             cursorColor = KaspaTeal,
             focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent
         )
     )
 }
@@ -1880,7 +1918,7 @@ private fun PassphraseInputField(
  * decision comment).
  */
 @Composable
-fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily) -> Unit) {
+fun ImportSourceWalletScreen(onBack: () -> Unit, onRestoreFromCard: () -> Unit, onContinue: (WalletSourceFamily) -> Unit) {
     val options = remember { SourceWalletOption.ALL }
     var selectedName by remember { mutableStateOf(options.first().displayName) }
     val selectedFamily = options.firstOrNull { it.displayName == selectedName }?.family
@@ -1890,43 +1928,60 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
-            // iOS 26: the back chevron on a glass disc.
-            SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, tint = LocalAppColors.current.textPrimary)
+            // iOS's inline title with the back chevron on a glass disc.
+            Box(modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp)) {
+                SheetBarIconButton(
+                    Icons.Filled.ArrowBackIosNew,
+                    stringResource(R.string.back),
+                    onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    tint = LocalAppColors.current.textPrimary,
+                )
+                Text(
+                    stringResource(R.string.import_account),
+                    color = LocalAppColors.current.textPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
             Icon(
-                Icons.Default.AccountBalanceWallet,
+                Icons.AutoMirrored.Filled.Article,
                 contentDescription = null,
                 tint = KaspaTeal,
                 modifier = Modifier
                     .size(48.dp)
                     .align(Alignment.CenterHorizontally)
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.where_is_this_seed_phrase_from),
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = LocalAppColors.current.textPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.different_wallets_store_your_kaspa),
                 color = LocalAppColors.current.textSecondary,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 15.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 options.forEach { option ->
@@ -1934,31 +1989,39 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
                     Surface(
                         color = LocalAppColors.current.surface,
                         shape = RoundedCornerShape(12.dp),
-                        border = if (isSelected) BorderStroke(1.5.dp, KaspaTeal) else null,
+                        border = if (isSelected) BorderStroke(1.2.dp, KaspaTeal.copy(alpha = 0.6f))
+                        else BorderStroke(0.8.dp, Color.White.copy(alpha = 0.18f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedName = option.displayName }
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             Icon(
                                 imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
                                 tint = if (isSelected) KaspaTeal else LocalAppColors.current.textSecondary,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(Modifier.width(12.dp))
+                            Icon(
+                                imageVector = sourceWalletIcon(option.displayName),
+                                contentDescription = null,
+                                tint = KaspaTeal,
+                                modifier = Modifier.size(24.dp)
+                            )
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         option.displayName,
                                         color = LocalAppColors.current.textPrimary,
+                                        fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     if (option.isDefault) {
-                                        Spacer(Modifier.width(8.dp))
+                                        Spacer(Modifier.width(6.dp))
                                         Text(
                                             stringResource(R.string.default_label),
                                             color = KaspaTeal,
@@ -1980,17 +2043,48 @@ fun ImportSourceWalletScreen(onBack: () -> Unit, onContinue: (WalletSourceFamily
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = { onContinue(selectedFamily) },
                 colors = ButtonDefaults.buttonColors(containerColor = KaspaTeal),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(50.dp)
             ) {
-                Text(stringResource(R.string.continue_label), color = Color.Black, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.ArrowCircleRight, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.continue_label), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             }
-            Spacer(Modifier.height(8.dp))
+            if (com.kachat.app.services.NfcCard.isAvailable(LocalContext.current)) {
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onRestoreFromCard)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(Icons.Default.Nfc, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.restore_from_nfc_card), color = KaspaTeal, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
         }
     }
+}
+
+/** The closest match to each wallet's SF Symbol in iOS's `ImportSourceWalletView`. */
+private fun sourceWalletIcon(displayName: String) = when (displayName) {
+    "KaChat" -> Icons.Filled.Forum
+    "KasWare Wallet" -> Icons.Filled.Extension
+    "Kaspium Wallet" -> Icons.Filled.Smartphone
+    "Kastle Wallet" -> Icons.Filled.Shield
+    "KDX Wallet" -> Icons.Filled.DesktopWindows
+    "Core Golang Cli Wallet" -> Icons.Filled.Terminal
+    "OKX Wallet" -> Icons.Filled.Window
+    "OneKey Wallet" -> Icons.Filled.Key
+    else -> Icons.Filled.Storage
 }
 
 /**

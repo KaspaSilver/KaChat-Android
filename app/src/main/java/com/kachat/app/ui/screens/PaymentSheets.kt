@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,7 +78,7 @@ private const val DUST_LIMIT_SOMPI = 10_000_001L
  * (it rides in the payment, so a Max amount is worked out again when it changes), the
  * empty-chatting-address warning, the fee card (speed, coin control, and Edit, which opens the fee
  * editor) and the dust warning - and the swipe-up send screen Send Kaspa uses (iOS 7abc06e, from
- * KaChat Wallet): swipe the bar up past halfway to send, so a payment can't go out on a stray
+ * KaChat Wallet): swipe the bar about a third of the way up to send, so a payment can't go out on a stray
  * touch. The screen then runs the BlockDAG while it goes out and shows Sent ([sent]), or Failed
  * with Try Again. An amount under the dust limit is warned about on the Review, not asked again:
  * the swipe is deliberate.
@@ -109,8 +110,10 @@ fun SendKasSheet(
     /** A warning on the Review (iOS 710fdc0, IOS-086): a chat payment From a spending address
      *  while the chatting address is empty, which can't tell the payee about it yet. */
     fromWarning: String? = null,
-    /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends. */
-    maxKas: () -> Double,
+    /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends - and
+     *  whether that is only what one transaction's largest coins can carry (iOS d23e6f7a
+     *  `cappedAtInputLimit`). */
+    maxKas: () -> Pair<Double, Boolean>,
     /** Changes whenever the fee Max leaves room for may have changed (the speed, a custom fee,
      *  the extra the send will pay, From, the memo). While the amount is still what Max filled
      *  in, Max is worked out again, so a change after Max cannot push the payment past the
@@ -127,6 +130,10 @@ fun SendKasSheet(
     /** The fee editor's Confirm: the whole fee typed, in sompi. */
     onFeeTyped: (Long) -> Unit,
     error: String?,
+    /** Why the fee couldn't be worked out: shown under the fee with Try Again ([onRetryFee]), and
+     *  the swipe waits (iOS d23e6f7a `paymentFeeError`). */
+    feeError: String? = null,
+    onRetryFee: () -> Unit = {},
     isSending: Boolean,
     /** Set once the payment went out: the swipe-up screen shows it until Done. */
     sent: SentTransaction?,
@@ -136,14 +143,20 @@ fun SendKasSheet(
 ) {
     // What Max last wrote (as KAS text); dropped as soon as the amount is edited away from it.
     var maxFilledKasText by remember { mutableStateOf<String?>(null) }
+    // That Max was what one transaction can carry: the Review says why while the amount is still it.
+    var maxCapped by remember { mutableStateOf(false) }
     val fiatAmountState = com.kachat.app.util.rememberKaspaFiatAmountState(onKasTextChange = { text ->
         if (text != maxFilledKasText) maxFilledKasText = null
         onAmountKasChange(text)
     })
     val applyMax: () -> Unit = {
-        val kas = maxKas()
-        maxFilledKasText = com.kachat.app.util.formatKasAmount(kas)
-        fiatAmountState.setMaxKas(kas, priceInCurrency)
+        val (kas, capped) = maxKas()
+        // The fee eats the balance: the amount stays as it is (iOS setPaymentMax's failure).
+        if (kas > 0.0) {
+            maxFilledKasText = com.kachat.app.util.formatKasAmount(kas)
+            maxCapped = capped
+            fiatAmountState.setMaxKas(kas, priceInCurrency)
+        }
     }
     LaunchedEffect(maxRefreshKey) {
         if (maxFilledKasText != null) applyMax()
@@ -244,7 +257,10 @@ fun SendKasSheet(
                     onBack = { if (!isSending) go(SendKasStep.AMOUNT) },
                     title = stringResource(R.string.swipe_up_to_send),
                     isBusy = isSending,
-                    isEnabled = amountSompi > 0 && !exceedsBalance,
+                    // not while the fee is still being worked out, nor when it couldn't be: the
+                    // Review would show a fee other than the one sent (iOS d23e6f7a). Max is
+                    // worked out at once here, so it never holds the swipe.
+                    isEnabled = amountSompi > 0 && !exceedsBalance && feeError == null && totalFeeSompi != null,
                     amountSompi = amountSompi.takeIf { it > 0 },
                     recipient = recipientName,
                     sent = sent,
@@ -273,6 +289,9 @@ fun SendKasSheet(
                             }
                         },
                         error = error,
+                        feeError = feeError,
+                        onRetryFee = onRetryFee,
+                        showsMaxCappedNote = maxCapped && maxFilledKasText != null,
                     )
                 }
 
@@ -311,6 +330,10 @@ private fun SendKasReview(
     fromWarning: String?,
     feeControls: @Composable () -> Unit,
     error: String?,
+    feeError: String?,
+    onRetryFee: () -> Unit,
+    /** The amount is still a Max capped at one transaction's coins. */
+    showsMaxCappedNote: Boolean,
 ) {
     val colors = LocalAppColors.current
     Column(
@@ -393,8 +416,28 @@ private fun SendKasReview(
         // The only things that can still change: the memo, the fee and the coins it spends.
         feeControls()
 
-        if (error != null) {
-            Text(error, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+        val message = error ?: feeError
+        if (message != null) {
+            Text(message, color = colors.danger, fontSize = 13.sp, textAlign = TextAlign.Center)
+            // A failed estimate holds the swipe: never for good.
+            if (error == null) {
+                Text(
+                    stringResource(R.string.try_again),
+                    color = KaspaTeal,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onRetryFee),
+                )
+            }
+        } else if (showsMaxCappedNote) {
+            // Why Max isn't the whole balance: one transaction spends at most
+            // MAX_INPUTS_PER_TRANSACTION coins, and this address holds more.
+            Text(
+                stringResource(R.string.max_capped_send, com.kachat.app.util.KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION),
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+            )
         } else if (amountSompi in 1 until DUST_LIMIT_SOMPI) {
             Text(
                 KaspaUnit.label(stringResource(R.string.payment_dust_warning)),

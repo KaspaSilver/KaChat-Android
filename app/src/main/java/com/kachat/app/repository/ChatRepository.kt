@@ -8,7 +8,6 @@ import com.kachat.app.models.DeletedContactEntity
 import com.kachat.app.models.HandshakePayload
 import com.kachat.app.models.MessageEntity
 import com.kachat.app.models.MessageSyncCursorEntity
-import com.kachat.app.models.PhotoAutoDisplayMode
 import com.kachat.app.models.ReactionEntity
 import com.kachat.app.models.UnreadCount
 import com.kachat.app.models.displayName
@@ -36,10 +35,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import java.util.Base64
@@ -54,6 +56,7 @@ private fun String.hexToBytes(): ByteArray {
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class ChatRepository @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val database: KaChatDatabase,
     private val networkService: NetworkService,
     private val walletManager: WalletManager,
@@ -69,12 +72,7 @@ class ChatRepository @Inject constructor(
     // Drives the poll loop's metered cadence tiers (see the loop in init) — cellular polls
     // slower than WiFi, in-chat and idle alike.
     private val meteredNetwork: MeteredNetwork,
-    // Lazy because NextcloudSyncService depends (via the export service) on ChatRepository —
-    // a direct circular constructor dependency Dagger can't resolve. Lazy<T> defers
-    // instantiation past construction time, breaking the cycle while still letting this class
-    // signal message activity into it (the continuous Nextcloud sync debounce).
-    private val nextcloudSyncServiceLazy: dagger.Lazy<com.kachat.app.services.NextcloudSyncService>,
-    // Lazy for the same reason: CallService sends its envelopes through WalletService, which
+    // Lazy because of a circular constructor dependency Dagger can't resolve: CallService sends its envelopes through WalletService, which
     // depends on this repository. Incoming call envelopes are handed to it from the ingest.
     private val callServiceLazy: dagger.Lazy<com.kachat.app.services.CallService>,
     // Lazy: ContactNoteService sends through WalletService, which itself depends on this.
@@ -94,6 +92,10 @@ class ChatRepository @Inject constructor(
     /** The node a received payment the REST answer can't settle is confirmed with
      *  ([nodeConfirmsIncomingPayment]). Lazy like the services above. */
     private val nodePoolManagerLazy: dagger.Lazy<com.kachat.app.services.NodePoolManager>,
+    /** When each contact's incoming photos start to show ([photosUnlockAt]). */
+    private val photoUnlockStore: com.kachat.app.services.PhotoUnlockStore,
+    /** Typed drafts, which go with the account ([wipeAllLocalDataForAddress]). */
+    private val draftStore: com.kachat.app.services.DraftStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
@@ -155,6 +157,9 @@ class ChatRepository @Inject constructor(
                 }
                 consecutiveIndexerFailures =
                     if (sawIndexerErrorThisCycle) consecutiveIndexerFailures + 1 else 0
+                // Only a note on the wipe-and-resync sheet: a failed read's cursor stays put and
+                // this loop keeps retrying, and the next clean cycle clears it (iOS 76aec44f).
+                _syncTrouble.value = consecutiveIndexerFailures >= SYNC_TROUBLE_AFTER_FAILED_CYCLES
 
                 // Cadence tiers: the fast tick exists solely so a conversation ON SCREEN feels
                 // live; with no chat open the chat list only needs to stay fresh-ish, and on
@@ -177,12 +182,21 @@ class ChatRepository @Inject constructor(
         }
     }
 
+    /** Sync has been failing for a while right now, as opposed to one bad cycle. */
+    private val _syncTrouble = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val syncTrouble: kotlinx.coroutines.flow.StateFlow<Boolean> = _syncTrouble
+
     /** Set by the fetch-failure catch blocks each cycle — the poll loop's backoff signal. */
     @Volatile
     private var sawIndexerErrorThisCycle = false
 
+    /** Every indexer read failure this process, from any sync: a sync compares it before and
+     *  after to learn whether all its phases succeeded (see [syncMessages]). */
+    private val indexerErrorCount = java.util.concurrent.atomic.AtomicLong(0)
+
     private fun noteIndexerError() {
         sawIndexerErrorThisCycle = true
+        indexerErrorCount.incrementAndGet()
     }
 
     /**
@@ -306,7 +320,10 @@ class ChatRepository @Inject constructor(
             }
         } catch (e: Exception) {
             null
-        } ?: return false
+        }
+            // Not reachable: the default indexer files inbox tags, and a first message sent
+            // untagged would never reach someone who has no chat with us yet (iOS 4f8e14bb).
+            ?: return base.trimEnd('/') == AppSettingsRepository.DEFAULT_INDEXER_URL
         inboxSupportByIndexer[base] = answer
         return answer
     }
@@ -347,6 +364,9 @@ class ChatRepository @Inject constructor(
         api: KasiaIndexerApi? = networkService.indexerApi.value,
     ) {
         if (myAddress.isEmpty() || api == null) return
+        // Only the indexer can look a tag up: while it's down the block stream finds them instead
+        // ([runInboxBlockScan]), and that isn't a failed read.
+        if (com.kachat.app.services.IndexerHealth.isDown.value) return
         if (!inboxSupported()) return
         if (!inboxSyncMutex.tryLock()) return
         try {
@@ -362,23 +382,17 @@ class ChatRepository @Inject constructor(
                 return
             }
             if (!myAddress.equals(runCatching { walletManager.getAddress() }.getOrNull(), ignoreCase = true)) return
-            // The cursor moves to the newest entry - but never past one whose sender the indexer
-            // hasn't resolved yet (it answers with an empty sender until the spent input is
-            // known): that entry is asked for again next time, or its sender would never be found
-            // (iOS 5d1f724). Gson can leave the field null, hence the nullable reads.
+            // Gson can leave the field null, hence the nullable reads.
             val (unresolved, resolved) = found.partition { (it.sender as String?).isNullOrBlank() }
-            val resolvedNewest = resolved.maxOfOrNull { it.blockTime }
-            val nextCursor = unresolved.minOfOrNull { it.blockTime }
-                ?.let { minOf((it - 1).coerceAtLeast(0L), resolvedNewest ?: 0L) }
-                ?: resolvedNewest
-            if (nextCursor != null && nextCursor > since) chatRequestStore.setInboxCursor(myAddress, nextCursor)
             val senders = resolved.map { it.sender }
                 .filter { it.isNotBlank() && !it.equals(myAddress, ignoreCase = true) && KaspaAddress.isValid(it) }
                 .filterNot { chatRequestStore.isBlocked(it) }
                 .distinct()
             // Someone already known is fetched by the ordinary sweep (it has their aliases); only
             // a new sender needs their whole history pulled once.
+            val unfetchedTimes = mutableListOf<Long>()
             for (sender in senders) {
+                if (!isActiveWalletAddress(myAddress)) return
                 if (database.contactDao().getContact(sender, myAddress) != null) continue
                 val senderPubKeyHex = runCatching {
                     KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
@@ -391,8 +405,23 @@ class ChatRepository @Inject constructor(
                         conversationStatus = "pending",
                     )
                 )
+                val errorsBefore = indexerErrorCount.get()
                 syncContextualMessages(myAddress, api, onlyContactIds = setOf(sender))
+                if (indexerErrorCount.get() != errorsBefore) {
+                    unfetchedTimes += resolved.filter { it.sender == sender }.map { it.blockTime }
+                }
             }
+            if (!isActiveWalletAddress(myAddress)) return
+            // The cursor moves to the newest entry - but never past one whose sender the indexer
+            // hasn't resolved yet (it answers with an empty sender until the spent input is
+            // known), nor one whose sender's history didn't come in: those are asked for again
+            // next time, or that sender would never be found (iOS 5d1f724, 4f8e14bb). Moved only
+            // now, after the fetches.
+            val resolvedNewest = resolved.maxOfOrNull { it.blockTime }
+            val nextCursor = (unresolved.map { it.blockTime } + unfetchedTimes).minOrNull()
+                ?.let { minOf((it - 1).coerceAtLeast(0L), resolvedNewest ?: 0L) }
+                ?: resolvedNewest
+            if (nextCursor != null && nextCursor > since) chatRequestStore.setInboxCursor(myAddress, nextCursor)
         } finally {
             inboxSyncMutex.unlock()
         }
@@ -495,7 +524,7 @@ class ChatRepository @Inject constructor(
 
     /**
      * A plain send from the chatting address (Send Kaspa - Chats > + > Send Kaspa, Profile, the
-     * Address Book, Donate, a payment request without `chat=1` - From: Chatting Address) is a
+     * Address Book, a payment request without `chat=1` - From: Chatting Address) is a
      * payment we sent like any other: iOS's payment sync files every outgoing transfer of the
      * chatting address in a chat with its destination ("Sent X KAS"), and `addMessageToConversation`
      * gives that destination routing state (iOS 1eb4708, `isPaymentWeSent`;
@@ -593,6 +622,7 @@ class ChatRepository @Inject constructor(
         // Your chat with yourself cannot be deleted (iOS ef4f183). A backstop behind the UI,
         // which never offers it.
         if (contactId.equals(myAddress, ignoreCase = true)) return
+        clearChatFetchState(contactId)
         // In blockTime clock domain, not wall-clock — see DeletedContactEntity's doc comment for
         // why mixing clocks here previously caused a genuinely new re-handshake to get dropped.
         val lastKnownBlockTime = database.messageDao().getMaxBlockTimestampForContact(contactId, myAddress)
@@ -618,6 +648,8 @@ class ChatRepository @Inject constructor(
         // resuming from a stale per-contact cursor left over from before the deletion.
         database.messageDao().deleteSyncCursorsForContact(contactId, myAddress)
         database.contactDao().deleteContact(contactId, myAddress)
+        // The date went with the contact on iOS: a chat started again counts from its own messages.
+        photoUnlockStore.remove(myAddress, contactId)
     }
 
     /**
@@ -794,7 +826,7 @@ class ChatRepository @Inject constructor(
                 liveBaselineMs = settingsRepository.liveNotificationBaseline(walletAddress)
                 syncContextualMessages(walletAddress, api, onlyContactIds = setOf(contactId))
             } catch (e: Exception) {
-                Log.w("ChatRepository", "History re-scan for $contactId failed", e)
+                Log.w("ChatRepository", "History re-scan for ${contactId.takeLast(8)} failed", e)
             } finally {
                 historyRescansInFlight.remove(key)
             }
@@ -891,7 +923,6 @@ class ChatRepository @Inject constructor(
             return
         }
         database.messageDao().insert(message)
-        scheduleAutoBackupIfEnabled()
     }
 
     /** [insertMessage] that never replaces a stored row ([MessageDao.insertIfAbsent]): false when
@@ -902,19 +933,7 @@ class ChatRepository @Inject constructor(
             return false
         }
         if (database.messageDao().insertIfAbsent(message) == -1L) return false
-        scheduleAutoBackupIfEnabled()
         return true
-    }
-
-    /**
-     * Automatic cloud-sync signal — every new message (sent or received, from any insertion
-     * path, since all of them funnel through [insertMessage]) is reported to
-     * [com.kachat.app.services.NextcloudSyncService]. The service owns its own debounce,
-     * per-wallet gating, wallet snapshotting, and WorkManager fallback, and no-ops when no
-     * account is connected or the wallet's automatic-sync toggle is off — so the call is cheap.
-     */
-    private fun scheduleAutoBackupIfEnabled() {
-        nextcloudSyncServiceLazy.get().noteMessageActivity()
     }
 
     /**
@@ -955,6 +974,22 @@ class ChatRepository @Inject constructor(
     //     already exist from before the fix.
     // -------------------------------------------------------------------------
 
+    /**
+     * Chat payments waiting on the retry timer for confirmed coins
+     * ([com.kachat.app.services.ChatPaymentSender]). Not sent, whatever else arrives: an earlier
+     * payment of the same amount must not read as this one and take its placeholder away, which
+     * would stop it going out.
+     */
+    private val deferredPaymentIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    fun holdDeferredPayment(pendingId: String) {
+        deferredPaymentIds.add(pendingId)
+    }
+
+    fun releaseDeferredPayment(pendingId: String) {
+        deferredPaymentIds.remove(pendingId)
+    }
+
     /** One message row by id for the active account, or null. */
     suspend fun getMessage(id: String): MessageEntity? =
         database.messageDao().getById(id, walletManager.getAddress())
@@ -989,17 +1024,19 @@ class ChatRepository @Inject constructor(
     suspend fun matchProvisionalOutgoing(contactId: String, plaintextBody: String?, nearTimestamp: Long): ProvisionalMatch {
         val candidates = database.messageDao()
             .getProvisionalOutgoingForContact(contactId, walletManager.getAddress())
+            .filter { it.id !in deferredPaymentIds }
+            // A Not confirmed row is settled only by its own copy (iOS d23e6f7a
+            // `updateOutgoingPendingMessageIfMatch`), never taken by another message's.
+            .filter { it.deliveryStatus != "warning" }
             .filter { nearTimestamp <= 0L || kotlin.math.abs(it.blockTimestamp - nearTimestamp) <= PROVISIONAL_MATCH_WINDOW_MS }
-        if (candidates.isEmpty()) return ProvisionalMatch.None
-
-        val body = plaintextBody?.trim()
-        if (!body.isNullOrEmpty()) {
-            candidates.firstOrNull { it.plaintextBody?.trim() == body }?.let { return ProvisionalMatch.Exact(it) }
-        }
-        val sole = candidates.singleOrNull() ?: return ProvisionalMatch.Ambiguous
-        val archiveIsNewer = nearTimestamp <= 0L || nearTimestamp >= sole.blockTimestamp - PROVISIONAL_CLOCK_SKEW_MS
-        return if (archiveIsNewer) ProvisionalMatch.Sole(sole) else ProvisionalMatch.None
+        return matchProvisionalCandidates(candidates, plaintextBody, nearTimestamp)
     }
+
+    /** A Failed send goes back to pending for its Retry, or false when there is nothing left to
+     *  retry: a second tap finds it already taken, where it used to stay Failed and post twice
+     *  (iOS 4f8e14bb). */
+    suspend fun claimFailedSendForRetry(id: String): Boolean =
+        database.messageDao().claimFailedForRetry(id, walletManager.getAddress()) > 0
 
     /**
      * Import-side collapse: the archive carries the confirmed copy ([imported], id = real txId)
@@ -1021,7 +1058,6 @@ class ChatRepository @Inject constructor(
             )
         )
         database.messageDao().deleteById(provisional.id, provisional.walletAddress)
-        scheduleAutoBackupIfEnabled()
         Log.i("ChatRepository", "Upgraded provisional ${provisional.id.take(24)} to txId=${imported.id.take(16)} (exact content match)")
     }
 
@@ -1034,7 +1070,6 @@ class ChatRepository @Inject constructor(
     suspend fun collapseProvisionalInto(provisional: MessageEntity, imported: MessageEntity) {
         database.messageDao().insert(imported)
         database.messageDao().deleteById(provisional.id, provisional.walletAddress)
-        scheduleAutoBackupIfEnabled()
         Log.i("ChatRepository", "Collapsed sole provisional ${provisional.id.take(24)} into imported txId=${imported.id.take(16)}")
     }
 
@@ -1056,12 +1091,30 @@ class ChatRepository @Inject constructor(
         )
         database.messageDao().insert(merged)
         database.messageDao().deleteById(provisionalId, final.walletAddress)
-        scheduleAutoBackupIfEnabled()
-        // Delivered in a chat with no handshake: leave a note a fresh import can find it by.
-        if (merged.direction == "sent") contactNotesLazy.get().onMessageDelivered(merged.contactId)
+        // Delivered in a chat with no handshake: leave a note a fresh import can find it by. A Not
+        // confirmed row ("warning") leaves it once it settles ([settleUnconfirmedSend]).
+        if (merged.direction == "sent" && merged.deliveryStatus == "sent") contactNotesLazy.get().onMessageDelivered(merged.contactId)
         if (existing != null) {
             Log.i("ChatRepository", "Finalize merged into import-inserted row txId=${final.id.take(16)} (import won the race)")
         }
+    }
+
+    /**
+     * A Not confirmed row - a send whose outcome was unknown ([com.kachat.app.services.SendOutcomeUnknownException]),
+     * stored under its transaction's own id as "warning" with no Retry - whose transaction has now
+     * been read back from the network becomes sent. Its own content stays: the copy read back may
+     * be a placeholder (iOS d23e6f7a `settleUnconfirmedSend`). [walletAddress] is the account a
+     * sync captured; null means the active one. Whether a row was settled.
+     */
+    suspend fun settleUnconfirmedSend(txId: String, walletAddress: String? = null): Boolean {
+        val wallet = walletAddress ?: walletManager.getAddress()
+        val dao = database.messageDao()
+        val row = dao.getById(txId, wallet) ?: return false
+        if (row.direction != "sent" || row.deliveryStatus != "warning") return false
+        dao.updateStatus(txId, wallet, "sent")
+        Log.i("ChatRepository", "Settled not-confirmed send ${txId.take(12)}: its copy was read back")
+        contactNotesLazy.get().onMessageDelivered(row.contactId)
+        return true
     }
 
     /**
@@ -1084,9 +1137,10 @@ class ChatRepository @Inject constructor(
         try {
             val now = System.currentTimeMillis()
             for (row in database.messageDao().getProvisionalOutgoingForWallet(myAddress)) {
+                if (row.id in deferredPaymentIds) continue
                 if (now - row.syncedAt < PROVISIONAL_REPAIR_MIN_AGE_MS) continue
-                val body = row.plaintextBody?.trim().takeUnless { it.isNullOrEmpty() } ?: continue
-                val hasDelivered = database.messageDao().hasDeliveredDuplicate(
+                val body = row.plaintextBody?.trim().takeUnless { it.isNullOrEmpty() }
+                val hasDelivered = body != null && database.messageDao().hasDeliveredDuplicate(
                     row.contactId, myAddress, body, row.blockTimestamp, PROVISIONAL_MATCH_WINDOW_MS
                 )
                 if (hasDelivered) {
@@ -1096,6 +1150,44 @@ class ChatRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.w("ChatRepository", "Stuck-provisional repair sweep failed", e)
+        }
+    }
+
+    private val processStartedAtMs = System.currentTimeMillis()
+    private val lastRunPendingsChecked: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /**
+     * A send still pending from before this process started stays on Sending for good: the send
+     * and any retry timer died with the last run. Once per account, after its first successful
+     * full sync has brought in any copy that did get delivered, what's left is marked failed so
+     * Retry appears (iOS `failPendingSendsFromBeforeThisRun`, called only when a full fetch
+     * succeeded). Never from the top of a sync, or offline: that marked rows failed before the
+     * fetch that would have found them delivered. A copy delivered later still collapses the
+     * failed row in [repairStuckProvisionalMessages].
+     */
+    private suspend fun failPendingSendsFromBeforeThisRun(myAddress: String) {
+        if (!lastRunPendingsChecked.add(myAddress)) return
+        try {
+            for (row in database.messageDao().getProvisionalOutgoingForWallet(myAddress)) {
+                if (row.deliveryStatus != "pending" || row.blockTimestamp >= processStartedAtMs) continue
+                if (row.id in deferredPaymentIds) continue
+                val body = row.plaintextBody?.trim().takeUnless { it.isNullOrEmpty() }
+                val hasDelivered = body != null && database.messageDao().hasDeliveredDuplicate(
+                    row.contactId, myAddress, body, row.blockTimestamp, PROVISIONAL_MATCH_WINDOW_MS
+                )
+                if (hasDelivered) {
+                    database.messageDao().deleteById(row.id, myAddress)
+                    Log.i("ChatRepository", "Collapsed leftover provisional ${row.id.take(24)} (delivered sibling with same content exists)")
+                } else {
+                    database.messageDao().updateStatus(row.id, myAddress, "failed")
+                    Log.i("ChatRepository", "Marked ${row.id.take(24)} failed: the last run ended before it was sent")
+                }
+            }
+        } catch (e: Exception) {
+            // Not checked after all: the next successful full sync tries again.
+            lastRunPendingsChecked.remove(myAddress)
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.w("ChatRepository", "Marking leftover sends failed did not finish", e)
         }
     }
 
@@ -1177,8 +1269,10 @@ class ChatRepository @Inject constructor(
     /**
      * An edit envelope that arrived as a message (the contact's, or our own echoed back). It
      * counts only if the editor sent the message it names: the contact may edit the contact's
-     * messages, this wallet its own — never the other way round. Newest by block time wins,
-     * except that the local user's own in-flight edit is always replaced by its own outcome.
+     * messages, this wallet its own — never the other way round, and never someone else's: a
+     * transaction id is public, so naming a message proves nothing about who sent it (iOS
+     * bfe9f022). Newest by block time wins, except that the local user's own in-flight edit is
+     * always replaced by its own outcome.
      */
     suspend fun applyIncomingEdit(
         edit: com.kachat.app.util.MessageEditContent,
@@ -1191,6 +1285,7 @@ class ChatRepository @Inject constructor(
         val myAddress = walletAddress ?: walletManager.getAddress()
         val target = database.messageDao().getById(edit.targetTxId, myAddress) ?: return
         if ((target.direction == "sent") != editorIsMe) return
+        if (!editorIsMe && !target.contactId.equals(contactId, ignoreCase = true)) return
         if (!com.kachat.app.util.MessageEdit.isEditable(target.plaintextBody)) return
         val existing = database.messageEditDao().getEdit(edit.targetTxId, myAddress)
         if (existing != null && existing.deliveryStatus == "sent" &&
@@ -1220,7 +1315,7 @@ class ChatRepository @Inject constructor(
     private fun ensureStillActive(address: String) {
         val current = try { walletManager.getAddress() } catch (e: Exception) { null }
         if (current != address) {
-            throw IllegalStateException("The active account changed. Switch back to that account and try again.")
+            throw IllegalStateException(appContext.getString(com.kachat.app.R.string.the_active_account_changed_switch_back_to))
         }
     }
 
@@ -1297,6 +1392,11 @@ class ChatRepository @Inject constructor(
 
     /** Deletes every local message and contact for [address] — used when wiping an account entirely. Does not touch the wallet's keys (see WalletManager.deleteAccount) or any cloud backup. */
     suspend fun wipeAllLocalDataForAddress(address: String) {
+        // Before the rows they are keyed by go.
+        draftStore.removeDrafts(
+            database.contactDao().getContacts(address).first().map { it.id } +
+                database.groupDao().getGroupsOnce(address).map { com.kachat.app.services.DraftStore.groupKey(it.groupId) }
+        )
         database.messageDao().deleteAllForWallet(address)
         database.reactionDao().deleteAllForWallet(address)
         database.messageEditDao().deleteAllForWallet(address)
@@ -1317,6 +1417,19 @@ class ChatRepository @Inject constructor(
         settingsRepository.setHandshakeSyncCursor(address, 0L)
         settingsRepository.setHandshakeOutSyncCursor(address, 0L)
         settingsRepository.clearLiveNotificationBaseline(address)
+        // Everything else this device keeps per account (iOS bfe9f022, Delete Account removes all
+        // local data): Message Requests, learned aliases, pushes not stored yet, notice bubbles,
+        // when photos unlock, contact notes, pins and held payments.
+        chatRequestStore.removeAllData(address)
+        peerAliasStore.removeAllData(address)
+        pushedMessageQueue.removeAllData(address)
+        noticeBubbleStore.removeAllData(address)
+        photoUnlockStore.removeAllData(address)
+        contactNotesLazy.get().removeAllData(address)
+        settingsRepository.removeWalletData(address)
+        // What this process remembers of it too: a re-import in this same run reads it all again.
+        ownSendsHandled.clear()
+        seenPaymentTxIds.clear()
     }
 
     /**
@@ -1349,7 +1462,73 @@ class ChatRepository @Inject constructor(
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
         val api = networkService.indexerApi.value ?: return
         liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
-        syncContextualMessages(myAddress, api, onlyContactIds = setOf(contactId))
+        // An opened chat spins from the start, whatever the fetch brings back (iOS
+        // fetchNewMessages(forActiveOnly:)).
+        setChatFetchState(ChatFetchState.LOADING, contactId)
+        try {
+            syncContextualMessages(myAddress, api, onlyContactIds = setOf(contactId))
+        } finally {
+            settleChatFetchState(contactId)
+        }
+    }
+
+    /** What a chat's row shows about its own fetch (iOS `ChatService.ChatFetchState`). */
+    enum class ChatFetchState { LOADING, FAILED }
+
+    private val _chatFetchStates = kotlinx.coroutines.flow.MutableStateFlow<Map<String, ChatFetchState>>(emptyMap())
+    val chatFetchStates: kotlinx.coroutines.flow.StateFlow<Map<String, ChatFetchState>> = _chatFetchStates
+
+    /** Fetches running per contact, and the contacts one of them failed for. Guards the state too. */
+    private val chatFetchCounts = HashMap<String, Int>()
+    private val chatFetchFailed = HashSet<String>()
+
+    /** Publishes only a real change: every chat list row reads this map. */
+    private fun setChatFetchState(state: ChatFetchState?, address: String): Unit = synchronized(chatFetchCounts) {
+        val current = _chatFetchStates.value
+        if (current[address] != state) {
+            _chatFetchStates.value = if (state != null) current + (address to state) else current - address
+        }
+    }
+
+    private fun beginChatFetch(address: String): Unit = synchronized(chatFetchCounts) {
+        val count = (chatFetchCounts[address] ?: 0) + 1
+        chatFetchCounts[address] = count
+        if (count == 1) chatFetchFailed.remove(address)
+    }
+
+    /** Spinner only when there is actual payload work to parse and add (iOS markChatFetchLoading). */
+    private fun markChatFetchLoading(address: String): Unit = synchronized(chatFetchCounts) {
+        if (address in chatFetchCounts) setChatFetchState(ChatFetchState.LOADING, address)
+    }
+
+    /** A cancelled fetch (a switch of account, the app going away) says nothing about the chat. */
+    private fun noteChatFetchFailed(address: String, cause: Exception) {
+        if (cause is kotlinx.coroutines.CancellationException) return
+        synchronized(chatFetchCounts) { chatFetchFailed.add(address) }
+    }
+
+    private fun endChatFetch(address: String): Unit = synchronized(chatFetchCounts) {
+        val next = (chatFetchCounts[address] ?: 1) - 1
+        if (next <= 0) {
+            chatFetchCounts.remove(address)
+            settleChatFetchState(address)
+        } else {
+            chatFetchCounts[address] = next
+        }
+    }
+
+    /** The outcome, unless another fetch of this chat is still running and will settle it. */
+    private fun settleChatFetchState(address: String): Unit = synchronized(chatFetchCounts) {
+        if (address !in chatFetchCounts) {
+            setChatFetchState(if (address in chatFetchFailed) ChatFetchState.FAILED else null, address)
+        }
+    }
+
+    /** A deleted chat leaves no fetch state behind (iOS removeConversation). */
+    private fun clearChatFetchState(address: String): Unit = synchronized(chatFetchCounts) {
+        chatFetchCounts.remove(address)
+        chatFetchFailed.remove(address)
+        setChatFetchState(null, address)
     }
 
     /**
@@ -1388,10 +1567,16 @@ class ChatRepository @Inject constructor(
         // Every other caller (pull-to-refresh, the sync worker, push handling) is held too - the
         // wizard is exclusive. The post-wizard initial sync releases the gate before running.
         if (onboardingGate.isHeld) return
+        // Signed out: the account stays on the device for signing back in, but nothing is fetched
+        // or announced for it until then (iOS logout stops the sync; bfe9f022).
+        if (walletManager.isLoggedOut) return
         val myAddress = try { walletManager.getAddress() } catch (e: Exception) { return }
         // Before the indexer gate on purpose: healing stuck send-placeholders needs no network.
         repairStuckProvisionalMessages(myAddress)
         val api = networkService.indexerApi.value ?: return
+        // Any phase below that fails to read the indexer bumps this (see [noteIndexerError]).
+        val indexerErrorsBefore = indexerErrorCount.get()
+        val sweepBefore = lastContactSweepAt
         liveBaselineMs = settingsRepository.liveNotificationBaseline(myAddress)
 
         ensureSelfConversation(myAddress)
@@ -1440,6 +1625,14 @@ class ChatRepository @Inject constructor(
                     synchronized(this) { if (paymentCatchUpSince == catchUpSince) paymentCatchUpSince = null }
                 }
             }
+        }
+        // A full fetch read every chat: anything but the poll tick, or a poll tick that ran its
+        // contact sweep. Only one in which every phase read the indexer, for the account it
+        // started under, settles last run's sends (iOS: `syncSucceeded && isFullFetch`).
+        val fullFetch = !fromPollLoop || lastContactSweepAt != sweepBefore
+        val stillActive = runCatching { walletManager.getAddress() }.getOrNull() == myAddress
+        if (fullFetch && stillActive && indexerErrorCount.get() == indexerErrorsBefore) {
+            failPendingSendsFromBeforeThisRun(myAddress)
         }
         // After this launch's first sync: old chats whose first messages are no longer stored
         // stay ordinary chats (iOS 60c9fd0).
@@ -1666,7 +1859,10 @@ class ChatRepository @Inject constructor(
                     noteConversationActivated(existing, activated)
                 }
 
-                if (!database.messageDao().exists(handshake.txId, myAddress)) {
+                if (database.messageDao().exists(handshake.txId, myAddress)) {
+                    // A handshake whose outcome was unknown, now read back: it went out.
+                    settleUnconfirmedSend(handshake.txId, myAddress)
+                } else {
                     insertMessage(
                         MessageEntity(
                             id = handshake.txId,
@@ -1933,6 +2129,9 @@ class ChatRepository @Inject constructor(
         // rejected contacts stay excluded.
         var syncableContacts = database.contactDao().getContactsByStatus("active", myAddress) +
             database.contactDao().getContactsByStatus("pending", myAddress)
+        // Old-style aliases of ours that more than one chat holds: see [fileOwnSend].
+        val sharedLegacyAliases = syncableContacts.mapNotNull { it.myAlias?.trim()?.takeIf { alias -> alias.isNotEmpty() } }
+            .groupingBy { it }.eachCount().filterValues { it > 1 }.keys
         onlyContactIds?.let { ids -> syncableContacts = syncableContacts.filter { it.id in ids } }
         // A chat that is still deleted (its tombstone not lifted) gets nothing fetched at all,
         // even when an automatic add (a KaPosts tip, chess, names, an inbox sender) has
@@ -1982,110 +2181,129 @@ class ChatRepository @Inject constructor(
             // cursor yet and could otherwise surface old pre-deletion messages.
             val deleted = database.contactDao().getDeletedContact(contact.id, myAddress)
 
-            // Legacy: the alias they told us in their handshake reply, if any. Deterministic:
-            // derivable purely from both addresses, so it's always tryable even with no
-            // handshake at all — see WalletManager.myDeterministicAlias.
-            val legacyAliasHex = contact.theirAlias?.let { hexEncodeAscii(it) }
-            val deterministicAliasHex = try {
-                hexEncodeAscii(walletManager.myDeterministicAlias(contact.id, privateKey, myAddress))
-            } catch (e: Exception) {
-                null // Non-Schnorr/invalid address — skip the deterministic candidate for this contact.
-            }
-
-            // Every other alias they have been seen sending to us under - older handshakes, and
-            // any found on their own transactions. iOS sends under the first of ALL its legacy
-            // aliases, which need not be the one its last handshake named; missing it meant not
-            // one of their messages ever arrived here, while ours reached them fine.
-            val knownAliasHexes = try {
-                discoverPeerAliases(myAddress, contact, onScreen = contact.id == notificationHelper.currentContactId, privateKey = privateKey)
-                peerAliasStore.aliases(myAddress, contact.id).map { hexEncodeAscii(it) }
-            } catch (e: Exception) {
-                Log.w("ChatRepository", "Alias discovery failed for ${contact.id.takeLast(8)}", e)
-                emptyList()
-            }
-
-            for (aliasHex in (listOfNotNull(legacyAliasHex, deterministicAliasHex) + knownAliasHexes).distinct()) {
-                // Every alias here is one the contact sends to us on, and every one is queried on
-                // every sync: anyone in the chat list must always be found, whichever alias their
-                // app sends on (an old client, or a reinstall that started over on an old-style
-                // alias). The once-a-day lane for old-style aliases (iOS 00d4919) kept such a
-                // contact's messages off the list until the chat was opened or a day passed; iOS
-                // 60c9fd0 keeps that lane for its OUTGOING copies only, which Android never polls.
-                // block_time cursor, tracked per (contact, alias) since each is its own independent
-                // stream on the indexer — see MessageSyncCursorEntity's doc comment.
-                //
-                // PAGINATED. The single un-paged fetch this replaced asked for one page and then
-                // advanced the cursor to that page's newest block_time, so anything the indexer
-                // could not fit in one page was left permanently BELOW the cursor and could never
-                // be requested again. That is invisible for a live conversation (a page easily
-                // covers one poll interval) and fatal for the case this method exists to serve:
-                // the first fetch after a contact row finally appears, which is meant to pull the
-                // peer's WHOLE history — including everything they sent before any handshake
-                // existed, which nothing had ever asked the indexer for.
-                // The stored cursor is the newest block_time the indexer has RETURNED for this
-                // stream - and the indexer does not surface messages in block-time order:
-                // acceptance in the DAG is not monotonic, and an indexer catching up serves what
-                // it has. A reply can be returned before the message it replied to; a fetch that
-                // then started strictly at the cursor would never request the original again.
-                // One message missing from a thread for good, with everything after it delivered
-                // - which is exactly what a user saw, tapping a quote whose original their device
-                // never received. So every fetch starts a rewind window BEHIND the cursor (90s on
-                // the fast open-chat tick, ten minutes on a catch-up sweep); the txId dedupe below
-                // makes the overlap free. The window bounds how late the indexer may be;
-                // recoverMissingReplyOriginal covers anything later than that. Mirrors iOS
-                // syncStartBlockTime after its unconditional-rewind fix.
-                val storedCursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, aliasHex)
-                val rewindMs = if (pollShaped) LIVE_TAIL_REORG_REWIND_MS else SYNC_REORG_REWIND_MS
-                var fetchFrom: Long? = storedCursor?.let { (it - rewindMs).coerceAtLeast(0L) }
-                var newest = storedCursor ?: 0L
-                var page = 0
-                while (page < CONTEXTUAL_MAX_PAGES_PER_SWEEP) {
-                    page++
-                    val messages = try {
-                        api.getContextualMessagesBySender(
-                            contact.id, aliasHex,
-                            limit = CONTEXTUAL_PAGE_LIMIT,
-                            blockTime = fetchFrom,
-                        )
-                    } catch (e: Exception) {
-                        noteIndexerError()
-                        Log.w("ChatRepository", "Failed to fetch messages for ${contact.id}", e)
-                        break
-                    }
-                    if (messages.isEmpty()) break
-
-                    for (message in messages) {
-                        try {
-                            // A stored "[Encrypted message]" doesn't count as had: a successful
-                            // decrypt now replaces it and the message appears (iOS c130dc1).
-                            if (database.messageDao().existsShown(message.txId, myAddress, MessageEntity.HIDDEN_PLACEHOLDERS)) continue
-                            if (isTombstoned(deleted, message.txId, message.blockTime)) continue
-                            processContextualMessage(myAddress, contact, message, privateKey)
-                        } catch (e: Exception) {
-                            Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
-                        }
-                    }
-
-                    val maxBlockTime = messages.maxOf { it.blockTime }
-                    // The stored cursor only ever advances on its own (the recovery path is the
-                    // one thing that moves it back).
-                    if (maxBlockTime > newest) {
-                        newest = maxBlockTime
-                        database.messageDao().setMessageSyncCursor(
-                            MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = aliasHex, lastBlockTime = newest)
-                        )
-                    }
-                    // Paging walks on the PAGE's newest block_time, separately from the stored
-                    // cursor: with a rewound start, a full page can sit entirely at or below the
-                    // stored cursor (a chatty contact inside the window) and still have newer rows
-                    // behind it. Short page = caught up. `!moved` is the termination guard for a
-                    // full page that all shares one block_time: the query is inclusive (`>=`), so
-                    // without it the same page would be re-requested forever. The page cap keeps
-                    // one sweep bounded; a deep backlog simply finishes on the following sweeps.
-                    val moved = fetchFrom == null || maxBlockTime > fetchFrom
-                    if (messages.size < CONTEXTUAL_PAGE_LIMIT || !moved) break
-                    fetchFrom = maxBlockTime
+            beginChatFetch(contact.id)
+            try {
+                // Legacy: the alias they told us in their handshake reply, if any. Deterministic:
+                // derivable purely from both addresses, so it's always tryable even with no
+                // handshake at all — see WalletManager.myDeterministicAlias.
+                val legacyAliasHex = contact.theirAlias?.let { hexEncodeAscii(it) }
+                val deterministicAliasHex = try {
+                    hexEncodeAscii(walletManager.myDeterministicAlias(contact.id, privateKey, myAddress))
+                } catch (e: Exception) {
+                    null // Non-Schnorr/invalid address — skip the deterministic candidate for this contact.
                 }
+
+                // Every other alias they have been seen sending to us under - older handshakes, and
+                // any found on their own transactions. iOS sends under the first of ALL its legacy
+                // aliases, which need not be the one its last handshake named; missing it meant not
+                // one of their messages ever arrived here, while ours reached them fine.
+                val knownAliasHexes = try {
+                    discoverPeerAliases(myAddress, contact, onScreen = contact.id == notificationHelper.currentContactId, privateKey = privateKey)
+                    peerAliasStore.aliases(myAddress, contact.id).map { hexEncodeAscii(it) }
+                } catch (e: Exception) {
+                    Log.w("ChatRepository", "Alias discovery failed for ${contact.id.takeLast(8)}", e)
+                    emptyList()
+                }
+
+                for (aliasHex in (listOfNotNull(legacyAliasHex, deterministicAliasHex) + knownAliasHexes).distinct()) {
+                    // Every alias here is one the contact sends to us on, and every one is queried on
+                    // every sync: anyone in the chat list must always be found, whichever alias their
+                    // app sends on (an old client, or a reinstall that started over on an old-style
+                    // alias). The once-a-day lane for old-style aliases (iOS 00d4919) kept such a
+                    // contact's messages off the list until the chat was opened or a day passed; iOS
+                    // 60c9fd0 keeps that lane for its OUTGOING copies only (see
+                    // [syncOutgoingContextualMessages]).
+                    // block_time cursor, tracked per (contact, alias) since each is its own independent
+                    // stream on the indexer — see MessageSyncCursorEntity's doc comment.
+                    //
+                    // PAGINATED. The single un-paged fetch this replaced asked for one page and then
+                    // advanced the cursor to that page's newest block_time, so anything the indexer
+                    // could not fit in one page was left permanently BELOW the cursor and could never
+                    // be requested again. That is invisible for a live conversation (a page easily
+                    // covers one poll interval) and fatal for the case this method exists to serve:
+                    // the first fetch after a contact row finally appears, which is meant to pull the
+                    // peer's WHOLE history — including everything they sent before any handshake
+                    // existed, which nothing had ever asked the indexer for.
+                    // The stored cursor is the newest block_time the indexer has RETURNED for this
+                    // stream - and the indexer does not surface messages in block-time order:
+                    // acceptance in the DAG is not monotonic, and an indexer catching up serves what
+                    // it has. A reply can be returned before the message it replied to; a fetch that
+                    // then started strictly at the cursor would never request the original again.
+                    // One message missing from a thread for good, with everything after it delivered
+                    // - which is exactly what a user saw, tapping a quote whose original their device
+                    // never received. So every fetch starts a rewind window BEHIND the cursor (90s on
+                    // the fast open-chat tick, ten minutes on a catch-up sweep); the txId dedupe below
+                    // makes the overlap free. The window bounds how late the indexer may be;
+                    // recoverMissingReplyOriginal covers anything later than that. Mirrors iOS
+                    // syncStartBlockTime after its unconditional-rewind fix.
+                    val storedCursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, aliasHex)
+                    val rewindMs = if (pollShaped) LIVE_TAIL_REORG_REWIND_MS else SYNC_REORG_REWIND_MS
+                    var fetchFrom: Long? = storedCursor?.let { (it - rewindMs).coerceAtLeast(0L) }
+                    var newest = storedCursor ?: 0L
+                    var page = 0
+                    while (page < CONTEXTUAL_MAX_PAGES_PER_SWEEP) {
+                        page++
+                        val messages = try {
+                            api.getContextualMessagesBySender(
+                                contact.id, aliasHex,
+                                limit = CONTEXTUAL_PAGE_LIMIT,
+                                blockTime = fetchFrom,
+                            )
+                        } catch (e: Exception) {
+                            noteIndexerError()
+                            noteChatFetchFailed(contact.id, e)
+                            Log.w("ChatRepository", "Failed to fetch messages for ${contact.id.takeLast(8)}", e)
+                            break
+                        }
+                        if (messages.isEmpty()) break
+                        markChatFetchLoading(contact.id)
+
+                        for (message in messages) {
+                            // A switch of account mid-fetch: the rest is the next sync's, and the
+                            // cursors below stay where they are (iOS 4f8e14bb).
+                            if (!isActiveWalletAddress(myAddress)) return index
+                            try {
+                                // A stored "[Encrypted message]" doesn't count as had: a successful
+                                // decrypt now replaces it and the message appears (iOS c130dc1).
+                                if (database.messageDao().existsShown(message.txId, myAddress, MessageEntity.HIDDEN_PLACEHOLDERS)) continue
+                                if (isTombstoned(deleted, message.txId, message.blockTime)) continue
+                                processContextualMessage(myAddress, contact, message, privateKey)
+                            } catch (e: Exception) {
+                                Log.w("ChatRepository", "Failed to process message ${message.txId}", e)
+                            }
+                        }
+
+                        val maxBlockTime = messages.maxOf { it.blockTime }
+                        // The stored cursor only ever advances on its own (the recovery path is the
+                        // one thing that moves it back).
+                        if (maxBlockTime > newest) {
+                            newest = maxBlockTime
+                            database.messageDao().setMessageSyncCursor(
+                                MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = aliasHex, lastBlockTime = newest)
+                            )
+                        }
+                        // Paging walks on the PAGE's newest block_time, separately from the stored
+                        // cursor: with a rewound start, a full page can sit entirely at or below the
+                        // stored cursor (a chatty contact inside the window) and still have newer rows
+                        // behind it. Short page = caught up. `!moved` is the termination guard for a
+                        // full page that all shares one block_time: the query is inclusive (`>=`), so
+                        // without it the same page would be re-requested forever. The page cap keeps
+                        // one sweep bounded; a deep backlog simply finishes on the following sweeps.
+                        val moved = fetchFrom == null || maxBlockTime > fetchFrom
+                        if (messages.size < CONTEXTUAL_PAGE_LIMIT || !moved) break
+                        fetchFrom = maxBlockTime
+                    }
+                }
+                // Phase isolation, as iOS: a failed incoming pass must not starve the outgoing one -
+                // each alias moves only its own cursor.
+                try {
+                    syncOutgoingContextualMessages(myAddress, contact, api, privateKey, pollShaped, sharedLegacyAliases, deleted)
+                } catch (e: Exception) {
+                    noteChatFetchFailed(contact.id, e)
+                    Log.w("ChatRepository", "Outgoing sync failed for ${contact.id.takeLast(8)}", e)
+                }
+            } finally {
+                endChatFetch(contact.id)
             }
             onContactDone?.invoke(index + 1, syncableContacts.size)
         }
@@ -2100,18 +2318,315 @@ class ChatRepository @Inject constructor(
      * case where a preview matters most is exactly the case with nothing to preview. The message
      * is public on the blockDAG and this device already holds the key that opens it.
      */
-    suspend fun decryptChainMessage(txId: String): String? {
-        val api = networkService.kaspaRestApi.value ?: return null
+    suspend fun decryptChainMessage(txId: String): String? =
+        (readChainMessage(txId) as? ContextualRead.Message)?.text
+
+    /**
+     * [decryptChainMessage], saying why there is no text (iOS `readContextualMessage`, bfe9f022):
+     * a well-formed `kchat:1:comm:` message whose seal our key fails to open was sealed to someone
+     * else; no key, no network or anything that doesn't parse says nothing about who it's for.
+     */
+    suspend fun readChainMessage(txId: String): ContextualRead {
+        val api = networkService.kaspaRestApi.value ?: return ContextualRead.Unreadable
         return try {
-            val payloadHex = api.getTransactionPayload(txId).payload?.takeIf { it.isNotEmpty() } ?: return null
-            val sealed = decodeOnChainContextualPayload(payloadHex) ?: return null
-            val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed) ?: return null
-            MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes())
+            val payloadHex = api.getTransactionPayload(txId).payload?.takeIf { it.isNotEmpty() } ?: return ContextualRead.Unreadable
+            val sealed = decodeOnChainContextualPayload(payloadHex) ?: return ContextualRead.Unreadable
+            val encrypted = KasiaCipher.EncryptedMessage.fromBytes(sealed) ?: return ContextualRead.Unreadable
+            ContextualRead.Message(MessageProtocol.decrypt(encrypted, walletManager.getPrivateKeyBytes()))
+        } catch (e: org.bouncycastle.crypto.InvalidCipherTextException) {
+            ContextualRead.NotForThisAccount
         } catch (e: Exception) {
             Log.d("ChatRepository", "Off-chain read failed for ${txId.take(12)}: ${e.message}")
-            null
+            ContextualRead.Unreadable
         }
     }
+
+    /** What reading a contextual payload came to - see [readChainMessage]. */
+    sealed class ContextualRead {
+        data class Message(val text: String) : ContextualRead()
+        object NotForThisAccount : ContextualRead()
+        object Unreadable : ContextualRead()
+    }
+
+    // MARK: - Reading back our own sends (iOS bfe9f022, MESSAGING.md "Reading back your own sends")
+
+    /** When each chat's own sends were last read on the poll path - see [syncOutgoingContextualMessages]. */
+    private val outgoingSyncedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** When each old-style alias of ours was last read, this launch (iOS `legacyAliasPolledAtMs`). */
+    private val legacyOutgoingAliasPolledAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * Own sends already settled this process: an envelope is applied once, not again on every
+     * tick its transaction stays inside the rewind window (a reaction changed meanwhile would flip
+     * back), and what can't be read back isn't tried again. Keys include the wallet.
+     */
+    private val ownSendsHandled = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * This wallet's own sends to [contact], from any device (iOS `fetchOutgoingContextualMessages`):
+     * everything the indexer holds under (sender = us, alias = ours for them). The seed reads each
+     * one back ([fileOwnSend]), so a chat's history comes back on a new device with no archive.
+     * Self-chat notes come back on the incoming scan already, with their text.
+     *
+     * Every alias moves its own cursor, kept beside the incoming ones under [OUTGOING_CURSOR_PREFIX].
+     * Old-style aliases ride iOS's slow lane (`shouldPollAlias`): once per launch, then daily,
+     * except the one this chat still sends on. On the poll path the chat on screen is read every
+     * tick and the others every [OUTGOING_SWEEP_INTERVAL_MS]: Android has no live UTXO subscription
+     * to hear a send from another device (the own-send push is the other way, [noteOwnSentPush]),
+     * and two more GETs per contact per sweep would double the poll's traffic.
+     */
+    private suspend fun syncOutgoingContextualMessages(
+        myAddress: String,
+        contact: ContactEntity,
+        api: KasiaIndexerApi,
+        privateKey: ByteArray,
+        pollShaped: Boolean,
+        sharedLegacyAliases: Set<String>,
+        deleted: DeletedContactEntity?,
+    ) {
+        // A script address holds no key anything could have been sealed to (iOS KaspaAddress.publicKey).
+        if (contact.id == myAddress || isScriptAddress(contact.id)) return
+        val now = System.currentTimeMillis()
+        if (pollShaped && contact.id != notificationHelper.currentContactId) {
+            val key = "$myAddress|${contact.id}"
+            if (now - (outgoingSyncedAt[key] ?: 0L) < OUTGOING_SWEEP_INTERVAL_MS) return
+            outgoingSyncedAt[key] = now
+        }
+        val recipientKey = runCatching { KaspaAddress.decode(contact.id).second }.getOrNull() ?: return
+        val deterministicAlias = runCatching {
+            KasiaCipher.deriveDeterministicAlias(privateKey, recipientKey, contextXOnlyPubKey = recipientKey)
+        }.getOrNull() ?: return
+        val currentAlias = com.kachat.app.util.HandshakeAliasPolicy.messageAlias(contact.handshakeComplete, contact.myAlias, deterministicAlias)
+        val aliases = listOfNotNull(deterministicAlias, contact.myAlias?.trim()?.takeIf { it.isNotEmpty() }).distinct()
+        val retentionCutoff = settingsRepository.backupRetention.first().cutoffMillis(now)
+
+        for (alias in aliases) {
+            val aliasHex = hexEncodeAscii(alias)
+            val cursorKey = OUTGOING_CURSOR_PREFIX + aliasHex
+            val laneKey = "$myAddress|${contact.id}|$alias"
+            if (alias != deterministicAlias && alias != currentAlias) {
+                val polledAt = legacyOutgoingAliasPolledAt[laneKey]
+                if (polledAt != null && now - polledAt in 0 until LEGACY_OUTGOING_ALIAS_POLL_INTERVAL_MS) continue
+            }
+            val storedCursor = database.messageDao().getMessageSyncCursor(contact.id, myAddress, cursorKey)
+            val rewindMs = if (pollShaped) LIVE_TAIL_REORG_REWIND_MS else SYNC_REORG_REWIND_MS
+            // Nothing older than the retention window: it would be pruned again (iOS applyMessageRetention).
+            var fetchFrom: Long? = listOfNotNull(storedCursor?.let { (it - rewindMs).coerceAtLeast(0L) }, retentionCutoff).maxOrNull()
+            var newest = storedCursor ?: 0L
+            var page = 0
+            while (page < CONTEXTUAL_MAX_PAGES_PER_SWEEP) {
+                page++
+                val messages = try {
+                    api.getContextualMessagesBySender(myAddress, aliasHex, limit = CONTEXTUAL_PAGE_LIMIT, blockTime = fetchFrom)
+                } catch (e: Exception) {
+                    noteIndexerError()
+                    noteChatFetchFailed(contact.id, e)
+                    Log.w("ChatRepository", "Failed to fetch own sends to ${contact.id.takeLast(8)}", e)
+                    break
+                }
+                legacyOutgoingAliasPolledAt[laneKey] = now
+                if (messages.isEmpty()) break
+                markChatFetchLoading(contact.id)
+                for (message in messages.sortedWith(compareBy({ it.blockTime }, { it.txId }))) {
+                    try {
+                        // A switch of account mid-fetch: the rest is the next sync's.
+                        if (!isActiveWalletAddress(myAddress)) return
+                        fileOwnSend(myAddress, contact, message.txId, message.blockTime, message.messagePayload, recipientKey, privateKey, alias in sharedLegacyAliases, deleted)
+                    } catch (e: Exception) {
+                        Log.w("ChatRepository", "Failed to process own send ${message.txId}", e)
+                    }
+                }
+                val maxBlockTime = messages.maxOf { it.blockTime }
+                if (maxBlockTime > newest) {
+                    newest = maxBlockTime
+                    database.messageDao().setMessageSyncCursor(
+                        MessageSyncCursorEntity(contactId = contact.id, walletAddress = myAddress, aliasHex = cursorKey, lastBlockTime = newest)
+                    )
+                }
+                // The same paging rules as the incoming fetch above.
+                val moved = fetchFrom == null || maxBlockTime > fetchFrom
+                if (messages.size < CONTEXTUAL_PAGE_LIMIT || !moved) break
+                fetchFrom = maxBlockTime
+            }
+        }
+    }
+
+    /**
+     * One of our own sends read off the chain. Held here with its text, it's left alone. Read back
+     * with the seed, it goes through what `addMessageToConversation` does with an outgoing message:
+     * an edit, reaction or payment_notice is never a bubble, and a send still in flight here
+     * becomes this row. What can't be read back - a send from before that existed, which used a
+     * random key that's gone - stays the hidden [MessageEntity.SENT_VIA_OTHER_DEVICE_PLACEHOLDER]
+     * until an archive has its text; except when [aliasIsShared], where the alias can't say whose
+     * chat it belongs in: writing a message sent to one person into the thread of another is
+     * worse than no record of it (iOS `outgoingAliasBelongsToAnotherContact`).
+     */
+    private suspend fun fileOwnSend(
+        myAddress: String,
+        contact: ContactEntity,
+        txId: String,
+        blockTime: Long,
+        payloadHex: String,
+        recipientKey: ByteArray,
+        privateKey: ByteArray,
+        aliasIsShared: Boolean,
+        deleted: DeletedContactEntity?,
+    ) {
+        val handledKey = "$myAddress|$txId"
+        if (handledKey in ownSendsHandled) return
+        if (ownSendsHandled.size > 5_000) ownSendsHandled.clear()
+        val dao = database.messageDao()
+        val existing = dao.getById(txId, myAddress)
+        if (existing != null && !existing.isHiddenPlaceholder) {
+            // A Not confirmed send of ours, now read back: it went out.
+            settleUnconfirmedSend(txId, myAddress)
+            ownSendsHandled.add(handledKey)
+            return
+        }
+        if (isTombstoned(deleted, txId, blockTime)) return
+        // A reaction's own transaction never has a row of its own (iOS isKnownReaction).
+        if (existing == null && database.reactionDao().countByReactionTxId(txId, myAddress) > 0) {
+            ownSendsHandled.add(handledKey)
+            return
+        }
+
+        val plaintext = MessageProtocol.decryptSentMessage(payloadHex, privateKey, recipientKey)
+        if (plaintext == null) {
+            // Not settled while the alias is shared: another chat may be the one that can open it.
+            if (aliasIsShared) return
+            ownSendsHandled.add(handledKey)
+            if (existing != null) return
+            insertMessageIfAbsent(
+                MessageEntity(
+                    id = txId,
+                    contactId = contact.id,
+                    walletAddress = myAddress,
+                    type = MessageProtocol.TYPE_COMM,
+                    direction = "sent",
+                    plaintextBody = MessageEntity.SENT_VIA_OTHER_DEVICE_PLACEHOLDER,
+                    encryptedPayload = payloadHex,
+                    amountSompi = null,
+                    blockTimestamp = blockTime,
+                    isRead = true,
+                    deliveryStatus = "sent",
+                )
+            )
+            return
+        }
+        ownSendsHandled.add(handledKey)
+
+        val edit = com.kachat.app.util.MessageEdit.parseOrNull(plaintext)
+        val reaction = if (edit == null) MessageReaction.parseOrNull(plaintext) else null
+        val poolEnvelope = if (edit == null && reaction == null) com.kachat.app.util.PaymentPoolProtocol.parse(plaintext) else null
+        if (edit != null || reaction != null || poolEnvelope != null) {
+            if (existing != null) dao.deleteById(txId, myAddress)
+            when {
+                edit != null -> applyIncomingEdit(edit, editorIsMe = true, contactId = contact.id, editTxId = txId, blockTime = blockTime, walletAddress = myAddress)
+                reaction != null && reaction.action == "add" -> upsertReaction(reaction.targetTxId, myAddress, contact.id, reaction.emoji, txId, blockTime, walletAddress = myAddress)
+                reaction != null -> removeReaction(reaction.targetTxId, myAddress, walletAddress = myAddress)
+                poolEnvelope is com.kachat.app.util.PaymentPoolProtocol.Envelope.Notice -> handlePaymentNotice(
+                    myAddress = myAddress,
+                    contact = contact,
+                    notice = poolEnvelope.content,
+                    noticeTxId = txId,
+                    blockTime = blockTime,
+                    isOutgoing = true,
+                    plaintext = plaintext,
+                )
+            }
+            return
+        }
+
+        val row = MessageEntity(
+            id = txId,
+            contactId = contact.id,
+            walletAddress = myAddress,
+            type = MessageProtocol.TYPE_COMM,
+            direction = "sent",
+            plaintextBody = plaintext,
+            encryptedPayload = payloadHex,
+            amountSompi = null,
+            blockTimestamp = blockTime,
+            isRead = true,
+            deliveryStatus = "sent",
+        )
+        // A send still in flight on this device: same text, so it is this one (iOS
+        // updateOutgoingPendingMessageIfMatch). Otherwise its own finalize merges into this row.
+        val provisional = matchProvisionalOutgoing(contact.id, plaintext, blockTime) as? ProvisionalMatch.Exact
+        if (provisional != null) upgradeProvisionalMessage(provisional.row, row) else insertMessage(row)
+        // Went out in a chat with no handshake: a fresh import can find it again
+        // (iOS addMessageToConversation -> ensureContactStash).
+        contactNotesLazy.get().onMessageDelivered(contact.id)
+    }
+
+    /**
+     * A push about one of our own sends, from another device of this seed (iOS
+     * `addOutgoingMessageFromPush`): stored now, in the background. Its banner stays silent (see
+     * the FCM service). A send made on this device is already stored by the time this looks.
+     */
+    fun noteOwnSentPush(txId: String) {
+        val me = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotBlank() } ?: return
+        if (txId.isBlank()) return
+        scope.launch {
+            try {
+                // A moment first: this device's own send may still be recording its txId (iOS).
+                delay(OWN_SEND_PUSH_DELAY_MS)
+                ingestOwnSentPush(me, txId)
+            } catch (e: Exception) {
+                Log.d("ChatRepository", "Own send ${txId.take(12)} not read from its push: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun ingestOwnSentPush(myAddress: String, txId: String) {
+        if (walletManager.isLoggedOut || onboardingGate.isHeld) return
+        if (database.messageDao().existsShown(txId, myAddress, MessageEntity.HIDDEN_PLACEHOLDERS)) return
+        val privateKey = accountKey(myAddress) ?: return
+        val restApi = networkService.kaspaRestApi.value ?: return
+        val read = restApi.getTransactionPayload(txId)
+        val payloadHex = read.payload?.takeIf { it.isNotEmpty() } ?: return
+        val alias = MessageProtocol.parseCommPayload(payloadHex.hexToBytes())?.first ?: return
+        val contacts = database.contactDao().getContactsByStatus("active", myAddress) +
+            database.contactDao().getContactsByStatus("pending", myAddress)
+        val owners = contacts.filter { contact ->
+            if (contact.id == myAddress) return@filter false
+            if (contact.myAlias?.trim() == alias) return@filter true
+            val key = runCatching { KaspaAddress.decode(contact.id).second }.getOrNull() ?: return@filter false
+            runCatching { KasiaCipher.deriveDeterministicAlias(privateKey, key, contextXOnlyPubKey = key) }.getOrNull() == alias
+        }
+        for (contact in owners) {
+            val key = runCatching { KaspaAddress.decode(contact.id).second }.getOrNull() ?: continue
+            fileOwnSend(
+                myAddress, contact, txId, read.blockTime ?: System.currentTimeMillis(), payloadHex, key, privateKey,
+                aliasIsShared = owners.size > 1,
+                deleted = database.contactDao().getDeletedContact(contact.id, myAddress),
+            )
+        }
+    }
+
+    /** A pushed message that turned out not to be for this account is not looked for again. */
+    fun forgetPushedMessage(txId: String) {
+        val me = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotBlank() } ?: return
+        pushedMessageQueue.remove(me, setOf(txId))
+    }
+
+    // MARK: - Incoming 1:1 photos (iOS d1844582, ContactsManager.photosUnlockDate)
+
+    /**
+     * The one rule for photos from someone, with no setting to change it and no way to reveal one
+     * early: hidden until you have both sent a message and 10 minutes have passed. Null until both
+     * of you have. Kept once known, so trimming old messages can't hide their photos again.
+     */
+    fun photosUnlockAt(contactId: String): Flow<Long?> = scopedToActiveAccount(
+        { address ->
+            database.messageDao().getPhotoUnlockTimes(contactId, address).map { times ->
+                photoUnlockStore.unlockAt(address, contactId)
+                    ?: photosUnlockTime(times.firstSent, times.firstReceived)?.also { photoUnlockStore.store(address, contactId, it) }
+            }
+        },
+        null,
+    )
 
     /**
      * [myAddress] is passed down from [syncContextualMessages] rather than re-read here via
@@ -2469,7 +2984,6 @@ class ChatRepository @Inject constructor(
             )
             if (inserted == -1L) return
         }
-        scheduleAutoBackupIfEnabled()
         Log.i("ChatRepository", "Payment ${txId.take(12)} filed in its chat from a payment_notice ($status)")
         if (isOutgoing) return
 
@@ -2714,6 +3228,8 @@ class ChatRepository @Inject constructor(
                 // which only that notice's own chain check may confirm or move (IOS-083 run 11).
                 if (database.messageDao().exists(tx.transactionId, myAddress)) {
                     if (isHeld) releaseHeldPayment(myAddress, tx.transactionId)
+                    // Only a payment of ours stored as Not confirmed changes: it went out.
+                    settleUnconfirmedSend(tx.transactionId, myAddress)
                     seenPaymentTxIds.add(seenKey)
                     continue
                 }
@@ -2983,6 +3499,17 @@ class ChatRepository @Inject constructor(
             database.messageDao().exists(tx.transactionId, myAddress)
         ) return true
 
+        // A payment sent from another device: its memo is sealed to the recipient, and the seed
+        // reads it back (iOS bfe9f022 decryptSentPayment).
+        val payloadBytes = runCatching { tx.payload?.hexToBytes() }.getOrNull()
+        val memo = if (payloadBytes != null && MessageProtocol.isPaymentPayload(payloadBytes)) {
+            val key = accountKey(myAddress)
+            val recipientKey = runCatching { KaspaAddress.decode(recipient).second }.getOrNull()
+            if (key != null && recipientKey != null) {
+                MessageProtocol.decryptSentPayment(payloadBytes, key, recipientKey)?.message?.trim()?.takeIf { it.isNotEmpty() }
+            } else null
+        } else null
+
         if (database.contactDao().getContact(recipient, myAddress) == null) {
             // Active: a chat you paid into, and from now on watched for their reply like any
             // contact (iOS addMessageToConversation's `isPaymentWeSent` routing state).
@@ -2998,7 +3525,11 @@ class ChatRepository @Inject constructor(
                 type = "pay",
                 direction = "sent",
                 // The send path's own wording, so its row and this one read the same.
-                plaintextBody = "Sent ${KaspaUnit.plain(amountSompi)} ${KaspaUnit.symbol}",
+                plaintextBody = if (memo == null) {
+                    KaspaUnit.label(appContext.getString(com.kachat.app.R.string.sent_amount_kas)).format(KaspaUnit.plain(amountSompi))
+                } else {
+                    KaspaUnit.label(appContext.getString(com.kachat.app.R.string.sent_amount_kas_memo)).format(KaspaUnit.plain(amountSompi), memo)
+                },
                 encryptedPayload = "",
                 amountSompi = amountSompi,
                 blockTimestamp = blockTime,
@@ -3006,7 +3537,11 @@ class ChatRepository @Inject constructor(
                 deliveryStatus = "sent"
             )
         )
-        if (!filed) return true
+        if (!filed) {
+            // Already stored: one whose outcome was unknown went out after all.
+            settleUnconfirmedSend(tx.transactionId, myAddress)
+            return true
+        }
         Log.i("ChatRepository", "Restored sent payment ${tx.transactionId.take(12)} in its chat")
         // A chat with no handshake gets its contact note, so the next import finds it again
         // (iOS addMessageToConversation -> ensureContactStash for a sent message).
@@ -3290,7 +3825,216 @@ class ChatRepository @Inject constructor(
         }
     }
 
+    // MARK: - With the indexer down (iOS 4f8e14bb)
+
+    /** First-contact transactions being checked right now, so a block seen twice is handled once. */
+    private val inboxScanInFlight = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    init {
+        scope.launch {
+            com.kachat.app.services.IndexerHealth.recovered.collect { downSinceMs ->
+                try {
+                    catchUpAfterIndexerOutage(downSinceMs)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("ChatRepository", "Catch-up after the indexer came back failed", e)
+                }
+            }
+        }
+        // While the indexer is down, for the active account, with the app in front: every block
+        // from the node is checked for a first-contact message tagged for this wallet.
+        scope.launch {
+            combine(
+                com.kachat.app.services.IndexerHealth.isDown,
+                walletManager.activeAddressFlow,
+                notificationHelper.appForegroundFlow,
+            ) { down, address, foreground -> if (down && foreground) address?.takeIf { it.isNotEmpty() } else null }
+                .distinctUntilChanged()
+                .collectLatest { wallet ->
+                    if (wallet != null) runInboxBlockScan(wallet)
+                }
+        }
+    }
+
+    /**
+     * The indexer is back: it serves the outage window again, so anything the chain's history
+     * didn't have comes in now. Messages already here are dropped by txId (iOS
+     * `catchUpAfterIndexerOutage`). The wallet's own payment read is the REST API's either way.
+     */
+    private suspend fun catchUpAfterIndexerOutage(downSinceMs: Long) {
+        val floor = (downSinceMs - OUTAGE_REWIND_MARGIN_MS).coerceAtLeast(0L)
+        database.messageDao().rewindAllMessageSyncCursors(floor)
+        val myAddress = runCatching { walletManager.getAddress() }.getOrNull()?.takeIf { it.isNotEmpty() }
+        if (myAddress != null) {
+            settingsRepository.handshakeSyncCursor(myAddress).first()?.takeIf { it > floor }?.let {
+                settingsRepository.setHandshakeSyncCursor(myAddress, floor)
+            }
+            settingsRepository.handshakeOutSyncCursor(myAddress).first()?.takeIf { it > floor }?.let {
+                settingsRepository.setHandshakeOutSyncCursor(myAddress, floor)
+            }
+        }
+        syncMessages(fromPollLoop = false)
+    }
+
+    /**
+     * With the indexer down nothing can look an inbox tag up, so someone writing for the first
+     * time would go unseen: their address isn't subscribed to. Until it's back, every block from
+     * the node is checked for a first-contact message tagged for [wallet] (iOS
+     * `refreshInboxBlockScan`). Ends when the caller's `collectLatest` moves on.
+     */
+    private suspend fun runInboxBlockScan(wallet: String) {
+        val tagged = com.kachat.app.services.ChainHistoryRows.hex(
+            MessageProtocol.DM_PREFIX + com.kachat.app.util.InboxTag.compute(wallet) + ":"
+        )
+        while (true) {
+            var conn: com.kachat.app.services.grpc.KaspadConnection? = null
+            var subscribed = false
+            try {
+                val connection = nodePoolManagerLazy.get().getBroadcastConnection()
+                conn = connection
+                // Captured before subscribing: a death racing the NOTIFY_START reads as moved.
+                val subscribedGeneration = connection.connectionGeneration.value
+                val blocks = connection.subscribeToBlockAdded(owner = INBOX_SCAN_OWNER)
+                subscribed = true
+                kotlinx.coroutines.coroutineScope {
+                    val collector = launch {
+                        blocks.collect { block ->
+                            val blockTime = if (block.hasHeader()) block.header.timestamp else System.currentTimeMillis()
+                            for (tx in block.transactionsList) {
+                                if (tx.payload.startsWith(tagged) && tx.hasVerboseData()) {
+                                    scope.launch { ingestInboxBlockHit(tx, blockTime, wallet) }
+                                }
+                            }
+                        }
+                    }
+                    connection.connectionGeneration.first { it != subscribedGeneration }
+                    collector.cancel()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("ChatRepository", "Inbox block scan interrupted, retrying", e)
+            } finally {
+                if (subscribed) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                        try {
+                            conn?.unsubscribeFromBlockAdded(owner = INBOX_SCAN_OWNER)
+                        } catch (e: Exception) {
+                            Log.d("ChatRepository", "Inbox block scan stop failed: ${e.message}")
+                        }
+                    }
+                }
+            }
+            delay(INBOX_SCAN_RETRY_MS)
+        }
+    }
+
+    /**
+     * The first output only claims who wrote it; the input's signature has to prove it before a
+     * contact and a Message Request exist for them (iOS `ingestInboxBlockHit`). A guard around
+     * the whole of it: one transaction that can't be handled costs nothing else.
+     */
+    private suspend fun ingestInboxBlockHit(tx: protowire.Rpc.RpcTransaction, blockTime: Long, wallet: String) {
+        val txId = tx.verboseData.transactionId
+        if (walletManager.isLoggedOut || onboardingGate.isHeld) return
+        if (txId.isBlank() || !isActiveWalletAddress(wallet) || !inboxScanInFlight.add(txId)) return
+        try {
+            if (database.messageDao().exists(txId, wallet)) return
+            val sender = tx.outputsList.firstOrNull()?.let { output ->
+                KaspaAddress.addressFromScriptPublicKey(output.scriptPublicKey.scriptPublicKey)
+            } ?: return
+            if (sender.equals(wallet, ignoreCase = true) || chatRequestStore.isBlocked(sender)) return
+            if (isTombstoned(database.contactDao().getDeletedContact(sender, wallet), txId, blockTime)) return
+            // UNKNOWN is the REST server not listing the new transaction yet, not a bad signature:
+            // asked again a few times, or a first message from someone new would be lost for good.
+            val chainHistory = networkService.chainHistory
+            var proof = chainHistory.provenSender(txId, sender, wallet)
+            var attempt = 0
+            while (proof == com.kachat.app.services.SenderProof.UNKNOWN && attempt < INBOX_PROOF_RETRIES && isActiveWalletAddress(wallet)) {
+                attempt++
+                delay(attempt * INBOX_PROOF_RETRY_STEP_MS)
+                proof = chainHistory.provenSender(txId, sender, wallet)
+            }
+            if (proof != com.kachat.app.services.SenderProof.PROVEN || !isActiveWalletAddress(wallet)) return
+            val privateKey = accountKey(wallet) ?: return
+            val isNewSender = database.contactDao().getContact(sender, wallet) == null
+            if (isNewSender) {
+                val senderPubKeyHex = runCatching {
+                    KaspaAddress.decode(sender).second.joinToString("") { "%02x".format(it) }
+                }.getOrNull()
+                database.contactDao().insert(
+                    ContactEntity(
+                        id = sender, walletAddress = wallet, alias = null, knsName = null,
+                        publicKeyHex = senderPubKeyHex,
+                        // Not accepted yet: a Message Request, out of the push watch list.
+                        conversationStatus = "pending",
+                    )
+                )
+            }
+            val contact = database.contactDao().getContact(sender, wallet) ?: return
+            val normalized = MessageProtocol.normalizeFirstContact(String(tx.payload.hexToBytes(), Charsets.UTF_8))
+            val parts = normalized.split(":", limit = 5)
+            if (parts.size == 5 && parts[4].isNotEmpty()) {
+                processContextualMessage(
+                    wallet,
+                    contact,
+                    ContextualMessageIndexerResponse(
+                        txId = txId,
+                        sender = sender,
+                        alias = com.kachat.app.services.ChainHistoryRows.hex(parts[3]),
+                        blockTime = blockTime,
+                        messagePayload = com.kachat.app.services.ChainHistoryRows.hex(parts[4]),
+                    ),
+                    privateKey,
+                )
+            }
+            if (isNewSender) {
+                networkService.indexerApi.value?.let { syncContextualMessages(wallet, it, onlyContactIds = setOf(sender)) }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("ChatRepository", "First-contact block hit ${txId.take(12)} failed", e)
+        } finally {
+            inboxScanInFlight.remove(txId)
+        }
+    }
+
     companion object {
+        /** The subscriber name of the first-contact block scan on the node connection. */
+        private const val INBOX_SCAN_OWNER = "inbox-scan"
+        private const val INBOX_SCAN_RETRY_MS = 5_000L
+        private const val INBOX_PROOF_RETRIES = 3
+        private const val INBOX_PROOF_RETRY_STEP_MS = 3_000L
+        /** How far behind an outage's start the cursors rewind when the indexer is back. */
+        private const val OUTAGE_REWIND_MARGIN_MS = 10 * 60_000L
+
+        /**
+         * [matchProvisionalOutgoing]'s decision. Pending rows only for the sole-candidate
+         * fallback: a Failed row is settled by its content, never by being the only one left,
+         * which used to turn it into Sent on another message's transaction (iOS 4f8e14bb). A live
+         * send of the same text is the likelier source and goes first.
+         */
+        internal fun matchProvisionalCandidates(
+            candidates: List<MessageEntity>,
+            plaintextBody: String?,
+            nearTimestamp: Long,
+        ): ProvisionalMatch {
+            if (candidates.isEmpty()) return ProvisionalMatch.None
+            val body = plaintextBody?.trim()
+            if (!body.isNullOrEmpty()) {
+                val sameText = candidates.filter { it.plaintextBody?.trim() == body }
+                (sameText.firstOrNull { it.deliveryStatus == "pending" } ?: sameText.firstOrNull())
+                    ?.let { return ProvisionalMatch.Exact(it) }
+            }
+            val pending = candidates.filter { it.deliveryStatus == "pending" }
+            if (pending.isEmpty()) return ProvisionalMatch.None
+            val sole = pending.singleOrNull() ?: return ProvisionalMatch.Ambiguous
+            val archiveIsNewer = nearTimestamp <= 0L || nearTimestamp >= sole.blockTimestamp - PROVISIONAL_CLOCK_SKEW_MS
+            return if (archiveIsNewer) ProvisionalMatch.Sole(sole) else ProvisionalMatch.None
+        }
+
         /**
          * [firstContactInboxTag]'s decision. Every address check is case-insensitive, the
          * "have they written to us" lookup included: it used to match the stored conversation
@@ -3651,30 +4395,13 @@ class ChatRepository @Inject constructor(
             }
         }
 
-        /**
-         * Whether an incoming photo bubble from [contact] should auto-decode and render, vs.
-         * staying hidden behind a "Show Photo" tap. Mirrors iOS's
-         * `ContactsManager.shouldAutoDisplayPhotos(for:settings:)`.
-         *
-         * Unlike iOS (which added a dedicated `isAutoAdded`/`hasSentOutgoingMessage` pair),
-         * Android already has an equivalent trust signal in [ContactEntity.conversationStatus]:
-         * "pending" means an unsolicited incoming handshake the user hasn't accepted (or replied
-         * to with their own handshake) yet, while "active" means either the user added/messaged
-         * them first or accepted their request — see [deriveIncomingHandshakeStatus] and
-         * `ChatViewModel.addContact`, which defaults manually-added contacts to "active". Since a
-         * contact can't send a photo message at all without a completed handshake, this reuses
-         * that field instead of duplicating it.
-         *
-         * [requireApproval] is Settings > Chats > "Require approval for photos from new contacts"
-         * (on by default); off, Automatic shows every contact's photos, as on iOS.
-         */
-        fun shouldAutoDisplayPhotos(contact: ContactEntity?, requireApproval: Boolean = true): Boolean {
-            return when (PhotoAutoDisplayMode.fromName(contact?.photoAutoDisplayOverride)) {
-                PhotoAutoDisplayMode.ALWAYS_SHOW -> true
-                PhotoAutoDisplayMode.ALWAYS_HIDE -> false
-                PhotoAutoDisplayMode.AUTOMATIC -> !requireApproval || contact?.conversationStatus == "active"
-            }
+        /** [photosUnlockAt]'s date: 10 minutes after whichever of you wrote first came second. */
+        internal fun photosUnlockTime(firstSent: Long?, firstReceived: Long?): Long? {
+            if (firstSent == null || firstReceived == null) return null
+            return maxOf(firstSent, firstReceived) + PHOTO_UNLOCK_DELAY_MS
         }
+
+        private const val PHOTO_UNLOCK_DELAY_MS = 600_000L
 
         /**
          * Unlike handshake payloads (raw binary on-chain), comm payloads are base64 text
@@ -3725,6 +4452,7 @@ class ChatRepository @Inject constructor(
 
         /** Cap for the double-per-consecutive-indexer-failure backoff in the poll loop. */
         private const val POLL_BACKOFF_CAP_MS = 60_000L
+        private const val SYNC_TROUBLE_AFTER_FAILED_CYCLES = 3
 
         /** How often a contact's own transactions are read for aliases - see [discoverPeerAliases]. */
         private const val ALIAS_DISCOVERY_ON_SCREEN_MS = 30_000L
@@ -3764,6 +4492,16 @@ class ChatRepository @Inject constructor(
          */
         private const val CONTEXTUAL_PAGE_LIMIT = 50
         private const val CONTEXTUAL_MAX_PAGES_PER_SWEEP = 20
+
+        /** Own sends' cursors sit beside the incoming ones, per (contact, alias) - see
+         *  [syncOutgoingContextualMessages]. */
+        private const val OUTGOING_CURSOR_PREFIX = "out|"
+        /** How often the poll path reads the own sends of a chat that isn't on screen. */
+        private const val OUTGOING_SWEEP_INTERVAL_MS = 60_000L
+        /** iOS `legacyAliasPollIntervalMs`: quiet old-style aliases, once per launch, then daily. */
+        private const val LEGACY_OUTGOING_ALIAS_POLL_INTERVAL_MS = 24L * 60 * 60 * 1000
+        /** iOS's wait before it trusts that an own transaction isn't this device's send in flight. */
+        private const val OWN_SEND_PUSH_DELAY_MS = 3_000L
 
         /** How far behind a contact's cursor a catch-up sweep starts - iOS syncReorgBufferMs. */
         private const val SYNC_REORG_REWIND_MS = 10L * 60 * 1000

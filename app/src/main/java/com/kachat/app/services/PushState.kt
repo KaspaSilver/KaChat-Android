@@ -31,9 +31,7 @@ import javax.inject.Singleton
  * [NodePoolManager]'s probe loop additionally PAUSE while the app is backgrounded and this flag
  * is true (battery: an exempted background process must not poll forever when the server is the
  * delivery path) — both resume instantly on foreground or the flag turning false.
- * Group notifications are deliberately NOT gated anywhere: group push doesn't exist (the
- * registration is the LegacyV1 shape with no watched_group_ids), so the scanners stay the only
- * source for those.
+ * Groups too ([GroupRepository]): their pushes post the banner from the FCM handler.
  *
  * A separate dependency-free holder (rather than a flag on PushRegistrationManager) because the
  * manager depends on ChatRepository/BroadcastRepository — the very classes that need to read the

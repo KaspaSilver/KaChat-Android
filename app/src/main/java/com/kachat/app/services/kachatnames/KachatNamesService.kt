@@ -284,15 +284,17 @@ class KachatNamesService @Inject constructor(
      * Every UTXO at [addresses] with its covenant id, from a node (`GetUtxosByAddresses`, which
      * reports `covenant_id`). When no node can answer, the REST API's list - which cannot report
      * covenant ids (null), so a registry UTXO read that way never passes [liveRegistryUtxo]
-     * (iOS `UTXO.covenantId`, nil on the REST fallback).
+     * (iOS `UTXO.covenantId`, nil on the REST fallback). With [allowRestFallback] off the failure
+     * is thrown instead (iOS 4f8e14bb `allowRestFallback`).
      */
-    suspend fun utxosByAddresses(addresses: List<String>): List<Utxo> {
+    suspend fun utxosByAddresses(addresses: List<String>, allowRestFallback: Boolean = true): List<Utxo> {
         if (addresses.isEmpty()) return emptyList()
         val fromNode = try {
             withNode { conn -> conn.getUtxosByAddresses(addresses, timeoutMs = 15_000) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (!allowRestFallback) throw e
             Log.w(TAG, "node UTXO read failed, using the REST API: ${e.message}")
             null
         }
@@ -316,6 +318,12 @@ class KachatNamesService @Inject constructor(
                 }
             }
         }
+    }
+
+    /** [utxos] without the coins a transaction from this app has just spent (iOS d23e6f7a
+     *  `unreservedUtxos`): what a name transaction may fund itself from. */
+    fun unreservedUtxos(utxos: List<Utxo>): List<Utxo> = utxos.filterNot {
+        walletEngine.isReserved(com.kachat.app.services.Outpoint(hex(it.outpoint.txid), it.outpoint.index))
     }
 
     /** Whether a node still holds [txId] in its mempool (a commit not on chain yet: waiting, or
@@ -357,6 +365,40 @@ class KachatNamesService @Inject constructor(
         return u
     }
 
+    /**
+     * Whether [expected] signed [txId], from the transaction's own input signatures read from the
+     * REST API, which takes a couple of seconds to list a new transaction (iOS
+     * `ChatService.provenSender`). Anything short of a proof is false.
+     */
+    suspend fun isProvenSender(txId: String, expected: String): Boolean {
+        val api = networkService.kaspaRestApi.value ?: return false
+        var tx: com.kachat.app.services.TransactionResponse? = null
+        for (attempt in 0 until 3) {
+            if (attempt > 0) kotlinx.coroutines.delay(800)
+            tx = try {
+                api.getTransactionWithInputAddresses(txId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (tx != null) break
+        }
+        val found = tx ?: return false
+        val verdict = com.kachat.app.util.KaspaSignatureVerifier.checkReceivedTransaction(found, myAddress = "") { previousTxId, index ->
+            val previous = try {
+                api.getTransaction(previousTxId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            previous?.let { com.kachat.app.util.KaspaSignatureVerifier.outputAt(it, index) }
+        }
+        return verdict.check == com.kachat.app.util.KaspaSignatureVerifier.SignatureCheck.Valid &&
+            verdict.sender?.equals(expected, ignoreCase = true) == true
+    }
+
     // Signing and submit
 
     /** Submits a signed version-1 transaction; returns its id. Register and renew carry the price
@@ -365,6 +407,10 @@ class KachatNamesService @Inject constructor(
     suspend fun submit(tx: Tx): String {
         requireLaunched()
         val expected = tx.idHex
+        // Sent, its inputs stay out of every coin pick in the app until a node shows them spent
+        // (iOS d23e6f7a `submitRpcTransaction(expectedTxId:)`). Not with an unknown outcome: a
+        // resend then picks the same coins, so at most one can land (iOS 4f8e14bb).
+        val spent = tx.inputs.map { com.kachat.app.services.Outpoint(hex(it.outpoint.txid), it.outpoint.index) }
         // A node can accept it while its answer is lost and a raced node rejects it: looked up by
         // id before failing, so a retry never pays a price twice (iOS 9139e88, IOS-014).
         val txId = withContext(Dispatchers.IO) {
@@ -372,6 +418,7 @@ class KachatNamesService @Inject constructor(
                 nodePoolManager.getBroadcastConnection().submitRpcTransaction(rpcTransaction(tx))
             }
         }
+        walletEngine.reserveSpentOutpoints(spent)
         Log.i(TAG, "submitted $txId")
         if (txId.lowercase() != expected) throw ServiceError.SubmitMismatch(expected, txId)
         return txId

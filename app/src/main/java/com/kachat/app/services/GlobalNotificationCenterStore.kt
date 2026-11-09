@@ -107,6 +107,17 @@ class GlobalNotificationCenterStore @Inject constructor(
         persist()
     }
 
+    /** Delete Account: one wallet's feed, from this device (iOS d063b897). */
+    @Synchronized
+    fun removeAllData(walletAddress: String) {
+        prefs.edit().remove(entriesKey(walletAddress)).remove(seenKey(walletAddress)).apply()
+        if (loadedWallet == walletAddress) {
+            loadedWallet = null
+            _entries.value = emptyList()
+            _lastSeenAt.value = 0L
+        }
+    }
+
     // MARK: - Group @mentions
 
     /** Group chats carry their own unread counts and mention handling in the Chats tab, so

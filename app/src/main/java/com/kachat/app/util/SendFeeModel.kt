@@ -4,7 +4,7 @@ import com.kachat.app.services.UtxoEntry
 
 /**
  * The Send screens' fee model, as on iOS (SendKaspaComponents / SpendingAddressWithdrawView) and
- * the chat Send KAS sheet: a base fee priced at the quoted network rate on the REAL input count,
+ * the chat Send KAS sheet: a base fee priced at the network minimum on the REAL input count,
  * plus Fast / Priority / a custom fee as a flat extra on top, paid exactly
  * ([com.kachat.app.services.KaspaWalletEngine.sendKaspa]'s `extraFeeSompi`).
  *
@@ -20,23 +20,10 @@ object SendFeeModel {
      *  is not known yet. */
     const val STANDARD_SCRIPT_LEN = 34
 
-    /** Passes of [previewAutomaticSelection]'s fixed point. Each pass that does not settle adds at
-     *  least one input, so this only bounds pathological coin sets. */
-    private const val MAX_PREVIEW_PASSES = 16
-
     /** The extra over [baseFeeSompi]: the custom extra when one is set, else what the speed adds
      *  (Fast 2x, Priority 5x the base). */
     fun extraFee(baseFeeSompi: Long, feeMultiplier: Long, customExtraFeeSompi: Long?): Long =
         customExtraFeeSompi?.coerceAtLeast(0L) ?: (baseFeeSompi * (feeMultiplier - 1)).coerceAtLeast(0L)
-
-    /** The coins one transaction can spend: the [maxInputs] largest when there are more, else all
-     *  of them (order kept). Mirrors the engine's refusal of anything over
-     *  [KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION] inputs. */
-    fun largestSpendable(
-        utxos: List<UtxoEntry>,
-        maxInputs: Int = KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION,
-    ): List<UtxoEntry> =
-        if (utxos.size > maxInputs) utxos.sortedByDescending { it.utxoEntry.amount }.take(maxInputs) else utxos
 
     /** Base fee for [inputCount] inputs paying a recipient plus change. */
     fun baseFee(
@@ -61,9 +48,11 @@ object SendFeeModel {
 
     /**
      * Max for a send that spends [totalSompi] over [inputCount] inputs: what is left after the
-     * base fee and the extra. The extra is derived from this same base (or is the custom extra),
-     * never from a fee estimated for some other amount - so Max always leaves room for exactly the
-     * extra a Fast / Priority send of that amount adds.
+     * base fee, the buffer the send pays over it ([KaspaUtxoSelector.FEE_BUFFER_SOMPI], iOS
+     * `estimateSendAllFee`) and the extra. The extra is derived from this same base with that
+     * buffer, the fee the Review shows ([estimate], iOS d23e6f7a), or is the custom extra - never
+     * from a fee estimated for some other amount - so Max always leaves room for exactly the extra
+     * a Fast / Priority send of that amount adds. 0 when that is everything.
      */
     fun maxAfterFees(
         totalSompi: Long,
@@ -74,67 +63,93 @@ object SendFeeModel {
         payloadSize: Int = 0,
         /** See [baseFee]. */
         signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
+        recipientScriptLen: Int = STANDARD_SCRIPT_LEN,
+        changeScriptLen: Int = STANDARD_SCRIPT_LEN,
     ): Long {
-        val base = baseFee(inputCount, feeRateSompiPerGram, payloadSize, signatureScriptSize = signatureScriptSize)
-        val extra = extraFee(base, feeMultiplier, customExtraFeeSompi)
-        return (totalSompi - base - extra).coerceAtLeast(0L)
-    }
-
-    /** What an automatic-selection send of a given amount spends, and what it pays. Passing
-     *  [utxos] as coin control and [extraFeeSompi] as the extra reproduces exactly this fee. */
-    data class Preview(val utxos: List<UtxoEntry>, val baseFeeSompi: Long, val extraFeeSompi: Long) {
-        val totalFeeSompi: Long get() = baseFeeSompi + extraFeeSompi
+        val base = baseFee(inputCount, feeRateSompiPerGram, payloadSize, recipientScriptLen, changeScriptLen, signatureScriptSize)
+        val extra = extraFee(base + KaspaUtxoSelector.FEE_BUFFER_SOMPI, feeMultiplier, customExtraFeeSompi)
+        return (totalSompi - base - KaspaUtxoSelector.FEE_BUFFER_SOMPI - extra).coerceAtLeast(0L)
     }
 
     /**
-     * What automatic selection (largest-first, [KaspaUtxoSelector.selectUtxosAndCalculateFee] - the
-     * selector the real send runs) picks for [amountSompi], with the base fee priced on those
-     * inputs and the extra on top. Mirrors ColdStorageSendEngine.previewAutomaticSelection, which
-     * the Send screen's display used to lack: it assumed one input.
-     *
-     * The extra changes how many inputs are needed (they must cover amount + base + extra), and a
-     * tier's extra depends on the base, so this settles the two together. Whatever pass it ends
-     * on, [Preview.baseFeeSompi] is priced on the inputs selected WITH [Preview.extraFeeSompi], so
-     * a send passing that extra pays [Preview.totalFeeSompi]. Null when the coins cannot cover it,
-     * or when their amounts are not real values ([UtxoMath]).
+     * What a send costs (iOS bfe9f022 `SendFeeEstimate`). Change too small to keep goes to the fee
+     * ([KaspaUtxoSelector.SelectionResult.foldedChangeSompi]), which the wallet loses like any
+     * other fee, so it counts in what the Review shows. It isn't part of the base the speed tiers
+     * multiply, and a tier's extra comes out of it before anything more is spent.
      */
-    fun previewAutomaticSelection(
+    data class SendFeeEstimate(val networkFeeSompi: Long, val foldedChangeSompi: Long) {
+        fun total(extraSompi: Long): Long = networkFeeSompi + maxOf(extraSompi, foldedChangeSompi)
+    }
+
+    /**
+     * What a send of [amountSompi] costs (iOS `estimatePlainTransferFee` / `estimatePaymentFee`):
+     * coin control's exact [manual] coins, else what automatic selection picks from [utxos]. With no
+     * [extraFeeSompi] it is the Normal base the speeds multiply; with one, the screens show this
+     * estimate's network fee plus its folded change, the shape the send builds at that speed. The
+     * network fee is priced on the outputs that transaction really has, with the selector's
+     * [KaspaUtxoSelector.FEE_BUFFER_SOMPI] the send pays over it - part of what it pays, so part of
+     * the fee shown (iOS d23e6f7a `estimatePlainTransferFee`). Throws [KaspaUtxoSelector.SendRefusedException] when the send can't go
+     * (not enough for the amount and fee, real change that storage mass won't let stand, more
+     * inputs than one transaction holds), and an [IllegalStateException] when the coins' amounts
+     * are not real values ([UtxoMath]). No estimate means no fee: the Review shows a dash.
+     */
+    fun estimate(
         utxos: List<UtxoEntry>,
+        manual: List<UtxoEntry>?,
         amountSompi: Long,
-        feeRateSompiPerGram: Long,
-        feeMultiplier: Long = 1L,
-        customExtraFeeSompi: Long? = null,
+        feeRateSompiPerGram: Long = KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM,
+        payloadSize: Int = 0,
         recipientScriptLen: Int = STANDARD_SCRIPT_LEN,
         changeScriptLen: Int = STANDARD_SCRIPT_LEN,
         /** See [baseFee]. */
         signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
-    ): Preview? {
-        if (amountSompi <= 0 || utxos.isEmpty()) return null
-        var extra = customExtraFeeSompi?.coerceAtLeast(0L) ?: 0L
-        var preview: Preview? = null
-        repeat(MAX_PREVIEW_PASSES) {
-            val selection = try {
-                KaspaUtxoSelector.selectUtxosAndCalculateFee(
-                    utxos = utxos,
-                    amountSompi = amountSompi,
-                    feeRateSompiPerGram = feeRateSompiPerGram,
-                    payloadBytes = null,
-                    recipientScriptLen = recipientScriptLen,
-                    changeScriptLen = changeScriptLen,
-                    extraFeeSompi = extra,
-                    signatureScriptSize = signatureScriptSize,
-                )
-            } catch (e: IllegalStateException) {
-                return null // invalid node data (UtxoMath): no preview rather than a wrong one
-            }
-            if (selection.totalSelected < selection.requiredAmount) return null
-            val base = selection.estimatedFee - extra
-            val settled = Preview(selection.selectedUtxos, base, extra)
-            preview = settled
-            val next = extraFee(base, feeMultiplier, customExtraFeeSompi)
-            if (next == extra) return settled
-            extra = next
+        /** A Fast / Priority / custom extra: the coins are picked and the change worked out with
+         *  it, as the send does, and the network fee returned includes it (iOS
+         *  `estimatePaymentFee(extraFeeSompi:)`). Change too small to keep then goes on top. */
+        extraFeeSompi: Long = 0L,
+    ): SendFeeEstimate {
+        // Only its size is priced.
+        val payload = if (payloadSize > 0) ByteArray(payloadSize) else null
+        val selection = if (!manual.isNullOrEmpty()) {
+            KaspaUtxoSelector.selectManualUtxosAndCalculateFee(
+                utxos = manual,
+                amountSompi = amountSompi,
+                feeRateSompiPerGram = feeRateSompiPerGram,
+                recipientScriptLen = recipientScriptLen,
+                changeScriptLen = changeScriptLen,
+                payloadBytes = payload,
+                extraFeeSompi = extraFeeSompi,
+                signatureScriptSize = signatureScriptSize,
+                allowNoChangeOutput = true,
+            )
+        } else {
+            KaspaUtxoSelector.selectUtxosAndCalculateFee(
+                utxos = utxos,
+                amountSompi = amountSompi,
+                feeRateSompiPerGram = feeRateSompiPerGram,
+                payloadBytes = payload,
+                recipientScriptLen = recipientScriptLen,
+                changeScriptLen = changeScriptLen,
+                extraFeeSompi = extraFeeSompi,
+                signatureScriptSize = signatureScriptSize,
+                allowNoChangeOutput = true,
+            )
         }
-        return preview
+        selection.refusal?.let { throw KaspaUtxoSelector.SendRefusedException(it) }
+        return SendFeeEstimate(selection.estimatedFee, selection.foldedChangeSompi)
+    }
+
+    /**
+     * Coin control for a Review's fee or Max (iOS d23e6f7a `resolveReviewSelection`): the picked
+     * coins of [manual] still in [spendable], by outpoint; null for automatic selection (nothing
+     * picked). When none of the picks is left it throws [goneMessage] - the send's own refusal,
+     * `R.string.selected_utxos_are_no_longer_available_please` - rather than estimating automatic
+     * selection for a send that would then refuse to go.
+     */
+    fun resolveReviewSelection(manual: List<UtxoEntry>?, spendable: List<UtxoEntry>, goneMessage: String): List<UtxoEntry>? {
+        if (manual.isNullOrEmpty()) return null
+        val freshByOutpoint = spendable.associateBy { it.outpoint }
+        return manual.mapNotNull { freshByOutpoint[it.outpoint] }.takeIf { it.isNotEmpty() }
+            ?: throw IllegalStateException(goneMessage)
     }
 }

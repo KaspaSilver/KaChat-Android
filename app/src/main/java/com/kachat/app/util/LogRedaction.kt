@@ -12,3 +12,17 @@ package com.kachat.app.util
  * probe failure you cannot attribute to a node is not a diagnostic.
  */
 fun String.redactedForLog(): String = if (length <= 8) this else "…" + takeLast(8)
+
+/** A full Kaspa address (`kaspa:`, `kaspatest:`, or the `_` form used in keys and file names). */
+private val logAddressPattern = Regex(
+    "\\b(?:kaspa|kaspatest|kaspasim|kaspadev)[:_]([a-z0-9]{12,})",
+    RegexOption.IGNORE_CASE
+)
+
+/**
+ * Every address in a log line cut to "…" and its last 8 characters, wherever it came from (a
+ * format argument, a URL, a key name), so call sites need no care of their own. Mirrors iOS's
+ * `AppLog.shortenAddresses` (d23e6f7a).
+ */
+fun shortenAddresses(text: String): String =
+    logAddressPattern.replace(text) { match -> "…" + match.groupValues[1].takeLast(8) }

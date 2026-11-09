@@ -162,4 +162,45 @@ class KasiaCipherTest {
 
         assertEquals(aliasATagsOutgoingToB, aliasBWatchesForA)
     }
+
+    @Test
+    fun `a send sealed with the sender key is read back by the seed and by the recipient`() {
+        val senderPriv = randomScalarBytes()
+        val recipientPriv = randomScalarBytes()
+        val recipientPub = Schnorr.publicKeyXOnly(recipientPriv)
+
+        val sealed = KasiaCipher.encrypt("hello from another device", recipientPub, senderPrivateKey = senderPriv)
+
+        assertEquals("hello from another device", KasiaCipher.decrypt(sealed, recipientPriv))
+        assertEquals("hello from another device", KasiaCipher.decryptSent(sealed, senderPriv, recipientPub))
+    }
+
+    @Test
+    fun `the ephemeral key of a send is HKDF of the chatting key salted by the nonce`() {
+        val senderPriv = randomScalarBytes()
+        val recipientPub = Schnorr.publicKeyXOnly(randomScalarBytes())
+
+        val sealed = KasiaCipher.encrypt("x", recipientPub, senderPrivateKey = senderPriv)
+
+        val generator = HKDFBytesGenerator(SHA256Digest())
+        generator.init(HKDFParameters(senderPriv, sealed.nonce, "kachat-sent-message-v1".toByteArray(Charsets.US_ASCII)))
+        val expected = ByteArray(32).also { generator.generateBytes(it, 0, 32) }
+        val expectedPublic = Secp256k1.G.multiply(BigInteger(1, expected)).normalize().getEncoded(true)
+        assertArrayEquals(expectedPublic, sealed.ephemeralPublicKey)
+    }
+
+    @Test
+    fun `a send sealed with a random key can not be read back`() {
+        val senderPriv = randomScalarBytes()
+        val recipientPub = Schnorr.publicKeyXOnly(randomScalarBytes())
+
+        val sealed = KasiaCipher.encrypt("old send", recipientPub)
+
+        try {
+            KasiaCipher.decryptSent(sealed, senderPriv, recipientPub)
+            fail("A random ephemeral key must not read back")
+        } catch (e: KasiaCipher.NotReadableBackException) {
+            // expected
+        }
+    }
 }

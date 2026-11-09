@@ -61,6 +61,38 @@ class NodeRegistry {
         records.replaceAll { _, r -> r.copy(consecutiveFailures = 0) }
     }
 
+    /**
+     * The Active nodes, best first: the fastest, with nodes behind the rest by more than
+     * [DAA_DELTA_WINDOW] after the others (iOS 4f8e14bb NodeSelector, freshness as a soft signal).
+     * The reference is the median across Active nodes, so a few lagging or lying ones can't move
+     * it; each score is carried forward to now, as nodes are probed minutes apart and a score that
+     * old would read as lag.
+     */
+    fun activeBestFirst(nowMs: Long = System.currentTimeMillis()): List<NodeRecord> {
+        val active = records.values.filter { statusOf(it) == "Active" }
+        val scores = active.mapNotNull { projectedDaaScore(it, nowMs) }.sorted()
+        val reference = if (scores.isEmpty()) null else scores[scores.size / 2]
+        return active.sortedWith(
+            compareBy<NodeRecord>(
+                { record ->
+                    val daa = projectedDaaScore(record, nowMs)
+                    reference != null && daa != null && reference - daa > DAA_DELTA_WINDOW
+                },
+                { it.lastProbe?.latencyMs ?: Long.MAX_VALUE },
+            )
+        )
+    }
+
+    /** A node's reported DAA score carried forward to now; null when the report is missing, not
+     *  a real value (it comes from a node found through peer gossip) or past [PROFILE_TTL_MS]. */
+    private fun projectedDaaScore(record: NodeRecord, nowMs: Long): Long? {
+        val daa = record.lastProbe?.takeIf { it.reachable }?.virtualDaaScore?.takeIf { it in 0..MAX_DAA_SCORE } ?: return null
+        val probedAt = record.lastSuccessAt ?: return null
+        val age = nowMs - probedAt
+        if (age < 0 || age > PROFILE_TTL_MS) return null
+        return daa + age / 1000 * DAA_PER_SECOND
+    }
+
     /** Most recent successful probe across every known node — drives the "Last Sync" field. */
     fun lastSuccessAt(): Long? = records.values.mapNotNull { it.lastSuccessAt }.maxOrNull()
 
@@ -76,5 +108,16 @@ class NodeRegistry {
             r.lastProbe.isSynced == false -> "Suspect" // reachable but not synced — don't trust its data
             else -> "Active"
         }
+    }
+
+    private companion object {
+        /** Behind by more than this is lag: about ten seconds of blocks (iOS `daaDeltaWindow`). */
+        const val DAA_DELTA_WINDOW = 100L
+        /** 10 blocks a second (iOS `daaPerSecond`). */
+        const val DAA_PER_SECOND = 10L
+        /** How long a node's reported score means anything: probes are 30-60 s apart. */
+        const val PROFILE_TTL_MS = 5 * 60 * 1000L
+        /** Far above any real score, so carrying one forward can't overflow. */
+        const val MAX_DAA_SCORE = Long.MAX_VALUE / 2
     }
 }

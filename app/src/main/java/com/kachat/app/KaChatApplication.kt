@@ -135,6 +135,10 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var paymentNoticeOutbox: dagger.Lazy<com.kachat.app.services.PaymentNoticeOutbox>
 
+    /** Everyone's profile looked up again hourly while the app is open (iOS d1844582). */
+    @Inject
+    lateinit var contactProfileRescanner: dagger.Lazy<com.kachat.app.services.ContactProfileRescanner>
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory()).build()
 
@@ -265,6 +269,7 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // push-covered surfaces — the local paths stop posting their own banners.
                 startupStep("notifications: background") { notificationHelper.get().setAppForeground(false) }
                 startupStep("address activity: background") { addressActivityNotifier.get().onAppBackground() }
+                startupStep("profile rescans: background") { contactProfileRescanner.get().stop() }
                 // Backgrounding is the natural "done chatting" moment — run the Nextcloud
                 // automatic sync then: a catch-up when the last upload is an hour old or the
                 // persisted dirty flag says a sync is owed (NEXTCLOUD_SYNC.md §6). autoBackupIfDue
@@ -283,15 +288,15 @@ class KaChatApplication : Application(), Configuration.Provider {
                 // Immediate catch-up diff for address activity (external receipts while the app
                 // was closed, first-run silent baseline seeding), then its foreground poll loop.
                 startupStep("address activity: foreground") { addressActivityNotifier.get().onAppForeground() }
+                // While the app is open, everyone's profile once an hour (iOS d1844582).
+                startupStep("profile rescans: foreground") { contactProfileRescanner.get().start() }
                 // A batch of gRPC connections can die silently while backgrounded/asleep (the OS
                 // tears down sockets, and each KaspadConnection's own self-reconnect can be
                 // suspended along with the rest of the app) - reconnect any that are dead right
                 // now instead of waiting for the next 5-30s probe cycle to notice and replace them.
                 startupStep("node pool: reconnect") { nodePoolManager.get().reconnectStaleConnections() }
                 // This wallet's own profile follows the chain on every network (a profile saved
-                // on another device shows here; iOS 5d4ce87), and .kachat registrations in flight
-                // (where names are live) resume after a relaunch: commit -> wait ->
-                // register continues by itself.
+                // on another device shows here; iOS 5d4ce87).
                 startupStep(".kachat resume") {
                     if (com.kachat.app.services.kachatnames.KachatNamesService.profilesEnabled) {
                         kachatNamesActions.get().resume()

@@ -1,6 +1,7 @@
 package com.kachat.app.services
 
 import android.util.Log
+import com.kachat.app.util.shortenAddresses
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
@@ -21,9 +22,11 @@ object CallDiagnostics {
 
     @Synchronized
     fun log(tag: String, message: String) {
-        Log.i(tag, message)
+        // calls.log goes out in the diagnostics export: no full address in it, as on iOS
+        val line = shortenAddresses(message)
+        Log.i(tag, line)
         if (lines.size >= MAX_LINES) lines.removeFirst()
-        lines.addLast("${stamp.format(Date())} $tag: $message")
+        lines.addLast("${stamp.format(Date())} $tag: $line")
     }
 
     @Synchronized

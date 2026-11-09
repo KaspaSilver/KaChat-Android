@@ -50,7 +50,8 @@ data class MessageEntity(
         /**
          * Exact content of the cross-device fill-in row iOS creates when a device discovers this
          * wallet's own outgoing message on-chain but cannot decrypt it (own sends are encrypted
-         * for the recipient). Android never creates these itself, but archives written by iOS can
+         * for the recipient) and can't read it back either: a send from before the seed could
+         * (iOS bfe9f022, ChatRepository.fileOwnSend). Archives written by iOS can
          * carry them, and builds before the import-time skip (see
          * ChatHistoryExportImportService.importArchive) inserted them as real rows. They must
          * NEVER be visible in any UI. Mirrors iOS's ChatMessage.sentViaOtherDevicePlaceholder -
@@ -199,7 +200,7 @@ data class ContactEntity(
     val systemContactName: String? = null,
     val systemContactPhotoUri: String? = null,
     val systemContactLinkSource: String? = null,
-    val photoAutoDisplayOverride: String? = null, // PhotoAutoDisplayMode.name, null = automatic (see ChatRepository.shouldAutoDisplayPhotos)
+    val photoAutoDisplayOverride: String? = null, // Legacy per-contact photo setting (iOS d1844582 replaced it with one rule, ChatRepository.photosUnlockAt); the column stays so the table shape is unchanged, nothing reads it
     val notificationOverride: String? = null, // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
     val backupPhotoBase64: String? = null, // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS photo (e.g. a photo set on desktop)
     @Deprecated("Superseded by callsEnabled (calls are off by default now); the column stays so the table shape is unchanged.")

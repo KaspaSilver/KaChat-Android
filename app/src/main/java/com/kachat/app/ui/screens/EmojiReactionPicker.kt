@@ -117,6 +117,7 @@ fun EmojiReactionPickerSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var recents by remember { mutableStateOf(EmojiRecents.load(context)) }
     var query by remember { mutableStateOf("") }
+    val recentsTitle = androidx.compose.ui.res.stringResource(com.kachat.app.R.string.recents)
 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
@@ -166,7 +167,7 @@ fun EmojiReactionPickerSheet(
                         val trimmed = query.trim().lowercase()
                         val sections = buildList {
                             if (trimmed.isEmpty()) {
-                                if (recents.isNotEmpty()) add("Recents" to recents)
+                                if (recents.isNotEmpty()) add(recentsTitle to recents)
                                 addAll(EmojiSections)
                             } else {
                                 EmojiSections.forEach { (title, emojis) ->

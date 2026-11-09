@@ -20,6 +20,8 @@ object MessageProtocol {
     const val VERSION         = "1"
     const val TYPE_HANDSHAKE  = "handshake"
     const val TYPE_COMM       = "comm"
+    /** A chat's alias: 6 bytes as 12 hex characters. */
+    private const val COMM_ALIAS_LENGTH = 12
     /** A first-contact message: `kchat:1:dm:<inbox tag>:<alias>:<sealed>` - a `comm` message plus
      *  the recipient's [InboxTag], so they can find it without knowing the sender
      *  (NO_HANDSHAKE_MESSAGING.md). Only ever written, never stored as its own type. */
@@ -149,14 +151,15 @@ object MessageProtocol {
     /**
      * Builds `kchat:1:pay:<raw sealed bytes>` - the [PaymentPayload] JSON encrypted to the
      * recipient's chatting key, appended after the ASCII prefix exactly as a handshake is (iOS hex
-     * encodes the prefix and the sealed bytes and decodes the whole back into raw bytes). Only the
-     * recipient can read the memo, so the sender's own bubble keeps it from send time (iOS 2be75ed).
+     * encodes the prefix and the sealed bytes and decodes the whole back into raw bytes). The memo
+     * is sealed to the recipient; with [senderPrivateKey] the seed reads it back on another device
+     * too ([decryptSentPayment], iOS bfe9f022).
      */
-    fun buildPaymentPayload(note: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): ByteArray {
+    fun buildPaymentPayload(note: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): ByteArray {
         val json = com.google.gson.Gson().toJson(
             PaymentPayload(message = note, amount = amountSompi, timestamp = System.currentTimeMillis())
         )
-        return PAY_PREFIX_BYTES + encrypt(json, recipientXOnlyPubKey).toBytes()
+        return PAY_PREFIX_BYTES + encrypt(json, recipientXOnlyPubKey, senderPrivateKey).toBytes()
     }
 
     /**
@@ -165,11 +168,11 @@ object MessageProtocol {
      * field (iOS `KasiaTransactionBuilder.sealedPaymentHex`, KAPOSTS_INDEXER.md 5.11). The same
      * bytes [buildPaymentPayload] puts after `kchat:1:pay:`.
      */
-    fun sealedPaymentHex(note: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): String {
+    fun sealedPaymentHex(note: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): String {
         val json = com.google.gson.Gson().toJson(
             PaymentPayload(message = note, amount = amountSompi, timestamp = System.currentTimeMillis())
         )
-        return encrypt(json, recipientXOnlyPubKey).toBytes().joinToString("") { "%02x".format(it) }
+        return encrypt(json, recipientXOnlyPubKey, senderPrivateKey).toBytes().joinToString("") { "%02x".format(it) }
     }
 
     // -------------------------------------------------------------------------
@@ -217,8 +220,8 @@ object MessageProtocol {
      * chat as a Message Request instead of filing it in their self-chat (NO_HANDSHAKE_MESSAGING.md
      * section 4, iOS 1eb4708). On read, an empty message is no memo.
      */
-    fun paymentMemoPayload(memo: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray): ByteArray =
-        buildPaymentPayload(memo.trim(), amountSompi, recipientXOnlyPubKey)
+    fun paymentMemoPayload(memo: String, amountSompi: Long, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): ByteArray =
+        buildPaymentPayload(memo.trim(), amountSompi, recipientXOnlyPubKey, senderPrivateKey)
 
     /** True for a payment payload of any root (new or legacy) - and a KaPosts tip, which is a chat
      *  payment to the post's author that names the post (iOS a6bd60a). */
@@ -228,20 +231,63 @@ object MessageProtocol {
      *  when it isn't one or can't be opened (sent to someone else, corrupt). A tip's sealed record
      *  is read from its last field, the same record a chat payment carries. */
     fun decryptPaymentPayload(rawBytes: ByteArray, privateKey: ByteArray): PaymentPayload? {
+        val sealed = paymentSealedMessage(rawBytes) ?: return null
+        return try {
+            parsePaymentPayload(decrypt(sealed, privateKey))
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * A payment this wallet sent, read back with the seed (iOS `decryptSentPayment`, bfe9f022):
+     * its memo isn't otherwise readable here. Null for what can't be read this way: a send from
+     * before sends were recoverable, or one from another client.
+     */
+    fun decryptSentPayment(rawBytes: ByteArray, senderPrivateKey: ByteArray, recipientXOnlyPubKey: ByteArray): PaymentPayload? {
+        val sealed = paymentSealedMessage(rawBytes) ?: return null
+        return try {
+            parsePaymentPayload(KasiaCipher.decryptSent(sealed, senderPrivateKey, recipientXOnlyPubKey))
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** The sealed record inside a raw payment payload (iOS `rawPaymentSealedBytes`). */
+    private fun paymentSealedMessage(rawBytes: ByteArray): KasiaCipher.EncryptedMessage? {
         val sealedBytes = tipSealedBytes(rawBytes) ?: run {
             val prefixLen = paymentPrefixLength(rawBytes) ?: return null
             rawBytes.copyOfRange(prefixLen, rawBytes.size)
         }
-        val sealed = KasiaCipher.EncryptedMessage.fromBytes(sealedBytes) ?: return null
-        return try {
-            val payload = com.google.gson.Gson().fromJson(decrypt(sealed, privateKey), PaymentPayload::class.java)
-            // Gson leaves a missing field null rather than failing - a payload without its memo
-            // field is treated as unreadable, not as a crash later on.
-            @Suppress("SENSELESS_COMPARISON")
-            if (payload == null || payload.message == null) null else payload
-        } catch (e: Exception) {
-            null
+        return KasiaCipher.EncryptedMessage.fromBytes(sealedBytes)
+    }
+
+    @Suppress("SENSELESS_COMPARISON")
+    private fun parsePaymentPayload(json: String): PaymentPayload? {
+        val payload = com.google.gson.Gson().fromJson(json, PaymentPayload::class.java)
+        // Gson leaves a missing field null rather than failing - a payload without its memo
+        // field is treated as unreadable, not as a crash later on.
+        return if (payload == null || payload.message == null) null else payload
+    }
+
+    /**
+     * Reads back a message this wallet sent, from either form the chain's payload reaches us in
+     * (iOS `decryptSentMessageSync`, bfe9f022): the indexer's hex(base64(sealed)) or a raw
+     * `kchat:1:comm:ALIAS:BASE64` transaction payload. Null for what can't be read this way:
+     * anything sent before sends were recoverable, or by another client.
+     */
+    fun decryptSentMessage(payloadHex: String, senderPrivateKey: ByteArray, recipientXOnlyPubKey: ByteArray): String? = try {
+        val bytes = ByteArray(payloadHex.length / 2) { i -> payloadHex.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
+        val normalized = normalizeFirstContact(String(bytes, Charsets.UTF_8))
+        val base64 = if (normalized.startsWith("$PREFIX:$VERSION:$TYPE_COMM:") || normalized.startsWith("$LEGACY_PREFIX:$VERSION:$TYPE_COMM:")) {
+            normalized.substringAfterLast(':')
+        } else {
+            normalized
         }
+        KasiaCipher.EncryptedMessage.fromBytes(Base64.getDecoder().decode(base64))
+            ?.let { KasiaCipher.decryptSent(it, senderPrivateKey, recipientXOnlyPubKey) }
+    } catch (e: Exception) {
+        null
     }
 
     /** The on-chain payload size of a chat payment's [paymentMemoPayload] (an empty [note] too),
@@ -255,18 +301,29 @@ object MessageProtocol {
         return PAY_PREFIX_BYTES.size + 12 + 33 + json.toByteArray(Charsets.UTF_8).size + 16
     }
 
-    fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray): KasiaCipher.EncryptedMessage =
-        KasiaCipher.encrypt(plaintext, recipientXOnlyPubKey)
+    /** The on-chain size of a [buildCommPayload] message of [plaintextBytes] bytes, for the chat's
+     *  fee pill (iOS estimateMessageFee prices this payload). A first-contact message's inbox tag
+     *  is left out, as iOS's estimate leaves it out. */
+    fun estimatedCommPayloadSize(plaintextBytes: Int): Int {
+        // nonce(12) + compressed ephemeral key(33) + ciphertext + Poly1305 tag(16), in base64
+        val base64 = ((12 + 33 + plaintextBytes + 16 + 2) / 3) * 4
+        return "$PREFIX:$VERSION:$TYPE_COMM:".length + COMM_ALIAS_LENGTH + 1 + base64
+    }
+
+    fun encrypt(plaintext: String, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): KasiaCipher.EncryptedMessage =
+        KasiaCipher.encrypt(plaintext, recipientXOnlyPubKey, senderPrivateKey)
 
     /**
      * The sealed body of a 1:1 (`comm` / `dm`) message - iOS `encryptContextualMessage`: a photo
      * or voice note (media-file JSON with an image/audio base64 data URL) travels as the binary
      * media frame, raw bytes with one base64 layer instead of two; everything else as UTF-8 text.
-     * Groups and public chats never come through here.
+     * Groups and public chats never come through here. With [senderPrivateKey] (a real send; a
+     * payload only built, never put on chain, leaves it out as iOS does) the seed can read it back:
+     * see [KasiaCipher.decryptSent].
      */
-    fun encryptContextual(content: String, recipientXOnlyPubKey: ByteArray): KasiaCipher.EncryptedMessage =
-        ContextualMediaFrame.frameForEnvelope(content)?.let { KasiaCipher.encrypt(it, recipientXOnlyPubKey) }
-            ?: KasiaCipher.encrypt(content, recipientXOnlyPubKey)
+    fun encryptContextual(content: String, recipientXOnlyPubKey: ByteArray, senderPrivateKey: ByteArray? = null): KasiaCipher.EncryptedMessage =
+        ContextualMediaFrame.frameForEnvelope(content)?.let { KasiaCipher.encrypt(it, recipientXOnlyPubKey, senderPrivateKey) }
+            ?: KasiaCipher.encrypt(content, recipientXOnlyPubKey, senderPrivateKey)
 
     fun decrypt(encrypted: KasiaCipher.EncryptedMessage, privateKey: ByteArray): String =
         KasiaCipher.decrypt(encrypted, privateKey)
